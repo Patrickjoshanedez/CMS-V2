@@ -14,6 +14,8 @@ This document describes all MongoDB collections used in Phase 1 of the Capstone 
 | `teams`          | Capstone project teams                    |
 | `teaminvites`    | Pending team membership invitations       |
 | `notifications`  | In-app notification messages              |
+| `projects`       | Capstone projects with title workflow      |
+| `submissions`    | Chapter uploads with versioning & review  |
 
 ---
 
@@ -181,4 +183,61 @@ User N──────1 Team (via teamId)
 Team 1──────N TeamInvite
 Team 1──────1 User (leaderId)
 User 1──────N Notification
+Team 1──────N Project
+Project 1───N Submission
+User 1──────N Submission (submittedBy)
+User 1──────N Submission (reviewedBy)
 ```
+
+---
+
+## 8. Submissions Collection
+
+> Added in Sprint 6 — Cloud Storage, Document Upload & Versioning
+
+```
+{
+  _id: ObjectId,
+  projectId: ObjectId (ref: Project, required),
+  chapter: Number (1–5, required),
+  version: Number (default: 1),
+  fileName: String (required),
+  fileType: String (required, enum: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain),
+  fileSize: Number (required),
+  storageKey: String (required — S3 object key),
+  status: String (enum: pending, under_review, approved, revisions_required, rejected, locked — default: pending),
+  originalityScore: Number | null (populated async by plagiarism job),
+  submittedBy: ObjectId (ref: User, required),
+  reviewedBy: ObjectId | null (ref: User),
+  isLate: Boolean (default: false),
+  remarks: String | null (required if isLate),
+  reviewNote: String | null,
+  annotations: [
+    {
+      _id: ObjectId,
+      userId: ObjectId (ref: User, required),
+      page: Number (default: 1),
+      content: String (required),
+      highlightCoords: { x: Number, y: Number, width: Number, height: Number } | null,
+      createdAt: Date
+    }
+  ],
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes:**
+- `{ projectId: 1, chapter: 1, version: 1 }` (unique compound)
+- `{ status: 1, createdAt: -1 }`
+- `{ submittedBy: 1, createdAt: -1 }`
+
+**Business Rules:**
+- Version auto-increments on re-upload for a given project + chapter
+- Approved submissions are automatically locked
+- Locked chapters block new uploads until faculty unlocks them
+- Late submissions require a remarks field (enforced server-side)
+- Only students can upload; only faculty can review, unlock, and annotate
+- Annotations are embedded subdocuments; author or instructor can remove
+- `storageKey` format: `projects/{projectId}/chapters/{chapter}/v{version}/{safeFileName}`
+- Document viewing uses temporary pre-signed S3 URLs (15 min expiry)

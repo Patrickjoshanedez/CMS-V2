@@ -550,3 +550,204 @@ When rate limited, the server responds with HTTP 429:
   }
 }
 ```
+
+---
+
+## Submissions
+
+All submission endpoints are under `/api/submissions`. Authentication required.
+
+### `POST /api/submissions/:projectId/chapters`
+
+Upload a chapter draft for a capstone project. Student-only.
+
+**Auth:** Bearer token (JWT cookie). Roles: `student`
+**Content-Type:** `multipart/form-data`
+
+**Request:**
+| Field     | Type   | Required    | Description                              |
+| --------- | ------ | ----------- | ---------------------------------------- |
+| file      | binary | yes         | PDF, DOCX, or TXT — max 25 MB           |
+| chapter   | number | yes (param) | Chapter number (1–5)                     |
+| remarks   | string | conditional | Required if submission is past deadline   |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Chapter uploaded successfully",
+  "data": { "submission": { "_id": "...", "chapter": 1, "version": 1, "status": "pending", ... } }
+}
+```
+
+**Errors:** 400 (validation), 403 (not student / title not approved / chapter locked), 409 (late without remarks)
+
+---
+
+### `GET /api/submissions/:submissionId`
+
+Get a single submission by ID.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "submission": { "_id": "...", "chapter": 1, "version": 2, "status": "approved", "annotations": [...], ... } }
+}
+```
+
+---
+
+### `GET /api/submissions/:submissionId/view`
+
+Generate a temporary pre-signed URL (15 min) to view the uploaded document.
+
+**Auth:** Bearer token. Roles: all authenticated
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "url": "https://s3.amazonaws.com/...", "expiresIn": 900 }
+}
+```
+
+---
+
+### `GET /api/submissions/project/:projectId`
+
+List all submissions for a project.
+
+**Auth:** Bearer token. Roles: all authenticated
+**Query Params:** `chapter` (optional, 1–5), `page`, `limit`, `sort`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "submissions": [...],
+    "pagination": { "total": 12, "page": 1, "limit": 20, "pages": 1 }
+  }
+}
+```
+
+---
+
+### `GET /api/submissions/project/:projectId/chapters/:chapter`
+
+Get version history for a specific chapter.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "submissions": [{ "version": 3, ... }, { "version": 2, ... }, { "version": 1, ... }] }
+}
+```
+
+---
+
+### `GET /api/submissions/project/:projectId/chapters/:chapter/latest`
+
+Get only the latest version submission for a chapter.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "submission": { "_id": "...", "version": 3, "status": "pending", ... } }
+}
+```
+
+---
+
+### `POST /api/submissions/:submissionId/review`
+
+Approve, request revisions, or reject a submission. Faculty-only.
+
+**Auth:** Bearer token. Roles: `adviser`, `instructor`
+
+**Request Body:**
+| Field      | Type   | Required | Description                                                   |
+| ---------- | ------ | -------- | ------------------------------------------------------------- |
+| status     | string | yes      | One of: `approved`, `revisions_required`, `rejected`          |
+| reviewNote | string | no       | Feedback from the reviewer                                    |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Submission approved",
+  "data": { "submission": { "status": "approved", "reviewedBy": "...", ... } }
+}
+```
+
+**Note:** Approving a submission automatically sets its status to `locked`.
+
+---
+
+### `POST /api/submissions/:submissionId/unlock`
+
+Unlock a locked submission to allow re-upload. Faculty-only.
+
+**Auth:** Bearer token. Roles: `adviser`, `instructor`
+
+**Request Body:**
+| Field  | Type   | Required | Description              |
+| ------ | ------ | -------- | ------------------------ |
+| reason | string | yes      | Reason for unlocking     |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Submission unlocked",
+  "data": { "submission": { "status": "revisions_required", ... } }
+}
+```
+
+---
+
+### `POST /api/submissions/:submissionId/annotations`
+
+Add a highlight/comment annotation to a submission. Faculty-only.
+
+**Auth:** Bearer token. Roles: `adviser`, `panelist`, `instructor`
+
+**Request Body:**
+| Field           | Type   | Required | Description                          |
+| --------------- | ------ | -------- | ------------------------------------ |
+| content         | string | yes      | The annotation text                  |
+| page            | number | no       | Page number reference (default: 1)   |
+| highlightCoords | object | no       | `{ x, y, width, height }` rectangle |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": { "submission": { "annotations": [...] } }
+}
+```
+
+---
+
+### `DELETE /api/submissions/:submissionId/annotations/:annotationId`
+
+Remove an annotation. Author or instructor can delete.
+
+**Auth:** Bearer token. Roles: `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Annotation removed",
+  "data": { "submission": { "annotations": [...] } }
+}
+```

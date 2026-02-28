@@ -10,6 +10,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.3.0] — Sprint 6: Cloud Storage, Document Upload & Versioning
+
+### Added
+
+**Server — Submission Module**
+- `Submission` Mongoose model with chapter (1–5), versioning, file metadata, status lifecycle, annotations (embedded subdocuments), and review tracking
+- Compound indexes: `{projectId, chapter, version}` (unique), `{status, createdAt}`, `{submittedBy, createdAt}`
+- 10 Zod validation schemas: project/submission/chapter ID params, upload body, review body, unlock body, annotation body, list query
+- `SubmissionService` class (10 methods): uploadChapter (auto-version), getSubmission, getSubmissionsByProject, getChapterHistory, getLatestChapterSubmission, getViewUrl, reviewSubmission (approve auto-locks), unlockSubmission, addAnnotation, removeAnnotation
+- `SubmissionController` with 10 thin `catchAsync` handlers
+- 10 RESTful API endpoints mounted at `/api/submissions` (student upload, faculty review/unlock/annotate, shared view/list/history)
+- 8 new submission notification types added to notification model
+
+**Server — Cloud Storage Integration**
+- AWS S3 client configuration (`config/storage.js`) with region and credentials from environment
+- `StorageService`: `buildKey()` for tenant-prefixed S3 keys (`projects/{id}/chapters/{ch}/v{n}/{file}`), `uploadFile()`, `getSignedUrl()` (15 min expiry), `deleteFile()`
+- File upload middleware (`multer` memory storage, 25 MB limit, single file)
+- Binary MIME-type validation middleware using `file-type` library (magic-byte inspection for PDF/DOCX, fallback for TXT)
+- Environment variables added: `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `MAX_UPLOAD_SIZE_MB`
+
+**Server — Tests**
+- 31 integration tests for submissions: upload (8 tests), retrieval (5), review (5), unlock (3), annotations (4), edge cases & security (6)
+- S3 operations fully mocked (upload, getSignedUrl, delete)
+- Total test count: 118 (87 existing + 31 new submission tests) — all passing
+
+**Client — Submission Service & Hooks**
+- `submissionService.js` — API service layer with 10 methods (multipart upload with progress, CRUD, review, annotations)
+- `useSubmissions.js` — React Query hooks: `submissionKeys` factory, 5 query hooks (`useSubmission`, `useProjectSubmissions`, `useChapterHistory`, `useLatestChapter`, `useViewUrl`), 5 mutation hooks (`useUploadChapter`, `useReviewSubmission`, `useUnlockSubmission`, `useAddAnnotation`, `useRemoveAnnotation`)
+
+**Client — Submission Components**
+- `SubmissionStatusBadge` — colour-coded badge mapping 6 submission statuses to badge variants (warning, info, success, destructive, secondary)
+
+**Client — Submission Pages**
+- `ChapterUploadPage` — file upload with styled dropzone, client-side MIME + size validation, chapter selector, progress bar, late-submission remarks, character counter
+- `ProjectSubmissionsPage` — list view with chapter filter tabs, status badges, version/late indicators, empty state with upload CTA
+- `SubmissionDetailPage` — full detail view with file metadata, document viewer (pre-signed URL), faculty review panel (approve/revisions/reject), unlock panel for locked submissions, annotations panel with add/remove
+
+**Client — Routing**
+- 3 new lazy-loaded routes: `/project/submissions`, `/project/submissions/upload`, `/project/submissions/:submissionId`
+
+**Documentation**
+- `API.md` — 10 new submission endpoints documented with request/response schemas
+- `DATABASE.md` — Submissions collection schema, indexes, business rules, updated entity relationships
+- `ARCHITECTURE.md` — Updated feature modules, cloud storage diagram, submission hooks docs, security table
+
+---
+
 ## [0.2.0] — Sprint 5: Project Creation, Title Workflow & Assignment
 
 ### Added

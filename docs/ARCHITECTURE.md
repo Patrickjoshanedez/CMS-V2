@@ -29,6 +29,7 @@ The Capstone Management System (CMS) is a full-stack MERN application following 
 │   ├───────────────────────────────────────────┤ │
 │   │ Feature Modules:                          │ │
 │   │   auth/ → users/ → teams/ → notifications/│ │
+│   │   → projects/ → submissions/              │ │
 │   │   (validation → controller → service)     │ │
 │   ├───────────────────────────────────────────┤ │
 │   │ Cross-Cutting:                             │ │
@@ -41,7 +42,14 @@ The Capstone Management System (CMS) is a full-stack MERN application following 
 ┌─────────────────────────────────────────────────┐
 │              MongoDB (Database)                   │
 │   Collections: users, otps, refreshtokens,        │
-│   teams, teaminvites, notifications               │
+│   teams, teaminvites, notifications,              │
+│   projects, submissions                           │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│           AWS S3 (Cloud Storage)                  │
+│   Bucket: Private, pre-signed URL access only     │
+│   Key pattern: projects/{id}/chapters/{ch}/v{n}/  │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -141,6 +149,14 @@ App
 - **Response interceptor** — on 401, queues failed requests, attempts token refresh, retries
 - **Service objects** — `authService`, `userService`, `teamService`, `notificationService`
 - Each service method returns the Axios promise (data extracted by caller)
+- **submissionService** — dedicated service for file upload (multipart) and all submission CRUD/review/annotation operations
+
+### Submission Hooks (`useSubmissions.js`)
+
+- `submissionKeys` factory for cache key management
+- 5 query hooks: `useSubmission`, `useProjectSubmissions`, `useChapterHistory`, `useLatestChapter`, `useViewUrl`
+- 5 mutation hooks: `useUploadChapter`, `useReviewSubmission`, `useUnlockSubmission`, `useAddAnnotation`, `useRemoveAnnotation`
+- Mutations invalidate both `submissionKeys.all` and `projectKeys.all` on success
 
 ### Theme System
 
@@ -175,6 +191,9 @@ Workspace package consumed by both client and server:
 | HTTP headers      | Helmet.js defaults                                 |
 | CORS              | Restricted to CLIENT_URL origin only               |
 | Authorization     | Role-based middleware + route-level checks          |
+| File uploads      | multer (memory) + magic-byte MIME validation        |
+| Cloud storage     | AWS S3 private bucket, pre-signed URLs (15 min)     |
+| File type safety  | Binary signature check via file-type library         |
 
 ---
 

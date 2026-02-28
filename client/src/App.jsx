@@ -19,6 +19,9 @@ const CreateProjectPage = lazy(() => import('./pages/projects/CreateProjectPage'
 const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
 const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
+const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPage'));
+const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
+const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 /**
@@ -173,6 +176,32 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProjectDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Submission routes */}
+          <Route
+            path="/project/submissions"
+            element={
+              <ProtectedRoute>
+                <ProjectSubmissionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/submissions/upload"
+            element={
+              <ProtectedRoute>
+                <ChapterUploadPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project/submissions/:submissionId"
+            element={
+              <ProtectedRoute>
+                <SubmissionDetailPage />
               </ProtectedRoute>
             }
           />
