@@ -157,8 +157,9 @@ class AuthService {
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user);
+    // Generate tokens — pass a plain payload object (jwt.sign requires it)
+    const tokenPayload = { userId: user._id.toString(), role: user.role };
+    const accessToken = generateAccessToken(tokenPayload);
     const refreshTokenString = generateRefreshTokenString();
     const hashedRefreshToken = hashToken(refreshTokenString);
 
@@ -219,8 +220,9 @@ class AuthService {
       throw new AppError('User not found or deactivated.', 401, 'USER_INVALID');
     }
 
-    // Generate new tokens (rotation)
-    const newAccessToken = generateAccessToken(user);
+    // Generate new tokens (rotation) — pass a plain payload object
+    const tokenPayload = { userId: user._id.toString(), role: user.role };
+    const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshTokenString = generateRefreshTokenString();
     const newHashedRefreshToken = hashToken(newRefreshTokenString);
 

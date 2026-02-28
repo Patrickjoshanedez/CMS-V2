@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — Phase 2 Planning
+
+### Added
+- Phase 2 Strategy document (`docs/PHASE_2_STRATEGY.md`) covering the complete Capstone 1 workflow: project creation, title submission with similarity detection, cloud storage uploads, adviser review with annotations, plagiarism checker integration, document locking, unlock requests, and proposal compilation
+- Five sprint plans (Sprints 5–9) with ~120 tasks across backend, frontend, and documentation
+- Three new database collection schemas: `projects`, `submissions`, `unlockrequests`
+- ~40 new API endpoint specifications across projects, submissions, reviews, and unlock requests
+- Third-party integration plans: AWS S3, Copyleaks API, Redis/BullMQ
+- Risk register with 9 identified risks and mitigations
+- Phase 1 completion gap analysis (Sprint 4 prerequisites)
+- Phase 2 → Phase 3 handoff checklist
+
+---
+
 ## [0.1.0] — 2025-01-15
 
 ### Added

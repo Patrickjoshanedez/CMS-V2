@@ -1,0 +1,153 @@
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/stores/authStore';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { User, Mail, Shield, Camera } from 'lucide-react';
+
+/**
+ * ProfilePage — user profile view and edit.
+ * Displays name, email, role, and profile picture.
+ * Allows editing name and profile picture.
+ */
+
+export default function ProfilePage() {
+  const { user, fetchUser } = useAuthStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (!user) fetchUser();
+  }, [user, fetchUser]);
+
+  useEffect(() => {
+    if (user) setName(user.name || '');
+  }, [user]);
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const initials = user.name
+    ?.split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const roleLabel = user.role?.charAt(0).toUpperCase() + user.role?.slice(1);
+
+  const handleSave = () => {
+    // TODO: Integrate with user update API
+    setIsEditing(false);
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-2xl font-bold tracking-tight">Profile</h3>
+          <p className="text-muted-foreground">View and manage your account information.</p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Profile summary card */}
+          <Card className="lg:col-span-1">
+            <CardContent className="flex flex-col items-center pt-6">
+              <div className="relative">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
+                  {initials || '?'}
+                </div>
+                <button
+                  className="absolute bottom-0 right-0 rounded-full border-2 border-background bg-muted p-1.5 text-muted-foreground hover:bg-accent"
+                  aria-label="Change profile picture"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <h4 className="mt-4 text-lg font-semibold">{user.name}</h4>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+                <Shield className="h-3 w-3" />
+                {roleLabel}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Editable details */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-lg">Account Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-name">
+                  <span className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Full Name
+                  </span>
+                </Label>
+                {isEditing ? (
+                  <Input
+                    id="profile-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                ) : (
+                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">{user.name}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profile-email">
+                  <span className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5" />
+                    Email Address
+                  </span>
+                </Label>
+                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                  {user.email}
+                  <span className="ml-2 text-xs">(cannot be changed)</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  <span className="flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5" />
+                    Role
+                  </span>
+                </Label>
+                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                  {roleLabel}
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <Button onClick={handleSave}>Save Changes</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" onClick={() => setIsEditing(true)}>
+                  Edit Profile
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

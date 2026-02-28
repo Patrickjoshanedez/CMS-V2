@@ -31,7 +31,7 @@ const refreshTokenSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
-refreshTokenSchema.index({ token: 1 }, { unique: true });
+// Note: token already has unique:true at field level — no need to duplicate
 refreshTokenSchema.index({ userId: 1 });
 // TTL index: auto-delete expired tokens (cleanup even if not revoked)
 refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

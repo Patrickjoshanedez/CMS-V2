@@ -75,7 +75,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
-userSchema.index({ email: 1 }, { unique: true });
+// Note: email already has unique:true at field level — no need to duplicate
 userSchema.index({ role: 1 });
 userSchema.index({ teamId: 1 });
 userSchema.index({ email: 1, role: 1 });

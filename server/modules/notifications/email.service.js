@@ -43,6 +43,11 @@ const getTransporter = () => {
  * @returns {Promise<Object>} Nodemailer send result
  */
 export const sendEmail = async ({ to, subject, text, html }) => {
+  // Skip actual email dispatch in test environment
+  if (process.env.NODE_ENV === 'test') {
+    return { messageId: 'test-message-id', accepted: [to] };
+  }
+
   const transport = getTransporter();
 
   const mailOptions = {

@@ -40,7 +40,7 @@ const teamInviteSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
-teamInviteSchema.index({ token: 1 }, { unique: true });
+// Note: token already has unique:true at field level — no need to duplicate
 teamInviteSchema.index({ teamId: 1 });
 teamInviteSchema.index({ email: 1, teamId: 1 });
 // TTL index: auto-cleanup expired invites
