@@ -61,9 +61,11 @@ export const sendEmail = async ({ to, subject, text, html }) => {
   const info = await transport.sendMail(mailOptions);
 
   if (env.isDevelopment) {
+    // eslint-disable-next-line no-console
     console.log('Email sent: %s', info.messageId);
     // If using Ethereal, log the preview URL
     if (info.messageId && nodemailer.getTestMessageUrl(info)) {
+      // eslint-disable-next-line no-console
       console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
     }
   }
@@ -80,9 +82,7 @@ export const sendEmail = async ({ to, subject, text, html }) => {
 export const sendOtpEmail = async (email, otp, type) => {
   const isVerification = type === 'verification';
 
-  const subject = isVerification
-    ? 'Verify Your Email — CMS'
-    : 'Password Reset Code — CMS';
+  const subject = isVerification ? 'Verify Your Email — CMS' : 'Password Reset Code — CMS';
 
   const text = isVerification
     ? `Your email verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`

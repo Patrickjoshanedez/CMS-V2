@@ -22,13 +22,13 @@ class UserService {
 
   /**
    * Update the currently authenticated user's own profile.
-   * Only name and profilePicture can be self-updated.
+   * Only firstName, middleName, lastName, and profilePicture can be self-updated.
    * @param {string} userId
-   * @param {Object} data - { name?, profilePicture? }
+   * @param {Object} data - { firstName?, middleName?, lastName?, profilePicture? }
    * @returns {Object} { user }
    */
   async updateMe(userId, data) {
-    const allowedFields = ['name', 'profilePicture'];
+    const allowedFields = ['firstName', 'middleName', 'lastName', 'profilePicture'];
     const updateData = {};
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
@@ -62,17 +62,15 @@ class UserService {
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
       ];
     }
 
     const [users, total] = await Promise.all([
-      User.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('teamId', 'name'),
+      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('teamId', 'name'),
       User.countDocuments(filter),
     ]);
 
@@ -134,11 +132,7 @@ class UserService {
    * @returns {Object} { user }
    */
   async changeRole(userId, role) {
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { role },
-      { new: true, runValidators: true },
-    );
+    const user = await User.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
@@ -154,11 +148,7 @@ class UserService {
    * @returns {Object} { user }
    */
   async deleteUser(userId) {
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { isActive: false },
-      { new: true },
-    );
+    const user = await User.findByIdAndUpdate(userId, { isActive: false }, { new: true });
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');

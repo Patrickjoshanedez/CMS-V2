@@ -8,7 +8,7 @@ import { authService, userService } from '../services/authService';
  * we track `isAuthenticated` and `user` client-side for UI purposes.
  * Actual auth enforcement happens server-side.
  */
-export const useAuthStore = create((set, get) => ({
+export const useAuthStore = create((set, _get) => ({
   // State
   user: null,
   isAuthenticated: false,

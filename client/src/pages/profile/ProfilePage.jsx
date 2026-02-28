@@ -16,14 +16,20 @@ import { User, Mail, Shield, Camera } from 'lucide-react';
 export default function ProfilePage() {
   const { user, fetchUser } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   useEffect(() => {
     if (!user) fetchUser();
   }, [user, fetchUser]);
 
   useEffect(() => {
-    if (user) setName(user.name || '');
+    if (user) {
+      setFirstName(user.firstName || '');
+      setMiddleName(user.middleName || '');
+      setLastName(user.lastName || '');
+    }
   }, [user]);
 
   if (!user) {
@@ -36,12 +42,8 @@ export default function ProfilePage() {
     );
   }
 
-  const initials = user.name
-    ?.split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials =
+    [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const roleLabel = user.role?.charAt(0).toUpperCase() + user.role?.slice(1);
 
@@ -73,7 +75,7 @@ export default function ProfilePage() {
                   <Camera className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <h4 className="mt-4 text-lg font-semibold">{user.name}</h4>
+              <h4 className="mt-4 text-lg font-semibold">{user.fullName}</h4>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Shield className="h-3 w-3" />
@@ -89,20 +91,60 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="profile-name">
+                <Label htmlFor="profile-firstName">
                   <span className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    Full Name
+                    First Name
                   </span>
                 </Label>
                 {isEditing ? (
                   <Input
-                    id="profile-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    id="profile-firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">{user.name}</p>
+                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                    {user.firstName}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profile-middleName">
+                  <span className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Middle Name <span className="text-muted-foreground">(optional)</span>
+                  </span>
+                </Label>
+                {isEditing ? (
+                  <Input
+                    id="profile-middleName"
+                    value={middleName}
+                    onChange={(e) => setMiddleName(e.target.value)}
+                  />
+                ) : (
+                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                    {user.middleName || '—'}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profile-lastName">
+                  <span className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5" />
+                    Last Name
+                  </span>
+                </Label>
+                {isEditing ? (
+                  <Input
+                    id="profile-lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                ) : (
+                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">{user.lastName}</p>
                 )}
               </div>
 

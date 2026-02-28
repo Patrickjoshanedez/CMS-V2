@@ -47,7 +47,7 @@ Phase 2 transforms the CMS from a user/team management shell into a **functional
 ### Mapping to `.instructions.md` Rules
 
 | Rule | Phase 2 Focus Areas |
-|------|-------------------|
+| ------ | ------------------- |
 | **Rule 1 (Architecture)** | New feature modules (`/modules/projects`, `/modules/submissions`, `/modules/plagiarism`), service layer for all business logic, cloud storage config |
 | **Rule 2 (Security)** | MIME-type validation (magic bytes), secure cloud storage (pre-signed URLs), file-type allowlist, document locking enforcement server-side |
 | **Rule 3 (Data Management)** | Cloud storage for binaries, metadata in MongoDB, versioning, signed URLs with expiration, deadline enforcement |
@@ -67,7 +67,7 @@ Before Phase 2 development begins, the following Phase 1 gaps must be closed:
 Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not executed. The following must be completed first:
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S4-GAP-01 | Run `npm install` in root (workspace) to install all dependencies | Critical |
 | S4-GAP-02 | Create `.env` from `.env.example` for local development | Critical |
 | S4-GAP-03 | Verify server starts and connects to MongoDB | Critical |
@@ -89,7 +89,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### 2B. External Account Setup
 
 | Service | Purpose | Action Required |
-|---------|---------|----------------|
+| --------- | --------- | ---------------- |
 | **AWS S3** (or Cloudinary / Google Cloud Storage) | Cloud storage for uploaded documents | Create bucket, IAM credentials, configure CORS for signed URL uploads |
 | **Copyleaks API** | Plagiarism/originality checking | Register account, obtain API key & sandbox credentials |
 | **Redis** | BullMQ job queue for async plagiarism jobs and email queue | Install Redis locally or configure a cloud Redis instance |
@@ -102,7 +102,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### Included in Phase 2
 
 | Feature | Description | Rule Ref |
-|---------|-------------|----------|
+| --------- | ------------- | ---------- |
 | **Project Creation** | Teams create a capstone project linked to their team, academic year, and capstone phase (1–4) | Rule 4 |
 | **Title Submission & Similarity Check** | System cross-references existing titles using Levenshtein distance + MongoDB text search; alerts team if >70% similarity detected | Rule 4, CMS Guidelines §2 |
 | **Title Approval Workflow** | Instructor reviews submitted titles; approves or requests revision; approved titles become read-only unless formal modification request is submitted | Rule 2 (document locking) |
@@ -128,7 +128,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ## 4. What Phase 2 Does NOT Include (Deferred to Phase 3+)
 
 | Feature | Deferred To | Reason |
-|---------|------------|--------|
+| --------- | ------------ | -------- |
 | Capstone 2 & 3 development/implementation workflow | Phase 3 | Requires Capstone 1 workflow to be stable first |
 | Prototype showcasing (images, videos, web links) | Phase 3 | Capstone 2 & 3 feature |
 | Capstone 4 final defense & archiving | Phase 4 | End-of-lifecycle feature |
@@ -157,7 +157,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Backend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S5-01 | Create **Project** Mongoose model (`/server/modules/projects/project.model.js`) — fields: teamId, title, abstract, keywords, academicYear, capstonePhase, titleStatus, projectStatus, adviserId, panelistIds, deadlines, remarks | Backend | Critical |
 | S5-02 | Create **ProjectService** (`/server/modules/projects/project.service.js`) with methods: `createProject`, `submitTitle`, `getProjectByTeam`, `getProjectById`, `updateProject`, `approveTitle`, `rejectTitle`, `requestTitleModification`, `approveTitleModification`, `assignAdviser`, `assignPanelist`, `removePanelist`, `rejectProject` | Backend | Critical |
 | S5-03 | Create **ProjectController** and **project.routes.js** — RESTful endpoints for all project operations | Backend | Critical |
@@ -178,7 +178,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Frontend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S5-17 | Build **Create Project page** — form with title, abstract, keywords input (tag input), academic year selector; shows similarity warning if duplicates detected; submit button | Frontend | Critical |
 | S5-18 | Build **Project Dashboard** component — displays project title, status badge, assigned adviser/panelists, chapter submission status, deadlines | Frontend | Critical |
 | S5-19 | Build **Title Submission Alert** — when similarity >70%, show dialog listing similar titles with percentages; allow student to proceed or revise | Frontend | High |
@@ -193,7 +193,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Documentation
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S5-27 | Update `API.md` with all project endpoints | High |
 | S5-28 | Update `DATABASE.md` with Project schema | High |
 | S5-29 | Update `CHANGELOG.md` | High |
@@ -221,7 +221,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Backend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S6-01 | Configure **AWS S3** (or compatible service) — create bucket, set CORS policy, configure IAM role with minimal permissions (PutObject, GetObject, DeleteObject) | DevOps | Critical |
 | S6-02 | Create **storage config** (`/server/config/storage.js`) — S3 client initialization, bucket name, region; abstracted behind a `StorageService` interface so provider can be swapped | Backend | Critical |
 | S6-03 | Create **StorageService** (`/server/services/storage.service.js`) with methods: `uploadFile(buffer, key, contentType)`, `getSignedUrl(key, expiresIn)`, `deleteFile(key)` — single file for all S3 interaction; provider-agnostic interface | Backend | Critical |
@@ -244,7 +244,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Frontend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S6-19 | Build **Chapter Upload** component — file dropzone (drag-and-drop + click), shows accepted file types, file size limit, upload progress bar, preview of selected file name/size before submission | Frontend | Critical |
 | S6-20 | Build **Chapter Submission Page** — per-chapter section showing: current status, latest version info, submission history (version list with dates and scores), upload button (if eligible), remarks textarea (shows only if past deadline) | Frontend | Critical |
 | S6-21 | Build **Submission History** component — expandable list of all versions for a chapter; each row shows version number, date, originality score (or "Processing..."), status badge | Frontend | High |
@@ -257,7 +257,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Documentation
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S6-27 | Update `API.md` with submission endpoints (upload, get, signed URL) | High |
 | S6-28 | Update `DATABASE.md` with Submission schema | High |
 | S6-29 | Update `ARCHITECTURE.md` with cloud storage architecture and signed URL flow | High |
@@ -289,7 +289,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Backend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S7-01 | Create **Annotation** embedded schema within Submission — `{ text, highlightRange: { start, end, pageNumber }, comment, createdBy, createdAt }` — stores adviser highlights and comments linked to a specific submission version | Backend | Critical |
 | S7-02 | Create **ReviewService** (`/server/modules/submissions/review.service.js`) with methods: `addAnnotation`, `getAnnotations`, `updateSubmissionStatus`, `approveChapter`, `rejectChapter`, `requestRevisions` | Backend | Critical |
 | S7-03 | Create **Review endpoints** in `submission.routes.js`: `POST /api/submissions/:id/annotations` (add annotation), `GET /api/submissions/:id/annotations`, `PATCH /api/submissions/:id/status` (approve/reject/request-revisions) | Backend | Critical |
@@ -307,7 +307,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Frontend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S7-14 | Build **Adviser Review Page** — split view: document viewer on left, annotations panel on right; highlight text in PDF → comment form appears → save annotation | Frontend | Critical |
 | S7-15 | Build **Annotation Overlay** component — renders highlight rectangles on the PDF viewer at the correct positions; click a highlight to see the comment | Frontend | Critical |
 | S7-16 | Build **Review Actions Bar** — buttons for: "Request Revisions", "Approve Chapter", "Reject Chapter"; confirmation dialogs with optional comment | Frontend | High |
@@ -321,7 +321,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Documentation
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S7-23 | Update `API.md` with review, annotation, unlock request endpoints | High |
 | S7-24 | Update `DATABASE.md` with Annotation schema and UnlockRequest schema | High |
 | S7-25 | Update `CHANGELOG.md` | High |
@@ -352,7 +352,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Backend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S8-01 | Set up **Redis** connection (`/server/config/redis.js`) — connect to Redis instance using `ioredis`; export client instance | Backend | Critical |
 | S8-02 | Set up **BullMQ** queue system (`/server/jobs/queue.js`) — create `plagiarismQueue` and `emailQueue`; configure worker concurrency and retry policies | Backend | Critical |
 | S8-03 | Create **Copyleaks service adapter** (`/server/services/copyleaks.service.js`) — abstracted interface: `submitDocument(text)` → returns `scanId`; `getScanResult(scanId)` → returns `{ originalityScore, matchedSources[] }`; provider-agnostic so Copyleaks can be swapped | Backend | Critical |
@@ -370,7 +370,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Frontend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S8-14 | Build **Originality Score Badge** component — displays score as a colored badge: green (>80%), yellow (60–80%), red (<60%); shows "Processing..." with spinner while `plagiarismStatus === 'processing'` | Frontend | High |
 | S8-15 | Implement **polling for plagiarism result** — after upload, React Query polls `GET /api/submissions/:id/plagiarism` every 5 seconds until status is `completed` or `failed` (max 60 polls = 5 minutes) | Frontend | High |
 | S8-16 | Build **Plagiarism Report** component — expandable section showing matched sources list: source title, URL (if available), match percentage | Frontend | Medium |
@@ -379,7 +379,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Documentation
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S8-18 | Update `ARCHITECTURE.md` with async job queue architecture diagram (upload → BullMQ → Copyleaks → result) | High |
 | S8-19 | Update `API.md` with plagiarism endpoint | High |
 | S8-20 | Update `DATABASE.md` with PlagiarismResult schema | High |
@@ -411,7 +411,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Backend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S9-01 | Implement **proposal compilation** endpoint `POST /api/projects/:id/compile-proposal` — validates all chapters are approved; team uploads the unified proposal PDF; stored as a special "proposal" submission type | Backend | Critical |
 | S9-02 | Implement **proposal approval workflow** — same status flow as chapters but at the project level; once proposal is approved, project status becomes `proposal_approved` | Backend | High |
 | S9-03 | Write **end-to-end integration tests** for the full Capstone 1 lifecycle: create project → submit title → approve title → upload Ch.1 → plagiarism check → adviser review → approve → repeat for Ch.2 & 3 → compile proposal → approve proposal | Backend | Critical |
@@ -425,7 +425,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Frontend Tasks
 
 | ID | Task | Owner | Priority |
-|----|------|-------|----------|
+| ---- | ------ | ------- | ---------- |
 | S9-10 | Build **Proposal Compilation Page** — shows all approved chapters with status; "Compile Proposal" button that opens upload form for the unified document | Frontend | High |
 | S9-11 | Build **Instructor: All Projects Overview** — table/grid of all projects with status filters, search by title/team/adviser; click to view project detail | Frontend | High |
 | S9-12 | Build **Panelist: My Groups** page — list of groups the panelist has selected; project status, submissions, originality scores | Frontend | High |
@@ -438,7 +438,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 #### Documentation
 
 | ID | Task | Priority |
-|----|------|----------|
+| ---- | ------ | ---------- |
 | S9-18 | Finalize `API.md` for all Phase 2 endpoints | High |
 | S9-19 | Finalize `DATABASE.md` for all Phase 2 schemas | High |
 | S9-20 | Update `ARCHITECTURE.md` with complete Phase 2 system diagram | High |
@@ -467,7 +467,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### 6.1 `projects`
 
 | Field | Type | Constraints | Notes |
-|-------|------|-------------|-------|
+| ------- | ------ | ------------- | ------- |
 | `_id` | ObjectId | auto | |
 | `teamId` | ObjectId | ref: `teams`, required, unique | One project per team |
 | `title` | String | required, min 10 chars | Full project title |
@@ -490,7 +490,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### 6.2 `submissions`
 
 | Field | Type | Constraints | Notes |
-|-------|------|-------------|-------|
+| ------- | ------ | ------------- | ------- |
 | `_id` | ObjectId | auto | |
 | `projectId` | ObjectId | ref: `projects`, required | |
 | `chapter` | Number | 1-5 (1-3 for chapters, 4 for proposal, 5 reserved) | |
@@ -515,7 +515,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### 6.3 `unlockrequests`
 
 | Field | Type | Constraints | Notes |
-|-------|------|-------------|-------|
+| ------- | ------ | ------------- | ------- |
 | `_id` | ObjectId | auto | |
 | `submissionId` | ObjectId | ref: `submissions`, required | The locked submission |
 | `projectId` | ObjectId | ref: `projects`, required | For querying by project |
@@ -536,7 +536,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### Projects (`/api/projects`)
 
 | Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
+| -------- | ------ | ------ | ------- | ------------- |
 | POST | `/api/projects` | Bearer | Student (leader) | Create a new project for the team |
 | GET | `/api/projects/me` | Bearer | Student | Get current team's project |
 | GET | `/api/projects/:id` | Bearer | All (role-filtered) | Get project details |
@@ -558,7 +558,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### Submissions (`/api/submissions`)
 
 | Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
+| -------- | ------ | ------ | ------- | ------------- |
 | POST | `/api/projects/:projectId/submissions` | Bearer | Student (team member) | Upload a chapter (multipart/form-data) |
 | GET | `/api/projects/:projectId/submissions` | Bearer | All (role-filtered) | List all submissions for a project |
 | GET | `/api/submissions/:id` | Bearer | All (role-filtered) | Get submission details |
@@ -569,7 +569,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### Reviews & Annotations (`/api/submissions/:id/...`)
 
 | Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
+| -------- | ------ | ------ | ------- | ------------- |
 | POST | `/api/submissions/:id/annotations` | Bearer | Adviser | Add annotation to submission |
 | GET | `/api/submissions/:id/annotations` | Bearer | Adviser, Instructor, Student (own) | Get annotations for submission |
 | PATCH | `/api/submissions/:id/status` | Bearer | Adviser | Change submission status (approve/reject/request-revisions) |
@@ -577,7 +577,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 ### Unlock Requests (`/api/unlock-requests`)
 
 | Method | Path | Auth | Roles | Description |
-|--------|------|------|-------|-------------|
+| -------- | ------ | ------ | ------- | ------------- |
 | POST | `/api/submissions/:id/unlock-request` | Bearer | Student (team member) | Request to unlock a locked chapter |
 | GET | `/api/unlock-requests` | Bearer | Adviser | Get pending unlock requests for assigned teams |
 | PATCH | `/api/unlock-requests/:id` | Bearer | Adviser | Approve or deny unlock request |
@@ -587,7 +587,7 @@ Phase 1's Sprint 4 (Integration Testing, Polish & Handoff) was defined but not e
 
 ## 8. Folder Structure (End of Phase 2)
 
-```
+```text
 CMS V2/
 ├── client/
 │   ├── src/
@@ -694,7 +694,7 @@ CMS V2/
 ### 9.1 AWS S3 (Cloud Storage)
 
 | Aspect | Detail |
-|--------|--------|
+| -------- | -------- |
 | **Purpose** | Store uploaded PDF/DOCX chapter files |
 | **npm Packages** | `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` |
 | **Key Structure** | `projects/{projectId}/chapters/{chapterNum}/v{version}/{fileName}` |
@@ -706,7 +706,7 @@ CMS V2/
 ### 9.2 Copyleaks API (Plagiarism Checker)
 
 | Aspect | Detail |
-|--------|--------|
+| -------- | -------- |
 | **Purpose** | Originality/plagiarism checking for uploaded documents |
 | **npm Packages** | `plagiarism-checker` (Copyleaks SDK) or direct HTTP calls via Axios |
 | **Flow** | Extract text → Submit to Copyleaks → Poll for result → Store score |
@@ -719,7 +719,7 @@ CMS V2/
 ### 9.3 Redis (Job Queue)
 
 | Aspect | Detail |
-|--------|--------|
+| -------- | -------- |
 | **Purpose** | BullMQ message broker for async plagiarism and email jobs |
 | **npm Packages** | `ioredis`, `bullmq` |
 | **Queues** | `plagiarism-check`, `email-dispatch` |
@@ -729,7 +729,7 @@ CMS V2/
 ### 9.4 Text Extraction Libraries
 
 | Library | Purpose | npm Package |
-|---------|---------|-------------|
+| --------- | --------- | ------------- |
 | **pdf-parse** | Extract text content from PDF files | `pdf-parse` |
 | **mammoth** | Extract text content from DOCX files | `mammoth` |
 
@@ -738,7 +738,7 @@ CMS V2/
 ## 10. Risk Register
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
+| ------ | ----------- | -------- | ------------ |
 | **Copyleaks API rate limits or outages** | Medium | High | Implement robust retry logic with exponential backoff; fallback mock mode for dev/testing; alert system for persistent failures; consider caching results for re-checks of identical content |
 | **S3 upload failures** (network, permissions) | Low | High | Retry mechanism in `StorageService`; validate IAM permissions in deployment checklist; use multipart upload for large files; client-side retry on failure |
 | **PDF text extraction quality varies** | Medium | Medium | `pdf-parse` struggles with scanned/image-only PDFs; document this limitation in user guides; consider OCR integration in Phase 3+ for scanned documents |
@@ -804,7 +804,7 @@ Phase 2 is the **core domain logic phase** — it transforms the CMS from a user
 ### Phase 2 Sprint Summary
 
 | Sprint | Duration | Focus | Key Deliverables |
-|--------|----------|-------|-----------------|
+| -------- | ---------- | ------- | ----------------- |
 | **Sprint 5** | 2 weeks | Project & Title | Project model, title similarity, adviser/panelist assignment, project dashboards |
 | **Sprint 6** | 2 weeks | Upload & Storage | S3 integration, chapter uploads, MIME validation, versioning, document viewer |
 | **Sprint 7** | 2 weeks | Review & Locking | Adviser annotations, status workflow, document locking, unlock requests |
@@ -814,7 +814,7 @@ Phase 2 is the **core domain logic phase** — it transforms the CMS from a user
 ### New Dependencies (npm packages to add)
 
 | Package | Purpose | Install Location |
-|---------|---------|-----------------|
+| --------- | --------- | ----------------- |
 | `@aws-sdk/client-s3` | S3 file operations | server |
 | `@aws-sdk/s3-request-presigner` | Pre-signed URL generation | server |
 | `multer` | File upload handling (multipart/form-data) | server |

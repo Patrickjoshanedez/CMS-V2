@@ -14,10 +14,19 @@ import { useAuthStore } from '@/stores/authStore';
 
 const registerSchema = z
   .object({
-    name: z
+    firstName: z
       .string()
-      .min(2, 'Name must be at least 2 characters.')
-      .max(100, 'Name must not exceed 100 characters.'),
+      .min(2, 'First name must be at least 2 characters.')
+      .max(50, 'First name must not exceed 50 characters.'),
+    middleName: z
+      .string()
+      .max(50, 'Middle name must not exceed 50 characters.')
+      .optional()
+      .default(''),
+    lastName: z
+      .string()
+      .min(2, 'Last name must be at least 2 characters.')
+      .max(50, 'Last name must not exceed 50 characters.'),
     email: z.string().email('Please enter a valid email address.'),
     password: z
       .string()
@@ -49,14 +58,23 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
   });
 
   const onSubmit = async (data) => {
     try {
       clearError();
       await registerUser({
-        name: data.name,
+        firstName: data.firstName,
+        middleName: data.middleName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
       });
@@ -79,19 +97,51 @@ export default function RegisterPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Full name */}
-        <div className="space-y-2">
-          <Label htmlFor="name">Full name</Label>
-          <Input
-            id="name"
-            type="text"
-            placeholder="Juan Dela Cruz"
-            autoComplete="name"
-            {...register('name')}
-          />
-          {errors.name && (
-            <p className="text-xs text-destructive">{errors.name.message}</p>
-          )}
+        {/* Name fields */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="firstName">First name</Label>
+            <Input
+              id="firstName"
+              type="text"
+              placeholder="Juan"
+              autoComplete="given-name"
+              {...register('firstName')}
+            />
+            {errors.firstName && (
+              <p className="text-xs text-destructive">{errors.firstName.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="middleName">
+              Middle name <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="middleName"
+              type="text"
+              placeholder="Dela"
+              autoComplete="additional-name"
+              {...register('middleName')}
+            />
+            {errors.middleName && (
+              <p className="text-xs text-destructive">{errors.middleName.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last name</Label>
+            <Input
+              id="lastName"
+              type="text"
+              placeholder="Cruz"
+              autoComplete="family-name"
+              {...register('lastName')}
+            />
+            {errors.lastName && (
+              <p className="text-xs text-destructive">{errors.lastName.message}</p>
+            )}
+          </div>
         </div>
 
         {/* Email */}
@@ -104,9 +154,7 @@ export default function RegisterPage() {
             autoComplete="email"
             {...register('email')}
           />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
         {/* Password */}
@@ -130,9 +178,7 @@ export default function RegisterPage() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-xs text-destructive">{errors.password.message}</p>
-          )}
+          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
 
         {/* Confirm password */}

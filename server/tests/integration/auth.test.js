@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  request,
-  createAgent,
-  createVerifiedUser,
-  createAuthenticatedAgent,
-} from '../helpers.js';
-import User from '../../modules/users/user.model.js';
+import { request, createVerifiedUser, createAuthenticatedAgent } from '../helpers.js';
 
 /**
  * Auth flow integration tests — covers registration, login, token refresh,
@@ -20,7 +14,8 @@ describe('Auth API — /api/auth', () => {
   describe('POST /api/auth/register', () => {
     it('should register a new user and return 201', async () => {
       const res = await request.post('/api/auth/register').send({
-        name: 'Alice Doe',
+        firstName: 'Alice',
+        lastName: 'Doe',
         email: 'alice@example.com',
         password: 'Password123',
         confirmPassword: 'Password123',
@@ -37,14 +32,16 @@ describe('Auth API — /api/auth', () => {
 
     it('should reject duplicate email with 409', async () => {
       await request.post('/api/auth/register').send({
-        name: 'Bob',
+        firstName: 'Bob',
+        lastName: 'Smith',
         email: 'bob@example.com',
         password: 'Password123',
         confirmPassword: 'Password123',
       });
 
       const res = await request.post('/api/auth/register').send({
-        name: 'Bob Again',
+        firstName: 'Bob',
+        lastName: 'Again',
         email: 'bob@example.com',
         password: 'Password123',
         confirmPassword: 'Password123',
@@ -56,7 +53,8 @@ describe('Auth API — /api/auth', () => {
 
     it('should reject invalid input with 400', async () => {
       const res = await request.post('/api/auth/register').send({
-        name: 'X', // too short (min 2)
+        firstName: 'X', // too short (min 2)
+        lastName: '',
         email: 'not-an-email',
         password: 'weak',
         confirmPassword: 'mismatch',
@@ -97,7 +95,8 @@ describe('Auth API — /api/auth', () => {
 
     it('should reject unverified user with 401', async () => {
       await request.post('/api/auth/register').send({
-        name: 'Unverified',
+        firstName: 'Unverified',
+        lastName: 'User',
         email: 'unverified@example.com',
         password: 'Password123',
         confirmPassword: 'Password123',
@@ -188,7 +187,8 @@ describe('Auth API — /api/auth', () => {
     it('should return the current authenticated user', async () => {
       const { agent } = await createAuthenticatedAgent({
         email: 'me@example.com',
-        name: 'Current User',
+        firstName: 'Current',
+        lastName: 'User',
       });
 
       const res = await agent.get('/api/users/me');
@@ -196,7 +196,8 @@ describe('Auth API — /api/auth', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.email).toBe('me@example.com');
-      expect(res.body.data.user.name).toBe('Current User');
+      expect(res.body.data.user.firstName).toBe('Current');
+      expect(res.body.data.user.lastName).toBe('User');
       expect(res.body.data.user.password).toBeUndefined();
     });
 

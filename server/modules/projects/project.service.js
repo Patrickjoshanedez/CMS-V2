@@ -100,8 +100,8 @@ class ProjectService {
   async getProject(projectId) {
     const project = await Project.findById(projectId)
       .populate('teamId', 'name leaderId members academicYear')
-      .populate('adviserId', 'name email profilePicture')
-      .populate('panelistIds', 'name email profilePicture');
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
@@ -123,8 +123,8 @@ class ProjectService {
 
     const project = await Project.findOne({ teamId: user.teamId })
       .populate('teamId', 'name leaderId members academicYear')
-      .populate('adviserId', 'name email profilePicture')
-      .populate('panelistIds', 'name email profilePicture');
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
     if (!project) {
       throw new AppError('Your team does not have a project yet.', 404, 'PROJECT_NOT_FOUND');
@@ -165,8 +165,8 @@ class ProjectService {
         .skip(skip)
         .limit(limit)
         .populate('teamId', 'name leaderId members')
-        .populate('adviserId', 'name email')
-        .populate('panelistIds', 'name email'),
+        .populate('adviserId', 'firstName middleName lastName email')
+        .populate('panelistIds', 'firstName middleName lastName email'),
       Project.countDocuments(filter),
     ]);
 
@@ -529,7 +529,7 @@ class ProjectService {
     await this._notifyTeamMembers(project.teamId, {
       type: 'adviser_assigned',
       title: 'Adviser Assigned',
-      message: `${adviser.name} has been assigned as your project adviser.`,
+      message: `${adviser.fullName} has been assigned as your project adviser.`,
       metadata: { projectId: project._id, adviserId: data.adviserId },
     });
 
@@ -580,7 +580,7 @@ class ProjectService {
     await this._notifyTeamMembers(project.teamId, {
       type: 'panelist_assigned',
       title: 'Panelist Assigned',
-      message: `${panelist.name} has been assigned as a panelist for your project.`,
+      message: `${panelist.fullName} has been assigned as a panelist for your project.`,
       metadata: { projectId: project._id, panelistId: data.panelistId },
     });
 
@@ -653,7 +653,7 @@ class ProjectService {
     await this._notifyTeamMembers(project.teamId, {
       type: 'panelist_assigned',
       title: 'Panelist Joined',
-      message: `${panelist.name} has selected your project for panel review.`,
+      message: `${panelist.fullName} has selected your project for panel review.`,
       metadata: { projectId: project._id, panelistId },
     });
 

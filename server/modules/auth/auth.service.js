@@ -26,10 +26,10 @@ class AuthService {
    * - Creates the user (password hashed via model pre-save hook)
    * - Generates and emails a verification OTP
    *
-   * @param {Object} data - { name, email, password }
+   * @param {Object} data - { firstName, middleName, lastName, email, password }
    * @returns {Object} { user }
    */
-  async register({ name, email, password }) {
+  async register({ firstName, middleName, lastName, email, password }) {
     // Check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -37,7 +37,7 @@ class AuthService {
     }
 
     // Create user (unverified)
-    const user = await User.create({ name, email, password });
+    const user = await User.create({ firstName, middleName, lastName, email, password });
 
     // Generate verification OTP and send via email
     await this.#createAndSendOtp(email, 'verification');
@@ -77,11 +77,7 @@ class AuthService {
 
     if (type === 'verification') {
       // Mark user as verified
-      const user = await User.findOneAndUpdate(
-        { email },
-        { isVerified: true },
-        { new: true },
-      );
+      const user = await User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
 
       if (!user) {
         throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
@@ -141,11 +137,7 @@ class AuthService {
 
     // Check verification status
     if (!user.isVerified) {
-      throw new AppError(
-        'Please verify your email before logging in.',
-        401,
-        'EMAIL_NOT_VERIFIED',
-      );
+      throw new AppError('Please verify your email before logging in.', 401, 'EMAIL_NOT_VERIFIED');
     }
 
     // Check active status
@@ -211,7 +203,11 @@ class AuthService {
 
     // Check if expired
     if (storedToken.expiresAt < new Date()) {
-      throw new AppError('Refresh token has expired. Please log in again.', 401, 'REFRESH_TOKEN_EXPIRED');
+      throw new AppError(
+        'Refresh token has expired. Please log in again.',
+        401,
+        'REFRESH_TOKEN_EXPIRED',
+      );
     }
 
     // Fetch the user

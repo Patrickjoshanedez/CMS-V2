@@ -39,14 +39,6 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const email = location.state?.email;
-  const code = location.state?.code;
-
-  // Redirect if required state is missing
-  if (!email || !code) {
-    return <Navigate to="/forgot-password" replace />;
-  }
-
   const {
     register,
     handleSubmit,
@@ -55,6 +47,14 @@ export default function ResetPasswordPage() {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
   });
+
+  const email = location.state?.email;
+  const code = location.state?.code;
+
+  // Redirect if required state is missing (after all hooks)
+  if (!email || !code) {
+    return <Navigate to="/forgot-password" replace />;
+  }
 
   const onSubmit = async (data) => {
     try {
@@ -74,10 +74,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <AuthLayout
-      title="Set new password"
-      description="Enter your new password below."
-    >
+    <AuthLayout title="Set new password" description="Enter your new password below.">
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
@@ -106,9 +103,7 @@ export default function ResetPasswordPage() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-xs text-destructive">{errors.password.message}</p>
-          )}
+          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
 
         {/* Confirm password */}

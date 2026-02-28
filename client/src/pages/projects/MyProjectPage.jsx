@@ -114,7 +114,7 @@ function ProjectInfoCard({ project }) {
           {project.adviserId && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <User className="h-4 w-4" />
-              <span>Adviser: {project.adviserId?.name || project.adviserId}</span>
+              <span>Adviser: {project.adviserId?.fullName || project.adviserId}</span>
             </div>
           )}
           {project.panelistIds?.length > 0 && (

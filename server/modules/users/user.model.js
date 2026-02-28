@@ -4,12 +4,25 @@ import { ROLES, ROLE_VALUES } from '@cms/shared';
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    firstName: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'First name is required'],
       trim: true,
-      minlength: [2, 'Name must be at least 2 characters'],
-      maxlength: [100, 'Name must not exceed 100 characters'],
+      minlength: [2, 'First name must be at least 2 characters'],
+      maxlength: [50, 'First name must not exceed 50 characters'],
+    },
+    middleName: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Middle name must not exceed 50 characters'],
+      default: '',
+    },
+    lastName: {
+      type: String,
+      required: [true, 'Last name is required'],
+      trim: true,
+      minlength: [2, 'Last name must be at least 2 characters'],
+      maxlength: [50, 'Last name must not exceed 50 characters'],
     },
     email: {
       type: String,
@@ -58,6 +71,7 @@ const userSchema = new mongoose.Schema(
   {
     timestamps: true,
     toJSON: {
+      virtuals: true,
       transform(_doc, ret) {
         delete ret.password;
         delete ret.__v;
@@ -65,6 +79,7 @@ const userSchema = new mongoose.Schema(
       },
     },
     toObject: {
+      virtuals: true,
       transform(_doc, ret) {
         delete ret.password;
         delete ret.__v;
@@ -74,11 +89,22 @@ const userSchema = new mongoose.Schema(
   },
 );
 
+// --- Virtuals ---
+
+/**
+ * fullName — convenience virtual that concatenates firstName, middleName, and lastName.
+ * Used in notifications, display, and anywhere a single name string is needed.
+ */
+userSchema.virtual('fullName').get(function () {
+  return [this.firstName, this.middleName, this.lastName].filter(Boolean).join(' ');
+});
+
 // --- Indexes ---
 // Note: email already has unique:true at field level — no need to duplicate
 userSchema.index({ role: 1 });
 userSchema.index({ teamId: 1 });
 userSchema.index({ email: 1, role: 1 });
+userSchema.index({ firstName: 1, lastName: 1 });
 
 // --- Pre-save hook: hash password ---
 userSchema.pre('save', async function (next) {

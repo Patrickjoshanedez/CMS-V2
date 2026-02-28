@@ -23,10 +23,7 @@ function NotificationItem({ notification, onMarkRead }) {
 
   return (
     <Card
-      className={cn(
-        'transition-colors',
-        !notification.isRead && 'border-primary/30 bg-primary/5',
-      )}
+      className={cn('transition-colors', !notification.isRead && 'border-primary/30 bg-primary/5')}
     >
       <CardContent className="flex items-start gap-4 p-4">
         <div
@@ -38,12 +35,7 @@ function NotificationItem({ notification, onMarkRead }) {
           <Icon className="h-4 w-4" />
         </div>
         <div className="flex-1 space-y-1">
-          <p
-            className={cn(
-              'text-sm',
-              !notification.isRead && 'font-medium',
-            )}
-          >
+          <p className={cn('text-sm', !notification.isRead && 'font-medium')}>
             {notification.message}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -106,11 +98,13 @@ export default function NotificationsPage() {
 
   const handleMarkRead = (id) => {
     // TODO: Integrate with notification API - PATCH /api/notifications/:id/read
+    // eslint-disable-next-line no-console -- TODO: replace with notification API call
     console.info('Mark notification read:', id);
   };
 
   const handleMarkAllRead = () => {
     // TODO: Integrate with notification API - PATCH /api/notifications/read-all
+    // eslint-disable-next-line no-console -- TODO: replace with notification API call
     console.info('Mark all notifications read');
   };
 

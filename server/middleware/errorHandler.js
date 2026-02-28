@@ -1,5 +1,3 @@
-import AppError from '../utils/AppError.js';
-
 /**
  * Global error-handling middleware.
  * All errors — thrown, rejected, or forwarded via next(err) — flow through here.

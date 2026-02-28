@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  request,
-  createAuthenticatedUserWithRole,
-} from '../helpers.js';
-import User from '../../modules/users/user.model.js';
+import { request, createAuthenticatedUserWithRole } from '../helpers.js';
 
 /**
  * Team flow integration tests — covers team creation, invites,
@@ -19,7 +15,8 @@ describe('Teams API — /api/teams', () => {
     it('should allow a student to create a team', async () => {
       const { agent } = await createAuthenticatedUserWithRole('student', {
         email: 'leader@example.com',
-        name: 'Team Leader',
+        firstName: 'Team',
+        lastName: 'Leader',
       });
 
       const res = await agent.post('/api/teams').send({
@@ -86,7 +83,7 @@ describe('Teams API — /api/teams', () => {
   // ----- GET MY TEAM -----
 
   describe('GET /api/teams/me', () => {
-    it('should return the current user\'s team info', async () => {
+    it("should return the current user's team info", async () => {
       const { agent } = await createAuthenticatedUserWithRole('student', {
         email: 'myteam@example.com',
       });

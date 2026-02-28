@@ -11,12 +11,8 @@ export default function Header({ onMenuClick }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
 
-  const initials = user?.name
-    ?.split(' ')
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials =
+    [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const roleLabel = user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1);
 
@@ -53,10 +49,10 @@ export default function Header({ onMenuClick }) {
         {/* User avatar */}
         <div className="flex items-center gap-2 rounded-md px-2 py-1">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            {initials || '?'}
+            {initials}
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium leading-tight">{user?.name}</p>
+            <p className="text-sm font-medium leading-tight">{user?.fullName}</p>
             <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
         </div>

@@ -2,7 +2,6 @@ import supertest from 'supertest';
 import app from '../app.js';
 import User from '../modules/users/user.model.js';
 import OTP from '../modules/auth/otp.model.js';
-import bcrypt from 'bcrypt';
 
 /**
  * Test helpers for server integration / e2e tests.
@@ -26,7 +25,8 @@ export const request = supertest(app);
  */
 export async function createVerifiedUser(overrides = {}) {
   const userData = {
-    name: 'Test User',
+    firstName: 'Test',
+    lastName: 'User',
     email: 'test@example.com',
     password: 'Password123',
     confirmPassword: 'Password123',
@@ -57,7 +57,8 @@ export async function createVerifiedUser(overrides = {}) {
  */
 export async function createAuthenticatedAgent(overrides = {}) {
   const userData = {
-    name: 'Test User',
+    firstName: 'Test',
+    lastName: 'User',
     email: 'test@example.com',
     password: 'Password123',
     confirmPassword: 'Password123',
@@ -91,7 +92,8 @@ export async function createAuthenticatedAgent(overrides = {}) {
 export async function createAuthenticatedUserWithRole(role, overrides = {}) {
   const email = `${role}@example.com`;
   const userData = {
-    name: `Test ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+    firstName: 'Test',
+    lastName: role.charAt(0).toUpperCase() + role.slice(1),
     email,
     password: 'Password123',
     confirmPassword: 'Password123',

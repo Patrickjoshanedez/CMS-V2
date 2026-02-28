@@ -6,19 +6,19 @@ A full-stack **Capstone Management and Archiving System** with plagiarism checki
 
 ## Tech Stack
 
-| Layer      | Technology                                              |
-| ---------- | ------------------------------------------------------- |
-| Frontend   | React 18 + Vite 6, Tailwind CSS 3.4, Zustand, React Query |
-| Backend    | Node.js + Express 4.21, Mongoose 8.9 (MongoDB)         |
-| Auth       | JWT (HTTP-only cookies), refresh token rotation, OTP    |
-| Shared     | `@cms/shared` workspace package (roles, status codes)   |
-| Styling    | shadcn/ui-compatible CSS custom properties (dark/light) |
+| Layer    | Technology                                                 |
+| -------- | ---------------------------------------------------------- |
+| Frontend | React 18 + Vite 6, Tailwind CSS 3.4, Zustand, React Query |
+| Backend  | Node.js + Express 4.21, Mongoose 8.9 (MongoDB)            |
+| Auth     | JWT (HTTP-only cookies), refresh token rotation, OTP       |
+| Shared   | `@cms/shared` workspace package (roles, status codes)      |
+| Styling  | shadcn/ui-compatible CSS custom properties (dark/light)    |
 
 ---
 
 ## Project Structure
 
-```
+```text
 CMS V2/
 ├── client/                   # React frontend (Vite)
 │   └── src/
@@ -87,22 +87,22 @@ This starts both the Express server (port 5000) and the Vite dev server (port 51
 
 ### 5. Access the application
 
-- **Frontend:** http://localhost:5173
-- **API:** http://localhost:5000/api
-- **Health check:** http://localhost:5000/api/health
+- **Frontend:** <http://localhost:5173>
+- **API:** <http://localhost:5000/api>
+- **Health check:** <http://localhost:5000/api/health>
 
 ---
 
 ## Available Scripts
 
-| Script              | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `npm run dev`       | Start both client and server in dev mode    |
-| `npm run dev:server` | Start only the Express server               |
-| `npm run dev:client` | Start only the Vite dev server              |
-| `npm run build`     | Build the client for production             |
-| `npm run lint`      | Run ESLint across all packages              |
-| `npm run format`    | Run Prettier to format all files            |
+| Script               | Description                              |
+| -------------------- | ---------------------------------------- |
+| `npm run dev`        | Start both client and server in dev mode |
+| `npm run dev:server` | Start only the Express server            |
+| `npm run dev:client` | Start only the Vite dev server           |
+| `npm run build`      | Build the client for production          |
+| `npm run lint`       | Run ESLint across all packages           |
+| `npm run format`     | Run Prettier to format all files         |
 
 ---
 
@@ -110,10 +110,10 @@ This starts both the Express server (port 5000) and the Vite dev server (port 51
 
 | Role         | Description                                        |
 | ------------ | -------------------------------------------------- |
-| `student`    | Works in teams, submits documents, tracks progress  |
-| `adviser`    | Guides teams, reviews chapters, approves revisions  |
-| `panelist`   | Reviews drafts, selects topics, evaluates defenses  |
-| `instructor` | Admin — manages the capstone process and archive    |
+| `student`    | Works in teams, submits documents, tracks progress |
+| `adviser`    | Guides teams, reviews chapters, approves revisions |
+| `panelist`   | Reviews drafts, selects topics, evaluates defenses |
+| `instructor` | Admin — manages the capstone process and archive   |
 
 ---
 
@@ -154,7 +154,7 @@ This starts both the Express server (port 5000) and the Vite dev server (port 51
 | POST   | `/invites/:token/accept`  | Accept team invite       | Any authenticated|
 | POST   | `/invites/:token/decline` | Decline team invite      | Any authenticated|
 | PATCH  | `/:id/lock`               | Lock team membership     | Leader/Instructor|
-| GET    | `/`                       | List all teams           | Instructor/Adviser|
+| GET    | `/`                       | List all teams           | Instructor/Adviser |
 
 ### Notifications (`/api/notifications`) — requires authentication
 

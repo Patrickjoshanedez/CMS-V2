@@ -64,8 +64,8 @@ class TeamService {
     }
 
     const team = await Team.findById(user.teamId)
-      .populate('leaderId', 'name email profilePicture')
-      .populate('members', 'name email profilePicture role');
+      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate('members', 'firstName middleName lastName email profilePicture role');
 
     if (!team) {
       throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
@@ -94,11 +94,7 @@ class TeamService {
     }
 
     if (team.isLocked) {
-      throw new AppError(
-        'This team is locked and cannot accept new members.',
-        403,
-        'TEAM_LOCKED',
-      );
+      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
     }
 
     if (team.members.length >= MAX_TEAM_MEMBERS) {
@@ -180,11 +176,7 @@ class TeamService {
     }
 
     if (user.email !== invite.email) {
-      throw new AppError(
-        'This invitation was not sent to your email address.',
-        403,
-        'FORBIDDEN',
-      );
+      throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }
 
     // Allow "orphaned" students to join new teams — if user already has a team, remove them first
@@ -211,11 +203,7 @@ class TeamService {
     }
 
     if (team.isLocked) {
-      throw new AppError(
-        'This team is locked and cannot accept new members.',
-        403,
-        'TEAM_LOCKED',
-      );
+      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
     }
 
     if (team.members.length >= MAX_TEAM_MEMBERS) {
@@ -247,14 +235,14 @@ class TeamService {
         userId: memberId,
         type: 'team_joined',
         title: 'New Team Member',
-        message: `${user.name} has joined your team "${team.name}".`,
+        message: `${user.fullName} has joined your team "${team.name}".`,
         metadata: { teamId: team._id, newMemberId: userId },
       })),
     );
 
     const populatedTeam = await Team.findById(team._id)
-      .populate('leaderId', 'name email profilePicture')
-      .populate('members', 'name email profilePicture role');
+      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate('members', 'firstName middleName lastName email profilePicture role');
 
     return { team: populatedTeam };
   }
@@ -273,11 +261,7 @@ class TeamService {
 
     const user = await User.findById(userId);
     if (!user || user.email !== invite.email) {
-      throw new AppError(
-        'This invitation was not sent to your email address.',
-        403,
-        'FORBIDDEN',
-      );
+      throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }
 
     invite.status = 'declined';
@@ -347,8 +331,8 @@ class TeamService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('leaderId', 'name email')
-        .populate('members', 'name email role'),
+        .populate('leaderId', 'firstName middleName lastName email')
+        .populate('members', 'firstName middleName lastName email role'),
       Team.countDocuments(filter),
     ]);
 
