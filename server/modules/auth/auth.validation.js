@@ -1,0 +1,101 @@
+import { z } from 'zod';
+import { ROLE_VALUES } from '@cms/shared';
+
+/**
+ * Zod validation schemas for all auth endpoints.
+ * Used with the validate() middleware.
+ */
+
+export const registerSchema = z.object({
+  name: z
+    .string({ required_error: 'Name is required' })
+    .trim()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must not exceed 100 characters'),
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must not exceed 128 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    ),
+  confirmPassword: z.string({ required_error: 'Please confirm your password' }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+export const loginSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+  password: z
+    .string({ required_error: 'Password is required' })
+    .min(1, 'Password is required'),
+});
+
+export const verifyOtpSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+  code: z
+    .string({ required_error: 'OTP code is required' })
+    .length(6, 'OTP must be exactly 6 digits')
+    .regex(/^\d{6}$/, 'OTP must contain only digits'),
+  type: z.enum(['verification', 'password_reset'], {
+    required_error: 'OTP type is required',
+  }),
+});
+
+export const resendOtpSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+  type: z.enum(['verification', 'password_reset'], {
+    required_error: 'OTP type is required',
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required' })
+    .trim()
+    .email('Please provide a valid email address')
+    .toLowerCase(),
+  code: z
+    .string({ required_error: 'OTP code is required' })
+    .length(6, 'OTP must be exactly 6 digits')
+    .regex(/^\d{6}$/, 'OTP must contain only digits'),
+  newPassword: z
+    .string({ required_error: 'New password is required' })
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must not exceed 128 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    ),
+  confirmNewPassword: z.string({ required_error: 'Please confirm your new password' }),
+}).refine((data) => data.newPassword === data.confirmNewPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmNewPassword'],
+});

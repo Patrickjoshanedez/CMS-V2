@@ -1,0 +1,8 @@
+{
+  "name": "@cms/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared constants, types, and utilities for CMS V2",
+  "main": "index.js",
+  "type": "module"
+}
