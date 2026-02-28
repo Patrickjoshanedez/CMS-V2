@@ -14,6 +14,7 @@ import teamRoutes from './modules/teams/team.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
 import submissionRoutes from './modules/submissions/submission.routes.js';
+import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/submissions', submissionRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // ---------- 404 Handler ----------
 

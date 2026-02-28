@@ -116,8 +116,18 @@ export const logout = catchAsync(async (req, res) => {
   await authService.logout(req.user._id);
 
   // Clear cookies
-  res.clearCookie('accessToken', { httpOnly: true, secure: env.isProduction, sameSite: 'strict', path: '/' });
-  res.clearCookie('refreshToken', { httpOnly: true, secure: env.isProduction, sameSite: 'strict', path: '/' });
+  res.clearCookie('accessToken', {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'strict',
+    path: '/',
+  });
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'strict',
+    path: '/',
+  });
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -146,11 +156,34 @@ export const resetPassword = catchAsync(async (req, res) => {
   await authService.resetPassword(req.body);
 
   // Clear cookies in case the user is logged in on this device
-  res.clearCookie('accessToken', { httpOnly: true, secure: env.isProduction, sameSite: 'strict', path: '/' });
-  res.clearCookie('refreshToken', { httpOnly: true, secure: env.isProduction, sameSite: 'strict', path: '/' });
+  res.clearCookie('accessToken', {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'strict',
+    path: '/',
+  });
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'strict',
+    path: '/',
+  });
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Password reset successful. Please log in with your new password.',
+  });
+});
+
+/**
+ * POST /api/auth/change-password
+ * Change password for authenticated user. Requires current password.
+ */
+export const changePassword = catchAsync(async (req, res) => {
+  await authService.changePassword(req.user._id, req.body);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Password changed successfully.',
   });
 });

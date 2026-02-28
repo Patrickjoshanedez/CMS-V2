@@ -10,6 +10,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — Sprint 7: Live Dashboard & Notification Integration
+
+### Added
+
+**Server — Dashboard Module**
+- `DashboardService` with role-aware aggregation: `_getStudentStats` (team info, project status, chapter progress Ch1–5), `_getInstructorStats` (system-wide counts, pending titles, recent submissions, projects by status), `_getAdviserStats` (assigned projects, pending reviews), `_getPanelistStats` (assigned projects)
+- `DashboardController` — thin `catchAsync` handler returning `{ success, data }`
+- Single RESTful endpoint: `GET /api/dashboard/stats` (authenticated, all roles)
+
+**Server — Change Password Endpoint**
+- `changePasswordSchema` Zod validation (currentPassword min 1, newPassword 8–128 + uppercase/lowercase/digit regex)
+- `changePassword` service method — verifies current password, rejects reuse, updates password, revokes all refresh tokens
+- `POST /api/auth/change-password` endpoint (authenticated)
+
+**Server — Tests**
+- 14 new integration tests: dashboard stats (8 tests covering auth guard, all 4 roles with data and empty states) + change password (6 tests covering auth guard, success, wrong password, reuse, weak password, missing fields)
+- Total test count: 132 (118 existing + 14 new) — all passing
+
+**Client — Dashboard**
+- `useDashboard` hook — React Query with 30s staleTime, 60s refetchInterval
+- `DashboardPage` (~380 lines) with shared `StatCard` and `StatusBadge` components, plus 4 role-specific sub-dashboards: `StudentDashboard`, `InstructorDashboard`, `AdviserDashboard`, `PanelistDashboard`
+- Time-of-day greeting in dashboard header
+
+**Client — Notifications**
+- `useNotifications` hook — 6 exports: `useNotifications` (30s polling), `useUnreadCount` (30s polling), `useMarkAsRead`, `useMarkAllAsRead`, `useDeleteNotification`, `useClearAllNotifications`
+- `NotificationsPage` full rewrite (~230 lines) — 26-type icon map, pagination, delete/clear actions, empty states
+- Header bell icon with unread notification badge (red dot, 99+ cap)
+
+**Client — Profile & Settings**
+- `ProfilePage` — save wiring with `userService.updateMe`, loading/error/success states, auto-dismiss
+- `SettingsPage` — `ChangePasswordForm` component with collapsed/expanded modes, 3 password inputs with eye toggles, client-side validation, calls `authService.changePassword()`
+
+**Client — Services**
+- `dashboardService` added to `authService.js` (getStats method)
+- `authService.changePassword()` method
+
+### Changed
+- App version bumped from 0.1.0 to 0.4.0 in SettingsPage
+
+### Fixed
+- `dashboard.controller.js` — corrected `catchAsync` import path from `../../middleware/catchAsync.js` to `../../utils/catchAsync.js`
+
+---
+
 ## [0.3.0] — Sprint 6: Cloud Storage, Document Upload & Versioning
 
 ### Added

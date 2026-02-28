@@ -751,3 +751,100 @@ Remove an annotation. Author or instructor can delete.
   "data": { "submission": { "annotations": [...] } }
 }
 ```
+
+---
+
+## Dashboard
+
+All dashboard endpoints are under `/api/dashboard`. Require authentication.
+
+---
+
+### `GET /api/dashboard/stats`
+
+Returns role-aware dashboard statistics for the authenticated user.
+
+**Auth:** Bearer token. Roles: all authenticated users
+
+**Response (200) — Student:**
+```json
+{
+  "success": true,
+  "data": {
+    "role": "student",
+    "team": { "name": "...", "members": [...] } | null,
+    "project": { "title": "...", "titleStatus": "...", "projectStatus": "..." } | null,
+    "chapterProgress": { "1": { "status": "approved", "version": 2 }, ... },
+    "recentNotifications": [...]
+  }
+}
+```
+
+**Response (200) — Instructor:**
+```json
+{
+  "success": true,
+  "data": {
+    "role": "instructor",
+    "counts": { "students": 0, "teams": 0, "projects": 0, "submissions": 0 },
+    "pendingTitles": [...],
+    "recentSubmissions": [...],
+    "projectsByStatus": { "active": 0, "proposal_submitted": 0, ... }
+  }
+}
+```
+
+**Response (200) — Adviser:**
+```json
+{
+  "success": true,
+  "data": {
+    "role": "adviser",
+    "assignedProjects": [...],
+    "pendingReviews": [...]
+  }
+}
+```
+
+**Response (200) — Panelist:**
+```json
+{
+  "success": true,
+  "data": {
+    "role": "panelist",
+    "assignedProjects": [...]
+  }
+}
+```
+
+**Errors:** 401 (not authenticated)
+
+---
+
+## Change Password
+
+### `POST /api/auth/change-password`
+
+Change the authenticated user's password. Revokes all existing refresh tokens (forces re-login on other devices).
+
+**Auth:** Bearer token. Roles: all authenticated users
+
+**Request Body:**
+| Field           | Type   | Required | Description                                      |
+| --------------- | ------ | -------- | ------------------------------------------------ |
+| currentPassword | string | yes      | The user's current password                       |
+| newPassword     | string | yes      | 8–128 chars, must contain uppercase, lowercase, digit |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Password changed successfully"
+}
+```
+
+**Errors:**
+- 400 — Validation error (weak password, missing fields)
+- 400 — New password same as current password
+- 401 — Current password is incorrect
+- 401 — Not authenticated

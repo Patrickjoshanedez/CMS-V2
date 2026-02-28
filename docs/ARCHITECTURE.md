@@ -29,7 +29,7 @@ The Capstone Management System (CMS) is a full-stack MERN application following 
 │   ├───────────────────────────────────────────┤ │
 │   │ Feature Modules:                          │ │
 │   │   auth/ → users/ → teams/ → notifications/│ │
-│   │   → projects/ → submissions/              │ │
+│   │   → projects/ → submissions/ → dashboard/ │ │
 │   │   (validation → controller → service)     │ │
 │   ├───────────────────────────────────────────┤ │
 │   │ Cross-Cutting:                             │ │
@@ -147,7 +147,7 @@ App
 
 - **Axios instance** with `withCredentials: true` for cookie auth
 - **Response interceptor** — on 401, queues failed requests, attempts token refresh, retries
-- **Service objects** — `authService`, `userService`, `teamService`, `notificationService`
+- **Service objects** — `authService`, `userService`, `teamService`, `notificationService`, `dashboardService`
 - Each service method returns the Axios promise (data extracted by caller)
 - **submissionService** — dedicated service for file upload (multipart) and all submission CRUD/review/annotation operations
 
@@ -157,6 +157,18 @@ App
 - 5 query hooks: `useSubmission`, `useProjectSubmissions`, `useChapterHistory`, `useLatestChapter`, `useViewUrl`
 - 5 mutation hooks: `useUploadChapter`, `useReviewSubmission`, `useUnlockSubmission`, `useAddAnnotation`, `useRemoveAnnotation`
 - Mutations invalidate both `submissionKeys.all` and `projectKeys.all` on success
+
+### Dashboard Hook (`useDashboard.js`)
+
+- `dashboardKeys` factory for cache key management
+- `useDashboard()` — query hook with 30s staleTime, 60s refetchInterval for live data
+
+### Notification Hooks (`useNotifications.js`)
+
+- `notificationKeys` factory for cache key management
+- 2 query hooks: `useNotifications` (30s polling, paginated), `useUnreadCount` (30s polling)
+- 4 mutation hooks: `useMarkAsRead`, `useMarkAllAsRead`, `useDeleteNotification`, `useClearAllNotifications`
+- Mutations invalidate notification cache on success
 
 ### Theme System
 

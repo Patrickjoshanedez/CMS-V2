@@ -1,9 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import ThemeToggle from '@/components/ThemeToggle';
-import { Palette, Bell, Shield, Info } from 'lucide-react';
+import { Palette, Bell, Shield, Info, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { authService } from '@/services/authService';
 
 /**
  * SettingsPage — application settings for the current user.
@@ -106,13 +111,7 @@ export default function SettingsPage() {
             title="Security"
             description="Manage your account security."
           >
-            <div className="flex items-center justify-between rounded-md border px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">Change Password</p>
-                <p className="text-xs text-muted-foreground">Update your account password.</p>
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">Coming soon</span>
-            </div>
+            <ChangePasswordForm />
           </SettingSection>
 
           {/* About */}
@@ -120,7 +119,7 @@ export default function SettingsPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Version</span>
-                <span className="font-medium">0.1.0</span>
+                <span className="font-medium">0.4.0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Environment</span>
@@ -131,5 +130,169 @@ export default function SettingsPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+/**
+ * ChangePasswordForm — inline form for updating the user password.
+ * Validates confirm-password match on the client before calling the API.
+ */
+function ChangePasswordForm() {
+  const [show, setShow] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const resetForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess(false);
+
+    if (newPassword !== confirmPassword) {
+      setError('New password and confirmation do not match.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await authService.changePassword({ currentPassword, newPassword });
+      setSuccess(true);
+      resetForm();
+      setShow(false);
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err) {
+      setError(err?.response?.data?.error?.message || 'Failed to change password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!show) {
+    return (
+      <div className="space-y-3">
+        {success && (
+          <Alert variant="default" className="border-green-500/50 bg-green-500/10">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700 dark:text-green-400">
+              Password changed successfully.
+            </AlertDescription>
+          </Alert>
+        )}
+        <div className="flex items-center justify-between rounded-md border px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">Change Password</p>
+            <p className="text-xs text-muted-foreground">Update your account password.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShow(true)}>
+            Change
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-md border p-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="currentPassword">Current Password</Label>
+        <div className="relative">
+          <Input
+            id="currentPassword"
+            type={showCurrent ? 'text' : 'password'}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowCurrent(!showCurrent)}
+            tabIndex={-1}
+          >
+            {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="newPassword">New Password</Label>
+        <div className="relative">
+          <Input
+            id="newPassword"
+            type={showNew ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowNew(!showNew)}
+            tabIndex={-1}
+          >
+            {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          At least 8 characters with uppercase, lowercase, and a number.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Update Password
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            resetForm();
+            setShow(false);
+          }}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

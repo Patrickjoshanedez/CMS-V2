@@ -11,6 +11,7 @@ export const authService = {
   resendOtp: (data) => api.post('/auth/resend-otp', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
   resetPassword: (data) => api.post('/auth/reset-password', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
   refresh: () => api.post('/auth/refresh'),
   logout: () => api.post('/auth/logout'),
 };
@@ -85,4 +86,12 @@ export const projectService = {
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
   listProjects: (params) => api.get('/projects', { params }),
+};
+
+/**
+ * Dashboard API service — role-aware dashboard statistics.
+ */
+
+export const dashboardService = {
+  getStats: () => api.get('/dashboard/stats'),
 };

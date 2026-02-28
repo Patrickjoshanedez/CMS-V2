@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
+import { useUnreadCount } from '@/hooks/useNotifications';
 
 /**
  * Header — top bar with mobile menu toggle, user info, theme toggle, and notifications.
@@ -10,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 export default function Header({ onMenuClick }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   const initials =
     [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
@@ -39,8 +41,14 @@ export default function Header({ onMenuClick }) {
           size="icon"
           onClick={() => navigate('/notifications')}
           aria-label="Notifications"
+          className="relative"
         >
           <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Button>
 
         {/* Theme toggle */}

@@ -295,6 +295,43 @@ class AuthService {
     return { user };
   }
 
+  /**
+   * Change the password for an authenticated user.
+   * Requires the current password for verification.
+   * Revokes all refresh tokens after change (force re-login on other devices).
+   *
+   * @param {string} userId - The authenticated user's ID.
+   * @param {Object} data - { currentPassword, newPassword }
+   */
+  async changePassword(userId, { currentPassword, newPassword }) {
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      throw new AppError('Current password is incorrect.', 401, 'INVALID_CREDENTIALS');
+    }
+
+    // Prevent reusing the current password
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+      throw new AppError(
+        'New password must be different from your current password.',
+        400,
+        'PASSWORD_REUSE',
+      );
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    // Revoke all refresh tokens (force re-login on other devices)
+    await RefreshToken.revokeAllForUser(user._id);
+  }
+
   // --- Private methods ---
 
   /**

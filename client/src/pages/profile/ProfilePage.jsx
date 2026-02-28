@@ -5,7 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { User, Mail, Shield, Camera } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { User, Mail, Shield, Camera, Loader2, CheckCircle } from 'lucide-react';
+import { userService } from '@/services/authService';
 
 /**
  * ProfilePage — user profile view and edit.
@@ -16,6 +18,9 @@ import { User, Mail, Shield, Camera } from 'lucide-react';
 export default function ProfilePage() {
   const { user, fetchUser } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -47,9 +52,21 @@ export default function ProfilePage() {
 
   const roleLabel = user.role?.charAt(0).toUpperCase() + user.role?.slice(1);
 
-  const handleSave = () => {
-    // TODO: Integrate with user update API
-    setIsEditing(false);
+  const handleSave = async () => {
+    setSaveError('');
+    setSaveSuccess(false);
+    setIsSaving(true);
+    try {
+      await userService.updateMe({ firstName, middleName, lastName });
+      await fetchUser(); // Refresh global user state
+      setIsEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setSaveError(err?.response?.data?.error?.message || 'Failed to update profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -173,11 +190,27 @@ export default function ProfilePage() {
                 </p>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col items-start gap-3">
+              {saveSuccess && (
+                <Alert variant="default" className="border-green-500/50 bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700 dark:text-green-400">
+                    Profile updated successfully.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {saveError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{saveError}</AlertDescription>
+                </Alert>
+              )}
               {isEditing ? (
                 <div className="flex gap-2">
-                  <Button onClick={handleSave}>Save Changes</Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
                     Cancel
                   </Button>
                 </div>

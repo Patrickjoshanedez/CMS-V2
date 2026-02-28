@@ -10,6 +10,7 @@ import {
   resendOtpSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from './auth.validation.js';
 
 const router = Router();
@@ -27,10 +28,26 @@ router.post('/verify-otp', authLimiter, validate(verifyOtpSchema), authControlle
 router.post('/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOtp);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh', authLimiter, authController.refresh);
-router.post('/forgot-password', otpLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
-router.post('/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPassword);
+router.post(
+  '/forgot-password',
+  otpLimiter,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword,
+);
+router.post(
+  '/reset-password',
+  authLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword,
+);
 
 // Protected routes (authentication required)
 router.post('/logout', authenticate, authController.logout);
+router.post(
+  '/change-password',
+  authenticate,
+  validate(changePasswordSchema),
+  authController.changePassword,
+);
 
 export default router;
