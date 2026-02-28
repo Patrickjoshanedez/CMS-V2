@@ -14,7 +14,7 @@ function StudentDashboard({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-2xl font-bold tracking-tight">Welcome back, {user.name}!</h3>
+        <h3 className="text-2xl font-bold tracking-tight">Welcome back, {user.firstName}!</h3>
         <p className="text-muted-foreground">Here&apos;s an overview of your capstone progress.</p>
       </div>
 
@@ -22,7 +22,7 @@ function StudentDashboard({ user }) {
         <DashboardCard
           icon={UsersRound}
           title="My Team"
-          description={user.teamId ? 'View your current team' : 'You haven\'t joined a team yet'}
+          description={user.teamId ? 'View your current team' : "You haven't joined a team yet"}
           accent="text-blue-500"
         />
         <DashboardCard
@@ -42,7 +42,7 @@ function StudentDashboard({ user }) {
   );
 }
 
-function InstructorDashboard({ user }) {
+function InstructorDashboard({ user: _user }) {
   return (
     <div className="space-y-6">
       <div>
@@ -80,12 +80,14 @@ function InstructorDashboard({ user }) {
   );
 }
 
-function AdviserDashboard({ user }) {
+function AdviserDashboard({ user: _user }) {
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold tracking-tight">Adviser Dashboard</h3>
-        <p className="text-muted-foreground">Guide your assigned teams through the capstone process.</p>
+        <p className="text-muted-foreground">
+          Guide your assigned teams through the capstone process.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -112,7 +114,7 @@ function AdviserDashboard({ user }) {
   );
 }
 
-function PanelistDashboard({ user }) {
+function PanelistDashboard({ user: _user }) {
   return (
     <div className="space-y-6">
       <div>

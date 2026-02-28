@@ -61,7 +61,6 @@ export default function ResetPasswordPage() {
       clearError();
       await resetPassword({
         email,
-        code,
         newPassword: data.password,
       });
       navigate('/login', {

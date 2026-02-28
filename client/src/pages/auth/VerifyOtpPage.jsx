@@ -3,7 +3,6 @@ import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
-import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -26,11 +25,6 @@ export default function VerifyOtpPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const inputRefs = useRef([]);
 
-  // Redirect if no email provided (user landed here directly)
-  if (!email) {
-    return <Navigate to="/login" replace />;
-  }
-
   // Start resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -44,6 +38,11 @@ export default function VerifyOtpPage() {
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
+
+  // Redirect if no email provided (user landed here directly)
+  if (!email) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleChange = (index, value) => {
     // Only single digits allowed
@@ -132,10 +131,7 @@ export default function VerifyOtpPage() {
   };
 
   return (
-    <AuthLayout
-      title="Verify your email"
-      description={`We sent a 6-digit code to ${email}`}
-    >
+    <AuthLayout title="Verify your email" description={`We sent a 6-digit code to ${email}`}>
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
@@ -161,7 +157,7 @@ export default function VerifyOtpPage() {
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="h-12 w-12 rounded-md border border-input bg-background text-center text-lg font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-12 w-12 rounded-md border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             disabled={loading}
             autoComplete="one-time-code"
           />

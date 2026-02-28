@@ -263,19 +263,27 @@ class AuthService {
 
   /**
    * Reset the user's password after OTP verification.
-   * The OTP must be verified first via verifyOtp().
+   * The OTP was already verified and deleted in the verify-otp step,
+   * so this method only updates the password.
    *
-   * @param {Object} data - { email, code, newPassword }
+   * @param {Object} data - { email, newPassword }
    * @returns {Object} { user }
    */
-  async resetPassword({ email, code, newPassword }) {
-    // Verify the OTP first
-    await this.verifyOtp({ email, code, type: 'password_reset' });
-
+  async resetPassword({ email, newPassword }) {
     // Find the user and update password
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Prevent reusing the current password
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+      throw new AppError(
+        'New password must be different from your current password.',
+        400,
+        'PASSWORD_REUSE',
+      );
     }
 
     user.password = newPassword;
