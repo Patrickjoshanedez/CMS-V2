@@ -13,6 +13,7 @@ import userRoutes from './modules/users/user.routes.js';
 import teamRoutes from './modules/teams/team.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
+import submissionRoutes from './modules/submissions/submission.routes.js';
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // ---------- 404 Handler ----------
 

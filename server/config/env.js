@@ -41,6 +41,15 @@ const env = Object.freeze({
   // Client
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
 
+  // AWS S3 (Cloud Storage)
+  S3_BUCKET: process.env.S3_BUCKET || '',
+  S3_REGION: process.env.S3_REGION || 'ap-southeast-1',
+  S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || '',
+  S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || '',
+
+  // Upload limits
+  MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
+
   // Helpers
   isDevelopment: (process.env.NODE_ENV || 'development') === 'development',
   isProduction: process.env.NODE_ENV === 'production',

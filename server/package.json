@@ -13,6 +13,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1000.0",
+    "@aws-sdk/s3-request-presigner": "^3.1000.0",
     "@cms/shared": "*",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -20,9 +22,11 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
+    "file-type": "^21.3.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.0",
+    "multer": "^2.1.0",
     "nodemailer": "^8.0.1",
     "uuid": "^11.0.3",
     "zod": "^3.24.1"

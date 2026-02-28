@@ -18,6 +18,15 @@ const NOTIFICATION_TYPES = [
   'panelist_removed',
   'deadlines_set',
   'project_rejected',
+  // Submission / document workflow notifications
+  'chapter_submitted',
+  'submission_approved',
+  'submission_revisions_required',
+  'submission_rejected',
+  'submission_locked',
+  'unlock_requested',
+  'unlock_resolved',
+  'annotation_added',
   // General
   'welcome',
   'system',
