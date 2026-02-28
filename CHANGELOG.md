@@ -6,17 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — Phase 2 Planning
+## [Unreleased]
+
+---
+
+## [0.2.0] — Sprint 5: Project Creation, Title Workflow & Assignment
 
 ### Added
-- Phase 2 Strategy document (`docs/PHASE_2_STRATEGY.md`) covering the complete Capstone 1 workflow: project creation, title submission with similarity detection, cloud storage uploads, adviser review with annotations, plagiarism checker integration, document locking, unlock requests, and proposal compilation
-- Five sprint plans (Sprints 5–9) with ~120 tasks across backend, frontend, and documentation
-- Three new database collection schemas: `projects`, `submissions`, `unlockrequests`
-- ~40 new API endpoint specifications across projects, submissions, reviews, and unlock requests
-- Third-party integration plans: AWS S3, Copyleaks API, Redis/BullMQ
-- Risk register with 9 identified risks and mitigations
-- Phase 1 completion gap analysis (Sprint 4 prerequisites)
-- Phase 2 → Phase 3 handoff checklist
+
+**Server — Shared Constants**
+- Title status constants (`TITLE_STATUSES`: DRAFT, SUBMITTED, APPROVED, REVISION_REQUIRED, PENDING_MODIFICATION)
+- Project status constants (`PROJECT_STATUSES`: ACTIVE, PROPOSAL_SUBMITTED, PROPOSAL_APPROVED, REJECTED, ARCHIVED)
+- Submission status constants (`SUBMISSION_STATUSES`: PENDING, UNDER_REVIEW, APPROVED, REVISIONS_REQUIRED, REJECTED, LOCKED)
+- Barrel exports updated in `@cms/shared`
+
+**Server — Project Module**
+- `Project` Mongoose model with title, abstract, keywords, academic year, capstone phase, team reference, adviser/panelist assignments, deadlines, title modification request subdocument, rejection reason
+- Indexes: titleStatus, adviserId, compound `{academicYear, projectStatus}`, text index on `{title, keywords}`
+- 13 Zod validation schemas covering all project operations
+- Title similarity utility (`levenshteinDistance`, `stringSimilarity`, `keywordOverlap`, `findSimilarProjects`) with weighted scoring (0.7 title + 0.3 keyword, threshold 0.65)
+- `ProjectService` class (17 public methods + 2 private helpers): createProject, getProject, getMyProject, listProjects, updateTitle, submitTitle, approveTitle, rejectTitle, reviseAndResubmit, requestTitleModification, resolveTitleModification, assignAdviser, assignPanelist, removePanelist, selectAsPanelist, setDeadlines, rejectProject
+- `ProjectController` with 17 thin `catchAsync` handlers
+- 17 RESTful API endpoints mounted at `/api/projects` (6 student, 8 instructor, 1 panelist, 2 faculty-shared)
+- 11 new notification types for project events (title submitted/approved/rejected/revision/modification, adviser assigned, panelist assigned/removed/selected, project rejected)
+- 26 integration tests covering project creation, title workflow, adviser/panelist assignment, deadlines, rejection — all passing
+
+**Client — Project Services & Hooks**
+- `projectService` with 20 API methods in `authService.js`
+- `useProjects.js` React Query hooks: `projectKeys` factory, 3 query hooks (`useMyProject`, `useProject`, `useProjects`), 14 mutation hooks with automatic cache invalidation
+
+**Client — UI Components**
+- `Badge` component (7 variants: default, secondary, destructive, outline, success, warning, info)
+- `Textarea` component (shadcn/ui pattern with forwardRef)
+- `TitleStatusBadge` — maps title statuses to colored badges
+- `ProjectStatusBadge` — maps project statuses to colored badges
+
+**Client — Project Pages**
+- `CreateProjectPage` — student form with title (10-300 chars), abstract (0-500 with char count), keyword chip input (max 10), academic year (auto-default), similar project warnings
+- `MyProjectPage` — comprehensive student dashboard with conditional sub-components: EditTitleForm (DRAFT), SubmittedCard (SUBMITTED), RequestModificationForm (APPROVED), ReviseAndResubmitForm (REVISION_REQUIRED), PendingModificationCard (PENDING_MODIFICATION)
+- `ProjectsPage` — faculty project list with search, status filter buttons, pagination, card-based layout, role-based title
+- `ProjectDetailPage` — faculty detail page with 7 sub-components: ProjectInfoPanel, TitleReviewCard (instructor approve/reject), ModificationReviewCard (instructor approve/deny), AssignAdviserCard (adviser dropdown), ManagePanelistsCard (add/remove, max 3), DeadlinesCard (chapter 1-3 + proposal dates), RejectProjectCard (2-step confirmation)
+
+**Client — Navigation & Routing**
+- 4 new lazy-loaded routes: `/project/create`, `/project`, `/projects`, `/projects/:id`
+- Sidebar updated with project navigation for all 4 roles (student: My Project, faculty: Projects)
+
+### Fixed
+- `ThemeToggle` import across 3 files (AuthLayout, Header, SettingsPage) — changed named import to default import to match the component's `export default`
+
+### Changed
+- Phase 2 Strategy document (`docs/PHASE_2_STRATEGY.md`) added in prior release covering the complete Capstone 1 workflow
+- Total test count: 87 (61 existing + 26 new project tests)
 
 ---
 

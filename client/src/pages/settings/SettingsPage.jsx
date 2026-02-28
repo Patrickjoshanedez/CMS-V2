@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import ThemeToggle from '@/components/ThemeToggle';
 import { Palette, Bell, Shield, Info } from 'lucide-react';
 
 /**
@@ -109,20 +109,14 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between rounded-md border px-4 py-3">
               <div>
                 <p className="text-sm font-medium">Change Password</p>
-                <p className="text-xs text-muted-foreground">
-                  Update your account password.
-                </p>
+                <p className="text-xs text-muted-foreground">Update your account password.</p>
               </div>
               <span className="text-xs font-medium text-muted-foreground">Coming soon</span>
             </div>
           </SettingSection>
 
           {/* About */}
-          <SettingSection
-            icon={Info}
-            title="About"
-            description="System information."
-          >
+          <SettingSection icon={Info} title="About" description="System information.">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Version</span>

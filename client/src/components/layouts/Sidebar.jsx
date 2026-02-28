@@ -8,6 +8,7 @@ import {
   LogOut,
   X,
   GraduationCap,
+  FileText,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -26,18 +27,21 @@ const navItems = {
   // Student-specific
   student: [
     { label: 'My Team', icon: UsersRound, path: '/team' },
+    { label: 'My Project', icon: FileText, path: '/project' },
   ],
   // Instructor/admin-specific
   instructor: [
     { label: 'Users', icon: Users, path: '/users' },
     { label: 'Teams', icon: UsersRound, path: '/teams' },
+    { label: 'Projects', icon: FileText, path: '/projects' },
   ],
   // Adviser-specific
   adviser: [
     { label: 'My Teams', icon: UsersRound, path: '/teams' },
+    { label: 'Projects', icon: FileText, path: '/projects' },
   ],
   // Panelist-specific
-  panelist: [],
+  panelist: [{ label: 'Projects', icon: FileText, path: '/projects' }],
 };
 
 function getNavItems(role) {

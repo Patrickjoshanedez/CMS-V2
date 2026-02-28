@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import ThemeToggle from '@/components/ThemeToggle';
 
 /**
  * AuthLayout — shared layout wrapper for all authentication pages.
@@ -27,9 +27,7 @@ export default function AuthLayout({ children, title, description }) {
           {title && (
             <div className="mb-6 text-center">
               <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-              {description && (
-                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-              )}
+              {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
             </div>
           )}
           {children}

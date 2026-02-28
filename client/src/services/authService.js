@@ -54,3 +54,35 @@ export const notificationService = {
   deleteNotification: (id) => api.delete(`/notifications/${id}`),
   clearAll: () => api.delete('/notifications'),
 };
+
+/**
+ * Project API service — capstone project management calls.
+ */
+
+export const projectService = {
+  // Student / team-leader routes
+  createProject: (data) => api.post('/projects', data),
+  getMyProject: () => api.get('/projects/me'),
+  updateTitle: (id, data) => api.patch(`/projects/${id}/title`, data),
+  submitTitle: (id) => api.post(`/projects/${id}/title/submit`),
+  reviseAndResubmit: (id, data) => api.patch(`/projects/${id}/title/revise`, data),
+  requestTitleModification: (id, data) => api.post(`/projects/${id}/title/modification`, data),
+
+  // Instructor routes
+  approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
+  rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),
+  resolveTitleModification: (id, data) =>
+    api.post(`/projects/${id}/title/modification/resolve`, data),
+  assignAdviser: (id, data) => api.post(`/projects/${id}/adviser`, data),
+  assignPanelist: (id, data) => api.post(`/projects/${id}/panelists`, data),
+  removePanelist: (id, data) => api.delete(`/projects/${id}/panelists`, { data }),
+  setDeadlines: (id, data) => api.patch(`/projects/${id}/deadlines`, data),
+  rejectProject: (id, data) => api.post(`/projects/${id}/reject`, data),
+
+  // Panelist route
+  selectAsPanelist: (id) => api.post(`/projects/${id}/panelists/select`),
+
+  // Faculty shared routes
+  getProject: (id) => api.get(`/projects/${id}`),
+  listProjects: (params) => api.get('/projects', { params }),
+};

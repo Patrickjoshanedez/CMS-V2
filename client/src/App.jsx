@@ -15,6 +15,10 @@ const TeamsPage = lazy(() => import('./pages/teams/TeamsPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
+const CreateProjectPage = lazy(() => import('./pages/projects/CreateProjectPage'));
+const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
+const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 /**
@@ -135,6 +139,40 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Project routes */}
+          <Route
+            path="/project/create"
+            element={
+              <ProtectedRoute>
+                <CreateProjectPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project"
+            element={
+              <ProtectedRoute>
+                <MyProjectPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects/:id"
+            element={
+              <ProtectedRoute>
+                <ProjectDetailPage />
               </ProtectedRoute>
             }
           />

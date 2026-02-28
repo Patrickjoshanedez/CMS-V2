@@ -1,6 +1,6 @@
 import { Menu, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 
