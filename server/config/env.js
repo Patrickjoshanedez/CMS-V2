@@ -41,11 +41,15 @@ const env = Object.freeze({
   // Client
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
 
-  // AWS S3 (Cloud Storage)
-  S3_BUCKET: process.env.S3_BUCKET || '',
-  S3_REGION: process.env.S3_REGION || 'ap-southeast-1',
-  S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || '',
-  S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || '',
+  // AWS S3 (Cloud Storage — LocalStack for dev, real AWS for prod)
+  S3_BUCKET: process.env.S3_BUCKET || 'cms-buksu-uploads',
+  S3_REGION: process.env.S3_REGION || 'us-east-1',
+  S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || 'test',
+  S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || 'test',
+  S3_ENDPOINT: process.env.S3_ENDPOINT || '', // e.g. http://localhost:4566 for LocalStack
+  S3_FORCE_PATH_STYLE:
+    process.env.S3_FORCE_PATH_STYLE === 'true' ||
+    (process.env.NODE_ENV || 'development') === 'development',
 
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
