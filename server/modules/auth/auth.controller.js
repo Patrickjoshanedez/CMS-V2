@@ -1,4 +1,5 @@
 import authService from './auth.service.js';
+import auditService from '../audit/audit.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
 import env from '../../config/env.js';
@@ -79,6 +80,17 @@ export const login = catchAsync(async (req, res) => {
   // Set cookies
   res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
   res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+
+  // Fire-and-forget audit log for login
+  auditService.log({
+    action: 'auth.login',
+    actor: user._id,
+    actorRole: user.role,
+    targetType: 'User',
+    targetId: user._id,
+    description: `User ${user.email} logged in`,
+    ipAddress: req.ip || req.connection?.remoteAddress,
+  }).catch(() => {});
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

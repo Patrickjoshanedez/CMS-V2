@@ -6,6 +6,7 @@ import validate from '../../middleware/validate.js';
 import upload, { prototypeUpload } from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
 import { validatePrototypeFile } from '../../middleware/fileValidation.js';
+import auditLog from '../../middleware/auditLog.js';
 import { ROLES } from '@cms/shared';
 import {
   createProjectSchema,
@@ -46,6 +47,10 @@ router.post(
   '/',
   authorize(ROLES.STUDENT),
   validate(createProjectSchema),
+  auditLog('project.created', 'Project', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Created project "${req.body.title}"`,
+  }),
   projectController.createProject,
 );
 
@@ -76,6 +81,10 @@ router.post(
   upload.single('file'),
   validateFile,
   validate(bulkUploadSchema),
+  auditLog('project.bulk_uploaded', 'Project', {
+    getDescription: (req) => `Bulk-uploaded archive: "${req.body.title}"`,
+    getMetadata: (req) => ({ title: req.body.title, academicYear: req.body.academicYear }),
+  }),
   projectController.bulkUploadArchive,
 );
 
@@ -143,6 +152,9 @@ router.post(
   '/:id/title/approve',
   authorize(ROLES.INSTRUCTOR),
   validate(approveTitleSchema),
+  auditLog('project.title_approved', 'Project', {
+    getDescription: (req) => `Approved title for project ${req.params.id}`,
+  }),
   projectController.approveTitle,
 );
 
@@ -151,6 +163,10 @@ router.post(
   '/:id/title/reject',
   authorize(ROLES.INSTRUCTOR),
   validate(rejectTitleSchema),
+  auditLog('project.title_rejected', 'Project', {
+    getDescription: (req) => `Rejected title for project ${req.params.id}`,
+    getMetadata: (req) => ({ reason: req.body.feedback }),
+  }),
   projectController.rejectTitle,
 );
 
@@ -159,6 +175,10 @@ router.post(
   '/:id/title/modification/resolve',
   authorize(ROLES.INSTRUCTOR),
   validate(resolveTitleModificationSchema),
+  auditLog('project.title_modification_resolved', 'Project', {
+    getDescription: (req) => `Resolved title modification for project ${req.params.id}`,
+    getMetadata: (req) => ({ decision: req.body.decision }),
+  }),
   projectController.resolveTitleModification,
 );
 
@@ -167,6 +187,10 @@ router.post(
   '/:id/adviser',
   authorize(ROLES.INSTRUCTOR),
   validate(assignAdviserSchema),
+  auditLog('project.adviser_assigned', 'Project', {
+    getDescription: (req) => `Assigned adviser ${req.body.adviserId} to project ${req.params.id}`,
+    getMetadata: (req) => ({ adviserId: req.body.adviserId }),
+  }),
   projectController.assignAdviser,
 );
 
@@ -175,6 +199,10 @@ router.post(
   '/:id/panelists',
   authorize(ROLES.INSTRUCTOR),
   validate(assignPanelistSchema),
+  auditLog('project.panelist_assigned', 'Project', {
+    getDescription: (req) => `Assigned panelist ${req.body.panelistId} to project ${req.params.id}`,
+    getMetadata: (req) => ({ panelistId: req.body.panelistId }),
+  }),
   projectController.assignPanelist,
 );
 
@@ -199,6 +227,10 @@ router.post(
   '/:id/reject',
   authorize(ROLES.INSTRUCTOR),
   validate(rejectProjectSchema),
+  auditLog('project.rejected', 'Project', {
+    getDescription: (req) => `Rejected project ${req.params.id}`,
+    getMetadata: (req) => ({ reason: req.body.reason }),
+  }),
   projectController.rejectProject,
 );
 
@@ -207,6 +239,10 @@ router.post(
   '/:id/advance-phase',
   authorize(ROLES.INSTRUCTOR),
   validate(advancePhaseSchema),
+  auditLog('project.phase_advanced', 'Project', {
+    getDescription: (req) => `Advanced phase for project ${req.params.id}`,
+    getMetadata: (req) => ({ targetPhase: req.body.targetPhase }),
+  }),
   projectController.advancePhase,
 );
 
@@ -215,6 +251,9 @@ router.post(
   '/:id/archive',
   authorize(ROLES.INSTRUCTOR),
   validate(archiveProjectSchema),
+  auditLog('project.archived', 'Project', {
+    getDescription: (req) => `Archived project ${req.params.id}`,
+  }),
   projectController.archiveProject,
 );
 

@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Archive,
   BarChart3,
+  ScrollText,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -42,6 +43,7 @@ const navItems = {
     { label: 'Teams', icon: UsersRound, path: '/teams' },
     { label: 'Projects', icon: FileText, path: '/projects' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },
+    { label: 'Activity Log', icon: ScrollText, path: '/admin/audit-log' },
   ],
   // Adviser-specific
   adviser: [

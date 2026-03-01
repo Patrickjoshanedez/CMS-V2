@@ -6,13 +6,20 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Textarea } from '@/components/ui/Textarea';
 import ThemeToggle from '@/components/ThemeToggle';
-import { Palette, Bell, Shield, Info, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import {
+  Palette, Bell, Shield, Info, Loader2, CheckCircle, Eye, EyeOff,
+  Settings2, Save, RotateCcw,
+} from 'lucide-react';
 import { authService } from '@/services/authService';
+import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
+import { ROLES } from '@cms/shared';
+import { toast } from 'sonner';
 
 /**
  * SettingsPage — application settings for the current user.
- * Includes theme, notification preferences, and account sections.
+ * Includes theme, notification preferences, account, and instructor-only system administration sections.
  */
 
 function SettingSection({ icon: Icon, title, description, children }) {
@@ -114,12 +121,23 @@ export default function SettingsPage() {
             <ChangePasswordForm />
           </SettingSection>
 
+          {/* System Administration — Instructor only */}
+          {user.role === ROLES.INSTRUCTOR && (
+            <SettingSection
+              icon={Settings2}
+              title="System Administration"
+              description="Configure system-wide thresholds and announcements."
+            >
+              <SystemSettingsForm />
+            </SettingSection>
+          )}
+
           {/* About */}
           <SettingSection icon={Info} title="About" description="System information.">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Version</span>
-                <span className="font-medium">0.4.0</span>
+                <span className="font-medium">0.9.0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Environment</span>
@@ -291,6 +309,205 @@ function ChangePasswordForm() {
           disabled={isSubmitting}
         >
           Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * SystemSettingsForm — instructor-only form for managing system-wide settings.
+ * Covers plagiarism threshold, title similarity, max file size, and system announcement.
+ */
+function SystemSettingsForm() {
+  const { data: settings, isLoading, isError } = useSettings();
+  const updateSettings = useUpdateSettings();
+
+  const [form, setForm] = useState({
+    plagiarismThreshold: 75,
+    titleSimilarityThreshold: 0.65,
+    maxFileSize: 25,
+    systemAnnouncement: '',
+  });
+  const [dirty, setDirty] = useState(false);
+
+  // Sync form when settings load
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        plagiarismThreshold: settings.plagiarismThreshold ?? 75,
+        titleSimilarityThreshold: settings.titleSimilarityThreshold ?? 0.65,
+        maxFileSize: settings.maxFileSize ? Math.round(settings.maxFileSize / (1024 * 1024)) : 25,
+        systemAnnouncement: settings.systemAnnouncement ?? '',
+      });
+      setDirty(false);
+    }
+  }, [settings]);
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleReset = () => {
+    if (settings) {
+      setForm({
+        plagiarismThreshold: settings.plagiarismThreshold ?? 75,
+        titleSimilarityThreshold: settings.titleSimilarityThreshold ?? 0.65,
+        maxFileSize: settings.maxFileSize ? Math.round(settings.maxFileSize / (1024 * 1024)) : 25,
+        systemAnnouncement: settings.systemAnnouncement ?? '',
+      });
+      setDirty(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Client-side validation
+    if (form.plagiarismThreshold < 0 || form.plagiarismThreshold > 100) {
+      toast.error('Plagiarism threshold must be between 0 and 100.');
+      return;
+    }
+    if (form.titleSimilarityThreshold < 0 || form.titleSimilarityThreshold > 1) {
+      toast.error('Title similarity threshold must be between 0 and 1.');
+      return;
+    }
+    if (form.maxFileSize < 1 || form.maxFileSize > 100) {
+      toast.error('Max file size must be between 1 and 100 MB.');
+      return;
+    }
+    if (form.systemAnnouncement.length > 500) {
+      toast.error('System announcement must be 500 characters or less.');
+      return;
+    }
+
+    try {
+      await updateSettings.mutateAsync({
+        plagiarismThreshold: Number(form.plagiarismThreshold),
+        titleSimilarityThreshold: Number(form.titleSimilarityThreshold),
+        maxFileSize: Number(form.maxFileSize) * 1024 * 1024,
+        systemAnnouncement: form.systemAnnouncement.trim(),
+      });
+      toast.success('System settings updated successfully.');
+      setDirty(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.error?.message || 'Failed to update settings.');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Failed to load system settings. Please try again later.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Plagiarism Threshold */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="plagiarismThreshold">Minimum Originality Threshold</Label>
+          <span className="text-sm font-medium tabular-nums">{form.plagiarismThreshold}%</span>
+        </div>
+        <Input
+          id="plagiarismThreshold"
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={form.plagiarismThreshold}
+          onChange={(e) => handleChange('plagiarismThreshold', Number(e.target.value))}
+          className="h-2 cursor-pointer accent-primary"
+        />
+        <p className="text-xs text-muted-foreground">
+          Submissions must meet this originality percentage to pass the plagiarism check during archival.
+        </p>
+      </div>
+
+      {/* Title Similarity Threshold */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="titleSimilarityThreshold">Title Similarity Threshold</Label>
+          <span className="text-sm font-medium tabular-nums">
+            {(form.titleSimilarityThreshold * 100).toFixed(0)}%
+          </span>
+        </div>
+        <Input
+          id="titleSimilarityThreshold"
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={form.titleSimilarityThreshold}
+          onChange={(e) => handleChange('titleSimilarityThreshold', Number(e.target.value))}
+          className="h-2 cursor-pointer accent-primary"
+        />
+        <p className="text-xs text-muted-foreground">
+          Proposed titles exceeding this similarity score will trigger a duplicate warning.
+        </p>
+      </div>
+
+      {/* Max File Size */}
+      <div className="space-y-2">
+        <Label htmlFor="maxFileSize">Maximum File Size (MB)</Label>
+        <Input
+          id="maxFileSize"
+          type="number"
+          min={1}
+          max={100}
+          value={form.maxFileSize}
+          onChange={(e) => handleChange('maxFileSize', Number(e.target.value))}
+        />
+        <p className="text-xs text-muted-foreground">
+          Maximum allowed file size for chapter uploads and final submissions.
+        </p>
+      </div>
+
+      {/* System Announcement */}
+      <div className="space-y-2">
+        <Label htmlFor="systemAnnouncement">System Announcement</Label>
+        <Textarea
+          id="systemAnnouncement"
+          placeholder="Enter a brief system-wide announcement (optional)..."
+          maxLength={500}
+          rows={3}
+          value={form.systemAnnouncement}
+          onChange={(e) => handleChange('systemAnnouncement', e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          {form.systemAnnouncement.length}/500 characters. Visible to all users on the dashboard.
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" disabled={updateSettings.isPending || !dirty}>
+          {updateSettings.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          Save Settings
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleReset}
+          disabled={updateSettings.isPending || !dirty}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Reset
         </Button>
       </div>
     </form>

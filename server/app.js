@@ -16,6 +16,8 @@ import projectRoutes from './modules/projects/project.routes.js';
 import submissionRoutes from './modules/submissions/submission.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import evaluationRoutes from './modules/evaluations/evaluation.routes.js';
+import settingsRoutes from './modules/settings/settings.routes.js';
+import auditRoutes from './modules/audit/audit.routes.js';
 
 const app = express();
 
@@ -67,6 +69,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/audit', auditRoutes);
 
 // ---------- 404 Handler ----------
 

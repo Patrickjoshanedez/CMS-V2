@@ -13,6 +13,7 @@ import * as evaluationController from './evaluation.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
+import auditLog from '../../middleware/auditLog.js';
 import { ROLES } from '@cms/shared';
 import {
   projectDefenseParamSchema,
@@ -86,6 +87,10 @@ router.post(
   '/:evaluationId/submit',
   authorize(ROLES.PANELIST),
   validate(evaluationIdParamSchema, 'params'),
+  auditLog('evaluation.submitted', 'Evaluation', {
+    getTargetId: (req) => req.params.evaluationId,
+    getDescription: (req) => `Submitted evaluation ${req.params.evaluationId}`,
+  }),
   evaluationController.submitEvaluation,
 );
 
@@ -99,6 +104,11 @@ router.post(
   '/:projectId/:defenseType/release',
   authorize(ROLES.INSTRUCTOR),
   validate(projectDefenseParamSchema, 'params'),
+  auditLog('evaluation.released', 'Evaluation', {
+    getTargetId: (req) => req.params.projectId,
+    getDescription: (req) => `Released ${req.params.defenseType} evaluations for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ defenseType: req.params.defenseType }),
+  }),
   evaluationController.releaseEvaluations,
 );
 

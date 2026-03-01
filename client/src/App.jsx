@@ -28,6 +28,7 @@ const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage')
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
 const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
+const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 
@@ -217,6 +218,16 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <BulkUploadPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin routes */}
+          <Route
+            path="/admin/audit-log"
+            element={
+              <ProtectedRoute>
+                <AuditLogPage />
               </ProtectedRoute>
             }
           />

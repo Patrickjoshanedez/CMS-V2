@@ -8,14 +8,14 @@ import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
 import { emitToUser } from '../../services/socket.service.js';
+import settingsService from '../settings/settings.service.js';
 import { ROLES, TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES, PROTOTYPE_TYPES, PLAGIARISM_STATUSES } from '@cms/shared';
 
 /**
- * Minimum originality score (percentage) required for final papers
- * before a project can be archived. Papers scoring below this threshold
- * are considered to have too much similarity with existing works.
+ * Default plagiarism threshold (fallback if settings cannot be loaded).
+ * The actual value is read from SystemSettings at runtime.
  */
-const MIN_ORIGINALITY_THRESHOLD = 75;
+const DEFAULT_ORIGINALITY_THRESHOLD = 75;
 
 /**
  * ProjectService — Business logic for capstone project management.
@@ -1041,6 +1041,14 @@ class ProjectService {
 
     // --- Plagiarism clearance gate ---
     // Both final papers must have a completed plagiarism check with a passing score.
+    // Fetch the configurable threshold from system settings
+    let plagiarismThreshold;
+    try {
+      plagiarismThreshold = await settingsService.getPlagiarismThreshold();
+    } catch {
+      plagiarismThreshold = DEFAULT_ORIGINALITY_THRESHOLD;
+    }
+
     const papersToCheck = [
       { submission: academic, label: 'academic' },
       { submission: journal, label: 'journal' },
@@ -1083,9 +1091,9 @@ class ProjectService {
         );
       }
 
-      if (score < MIN_ORIGINALITY_THRESHOLD) {
+      if (score < plagiarismThreshold) {
         throw new AppError(
-          `Final ${label} version has an originality score of ${score}%, which is below the required ${MIN_ORIGINALITY_THRESHOLD}%. Please revise and re-submit.`,
+          `Final ${label} version has an originality score of ${score}%, which is below the required ${plagiarismThreshold}%. Please revise and re-submit.`,
           400,
           'ORIGINALITY_BELOW_THRESHOLD',
         );

@@ -16,6 +16,7 @@ import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
+import auditLog from '../../middleware/auditLog.js';
 import { ROLES } from '@cms/shared';
 import {
   projectIdParamSchema,
@@ -53,6 +54,11 @@ router.post(
   upload.single('file'),
   validateFile,
   validate(uploadChapterSchema),
+  auditLog('submission.chapter_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded chapter ${req.body.chapter} for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
+  }),
   submissionController.uploadChapter,
 );
 
@@ -70,6 +76,10 @@ router.post(
   upload.single('file'),
   validateFile,
   validate(compileProposalSchema),
+  auditLog('submission.proposal_compiled', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Compiled proposal for project ${req.params.projectId}`,
+  }),
   submissionController.compileProposal,
 );
 
@@ -86,6 +96,10 @@ router.post(
   upload.single('file'),
   validateFile,
   validate(finalPaperSchema),
+  auditLog('submission.final_academic_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded final academic paper for project ${req.params.projectId}`,
+  }),
   submissionController.uploadFinalAcademic,
 );
 
@@ -102,6 +116,10 @@ router.post(
   upload.single('file'),
   validateFile,
   validate(finalPaperSchema),
+  auditLog('submission.final_journal_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded final journal paper for project ${req.params.projectId}`,
+  }),
   submissionController.uploadFinalJournal,
 );
 
@@ -117,6 +135,10 @@ router.post(
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(submissionIdParamSchema, 'params'),
   validate(reviewSubmissionSchema),
+  auditLog('submission.reviewed', 'Submission', {
+    getDescription: (req) => `Reviewed submission ${req.params.submissionId} — ${req.body.decision}`,
+    getMetadata: (req) => ({ decision: req.body.decision, feedback: req.body.feedback }),
+  }),
   submissionController.reviewSubmission,
 );
 
@@ -130,6 +152,10 @@ router.post(
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(submissionIdParamSchema, 'params'),
   validate(unlockRequestSchema),
+  auditLog('submission.unlocked', 'Submission', {
+    getDescription: (req) => `Unlocked submission ${req.params.submissionId}`,
+    getMetadata: (req) => ({ reason: req.body.reason }),
+  }),
   submissionController.unlockSubmission,
 );
 
