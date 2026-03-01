@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 .pnp
 .pnp.js
@@ -39,3 +39,7 @@ coverage/
 *.tgz
 .cache
 cookies.txt
+
+# Test artifacts
+server/test-output.txt
+server/test-results.json

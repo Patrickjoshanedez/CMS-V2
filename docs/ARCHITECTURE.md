@@ -51,6 +51,21 @@ The Capstone Management System (CMS) is a full-stack MERN application following 
 │   Bucket: Private, pre-signed URL access only     │
 │   Key pattern: projects/{id}/chapters/{ch}/v{n}/  │
 └─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│            Redis (Cache / Queue Broker)            │
+│   BullMQ queues: plagiarism-check, email-dispatch │
+└──────────┬──────────────────┬────────────────────┘
+           │                  │
+           ▼                  ▼
+┌──────────────────┐ ┌────────────────────┐
+│ Plagiarism Worker│ │   Email Worker     │
+│  S3 download →   │ │  Nodemailer        │
+│  text extraction │ │  dispatch          │
+│  → similarity    │ └────────────────────┘
+│  → update DB     │
+│  → notify user   │
+└──────────────────┘
 ```
 
 ---
@@ -111,6 +126,61 @@ Logout → Both tokens revoked, cookies cleared
 
 ---
 
+## Background Processing Architecture
+
+> Added in Sprint 8 — Plagiarism Checker Integration (Async)
+
+### Infrastructure
+
+- **Redis** — connection managed by `config/redis.js`; skipped in `NODE_ENV=test`
+- **BullMQ** — job queue library using Redis as the broker
+- **Queue names:** `plagiarism-check`, `email-dispatch`
+- **Job deduplication:** plagiarism jobs use ID `plag-{submissionId}` to prevent duplicates
+
+### Plagiarism Check Flow
+
+```
+Student uploads chapter
+  → Controller saves to S3 + creates submission (status: queued)
+  → Enqueues plagiarism-check job via BullMQ
+  → Returns 201 immediately
+
+Plagiarism Worker picks up job:
+  1. Downloads file from S3
+  2. Extracts text (pdf-parse / mammoth / plain)
+  3. Builds corpus from approved submissions in same project
+  4. Runs three-tier originality engine:
+     a. Internal Jaccard 3-shingle comparison
+     b. Copyleaks API (placeholder — not yet configured)
+     c. Mock fallback (70–100% random score)
+  5. Updates submission.plagiarismResult (score, matchedSources)
+  6. Sends in-app notification to student
+
+If Redis unavailable → synchronous fallback runs in-process
+```
+
+### Plagiarism Service (`services/plagiarism.service.js`)
+
+| Function               | Purpose                                            |
+| ---------------------- | -------------------------------------------------- |
+| `tokenize(text)`       | Lowercases and splits text into word tokens         |
+| `buildShingles(tokens, n)` | Creates n-gram shingle sets for comparison      |
+| `jaccardSimilarity(a, b)` | Computes Jaccard index between two Sets          |
+| `compareAgainstCorpus(text, corpus)` | Compares against array of corpus docs  |
+| `checkOriginality(text, corpus)` | Full pipeline: tokenize → shingle → compare |
+| `generateMockResult()` | Deterministic mock for testing (70–100% score)      |
+| `isCopyleaksConfigured()` | Checks env for Copyleaks API credentials         |
+
+### Text Extraction (`utils/extractText.js`)
+
+| MIME Type             | Library     |
+| --------------------- | ----------- |
+| `application/pdf`     | pdf-parse   |
+| `application/vnd.openxmlformats...` | mammoth |
+| `text/plain`          | Buffer.toString |
+
+---
+
 ## Frontend Architecture
 
 ### State Management
@@ -150,6 +220,7 @@ App
 - **Service objects** — `authService`, `userService`, `teamService`, `notificationService`, `dashboardService`
 - Each service method returns the Axios promise (data extracted by caller)
 - **submissionService** — dedicated service for file upload (multipart) and all submission CRUD/review/annotation operations
+- **plagiarismService** — dedicated service for plagiarism status queries (`getPlagiarismStatus`)
 
 ### Submission Hooks (`useSubmissions.js`)
 
@@ -162,6 +233,19 @@ App
 
 - `dashboardKeys` factory for cache key management
 - `useDashboard()` — query hook with 30s staleTime, 60s refetchInterval for live data
+
+### Plagiarism Hook (`usePlagiarism.js`)
+
+- `plagiarismKeys` factory for cache key management
+- `usePlagiarismResult(submissionId)` — query hook with adaptive polling:
+  - Polls every 5s while status is `queued` or `processing`
+  - Stops polling on `completed` or `failed`
+  - Disabled when no `submissionId` provided
+
+### Plagiarism Components
+
+- **OriginalityBadge** — colour-coded badge (green ≥80%, yellow ≥60%, red <60%) with status-aware states (queued, processing, failed)
+- **PlagiarismReport** — full report card with SVG score ring, matched sources table, loading/error/empty states
 
 ### Notification Hooks (`useNotifications.js`)
 
@@ -187,6 +271,8 @@ Workspace package consumed by both client and server:
 - `ROLES` — frozen object: `{ STUDENT, ADVISER, PANELIST, INSTRUCTOR }`
 - `ROLE_VALUES` — array of valid role strings
 - `HTTP_STATUS` — standard HTTP status code constants
+- `PLAGIARISM_STATUSES` — frozen object: `{ QUEUED, PROCESSING, COMPLETED, FAILED }`
+- `PLAGIARISM_STATUS_VALUES` — array of valid plagiarism status strings
 
 ---
 
@@ -206,6 +292,8 @@ Workspace package consumed by both client and server:
 | File uploads      | multer (memory) + magic-byte MIME validation        |
 | Cloud storage     | AWS S3 private bucket, pre-signed URLs (15 min)     |
 | File type safety  | Binary signature check via file-type library         |
+| Background jobs   | BullMQ + Redis; sync fallback when Redis unavailable |
+| Job deduplication | Plagiarism jobs keyed by `plag-{submissionId}`       |
 
 ---
 

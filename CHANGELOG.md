@@ -10,6 +10,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] — Sprint 8: Plagiarism Checker Integration (Async)
+
+### Added
+
+**Server — Plagiarism / Originality Engine**
+- Three-tier originality engine in `plagiarism.service.js`: (1) Internal Jaccard 3-shingle similarity, (2) Copyleaks adapter placeholder, (3) Mock fallback (70–100% score)
+- Named exports for `tokenize`, `jaccardSimilarity`, `buildShingles`, `compareAgainstCorpus`, `generateMockResult`, `checkOriginality`
+- Text extraction utility (`extractText.js`) supporting PDF (pdf-parse), DOCX (mammoth), and TXT content types
+- BullMQ plagiarism worker (`plagiarism.job.js`): S3 download → text extraction → corpus build → originality check → submission update → notification
+- Synchronous fallback (`runPlagiarismCheckSync`) for test/dev environments without Redis
+- BullMQ email worker (`email.job.js`) for async email dispatch
+- Redis connection manager (`config/redis.js`) — skips Redis entirely in test mode
+- Queue manager (`jobs/queue.js`) with deduplication (`plag-${submissionId}`) and graceful no-Redis fallback
+
+**Server — Submission Model Extensions**
+- `plagiarismResult` embedded subdocument: `status` (queued/processing/completed/failed), `score` (0–100), `checkedAt`, `matchedSources` (array of `{sourceId, title, matchPercentage}`)
+- `extractedText` field (`select: false`) for corpus comparison
+- Index on `plagiarismResult.status`
+
+**Server — API**
+- `GET /api/submissions/:submissionId/plagiarism` — returns plagiarism result for a submission (all authenticated roles)
+- Chapter upload (`POST /chapters`) now auto-enqueues a plagiarism job and sets `plagiarismResult.status = 'queued'`
+- `downloadFile(key)` added to storage service
+
+**Server — Notifications**
+- Added `plagiarism_complete` and `plagiarism_failed` notification types
+
+**Server — Shared Constants**
+- `PLAGIARISM_STATUSES` and `PLAGIARISM_STATUS_VALUES` exported from `@cms/shared`
+
+**Server — Tests (39 new, 171 total)**
+- `plagiarism.test.js`: 5 text extraction tests, 11 unit tests (tokenize, jaccardSimilarity, buildShingles), 9 service tests (compareAgainstCorpus, generateMockResult, checkOriginality), 5 plagiarism job tests (sync fallback), 6 API endpoint tests, 1 upload-triggers-enqueue integration test, 2 mock/fallback tests
+- All 132 existing tests continue to pass (171 total)
+
+**Client — Plagiarism Components**
+- `OriginalityBadge` — colour-coded badge: green (≥80%), yellow (≥60%), red (<60%), plus queued/processing/failed states
+- `PlagiarismReport` — detailed card with score ring, matched-sources table, loading skeleton, and all async states
+- `plagiarismService.js` — API service for `GET /submissions/:id/plagiarism`
+- `usePlagiarism.js` — React Query hook (`usePlagiarismResult`) with automatic polling while queued/processing, stops on completion
+
+**Documentation**
+- `API.md` — new `GET /api/submissions/:submissionId/plagiarism` endpoint documented
+- `CHANGELOG.md` — Sprint 8 release notes
+
+---
+
 ## [0.4.0] — Sprint 7: Live Dashboard & Notification Integration
 
 ### Added

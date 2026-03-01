@@ -207,6 +207,19 @@ User 1──────N Submission (reviewedBy)
   storageKey: String (required — S3 object key),
   status: String (enum: pending, under_review, approved, revisions_required, rejected, locked — default: pending),
   originalityScore: Number | null (populated async by plagiarism job),
+  plagiarismResult: {
+    status: String (enum: queued, processing, completed, failed — default: queued),
+    score: Number | null (0–100, populated on completion),
+    matchedSources: [
+      {
+        source: String (required — name/identifier of matched source),
+        matchPercentage: Number (required — 0–100)
+      }
+    ],
+    error: String | null (populated on failure),
+    completedAt: Date | null
+  } | null,
+  extractedText: String | null (select: false — hidden by default, populated by plagiarism worker),
   submittedBy: ObjectId (ref: User, required),
   reviewedBy: ObjectId | null (ref: User),
   isLate: Boolean (default: false),
@@ -231,6 +244,7 @@ User 1──────N Submission (reviewedBy)
 - `{ projectId: 1, chapter: 1, version: 1 }` (unique compound)
 - `{ status: 1, createdAt: -1 }`
 - `{ submittedBy: 1, createdAt: -1 }`
+- `{ 'plagiarismResult.status': 1 }` (for querying pending plagiarism checks)
 
 **Business Rules:**
 - Version auto-increments on re-upload for a given project + chapter
@@ -241,3 +255,6 @@ User 1──────N Submission (reviewedBy)
 - Annotations are embedded subdocuments; author or instructor can remove
 - `storageKey` format: `projects/{projectId}/chapters/{chapter}/v{version}/{safeFileName}`
 - Document viewing uses temporary pre-signed S3 URLs (15 min expiry)
+- `plagiarismResult` is embedded; status transitions: `queued → processing → completed | failed`
+- `extractedText` is hidden from default queries (`select: false`) to keep payloads lean
+- The originality `score` represents the percentage of original (non-plagiarised) content

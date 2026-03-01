@@ -754,6 +754,56 @@ Remove an annotation. Author or instructor can delete.
 
 ---
 
+### `GET /api/submissions/:submissionId/plagiarism`
+
+Fetch the plagiarism / originality check result for a submission.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Path Parameters:**
+| Param        | Type   | Description                        |
+| ------------ | ------ | ---------------------------------- |
+| submissionId | string | MongoDB ObjectId of the submission |
+
+**Response (200) — Completed:**
+```json
+{
+  "success": true,
+  "data": {
+    "plagiarismResult": {
+      "status": "completed",
+      "score": 87,
+      "checkedAt": "2025-07-10T12:00:00.000Z",
+      "matchedSources": [
+        { "sourceId": "...", "title": "...", "matchPercentage": 12.5 }
+      ]
+    }
+  }
+}
+```
+
+**Response (200) — Queued/Processing:**
+```json
+{
+  "success": true,
+  "data": {
+    "plagiarismResult": {
+      "status": "queued",
+      "score": null,
+      "checkedAt": null,
+      "matchedSources": []
+    }
+  }
+}
+```
+
+**Errors:**
+- 400 — Invalid submission ID format
+- 401 — Not authenticated
+- 404 — Submission not found
+
+---
+
 ## Dashboard
 
 All dashboard endpoints are under `/api/dashboard`. Require authentication.

@@ -7,12 +7,19 @@
  */
 import Submission from './submission.model.js';
 import Project from '../projects/project.model.js';
-import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
+import { enqueuePlagiarismJob } from '../../jobs/queue.js';
+import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, SUBMISSION_STATUSES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  ROLES,
+  SUBMISSION_STATUSES,
+  TITLE_STATUSES,
+  PROJECT_STATUSES,
+  PLAGIARISM_STATUSES,
+} from '@cms/shared';
 
 class SubmissionService {
   /* ═══════════════════ Upload ═══════════════════ */
@@ -116,7 +123,29 @@ class SubmissionService {
       submittedBy: userId,
       isLate,
       remarks: remarks || null,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
+
+    // --- Enqueue plagiarism check (async via BullMQ, sync fallback) ---
+    const plagiarismPayload = {
+      submissionId: submission._id.toString(),
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      chapter,
+    };
+    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    if (!jobId) {
+      // Redis unavailable — run synchronously as fallback (dev/test)
+      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+      });
+    } else {
+      // Store the job ID reference on the submission
+      await Submission.findByIdAndUpdate(submission._id, {
+        'plagiarismResult.jobId': jobId,
+      });
+    }
 
     // --- Notify adviser (if assigned) ---
     if (project.adviserId) {
@@ -237,6 +266,30 @@ class SubmissionService {
     const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
 
     return { url, expiresIn };
+  }
+
+  /* ═══════════════════ Plagiarism ═══════════════════ */
+
+  /**
+   * Get the plagiarism/originality check status for a submission.
+   *
+   * @param {string} submissionId
+   * @returns {Object} { submissionId, plagiarismResult, originalityScore }
+   */
+  async getPlagiarismStatus(submissionId) {
+    const submission = await Submission.findById(submissionId).select(
+      'plagiarismResult originalityScore',
+    );
+
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    return {
+      submissionId: submission._id,
+      originalityScore: submission.originalityScore,
+      plagiarismResult: submission.plagiarismResult || {},
+    };
   }
 
   /* ═══════════════════ Review Workflow ═══════════════════ */

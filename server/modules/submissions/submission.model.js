@@ -8,7 +8,80 @@
  * Storage: File binaries live in S3; this model stores only metadata and the S3 key.
  */
 import mongoose from 'mongoose';
-import { SUBMISSION_STATUS_VALUES, SUBMISSION_STATUSES } from '@cms/shared';
+import {
+  SUBMISSION_STATUS_VALUES,
+  SUBMISSION_STATUSES,
+  PLAGIARISM_STATUS_VALUES,
+} from '@cms/shared';
+
+/**
+ * Embedded schema for matched sources found during plagiarism checking.
+ */
+const matchedSourceSchema = new mongoose.Schema(
+  {
+    submissionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Submission',
+      default: null,
+    },
+    projectTitle: {
+      type: String,
+      trim: true,
+      default: 'Unknown',
+    },
+    chapter: {
+      type: Number,
+      default: null,
+    },
+    matchPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
+/**
+ * Embedded schema for the plagiarism/originality check result.
+ * Populated asynchronously by the plagiarism job worker.
+ */
+const plagiarismResultSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: {
+        values: PLAGIARISM_STATUS_VALUES,
+        message: 'Invalid plagiarism status',
+      },
+      default: null,
+    },
+    originalityScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    matchedSources: {
+      type: [matchedSourceSchema],
+      default: [],
+    },
+    processedAt: {
+      type: Date,
+      default: null,
+    },
+    jobId: {
+      type: String,
+      default: null,
+    },
+    error: {
+      type: String,
+      default: null,
+    },
+  },
+  { _id: false },
+);
 
 /**
  * Embedded schema for adviser annotations (highlight & comment tool).
@@ -104,6 +177,19 @@ const submissionSchema = new mongoose.Schema(
       max: 100,
     },
 
+    // --- Plagiarism / originality check result (async) ---
+    plagiarismResult: {
+      type: plagiarismResultSchema,
+      default: () => ({}),
+    },
+
+    // --- Extracted text (cached for corpus building) ---
+    extractedText: {
+      type: String,
+      default: null,
+      select: false, // Excluded from default queries to save bandwidth
+    },
+
     // --- People ---
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -158,6 +244,8 @@ submissionSchema.index({ projectId: 1, chapter: 1, status: 1 });
 submissionSchema.index({ status: 1, createdAt: -1 });
 // Submitter history
 submissionSchema.index({ submittedBy: 1, createdAt: -1 });
+// Plagiarism status lookups
+submissionSchema.index({ 'plagiarismResult.status': 1 });
 // Ensure unique version per project-chapter combo
 submissionSchema.index({ projectId: 1, chapter: 1, version: 1 }, { unique: true });
 

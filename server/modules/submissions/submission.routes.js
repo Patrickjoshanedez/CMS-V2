@@ -129,6 +129,17 @@ router.get(
 );
 
 /**
+ * GET /:submissionId/plagiarism
+ * Get the plagiarism / originality check status and results.
+ * Any authenticated user can check (authorization on data handled by the service).
+ */
+router.get(
+  '/:submissionId/plagiarism',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getPlagiarismStatus,
+);
+
+/**
  * GET /project/:projectId
  * List all submissions for a project with optional filters and pagination.
  */

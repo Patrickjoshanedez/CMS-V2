@@ -93,6 +93,18 @@ export const getViewUrl = catchAsync(async (req, res) => {
   });
 });
 
+/* ═══════════════════ Plagiarism ═══════════════════ */
+
+/** GET /api/submissions/:submissionId/plagiarism — Get plagiarism check status */
+export const getPlagiarismStatus = catchAsync(async (req, res) => {
+  const result = await submissionService.getPlagiarismStatus(req.params.submissionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
+  });
+});
+
 /* ═══════════════════ Review ═══════════════════ */
 
 /** POST /api/submissions/:submissionId/review — Review a submission (faculty) */

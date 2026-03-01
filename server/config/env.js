@@ -51,6 +51,15 @@ const env = Object.freeze({
     process.env.S3_FORCE_PATH_STYLE === 'true' ||
     (process.env.NODE_ENV || 'development') === 'development',
 
+  // Redis (BullMQ)
+  REDIS_HOST: process.env.REDIS_HOST || 'localhost',
+  REDIS_PORT: parseInt(process.env.REDIS_PORT, 10) || 6379,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
+
+  // Plagiarism / Copyleaks (empty = fallback mock mode)
+  COPYLEAKS_EMAIL: process.env.COPYLEAKS_EMAIL || '',
+  COPYLEAKS_API_KEY: process.env.COPYLEAKS_API_KEY || '',
+
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
 

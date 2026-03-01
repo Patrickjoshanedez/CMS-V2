@@ -27,6 +27,9 @@ const NOTIFICATION_TYPES = [
   'unlock_requested',
   'unlock_resolved',
   'annotation_added',
+  // Plagiarism
+  'plagiarism_complete',
+  'plagiarism_failed',
   // General
   'welcome',
   'system',

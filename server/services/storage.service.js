@@ -5,7 +5,12 @@
  * Currently backed by AWS S3. To swap providers (e.g. GCS, Azure Blob),
  * only this file needs to change — no other module references the SDK directly.
  */
-import { PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client from '../config/storage.js';
 import env from '../config/env.js';
@@ -72,13 +77,36 @@ class StorageService {
     await s3Client.send(command);
 
     // Use GetObjectCommand for the actual download URL
-    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
     const getCommand = new GetObjectCommand({
       Bucket: this.bucket,
       Key: key,
     });
 
     return getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
+  }
+
+  /**
+   * Download a file from cloud storage as a Buffer.
+   *
+   * Used by the plagiarism worker to fetch the file for text extraction.
+   *
+   * @param {string} key - S3 object key
+   * @returns {Promise<Buffer>} File content as a Buffer
+   */
+  async downloadFile(key) {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    // Convert the readable stream to a Buffer
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
   }
 
   /**
