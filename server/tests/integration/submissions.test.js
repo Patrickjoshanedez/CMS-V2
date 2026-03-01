@@ -14,6 +14,7 @@ import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
+import Notification from '../../modules/notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
 import { SUBMISSION_STATUSES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 
@@ -634,6 +635,353 @@ describe('Submissions API — /api/submissions', () => {
       const res = await studentAgent.post(`/api/submissions/${sub._id}/annotations`).send({
         content: 'Student annotation attempt.',
       });
+      expect(res.status).toBe(403);
+    });
+  });
+
+  /* ────────── Proposal Compilation ────────── */
+  describe('POST /:projectId/proposal — Compile proposal', () => {
+    /**
+     * Helper: create locked submissions for chapters 1, 2, and 3.
+     */
+    async function lockChapters123() {
+      for (const ch of [1, 2, 3]) {
+        await Submission.create({
+          projectId: project._id,
+          chapter: ch,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${ch}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 5000,
+          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentUser._id,
+        });
+      }
+    }
+
+    beforeEach(async () => {
+      // Add proposal deadline to project
+      await Project.findByIdAndUpdate(project._id, {
+        'deadlines.proposal': new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+      });
+    });
+
+    it('should compile proposal when all chapters 1-3 are locked', async () => {
+      await lockChapters123();
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'full-proposal.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.submission.type).toBe('proposal');
+      expect(res.body.data.submission.chapter).toBeNull();
+      expect(res.body.data.submission.version).toBe(1);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.PENDING);
+
+      // Verify project transitioned to PROPOSAL_SUBMITTED
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+
+      // Verify S3 upload was called with proposal key
+      expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
+      const uploadedKey = storageService.uploadFile.mock.calls[0][1];
+      expect(uploadedKey).toContain('proposal');
+    });
+
+    it('should auto-increment proposal version on re-upload', async () => {
+      await lockChapters123();
+
+      // First proposal
+      await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal-v1.pdf');
+
+      // Reset project to active for second upload
+      await Project.findByIdAndUpdate(project._id, {
+        projectStatus: PROJECT_STATUSES.ACTIVE,
+      });
+
+      // Second proposal
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal-v2.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.submission.version).toBe(2);
+    });
+
+    it('should reject if Chapter 1 is not locked', async () => {
+      // Only lock chapters 2 and 3
+      for (const ch of [2, 3]) {
+        await Submission.create({
+          projectId: project._id,
+          chapter: ch,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${ch}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 5000,
+          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentUser._id,
+        });
+      }
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('CHAPTER_NOT_LOCKED');
+    });
+
+    it('should reject if any chapter is pending (not locked)', async () => {
+      // Lock ch 1 and 3, but ch 2 is only pending
+      for (const ch of [1, 3]) {
+        await Submission.create({
+          projectId: project._id,
+          chapter: ch,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${ch}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 5000,
+          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentUser._id,
+        });
+      }
+      await Submission.create({
+        projectId: project._id,
+        chapter: 2,
+        type: 'chapter',
+        version: 1,
+        fileName: 'chapter2.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: `projects/${project._id}/chapters/2/v1/chapter2.pdf`,
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('CHAPTER_NOT_LOCKED');
+    });
+
+    it('should reject non-student role (adviser)', async () => {
+      await lockChapters123();
+
+      const res = await adviserAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject non-student role (panelist)', async () => {
+      await lockChapters123();
+
+      const res = await panelistAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should reject when project is not active', async () => {
+      await lockChapters123();
+      await Project.findByIdAndUpdate(project._id, {
+        projectStatus: PROJECT_STATUSES.PROPOSAL_SUBMITTED,
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PROJECT_NOT_ACTIVE');
+    });
+
+    it('should reject when title is not approved', async () => {
+      await lockChapters123();
+      await Project.findByIdAndUpdate(project._id, { titleStatus: 'draft' });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
+    });
+
+    it('should require remarks for late proposal submission', async () => {
+      await lockChapters123();
+      await Project.findByIdAndUpdate(project._id, {
+        'deadlines.proposal': new Date(Date.now() - 1000),
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'late-proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('LATE_REMARKS_REQUIRED');
+    });
+
+    it('should accept late proposal with remarks', async () => {
+      await lockChapters123();
+      await Project.findByIdAndUpdate(project._id, {
+        'deadlines.proposal': new Date(Date.now() - 1000),
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .field('remarks', 'Delayed due to data collection issues.')
+        .attach('file', createPdfBuffer(), 'late-proposal.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.submission.isLate).toBe(true);
+      expect(res.body.data.submission.remarks).toContain('data collection');
+    });
+
+    it('should create notification for adviser on proposal upload', async () => {
+      await lockChapters123();
+
+      await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      const notifications = await Notification.find({
+        userId: adviserUser._id,
+        type: 'proposal_submitted',
+      });
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0].message).toContain('compiled proposal');
+    });
+  });
+
+  /* ────────── Proposal Approval Workflow ────────── */
+  describe('Proposal Approval — review transitions project status', () => {
+    let proposalSubmissionId;
+
+    beforeEach(async () => {
+      // Create locked chapters 1, 2, 3
+      for (const ch of [1, 2, 3]) {
+        await Submission.create({
+          projectId: project._id,
+          chapter: ch,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${ch}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 5000,
+          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentUser._id,
+        });
+      }
+
+      // Create a proposal submission in PENDING state, project in PROPOSAL_SUBMITTED
+      const proposal = await Submission.create({
+        projectId: project._id,
+        type: 'proposal',
+        chapter: null,
+        version: 1,
+        fileName: 'full-proposal.pdf',
+        fileType: 'application/pdf',
+        fileSize: 10000,
+        storageKey: `projects/${project._id}/proposal/v1/full-proposal.pdf`,
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+      proposalSubmissionId = proposal._id.toString();
+
+      await Project.findByIdAndUpdate(project._id, {
+        projectStatus: PROJECT_STATUSES.PROPOSAL_SUBMITTED,
+      });
+    });
+
+    it('should transition project to PROPOSAL_APPROVED when proposal is approved', async () => {
+      const res = await adviserAgent.post(`/api/submissions/${proposalSubmissionId}/review`).send({
+        status: 'approved',
+        reviewNote: 'Excellent proposal. Approved.',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
+    });
+
+    it('should NOT transition project when proposal is rejected', async () => {
+      const res = await adviserAgent.post(`/api/submissions/${proposalSubmissionId}/review`).send({
+        status: 'rejected',
+        reviewNote: 'Not acceptable.',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REJECTED);
+
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+    });
+
+    it('should NOT transition project when revisions are requested', async () => {
+      const res = await adviserAgent.post(`/api/submissions/${proposalSubmissionId}/review`).send({
+        status: 'revisions_required',
+        reviewNote: 'Needs more work on methodology.',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REVISIONS_REQUIRED);
+
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+    });
+
+    it('should generate notification with proposal label on approval', async () => {
+      await adviserAgent.post(`/api/submissions/${proposalSubmissionId}/review`).send({
+        status: 'approved',
+        reviewNote: 'Approved.',
+      });
+
+      const notif = await Notification.findOne({
+        userId: studentUser._id,
+        type: 'submission_approved',
+      });
+      expect(notif).toBeTruthy();
+      expect(notif.message).toContain('Proposal (v1)');
+    });
+
+    it('should allow instructor to approve proposal and transition project', async () => {
+      const res = await instructorAgent
+        .post(`/api/submissions/${proposalSubmissionId}/review`)
+        .send({
+          status: 'approved',
+          reviewNote: 'Instructor approves.',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
+    });
+
+    it('should reject proposal review from student role', async () => {
+      const res = await studentAgent.post(`/api/submissions/${proposalSubmissionId}/review`).send({
+        status: 'approved',
+      });
+
       expect(res.status).toBe(403);
     });
   });

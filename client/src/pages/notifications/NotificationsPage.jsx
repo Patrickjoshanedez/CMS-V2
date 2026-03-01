@@ -27,6 +27,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   useNotifications,
   useMarkAsRead,
@@ -156,10 +157,20 @@ export default function NotificationsPage() {
   const limit = 20;
 
   const { data, isLoading, isError } = useNotifications({ page, limit });
-  const markAsRead = useMarkAsRead();
-  const markAllAsRead = useMarkAllAsRead();
-  const deleteNotification = useDeleteNotification();
-  const clearAll = useClearAllNotifications();
+  const markAsRead = useMarkAsRead({
+    onError: () => toast.error('Failed to mark notification as read.'),
+  });
+  const markAllAsRead = useMarkAllAsRead({
+    onSuccess: () => toast.success('All notifications marked as read.'),
+    onError: () => toast.error('Failed to mark all as read.'),
+  });
+  const deleteNotification = useDeleteNotification({
+    onError: () => toast.error('Failed to delete notification.'),
+  });
+  const clearAll = useClearAllNotifications({
+    onSuccess: () => toast.success('All notifications cleared.'),
+    onError: () => toast.error('Failed to clear notifications.'),
+  });
 
   if (!user) {
     fetchUser();

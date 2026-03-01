@@ -125,11 +125,21 @@ const submissionSchema = new mongoose.Schema(
       required: [true, 'Project ID is required'],
       index: true,
     },
+
+    /**
+     * Submission type — 'chapter' for individual chapter uploads (Ch. 1-3),
+     * 'proposal' for the compiled proposal document.
+     */
+    type: {
+      type: String,
+      enum: ['chapter', 'proposal'],
+      default: 'chapter',
+    },
     chapter: {
       type: Number,
-      required: [true, 'Chapter number is required'],
       min: [1, 'Chapter must be between 1 and 5'],
       max: [5, 'Chapter must be between 1 and 5'],
+      default: null, // null for proposal-type submissions
     },
     version: {
       type: Number,
@@ -246,8 +256,18 @@ submissionSchema.index({ status: 1, createdAt: -1 });
 submissionSchema.index({ submittedBy: 1, createdAt: -1 });
 // Plagiarism status lookups
 submissionSchema.index({ 'plagiarismResult.status': 1 });
-// Ensure unique version per project-chapter combo
-submissionSchema.index({ projectId: 1, chapter: 1, version: 1 }, { unique: true });
+// Ensure unique version per project-chapter combo (chapter submissions)
+submissionSchema.index(
+  { projectId: 1, chapter: 1, version: 1 },
+  { unique: true, partialFilterExpression: { type: 'chapter' } },
+);
+// Ensure unique version per project for proposal submissions
+submissionSchema.index(
+  { projectId: 1, type: 1, version: 1 },
+  { unique: true, partialFilterExpression: { type: 'proposal' } },
+);
+// Quick lookup: proposal submissions for a project
+submissionSchema.index({ projectId: 1, type: 1 });
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

@@ -219,14 +219,14 @@ App
 - **Response interceptor** — on 401, queues failed requests, attempts token refresh, retries
 - **Service objects** — `authService`, `userService`, `teamService`, `notificationService`, `dashboardService`
 - Each service method returns the Axios promise (data extracted by caller)
-- **submissionService** — dedicated service for file upload (multipart) and all submission CRUD/review/annotation operations
+- **submissionService** — dedicated service for file upload (multipart), submission CRUD/review/annotation, and proposal compilation operations
 - **plagiarismService** — dedicated service for plagiarism status queries (`getPlagiarismStatus`)
 
 ### Submission Hooks (`useSubmissions.js`)
 
 - `submissionKeys` factory for cache key management
 - 5 query hooks: `useSubmission`, `useProjectSubmissions`, `useChapterHistory`, `useLatestChapter`, `useViewUrl`
-- 5 mutation hooks: `useUploadChapter`, `useReviewSubmission`, `useUnlockSubmission`, `useAddAnnotation`, `useRemoveAnnotation`
+- 6 mutation hooks: `useUploadChapter`, `useCompileProposal`, `useReviewSubmission`, `useUnlockSubmission`, `useAddAnnotation`, `useRemoveAnnotation`
 - Mutations invalidate both `submissionKeys.all` and `projectKeys.all` on success
 
 ### Dashboard Hook (`useDashboard.js`)

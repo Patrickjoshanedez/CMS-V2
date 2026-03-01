@@ -41,7 +41,7 @@ export default function ProjectsPage() {
     limit: 10,
   };
 
-  const { data, isLoading, error } = useProjects(filters);
+  const { data, isLoading, error, refetch } = useProjects(filters);
 
   if (!user) {
     fetchUser();
@@ -111,6 +111,9 @@ export default function ProjectsPage() {
             <AlertDescription>
               {error.response?.data?.error?.message || 'Failed to load projects'}
             </AlertDescription>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => refetch()}>
+              Retry
+            </Button>
           </Alert>
         )}
 

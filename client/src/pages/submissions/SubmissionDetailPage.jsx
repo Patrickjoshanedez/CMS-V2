@@ -33,6 +33,7 @@ import {
   User,
   Send,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 /* ────────── Helpers ────────── */
 
@@ -138,7 +139,10 @@ function InfoRow({ label, value, children }) {
  */
 function ReviewPanel({ submissionId, currentStatus }) {
   const [reviewNote, setReviewNote] = useState('');
-  const reviewMutation = useReviewSubmission();
+  const reviewMutation = useReviewSubmission({
+    onSuccess: () => toast.success('Submission reviewed successfully.'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Review failed.'),
+  });
 
   const canReview =
     currentStatus === SUBMISSION_STATUSES.PENDING ||
@@ -214,7 +218,10 @@ function ReviewPanel({ submissionId, currentStatus }) {
  */
 function UnlockPanel({ submissionId, currentStatus }) {
   const [reason, setReason] = useState('');
-  const unlockMutation = useUnlockSubmission();
+  const unlockMutation = useUnlockSubmission({
+    onSuccess: () => toast.success('Submission unlocked.'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Unlock failed.'),
+  });
 
   if (currentStatus !== SUBMISSION_STATUSES.LOCKED) return null;
 
@@ -275,8 +282,16 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
   const [content, setContent] = useState('');
   const [page, setPage] = useState('1');
 
-  const addMutation = useAddAnnotation();
-  const removeMutation = useRemoveAnnotation();
+  const addMutation = useAddAnnotation({
+    onSuccess: () => toast.success('Annotation added.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to add annotation.'),
+  });
+  const removeMutation = useRemoveAnnotation({
+    onSuccess: () => toast.success('Annotation removed.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to remove annotation.'),
+  });
 
   const handleAdd = (e) => {
     e.preventDefault();

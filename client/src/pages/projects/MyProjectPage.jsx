@@ -19,6 +19,7 @@ import {
   useRequestTitleModification,
 } from '@/hooks/useProjects';
 import { TITLE_STATUSES } from '@cms/shared';
+import { toast } from 'sonner';
 import {
   FileText,
   Send,
@@ -138,8 +139,14 @@ function ProjectInfoCard({ project }) {
 }
 
 function EditTitleForm({ project }) {
-  const updateTitle = useUpdateTitle();
-  const submitTitle = useSubmitTitle();
+  const updateTitle = useUpdateTitle({
+    onSuccess: () => toast.success('Changes saved.'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to save.'),
+  });
+  const submitTitle = useSubmitTitle({
+    onSuccess: () => toast.success('Title submitted for approval!'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to submit title.'),
+  });
 
   const [title, setTitle] = useState(project.title);
   const [abstract, setAbstract] = useState(project.abstract || '');
@@ -277,7 +284,10 @@ function EditTitleForm({ project }) {
 }
 
 function ReviseAndResubmitForm({ project }) {
-  const revise = useReviseAndResubmit();
+  const revise = useReviseAndResubmit({
+    onSuccess: () => toast.success('Title resubmitted for review!'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Resubmission failed.'),
+  });
   const [title, setTitle] = useState(project.title);
   const [abstract, setAbstract] = useState(project.abstract || '');
 
@@ -335,7 +345,10 @@ function ReviseAndResubmitForm({ project }) {
 }
 
 function RequestModificationForm({ project }) {
-  const requestMod = useRequestTitleModification();
+  const requestMod = useRequestTitleModification({
+    onSuccess: () => toast.success('Modification request submitted!'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Request failed.'),
+  });
   const [proposedTitle, setProposedTitle] = useState('');
   const [justification, setJustification] = useState('');
   const [show, setShow] = useState(false);

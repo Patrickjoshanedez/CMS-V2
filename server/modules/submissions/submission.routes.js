@@ -23,6 +23,7 @@ import {
   projectChapterParamSchema,
   submissionAnnotationParamSchema,
   uploadChapterSchema,
+  compileProposalSchema,
   reviewSubmissionSchema,
   addAnnotationSchema,
   unlockRequestSchema,
@@ -52,6 +53,23 @@ router.post(
   validateFile,
   validate(uploadChapterSchema),
   submissionController.uploadChapter,
+);
+
+/**
+ * POST /:projectId/proposal
+ * Upload the compiled proposal document (Chapters 1-3 unified).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ * Requires all chapters 1-3 to be locked (approved).
+ */
+router.post(
+  '/:projectId/proposal',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(compileProposalSchema),
+  submissionController.compileProposal,
 );
 
 /* ────── Faculty routes ────── */

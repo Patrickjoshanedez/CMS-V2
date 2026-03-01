@@ -161,6 +161,161 @@ class SubmissionService {
     return { submission };
   }
 
+  /* ═══════════════════ Proposal Compilation ═══════════════════ */
+
+  /**
+   * Compile and upload the full proposal document.
+   *
+   * Business rules enforced:
+   * - User must be a student on the owning team
+   * - Project must be active with approved title
+   * - Chapters 1, 2, and 3 must each have at least one LOCKED submission
+   * - Late submission detection against proposal deadline
+   * - Version auto-increments from previous proposal uploads
+   *
+   * On success, the project status transitions to PROPOSAL_SUBMITTED.
+   *
+   * @param {string} userId - The authenticated student
+   * @param {string} projectId - Target project
+   * @param {Object} data - { remarks }
+   * @param {Object} file - multer file object with buffer, originalname, size, validatedMime
+   * @returns {Object} { submission }
+   */
+  async compileProposal(userId, projectId, data, file) {
+    // --- Authorization: user must be on the owning team ---
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    if (user.role !== ROLES.STUDENT) {
+      throw new AppError('Only students can compile proposals.', 403, 'FORBIDDEN');
+    }
+
+    const project = await Project.findById(projectId).populate('teamId');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
+      throw new AppError('You can only upload to your own project.', 403, 'FORBIDDEN');
+    }
+
+    // --- Project state checks ---
+    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+      throw new AppError(
+        'Cannot submit proposal for a non-active project.',
+        400,
+        'PROJECT_NOT_ACTIVE',
+      );
+    }
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'Your project title must be approved before submitting a proposal.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
+    }
+
+    // --- Validate that Chapters 1, 2, and 3 each have a LOCKED submission ---
+    const requiredChapters = [1, 2, 3];
+    for (const ch of requiredChapters) {
+      const locked = await Submission.findOne({
+        projectId,
+        chapter: ch,
+        type: 'chapter',
+        status: SUBMISSION_STATUSES.LOCKED,
+      });
+      if (!locked) {
+        throw new AppError(
+          `Chapter ${ch} must be approved (locked) before compiling the proposal.`,
+          400,
+          'CHAPTER_NOT_LOCKED',
+        );
+      }
+    }
+
+    const { remarks } = data;
+
+    // --- Late submission detection ---
+    const deadline = project.deadlines?.proposal;
+    const isLate = deadline ? new Date() > new Date(deadline) : false;
+
+    if (isLate && (!remarks || remarks.trim().length === 0)) {
+      throw new AppError(
+        'This submission is past the deadline. You must provide remarks explaining the delay.',
+        400,
+        'LATE_REMARKS_REQUIRED',
+      );
+    }
+
+    // --- Auto-increment version for proposals ---
+    const latestProposal = await Submission.findOne({
+      projectId,
+      type: 'proposal',
+    }).sort({ version: -1 });
+
+    const nextVersion = latestProposal ? latestProposal.version + 1 : 1;
+
+    // --- Upload to S3 ---
+    const storageKey = storageService.buildProposalKey(projectId, nextVersion, file.originalname);
+
+    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+      projectId,
+      type: 'proposal',
+      version: String(nextVersion),
+      uploadedBy: userId,
+    });
+
+    // --- Create submission record ---
+    const submission = await Submission.create({
+      projectId,
+      type: 'proposal',
+      chapter: null,
+      version: nextVersion,
+      fileName: file.originalname,
+      fileType: file.validatedMime,
+      fileSize: file.size,
+      storageKey,
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: userId,
+      isLate,
+      remarks: remarks || null,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+
+    // --- Enqueue plagiarism check ---
+    const plagiarismPayload = {
+      submissionId: submission._id.toString(),
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      type: 'proposal',
+    };
+    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    if (!jobId) {
+      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+      });
+    } else {
+      await Submission.findByIdAndUpdate(submission._id, {
+        'plagiarismResult.jobId': jobId,
+      });
+    }
+
+    // --- Transition project status to PROPOSAL_SUBMITTED ---
+    project.projectStatus = PROJECT_STATUSES.PROPOSAL_SUBMITTED;
+    await project.save();
+
+    // --- Notify adviser (if assigned) ---
+    if (project.adviserId) {
+      await Notification.create({
+        userId: project.adviserId,
+        type: 'proposal_submitted',
+        title: 'Proposal Submitted',
+        message: `The compiled proposal (v${nextVersion}) has been submitted for project "${project.title}".`,
+        metadata: { projectId, submissionId: submission._id, version: nextVersion },
+      });
+    }
+
+    return { submission };
+  }
+
   /* ═══════════════════ Read ═══════════════════ */
 
   /**
@@ -326,6 +481,18 @@ class SubmissionService {
 
     await submission.save();
 
+    // --- If this is a proposal submission being approved, transition project status ---
+    if (
+      submission.type === 'proposal' &&
+      (status === SUBMISSION_STATUSES.APPROVED || status === 'approved')
+    ) {
+      const project = await Project.findById(submission.projectId);
+      if (project && project.projectStatus === PROJECT_STATUSES.PROPOSAL_SUBMITTED) {
+        project.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
+        await project.save();
+      }
+    }
+
     // --- Notify the submitter ---
     const notifType =
       status === SUBMISSION_STATUSES.APPROVED || status === 'approved'
@@ -341,15 +508,21 @@ class SubmissionService {
           ? 'sent back for revisions'
           : 'rejected';
 
+    const docLabel =
+      submission.type === 'proposal'
+        ? `Proposal (v${submission.version})`
+        : `Chapter ${submission.chapter} (v${submission.version})`;
+
     await Notification.create({
       userId: submission.submittedBy,
       type: notifType,
       title: 'Submission Reviewed',
-      message: `Your Chapter ${submission.chapter} (v${submission.version}) has been ${statusLabel}.`,
+      message: `Your ${docLabel} has been ${statusLabel}.`,
       metadata: {
         submissionId: submission._id,
         projectId: submission.projectId,
         chapter: submission.chapter,
+        type: submission.type,
         newStatus: submission.status,
       },
     });

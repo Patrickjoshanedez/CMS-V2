@@ -804,6 +804,63 @@ Fetch the plagiarism / originality check result for a submission.
 
 ---
 
+### `POST /api/submissions/:projectId/proposal`
+
+Compile and upload the full proposal document after Chapters 1–3 are approved and locked.
+
+**Auth:** Bearer token. Roles: `student`
+
+**Content-Type:** `multipart/form-data`
+
+**URL Params:**
+| Field     | Type   | Required | Description           |
+| --------- | ------ | -------- | --------------------- |
+| projectId | string | yes      | MongoDB ObjectId      |
+
+**Body (form-data):**
+| Field   | Type   | Required    | Description                                       |
+| ------- | ------ | ----------- | ------------------------------------------------- |
+| file    | binary | yes         | PDF/DOCX/TXT, max 25 MB                           |
+| remarks | string | conditional | Required if submission is past project deadline    |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Proposal compiled and submitted successfully",
+  "data": {
+    "_id": "...",
+    "projectId": "...",
+    "type": "proposal",
+    "chapter": null,
+    "version": 1,
+    "status": "pending",
+    "fileUrl": "projects/.../proposal/v1/proposal.pdf",
+    "fileName": "proposal.pdf",
+    "fileSize": 1024000,
+    "mimeType": "application/pdf",
+    "isLate": false,
+    "plagiarismResult": { "status": "queued" }
+  }
+}
+```
+
+**Errors:**
+- 400 — Validation error (missing file, missing late remarks, unsupported MIME type)
+- 400 — Not all chapters (1–3) are locked (approved). Each must be individually approved before proposal compilation
+- 401 — Not authenticated
+- 403 — Not a member of this project's team
+- 404 — Project not found
+
+**Business Rules:**
+- Chapters 1, 2, and 3 must each have a submission with `status: 'locked'` before compilation is allowed
+- Submitting a proposal transitions the project status from `active` to `proposal_submitted`
+- A plagiarism check job is automatically enqueued on successful upload
+- The adviser is notified via `proposal_submitted` notification type
+- If the proposal is later approved (via `reviewSubmission` with `decision: 'approve'`), the project transitions to `proposal_approved`
+
+---
+
 ## Dashboard
 
 All dashboard endpoints are under `/api/dashboard`. Require authentication.

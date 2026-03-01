@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useCreateProject } from '@/hooks/useProjects';
 import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * CreateProjectPage — Students create a new capstone project.
@@ -24,7 +25,15 @@ const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
 export default function CreateProjectPage() {
   const navigate = useNavigate();
   const createProject = useCreateProject({
-    onSuccess: () => navigate('/project'),
+    onSuccess: () => {
+      toast.success('Project created successfully!');
+      navigate('/project');
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message || err?.message || 'Failed to create project.',
+      );
+    },
   });
 
   const [form, setForm] = useState({

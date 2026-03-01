@@ -15,7 +15,7 @@ This document describes all MongoDB collections used in Phase 1 of the Capstone 
 | `teaminvites`    | Pending team membership invitations       |
 | `notifications`  | In-app notification messages              |
 | `projects`       | Capstone projects with title workflow      |
-| `submissions`    | Chapter uploads with versioning & review  |
+| `submissions`    | Chapter and proposal uploads with versioning & review |
 
 ---
 
@@ -194,12 +194,14 @@ User 1──────N Submission (reviewedBy)
 ## 8. Submissions Collection
 
 > Added in Sprint 6 — Cloud Storage, Document Upload & Versioning
+> Updated in Sprint 9 — Proposal Compilation support
 
 ```
 {
   _id: ObjectId,
   projectId: ObjectId (ref: Project, required),
-  chapter: Number (1–5, required),
+  type: String (enum: chapter, proposal — default: chapter),
+  chapter: Number | null (1–5 for chapters, null for proposals),
   version: Number (default: 1),
   fileName: String (required),
   fileType: String (required, enum: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain),
@@ -253,8 +255,9 @@ User 1──────N Submission (reviewedBy)
 - Late submissions require a remarks field (enforced server-side)
 - Only students can upload; only faculty can review, unlock, and annotate
 - Annotations are embedded subdocuments; author or instructor can remove
-- `storageKey` format: `projects/{projectId}/chapters/{chapter}/v{version}/{safeFileName}`
+- `storageKey` format: `projects/{projectId}/chapters/{chapter}/v{version}/{safeFileName}` for chapters, `projects/{projectId}/proposal/v{version}/{safeFileName}` for proposals
 - Document viewing uses temporary pre-signed S3 URLs (15 min expiry)
 - `plagiarismResult` is embedded; status transitions: `queued → processing → completed | failed`
 - `extractedText` is hidden from default queries (`select: false`) to keep payloads lean
 - The originality `score` represents the percentage of original (non-plagiarised) content
+- **Proposal compilation** (Sprint 9): Requires all chapters 1–3 to be locked; creates a `type: 'proposal'` submission; transitions project to `proposal_submitted`; when the proposal is approved the project transitions to `proposal_approved`

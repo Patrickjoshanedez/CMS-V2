@@ -76,4 +76,21 @@ export const submissionService = {
    */
   removeAnnotation: (submissionId, annotationId) =>
     api.delete(`/submissions/${submissionId}/annotations/${annotationId}`),
+
+  /* ────── Student: proposal compilation ────── */
+
+  /**
+   * Compile and upload the full proposal document (chapters 1-3 combined).
+   * Requires all three chapters to be locked/approved first.
+   *
+   * @param {string} projectId
+   * @param {FormData} formData - Must contain 'file' and optionally 'remarks'
+   * @param {Function} [onUploadProgress] - Axios progress callback
+   */
+  compileProposal: (projectId, formData, onUploadProgress) =>
+    api.post(`/submissions/${projectId}/proposal`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 2 min for large file uploads
+      onUploadProgress,
+    }),
 };

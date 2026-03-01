@@ -10,6 +10,80 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — Sprint 9: Proposal Compilation, Frontend Polish & Phase 2 Close
+
+### Added
+
+**Server — Proposal Compilation Endpoint**
+- `POST /api/submissions/:projectId/proposal` — compiles and uploads the full proposal document after Chapters 1–3 are individually approved and locked
+- Validates all three chapters are locked before allowing compilation
+- Creates a `type: 'proposal'` submission (chapter field is null)
+- Auto-enqueues plagiarism check on upload
+- Transitions project status from `active` → `proposal_submitted`
+- Notifies assigned adviser via `proposal_submitted` notification
+
+**Server — Proposal Approval Workflow**
+- Reviewing a proposal submission with `decision: 'approve'` transitions the project from `proposal_submitted` → `proposal_approved`
+- Integrated into existing `reviewSubmission` service method
+
+**Server — Submission Model**
+- Added `type` field: `{ type: String, enum: ['chapter', 'proposal'], default: 'chapter' }`
+- `chapter` field now nullable (defaults to null for proposal submissions)
+
+**Server — Notification Model**
+- Added `proposal_submitted` to `NOTIFICATION_TYPES` enum
+
+**Server — Tests (17 new, 188 total)**
+- 11 proposal compilation integration tests: auth guard, non-member rejection, no file, MIME validation, chapters-not-locked guard, successful compilation (status/type/plagiarism/notification assertions), late submission remarks enforcement, adviser notification
+- 6 proposal approval integration tests: approve → project status transition, reject keeps project status, revisions keep project status, non-proposal review unchanged, only faculty can review
+- All 171 existing tests continue to pass (188 total)
+
+**Client — Pages**
+- `ProposalCompilationPage` (~460 lines) — file dropzone, chapter readiness checklist, late-submission remarks, upload progress, toast notifications
+- `ForbiddenPage` — standalone 403 Access Denied page with ShieldAlert icon
+
+**Client — Components**
+- `WorkflowPhaseTracker` — horizontal stepper with 6 capstone phases (Team Formation → Final Defense), three visual states per step
+
+**Client — Service & Hook**
+- `compileProposal(projectId, formData, onUploadProgress)` — multipart/form-data POST with 120s timeout
+- `useCompileProposal` React Query mutation hook
+
+**Client — Routes**
+- `/project/proposal` — lazy-loaded ProposalCompilationPage
+- `/forbidden` — lazy-loaded ForbiddenPage
+
+**Client — Toast Notification System**
+- Installed `sonner` package
+- Added `<Toaster richColors position="top-right" />` to App.jsx
+- Integrated toast notifications across ALL page components:
+  - `CreateProjectPage` — success/error on project creation
+  - `MyProjectPage` — toast on 4 mutations (save, submit title, revise, request modification)
+  - `ProjectDetailPage` — replaced all 7 `alert()` calls with `toast.error()`, added `toast.success()` for all 8 mutations (approve/reject title, resolve modification, assign/remove adviser/panelist, set deadlines, reject project)
+  - `SubmissionDetailPage` — toast on 4 mutations (review, unlock, add/remove annotation)
+  - `NotificationsPage` — toast on 4 mutations (mark read, mark all read, delete, clear all)
+  - `ChapterUploadPage` — success/error on upload
+  - `ProposalCompilationPage` — success/error on compile
+
+**Client — UX Polish**
+- Added retry buttons to error states in `DashboardPage`, `ProjectsPage`, `ProjectSubmissionsPage`
+- Added empty state to `DashboardPage` when no data is available
+
+**Documentation**
+- `API.md` — new `POST /api/submissions/:projectId/proposal` endpoint with full request/response schemas and business rules
+- `DATABASE.md` — updated Submissions collection with `type` field, nullable `chapter`, and proposal compilation business rules
+- `CHANGELOG.md` — Sprint 9 release notes
+
+### Changed
+- Submission model `chapter` field is now nullable (null for proposals, 1–5 for chapters)
+- `reviewSubmission` service method now handles proposal approval → project status transition
+
+### Fixed
+- `proposal_submitted` notification type was missing from Notification model enum — added to prevent validation errors during proposal compilation
+- Replaced all browser `alert()` calls in `ProjectDetailPage` with proper toast notifications
+
+---
+
 ## [0.5.0] — Sprint 8: Plagiarism Checker Integration (Async)
 
 ### Added

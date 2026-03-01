@@ -125,7 +125,12 @@ export default function ProjectSubmissionsPage() {
 
   const [chapterFilter, setChapterFilter] = useState('');
 
-  const { data: project, isLoading: projectLoading, error: projectError } = useMyProject();
+  const {
+    data: project,
+    isLoading: projectLoading,
+    error: projectError,
+    refetch: refetchProject,
+  } = useMyProject();
 
   const filters = {};
   if (chapterFilter) filters.chapter = chapterFilter;
@@ -134,6 +139,7 @@ export default function ProjectSubmissionsPage() {
     data: submissionsData,
     isLoading: subsLoading,
     error: subsError,
+    refetch: refetchSubs,
   } = useProjectSubmissions(project?._id, filters, {
     enabled: !!project?._id,
   });
@@ -160,6 +166,17 @@ export default function ProjectSubmissionsPage() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error?.message || 'Could not load project data.'}</AlertDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => {
+              refetchProject();
+              refetchSubs();
+            }}
+          >
+            Retry
+          </Button>
         </Alert>
       </DashboardLayout>
     );

@@ -68,6 +68,20 @@ export const uploadChapterSchema = z.object({
 });
 
 /**
+ * Compile proposal body — sent as multipart form data.
+ * The file itself is handled by multer; Zod validates the text fields.
+ * No chapter field needed — proposals are project-level.
+ */
+export const compileProposalSchema = z.object({
+  remarks: z
+    .string()
+    .trim()
+    .max(1000, 'Remarks must not exceed 1000 characters')
+    .optional()
+    .default(''),
+});
+
+/**
  * Review submission (approve / request revisions / reject).
  */
 export const reviewSubmissionSchema = z.object({

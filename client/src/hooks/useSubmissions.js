@@ -190,3 +190,17 @@ export function useRemoveAnnotation(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Compile and upload the full proposal document (student).
+ *
+ * Expects { projectId, formData, onUploadProgress? }.
+ * formData must include 'file' (File) and optionally 'remarks'.
+ * Requires chapters 1-3 to be locked/approved.
+ */
+export function useCompileProposal(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.compileProposal(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}

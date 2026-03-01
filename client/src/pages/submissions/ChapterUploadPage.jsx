@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -57,10 +58,16 @@ export default function ChapterUploadPage() {
   const { data: project, isLoading: projectLoading, error: projectError } = useMyProject();
   const uploadMutation = useUploadChapter({
     onSuccess: () => {
+      toast.success('Chapter uploaded successfully! It will now undergo review.');
       // Navigate to the submission overview after successful upload
       if (project?._id) {
-        navigate(`/project/submissions`);
+        navigate('/project/submissions');
       }
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message || err?.message || 'Failed to upload chapter.',
+      );
     },
   });
 

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
+import { Toaster } from 'sonner';
 
 // Lazy-loaded page imports
 import { lazy, Suspense } from 'react';
@@ -20,9 +21,11 @@ const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
 const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
 const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPage'));
+const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
 const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 
 /**
  * App — Root component with routing and theme management.
@@ -198,6 +201,14 @@ export default function App() {
             }
           />
           <Route
+            path="/project/proposal"
+            element={
+              <ProtectedRoute>
+                <ProposalCompilationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/project/submissions/:submissionId"
             element={
               <ProtectedRoute>
@@ -206,11 +217,15 @@ export default function App() {
             }
           />
 
+          {/* Error pages */}
+          <Route path="/forbidden" element={<ForbiddenPage />} />
+
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+      <Toaster richColors position="top-right" />
     </ThemeProvider>
   );
 }

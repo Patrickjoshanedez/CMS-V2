@@ -30,6 +30,22 @@ export const uploadChapter = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/submissions/:projectId/proposal — Upload compiled proposal document */
+export const compileProposal = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.compileProposal(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Proposal compiled and submitted successfully.',
+    data: { submission },
+  });
+});
+
 /* ═══════════════════ Read ═══════════════════ */
 
 /** GET /api/submissions/:submissionId — Get a single submission */

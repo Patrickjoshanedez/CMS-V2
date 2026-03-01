@@ -37,6 +37,20 @@ class StorageService {
   }
 
   /**
+   * Build a storage key for a compiled proposal document.
+   * Format: projects/{projectId}/proposal/v{version}/{fileName}
+   *
+   * @param {string} projectId - MongoDB ObjectId of the project
+   * @param {number} version - Version integer
+   * @param {string} fileName - Original file name
+   * @returns {string} S3 object key
+   */
+  buildProposalKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `projects/${projectId}/proposal/v${version}/${safeName}`;
+  }
+
+  /**
    * Upload a file buffer to cloud storage.
    *
    * @param {Buffer} buffer - File content

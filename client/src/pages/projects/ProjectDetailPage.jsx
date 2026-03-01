@@ -40,6 +40,7 @@ import {
   ShieldAlert,
   FileText,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * ProjectDetailPage — Faculty project detail view.
@@ -198,10 +199,12 @@ function TitleReviewCard({ project }) {
   const [showReject, setShowReject] = useState(false);
 
   const approve = useApproveTitle({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Title approved!'),
+    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to approve title.'),
   });
   const reject = useRejectTitle({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Title rejected.'),
+    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to reject title.'),
   });
 
   return (
@@ -262,7 +265,9 @@ function ModificationReviewCard({ project }) {
   const [reviewNote, setReviewNote] = useState('');
 
   const resolve = useResolveTitleModification({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Modification resolved.'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to resolve modification.'),
   });
 
   const modReq = project.titleModificationRequest;
@@ -348,8 +353,12 @@ function AssignAdviserCard({ project }) {
   });
 
   const assign = useAssignAdviser({
-    onSuccess: () => setAdviserId(''),
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => {
+      toast.success('Adviser assigned!');
+      setAdviserId('');
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to assign adviser.'),
   });
 
   return (
@@ -414,12 +423,18 @@ function ManagePanelistsCard({ project }) {
   });
 
   const assign = useAssignPanelist({
-    onSuccess: () => setPanelistId(''),
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => {
+      toast.success('Panelist added!');
+      setPanelistId('');
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to assign panelist.'),
   });
 
   const remove = useRemovePanelist({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Panelist removed.'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to remove panelist.'),
   });
 
   const currentPanelists = project.panelistIds || [];
@@ -507,7 +522,9 @@ function DeadlinesCard({ project }) {
   });
 
   const setDl = useSetDeadlines({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Deadlines saved!'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to save deadlines.'),
   });
 
   const handleSave = () => {
@@ -563,7 +580,9 @@ function RejectProjectCard({ project }) {
   const [confirm, setConfirm] = useState(false);
 
   const reject = useRejectProject({
-    onError: (err) => alert(err.response?.data?.error?.message || 'Failed'),
+    onSuccess: () => toast.success('Project rejected.'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to reject project.'),
   });
 
   return (

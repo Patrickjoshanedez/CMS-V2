@@ -20,6 +20,7 @@ const NOTIFICATION_TYPES = [
   'project_rejected',
   // Submission / document workflow notifications
   'chapter_submitted',
+  'proposal_submitted',
   'submission_approved',
   'submission_revisions_required',
   'submission_rejected',
