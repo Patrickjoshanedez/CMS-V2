@@ -3,6 +3,7 @@ import TeamInvite from './teamInvite.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import { sendTeamInviteEmail } from '../notifications/email.service.js';
+import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ROLES } from '@cms/shared';
@@ -147,13 +148,14 @@ class TeamService {
     await sendTeamInviteEmail(data.email, team.name, token);
 
     // Create an in-app notification for the invited user
-    await Notification.create({
+    const inviteNotif = await Notification.create({
       userId: invitedUser._id,
       type: 'team_invite',
       title: 'Team Invitation',
       message: `You have been invited to join team "${team.name}".`,
       metadata: { teamId, inviteToken: token },
     });
+    emitToUser(invitedUser._id, 'notification:new', inviteNotif);
 
     return { invite };
   }
@@ -230,7 +232,7 @@ class TeamService {
     const otherMembers = team.members.filter(
       (memberId) => memberId.toString() !== userId.toString(),
     );
-    await Notification.insertMany(
+    const joinedNotifs = await Notification.insertMany(
       otherMembers.map((memberId) => ({
         userId: memberId,
         type: 'team_joined',
@@ -239,6 +241,7 @@ class TeamService {
         metadata: { teamId: team._id, newMemberId: userId },
       })),
     );
+    joinedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
 
     const populatedTeam = await Team.findById(team._id)
       .populate('leaderId', 'firstName middleName lastName email profilePicture')
@@ -297,7 +300,7 @@ class TeamService {
     await team.save();
 
     // Notify all team members of the lock
-    await Notification.insertMany(
+    const lockNotifs = await Notification.insertMany(
       team.members.map((memberId) => ({
         userId: memberId,
         type: 'team_locked',
@@ -306,6 +309,7 @@ class TeamService {
         metadata: { teamId: team._id },
       })),
     );
+    lockNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
 
     return { team };
   }

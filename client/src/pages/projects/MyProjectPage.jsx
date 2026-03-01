@@ -14,6 +14,7 @@ import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import PrototypeUploadForm from '@/components/projects/PrototypeUploadForm';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
+import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import {
@@ -24,7 +25,7 @@ import {
   useRequestTitleModification,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
-import { TITLE_STATUSES, CAPSTONE_PHASES, SUBMISSION_STATUSES } from '@cms/shared';
+import { TITLE_STATUSES, CAPSTONE_PHASES, SUBMISSION_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -37,6 +38,7 @@ import {
   Users,
   Calendar,
   X,
+  XCircle,
   Plus,
   Upload,
   CheckCircle2,
@@ -74,6 +76,44 @@ function EmptyProjectState() {
         <Plus className="mr-2 h-4 w-4" />
         Create Project
       </Button>
+    </div>
+  );
+}
+
+/**
+ * RejectedProjectState — shown when the team's project has been rejected.
+ * Displays rejection info and a prominent "Create Another Project" action.
+ */
+function RejectedProjectState({ project }) {
+  const navigate = useNavigate();
+  return (
+    <div className="space-y-4">
+      <Alert variant="destructive">
+        <XCircle className="h-4 w-4" />
+        <AlertDescription>
+          Your project <span className="font-semibold">&ldquo;{project.title}&rdquo;</span> has been rejected.
+          {project.rejectionReason && (
+            <span className="mt-1 block text-sm">
+              <span className="font-medium">Reason:</span> {project.rejectionReason}
+            </span>
+          )}
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardContent className="flex flex-col items-center py-10 text-center">
+          <XCircle className="mb-4 h-12 w-12 text-destructive/60" />
+          <h3 className="text-lg font-semibold">Project Rejected</h3>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Your previous project was not approved. You can create a new project with a different
+            topic and start the process again.
+          </p>
+          <Button className="mt-6" onClick={() => navigate('/project/create')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Another Project
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -827,13 +867,22 @@ export default function MyProjectPage() {
           </Alert>
         )}
 
-        {project && !isLoading && (
+        {project && !isLoading && project.projectStatus === PROJECT_STATUSES.REJECTED && (
+          <RejectedProjectState project={project} />
+        )}
+
+        {project && !isLoading && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
           <>
             {/* Workflow phase stepper — always visible at top */}
             <WorkflowPhaseTracker project={project} />
 
             {/* Contextual next-step guidance card */}
             <NextStepCard project={project} submissions={submissions} />
+
+            {/* Deadline warnings — compact inline alert for urgent deadlines */}
+            {project.deadlines && (
+              <DeadlineWarning deadlines={project.deadlines} compact />
+            )}
 
             {/* Project info & title management */}
             <ProjectInfoCard project={project} />
@@ -842,6 +891,11 @@ export default function MyProjectPage() {
             {/* Chapter progress — visible once title is approved */}
             {project.titleStatus === TITLE_STATUSES.APPROVED && (
               <ChapterProgressSection project={project} submissions={submissions} />
+            )}
+
+            {/* Full deadline overview — visible once title is approved and deadlines exist */}
+            {project.titleStatus === TITLE_STATUSES.APPROVED && project.deadlines && (
+              <DeadlineWarning deadlines={project.deadlines} />
             )}
 
             {/* Prototype showcasing — visible from Capstone 2 onwards */}

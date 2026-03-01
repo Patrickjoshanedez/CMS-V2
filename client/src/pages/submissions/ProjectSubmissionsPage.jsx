@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
+import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
@@ -212,6 +213,11 @@ export default function ProjectSubmissionsPage() {
             </Button>
           )}
         </div>
+
+        {/* Deadline alerts — compact warnings for approaching/overdue deadlines */}
+        {project.deadlines && (
+          <DeadlineWarning deadlines={project.deadlines} compact />
+        )}
 
         {/* Filters */}
         <Card>

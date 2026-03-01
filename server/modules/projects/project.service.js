@@ -7,7 +7,15 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
-import { ROLES, TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES, PROTOTYPE_TYPES } from '@cms/shared';
+import { emitToUser } from '../../services/socket.service.js';
+import { ROLES, TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES, PROTOTYPE_TYPES, PLAGIARISM_STATUSES } from '@cms/shared';
+
+/**
+ * Minimum originality score (percentage) required for final papers
+ * before a project can be archived. Papers scoring below this threshold
+ * are considered to have too much similarity with existing works.
+ */
+const MIN_ORIGINALITY_THRESHOLD = 75;
 
 /**
  * ProjectService — Business logic for capstone project management.
@@ -48,11 +56,14 @@ class ProjectService {
       );
     }
 
-    // Prevent duplicate projects per team
-    const existingProject = await Project.findOne({ teamId: team._id });
+    // Prevent duplicate active projects per team (rejected projects don't block creation)
+    const existingProject = await Project.findOne({
+      teamId: team._id,
+      projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
+    });
     if (existingProject) {
       throw new AppError(
-        'Your team already has a project. Only one project per team is allowed.',
+        'Your team already has an active project. Only one active project per team is allowed.',
         409,
         'PROJECT_EXISTS',
       );
@@ -79,7 +90,7 @@ class ProjectService {
     // Notify team members
     const otherMembers = team.members.filter((id) => id.toString() !== userId.toString());
     if (otherMembers.length > 0) {
-      await Notification.insertMany(
+      const createdNotifs = await Notification.insertMany(
         otherMembers.map((memberId) => ({
           userId: memberId,
           type: 'system',
@@ -88,6 +99,7 @@ class ProjectService {
           metadata: { projectId: project._id },
         })),
       );
+      createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
     return { project, similarProjects };
@@ -124,10 +136,23 @@ class ProjectService {
       throw new AppError('You are not in a team or have no project.', 404, 'NO_TEAM');
     }
 
-    const project = await Project.findOne({ teamId: user.teamId })
-      .populate('teamId', 'name leaderId members academicYear')
-      .populate('adviserId', 'firstName middleName lastName email profilePicture')
-      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    const populateOpts = [
+      { path: 'teamId', select: 'name leaderId members academicYear' },
+      { path: 'adviserId', select: 'firstName middleName lastName email profilePicture' },
+      { path: 'panelistIds', select: 'firstName middleName lastName email profilePicture' },
+    ];
+
+    // Prefer the active (non-rejected) project; fall back to most-recent rejected
+    let project = await Project.findOne({
+      teamId: user.teamId,
+      projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
+    }).populate(populateOpts);
+
+    if (!project) {
+      project = await Project.findOne({ teamId: user.teamId })
+        .sort({ createdAt: -1 })
+        .populate(populateOpts);
+    }
 
     if (!project) {
       throw new AppError('Your team does not have a project yet.', 404, 'PROJECT_NOT_FOUND');
@@ -253,7 +278,7 @@ class ProjectService {
     // Notify all instructors
     const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
     if (instructors.length > 0) {
-      await Notification.insertMany(
+      const titleNotifs = await Notification.insertMany(
         instructors.map((instr) => ({
           userId: instr._id,
           type: 'title_submitted',
@@ -262,6 +287,7 @@ class ProjectService {
           metadata: { projectId: project._id },
         })),
       );
+      titleNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
     return { project };
@@ -380,7 +406,7 @@ class ProjectService {
     // Notify instructors
     const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
     if (instructors.length > 0) {
-      await Notification.insertMany(
+      const revisedNotifs = await Notification.insertMany(
         instructors.map((instr) => ({
           userId: instr._id,
           type: 'title_submitted',
@@ -389,6 +415,7 @@ class ProjectService {
           metadata: { projectId: project._id },
         })),
       );
+      revisedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
     return { project, similarProjects };
@@ -438,7 +465,7 @@ class ProjectService {
     // Notify instructors
     const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
     if (instructors.length > 0) {
-      await Notification.insertMany(
+      const modNotifs = await Notification.insertMany(
         instructors.map((instr) => ({
           userId: instr._id,
           type: 'title_modification_requested',
@@ -447,6 +474,7 @@ class ProjectService {
           metadata: { projectId: project._id },
         })),
       );
+      modNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
     return { project };
@@ -520,13 +548,14 @@ class ProjectService {
     await project.save();
 
     // Notify the adviser
-    await Notification.create({
+    const adviserNotif = await Notification.create({
       userId: data.adviserId,
       type: 'adviser_assigned',
       title: 'Adviser Assignment',
       message: `You have been assigned as adviser for the project "${project.title}".`,
       metadata: { projectId: project._id, assignedBy: instructorId },
     });
+    emitToUser(data.adviserId, 'notification:new', adviserNotif);
 
     // Notify team members
     await this._notifyTeamMembers(project.teamId, {
@@ -571,13 +600,14 @@ class ProjectService {
     await project.save();
 
     // Notify the panelist
-    await Notification.create({
+    const panelistNotif = await Notification.create({
       userId: data.panelistId,
       type: 'panelist_assigned',
       title: 'Panelist Assignment',
       message: `You have been assigned as a panelist for the project "${project.title}".`,
       metadata: { projectId: project._id, assignedBy: instructorId },
     });
+    emitToUser(data.panelistId, 'notification:new', panelistNotif);
 
     // Notify team
     await this._notifyTeamMembers(project.teamId, {
@@ -1009,6 +1039,59 @@ class ProjectService {
       throw new AppError('Final journal version has not been submitted.', 400, 'MISSING_JOURNAL');
     }
 
+    // --- Plagiarism clearance gate ---
+    // Both final papers must have a completed plagiarism check with a passing score.
+    const papersToCheck = [
+      { submission: academic, label: 'academic' },
+      { submission: journal, label: 'journal' },
+    ];
+
+    for (const { submission, label } of papersToCheck) {
+      const plagResult = submission.plagiarismResult;
+
+      if (!plagResult || !plagResult.status) {
+        throw new AppError(
+          `Plagiarism check has not been run on the final ${label} version.`,
+          400,
+          'PLAGIARISM_CHECK_PENDING',
+        );
+      }
+
+      if (plagResult.status === PLAGIARISM_STATUSES.QUEUED || plagResult.status === PLAGIARISM_STATUSES.PROCESSING) {
+        throw new AppError(
+          `Plagiarism check is still in progress for the final ${label} version.`,
+          400,
+          'PLAGIARISM_CHECK_PENDING',
+        );
+      }
+
+      if (plagResult.status === PLAGIARISM_STATUSES.FAILED) {
+        throw new AppError(
+          `Plagiarism check failed for the final ${label} version. Please re-submit the paper.`,
+          400,
+          'PLAGIARISM_CHECK_FAILED',
+        );
+      }
+
+      // plagResult.status === COMPLETED — verify score meets threshold
+      const score = plagResult.originalityScore ?? submission.originalityScore;
+      if (score == null) {
+        throw new AppError(
+          `Originality score is missing for the final ${label} version.`,
+          400,
+          'PLAGIARISM_CHECK_PENDING',
+        );
+      }
+
+      if (score < MIN_ORIGINALITY_THRESHOLD) {
+        throw new AppError(
+          `Final ${label} version has an originality score of ${score}%, which is below the required ${MIN_ORIGINALITY_THRESHOLD}%. Please revise and re-submit.`,
+          400,
+          'ORIGINALITY_BELOW_THRESHOLD',
+        );
+      }
+    }
+
     project.projectStatus = PROJECT_STATUSES.ARCHIVED;
     project.isArchived = true;
     project.archivedAt = new Date();
@@ -1257,13 +1340,14 @@ class ProjectService {
    */
   async _notifyAdviser(project, notif) {
     if (!project.adviserId) return;
-    await Notification.create({
+    const advNotif = await Notification.create({
       userId: project.adviserId,
       type: notif.type,
       title: notif.title,
       message: notif.message,
       metadata: notif.metadata,
     });
+    emitToUser(project.adviserId, 'notification:new', advNotif);
   }
 
   /**
@@ -1275,7 +1359,7 @@ class ProjectService {
   async _notifyTeamMembers(teamId, notif) {
     const team = await Team.findById(teamId);
     if (!team) return;
-    await Notification.insertMany(
+    const notifs = await Notification.insertMany(
       team.members.map((memberId) => ({
         userId: memberId,
         type: notif.type,
@@ -1284,6 +1368,7 @@ class ProjectService {
         metadata: notif.metadata,
       })),
     );
+    notifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
   }
 }
 

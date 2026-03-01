@@ -13,7 +13,7 @@ import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
-import { TITLE_STATUSES, PROJECT_STATUSES, SUBMISSION_STATUSES } from '@cms/shared';
+import { TITLE_STATUSES, PROJECT_STATUSES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 
 /* ------------------------------------------------------------------ */
 /*  S3 mock (global — always active)                                  */
@@ -55,7 +55,7 @@ async function createProjectSetup(studentId, adviserId) {
 
 async function createArchivedProject(studentId, adviserId) {
   const { team, project } = await createProjectSetup(studentId, adviserId);
-  // Add both final paper submissions required for archiving
+  // Add both final paper submissions required for archiving (with passing plagiarism results)
   await Submission.create({
     projectId: project._id,
     type: 'final_academic',
@@ -68,6 +68,13 @@ async function createArchivedProject(studentId, adviserId) {
     storageKey: 'finals/academic/v1/academic.pdf',
     status: SUBMISSION_STATUSES.PENDING,
     submittedBy: studentId,
+    originalityScore: 85,
+    plagiarismResult: {
+      status: PLAGIARISM_STATUSES.COMPLETED,
+      originalityScore: 85,
+      matchedSources: [],
+      processedAt: new Date(),
+    },
   });
   await Submission.create({
     projectId: project._id,
@@ -81,6 +88,13 @@ async function createArchivedProject(studentId, adviserId) {
     storageKey: 'finals/journal/v1/journal.pdf',
     status: SUBMISSION_STATUSES.PENDING,
     submittedBy: studentId,
+    originalityScore: 90,
+    plagiarismResult: {
+      status: PLAGIARISM_STATUSES.COMPLETED,
+      originalityScore: 90,
+      matchedSources: [],
+      processedAt: new Date(),
+    },
   });
   return { team, project };
 }
@@ -191,6 +205,189 @@ describe('Sprint 11 — Project Archive, Certificate, Reports, Bulk Upload', () 
         .send({ completionNotes: 'Student trying' });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should reject archive when plagiarism check is pending', async () => {
+      const { project } = await createProjectSetup(studentUser._id, adviserUser._id);
+      // Create final papers without plagiarism results
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_academic',
+        chapter: null,
+        version: 1,
+        fileName: 'academic.pdf',
+        fileSize: 1000,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/academic/v1/academic.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        chapter: null,
+        version: 1,
+        fileName: 'journal.pdf',
+        fileSize: 800,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/journal/v1/journal.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${project._id}/archive`)
+        .send({ completionNotes: 'No plagiarism check' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PLAGIARISM_CHECK_PENDING');
+    });
+
+    it('should reject archive when plagiarism check failed', async () => {
+      const { project } = await createProjectSetup(studentUser._id, adviserUser._id);
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_academic',
+        chapter: null,
+        version: 1,
+        fileName: 'academic.pdf',
+        fileSize: 1000,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/academic/v1/academic.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.FAILED,
+          error: 'Service unavailable',
+        },
+      });
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        chapter: null,
+        version: 1,
+        fileName: 'journal.pdf',
+        fileSize: 800,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/journal/v1/journal.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          originalityScore: 85,
+          matchedSources: [],
+          processedAt: new Date(),
+        },
+      });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${project._id}/archive`)
+        .send({ completionNotes: 'Failed check' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PLAGIARISM_CHECK_FAILED');
+    });
+
+    it('should reject archive when originality score is below threshold', async () => {
+      const { project } = await createProjectSetup(studentUser._id, adviserUser._id);
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_academic',
+        chapter: null,
+        version: 1,
+        fileName: 'academic.pdf',
+        fileSize: 1000,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/academic/v1/academic.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        originalityScore: 50,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          originalityScore: 50,
+          matchedSources: [],
+          processedAt: new Date(),
+        },
+      });
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        chapter: null,
+        version: 1,
+        fileName: 'journal.pdf',
+        fileSize: 800,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/journal/v1/journal.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        originalityScore: 90,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          originalityScore: 90,
+          matchedSources: [],
+          processedAt: new Date(),
+        },
+      });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${project._id}/archive`)
+        .send({ completionNotes: 'Low score' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('ORIGINALITY_BELOW_THRESHOLD');
+      expect(res.body.error.message).toContain('50%');
+    });
+
+    it('should reject archive when plagiarism check is still processing', async () => {
+      const { project } = await createProjectSetup(studentUser._id, adviserUser._id);
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_academic',
+        chapter: null,
+        version: 1,
+        fileName: 'academic.pdf',
+        fileSize: 1000,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/academic/v1/academic.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.PROCESSING,
+        },
+      });
+      await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        chapter: null,
+        version: 1,
+        fileName: 'journal.pdf',
+        fileSize: 800,
+        fileType: 'application/pdf',
+        mimeType: 'application/pdf',
+        storageKey: 'finals/journal/v1/journal.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        plagiarismResult: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          originalityScore: 90,
+          matchedSources: [],
+          processedAt: new Date(),
+        },
+      });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${project._id}/archive`)
+        .send({ completionNotes: 'Still processing' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PLAGIARISM_CHECK_PENDING');
     });
   });
 

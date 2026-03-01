@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authService, userService } from '../services/authService';
+import { disconnectSocket } from '../services/socket';
 
 /**
  * Auth Store (Zustand) — manages authentication state.
@@ -114,6 +115,7 @@ export const useAuthStore = create((set, _get) => ({
     } catch {
       // Even if logout API fails, clear client state
     } finally {
+      disconnectSocket();
       set({ user: null, isAuthenticated: false, error: null });
     }
   },

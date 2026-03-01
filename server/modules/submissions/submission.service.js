@@ -10,8 +10,9 @@ import Project from '../projects/project.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
-import { enqueuePlagiarismJob } from '../../jobs/queue.js';
+import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
+import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import {
   ROLES,
@@ -150,13 +151,25 @@ class SubmissionService {
 
     // --- Notify adviser (if assigned) ---
     if (project.adviserId) {
-      await Notification.create({
+      const chapterNotif = await Notification.create({
         userId: project.adviserId,
         type: 'chapter_submitted',
         title: 'New Chapter Submission',
         message: `Chapter ${chapter} (v${nextVersion}) has been submitted for project "${project.title}".`,
         metadata: { projectId, submissionId: submission._id, chapter, version: nextVersion },
       });
+      emitToUser(project.adviserId, 'notification:new', chapterNotif);
+
+      // Email the adviser
+      const adviser = await User.findById(project.adviserId).select('email firstName');
+      if (adviser?.email) {
+        enqueueEmailJob({
+          to: adviser.email,
+          subject: `New Chapter ${chapter} Submission — ${project.title}`,
+          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>Chapter ${chapter} (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
+          text: `Dear ${adviser.firstName || 'Adviser'}, Chapter ${chapter} (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
+        });
+      }
     }
 
     return { submission };
@@ -305,13 +318,25 @@ class SubmissionService {
 
     // --- Notify adviser (if assigned) ---
     if (project.adviserId) {
-      await Notification.create({
+      const proposalNotif = await Notification.create({
         userId: project.adviserId,
         type: 'proposal_submitted',
         title: 'Proposal Submitted',
         message: `The compiled proposal (v${nextVersion}) has been submitted for project "${project.title}".`,
         metadata: { projectId, submissionId: submission._id, version: nextVersion },
       });
+      emitToUser(project.adviserId, 'notification:new', proposalNotif);
+
+      // Email the adviser
+      const adviser = await User.findById(project.adviserId).select('email firstName');
+      if (adviser?.email) {
+        enqueueEmailJob({
+          to: adviser.email,
+          subject: `Proposal Submitted — ${project.title}`,
+          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The compiled proposal (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
+          text: `Dear ${adviser.firstName || 'Adviser'}, The compiled proposal (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
+        });
+      }
     }
 
     return { submission };
@@ -437,13 +462,25 @@ class SubmissionService {
 
     // Notify adviser
     if (project.adviserId) {
-      await Notification.create({
+      const acadNotif = await Notification.create({
         userId: project.adviserId,
         type: 'chapter_submitted',
         title: 'Final Academic Paper Submitted',
         message: `The full academic version (v${nextVersion}) has been submitted for project "${project.title}".`,
         metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_academic' },
       });
+      emitToUser(project.adviserId, 'notification:new', acadNotif);
+
+      // Email the adviser
+      const adviser = await User.findById(project.adviserId).select('email firstName');
+      if (adviser?.email) {
+        enqueueEmailJob({
+          to: adviser.email,
+          subject: `Final Academic Paper Submitted — ${project.title}`,
+          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The full academic version (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
+          text: `Dear ${adviser.firstName || 'Adviser'}, The full academic version (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
+        });
+      }
     }
 
     return { submission };
@@ -563,13 +600,25 @@ class SubmissionService {
 
     // Notify adviser
     if (project.adviserId) {
-      await Notification.create({
+      const journalNotif = await Notification.create({
         userId: project.adviserId,
         type: 'chapter_submitted',
         title: 'Journal Version Submitted',
         message: `The journal/publishable version (v${nextVersion}) has been submitted for project "${project.title}".`,
         metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_journal' },
       });
+      emitToUser(project.adviserId, 'notification:new', journalNotif);
+
+      // Email the adviser
+      const adviser = await User.findById(project.adviserId).select('email firstName');
+      if (adviser?.email) {
+        enqueueEmailJob({
+          to: adviser.email,
+          subject: `Journal Version Submitted — ${project.title}`,
+          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The journal/publishable version (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
+          text: `Dear ${adviser.firstName || 'Adviser'}, The journal/publishable version (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
+        });
+      }
     }
 
     return { submission };
@@ -784,7 +833,7 @@ class SubmissionService {
         type: submission.type,
         newStatus: submission.status,
       },
-    });
+    }).then((n) => emitToUser(n.userId, 'notification:new', n));
 
     return { submission };
   }
@@ -816,7 +865,7 @@ class SubmissionService {
     await submission.save();
 
     // Notify the submitter
-    await Notification.create({
+    const unlockNotif = await Notification.create({
       userId: submission.submittedBy,
       type: 'unlock_resolved',
       title: 'Submission Unlocked',
@@ -827,6 +876,7 @@ class SubmissionService {
         chapter: submission.chapter,
       },
     });
+    emitToUser(submission.submittedBy, 'notification:new', unlockNotif);
 
     return { submission };
   }
@@ -858,7 +908,7 @@ class SubmissionService {
     await submission.save();
 
     // Notify the submitter
-    await Notification.create({
+    const annotNotif = await Notification.create({
       userId: submission.submittedBy,
       type: 'annotation_added',
       title: 'New Comment on Submission',
@@ -869,6 +919,7 @@ class SubmissionService {
         chapter: submission.chapter,
       },
     });
+    emitToUser(submission.submittedBy, 'notification:new', annotNotif);
 
     return { submission };
   }

@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useSocket } from '@/hooks/useSocket';
 
 /**
  * DashboardLayout — main authenticated layout with collapsible sidebar and header.
+ * Initialises the Socket.IO connection for real-time notifications.
  */
 export default function DashboardLayout({ children }) {
+  useSocket(); // Connect when authenticated, listen for notifications
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (

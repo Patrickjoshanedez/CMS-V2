@@ -10,6 +10,117 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.0] — Sprint 12: Real-Time Notifications, UX Polish & Plagiarism Gate
+
+### Added
+
+**Server — Socket.IO Real-Time Notifications**
+- `socket.service.js` — singleton Socket.IO server with JWT auth middleware, user-specific rooms (`user:<id>`), `emitToUser(userId, event, data)` helper
+- Auth middleware parses `accessToken` from cookie header in WebSocket handshake
+- `resetSocket()` for test-safe cleanup (io = null, `emitToUser` silently no-ops)
+- Wired `emitToUser` across 8 notification sites in `project.service.js`, 7 in `submission.service.js`, 2 in `evaluation.service.js`, 1 in `plagiarism.job.js`, 3 in `team.service.js`
+
+**Server — Adviser Email on Upload**
+- `enqueueEmailJob` called when students upload chapters, proposals, final academic, and final journal papers
+- Adviser receives email notification with project title, chapter info, and submission details
+
+**Server — Plagiarism Clearance Gate**
+- `MIN_ORIGINALITY_THRESHOLD = 75` constant in `project.service.js`
+- `archiveProject` now requires both final papers (academic + journal) to have completed plagiarism checks with passing originality scores before archiving
+- Gate checks: no check run → `PLAGIARISM_CHECK_PENDING`, still processing → `PLAGIARISM_CHECK_PENDING`, check failed → `PLAGIARISM_CHECK_FAILED`, score below 75% → `ORIGINALITY_BELOW_THRESHOLD`
+
+**Server — Create Another Project Flow (S12-04)**
+- `createProject` excludes REJECTED projects from the duplicate-team check (`projectStatus: { $ne: PROJECT_STATUSES.REJECTED }`)
+- `getMyProject` uses dual-query: prefer active (non-rejected) project, fallback most-recent rejected
+- Teams whose project was rejected can now create a fresh project
+
+**Server — Tests (4 new, 285 total)**
+- 4 plagiarism gate integration tests: pending check, failed check, below-threshold score, still-processing check
+- Updated `createArchivedProject` helper with passing plagiarism results for backward compatibility
+- All 285 tests passing (281 existing + 4 new)
+
+**Client — Socket.IO Integration**
+- `socket.js` service — singleton `connectSocket()`, `disconnectSocket()`, `getSocket()` with auto-reconnection
+- `useSocket` hook — connects when authenticated, listens for `notification:new` events, triggers toast + invalidates React Query caches
+- Integrated in `DashboardLayout` for app-wide real-time notifications
+- `disconnectSocket()` called on logout in auth store
+- Vite proxy config: `/socket.io` → `http://localhost:5000` with `ws: true`
+
+**Client — Deadline Warning UI**
+- `DeadlineWarning` component (~210 lines) with `computeUrgency()` function
+- 5 urgency levels: `overdue` (red), `critical` (amber), `warning` (yellow), `safe` (green), `distant` (blue)
+- Compact mode (inline badge) and full mode (detailed card with all deadlines)
+- Integrated in `MyProjectPage`, `ProjectDetailPage`, `ProjectSubmissionsPage`
+
+**Client — Rejected Project State**
+- `RejectedProjectState` component in `MyProjectPage` — shows rejection reason + "Create Another Project" button
+- Conditional render: REJECTED → RejectedProjectState, else → normal project view
+
+### Changed
+- Server upgraded from `app.listen()` to `http.createServer(app)` + `httpServer.listen()` for Socket.IO compatibility
+- Notification polling intervals relaxed (60s refetch, 15s stale) since real-time push now handles instant delivery
+- `createArchivedProject` test helper now includes passing plagiarism results
+
+---
+
+## [0.7.0] — Sprints 10–11: Phase Advancement, Defense Evaluation, Archiving & Dual Upload
+
+### Added
+
+**Server — Capstone Phase Advancement (Sprint 10)**
+- `advancePhase` service method — advances projects from Capstone 1 → 2 → 3 → 4 with prerequisite validation (proposal approved before Cap 2, etc.)
+- `PROTOTYPE_TYPES`, `PROTOTYPE_TYPE_VALUES`, `CAPSTONE_PHASES`, `CAPSTONE_PHASE_VALUES` shared constants
+- Prototype showcasing: `addPrototype` (S3 upload for media, URL for links), `removePrototype`, `getPrototypes`
+- Max 20 prototypes per project enforced
+- `buildPrototypeKey()` in storage service
+- MIME validation for prototype files (images, videos)
+- Extended deadline schema: `chapter4`, `chapter5`, `defense` fields
+- `phase_advanced` and `prototype_added` notification types
+
+**Server — Defense Evaluation Module (Sprint 11)**
+- `Evaluation` Mongoose model with defense types (proposal, mid-term, final), rubric criteria with weighted scoring, panelist-specific evaluations
+- `EVALUATION_STATUSES` (draft, submitted, released), `DEFENSE_TYPES` (proposal, mid_term, final) shared constants
+- `EvaluationService`: get/create evaluation, update draft, submit evaluation, release evaluations, list evaluations, get single evaluation
+- `EvaluationController` with RESTful routes under `/api/evaluations`
+- Release evaluations endpoint — instructor releases all panelist scores to students
+
+**Server — Project Archiving & Dual Upload (Sprint 11)**
+- `archiveProject` — transitions project to ARCHIVED status after validating both final papers exist
+- Archive search with filters: year, topic, keyword (MongoDB text index)
+- `canViewAcademic` flag — students see journal version only; faculty see full academic version
+- Certificate upload: `POST /:id/certificate` — instructor uploads completion certificate (S3)
+- Certificate retrieval: `GET /:id/certificate` — returns signed URL
+- Reports: `GET /reports` — capstone counts grouped by academic year, filterable
+- Bulk upload: `POST /archive/bulk` — instructor bulk-uploads legacy documents bypassing standard workflow
+- Dual version upload endpoints: `POST /final-academic` and `POST /final-journal` for final paper submissions
+- Both final uploads auto-enqueue plagiarism checks
+
+**Server — Tests (95 new, 281 total)**
+- 22 evaluation tests: get/create, update draft, submit, release, list, get single
+- 23 sprint11-projects tests: archive, search archive, certificate upload/get, reports, bulk upload
+- 14 dual-upload tests: final academic upload, final journal upload with validation
+- 36 additional tests across projects, submissions, RBAC, and dashboard updates
+- All 281 tests passing
+
+**Client — Phase Advancement UI**
+- "Advance Phase" button on `ProjectDetailPage` (instructor only)
+- `WorkflowPhaseTracker` updated for multi-phase progression
+
+**Client — Prototype Gallery**
+- `PrototypeGallery` component — displays uploaded images, videos, and external links
+- `PrototypeUploadForm` — media upload with drag-and-drop, URL input for links
+
+**Client — Evaluation Components**
+- Defense evaluation pages for panelists with rubric scoring interface
+- Evaluation results view for students (only visible after release)
+
+### Changed
+- Project model extended with `prototypes` array, expanded deadline schema, and `isArchived`/`certificateUrl` fields
+- Submission model extended with `final_academic` and `final_journal` types
+- Shared constants package expanded with evaluation, defense, prototype, and capstone phase enums
+
+---
+
 ## [0.6.0] — Sprint 9: Proposal Compilation, Frontend Polish & Phase 2 Close
 
 ### Added

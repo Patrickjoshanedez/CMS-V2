@@ -181,6 +181,38 @@ If Redis unavailable → synchronous fallback runs in-process
 
 ---
 
+## Real-Time Architecture (Socket.IO)
+
+### Server (`services/socket.service.js`)
+
+- Singleton Socket.IO instance attached to the HTTP server
+- **Auth middleware**: Parses JWT from the `cookie` header in the handshake, verifies, and attaches `userId` / `userRole` to the socket
+- On connection each socket auto-joins a private room `user:<userId>`
+- `emitToUser(userId, event, data)` — Emits to a user's private room; silently no-ops when `io` is `null` (safe for tests)
+- `resetSocket()` — Sets `io` to `null` for test cleanup
+
+### Client (`services/socket.js` + `hooks/useSocket.js`)
+
+- `connectSocket()` / `disconnectSocket()` / `getSocket()` — singleton pattern with auto-reconnect
+- `useSocket()` hook: connects on auth, listens for `notification:new` → shows toast via **sonner** and invalidates React Query notification caches
+- Socket disconnected on logout via `authStore`
+
+### Events
+
+| Event               | Direction       | Payload                       | Trigger                           |
+| ------------------- | --------------- | ----------------------------- | --------------------------------- |
+| `notification:new`  | Server → Client | `{ type, title, message, … }` | Any server-side notification emit |
+
+### Emitters in Service Layer
+
+- **team.service.js** — `team_invite`, `team_joined`, `team_locked`
+- **project.service.js** — 8 notification sites (title actions, status changes, etc.)
+- **submission.service.js** — 7 notification sites (upload, review, lock, unlock, etc.)
+- **evaluation.service.js** — 2 notification sites (evaluation released, etc.)
+- **plagiarism.job.js** — 1 notification site (check completed)
+
+---
+
 ## Frontend Architecture
 
 ### State Management
@@ -273,6 +305,10 @@ Workspace package consumed by both client and server:
 - `HTTP_STATUS` — standard HTTP status code constants
 - `PLAGIARISM_STATUSES` — frozen object: `{ QUEUED, PROCESSING, COMPLETED, FAILED }`
 - `PLAGIARISM_STATUS_VALUES` — array of valid plagiarism status strings
+- `PROJECT_STATUSES` — includes `ARCHIVED`, `REJECTED`
+- `TITLE_STATUSES`, `SUBMISSION_STATUSES`, `CAPSTONE_PHASES` — workflow state enums
+- `EVALUATION_STATUSES`, `DEFENSE_TYPES` — defense evaluation enums
+- `PROTOTYPE_TYPES` — image, video, link
 
 ---
 

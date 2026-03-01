@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/Badge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
+import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import {
@@ -172,25 +173,9 @@ function ProjectInfoPanel({ project }) {
           </div>
         )}
 
-        {/* Deadlines */}
+        {/* Deadlines — color-coded urgency display */}
         {project.deadlines && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Deadlines</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'].map((key) =>
-                project.deadlines[key] ? (
-                  <div
-                    key={key}
-                    className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                  >
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="capitalize">{key.replace(/(\d)/, ' $1')}:</span>
-                    <span className="font-medium">{formatDate(project.deadlines[key])}</span>
-                  </div>
-                ) : null,
-              )}
-            </div>
-          </div>
+          <DeadlineWarning deadlines={project.deadlines} />
         )}
       </CardContent>
     </Card>

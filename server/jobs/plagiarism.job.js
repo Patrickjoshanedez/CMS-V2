@@ -24,6 +24,7 @@ import storageService from '../services/storage.service.js';
 import Submission from '../modules/submissions/submission.model.js';
 import Project from '../modules/projects/project.model.js';
 import Notification from '../modules/notifications/notification.model.js';
+import { emitToUser } from '../services/socket.service.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
 /** @type {Worker|null} */
@@ -128,7 +129,7 @@ async function processJob(job) {
   // Step 6: Notify student
   const submission = await Submission.findById(submissionId).populate('submittedBy', 'email');
   if (submission) {
-    await Notification.create({
+    const plagNotif = await Notification.create({
       userId: submission.submittedBy._id || submission.submittedBy,
       type: 'plagiarism_complete',
       title: 'Originality Check Complete',
@@ -140,6 +141,7 @@ async function processJob(job) {
         originalityScore: result.originalityScore,
       },
     });
+    emitToUser(submission.submittedBy._id || submission.submittedBy, 'notification:new', plagNotif);
   }
 
   console.log(

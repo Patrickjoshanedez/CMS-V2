@@ -261,3 +261,5 @@ User 1──────N Submission (reviewedBy)
 - `extractedText` is hidden from default queries (`select: false`) to keep payloads lean
 - The originality `score` represents the percentage of original (non-plagiarised) content
 - **Proposal compilation** (Sprint 9): Requires all chapters 1–3 to be locked; creates a `type: 'proposal'` submission; transitions project to `proposal_submitted`; when the proposal is approved the project transitions to `proposal_approved`
+- **Dual version upload** (Sprint 11): `final_academic` and `final_journal` submission types for Capstone 4 final papers; both auto-enqueue plagiarism checks on upload
+- **Plagiarism clearance gate** (Sprint 12): Archiving a project requires both final papers to have `plagiarismResult.status === 'completed'` with `originalityScore >= 75`. Papers with no check, pending/processing status, failed status, or scores below the 75% threshold block archiving.

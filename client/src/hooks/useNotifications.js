@@ -26,8 +26,8 @@ export function useNotifications(params = { page: 1, limit: 20 }) {
       const res = await notificationService.getNotifications(params);
       return res.data.data;
     },
-    refetchInterval: 30000, // Poll every 30s
-    staleTime: 10000,
+    refetchInterval: 60000, // Fallback poll every 60s (real-time via Socket.IO handles most updates)
+    staleTime: 15000,
     keepPreviousData: true,
   });
 }
@@ -43,8 +43,8 @@ export function useUnreadCount() {
       const res = await notificationService.getNotifications({ page: 1, limit: 1 });
       return res.data.data.unreadCount || 0;
     },
-    refetchInterval: 30000,
-    staleTime: 10000,
+    refetchInterval: 60000,
+    staleTime: 15000,
   });
 }
 

@@ -8,6 +8,7 @@
 import Evaluation from './evaluation.model.js';
 import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
+import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import {
   ROLES,
@@ -187,7 +188,7 @@ class EvaluationService {
     // Notify the project's adviser
     const project = await Project.findById(evaluation.projectId);
     if (project?.adviserId) {
-      await Notification.create({
+      const evalNotif = await Notification.create({
         userId: project.adviserId,
         type: 'evaluation_submitted',
         title: 'Defense Evaluation Submitted',
@@ -198,6 +199,7 @@ class EvaluationService {
           defenseType: evaluation.defenseType,
         },
       });
+      emitToUser(project.adviserId, 'notification:new', evalNotif);
     }
 
     return { evaluation };
@@ -243,7 +245,8 @@ class EvaluationService {
           defenseType,
         },
       }));
-      await Notification.insertMany(notifications);
+      const releasedNotifs = await Notification.insertMany(notifications);
+      releasedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
     return { releasedCount: result.modifiedCount };

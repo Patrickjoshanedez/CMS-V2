@@ -955,3 +955,314 @@ Change the authenticated user's password. Revokes all existing refresh tokens (f
 - 400 — New password same as current password
 - 401 — Current password is incorrect
 - 401 — Not authenticated
+
+---
+
+## Project Archiving & Certificates
+
+### `POST /api/projects/:id/archive`
+
+Archive a project after Capstone 4 completion. Requires both final papers (academic + journal) with passing plagiarism checks.
+
+**Auth:** Bearer token. Roles: `instructor`
+
+**Request Body:**
+| Field           | Type   | Required | Description             |
+| --------------- | ------ | -------- | ----------------------- |
+| completionNotes | string | no       | Notes about completion  |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "project": { "isArchived": true, "projectStatus": "archived", ... }
+  }
+}
+```
+
+**Errors:**
+- 400 `MISSING_ACADEMIC` — Final academic version not uploaded
+- 400 `MISSING_JOURNAL` — Final journal version not uploaded
+- 400 `PLAGIARISM_CHECK_PENDING` — Plagiarism check not run or still in progress
+- 400 `PLAGIARISM_CHECK_FAILED` — Plagiarism check failed for a final paper
+- 400 `ORIGINALITY_BELOW_THRESHOLD` — Originality score below 75%
+- 400 `ALREADY_ARCHIVED` — Project is already archived
+- 403 — Not an instructor
+- 404 — Project not found
+
+---
+
+### `GET /api/projects/archive/search`
+
+Search archived projects with filters.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+**Query Parameters:**
+| Param        | Type   | Description                      |
+| ------------ | ------ | -------------------------------- |
+| keyword      | string | Search by title or keywords      |
+| academicYear | string | Filter by academic year          |
+| page         | number | Page number (default: 1)         |
+| limit        | number | Results per page (default: 10)   |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "projects": [...],
+    "pagination": { "page": 1, "limit": 10, "total": 5 }
+  }
+}
+```
+
+**Notes:** Students see `canViewAcademic: false` (journal version only). Faculty see `canViewAcademic: true`.
+
+---
+
+### `POST /api/projects/:id/certificate`
+
+Upload a completion certificate for an archived project.
+
+**Auth:** Bearer token. Roles: `instructor`
+
+**Request:** `multipart/form-data` with `file` field (PDF only, max 10MB)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "certificateUrl": "s3://..." }
+}
+```
+
+**Errors:** 400 (not archived), 403 (not instructor)
+
+---
+
+### `GET /api/projects/:id/certificate`
+
+Get a signed URL for the project's completion certificate.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "url": "https://signed-url..." }
+}
+```
+
+**Errors:** 404 (no certificate uploaded)
+
+---
+
+### `GET /api/projects/reports`
+
+Generate reports of capstone counts grouped by academic year.
+
+**Auth:** Bearer token. Roles: `instructor`
+
+**Query Parameters:**
+| Param        | Type   | Description                    |
+| ------------ | ------ | ------------------------------ |
+| academicYear | string | Filter by specific year        |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "report": [{ "_id": "2024-2025", "count": 12 }] }
+}
+```
+
+---
+
+### `POST /api/projects/archive/bulk`
+
+Bulk upload a legacy document, bypassing the standard workflow.
+
+**Auth:** Bearer token. Roles: `instructor`
+
+**Request:** `multipart/form-data`
+| Field        | Type   | Required | Description             |
+| ------------ | ------ | -------- | ----------------------- |
+| title        | string | yes      | Project title           |
+| abstract     | string | yes      | Project abstract        |
+| keywords     | string | yes      | Comma-separated         |
+| academicYear | string | yes      | e.g., "2024-2025"       |
+| file         | binary | yes      | PDF, max 25MB           |
+
+**Errors:** 400 (missing fields), 403 (not instructor)
+
+---
+
+## Dual Version Upload (Final Papers)
+
+### `POST /api/submissions/:projectId/final-academic`
+
+Upload the final full academic version of the capstone paper.
+
+**Auth:** Bearer token. Roles: `student` (project member)
+
+**Request:** `multipart/form-data` with `file` field (PDF, max 25MB)
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": {
+    "submission": { "type": "final_academic", "plagiarismResult": { "status": "queued" }, ... }
+  }
+}
+```
+
+---
+
+### `POST /api/submissions/:projectId/final-journal`
+
+Upload the condensed journal/publishable version.
+
+**Auth:** Bearer token. Roles: `student` (project member)
+
+**Request:** Same as final-academic.
+
+**Response (201):** Same structure with `type: "final_journal"`.
+
+---
+
+## Evaluations
+
+### `GET /api/evaluations/:projectId/:defenseType`
+
+Get or create a draft evaluation for the authenticated panelist.
+
+**Auth:** Bearer token. Roles: `panelist`, `instructor`
+
+**Params:** `defenseType` — `proposal`, `mid_term`, or `final`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "evaluation": { "status": "draft", "criteria": [...], "defenseType": "proposal", ... }
+  }
+}
+```
+
+---
+
+### `PATCH /api/evaluations/:evaluationId`
+
+Update a draft evaluation (save scores/comments without submitting).
+
+**Auth:** Bearer token. Roles: `panelist`, `instructor`
+
+**Request Body:**
+```json
+{
+  "criteria": [{ "name": "Technical Merit", "score": 85, "maxScore": 100, "weight": 0.3 }],
+  "comments": "Good progress"
+}
+```
+
+---
+
+### `POST /api/evaluations/:evaluationId/submit`
+
+Submit a completed evaluation (locks it from further edits).
+
+**Auth:** Bearer token. Roles: `panelist`, `instructor`
+
+---
+
+### `POST /api/evaluations/:projectId/:defenseType/release`
+
+Release all submitted evaluations to students.
+
+**Auth:** Bearer token. Roles: `instructor`
+
+---
+
+### `GET /api/evaluations/project/:projectId/:defenseType`
+
+List all evaluations for a project's defense type.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+---
+
+### `GET /api/evaluations/detail/:evaluationId`
+
+Get a single evaluation by ID.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+---
+
+## Phase Advancement
+
+### `POST /api/projects/:id/advance-phase`
+
+Advance a project to the next capstone phase (1 → 2 → 3 → 4).
+
+**Auth:** Bearer token. Roles: `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": { "project": { "capstonePhase": 2, ... } }
+}
+```
+
+**Errors:** 400 (prerequisites not met), 400 (already at max phase)
+
+---
+
+## Prototypes
+
+### `POST /api/projects/:id/prototypes`
+
+Add a prototype (media upload or external link).
+
+**Auth:** Bearer token. Roles: `student` (project member)
+
+**Request (file):** `multipart/form-data` with `file` field (image/video)
+**Request (link):** `{ "type": "link", "url": "https://...", "title": "Demo" }`
+
+**Errors:** 400 (max 20 prototypes), 400 (invalid MIME type)
+
+---
+
+### `DELETE /api/projects/:id/prototypes/:prototypeId`
+
+Remove a prototype.
+
+**Auth:** Bearer token. Roles: `student` (project member)
+
+---
+
+### `GET /api/projects/:id/prototypes`
+
+List all prototypes for a project.
+
+**Auth:** Bearer token. Roles: all authenticated
+
+---
+
+## WebSocket Events
+
+### Connection
+
+Connect to `ws://localhost:5000` with `accessToken` cookie for authentication.
+
+### Events (Server → Client)
+
+| Event              | Payload                                    | Description                           |
+| ------------------ | ------------------------------------------ | ------------------------------------- |
+| `notification:new` | `{ type, message, projectId, ... }`        | New notification pushed in real-time  |
