@@ -204,3 +204,27 @@ export function useCompileProposal(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Upload the full academic version for Capstone 4 (student).
+ *
+ * Expects { projectId, formData, onUploadProgress? }.
+ */
+export function useUploadFinalAcademic(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.uploadFinalAcademic(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Upload the journal/publishable version for Capstone 4 (student).
+ *
+ * Expects { projectId, formData, onUploadProgress? }.
+ */
+export function useUploadFinalJournal(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.uploadFinalJournal(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}

@@ -46,6 +46,38 @@ export const compileProposal = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/submissions/:projectId/final-academic — Upload full academic version (Capstone 4) */
+export const uploadFinalAcademic = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadFinalAcademic(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Full academic version uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/final-journal — Upload journal/publishable version (Capstone 4) */
+export const uploadFinalJournal = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadFinalJournal(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Journal version uploaded successfully.',
+    data: { submission },
+  });
+});
+
 /* ═══════════════════ Read ═══════════════════ */
 
 /** GET /api/submissions/:submissionId — Get a single submission */

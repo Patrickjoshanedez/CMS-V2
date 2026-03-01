@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
-import { TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import { TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
 
 /**
  * Workflow phases for the Capstone lifecycle.
@@ -31,12 +31,13 @@ const PHASES = [
   {
     key: 'development',
     label: 'Development',
-    isComplete: () => false, // Capstone 2 & 3 — future sprints
+    isComplete: (project) =>
+      project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4,
   },
   {
     key: 'defense',
     label: 'Final Defense',
-    isComplete: () => false, // Capstone 4 — future sprints
+    isComplete: () => false, // Capstone 4 final outcome — future sprints
   },
 ];
 

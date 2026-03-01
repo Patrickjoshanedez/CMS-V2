@@ -17,6 +17,11 @@ export const projectKeys = {
   details: () => [...projectKeys.all, 'detail'],
   detail: (id) => [...projectKeys.details(), id],
   my: () => [...projectKeys.all, 'my'],
+  prototypes: (id) => [...projectKeys.detail(id), 'prototypes'],
+  archive: () => [...projectKeys.all, 'archive'],
+  archiveSearch: (filters) => [...projectKeys.archive(), 'search', filters],
+  certificate: (id) => [...projectKeys.detail(id), 'certificate'],
+  reports: (filters) => [...projectKeys.all, 'reports', filters],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -188,6 +193,120 @@ export function useSetDeadlines(options = {}) {
 export function useRejectProject(options = {}) {
   return useProjectMutation(async ({ projectId, reason }) => {
     const res = await projectService.rejectProject(projectId, { reason });
+    return res.data;
+  }, options);
+}
+
+/* ────────── Phase Advancement ────────── */
+
+/** Advance capstone phase (instructor) */
+export function useAdvancePhase(options = {}) {
+  return useProjectMutation(async (projectId) => {
+    const res = await projectService.advancePhase(projectId);
+    return res.data;
+  }, options);
+}
+
+/* ────────── Prototype Hooks ────────── */
+
+/** Fetch prototypes for a project */
+export function usePrototypes(projectId, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.prototypes(projectId),
+    queryFn: async () => {
+      const { data } = await projectService.getPrototypes(projectId);
+      return data.data.prototypes;
+    },
+    enabled: !!projectId,
+    ...options,
+  });
+}
+
+/** Add a prototype link */
+export function useAddPrototypeLink(options = {}) {
+  return useProjectMutation(async ({ projectId, ...data }) => {
+    const res = await projectService.addPrototypeLink(projectId, data);
+    return res.data;
+  }, options);
+}
+
+/** Upload prototype media (image/video) */
+export function useAddPrototypeMedia(options = {}) {
+  return useProjectMutation(async ({ projectId, formData }) => {
+    const res = await projectService.addPrototypeMedia(projectId, formData);
+    return res.data;
+  }, options);
+}
+
+/** Remove a prototype */
+export function useRemovePrototype(options = {}) {
+  return useProjectMutation(async ({ projectId, prototypeId }) => {
+    const res = await projectService.removePrototype(projectId, prototypeId);
+    return res.data;
+  }, options);
+}
+
+/* ────────── Archive & Completion Hooks ────────── */
+
+/** Search the archive (any authenticated user) */
+export function useArchiveSearch(filters = {}, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.archiveSearch(filters),
+    queryFn: async () => {
+      const { data } = await projectService.searchArchive(filters);
+      return data.data; // { projects, pagination }
+    },
+    keepPreviousData: true,
+    ...options,
+  });
+}
+
+/** Get certificate download URL */
+export function useCertificateUrl(projectId, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.certificate(projectId),
+    queryFn: async () => {
+      const { data } = await projectService.getCertificateUrl(projectId);
+      return data.data; // { url }
+    },
+    enabled: !!projectId,
+    staleTime: 30 * 60 * 1000, // 30 min — signed URLs last 1hr
+    ...options,
+  });
+}
+
+/** Generate reports (instructor) */
+export function useProjectReports(filters = {}, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.reports(filters),
+    queryFn: async () => {
+      const { data } = await projectService.generateReport(filters);
+      return data.data.report;
+    },
+    ...options,
+  });
+}
+
+/** Archive a project (instructor) */
+export function useArchiveProject(options = {}) {
+  return useProjectMutation(async ({ projectId, ...data }) => {
+    const res = await projectService.archiveProject(projectId, data);
+    return res.data;
+  }, options);
+}
+
+/** Upload completion certificate (instructor) */
+export function useUploadCertificate(options = {}) {
+  return useProjectMutation(async ({ projectId, formData }) => {
+    const res = await projectService.uploadCertificate(projectId, formData);
+    return res.data;
+  }, options);
+}
+
+/** Bulk upload legacy archive document (instructor) */
+export function useBulkUploadArchive(options = {}) {
+  return useProjectMutation(async (formData) => {
+    const res = await projectService.bulkUploadArchive(formData);
     return res.data;
   }, options);
 }

@@ -62,6 +62,7 @@ const env = Object.freeze({
 
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
+  MAX_PROTOTYPE_SIZE_MB: parseInt(process.env.MAX_PROTOTYPE_SIZE_MB, 10) || 50,
 
   // Helpers
   isDevelopment: (process.env.NODE_ENV || 'development') === 'development',

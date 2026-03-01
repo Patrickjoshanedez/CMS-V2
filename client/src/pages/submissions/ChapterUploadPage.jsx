@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useMyProject } from '@/hooks/useProjects';
 import { useUploadChapter } from '@/hooks/useSubmissions';
-import { Upload, FileText, AlertTriangle, Loader2, CheckCircle2, X } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, Loader2, CheckCircle2, X, ArrowLeft } from 'lucide-react';
 
 /** Maximum file size in MB (must match server config) */
 const MAX_FILE_SIZE_MB = 25;
@@ -194,6 +194,15 @@ export default function ChapterUploadPage() {
     <DashboardLayout>
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-2 -ml-2"
+            onClick={() => navigate('/project')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Project
+          </Button>
           <h1 className="text-2xl font-bold tracking-tight">Upload Chapter</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Submit a chapter document for your project&nbsp;

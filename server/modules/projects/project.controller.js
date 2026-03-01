@@ -205,3 +205,135 @@ export const rejectProject = catchAsync(async (req, res) => {
     data: { project },
   });
 });
+
+/** POST /api/projects/:id/advance-phase — Advance capstone phase (Instructor) */
+export const advancePhase = catchAsync(async (req, res) => {
+  const { project } = await projectService.advancePhase(req.params.id, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: `Project advanced to Capstone ${project.capstonePhase}.`,
+    data: { project },
+  });
+});
+
+/** POST /api/projects/:id/prototypes/link — Add prototype link (Student) */
+export const addPrototypeLink = catchAsync(async (req, res) => {
+  const data = { ...req.body, type: 'link' };
+  const { project } = await projectService.addPrototype(req.params.id, req.user._id, data);
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Prototype link added.',
+    data: { project },
+  });
+});
+
+/** POST /api/projects/:id/prototypes/media — Upload prototype media (Student) */
+export const addPrototypeMedia = catchAsync(async (req, res) => {
+  const data = { ...req.body, type: 'media' };
+  const { project } = await projectService.addPrototype(
+    req.params.id,
+    req.user._id,
+    data,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Prototype media uploaded.',
+    data: { project },
+  });
+});
+
+/** GET /api/projects/:id/prototypes — List prototypes with signed URLs */
+export const getPrototypes = catchAsync(async (req, res) => {
+  const { prototypes } = await projectService.getPrototypes(req.params.id, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { prototypes },
+  });
+});
+
+/** DELETE /api/projects/:id/prototypes/:prototypeId — Remove a prototype */
+export const removePrototype = catchAsync(async (req, res) => {
+  const { project } = await projectService.removePrototype(
+    req.params.id,
+    req.params.prototypeId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Prototype removed.',
+    data: { project },
+  });
+});
+
+/** POST /api/projects/:id/archive — Archive a completed project (Instructor) */
+export const archiveProject = catchAsync(async (req, res) => {
+  const { project } = await projectService.archiveProject(req.params.id, req.user._id, req.body);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Project archived successfully.',
+    data: { project },
+  });
+});
+
+/** GET /api/projects/archive/search — Search the archive */
+export const searchArchive = catchAsync(async (req, res) => {
+  const result = await projectService.searchArchive(req.query, req.user);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
+  });
+});
+
+/** POST /api/projects/:id/certificate — Upload completion certificate (Instructor) */
+export const uploadCertificate = catchAsync(async (req, res) => {
+  const { project } = await projectService.uploadCertificate(req.params.id, req.user._id, req.file);
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Certificate uploaded successfully.',
+    data: { project },
+  });
+});
+
+/** GET /api/projects/:id/certificate — Get certificate download URL */
+export const getCertificateUrl = catchAsync(async (req, res) => {
+  const { url } = await projectService.getCertificateUrl(req.params.id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { url },
+  });
+});
+
+/** GET /api/projects/reports — Generate project reports (Instructor) */
+export const generateReport = catchAsync(async (req, res) => {
+  const { report } = await projectService.generateReport(req.query);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { report },
+  });
+});
+
+/** POST /api/projects/bulk-upload — Bulk upload a legacy document (Instructor) */
+export const bulkUploadArchive = catchAsync(async (req, res) => {
+  const { project, submission } = await projectService.bulkUploadArchive(
+    req.user._id,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Document bulk-uploaded and archived.',
+    data: { project, submission },
+  });
+});

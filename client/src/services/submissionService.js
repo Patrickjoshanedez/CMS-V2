@@ -93,4 +93,32 @@ export const submissionService = {
       timeout: 120000, // 2 min for large file uploads
       onUploadProgress,
     }),
+
+  /* ────── Student: final paper uploads (Capstone 4) ────── */
+
+  /**
+   * Upload the full academic version of the final paper.
+   * @param {string} projectId
+   * @param {FormData} formData - Must contain 'file' and optionally 'remarks'
+   * @param {Function} [onUploadProgress]
+   */
+  uploadFinalAcademic: (projectId, formData, onUploadProgress) =>
+    api.post(`/submissions/${projectId}/final-academic`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+      onUploadProgress,
+    }),
+
+  /**
+   * Upload the journal/publishable version of the final paper.
+   * @param {string} projectId
+   * @param {FormData} formData - Must contain 'file' and optionally 'remarks'
+   * @param {Function} [onUploadProgress]
+   */
+  uploadFinalJournal: (projectId, formData, onUploadProgress) =>
+    api.post(`/submissions/${projectId}/final-journal`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+      onUploadProgress,
+    }),
 };

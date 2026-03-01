@@ -1,10 +1,13 @@
+import mongoose from 'mongoose';
 import Project from './project.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
+import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
-import { ROLES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import storageService from '../../services/storage.service.js';
+import { ROLES, TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES, PROTOTYPE_TYPES } from '@cms/shared';
 
 /**
  * ProjectService — Business logic for capstone project management.
@@ -676,6 +679,9 @@ class ProjectService {
     if (data.chapter2 !== undefined) project.deadlines.chapter2 = data.chapter2;
     if (data.chapter3 !== undefined) project.deadlines.chapter3 = data.chapter3;
     if (data.proposal !== undefined) project.deadlines.proposal = data.proposal;
+    if (data.chapter4 !== undefined) project.deadlines.chapter4 = data.chapter4;
+    if (data.chapter5 !== undefined) project.deadlines.chapter5 = data.chapter5;
+    if (data.defense !== undefined) project.deadlines.defense = data.defense;
     await project.save();
 
     await this._notifyTeamMembers(project.teamId, {
@@ -716,6 +722,502 @@ class ProjectService {
     return { project };
   }
 
+  /* ═══════════════ Capstone Phase Progression ═══════════════ */
+
+  /**
+   * Advance a project to the next capstone phase (instructor action).
+   *
+   * Phase transitions:
+   * - 1 → 2: Requires proposal approved (projectStatus === PROPOSAL_APPROVED)
+   * - 2 → 3: Allowed once the instructor decides the team is ready
+   * - 3 → 4: Allowed once the instructor decides the team is ready
+   * - 4 → (none): Phase 4 is the final phase — cannot advance further.
+   *
+   * @param {string} projectId
+   * @param {string} instructorId - Requesting instructor
+   * @returns {Object} { project, previousPhase, newPhase }
+   */
+  async advancePhase(projectId, instructorId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    const { capstonePhase } = project;
+
+    if (capstonePhase >= CAPSTONE_PHASES.PHASE_4) {
+      throw new AppError(
+        'This project is already at the final capstone phase.',
+        400,
+        'ALREADY_FINAL_PHASE',
+      );
+    }
+
+    // Phase 1 → 2 requires the proposal to be approved
+    if (
+      capstonePhase === CAPSTONE_PHASES.PHASE_1 &&
+      project.projectStatus !== PROJECT_STATUSES.PROPOSAL_APPROVED
+    ) {
+      throw new AppError(
+        'The proposal must be approved before advancing to Capstone 2.',
+        400,
+        'PROPOSAL_NOT_APPROVED',
+      );
+    }
+
+    const previousPhase = project.capstonePhase;
+    project.capstonePhase = capstonePhase + 1;
+    await project.save();
+
+    await this._notifyTeamMembers(project.teamId, {
+      type: 'phase_advanced',
+      title: 'Capstone Phase Advanced',
+      message: `Your project "${project.title}" has advanced from Capstone ${previousPhase} to Capstone ${project.capstonePhase}.`,
+      metadata: {
+        projectId: project._id,
+        previousPhase,
+        newPhase: project.capstonePhase,
+        advancedBy: instructorId,
+      },
+    });
+
+    return { project, previousPhase, newPhase: project.capstonePhase };
+  }
+
+  /* ═══════════════ Prototype Showcasing ═══════════════ */
+
+  /**
+   * Add a prototype to a project (student/team leader action).
+   * Capstone phase must be 2 or 3 for prototypes to be added.
+   *
+   * For media (image/video): pass file buffer, filename, etc.
+   * For link: pass url in the data object.
+   *
+   * @param {string} projectId
+   * @param {string} userId - Requesting student
+   * @param {Object} data - { title, description?, type, url? }
+   * @param {Object|null} file - multer file object (for media types)
+   * @returns {Object} { project, prototype }
+   */
+  async addPrototype(projectId, userId, data, file = null) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    await this._assertTeamMember(project.teamId, userId);
+
+    // Prototypes are only allowed during Capstone 2 & 3
+    if (
+      project.capstonePhase < CAPSTONE_PHASES.PHASE_2 ||
+      project.capstonePhase > CAPSTONE_PHASES.PHASE_3
+    ) {
+      throw new AppError(
+        'Prototypes can only be added during Capstone 2 or Capstone 3.',
+        400,
+        'INVALID_PHASE_FOR_PROTOTYPE',
+      );
+    }
+
+    if (project.prototypes.length >= 20) {
+      throw new AppError(
+        'A project can have at most 20 prototypes.',
+        400,
+        'MAX_PROTOTYPES_REACHED',
+      );
+    }
+
+    const prototypeData = {
+      title: data.title,
+      description: data.description || '',
+      uploadedBy: userId,
+    };
+
+    if (data.type === PROTOTYPE_TYPES.LINK) {
+      if (!data.url) {
+        throw new AppError('A URL is required for link-type prototypes.', 400, 'URL_REQUIRED');
+      }
+      prototypeData.type = PROTOTYPE_TYPES.LINK;
+      prototypeData.url = data.url;
+    } else {
+      // Media type (image or video)
+      if (!file) {
+        throw new AppError(
+          'A file is required for media-type prototypes.',
+          400,
+          'FILE_REQUIRED',
+        );
+      }
+
+      // Determine type from validated MIME
+      const mime = file.validatedMime || file.mimetype;
+      if (mime.startsWith('image/')) {
+        prototypeData.type = PROTOTYPE_TYPES.IMAGE;
+      } else if (mime.startsWith('video/')) {
+        prototypeData.type = PROTOTYPE_TYPES.VIDEO;
+      } else {
+        throw new AppError(
+          'Unsupported media type. Upload an image or video.',
+          400,
+          'UNSUPPORTED_MEDIA_TYPE',
+        );
+      }
+
+      // Push a temporary prototype to get its _id for the storage key
+      project.prototypes.push(prototypeData);
+      const proto = project.prototypes[project.prototypes.length - 1];
+
+      const key = storageService.buildPrototypeKey(
+        project._id.toString(),
+        proto._id.toString(),
+        file.originalname,
+      );
+
+      await storageService.uploadFile(file.buffer, key, mime, {
+        projectId: project._id.toString(),
+        prototypeId: proto._id.toString(),
+        uploadedBy: userId.toString(),
+      });
+
+      proto.storageKey = key;
+      proto.fileName = file.originalname;
+      proto.fileSize = file.size;
+      proto.mimeType = mime;
+
+      await project.save();
+
+      await this._notifyAdviser(project, {
+        type: 'prototype_added',
+        title: 'New Prototype Added',
+        message: `A prototype "${data.title}" has been added to the project "${project.title}".`,
+        metadata: { projectId: project._id, prototypeId: proto._id },
+      });
+
+      return { project, prototype: proto };
+    }
+
+    // Link-type — push and save
+    project.prototypes.push(prototypeData);
+    await project.save();
+
+    const proto = project.prototypes[project.prototypes.length - 1];
+
+    await this._notifyAdviser(project, {
+      type: 'prototype_added',
+      title: 'New Prototype Added',
+      message: `A prototype link "${data.title}" has been added to the project "${project.title}".`,
+      metadata: { projectId: project._id, prototypeId: proto._id },
+    });
+
+    return { project, prototype: proto };
+  }
+
+  /**
+   * Remove a prototype from a project (student/team member action).
+   * Also deletes the associated file from S3 if it is a media-type prototype.
+   *
+   * @param {string} projectId
+   * @param {string} prototypeId
+   * @param {string} userId - Requesting student
+   * @returns {Object} { project }
+   */
+  async removePrototype(projectId, prototypeId, userId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    await this._assertTeamMember(project.teamId, userId);
+
+    const proto = project.prototypes.id(prototypeId);
+    if (!proto) {
+      throw new AppError('Prototype not found.', 404, 'PROTOTYPE_NOT_FOUND');
+    }
+
+    // Delete S3 file if media-type
+    if (proto.storageKey) {
+      try {
+        await storageService.deleteFile(proto.storageKey);
+      } catch (err) {
+        // Log but don't block removal — orphaned S3 objects can be cleaned up later
+        console.warn(`[Prototype] Failed to delete S3 object: ${proto.storageKey}`, err.message);
+      }
+    }
+
+    project.prototypes.pull({ _id: prototypeId });
+    await project.save();
+
+    return { project };
+  }
+
+  /**
+   * Get all prototypes for a project, with signed URLs for media types.
+   *
+   * @param {string} projectId
+   * @param {string} userId - Requesting user
+   * @returns {Object} { prototypes }
+   */
+  async getPrototypes(projectId, userId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    // Any team member, adviser, panelist, or instructor can view prototypes
+    // (authorization is handled at the route level — we just return the data)
+
+    const prototypes = [];
+    for (const proto of project.prototypes) {
+      const item = proto.toObject();
+
+      // Generate signed URL for media types
+      if (item.storageKey) {
+        try {
+          item.signedUrl = await storageService.getSignedUrl(item.storageKey, 900);
+        } catch {
+          item.signedUrl = null;
+        }
+      }
+
+      prototypes.push(item);
+    }
+
+    return { prototypes };
+  }
+
+  /* ═══════════════════ Archive & Completion ═══════════════════ */
+
+  /**
+   * Archive a project after final defense — sets status to ARCHIVED.
+   * Only an instructor can archive. Both final_academic and final_journal
+   * submissions must exist and be approved.
+   * @param {string} projectId
+   * @param {string} instructorId
+   * @param {Object} data - { completionNotes? }
+   * @returns {Object} { project }
+   */
+  async archiveProject(projectId, instructorId, data) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    if (project.projectStatus === PROJECT_STATUSES.ARCHIVED) {
+      throw new AppError('Project is already archived.', 400, 'ALREADY_ARCHIVED');
+    }
+
+    // Verify both final versions are submitted
+    const [academic, journal] = await Promise.all([
+      Submission.findOne({ projectId, type: 'final_academic' }).sort({ version: -1 }),
+      Submission.findOne({ projectId, type: 'final_journal' }).sort({ version: -1 }),
+    ]);
+
+    if (!academic) {
+      throw new AppError('Final academic version has not been submitted.', 400, 'MISSING_ACADEMIC');
+    }
+    if (!journal) {
+      throw new AppError('Final journal version has not been submitted.', 400, 'MISSING_JOURNAL');
+    }
+
+    project.projectStatus = PROJECT_STATUSES.ARCHIVED;
+    project.isArchived = true;
+    project.archivedAt = new Date();
+    if (data.completionNotes) {
+      project.completionNotes = data.completionNotes;
+    }
+    await project.save();
+
+    // Notify team members
+    await this._notifyTeamMembers(project.teamId, {
+      type: 'project_archived',
+      title: 'Project Archived',
+      message: `Your project "${project.title}" has been archived. Congratulations!`,
+      metadata: { projectId: project._id },
+    });
+
+    return { project };
+  }
+
+  /**
+   * Search the archive for past capstone projects.
+   * Students can only see journal versions; faculty can see both.
+   * Supports text search by title/keywords, filtered by year, keyword, and topic.
+   * @param {Object} query - { page, limit, search?, academicYear?, keyword? }
+   * @param {Object} user - The requesting user (for role-based visibility)
+   * @returns {Object} { projects, pagination }
+   */
+  async searchArchive(query, user) {
+    const { page = 1, limit = 10, search, academicYear, keyword } = query;
+    const skip = (page - 1) * limit;
+
+    const filter = { isArchived: true };
+    if (academicYear) filter.academicYear = academicYear;
+    if (keyword) filter.keywords = { $in: [keyword] };
+    if (search) filter.$text = { $search: search };
+
+    const [projects, total] = await Promise.all([
+      Project.find(filter)
+        .sort({ archivedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('teamId', 'name members')
+        .populate('adviserId', 'firstName middleName lastName')
+        .select('title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived'),
+      Project.countDocuments(filter),
+    ]);
+
+    return {
+      projects,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+      // Role information for frontend to know what to show
+      canViewAcademic: user.role !== ROLES.STUDENT,
+    };
+  }
+
+  /**
+   * Upload a completion certificate for a project (instructor-only).
+   * @param {string} projectId
+   * @param {string} instructorId
+   * @param {Object} file - Multer file object
+   * @returns {Object} { project }
+   */
+  async uploadCertificate(projectId, instructorId, file) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    if (!project.isArchived && project.projectStatus !== PROJECT_STATUSES.ARCHIVED) {
+      throw new AppError('Project must be archived before uploading a certificate.', 400, 'NOT_ARCHIVED');
+    }
+
+    const storageKey = storageService.buildCertificateKey(projectId, file.originalname);
+    await storageService.uploadFile(storageKey, file.buffer, file.mimetype);
+
+    project.certificateStorageKey = storageKey;
+    await project.save();
+
+    // Notify team
+    await this._notifyTeamMembers(project.teamId, {
+      type: 'certificate_uploaded',
+      title: 'Certificate Uploaded',
+      message: `A completion certificate has been uploaded for your project "${project.title}".`,
+      metadata: { projectId: project._id },
+    });
+
+    return { project };
+  }
+
+  /**
+   * Get the signed download URL for the completion certificate.
+   * @param {string} projectId
+   * @returns {Object} { url }
+   */
+  async getCertificateUrl(projectId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    if (!project.certificateStorageKey) {
+      throw new AppError('No certificate has been uploaded for this project.', 404, 'NO_CERTIFICATE');
+    }
+
+    const url = await storageService.getSignedUrl(project.certificateStorageKey, 3600);
+    return { url };
+  }
+
+  /**
+   * Generate a report of archived projects by academic year.
+   * Instructor only. Returns counts and metadata.
+   * @param {Object} query - { academicYear?, adviserId? }
+   * @returns {Object} { report }
+   */
+  async generateReport(query) {
+    const { academicYear, adviserId } = query;
+
+    const matchStage = { isArchived: true };
+    if (academicYear) matchStage.academicYear = academicYear;
+    if (adviserId) matchStage.adviserId = new mongoose.Types.ObjectId(adviserId);
+
+    const report = await Project.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$academicYear',
+          count: { $sum: 1 },
+          projects: {
+            $push: {
+              _id: '$_id',
+              title: '$title',
+              keywords: '$keywords',
+              archivedAt: '$archivedAt',
+            },
+          },
+        },
+      },
+      { $sort: { _id: -1 } },
+    ]);
+
+    const totalCount = report.reduce((sum, yr) => sum + yr.count, 0);
+
+    return {
+      report: {
+        totalProjects: totalCount,
+        byYear: report.map((yr) => ({
+          academicYear: yr._id,
+          count: yr.count,
+          projects: yr.projects,
+        })),
+      },
+    };
+  }
+
+  /* ═══════════════════ Bulk Upload (Instructor) ═══════════════════ */
+
+  /**
+   * Bulk-upload a legacy document to the archive, bypassing the standard
+   * submission workflow. Creates a minimal project record and an associated
+   * final_journal submission so it appears in archive searches.
+   *
+   * @param {string} instructorId - The instructor performing the bulk upload
+   * @param {Object} data - { title, abstract?, keywords?, academicYear }
+   * @param {Object} file - Multer file object (the PDF to archive)
+   * @returns {Object} { project, submission }
+   */
+  async bulkUploadArchive(instructorId, data, file) {
+    if (!file) {
+      throw new AppError('A file is required for bulk upload.', 400, 'FILE_REQUIRED');
+    }
+
+    // Create a minimal archived project record
+    const project = await Project.create({
+      teamId: new mongoose.Types.ObjectId(), // Placeholder — no real team
+      title: data.title,
+      abstract: data.abstract || '',
+      keywords: data.keywords || [],
+      academicYear: data.academicYear,
+      capstonePhase: 4,
+      titleStatus: 'approved',
+      projectStatus: PROJECT_STATUSES.ARCHIVED,
+      isArchived: true,
+      archivedAt: new Date(),
+      completionNotes: 'Bulk-uploaded legacy document.',
+    });
+
+    // Upload file to S3 under the bulk-archive path
+    const storageKey = storageService.buildBulkArchiveKey(data.academicYear, file.originalname);
+    await storageService.uploadFile(storageKey, file.buffer, file.mimetype);
+
+    // Create a journal submission record so archive search picks it up
+    const submission = await Submission.create({
+      projectId: project._id,
+      submittedBy: new mongoose.Types.ObjectId(instructorId),
+      type: 'final_journal',
+      chapter: null,
+      version: 1,
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      storageKey,
+      status: 'approved',
+    });
+
+    return { project, submission };
+  }
+
   /* ═══════════════════ Helpers ═══════════════════ */
 
   /**
@@ -730,6 +1232,38 @@ class ProjectService {
     if (team.leaderId.toString() !== userId.toString()) {
       throw new AppError('Only the team leader can perform this action.', 403, 'FORBIDDEN');
     }
+  }
+
+  /**
+   * Assert that the given userId is a member of the team.
+   * @param {import('mongoose').Types.ObjectId} teamId
+   * @param {string} userId
+   * @private
+   */
+  async _assertTeamMember(teamId, userId) {
+    const team = await Team.findById(teamId);
+    if (!team) throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    const isMember = team.members.some((id) => id.toString() === userId.toString());
+    if (!isMember) {
+      throw new AppError('You are not a member of this project team.', 403, 'FORBIDDEN');
+    }
+  }
+
+  /**
+   * Notify the project's assigned adviser (if one exists).
+   * @param {Object} project - Project document (must have adviserId)
+   * @param {{ type: string, title: string, message: string, metadata: Object }} notif
+   * @private
+   */
+  async _notifyAdviser(project, notif) {
+    if (!project.adviserId) return;
+    await Notification.create({
+      userId: project.adviserId,
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      metadata: notif.metadata,
+    });
   }
 
   /**

@@ -18,6 +18,7 @@ import {
   Clock,
   ChevronRight,
   Filter,
+  ArrowLeft,
 } from 'lucide-react';
 
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
@@ -189,6 +190,15 @@ export default function ProjectSubmissionsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mb-2 -ml-2 text-muted-foreground"
+              onClick={() => navigate('/project')}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              Back to Project
+            </Button>
             <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Document submissions for&nbsp;

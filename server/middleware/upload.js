@@ -19,4 +19,19 @@ const upload = multer({
   },
 });
 
+/**
+ * Larger multer instance for prototype media uploads (images/videos).
+ * Uses MAX_PROTOTYPE_SIZE_MB (default 50 MB).
+ */
+const prototypeMaxBytes = env.MAX_PROTOTYPE_SIZE_MB * 1024 * 1024;
+
+const prototypeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: prototypeMaxBytes,
+    files: 1,
+  },
+});
+
+export { prototypeUpload };
 export default upload;

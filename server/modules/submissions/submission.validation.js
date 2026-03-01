@@ -82,6 +82,19 @@ export const compileProposalSchema = z.object({
 });
 
 /**
+ * Final academic/journal version upload body — sent as multipart form data.
+ * Used for both final-academic and final-journal endpoints (Capstone 4).
+ */
+export const finalPaperSchema = z.object({
+  remarks: z
+    .string()
+    .trim()
+    .max(1000, 'Remarks must not exceed 1000 characters')
+    .optional()
+    .default(''),
+});
+
+/**
  * Review submission (approve / request revisions / reject).
  */
 export const reviewSubmissionSchema = z.object({

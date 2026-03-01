@@ -83,6 +83,34 @@ export const projectService = {
   // Panelist route
   selectAsPanelist: (id) => api.post(`/projects/${id}/panelists/select`),
 
+  // Phase advancement (instructor)
+  advancePhase: (id) => api.post(`/projects/${id}/advance-phase`),
+
+  // Prototype routes
+  addPrototypeLink: (id, data) => api.post(`/projects/${id}/prototypes/link`, data),
+  addPrototypeMedia: (id, formData) =>
+    api.post(`/projects/${id}/prototypes/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  getPrototypes: (id) => api.get(`/projects/${id}/prototypes`),
+  removePrototype: (id, prototypeId) =>
+    api.delete(`/projects/${id}/prototypes/${prototypeId}`),
+
+  // Archive & Completion routes
+  archiveProject: (id, data) => api.post(`/projects/${id}/archive`, data),
+  searchArchive: (params) => api.get('/projects/archive/search', { params }),
+  uploadCertificate: (id, formData) =>
+    api.post(`/projects/${id}/certificate`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  getCertificateUrl: (id) => api.get(`/projects/${id}/certificate`),
+  generateReport: (params) => api.get('/projects/reports', { params }),
+  bulkUploadArchive: (formData) =>
+    api.post('/projects/archive/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    }),
+
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
   listProjects: (params) => api.get('/projects', { params }),

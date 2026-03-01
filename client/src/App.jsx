@@ -24,6 +24,10 @@ const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPa
 const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
 const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
+const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
+const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
+const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
+const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 
@@ -179,6 +183,40 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProjectDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Archive & Reports routes */}
+          <Route
+            path="/archive"
+            element={
+              <ProtectedRoute>
+                <ArchiveSearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects/:projectId/certificate"
+            element={
+              <ProtectedRoute>
+                <CertificatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/bulk-upload"
+            element={
+              <ProtectedRoute>
+                <BulkUploadPage />
               </ProtectedRoute>
             }
           />

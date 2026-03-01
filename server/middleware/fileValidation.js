@@ -105,3 +105,80 @@ const validateFile = async (req, _res, next) => {
 
 export { ALLOWED_MIME_TYPES, EXTENSION_FALLBACK_TYPES };
 export default validateFile;
+
+/**
+ * Allowed MIME types for prototype media uploads (images and videos).
+ * Used during Capstone 2 & 3 for showcasing system prototypes.
+ */
+const ALLOWED_PROTOTYPE_MIME_TYPES = {
+  'image/jpeg': 'JPEG',
+  'image/png': 'PNG',
+  'image/gif': 'GIF',
+  'image/webp': 'WEBP',
+  'video/mp4': 'MP4',
+  'video/webm': 'WEBM',
+};
+
+/**
+ * Validate an uploaded prototype media file (image/video).
+ * Follows the same magic-byte detection pattern as validateFile,
+ * but uses a separate allowlist for media types and a larger max size.
+ *
+ * Max size: 50 MB (configurable via MAX_PROTOTYPE_SIZE_MB env var).
+ */
+const validatePrototypeFile = async (req, _res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+    }
+
+    const { buffer, originalname, size } = req.file;
+
+    // --- Size check (default 50 MB for media) ---
+    const maxPrototypeMB = Number(env.MAX_PROTOTYPE_SIZE_MB) || 50;
+    const maxBytes = maxPrototypeMB * 1024 * 1024;
+    if (size > maxBytes) {
+      return next(
+        new AppError(
+          `File size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the ${maxPrototypeMB}MB limit for prototype media.`,
+          413,
+          'FILE_TOO_LARGE',
+        ),
+      );
+    }
+
+    // --- Magic-byte MIME detection ---
+    const { fileTypeFromBuffer } = await import('file-type');
+    const typeResult = await fileTypeFromBuffer(buffer);
+
+    if (!typeResult) {
+      return next(
+        new AppError(
+          `Unable to determine the file type for "${originalname}". Please upload a JPEG, PNG, GIF, WEBP, MP4, or WEBM file.`,
+          400,
+          'UNRECOGNIZED_FILE_TYPE',
+        ),
+      );
+    }
+
+    const detectedMime = typeResult.mime;
+
+    // --- Allowlist check ---
+    if (!ALLOWED_PROTOTYPE_MIME_TYPES[detectedMime]) {
+      return next(
+        new AppError(
+          `File type "${detectedMime}" is not allowed for prototypes. Accepted types: JPEG, PNG, GIF, WEBP, MP4, WEBM.`,
+          400,
+          'INVALID_FILE_TYPE',
+        ),
+      );
+    }
+
+    req.file.validatedMime = detectedMime;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { ALLOWED_PROTOTYPE_MIME_TYPES, validatePrototypeFile };

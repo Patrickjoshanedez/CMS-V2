@@ -11,6 +11,9 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
+import PrototypeGallery from '@/components/projects/PrototypeGallery';
+import EvaluationPanel from '@/components/projects/EvaluationPanel';
+import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import {
   useProject,
   useApproveTitle,
@@ -21,10 +24,11 @@ import {
   useRemovePanelist,
   useSetDeadlines,
   useRejectProject,
+  useAdvancePhase,
 } from '@/hooks/useProjects';
 import { userService } from '@/services/authService';
 import { useQuery } from '@tanstack/react-query';
-import { TITLE_STATUSES, ROLES } from '@cms/shared';
+import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES } from '@cms/shared';
 import {
   ArrowLeft,
   Loader2,
@@ -39,6 +43,8 @@ import {
   Clock,
   ShieldAlert,
   FileText,
+  ArrowUpCircle,
+  Award,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -171,7 +177,7 @@ function ProjectInfoPanel({ project }) {
           <div>
             <p className="mb-2 text-sm font-medium text-muted-foreground">Deadlines</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {['chapter1', 'chapter2', 'chapter3', 'proposal'].map((key) =>
+              {['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'].map((key) =>
                 project.deadlines[key] ? (
                   <div
                     key={key}
@@ -519,6 +525,9 @@ function DeadlinesCard({ project }) {
     chapter2: project.deadlines?.chapter2?.split('T')[0] || '',
     chapter3: project.deadlines?.chapter3?.split('T')[0] || '',
     proposal: project.deadlines?.proposal?.split('T')[0] || '',
+    chapter4: project.deadlines?.chapter4?.split('T')[0] || '',
+    chapter5: project.deadlines?.chapter5?.split('T')[0] || '',
+    defense: project.deadlines?.defense?.split('T')[0] || '',
   });
 
   const setDl = useSetDeadlines({
@@ -545,7 +554,7 @@ function DeadlinesCard({ project }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          {['chapter1', 'chapter2', 'chapter3', 'proposal'].map((key) => (
+          {['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'].map((key) => (
             <div key={key} className="space-y-1">
               <Label htmlFor={`dl-${key}`} className="capitalize">
                 {key.replace(/(\d)/, ' $1')}
@@ -566,6 +575,48 @@ function DeadlinesCard({ project }) {
             <Calendar className="mr-2 h-4 w-4" />
           )}
           Save Deadlines
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Advance capstone phase card — instructor only.
+ */
+function AdvancePhaseCard({ project }) {
+  const advance = useAdvancePhase({
+    onSuccess: () => toast.success('Phase advanced!'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to advance phase.'),
+  });
+
+  const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
+  const isMaxPhase = currentPhase >= CAPSTONE_PHASES.PHASE_4;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ArrowUpCircle className="h-5 w-5" />
+          Capstone Phase
+        </CardTitle>
+        <CardDescription>
+          Currently in <strong>Capstone {currentPhase}</strong>.
+          {isMaxPhase ? ' This project is at the final phase.' : ' Advance when the team is ready.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          disabled={isMaxPhase || advance.isPending}
+          onClick={() => advance.mutate(project._id)}
+        >
+          {advance.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <ArrowUpCircle className="mr-2 h-4 w-4" />
+          )}
+          {isMaxPhase ? 'Final Phase Reached' : `Advance to Capstone ${currentPhase + 1}`}
         </Button>
       </CardContent>
     </Card>
@@ -698,6 +749,56 @@ export default function ProjectDetailPage() {
 
             {/* Deadlines — instructor or adviser */}
             {(isInstructor || user?.role === ROLES.ADVISER) && <DeadlinesCard project={project} />}
+
+            {/* Advance phase — instructor only */}
+            {isInstructor && project.projectStatus !== 'rejected' && (
+              <AdvancePhaseCard project={project} />
+            )}
+
+            {/* Prototype showcase — visible to all faculty */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
+              <PrototypeGallery projectId={project._id} canDelete={false} />
+            )}
+
+            {/* Evaluation panels — proposal defense */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
+              <EvaluationPanel projectId={project._id} defenseType="proposal" />
+            )}
+
+            {/* Evaluation panels — final defense (Capstone 4) */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+              <EvaluationPanel projectId={project._id} defenseType="final" />
+            )}
+
+            {/* Final paper upload — Capstone 4 */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+              (user?.role === ROLES.STUDENT || isInstructor) && (
+                <FinalPaperUpload projectId={project._id} />
+              )}
+
+            {/* Certificate link — Capstone 4 */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Award className="h-5 w-5" />
+                    Completion Certificate
+                  </CardTitle>
+                  <CardDescription>
+                    View or manage the completion certificate for this project.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                  >
+                    <Award className="mr-2 h-4 w-4" />
+                    Go to Certificate
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Reject project — instructor only */}
             {isInstructor && project.projectStatus !== 'rejected' && (

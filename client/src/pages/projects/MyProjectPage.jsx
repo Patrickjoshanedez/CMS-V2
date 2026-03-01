@@ -11,6 +11,11 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
+import PrototypeGallery from '@/components/projects/PrototypeGallery';
+import PrototypeUploadForm from '@/components/projects/PrototypeUploadForm';
+import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
+import EvaluationPanel from '@/components/projects/EvaluationPanel';
+import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import {
   useMyProject,
   useUpdateTitle,
@@ -18,7 +23,8 @@ import {
   useReviseAndResubmit,
   useRequestTitleModification,
 } from '@/hooks/useProjects';
-import { TITLE_STATUSES } from '@cms/shared';
+import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { TITLE_STATUSES, CAPSTONE_PHASES, SUBMISSION_STATUSES } from '@cms/shared';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -32,6 +38,13 @@ import {
   Calendar,
   X,
   Plus,
+  Upload,
+  CheckCircle2,
+  Clock,
+  Lock,
+  ArrowRight,
+  BookOpen,
+  ClipboardList,
 } from 'lucide-react';
 
 /**
@@ -483,11 +496,298 @@ function TitleActionsSection({ project }) {
   }
 }
 
+/* ────────── Chapter Progress Section ────────── */
+
+const CHAPTER_LABELS = {
+  1: 'Chapter 1',
+  2: 'Chapter 2',
+  3: 'Chapter 3',
+  4: 'Chapter 4',
+  5: 'Chapter 5',
+};
+
+/**
+ * Map submission status to a visual badge.
+ */
+function chapterStatusBadge(status) {
+  const map = {
+    [SUBMISSION_STATUSES.PENDING]: { label: 'Pending', variant: 'secondary' },
+    [SUBMISSION_STATUSES.UNDER_REVIEW]: { label: 'Under Review', variant: 'outline' },
+    [SUBMISSION_STATUSES.APPROVED]: { label: 'Approved', variant: 'default' },
+    [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: { label: 'Needs Revision', variant: 'destructive' },
+    [SUBMISSION_STATUSES.LOCKED]: { label: 'Locked', variant: 'default' },
+    [SUBMISSION_STATUSES.REJECTED]: { label: 'Rejected', variant: 'destructive' },
+  };
+  return map[status] || { label: 'Not Started', variant: 'outline' };
+}
+
+function chapterStatusIcon(status) {
+  switch (status) {
+    case SUBMISSION_STATUSES.LOCKED:
+      return <Lock className="h-4 w-4 text-primary" />;
+    case SUBMISSION_STATUSES.APPROVED:
+      return <CheckCircle2 className="h-4 w-4 text-primary" />;
+    case SUBMISSION_STATUSES.UNDER_REVIEW:
+    case SUBMISSION_STATUSES.PENDING:
+      return <Clock className="h-4 w-4 text-muted-foreground" />;
+    case SUBMISSION_STATUSES.REVISIONS_REQUIRED:
+    case SUBMISSION_STATUSES.REJECTED:
+      return <AlertTriangle className="h-4 w-4 text-destructive" />;
+    default:
+      return <FileText className="h-4 w-4 text-muted-foreground" />;
+  }
+}
+
+/**
+ * ChapterProgressSection — Shows chapters 1-3 (or 1-5 for later phases)
+ * with their current submission status, providing at-a-glance workflow progress.
+ */
+function ChapterProgressSection({ project, submissions }) {
+  const navigate = useNavigate();
+  const maxChapter = project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 ? 5 : 3;
+
+  // Build a map of latest submission per chapter from the submissions list
+  const chapterMap = {};
+  if (submissions?.submissions) {
+    for (const sub of submissions.submissions) {
+      const existing = chapterMap[sub.chapter];
+      if (!existing || new Date(sub.uploadedAt) > new Date(existing.uploadedAt)) {
+        chapterMap[sub.chapter] = sub;
+      }
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Chapter Progress</CardTitle>
+            <CardDescription>
+              Track the status of each chapter submission.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+            <ClipboardList className="mr-2 h-4 w-4" />
+            All Submissions
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: maxChapter }, (_, i) => i + 1).map((chapter) => {
+            const sub = chapterMap[chapter];
+            const { label, variant } = sub
+              ? chapterStatusBadge(sub.status)
+              : { label: 'Not Started', variant: 'outline' };
+
+            return (
+              <div
+                key={chapter}
+                className="flex items-center justify-between rounded-lg border px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  {sub ? chapterStatusIcon(sub.status) : <FileText className="h-4 w-4 text-muted-foreground" />}
+                  <span className="text-sm font-medium">{CHAPTER_LABELS[chapter]}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={variant}>{label}</Badge>
+                  {sub?.version > 1 && (
+                    <span className="text-xs text-muted-foreground">v{sub.version}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Upload chapter button */}
+        {project.titleStatus === TITLE_STATUSES.APPROVED && (
+          <div className="mt-4">
+            <Button onClick={() => navigate('/project/submissions/upload')} className="w-full">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Chapter
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ────────── Next Step Guidance Card ────────── */
+
+/**
+ * Determines the current workflow step and returns contextual guidance.
+ */
+function getNextStep(project, submissions) {
+  if (!project) return null;
+
+  const { titleStatus } = project;
+
+  // Step 1: Title workflow
+  if (titleStatus === TITLE_STATUSES.DRAFT) {
+    return {
+      title: 'Submit Your Title',
+      description: 'Your project title is still in draft. Edit it and submit it for instructor approval to proceed.',
+      action: null, // actions are in TitleActionsSection
+      icon: Edit3,
+      color: 'text-blue-600 dark:text-blue-400',
+    };
+  }
+
+  if (titleStatus === TITLE_STATUSES.SUBMITTED) {
+    return {
+      title: 'Awaiting Title Review',
+      description: 'Your title is under review by the instructor. You\'ll be notified once a decision is made.',
+      action: null,
+      icon: Clock,
+      color: 'text-amber-600 dark:text-amber-400',
+    };
+  }
+
+  if (titleStatus === TITLE_STATUSES.REVISION_REQUIRED) {
+    return {
+      title: 'Revise Your Title',
+      description: 'The instructor requested changes on your title. Revise and resubmit below.',
+      action: null,
+      icon: AlertTriangle,
+      color: 'text-amber-600 dark:text-amber-400',
+    };
+  }
+
+  if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION) {
+    return {
+      title: 'Title Modification Pending',
+      description: 'Your title change request is pending instructor approval.',
+      action: null,
+      icon: Clock,
+      color: 'text-amber-600 dark:text-amber-400',
+    };
+  }
+
+  // Title is approved — now check chapter progress
+  if (titleStatus === TITLE_STATUSES.APPROVED) {
+    // Gather chapter statuses
+    const chapterMap = {};
+    if (submissions?.submissions) {
+      for (const sub of submissions.submissions) {
+        const existing = chapterMap[sub.chapter];
+        if (!existing || new Date(sub.uploadedAt) > new Date(existing.uploadedAt)) {
+          chapterMap[sub.chapter] = sub;
+        }
+      }
+    }
+
+    // Check if any chapter needs revision
+    for (let ch = 1; ch <= 3; ch++) {
+      const sub = chapterMap[ch];
+      if (sub?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+        return {
+          title: `Revise ${CHAPTER_LABELS[ch]}`,
+          description: `Your adviser requested revisions on ${CHAPTER_LABELS[ch]}. Upload a new version.`,
+          action: { label: 'Upload Revision', path: '/project/submissions/upload' },
+          icon: AlertTriangle,
+          color: 'text-amber-600 dark:text-amber-400',
+        };
+      }
+    }
+
+    // Check if chapters 1-3 are done (locked or approved)
+    const allChaptersReady = [1, 2, 3].every((ch) => {
+      const sub = chapterMap[ch];
+      return sub && (sub.status === SUBMISSION_STATUSES.LOCKED || sub.status === SUBMISSION_STATUSES.APPROVED);
+    });
+
+    if (allChaptersReady) {
+      // Check if proposal has been compiled
+      const hasProposal = submissions?.submissions?.some((s) => s.type === 'proposal');
+      if (!hasProposal) {
+        return {
+          title: 'Compile Your Proposal',
+          description: 'All chapters 1–3 are approved/locked. Compile and submit your full proposal.',
+          action: { label: 'Compile Proposal', path: '/project/proposal' },
+          icon: BookOpen,
+          color: 'text-green-600 dark:text-green-400',
+        };
+      }
+      return {
+        title: 'Proposal Submitted',
+        description: 'Your full proposal has been compiled. Await adviser and panelist review.',
+        action: { label: 'View Submissions', path: '/project/submissions' },
+        icon: CheckCircle2,
+        color: 'text-green-600 dark:text-green-400',
+      };
+    }
+
+    // Find next chapter to upload
+    for (let ch = 1; ch <= 3; ch++) {
+      const sub = chapterMap[ch];
+      if (!sub) {
+        return {
+          title: `Upload ${CHAPTER_LABELS[ch]}`,
+          description: `Start by uploading your ${CHAPTER_LABELS[ch]} draft for adviser review.`,
+          action: { label: `Upload ${CHAPTER_LABELS[ch]}`, path: '/project/submissions/upload' },
+          icon: Upload,
+          color: 'text-blue-600 dark:text-blue-400',
+        };
+      }
+      if (sub.status === SUBMISSION_STATUSES.PENDING || sub.status === SUBMISSION_STATUSES.UNDER_REVIEW) {
+        return {
+          title: `${CHAPTER_LABELS[ch]} Under Review`,
+          description: `Your ${CHAPTER_LABELS[ch]} is being reviewed. Wait for adviser feedback.`,
+          action: { label: 'View Submissions', path: '/project/submissions' },
+          icon: Clock,
+          color: 'text-amber-600 dark:text-amber-400',
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function NextStepCard({ project, submissions }) {
+  const navigate = useNavigate();
+  const step = getNextStep(project, submissions);
+
+  if (!step) return null;
+
+  const IconComponent = step.icon;
+
+  return (
+    <Card className="border-primary/20 bg-primary/5">
+      <CardContent className="flex items-start gap-4 pt-6">
+        <div className={`mt-0.5 ${step.color}`}>
+          <IconComponent className="h-6 w-6" />
+        </div>
+        <div className="flex-1 space-y-1">
+          <h4 className="text-sm font-semibold">{step.title}</h4>
+          <p className="text-sm text-muted-foreground">{step.description}</p>
+        </div>
+        {step.action && (
+          <Button size="sm" onClick={() => navigate(step.action.path)}>
+            {step.action.label}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Main Page ────────── */
 
 export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
   const { data: project, isLoading, error } = useMyProject();
+
+  // Fetch submissions when a project exists (used by ChapterProgressSection & NextStepCard)
+  const { data: submissions } = useProjectSubmissions(
+    project?._id,
+    { limit: 50 },
+    { enabled: !!project?._id },
+  );
 
   if (!user) {
     fetchUser();
@@ -506,7 +806,7 @@ export default function MyProjectPage() {
         <div>
           <h3 className="text-2xl font-bold tracking-tight">My Project</h3>
           <p className="text-muted-foreground">
-            Track your capstone project progress and manage your title.
+            Track your capstone project progress and manage your submissions.
           </p>
         </div>
 
@@ -529,8 +829,43 @@ export default function MyProjectPage() {
 
         {project && !isLoading && (
           <>
+            {/* Workflow phase stepper — always visible at top */}
+            <WorkflowPhaseTracker project={project} />
+
+            {/* Contextual next-step guidance card */}
+            <NextStepCard project={project} submissions={submissions} />
+
+            {/* Project info & title management */}
             <ProjectInfoCard project={project} />
             <TitleActionsSection project={project} />
+
+            {/* Chapter progress — visible once title is approved */}
+            {project.titleStatus === TITLE_STATUSES.APPROVED && (
+              <ChapterProgressSection project={project} submissions={submissions} />
+            )}
+
+            {/* Prototype showcasing — visible from Capstone 2 onwards */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
+              <>
+                <PrototypeUploadForm projectId={project._id} />
+                <PrototypeGallery projectId={project._id} canDelete />
+              </>
+            )}
+
+            {/* Evaluation panel — proposal defense */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
+              <EvaluationPanel projectId={project._id} defenseType="proposal" />
+            )}
+
+            {/* Evaluation panel — final defense (Capstone 4) */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+              <EvaluationPanel projectId={project._id} defenseType="final" />
+            )}
+
+            {/* Final paper upload — Capstone 4 */}
+            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+              <FinalPaperUpload projectId={project._id} />
+            )}
           </>
         )}
       </div>

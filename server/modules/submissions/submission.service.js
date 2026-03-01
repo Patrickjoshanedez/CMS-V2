@@ -19,6 +19,7 @@ import {
   TITLE_STATUSES,
   PROJECT_STATUSES,
   PLAGIARISM_STATUSES,
+  CAPSTONE_PHASES,
 } from '@cms/shared';
 
 class SubmissionService {
@@ -310,6 +311,264 @@ class SubmissionService {
         title: 'Proposal Submitted',
         message: `The compiled proposal (v${nextVersion}) has been submitted for project "${project.title}".`,
         metadata: { projectId, submissionId: submission._id, version: nextVersion },
+      });
+    }
+
+    return { submission };
+  }
+
+  /* ═══════════════════ Final Paper Uploads (Capstone 4) ═══════════════════ */
+
+  /**
+   * Upload the full Academic Version of the final paper.
+   * This version is restricted to faculty only (viewable within the system).
+   *
+   * Business rules:
+   * - User must be a student on the owning team
+   * - Project must be in Capstone Phase 4
+   * - Project title must be approved
+   * - Late submissions require remarks
+   *
+   * @param {string} userId
+   * @param {string} projectId
+   * @param {Object} data - { remarks }
+   * @param {Object} file - multer file object
+   * @returns {Object} { submission }
+   */
+  async uploadFinalAcademic(userId, projectId, data, file) {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    if (user.role !== ROLES.STUDENT) {
+      throw new AppError('Only students can upload final papers.', 403, 'FORBIDDEN');
+    }
+
+    const project = await Project.findById(projectId).populate('teamId');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    // Verify user belongs to the project's team (members are plain ObjectIds)
+    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
+      throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
+    }
+
+    if (project.capstonePhase !== 4) {
+      throw new AppError(
+        'Final paper uploads are only allowed in Capstone Phase 4.',
+        400,
+        'WRONG_PHASE',
+      );
+    }
+
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'Your project title must be approved before uploading final papers.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
+    }
+
+    const { remarks } = data;
+
+    // Late submission detection
+    const deadline = project.deadlines?.defense;
+    const isLate = deadline ? new Date() > new Date(deadline) : false;
+    if (isLate && (!remarks || remarks.trim().length === 0)) {
+      throw new AppError(
+        'This submission is past the deadline. You must provide remarks explaining the delay.',
+        400,
+        'LATE_REMARKS_REQUIRED',
+      );
+    }
+
+    // Auto-increment version
+    const latest = await Submission.findOne({
+      projectId,
+      type: 'final_academic',
+    }).sort({ version: -1 });
+    const nextVersion = latest ? latest.version + 1 : 1;
+
+    // Upload to S3
+    const storageKey = storageService.buildFinalAcademicKey(
+      projectId,
+      nextVersion,
+      file.originalname,
+    );
+    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+      projectId,
+      type: 'final_academic',
+      version: String(nextVersion),
+      uploadedBy: userId,
+    });
+
+    // Create submission record
+    const submission = await Submission.create({
+      projectId,
+      type: 'final_academic',
+      chapter: null,
+      version: nextVersion,
+      fileName: file.originalname,
+      fileType: file.validatedMime,
+      fileSize: file.size,
+      storageKey,
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: userId,
+      isLate,
+      remarks: remarks || null,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+
+    // Enqueue plagiarism check
+    const plagiarismPayload = {
+      submissionId: submission._id.toString(),
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      type: 'final_academic',
+    };
+    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    if (!jobId) {
+      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+      });
+    } else {
+      await Submission.findByIdAndUpdate(submission._id, {
+        'plagiarismResult.jobId': jobId,
+      });
+    }
+
+    // Notify adviser
+    if (project.adviserId) {
+      await Notification.create({
+        userId: project.adviserId,
+        type: 'chapter_submitted',
+        title: 'Final Academic Paper Submitted',
+        message: `The full academic version (v${nextVersion}) has been submitted for project "${project.title}".`,
+        metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_academic' },
+      });
+    }
+
+    return { submission };
+  }
+
+  /**
+   * Upload the Journal/Publishable Version of the final paper.
+   * This version is public-facing for archive searches.
+   *
+   * Business rules same as academic version.
+   *
+   * @param {string} userId
+   * @param {string} projectId
+   * @param {Object} data - { remarks }
+   * @param {Object} file - multer file object
+   * @returns {Object} { submission }
+   */
+  async uploadFinalJournal(userId, projectId, data, file) {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    if (user.role !== ROLES.STUDENT) {
+      throw new AppError('Only students can upload final papers.', 403, 'FORBIDDEN');
+    }
+
+    const project = await Project.findById(projectId).populate('teamId');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    // Verify user belongs to the project's team (members are plain ObjectIds)
+    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
+      throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
+    }
+
+    if (project.capstonePhase !== 4) {
+      throw new AppError(
+        'Final paper uploads are only allowed in Capstone Phase 4.',
+        400,
+        'WRONG_PHASE',
+      );
+    }
+
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'Your project title must be approved before uploading final papers.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
+    }
+
+    const { remarks } = data;
+
+    // Late submission detection
+    const deadline = project.deadlines?.defense;
+    const isLate = deadline ? new Date() > new Date(deadline) : false;
+    if (isLate && (!remarks || remarks.trim().length === 0)) {
+      throw new AppError(
+        'This submission is past the deadline. You must provide remarks explaining the delay.',
+        400,
+        'LATE_REMARKS_REQUIRED',
+      );
+    }
+
+    // Auto-increment version
+    const latest = await Submission.findOne({
+      projectId,
+      type: 'final_journal',
+    }).sort({ version: -1 });
+    const nextVersion = latest ? latest.version + 1 : 1;
+
+    // Upload to S3
+    const storageKey = storageService.buildFinalJournalKey(
+      projectId,
+      nextVersion,
+      file.originalname,
+    );
+    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+      projectId,
+      type: 'final_journal',
+      version: String(nextVersion),
+      uploadedBy: userId,
+    });
+
+    // Create submission record
+    const submission = await Submission.create({
+      projectId,
+      type: 'final_journal',
+      chapter: null,
+      version: nextVersion,
+      fileName: file.originalname,
+      fileType: file.validatedMime,
+      fileSize: file.size,
+      storageKey,
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: userId,
+      isLate,
+      remarks: remarks || null,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+
+    // Enqueue plagiarism check
+    const plagiarismPayload = {
+      submissionId: submission._id.toString(),
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      type: 'final_journal',
+    };
+    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    if (!jobId) {
+      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+      });
+    } else {
+      await Submission.findByIdAndUpdate(submission._id, {
+        'plagiarismResult.jobId': jobId,
+      });
+    }
+
+    // Notify adviser
+    if (project.adviserId) {
+      await Notification.create({
+        userId: project.adviserId,
+        type: 'chapter_submitted',
+        title: 'Journal Version Submitted',
+        message: `The journal/publishable version (v${nextVersion}) has been submitted for project "${project.title}".`,
+        metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_journal' },
       });
     }
 

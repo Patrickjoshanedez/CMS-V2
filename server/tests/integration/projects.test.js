@@ -450,4 +450,221 @@ describe('Projects API — /api/projects', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  /* ────────── Phase Advancement ────────── */
+  describe('POST /:id/advance-phase — advance capstone phase', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      projectId = res.body.data.project._id;
+    });
+
+    it('should NOT allow advancing from phase 1 if proposal is not approved', async () => {
+      const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PROPOSAL_NOT_APPROVED');
+    });
+
+    it('should advance from phase 1 to 2 when proposal is approved', async () => {
+      // Submit and approve the title first
+      await studentAgent.post(`/api/projects/${projectId}/title/submit`);
+      await instructorAgent.post(`/api/projects/${projectId}/title/approve`);
+
+      // Update project status to proposal_approved (simulate full workflow)
+      await Project.findByIdAndUpdate(projectId, { projectStatus: 'proposal_approved' });
+
+      const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.capstonePhase).toBe(2);
+    });
+
+    it('should advance from phase 2 to 3 without proposal requirement', async () => {
+      // Set project to phase 2 directly
+      await Project.findByIdAndUpdate(projectId, {
+        projectStatus: 'proposal_approved',
+        capstonePhase: 2,
+      });
+
+      const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.capstonePhase).toBe(3);
+    });
+
+    it('should NOT allow advancing beyond phase 4', async () => {
+      await Project.findByIdAndUpdate(projectId, { capstonePhase: 4 });
+
+      const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('ALREADY_FINAL_PHASE');
+    });
+
+    it('should NOT allow student to advance phase', async () => {
+      const res = await studentAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  /* ────────── Prototype Management ────────── */
+  describe('Prototype CRUD — /api/projects/:id/prototypes', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      projectId = res.body.data.project._id;
+
+      // Set project to Capstone phase 2 (prototypes only allowed in phase 2 & 3)
+      await Project.findByIdAndUpdate(projectId, {
+        capstonePhase: 2,
+        projectStatus: 'proposal_approved',
+      });
+    });
+
+    /* ── Add link prototype ── */
+    describe('POST /:id/prototypes/link — add prototype link', () => {
+      it('should add a link prototype successfully', async () => {
+        const res = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Live Demo',
+          description: 'Our live demo site',
+          url: 'https://example.com/demo',
+        });
+
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.project.prototypes).toHaveLength(1);
+        expect(res.body.data.project.prototypes[0].type).toBe('link');
+        expect(res.body.data.project.prototypes[0].url).toBe('https://example.com/demo');
+      });
+
+      it('should reject link with invalid URL', async () => {
+        const res = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Bad URL Prototype',
+          url: 'not-a-valid-url',
+        });
+
+        expect(res.status).toBe(400);
+      });
+
+      it('should reject link with title too short', async () => {
+        const res = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'ab',
+          url: 'https://example.com',
+        });
+
+        expect(res.status).toBe(400);
+      });
+
+      it('should NOT allow link prototype during phase 1', async () => {
+        await Project.findByIdAndUpdate(projectId, { capstonePhase: 1 });
+
+        const res = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Demo Link',
+          url: 'https://example.com',
+        });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error.code).toBe('INVALID_PHASE_FOR_PROTOTYPE');
+      });
+
+      it('should NOT allow instructor to add a link prototype', async () => {
+        const res = await instructorAgent
+          .post(`/api/projects/${projectId}/prototypes/link`)
+          .send({
+            title: 'Faculty Link',
+            url: 'https://example.com',
+          });
+
+        expect(res.status).toBe(403);
+      });
+    });
+
+    /* ── Get prototypes ── */
+    describe('GET /:id/prototypes — list prototypes', () => {
+      it('should return an empty array when no prototypes exist', async () => {
+        const res = await studentAgent.get(`/api/projects/${projectId}/prototypes`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.prototypes).toHaveLength(0);
+      });
+
+      it('should return prototypes after adding a link', async () => {
+        await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Live Demo',
+          url: 'https://example.com/demo',
+        });
+
+        const res = await studentAgent.get(`/api/projects/${projectId}/prototypes`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.prototypes).toHaveLength(1);
+        expect(res.body.data.prototypes[0].title).toBe('Live Demo');
+      });
+
+      it('should allow instructor to view prototypes', async () => {
+        await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Demo Site',
+          url: 'https://example.com',
+        });
+
+        const res = await instructorAgent.get(`/api/projects/${projectId}/prototypes`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.prototypes).toHaveLength(1);
+      });
+    });
+
+    /* ── Remove prototype ── */
+    describe('DELETE /:id/prototypes/:prototypeId — remove prototype', () => {
+      it('should remove a link prototype successfully', async () => {
+        // Add a prototype first
+        const addRes = await studentAgent
+          .post(`/api/projects/${projectId}/prototypes/link`)
+          .send({
+            title: 'To Be Removed',
+            url: 'https://example.com',
+          });
+
+        const protoId = addRes.body.data.project.prototypes[0]._id;
+
+        const res = await studentAgent.delete(
+          `/api/projects/${projectId}/prototypes/${protoId}`,
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.project.prototypes).toHaveLength(0);
+      });
+
+      it('should return 404 for non-existent prototype ID', async () => {
+        const fakeId = '663b1f1f1f1f1f1f1f1f1f1f';
+
+        const res = await studentAgent.delete(
+          `/api/projects/${projectId}/prototypes/${fakeId}`,
+        );
+
+        expect(res.status).toBe(404);
+      });
+
+      it('should NOT allow instructor to remove a prototype', async () => {
+        const addRes = await studentAgent
+          .post(`/api/projects/${projectId}/prototypes/link`)
+          .send({
+            title: 'Instructor Cannot Remove',
+            url: 'https://example.com',
+          });
+
+        const protoId = addRes.body.data.project.prototypes[0]._id;
+
+        const res = await instructorAgent.delete(
+          `/api/projects/${projectId}/prototypes/${protoId}`,
+        );
+
+        expect(res.status).toBe(403);
+      });
+    });
+  });
 });

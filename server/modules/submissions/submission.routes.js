@@ -24,6 +24,7 @@ import {
   submissionAnnotationParamSchema,
   uploadChapterSchema,
   compileProposalSchema,
+  finalPaperSchema,
   reviewSubmissionSchema,
   addAnnotationSchema,
   unlockRequestSchema,
@@ -70,6 +71,38 @@ router.post(
   validateFile,
   validate(compileProposalSchema),
   submissionController.compileProposal,
+);
+
+/**
+ * POST /:projectId/final-academic
+ * Upload the full academic version (Capstone 4 — restricted to faculty view).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ */
+router.post(
+  '/:projectId/final-academic',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  submissionController.uploadFinalAcademic,
+);
+
+/**
+ * POST /:projectId/final-journal
+ * Upload the condensed journal / publishable version (Capstone 4 — public archive).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ */
+router.post(
+  '/:projectId/final-journal',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  submissionController.uploadFinalJournal,
 );
 
 /* ────── Faculty routes ────── */

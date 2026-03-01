@@ -127,12 +127,15 @@ const submissionSchema = new mongoose.Schema(
     },
 
     /**
-     * Submission type — 'chapter' for individual chapter uploads (Ch. 1-3),
-     * 'proposal' for the compiled proposal document.
+     * Submission type:
+     *  - 'chapter'         — Individual chapter uploads (Ch. 1-5)
+     *  - 'proposal'        — Compiled proposal document (Ch. 1-3 unified)
+     *  - 'final_academic'  — Full academic version (Capstone 4, restricted access)
+     *  - 'final_journal'   — Journal/publishable version (Capstone 4, public archive)
      */
     type: {
       type: String,
-      enum: ['chapter', 'proposal'],
+      enum: ['chapter', 'proposal', 'final_academic', 'final_journal'],
       default: 'chapter',
     },
     chapter: {
@@ -268,6 +271,16 @@ submissionSchema.index(
 );
 // Quick lookup: proposal submissions for a project
 submissionSchema.index({ projectId: 1, type: 1 });
+// Ensure unique version per project for final_academic submissions
+submissionSchema.index(
+  { projectId: 1, type: 1, version: 1 },
+  { unique: true, partialFilterExpression: { type: 'final_academic' } },
+);
+// Ensure unique version per project for final_journal submissions
+submissionSchema.index(
+  { projectId: 1, type: 1, version: 1 },
+  { unique: true, partialFilterExpression: { type: 'final_journal' } },
+);
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

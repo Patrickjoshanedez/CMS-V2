@@ -9,6 +9,7 @@ import {
   TITLE_STATUSES,
   PROJECT_STATUS_VALUES,
   PROJECT_STATUSES,
+  PROTOTYPE_TYPE_VALUES,
 } from '@cms/shared';
 
 const titleModificationRequestSchema = new mongoose.Schema(
@@ -61,8 +62,69 @@ const deadlineSchema = new mongoose.Schema(
     chapter2: { type: Date, default: null },
     chapter3: { type: Date, default: null },
     proposal: { type: Date, default: null },
+    chapter4: { type: Date, default: null },
+    chapter5: { type: Date, default: null },
+    defense: { type: Date, default: null },
   },
   { _id: false },
+);
+
+/**
+ * Prototype schema — represents a media item or link showcasing the team's
+ * system development progress during Capstone 2 & 3.
+ */
+const prototypeSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, 'Prototype title is required'],
+      trim: true,
+      minlength: [3, 'Prototype title must be at least 3 characters'],
+      maxlength: [200, 'Prototype title must not exceed 200 characters'],
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Description must not exceed 500 characters'],
+      default: '',
+    },
+    type: {
+      type: String,
+      required: [true, 'Prototype type is required'],
+      enum: {
+        values: PROTOTYPE_TYPE_VALUES,
+        message: 'Prototype type must be one of: image, video, link',
+      },
+    },
+    storageKey: {
+      type: String,
+      default: null, // null for link-type prototypes
+    },
+    url: {
+      type: String,
+      default: null, // Used for link-type prototypes
+    },
+    fileName: {
+      type: String,
+      default: null,
+    },
+    fileSize: {
+      type: Number,
+      default: null,
+    },
+    mimeType: {
+      type: String,
+      default: null,
+    },
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false },
+  },
 );
 
 const projectSchema = new mongoose.Schema(
@@ -148,6 +210,34 @@ const projectSchema = new mongoose.Schema(
       maxlength: [1000, 'Rejection reason must not exceed 1000 characters'],
       default: null,
     },
+    prototypes: {
+      type: [prototypeSchema],
+      validate: {
+        validator: (arr) => arr.length <= 20,
+        message: 'A project can have at most 20 prototypes',
+      },
+      default: [],
+    },
+
+    // --- Archive & Completion fields ---
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+    certificateStorageKey: {
+      type: String,
+      default: null,
+    },
+    completionNotes: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Completion notes must not exceed 2000 characters'],
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -161,7 +251,9 @@ const projectSchema = new mongoose.Schema(
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
 projectSchema.index({ academicYear: 1, projectStatus: 1 });
+projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
+projectSchema.index({ isArchived: 1, academicYear: 1 });
 
 const Project = mongoose.model('Project', projectSchema);
 

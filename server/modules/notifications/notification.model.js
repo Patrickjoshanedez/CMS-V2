@@ -31,6 +31,16 @@ const NOTIFICATION_TYPES = [
   // Plagiarism
   'plagiarism_complete',
   'plagiarism_failed',
+  // Phase progression & prototypes
+  'phase_advanced',
+  'prototype_added',
+  // Evaluations / grading
+  'evaluation_submitted',
+  'evaluation_released',
+  // Certificates
+  'certificate_uploaded',
+  // Archive
+  'project_archived',
   // General
   'welcome',
   'system',

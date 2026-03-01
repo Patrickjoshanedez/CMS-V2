@@ -9,6 +9,10 @@ import {
   X,
   GraduationCap,
   FileText,
+  Upload,
+  ClipboardList,
+  Archive,
+  BarChart3,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -23,17 +27,21 @@ const navItems = {
   common: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
+    { label: 'Archive', icon: Archive, path: '/archive' },
   ],
   // Student-specific
   student: [
     { label: 'My Team', icon: UsersRound, path: '/team' },
     { label: 'My Project', icon: FileText, path: '/project' },
+    { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
+    { label: 'Upload Chapter', icon: Upload, path: '/project/submissions/upload' },
   ],
   // Instructor/admin-specific
   instructor: [
     { label: 'Users', icon: Users, path: '/users' },
     { label: 'Teams', icon: UsersRound, path: '/teams' },
     { label: 'Projects', icon: FileText, path: '/projects' },
+    { label: 'Reports', icon: BarChart3, path: '/reports' },
   ],
   // Adviser-specific
   adviser: [

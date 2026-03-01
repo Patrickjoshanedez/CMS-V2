@@ -51,6 +51,74 @@ class StorageService {
   }
 
   /**
+   * Build a storage key for a prototype media file (image or video).
+   * Format: projects/{projectId}/prototypes/{prototypeId}/{fileName}
+   *
+   * @param {string} projectId - MongoDB ObjectId of the project
+   * @param {string} prototypeId - MongoDB ObjectId of the prototype sub-document
+   * @param {string} fileName - Original file name
+   * @returns {string} S3 object key
+   */
+  buildPrototypeKey(projectId, prototypeId, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `projects/${projectId}/prototypes/${prototypeId}/${safeName}`;
+  }
+
+  /**
+   * Build a storage key for a final academic paper.
+   * Format: projects/{projectId}/final-academic/v{version}/{fileName}
+   *
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildFinalAcademicKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `projects/${projectId}/final-academic/v${version}/${safeName}`;
+  }
+
+  /**
+   * Build a storage key for a journal/publishable version.
+   * Format: projects/{projectId}/final-journal/v{version}/{fileName}
+   *
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildFinalJournalKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `projects/${projectId}/final-journal/v${version}/${safeName}`;
+  }
+
+  /**
+   * Build a storage key for a completion certificate.
+   * Format: projects/{projectId}/certificates/{fileName}
+   *
+   * @param {string} projectId
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildCertificateKey(projectId, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `projects/${projectId}/certificates/${safeName}`;
+  }
+
+  /**
+   * Build a storage key for a bulk-uploaded archive document.
+   * Format: archive/bulk/{academicYear}/{fileName}
+   *
+   * @param {string} academicYear
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildBulkArchiveKey(academicYear, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `archive/bulk/${academicYear}/${safeName}`;
+  }
+
+  /**
    * Upload a file buffer to cloud storage.
    *
    * @param {Buffer} buffer - File content

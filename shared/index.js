@@ -4,3 +4,7 @@ export { TITLE_STATUSES, TITLE_STATUS_VALUES } from './constants/titleStatuses.j
 export { PROJECT_STATUSES, PROJECT_STATUS_VALUES } from './constants/projectStatuses.js';
 export { SUBMISSION_STATUSES, SUBMISSION_STATUS_VALUES } from './constants/submissionStatuses.js';
 export { PLAGIARISM_STATUSES, PLAGIARISM_STATUS_VALUES } from './constants/plagiarismStatuses.js';
+export { PROTOTYPE_TYPES, PROTOTYPE_TYPE_VALUES } from './constants/prototypeTypes.js';
+export { CAPSTONE_PHASES, CAPSTONE_PHASE_VALUES } from './constants/capstonePhases.js';
+export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
+export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
