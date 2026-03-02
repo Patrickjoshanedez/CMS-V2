@@ -5,7 +5,7 @@
  * for capstone project management: creation, title workflow, adviser/panelist
  * assignment, deadlines, and project rejection.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { projectService } from '../services/authService';
 
 /* ────────── Query Keys ────────── */
@@ -256,7 +256,7 @@ export function useArchiveSearch(filters = {}, options = {}) {
       const { data } = await projectService.searchArchive(filters);
       return data.data; // { projects, pagination }
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     ...options,
   });
 }

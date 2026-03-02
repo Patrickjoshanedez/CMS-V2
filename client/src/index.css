@@ -68,3 +68,352 @@ input::-webkit-credentials-auto-fill-button {
       'calt' 1;
   }
 }
+
+/* ===================================================================
+   Landing Page — Entry Animations & Hover Effects
+   =================================================================== */
+
+/* --- Initial hidden states (before .landing-loaded is added) --- */
+.landing-hero .landing-title,
+.landing-hero .landing-subtitle,
+.landing-hero .landing-buttons,
+.landing-hero .landing-stats,
+.landing-hero .landing-scroll-hint {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-hero .landing-wave {
+  opacity: 0;
+  transform: translateX(60px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-hero .landing-skyline {
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s,
+    transform 4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s;
+}
+
+/* --- Loaded states (staggered entry sequence) --- */
+.landing-hero.landing-loaded .landing-wave {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.landing-hero.landing-loaded .landing-skyline {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-hero.landing-loaded .landing-title {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+
+.landing-hero.landing-loaded .landing-subtitle {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.4s;
+}
+
+.landing-hero.landing-loaded .landing-buttons {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.6s;
+}
+
+.landing-hero.landing-loaded .landing-stats {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.85s;
+}
+
+.landing-hero.landing-loaded .landing-scroll-hint {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 1.1s;
+}
+
+/* --- Hover: Gradient button shimmer --- */
+.landing-btn-gradient {
+  background-size: 200% 200% !important;
+  background-position: 0% 50%;
+  transition:
+    background-position 0.6s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.landing-btn-gradient:hover {
+  background-position: 100% 50%;
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px -5px rgba(255, 87, 34, 0.35),
+    0 4px 12px -3px rgba(103, 58, 183, 0.25);
+}
+
+/* --- Hover: Solid button scale --- */
+.landing-btn-solid {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.landing-btn-solid:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* ===================================================================
+   Glassmorphism Spotlight Cards
+   =================================================================== */
+.spotlight-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 87, 34, 0.15),
+    rgba(103, 58, 183, 0.1) 40%,
+    transparent 80%
+  );
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+.spotlight-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow:
+    0 12px 40px -8px rgba(255, 87, 34, 0.12),
+    0 6px 20px -4px rgba(103, 58, 183, 0.1);
+}
+
+/* Dark mode: slightly brighter glass */
+.dark .spotlight-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ===================================================================
+   Bento Grid — Border glow on hover
+   =================================================================== */
+.bento-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease;
+}
+
+.bento-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.3), rgba(103, 58, 183, 0.3));
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.4s ease;
+}
+
+.bento-card:hover::after {
+  opacity: 1;
+}
+
+.bento-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.15);
+}
+
+/* ===================================================================
+   FAQ Accordion — Ghost style
+   =================================================================== */
+.faq-item {
+  border: 1px solid transparent;
+  transition:
+    border-color 0.3s ease,
+    background-color 0.3s ease;
+}
+
+.faq-item:hover {
+  border-color: hsl(var(--border));
+}
+
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-answer.faq-open {
+  grid-template-rows: 1fr;
+}
+
+.faq-answer > div {
+  overflow: hidden;
+}
+
+/* ===================================================================
+   Scroll Reveal — Sections animate in on scroll
+   =================================================================== */
+.landing-section {
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-section.section-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===================================================================
+   Auth Pages — Stagger Entry & Gradient Effects
+   =================================================================== */
+
+/* --- Initial hidden states --- */
+.auth-form .auth-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Loaded — stagger children into view --- */
+.auth-form.auth-loaded .auth-item:nth-child(1) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.05s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(2) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.12s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(3) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.19s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(4) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.26s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(5) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.33s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(6) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.4s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(7) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.47s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(8) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.54s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(9) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.61s;
+}
+.auth-form.auth-loaded .auth-item:nth-child(10) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.68s;
+}
+
+/* --- Wave panel entrance --- */
+.auth-wave-panel {
+  animation: authWaveSlide 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.auth-wave-content {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: authWaveFade 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+}
+
+@keyframes authWaveSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes authWaveFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Gradient button — reuse landing shimmer --- */
+.auth-btn-gradient {
+  background: linear-gradient(135deg, #ff5722, #e91e63, #9c27b0, #673ab7);
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition:
+    background-position 0.6s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.auth-btn-gradient:hover:not(:disabled) {
+  background-position: 100% 50%;
+  transform: translateY(-1px);
+  box-shadow:
+    0 8px 25px -5px rgba(255, 87, 34, 0.3),
+    0 4px 12px -3px rgba(103, 58, 183, 0.2);
+}
+.auth-btn-gradient:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* --- Password strength meter bar --- */
+.strength-bar {
+  transition:
+    width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.3s ease;
+}

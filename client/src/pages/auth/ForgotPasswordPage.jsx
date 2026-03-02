@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
+import { FloatingInput } from '@/components/ui/FloatingInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -26,9 +24,8 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
 
   const {
-    register,
+    control,
     handleSubmit,
-    getValues,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(forgotPasswordSchema),
@@ -57,54 +54,71 @@ export default function ForgotPasswordPage() {
       title="Forgot password?"
       description="Enter your email and we'll send you a reset code."
     >
+      {/* Error alert */}
       {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="auth-item mb-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
       )}
 
+      {/* Success alert */}
       {sent && (
-        <Alert variant="success" className="mb-4">
-          <AlertDescription>
-            If an account with that email exists, a reset code has been sent. Redirecting…
-          </AlertDescription>
-        </Alert>
+        <div className="auth-item mb-4">
+          <Alert variant="success">
+            <AlertDescription>
+              If an account with that email exists, a reset code has been sent. Redirecting…
+            </AlertDescription>
+          </Alert>
+        </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            disabled={sent}
-            {...register('email')}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Email */}
+        <div className="auth-item mb-6">
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <FloatingInput
+                {...field}
+                label="Email"
+                type="email"
+                autoComplete="email"
+                disabled={sent}
+                error={errors.email?.message}
+              />
+            )}
           />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
         </div>
 
-        <Button type="submit" className="w-full" disabled={loading || sent}>
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sending code…
-            </>
-          ) : (
-            'Send reset code'
-          )}
-        </Button>
+        {/* Submit — gradient button */}
+        <div className="auth-item">
+          <button
+            type="submit"
+            disabled={loading || sent}
+            className="auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending code…
+              </>
+            ) : (
+              'Send reset code'
+            )}
+          </button>
+        </div>
       </form>
 
-      <div className="mt-6 text-center">
+      {/* Back to login — ghost button with gradient border */}
+      <div className="auth-item mt-8 text-center">
         <Link
           to="/login"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#673ab7]/30 bg-transparent px-4 py-2.5 text-sm font-medium text-[#673ab7] transition-all hover:bg-[#673ab7]/5 hover:border-[#673ab7]/50"
         >
-          <ArrowLeft className="mr-1 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to sign in
         </Link>
       </div>

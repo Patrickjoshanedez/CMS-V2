@@ -132,20 +132,26 @@ export default function VerifyOtpPage() {
 
   return (
     <AuthLayout title="Verify your email" description={`We sent a 6-digit code to ${email}`}>
+      {/* Error alert */}
       {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="auth-item mb-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
       )}
 
+      {/* Success alert */}
       {successMessage && (
-        <Alert variant="success" className="mb-4">
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
+        <div className="auth-item mb-4">
+          <Alert variant="success">
+            <AlertDescription>{successMessage}</AlertDescription>
+          </Alert>
+        </div>
       )}
 
       {/* OTP input grid */}
-      <div className="flex justify-center gap-3">
+      <div className="auth-item flex justify-center gap-3">
         {otp.map((digit, index) => (
           <input
             key={index}
@@ -157,7 +163,7 @@ export default function VerifyOtpPage() {
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="h-12 w-12 rounded-md border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-14 w-14 rounded-lg border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-[#673ab7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#673ab7]/30"
             disabled={loading}
             autoComplete="one-time-code"
           />
@@ -166,21 +172,21 @@ export default function VerifyOtpPage() {
 
       {/* Loading indicator */}
       {loading && (
-        <div className="mt-4 flex items-center justify-center text-sm text-muted-foreground">
+        <div className="auth-item mt-4 flex items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Verifying…
         </div>
       )}
 
       {/* Resend OTP */}
-      <div className="mt-6 text-center">
+      <div className="auth-item mt-6 text-center">
         <p className="text-sm text-muted-foreground">
           Didn&apos;t receive the code?{' '}
           <button
             type="button"
             onClick={handleResend}
             disabled={resendCooldown > 0 || loading}
-            className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-medium text-[#673ab7] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
           >
             {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend'}
           </button>

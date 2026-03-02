@@ -24,6 +24,7 @@
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",
     "file-type": "^21.3.0",
+    "google-auth-library": "^10.6.1",
     "helmet": "^8.0.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.2",

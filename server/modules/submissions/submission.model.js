@@ -264,23 +264,19 @@ submissionSchema.index(
   { projectId: 1, chapter: 1, version: 1 },
   { unique: true, partialFilterExpression: { type: 'chapter' } },
 );
-// Ensure unique version per project for proposal submissions
+// Ensure unique version per project+type for proposal, final_academic, and final_journal submissions
+// (single index avoids Mongoose duplicate-key-pattern warnings)
 submissionSchema.index(
   { projectId: 1, type: 1, version: 1 },
-  { unique: true, partialFilterExpression: { type: 'proposal' } },
+  {
+    unique: true,
+    partialFilterExpression: {
+      type: { $in: ['proposal', 'final_academic', 'final_journal'] },
+    },
+  },
 );
 // Quick lookup: proposal submissions for a project
 submissionSchema.index({ projectId: 1, type: 1 });
-// Ensure unique version per project for final_academic submissions
-submissionSchema.index(
-  { projectId: 1, type: 1, version: 1 },
-  { unique: true, partialFilterExpression: { type: 'final_academic' } },
-);
-// Ensure unique version per project for final_journal submissions
-submissionSchema.index(
-  { projectId: 1, type: 1, version: 1 },
-  { unique: true, partialFilterExpression: { type: 'final_journal' } },
-);
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

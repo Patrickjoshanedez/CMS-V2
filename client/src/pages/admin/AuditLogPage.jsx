@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -87,7 +88,7 @@ export default function AuditLogPage() {
   });
 
   const { data, isLoading, isError, refetch, isFetching } = useAuditLogs(queryFilters, {
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const handleFilterChange = useCallback((field, value) => {
@@ -129,12 +130,7 @@ export default function AuditLogPage() {
               View all system activity and administrative actions.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -317,9 +313,7 @@ function AuditLogEntry({ log }) {
           )}
         </div>
 
-        {log.description && (
-          <p className="text-sm text-foreground">{log.description}</p>
-        )}
+        {log.description && <p className="text-sm text-foreground">{log.description}</p>}
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {log.actor && (
@@ -340,9 +334,7 @@ function AuditLogEntry({ log }) {
             {timestamp.toLocaleDateString()}{' '}
             {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-          {log.ipAddress && (
-            <span className="font-mono text-[10px]">{log.ipAddress}</span>
-          )}
+          {log.ipAddress && <span className="font-mono text-[10px]">{log.ipAddress}</span>}
         </div>
       </div>
     </div>

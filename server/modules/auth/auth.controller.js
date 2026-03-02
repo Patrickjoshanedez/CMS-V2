@@ -82,15 +82,17 @@ export const login = catchAsync(async (req, res) => {
   res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
 
   // Fire-and-forget audit log for login
-  auditService.log({
-    action: 'auth.login',
-    actor: user._id,
-    actorRole: user.role,
-    targetType: 'User',
-    targetId: user._id,
-    description: `User ${user.email} logged in`,
-    ipAddress: req.ip || req.connection?.remoteAddress,
-  }).catch(() => {});
+  auditService
+    .log({
+      action: 'auth.login',
+      actor: user._id,
+      actorRole: user.role,
+      targetType: 'User',
+      targetId: user._id,
+      description: `User ${user.email} logged in`,
+      ipAddress: req.ip || req.connection?.remoteAddress,
+    })
+    .catch(() => {});
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -197,5 +199,46 @@ export const changePassword = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Password changed successfully.',
+  });
+});
+
+/**
+ * POST /api/auth/google
+ * Authenticate via Google OAuth. Verifies ID token, finds or creates user,
+ * sets JWT cookies. No reCAPTCHA needed — Google handles bot detection.
+ */
+export const googleLogin = catchAsync(async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: { code: 'MISSING_CREDENTIAL', message: 'Google credential is required.', status: 400 },
+    });
+  }
+
+  const { user, accessToken, refreshToken } = await authService.googleLogin({ credential });
+
+  // Set cookies
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+
+  // Fire-and-forget audit log
+  auditService
+    .log({
+      action: 'auth.google_login',
+      actor: user._id,
+      actorRole: user.role,
+      targetType: 'User',
+      targetId: user._id,
+      description: `User ${user.email} logged in via Google`,
+      ipAddress: req.ip || req.connection?.remoteAddress,
+    })
+    .catch(() => {});
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Google login successful.',
+    data: { user },
   });
 });

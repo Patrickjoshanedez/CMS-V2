@@ -34,9 +34,24 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: [
+        function () {
+          return this.authProvider === 'local';
+        },
+        'Password is required',
+      ],
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Never returned in queries by default
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple docs without this field (only Google users have one)
     },
     role: {
       type: String,
@@ -101,6 +116,7 @@ userSchema.virtual('fullName').get(function () {
 
 // --- Indexes ---
 // Note: email already has unique:true at field level — no need to duplicate
+// Note: googleId already has unique+sparse at field level — no extra index needed
 userSchema.index({ role: 1 });
 userSchema.index({ teamId: 1 });
 userSchema.index({ email: 1, role: 1 });
@@ -108,8 +124,8 @@ userSchema.index({ firstName: 1, lastName: 1 });
 
 // --- Pre-save hook: hash password ---
 userSchema.pre('save', async function (next) {
-  // Only hash if the password field has been modified
-  if (!this.isModified('password')) return next();
+  // Skip hashing for Google OAuth users (no password) or unmodified passwords
+  if (!this.password || !this.isModified('password')) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);

@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
+import { FloatingInput } from '@/components/ui/FloatingInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -40,7 +38,7 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm({
@@ -74,73 +72,89 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout title="Set new password" description="Enter your new password below.">
+      {/* Error alert */}
       {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="auth-item mb-4">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)}>
         {/* New password */}
-        <div className="space-y-2">
-          <Label htmlFor="password">New password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              {...register('password')}
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowPassword(!showPassword)}
-              tabIndex={-1}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+        <div className="auth-item mb-4">
+          <Controller
+            name="password"
+            control={control}
+            render={({ field }) => (
+              <FloatingInput
+                {...field}
+                label="New password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                error={errors.password?.message}
+                trailing={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+            )}
+          />
         </div>
 
         {/* Confirm password */}
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm new password</Label>
-          <div className="relative">
-            <Input
-              id="confirmPassword"
-              type={showConfirm ? 'text' : 'password'}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowConfirm(!showConfirm)}
-              tabIndex={-1}
-              aria-label={showConfirm ? 'Hide password' : 'Show password'}
-            >
-              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          {errors.confirmPassword && (
-            <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-          )}
+        <div className="auth-item mb-6">
+          <Controller
+            name="confirmPassword"
+            control={control}
+            render={({ field }) => (
+              <FloatingInput
+                {...field}
+                label="Confirm new password"
+                type={showConfirm ? 'text' : 'password'}
+                autoComplete="new-password"
+                error={errors.confirmPassword?.message}
+                trailing={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowConfirm(!showConfirm)}
+                    tabIndex={-1}
+                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+            )}
+          />
         </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Resetting password…
-            </>
-          ) : (
-            'Reset password'
-          )}
-        </Button>
+        {/* Submit — gradient button */}
+        <div className="auth-item">
+          <button
+            type="submit"
+            disabled={loading}
+            className="auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Resetting password…
+              </>
+            ) : (
+              'Reset password'
+            )}
+          </button>
+        </div>
       </form>
     </AuthLayout>
   );

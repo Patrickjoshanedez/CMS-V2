@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as authController from './auth.controller.js';
 import validate from '../../middleware/validate.js';
 import authenticate from '../../middleware/authenticate.js';
+import verifyCaptcha from '../../middleware/verifyCaptcha.js';
 import { authLimiter, otpLimiter } from '../../middleware/rateLimiter.js';
 import {
   registerSchema,
@@ -23,10 +24,17 @@ const router = Router();
  */
 
 // Public routes (no authentication required)
-router.post('/register', authLimiter, validate(registerSchema), authController.register);
+router.post(
+  '/register',
+  authLimiter,
+  verifyCaptcha,
+  validate(registerSchema),
+  authController.register,
+);
 router.post('/verify-otp', authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 router.post('/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOtp);
-router.post('/login', authLimiter, validate(loginSchema), authController.login);
+router.post('/login', authLimiter, verifyCaptcha, validate(loginSchema), authController.login);
+router.post('/google', authLimiter, authController.googleLogin);
 router.post('/refresh', authLimiter, authController.refresh);
 router.post(
   '/forgot-password',

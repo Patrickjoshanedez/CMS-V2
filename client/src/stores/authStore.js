@@ -92,6 +92,28 @@ export const useAuthStore = create((set, _get) => ({
   },
 
   /**
+   * Log in with Google — server verifies the ID token and sets cookies.
+   * We fetch the user profile to populate the store.
+   */
+  googleLogin: async (credential) => {
+    set({ loading: true, error: null });
+    try {
+      await authService.googleLogin({ credential });
+      const userResponse = await userService.getMe();
+
+      set({
+        user: userResponse.data.data.user,
+        isAuthenticated: true,
+        loading: false,
+      });
+    } catch (error) {
+      const message = error.response?.data?.error?.message || 'Google login failed.';
+      set({ loading: false, error: message, isAuthenticated: false, user: null });
+      throw error;
+    }
+  },
+
+  /**
    * Fetch the current user profile (used on app init to restore session).
    */
   fetchUser: async () => {

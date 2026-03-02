@@ -4,7 +4,7 @@
  * Provides hooks for fetching notifications (with polling), marking as read,
  * marking all as read, deleting, and clearing all notifications.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { notificationService } from '../services/authService';
 
 /** Query key factory for cache management. */
@@ -28,7 +28,7 @@ export function useNotifications(params = { page: 1, limit: 20 }) {
     },
     refetchInterval: 60000, // Fallback poll every 60s (real-time via Socket.IO handles most updates)
     staleTime: 15000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 }
 

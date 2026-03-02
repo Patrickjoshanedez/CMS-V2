@@ -31,6 +31,7 @@ const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 /**
  * App — Root component with routing and theme management.
@@ -269,8 +270,15 @@ export default function App() {
           {/* Error pages */}
           <Route path="/forbidden" element={<ForbiddenPage />} />
 
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* Landing page for guests, dashboard redirect for authenticated users */}
+          <Route
+            path="/"
+            element={
+              <GuestRoute>
+                <LandingPage />
+              </GuestRoute>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

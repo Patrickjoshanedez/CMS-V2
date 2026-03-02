@@ -7,6 +7,7 @@ import api from './api';
 export const authService = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  googleLogin: (data) => api.post('/auth/google', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   resendOtp: (data) => api.post('/auth/resend-otp', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
@@ -93,8 +94,7 @@ export const projectService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   getPrototypes: (id) => api.get(`/projects/${id}/prototypes`),
-  removePrototype: (id, prototypeId) =>
-    api.delete(`/projects/${id}/prototypes/${prototypeId}`),
+  removePrototype: (id, prototypeId) => api.delete(`/projects/${id}/prototypes/${prototypeId}`),
 
   // Archive & Completion routes
   archiveProject: (id, data) => api.post(`/projects/${id}/archive`, data),

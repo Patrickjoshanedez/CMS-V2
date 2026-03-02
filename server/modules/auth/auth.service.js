@@ -11,6 +11,7 @@ import {
 } from '../../utils/generateToken.js';
 import { sendOtpEmail } from '../notifications/email.service.js';
 import env from '../../config/env.js';
+import { OAuth2Client } from 'google-auth-library';
 
 /**
  * AuthService — Business logic for registration, OTP verification,
@@ -330,6 +331,100 @@ class AuthService {
 
     // Revoke all refresh tokens (force re-login on other devices)
     await RefreshToken.revokeAllForUser(user._id);
+  }
+
+  /**
+   * Authenticate a user via Google OAuth.
+   * - Verifies the Google ID token server-side using google-auth-library
+   * - If the user already exists (by googleId or email), logs them in
+   * - If the user is new, creates an account (authProvider: 'google', verified, no password)
+   * - If an existing local user tries Google login, links the Google account
+   *
+   * @param {Object} data - { credential } where credential is the Google ID token
+   * @returns {Object} { user, accessToken, refreshToken }
+   */
+  async googleLogin({ credential }) {
+    if (!env.GOOGLE_CLIENT_ID) {
+      throw new AppError('Google login is not configured.', 500, 'GOOGLE_NOT_CONFIGURED');
+    }
+
+    const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+
+    // Verify the Google ID token
+    let ticket;
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: env.GOOGLE_CLIENT_ID,
+      });
+    } catch {
+      throw new AppError('Invalid Google token.', 401, 'GOOGLE_TOKEN_INVALID');
+    }
+
+    const payload = ticket.getPayload();
+    const {
+      sub: googleId,
+      email,
+      given_name: firstName,
+      family_name: lastName,
+      email_verified,
+    } = payload;
+
+    if (!email_verified) {
+      throw new AppError('Google email is not verified.', 401, 'GOOGLE_EMAIL_NOT_VERIFIED');
+    }
+
+    // Try to find an existing user by googleId first, then by email
+    let user = await User.findOne({ googleId });
+
+    if (!user) {
+      user = await User.findOne({ email });
+
+      if (user) {
+        // Existing local user — link their Google account
+        user.googleId = googleId;
+        user.authProvider = user.authProvider === 'local' ? 'local' : 'google';
+        await user.save({ validateBeforeSave: false });
+      } else {
+        // Brand-new user — create with Google provider
+        user = await User.create({
+          firstName: firstName || 'Google',
+          lastName: lastName || 'User',
+          email,
+          googleId,
+          authProvider: 'google',
+          isVerified: true, // Google already verified the email
+          isActive: true,
+        });
+      }
+    }
+
+    // Check active status
+    if (!user.isActive) {
+      throw new AppError('Your account has been deactivated.', 401, 'ACCOUNT_DEACTIVATED');
+    }
+
+    // Update last login timestamp
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    // Generate tokens
+    const tokenPayload = { userId: user._id.toString(), role: user.role };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshTokenString = generateRefreshTokenString();
+    const hashedRefreshToken = hashToken(refreshTokenString);
+
+    // Store the hashed refresh token in DB
+    await RefreshToken.create({
+      userId: user._id,
+      token: hashedRefreshToken,
+      expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
+    });
+
+    // Ensure password is not in the response
+    user.password = undefined;
+
+    return { user, accessToken, refreshToken: refreshTokenString };
   }
 
   // --- Private methods ---

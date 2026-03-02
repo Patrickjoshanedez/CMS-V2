@@ -1,31 +1,12 @@
-feat: Sprint 12 - Real-time notifications, UX polish & plagiarism gate
+﻿feat: add configurable system settings and audit trail (Sprint 13)
 
-S12-01: Real-time Socket.IO notifications
-- socket.service.js with JWT auth middleware and emitToUser()
-- Client socket hook with sonner toast integration
-- Emitters in team, project, submission, evaluation, plagiarism services
+- SystemSettings module: singleton config for plagiarism threshold,
+  system name, maintenance mode (FR-INS-05)
+- AuditLog module: full audit trail with query, filter, pagination,
+  and entity history endpoints (FR-16, NFR-07)
+- auditLog middleware wired to 23 route actions across 6 modules
+- project.service.js uses configurable threshold from SystemSettings
+- Client: SystemSettingsForm, AuditLogPage, services, hooks, routing
+- Tests: 26 settings tests + 22 audit tests (315 total, all green)
 
-S12-02: Adviser email on upload
-- enqueueEmailJob in 4 submission upload methods
-
-S12-03: Deadline warning UI
-- DeadlineWarning component with urgency levels (overdue/critical/warning/safe)
-- Integrated into MyProjectPage, ProjectDetailPage, ProjectSubmissionsPage
-
-S12-04: Create Another Project flow
-- createProject allows new project when existing is REJECTED
-- getMyProject dual-query: prefer active, fallback to most-recent rejected
-- RejectedProjectState component with restart action
-
-S12-05: Plagiarism clearance gate
-- MIN_ORIGINALITY_THRESHOLD = 75 in archiveProject
-- Validates both final papers have completed plagiarism with passing scores
-- 4 new test cases (pending, failed, below threshold, processing)
-
-S12-06: Documentation
-- CHANGELOG v0.7.0 (Sprints 10-11) and v0.8.0 (Sprint 12)
-- API.md: all Sprint 10-12 endpoints documented
-- DATABASE.md: dual upload and plagiarism gate business rules
-- ARCHITECTURE.md: Socket.IO real-time architecture, shared package enums
-
-Test suite: 10 files, 267 tests, all passing
+Closes: FR-INS-05, FR-16, NFR-07

@@ -163,6 +163,45 @@ export default function ProjectSubmissionsPage() {
 
   /* ────── Error ────── */
   if (error || !project) {
+    // Distinguish between "no team/project" (expected for new students) vs actual errors
+    const errorCode = projectError?.response?.data?.error?.code;
+    const isNoTeam = errorCode === 'NO_TEAM';
+    const isNoProject = errorCode === 'PROJECT_NOT_FOUND';
+
+    if (isNoTeam) {
+      return (
+        <DashboardLayout>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+            <AlertTriangle className="mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">No Team Yet</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              You need to join or create a team before you can view submissions.
+            </p>
+            <Button className="mt-6" onClick={() => navigate('/teams')}>
+              Go to Teams
+            </Button>
+          </div>
+        </DashboardLayout>
+      );
+    }
+
+    if (isNoProject) {
+      return (
+        <DashboardLayout>
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+            <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">No Project Yet</h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Your team does not have a project yet. Create a project to start submitting documents.
+            </p>
+            <Button className="mt-6" onClick={() => navigate('/project/create')}>
+              Create Project
+            </Button>
+          </div>
+        </DashboardLayout>
+      );
+    }
+
     return (
       <DashboardLayout>
         <Alert variant="destructive">
@@ -215,9 +254,7 @@ export default function ProjectSubmissionsPage() {
         </div>
 
         {/* Deadline alerts — compact warnings for approaching/overdue deadlines */}
-        {project.deadlines && (
-          <DeadlineWarning deadlines={project.deadlines} compact />
-        )}
+        {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
 
         {/* Filters */}
         <Card>

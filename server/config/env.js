@@ -60,6 +60,12 @@ const env = Object.freeze({
   COPYLEAKS_EMAIL: process.env.COPYLEAKS_EMAIL || '',
   COPYLEAKS_API_KEY: process.env.COPYLEAKS_API_KEY || '',
 
+  // reCAPTCHA v2
+  RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || '',
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
   MAX_PROTOTYPE_SIZE_MB: parseInt(process.env.MAX_PROTOTYPE_SIZE_MB, 10) || 50,
