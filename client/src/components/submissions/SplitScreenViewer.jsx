@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowLeftRight, X, Maximize2, Columns2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 
 function DocumentPanel({ url, label }) {
   if (!url) {

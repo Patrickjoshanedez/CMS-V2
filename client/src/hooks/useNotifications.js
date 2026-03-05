@@ -5,6 +5,7 @@
  * marking all as read, deleting, and clearing all notifications.
  */
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { notificationService } from '../services/authService';
 
 /** Query key factory for cache management. */
@@ -57,6 +58,9 @@ export function useMarkAsRead() {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
     },
+    onError: () => {
+      toast.error('Failed to mark notification as read');
+    },
   });
 }
 
@@ -68,6 +72,9 @@ export function useMarkAllAsRead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
+    },
+    onError: () => {
+      toast.error('Failed to mark all notifications as read');
     },
   });
 }
@@ -81,6 +88,9 @@ export function useDeleteNotification() {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
     },
+    onError: () => {
+      toast.error('Failed to delete notification');
+    },
   });
 }
 
@@ -92,6 +102,9 @@ export function useClearAllNotifications() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
+    },
+    onError: () => {
+      toast.error('Failed to clear notifications');
     },
   });
 }

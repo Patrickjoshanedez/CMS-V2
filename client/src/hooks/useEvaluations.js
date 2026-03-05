@@ -32,6 +32,7 @@ export function useMyEvaluation(projectId, defenseType, options = {}) {
       return data.data.evaluation;
     },
     enabled: !!projectId && !!defenseType,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -48,6 +49,7 @@ export function useProjectEvaluations(projectId, defenseType, options = {}) {
       return data.data; // { evaluations, summary }
     },
     enabled: !!projectId && !!defenseType,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -63,6 +65,7 @@ export function useEvaluation(evaluationId, options = {}) {
       return data.data.evaluation;
     },
     enabled: !!evaluationId,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -75,15 +78,16 @@ export function useEvaluation(evaluationId, options = {}) {
  */
 function useEvaluationMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
   return useMutation({
     mutationFn,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: evaluationKeys.all });
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
-      options.onSuccess?.(...args);
+      onSuccess?.(...args);
     },
-    onError: options.onError,
-    ...options,
+    onError,
+    ...restOptions,
   });
 }
 

@@ -9,6 +9,20 @@ const objectId = z.string().regex(objectIdPattern, 'Invalid ObjectId');
 
 /* ───── Create project ───── */
 
+export const checkTitleSimilaritySchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(10, 'Title must be at least 10 characters')
+    .max(300, 'Title must not exceed 300 characters'),
+  keywords: z
+    .array(z.string().trim().min(1))
+    .max(10, 'A project can have at most 10 keywords')
+    .optional()
+    .default([]),
+  excludeProjectId: z.string().regex(objectIdPattern, 'Invalid ObjectId').optional(),
+});
+
 export const createProjectSchema = z.object({
   title: z
     .string()
@@ -117,6 +131,9 @@ export const setDeadlinesSchema = z.object({
   chapter4: z.coerce.date().optional(),
   chapter5: z.coerce.date().optional(),
   defense: z.coerce.date().optional(),
+  tba: z
+    .array(z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']))
+    .optional(),
 });
 
 /* ───── Reject project entirely ───── */

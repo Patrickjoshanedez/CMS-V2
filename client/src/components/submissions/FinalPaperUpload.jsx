@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react';
 import { FileText, Lock, Globe, Upload, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { useUploadFinalAcademic, useUploadFinalJournal } from '@/hooks/useSubmissions';
 
 function UploadSection({ icon: Icon, iconClass, label, badge, badgeVariant, description, mutation, projectId }) {

@@ -6,10 +6,10 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUploadCertificate, useCertificateUrl } from '@/hooks/useProjects';
 import { ROLES } from '@cms/shared';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 
 export default function CertificatePage() {
   const { projectId } = useParams();

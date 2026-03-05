@@ -133,11 +133,14 @@ export const getLatestChapterSubmission = catchAsync(async (req, res) => {
 
 /** GET /api/submissions/:submissionId/view — Get pre-signed URL for document viewing */
 export const getViewUrl = catchAsync(async (req, res) => {
-  const { url, expiresIn } = await submissionService.getViewUrl(req.params.submissionId);
+  const { url, expiresIn, source } = await submissionService.getViewUrl(
+    req.params.submissionId,
+    req.user._id,
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    data: { url, expiresIn },
+    data: { url, expiresIn, source },
   });
 });
 

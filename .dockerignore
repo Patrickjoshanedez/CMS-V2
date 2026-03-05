@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.DS_Store
+cookies.txt
+server/test-*.json
+server/test-*.txt
+server/sprint*-output.txt
+server/sprint*-results.json

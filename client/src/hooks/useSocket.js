@@ -48,11 +48,36 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
     };
 
-    socket.on('notification:new', handleNotification);
+    /** Handle connection errors (auth failure, server down, etc.) */
+    const handleConnectError = (err) => {
+      console.error('[Socket] Connection error:', err.message);
+    };
 
-    // Cleanup: remove the listener (but keep the connection for other hooks)
+    /** Handle exhausted reconnection attempts */
+    const handleReconnectFailed = () => {
+      toast.error('Real-time connection lost', {
+        description: 'Live updates are unavailable. Please refresh the page.',
+        duration: Infinity,
+        id: 'socket-reconnect-failed',
+      });
+    };
+
+    /** Dismiss any error toast when connection is restored */
+    const handleReconnect = () => {
+      toast.dismiss('socket-reconnect-failed');
+    };
+
+    socket.on('notification:new', handleNotification);
+    socket.on('connect_error', handleConnectError);
+    socket.io.on('reconnect_failed', handleReconnectFailed);
+    socket.io.on('reconnect', handleReconnect);
+
+    // Cleanup: remove the listeners (but keep the connection for other hooks)
     return () => {
       socket.off('notification:new', handleNotification);
+      socket.off('connect_error', handleConnectError);
+      socket.io.off('reconnect_failed', handleReconnectFailed);
+      socket.io.off('reconnect', handleReconnect);
     };
   }, [isAuthenticated, queryClient]);
 

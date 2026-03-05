@@ -33,7 +33,7 @@ const navItems = {
   // Student-specific
   student: [
     { label: 'My Team', icon: UsersRound, path: '/team' },
-    { label: 'My Project', icon: FileText, path: '/project' },
+    { label: 'My Capstone', icon: FileText, path: '/project' },
     { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
     { label: 'Upload Chapter', icon: Upload, path: '/project/submissions/upload' },
   ],

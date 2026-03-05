@@ -93,6 +93,128 @@ This starts both the Express server (port 5000) and the Vite dev server (port 51
 
 ---
 
+## Docker (Development)
+
+This repository now includes a Docker development stack for the full workspace (npm workspaces supported).
+
+### Services
+
+- `client` (Vite React app) → <http://localhost:5173>
+- `server` (Express API) → <http://localhost:5000>
+- `mongodb` (MongoDB 7) → internal container network
+- `redis` (Redis 7) → internal container network
+
+### Start
+
+```bash
+docker compose up --build
+```
+
+### Stop
+
+```bash
+docker compose down
+```
+
+To also remove database/cache volumes:
+
+```bash
+docker compose down -v
+```
+
+## Docker (Production-like)
+
+The production stack builds optimized images:
+
+- `client`: multi-stage Vite build served by Nginx
+- `server`: Node.js production runtime (`npm run start --workspace=server`)
+- `mongodb`, `redis`: internal services
+
+### Start
+
+```bash
+cp .env.prod.example .env.prod
+```
+
+Edit `.env.prod` with real secrets/config, then run:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Open the app at <http://localhost:8080>.
+
+### Stop
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+### Environment variables
+
+The production compose file reads values from `.env.prod` via `env_file`. At minimum, set:
+
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `MONGODB_URI` (optional if using included `mongodb` service)
+
+For email, S3, reCAPTCHA, Copyleaks, and Google integrations, set the corresponding env vars from `server/.env.example`.
+
+---
+
+## LAN Deployment (Demo with Classmates)
+
+Share the running app with anyone on the same Wi-Fi / LAN — one command does everything:
+
+### Prerequisites
+
+- **Docker Desktop** running
+- **PowerShell** opened **as Administrator** (right-click → *Run as Administrator*)
+
+### Deploy
+
+```powershell
+.\lan-deploy.ps1
+```
+
+The script automatically:
+
+1. Detects your LAN IP address
+2. Creates `.env.prod` from the example template (if missing)
+3. Sets `CLIENT_URL` to your LAN IP for CORS
+4. Generates a Docker Compose LAN override file
+5. Opens Windows Firewall port 8080
+6. Builds & starts the production containers
+7. Runs a health check and prints the URLs
+
+After it finishes, share the printed URL (e.g. `http://192.168.1.5:8080`) with your classmates.
+
+### Restart (without rebuilding)
+
+```powershell
+.\lan-deploy.ps1 -SkipBuild
+```
+
+### Stop
+
+```powershell
+.\lan-deploy.ps1 -Stop
+```
+
+### Full cleanup (removes database data too)
+
+```powershell
+.\lan-deploy.ps1 -Clean
+```
+
+### View logs
+
+```powershell
+docker compose -f docker-compose.prod.yml -p cms-v2-lan logs -f
+```
+
+---
+
 ## Available Scripts
 
 | Script               | Description                              |

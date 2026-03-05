@@ -22,9 +22,38 @@ export const projectKeys = {
   archiveSearch: (filters) => [...projectKeys.archive(), 'search', filters],
   certificate: (id) => [...projectKeys.detail(id), 'certificate'],
   reports: (filters) => [...projectKeys.all, 'reports', filters],
+  titleCheck: (title) => [...projectKeys.all, 'title-check', title],
 };
 
 /* ────────── Query Hooks ────────── */
+
+/**
+ * Check title similarity against existing projects.
+ *
+ * Designed to be paired with the `useDebounce` hook so the query only
+ * fires after the user stops typing (pass `debouncedTitle` as `title`).
+ *
+ * @param {string} title - The debounced title to check.
+ * @param {Object} [extraParams] - Additional params: keywords, excludeProjectId.
+ * @param {Object} [options] - Extra React Query options.
+ */
+export function useCheckTitleSimilarity(title, extraParams = {}, options = {}) {
+  return useQuery({
+    queryKey: projectKeys.titleCheck(title),
+    queryFn: async () => {
+      const { data } = await projectService.checkTitleSimilarity({
+        title,
+        ...extraParams,
+      });
+      return data.data; // { similarProjects, threshold }
+    },
+    // Only fire the query when the title is at least 10 chars (matches server min)
+    enabled: !!title && title.trim().length >= 10,
+    staleTime: 30 * 1000, // 30 s — titles rarely change that fast
+    retry: false,
+    ...options,
+  });
+}
 
 /**
  * Fetch the current student's team project.
@@ -36,6 +65,7 @@ export function useMyProject(options = {}) {
       const { data } = await projectService.getMyProject();
       return data.data.project;
     },
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -51,6 +81,7 @@ export function useProject(id, options = {}) {
       return data.data.project;
     },
     enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -65,6 +96,7 @@ export function useProjects(filters = {}, options = {}) {
       const { data } = await projectService.listProjects(filters);
       return data.data; // { projects, pagination }
     },
+    staleTime: 1 * 60 * 1000, // 1 min
     ...options,
   });
 }
@@ -74,14 +106,15 @@ export function useProjects(filters = {}, options = {}) {
 /** Invalidate all project-related queries after a mutation */
 function useProjectMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
   return useMutation({
     mutationFn,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
-      options.onSuccess?.(...args);
+      onSuccess?.(...args);
     },
-    onError: options.onError,
-    ...options,
+    onError,
+    ...restOptions,
   });
 }
 
@@ -218,6 +251,7 @@ export function usePrototypes(projectId, options = {}) {
       return data.data.prototypes;
     },
     enabled: !!projectId,
+    staleTime: 5 * 60 * 1000, // 5 min — prototypes change infrequently
     ...options,
   });
 }
@@ -283,6 +317,7 @@ export function useProjectReports(filters = {}, options = {}) {
       const { data } = await projectService.generateReport(filters);
       return data.data.report;
     },
+    staleTime: 5 * 60 * 1000, // 5 min — report data is relatively stable
     ...options,
   });
 }

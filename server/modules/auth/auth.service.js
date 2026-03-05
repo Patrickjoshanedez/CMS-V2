@@ -150,23 +150,13 @@ class AuthService {
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
 
-    // Generate tokens — pass a plain payload object (jwt.sign requires it)
-    const tokenPayload = { userId: user._id.toString(), role: user.role };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshTokenString = generateRefreshTokenString();
-    const hashedRefreshToken = hashToken(refreshTokenString);
-
-    // Store the hashed refresh token in DB
-    await RefreshToken.create({
-      userId: user._id,
-      token: hashedRefreshToken,
-      expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
-    });
+    // Generate tokens
+    const { accessToken, refreshToken } = await this.#issueTokens(user);
 
     // Remove password from the user object before returning
     user.password = undefined;
 
-    return { user, accessToken, refreshToken: refreshTokenString };
+    return { user, accessToken, refreshToken };
   }
 
   /**
@@ -217,23 +207,13 @@ class AuthService {
       throw new AppError('User not found or deactivated.', 401, 'USER_INVALID');
     }
 
-    // Generate new tokens (rotation) — pass a plain payload object
-    const tokenPayload = { userId: user._id.toString(), role: user.role };
-    const newAccessToken = generateAccessToken(tokenPayload);
-    const newRefreshTokenString = generateRefreshTokenString();
-    const newHashedRefreshToken = hashToken(newRefreshTokenString);
-
-    // Store the new refresh token
-    await RefreshToken.create({
-      userId: user._id,
-      token: newHashedRefreshToken,
-      expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
-    });
+    // Generate new tokens (rotation)
+    const { accessToken, refreshToken, hashedRefreshToken } = await this.#issueTokens(user);
 
     // Revoke the old refresh token, linking to the replacement
-    await storedToken.revoke(newHashedRefreshToken);
+    await storedToken.revoke(hashedRefreshToken);
 
-    return { accessToken: newAccessToken, refreshToken: newRefreshTokenString };
+    return { accessToken, refreshToken };
   }
 
   /**
@@ -409,25 +389,40 @@ class AuthService {
     await user.save({ validateBeforeSave: false });
 
     // Generate tokens
-    const tokenPayload = { userId: user._id.toString(), role: user.role };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshTokenString = generateRefreshTokenString();
-    const hashedRefreshToken = hashToken(refreshTokenString);
-
-    // Store the hashed refresh token in DB
-    await RefreshToken.create({
-      userId: user._id,
-      token: hashedRefreshToken,
-      expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
-    });
+    const { accessToken, refreshToken } = await this.#issueTokens(user);
 
     // Ensure password is not in the response
     user.password = undefined;
 
-    return { user, accessToken, refreshToken: refreshTokenString };
+    return { user, accessToken, refreshToken };
   }
 
   // --- Private methods ---
+
+  /**
+   * Generate an access token and a refresh token for the given user,
+   * persist the hashed refresh token, and return all three values.
+   *
+   * Centralises the token-issuance pipeline that was previously
+   * duplicated in login(), refreshToken(), and googleLogin().
+   *
+   * @param {Object} user - Mongoose user document (needs _id, role)
+   * @returns {Promise<{ accessToken: string, refreshToken: string, hashedRefreshToken: string }>}
+   */
+  async #issueTokens(user) {
+    const tokenPayload = { userId: user._id.toString(), role: user.role };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshTokenString = generateRefreshTokenString();
+    const hashed = hashToken(refreshTokenString);
+
+    await RefreshToken.create({
+      userId: user._id,
+      token: hashed,
+      expiresAt: getRefreshTokenExpiry(env.JWT_REFRESH_EXPIRES_IN),
+    });
+
+    return { accessToken, refreshToken: refreshTokenString, hashedRefreshToken: hashed };
+  }
 
   /**
    * Create a new OTP, store it (hashed), and send it via email.

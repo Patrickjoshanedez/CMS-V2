@@ -63,8 +63,30 @@ const env = Object.freeze({
   // reCAPTCHA v2
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || '',
 
-  // Google OAuth
+  // Google OAuth2 credentials (from Google Cloud Console + OAuth Playground)
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  // Accepts both REDIRECT_URI and GOOGLE_REDIRECT_URI for flexibility
+  GOOGLE_REDIRECT_URI: process.env.REDIRECT_URI || process.env.GOOGLE_REDIRECT_URI || '',
+  // Accepts both REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN for flexibility
+  GOOGLE_REFRESH_TOKEN: process.env.REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN || '',
+
+  // Legacy service account vars — kept as empty fallback so old configs don't crash
+  GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(
+    /\\n/g,
+    '\n',
+  ),
+
+  // Root Drive folder for all CMS-managed files
+  GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+
+  // Drive folder for finalized capstone document storage (alongside S3)
+  // Instructor bulk-archives and Cap4 final submissions are stored here
+  GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID: process.env.GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID || '',
+
+  // Single Google Drive template folder for the full paper template
+  GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID || '',
 
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,

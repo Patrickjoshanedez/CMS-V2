@@ -502,18 +502,41 @@ function ManagePanelistsCard({ project }) {
 }
 
 /**
+ * Minimum capstone phase required for each deadline field.
+ * Fields only become editable once the project reaches this phase.
+ */
+const FIELD_MIN_PHASE = {
+  chapter1: 1,
+  chapter2: 1,
+  chapter3: 1,
+  proposal: 1,
+  chapter4: 2,
+  chapter5: 2,
+  defense: 4,
+};
+
+const DEADLINE_KEYS = ['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'];
+
+/**
  * Set deadlines card — instructor / adviser.
+ *
+ * Phase-aware: only fields whose phase ≤ the project's current phase show
+ * date inputs. Future-phase fields default to "No Deadline" and can be
+ * toggled to "TBA" (To Be Announced) by the instructor.
  */
 function DeadlinesCard({ project }) {
-  const [deadlines, setDeadlines] = useState({
-    chapter1: project.deadlines?.chapter1?.split('T')[0] || '',
-    chapter2: project.deadlines?.chapter2?.split('T')[0] || '',
-    chapter3: project.deadlines?.chapter3?.split('T')[0] || '',
-    proposal: project.deadlines?.proposal?.split('T')[0] || '',
-    chapter4: project.deadlines?.chapter4?.split('T')[0] || '',
-    chapter5: project.deadlines?.chapter5?.split('T')[0] || '',
-    defense: project.deadlines?.defense?.split('T')[0] || '',
+  const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
+  const existingTba = project.deadlines?.tba || [];
+
+  const [deadlines, setDeadlines] = useState(() => {
+    const initial = {};
+    DEADLINE_KEYS.forEach((key) => {
+      initial[key] = project.deadlines?.[key]?.split('T')[0] || '';
+    });
+    return initial;
   });
+
+  const [tbaFields, setTbaFields] = useState(() => new Set(existingTba));
 
   const setDl = useSetDeadlines({
     onSuccess: () => toast.success('Deadlines saved!'),
@@ -522,11 +545,25 @@ function DeadlinesCard({ project }) {
   });
 
   const handleSave = () => {
-    const payload = { projectId: project._id };
+    const payload = { projectId: project._id, tba: [...tbaFields] };
     Object.entries(deadlines).forEach(([key, val]) => {
-      if (val) payload[key] = val;
+      if (val && !tbaFields.has(key)) payload[key] = val;
     });
     setDl.mutate(payload);
+  };
+
+  const toggleTba = (key) => {
+    setTbaFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        // Clear the date value when marking TBA
+        setDeadlines((prev) => ({ ...prev, [key]: '' }));
+      }
+      return next;
+    });
   };
 
   return (
@@ -536,22 +573,67 @@ function DeadlinesCard({ project }) {
           <Calendar className="h-5 w-5" />
           Deadlines
         </CardTitle>
+        <CardDescription>
+          Currently in <strong>Capstone {currentPhase}</strong>. Future-phase
+          deadlines default to &ldquo;No Deadline&rdquo; — toggle TBA to
+          announce them early.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          {['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'].map((key) => (
-            <div key={key} className="space-y-1">
-              <Label htmlFor={`dl-${key}`} className="capitalize">
-                {key.replace(/(\d)/, ' $1')}
-              </Label>
-              <Input
-                id={`dl-${key}`}
-                type="date"
-                value={deadlines[key]}
-                onChange={(e) => setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))}
-              />
-            </div>
-          ))}
+          {DEADLINE_KEYS.map((key) => {
+            const reachable = currentPhase >= FIELD_MIN_PHASE[key];
+            const isTba = tbaFields.has(key);
+            const label = key.replace(/(\d)/, ' $1');
+
+            return (
+              <div key={key} className="space-y-1">
+                <Label htmlFor={`dl-${key}`} className="capitalize">
+                  {label}
+                </Label>
+
+                {reachable && !isTba ? (
+                  /* Current / past phase — editable date input */
+                  <Input
+                    id={`dl-${key}`}
+                    type="date"
+                    value={deadlines[key]}
+                    onChange={(e) =>
+                      setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                  />
+                ) : isTba ? (
+                  /* Marked as TBA */
+                  <div className="flex h-10 items-center gap-2">
+                    <Badge className="bg-amber-500 text-white dark:bg-amber-600">TBA</Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => toggleTba(key)}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                ) : (
+                  /* Future phase — no deadline yet */
+                  <div className="flex h-10 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">No Deadline</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => toggleTba(key)}
+                    >
+                      Mark TBA
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         <Button disabled={setDl.isPending} onClick={handleSave}>
           {setDl.isPending ? (

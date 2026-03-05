@@ -13,7 +13,7 @@ const PAGE_TITLES = [
   { path: '/project/submissions/upload', title: 'Upload Chapter' },
   { path: '/project/submissions', title: 'Submissions' },
   { path: '/project/create', title: 'Create Project' },
-  { path: '/project', title: 'My Project' },
+  { path: '/project', title: 'My Capstone' },
   { path: '/dashboard', title: 'Dashboard' },
   { path: '/notifications', title: 'Notifications' },
   { path: '/archive', title: 'Archive' },

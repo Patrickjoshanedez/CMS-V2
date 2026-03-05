@@ -18,6 +18,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import evaluationRoutes from './modules/evaluations/evaluation.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
+import documentRoutes from './modules/documents/document.routes.js';
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/documents', documentRoutes);
 
 // ---------- 404 Handler ----------
 

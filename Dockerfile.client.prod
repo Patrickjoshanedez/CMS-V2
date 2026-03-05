@@ -1,0 +1,28 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY client/package*.json ./client/
+COPY server/package*.json ./server/
+COPY shared/package*.json ./shared/
+
+RUN npm ci
+
+COPY . .
+
+# Inject Vite public env vars at build time via Docker build args.
+# These are baked into the JS bundle by Vite — they are NOT secrets.
+ARG VITE_RECAPTCHA_SITE_KEY
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_RECAPTCHA_SITE_KEY=$VITE_RECAPTCHA_SITE_KEY
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
+RUN npm run build --workspace=client
+
+FROM nginx:1.27-alpine AS runtime
+
+COPY docker/nginx.prod.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/client/dist /usr/share/nginx/html
+
+EXPOSE 80

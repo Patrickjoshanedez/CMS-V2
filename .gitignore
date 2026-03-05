@@ -10,10 +10,14 @@ build/
 
 # Environment files
 .env
+.env.prod
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Auto-generated LAN override
+docker-compose.lan.yml
 
 # Logs
 logs/
@@ -40,6 +44,10 @@ coverage/
 .cache
 cookies.txt
 
-# Test artifacts
-server/test-output.txt
-server/test-results.json
+# Test artifacts & debug output
+server/test-*.txt
+server/test-*.json
+server/vitest-results.json
+server/sprint*-output.txt
+server/sprint*-results.json
+server/s11.json

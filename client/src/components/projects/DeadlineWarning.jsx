@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { AlertTriangle, Clock, CheckCircle2, Timer } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle2, Timer, Info } from 'lucide-react';
 
 /**
  * Deadline urgency thresholds (in milliseconds).
@@ -111,6 +111,12 @@ const LEVEL_CONFIG = {
     rowClass: '',
     iconClass: 'text-muted-foreground',
   },
+  tba: {
+    icon: Info,
+    badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+    rowClass: 'border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20',
+    iconClass: 'text-blue-500 dark:text-blue-400',
+  },
 };
 
 /**
@@ -144,6 +150,26 @@ function DeadlineRow({ label, deadline }) {
 }
 
 /**
+ * TBA deadline row — informational, no urgency.
+ */
+function TbaRow({ label }) {
+  const config = LEVEL_CONFIG.tba;
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={`flex items-center justify-between rounded-lg border px-4 py-3 transition-colors ${config.rowClass}`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      <Badge className={`shrink-0 text-xs ${config.badgeClass}`}>To Be Announced</Badge>
+    </div>
+  );
+}
+
+/**
  * DeadlineWarning — Displays all project deadlines with color-coded urgency.
  *
  * Shows urgent deadlines (overdue / critical / warning) first, sorted by
@@ -154,11 +180,17 @@ function DeadlineRow({ label, deadline }) {
  *   within the warning threshold (≤ 3 days) or overdue. Useful for inline alerts.
  */
 export default function DeadlineWarning({ deadlines, compact = false }) {
-  const items = useMemo(() => {
+  const tbaSet = useMemo(
+    () => new Set(deadlines?.tba || []),
+    [deadlines],
+  );
+
+  // Dated items — deadlines with actual dates
+  const datedItems = useMemo(() => {
     if (!deadlines) return [];
 
     const entries = Object.entries(deadlines)
-      .filter(([, val]) => val) // skip null deadlines
+      .filter(([key, val]) => val && key !== 'tba' && DEADLINE_LABELS[key])
       .map(([key, val]) => ({
         key,
         label: DEADLINE_LABELS[key] || key,
@@ -170,18 +202,33 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
     entries.sort((a, b) => a.ms - b.ms);
 
     if (compact) {
-      return entries.filter((e) => e.level === 'overdue' || e.level === 'critical' || e.level === 'warning');
+      return entries.filter(
+        (e) => e.level === 'overdue' || e.level === 'critical' || e.level === 'warning',
+      );
     }
 
     return entries;
   }, [deadlines, compact]);
 
-  if (items.length === 0) return null;
+  // TBA items — fields marked TBA with no date (shown only in full mode)
+  const tbaItems = useMemo(() => {
+    if (!deadlines || compact || tbaSet.size === 0) return [];
 
-  // Compact mode: inline alert-style (no card wrapper)
-  if (compact) {
-    const hasOverdue = items.some((i) => i.level === 'overdue');
-    const hasCritical = items.some((i) => i.level === 'critical');
+    return [...tbaSet]
+      .filter((key) => !deadlines[key] && DEADLINE_LABELS[key])
+      .map((key) => ({
+        key,
+        label: DEADLINE_LABELS[key] || key,
+      }));
+  }, [deadlines, compact, tbaSet]);
+
+  const hasContent = datedItems.length > 0 || tbaItems.length > 0;
+  if (!hasContent) return null;
+
+  // Compact mode: inline alert-style (no card wrapper) — only dated items
+  if (compact && datedItems.length > 0) {
+    const hasOverdue = datedItems.some((i) => i.level === 'overdue');
+    const hasCritical = datedItems.some((i) => i.level === 'critical');
 
     return (
       <div
@@ -204,7 +251,7 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
           </span>
         </div>
         <div className="space-y-2">
-          {items.map((item) => (
+          {datedItems.map((item) => (
             <DeadlineRow key={item.key} label={item.label} deadline={item.deadline} />
           ))}
         </div>
@@ -212,7 +259,9 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
     );
   }
 
-  // Full mode: card wrapper with all deadlines
+  if (compact) return null;
+
+  // Full mode: card wrapper with all deadlines + TBA rows
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -222,8 +271,11 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {items.map((item) => (
+        {datedItems.map((item) => (
           <DeadlineRow key={item.key} label={item.label} deadline={item.deadline} />
+        ))}
+        {tbaItems.map((item) => (
+          <TbaRow key={item.key} label={item.label} />
         ))}
       </CardContent>
     </Card>

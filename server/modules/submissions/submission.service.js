@@ -4,12 +4,24 @@
  *
  * Controllers are thin — they delegate here.
  * StorageService handles S3 I/O; this service owns the workflow.
+ *
+ * ARCHITECTURE NOTE (refactored):
+ * The four upload methods (uploadChapter, compileProposal, uploadFinalAcademic,
+ * uploadFinalJournal) share a common pipeline extracted into private helpers:
+ *   _authorizeStudentUpload()  — user lookup + role + team membership
+ *   _detectLateSubmission()    — deadline lookup + remarks enforcement
+ *   _enqueuePlagiarism()       — BullMQ enqueue with sync fallback
+ *   _notifyAdviser()           — in-app notification + real-time emit + email
+ * Each public method now contains ONLY its unique pre-validation logic,
+ * then delegates to the shared pipeline, cutting ~400 lines of duplication.
  */
 import Submission from './submission.model.js';
 import Project from '../projects/project.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
+import googleDocsService from '../../services/google-docs.service.js';
+import env from '../../config/env.js';
 import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import { emitToUser } from '../../services/socket.service.js';
@@ -20,11 +32,226 @@ import {
   TITLE_STATUSES,
   PROJECT_STATUSES,
   PLAGIARISM_STATUSES,
-  CAPSTONE_PHASES,
 } from '@cms/shared';
 
 class SubmissionService {
-  /* ═══════════════════ Upload ═══════════════════ */
+  /* ═══════════════════ Shared Private Helpers ═══════════════════ */
+
+  /**
+   * Authorize a student upload: fetch user, verify role, fetch project, verify
+   * team membership. Returns hydrated { user, project } on success.
+   *
+   * @param {string} userId
+   * @param {string} projectId
+   * @param {string} [actionLabel='upload'] - Used in error messages
+   * @returns {Promise<{ user: Object, project: Object }>}
+   */
+  async _authorizeStudentUpload(userId, projectId, actionLabel = 'upload') {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    if (user.role !== ROLES.STUDENT) {
+      throw new AppError(`Only students can ${actionLabel}.`, 403, 'FORBIDDEN');
+    }
+
+    const project = await Project.findById(projectId).populate('teamId');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
+      throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
+    }
+
+    return { user, project };
+  }
+
+  /**
+   * Check deadline and enforce the late-submission remarks business rule.
+   *
+   * @param {Object} project - Hydrated project document
+   * @param {string} deadlineField - Key within project.deadlines (e.g. 'chapter1', 'proposal', 'defense')
+   * @param {string|undefined} remarks - Student-provided late remarks
+   * @returns {{ isLate: boolean }}
+   */
+  _detectLateSubmission(project, deadlineField, remarks) {
+    const deadline = project.deadlines?.[deadlineField];
+    const isLate = deadline ? new Date() > new Date(deadline) : false;
+
+    if (isLate && (!remarks || remarks.trim().length === 0)) {
+      throw new AppError(
+        'This submission is past the deadline. You must provide remarks explaining the delay.',
+        400,
+        'LATE_REMARKS_REQUIRED',
+      );
+    }
+
+    return { isLate };
+  }
+
+  /**
+   * Enqueue a plagiarism check via BullMQ. Falls back to synchronous execution
+   * when Redis is unavailable (dev/test environments).
+   *
+   * @param {Object} submission - The newly created submission document
+   * @param {Object} payload - { storageKey, fileType, projectId, chapter?, type? }
+   */
+  async _enqueuePlagiarism(submission, payload) {
+    const plagiarismPayload = {
+      submissionId: submission._id.toString(),
+      ...payload,
+    };
+
+    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    if (!jobId) {
+      // Redis unavailable — run synchronously as fallback (dev/test)
+      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+      });
+    } else {
+      await Submission.findByIdAndUpdate(submission._id, {
+        'plagiarismResult.jobId': jobId,
+      });
+    }
+  }
+
+  /**
+   * Send in-app notification + real-time socket event + email to the project's
+   * assigned adviser. No-ops gracefully when no adviser is assigned.
+   *
+   * @param {Object} params
+   * @param {Object} params.project - Hydrated project
+   * @param {Object} params.submission - The new submission document
+   * @param {string} params.notifType - Notification type constant
+   * @param {string} params.notifTitle - Human-readable notification title
+   * @param {string} params.docLabel - E.g. "Chapter 2 (v3)" or "compiled proposal (v1)"
+   * @param {Object} [params.extraMetadata] - Extra fields for notification metadata
+   */
+  async _notifyAdviser({ project, submission, notifType, notifTitle, docLabel, extraMetadata = {} }) {
+    if (!project.adviserId) return;
+
+    const notif = await Notification.create({
+      userId: project.adviserId,
+      type: notifType,
+      title: notifTitle,
+      message: `${docLabel} has been submitted for project "${project.title}".`,
+      metadata: {
+        projectId: project._id,
+        submissionId: submission._id,
+        version: submission.version,
+        ...extraMetadata,
+      },
+    });
+    emitToUser(project.adviserId, 'notification:new', notif);
+
+    const adviser = await User.findById(project.adviserId).select('email firstName');
+    if (adviser?.email) {
+      enqueueEmailJob({
+        to: adviser.email,
+        subject: `${notifTitle} — ${project.title}`,
+        html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>${docLabel} has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
+        text: `Dear ${adviser.firstName || 'Adviser'}, ${docLabel} has been submitted for project "${project.title}". Please log in to review the document.`,
+      });
+    }
+  }
+
+  /**
+   * Mirror final submissions to Google Drive archive folder when configured.
+   * S3 remains the source of truth; Drive mirror is best-effort.
+   *
+   * @param {Object} params
+   * @param {Buffer} params.buffer
+   * @param {string} params.fileName
+   * @param {string} params.mimeType
+   * @param {string} params.projectId
+   * @param {number} params.version
+   * @param {'final_academic'|'final_journal'} params.type
+   * @returns {Promise<{ driveFileId: string|null, driveWebViewLink: string|null, driveWebContentLink: string|null }>}
+   */
+  async _mirrorFinalToDrive({ buffer, fileName, mimeType, projectId, version, type }) {
+    const fallback = {
+      driveFileId: null,
+      driveWebViewLink: null,
+      driveWebContentLink: null,
+    };
+
+    if (!googleDocsService.isConfigured()) {
+      return fallback;
+    }
+
+    try {
+      const uploaded = await googleDocsService.uploadFileToDrive(
+        buffer,
+        fileName,
+        mimeType,
+        env.GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID || null,
+        {
+          description: `CMS ${type} submission for project ${projectId} (v${version})`,
+          appProperties: {
+            projectId: String(projectId),
+            submissionType: type,
+            version: String(version),
+          },
+        },
+      );
+
+      if (type === 'final_journal') {
+        await googleDocsService.setViewPermission(uploaded.fileId);
+      }
+
+      return {
+        driveFileId: uploaded.fileId,
+        driveWebViewLink: uploaded.webViewLink || null,
+        driveWebContentLink: uploaded.webContentLink || null,
+      };
+    } catch (error) {
+      console.warn(`[SubmissionService] Drive mirror failed for ${type}: ${error.message}`);
+      return fallback;
+    }
+  }
+
+  /* ═══════════════════ View Authorization ═══════════════════ */
+
+  /**
+   * Authorization for viewing a submission document.
+   * Allowed: instructor, assigned adviser, assigned panelist, and project team students.
+   *
+   * @param {Object} user
+   * @param {Object} project
+   */
+  _assertCanViewSubmission(user, project) {
+    const userId = user._id.toString();
+
+    if (user.role === ROLES.INSTRUCTOR) return;
+
+    if (
+      user.role === ROLES.ADVISER &&
+      project.adviserId &&
+      project.adviserId.toString() === userId
+    ) {
+      return;
+    }
+
+    if (
+      user.role === ROLES.PANELIST &&
+      project.panelistIds?.map((panelistId) => panelistId.toString()).includes(userId)
+    ) {
+      return;
+    }
+
+    if (
+      user.role === ROLES.STUDENT &&
+      project.teamId &&
+      project.teamId.members?.map((memberId) => memberId.toString()).includes(userId)
+    ) {
+      return;
+    }
+
+    throw new AppError(
+      'You do not have permission to view this submission.',
+      403,
+      'FORBIDDEN',
+    );
+  }
+
+  /* ═══════════════════ Upload: Chapter ═══════════════════ */
 
   /**
    * Upload a chapter document for a project.
@@ -43,22 +270,10 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadChapter(userId, projectId, data, file) {
-    // --- Authorization: user must be on the owning team ---
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    if (user.role !== ROLES.STUDENT) {
-      throw new AppError('Only students can upload chapters.', 403, 'FORBIDDEN');
-    }
+    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload chapters');
+    const { chapter, remarks } = data;
 
-    const project = await Project.findById(projectId).populate('teamId');
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-
-    // Verify user belongs to the project's team
-    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
-      throw new AppError('You can only upload to your own project.', 403, 'FORBIDDEN');
-    }
-
-    // --- Project state checks ---
+    // --- Project state checks (chapter-specific) ---
     if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
       throw new AppError('Cannot upload to a non-active project.', 400, 'PROJECT_NOT_ACTIVE');
     }
@@ -69,8 +284,6 @@ class SubmissionService {
         'TITLE_NOT_APPROVED',
       );
     }
-
-    const { chapter, remarks } = data;
 
     // --- Check if previous version is locked ---
     const latestSubmission = await Submission.findOne({
@@ -88,23 +301,13 @@ class SubmissionService {
 
     // --- Late submission detection ---
     const deadlineField = chapter <= 3 ? `chapter${chapter}` : 'proposal';
-    const deadline = project.deadlines?.[deadlineField];
-    const isLate = deadline ? new Date() > new Date(deadline) : false;
-
-    if (isLate && (!remarks || remarks.trim().length === 0)) {
-      throw new AppError(
-        'This submission is past the deadline. You must provide remarks explaining the delay.',
-        400,
-        'LATE_REMARKS_REQUIRED',
-      );
-    }
+    const { isLate } = this._detectLateSubmission(project, deadlineField, remarks);
 
     // --- Auto-increment version ---
     const nextVersion = latestSubmission ? latestSubmission.version + 1 : 1;
 
     // --- Upload to S3 ---
     const storageKey = storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
-
     await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
       projectId,
       chapter: String(chapter),
@@ -128,54 +331,27 @@ class SubmissionService {
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
-    // --- Enqueue plagiarism check (async via BullMQ, sync fallback) ---
-    const plagiarismPayload = {
-      submissionId: submission._id.toString(),
+    // --- Plagiarism + Notification (shared pipeline) ---
+    await this._enqueuePlagiarism(submission, {
       storageKey,
       fileType: file.validatedMime,
       projectId,
       chapter,
-    };
-    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
-    if (!jobId) {
-      // Redis unavailable — run synchronously as fallback (dev/test)
-      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
-        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
-      });
-    } else {
-      // Store the job ID reference on the submission
-      await Submission.findByIdAndUpdate(submission._id, {
-        'plagiarismResult.jobId': jobId,
-      });
-    }
+    });
 
-    // --- Notify adviser (if assigned) ---
-    if (project.adviserId) {
-      const chapterNotif = await Notification.create({
-        userId: project.adviserId,
-        type: 'chapter_submitted',
-        title: 'New Chapter Submission',
-        message: `Chapter ${chapter} (v${nextVersion}) has been submitted for project "${project.title}".`,
-        metadata: { projectId, submissionId: submission._id, chapter, version: nextVersion },
-      });
-      emitToUser(project.adviserId, 'notification:new', chapterNotif);
-
-      // Email the adviser
-      const adviser = await User.findById(project.adviserId).select('email firstName');
-      if (adviser?.email) {
-        enqueueEmailJob({
-          to: adviser.email,
-          subject: `New Chapter ${chapter} Submission — ${project.title}`,
-          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>Chapter ${chapter} (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
-          text: `Dear ${adviser.firstName || 'Adviser'}, Chapter ${chapter} (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
-        });
-      }
-    }
+    await this._notifyAdviser({
+      project,
+      submission,
+      notifType: 'chapter_submitted',
+      notifTitle: 'New Chapter Submission',
+      docLabel: `Chapter ${chapter} (v${nextVersion})`,
+      extraMetadata: { chapter },
+    });
 
     return { submission };
   }
 
-  /* ═══════════════════ Proposal Compilation ═══════════════════ */
+  /* ═══════════════════ Upload: Proposal Compilation ═══════════════════ */
 
   /**
    * Compile and upload the full proposal document.
@@ -196,21 +372,10 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async compileProposal(userId, projectId, data, file) {
-    // --- Authorization: user must be on the owning team ---
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    if (user.role !== ROLES.STUDENT) {
-      throw new AppError('Only students can compile proposals.', 403, 'FORBIDDEN');
-    }
+    const { project } = await this._authorizeStudentUpload(userId, projectId, 'compile proposals');
+    const { remarks } = data;
 
-    const project = await Project.findById(projectId).populate('teamId');
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-
-    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
-      throw new AppError('You can only upload to your own project.', 403, 'FORBIDDEN');
-    }
-
-    // --- Project state checks ---
+    // --- Project state checks (proposal-specific) ---
     if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
       throw new AppError(
         'Cannot submit proposal for a non-active project.',
@@ -244,31 +409,18 @@ class SubmissionService {
       }
     }
 
-    const { remarks } = data;
-
     // --- Late submission detection ---
-    const deadline = project.deadlines?.proposal;
-    const isLate = deadline ? new Date() > new Date(deadline) : false;
-
-    if (isLate && (!remarks || remarks.trim().length === 0)) {
-      throw new AppError(
-        'This submission is past the deadline. You must provide remarks explaining the delay.',
-        400,
-        'LATE_REMARKS_REQUIRED',
-      );
-    }
+    const { isLate } = this._detectLateSubmission(project, 'proposal', remarks);
 
     // --- Auto-increment version for proposals ---
     const latestProposal = await Submission.findOne({
       projectId,
       type: 'proposal',
     }).sort({ version: -1 });
-
     const nextVersion = latestProposal ? latestProposal.version + 1 : 1;
 
     // --- Upload to S3 ---
     const storageKey = storageService.buildProposalKey(projectId, nextVersion, file.originalname);
-
     await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
       projectId,
       type: 'proposal',
@@ -293,66 +445,141 @@ class SubmissionService {
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
-    // --- Enqueue plagiarism check ---
-    const plagiarismPayload = {
-      submissionId: submission._id.toString(),
+    // --- Plagiarism + Notification (shared pipeline) ---
+    await this._enqueuePlagiarism(submission, {
       storageKey,
       fileType: file.validatedMime,
       projectId,
       type: 'proposal',
-    };
-    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
-    if (!jobId) {
-      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
-        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
-      });
-    } else {
-      await Submission.findByIdAndUpdate(submission._id, {
-        'plagiarismResult.jobId': jobId,
-      });
-    }
+    });
 
     // --- Transition project status to PROPOSAL_SUBMITTED ---
     project.projectStatus = PROJECT_STATUSES.PROPOSAL_SUBMITTED;
     await project.save();
 
-    // --- Notify adviser (if assigned) ---
-    if (project.adviserId) {
-      const proposalNotif = await Notification.create({
-        userId: project.adviserId,
-        type: 'proposal_submitted',
-        title: 'Proposal Submitted',
-        message: `The compiled proposal (v${nextVersion}) has been submitted for project "${project.title}".`,
-        metadata: { projectId, submissionId: submission._id, version: nextVersion },
-      });
-      emitToUser(project.adviserId, 'notification:new', proposalNotif);
-
-      // Email the adviser
-      const adviser = await User.findById(project.adviserId).select('email firstName');
-      if (adviser?.email) {
-        enqueueEmailJob({
-          to: adviser.email,
-          subject: `Proposal Submitted — ${project.title}`,
-          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The compiled proposal (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
-          text: `Dear ${adviser.firstName || 'Adviser'}, The compiled proposal (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
-        });
-      }
-    }
+    await this._notifyAdviser({
+      project,
+      submission,
+      notifType: 'proposal_submitted',
+      notifTitle: 'Proposal Submitted',
+      docLabel: `The compiled proposal (v${nextVersion})`,
+    });
 
     return { submission };
   }
 
-  /* ═══════════════════ Final Paper Uploads (Capstone 4) ═══════════════════ */
+  /* ═══════════════════ Upload: Final Papers (Capstone 4) ═══════════════════ */
+
+  /**
+   * Shared pre-validation for both final paper types (academic + journal).
+   * Checks capstone phase 4 and title approval status.
+   *
+   * @param {Object} project
+   */
+  _assertFinalPaperEligible(project) {
+    if (project.capstonePhase !== 4) {
+      throw new AppError(
+        'Final paper uploads are only allowed in Capstone Phase 4.',
+        400,
+        'WRONG_PHASE',
+      );
+    }
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'Your project title must be approved before uploading final papers.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
+    }
+  }
+
+  /**
+   * Shared upload pipeline for both final paper types (academic + journal).
+   * Handles: late detection → version increment → S3 upload → Drive mirror →
+   * submission creation → plagiarism enqueue → adviser notification.
+   *
+   * @param {Object} params
+   * @param {string} params.userId
+   * @param {string} params.projectId
+   * @param {Object} params.project - Hydrated project
+   * @param {string} params.remarks
+   * @param {Object} params.file - multer file
+   * @param {'final_academic'|'final_journal'} params.type
+   * @param {Function} params.buildStorageKey - storageService key builder
+   * @param {string} params.notifTitle - E.g. "Final Academic Paper Submitted"
+   * @param {string} params.docLabelPrefix - E.g. "The full academic version"
+   * @returns {Promise<{ submission: Object }>}
+   */
+  async _uploadFinalPaper({ userId, projectId, project, remarks, file, type, buildStorageKey, notifTitle, docLabelPrefix }) {
+    // --- Late submission detection ---
+    const { isLate } = this._detectLateSubmission(project, 'defense', remarks);
+
+    // --- Auto-increment version ---
+    const latest = await Submission.findOne({ projectId, type }).sort({ version: -1 });
+    const nextVersion = latest ? latest.version + 1 : 1;
+
+    // --- Upload to S3 ---
+    const storageKey = buildStorageKey(projectId, nextVersion, file.originalname);
+    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+      projectId,
+      type,
+      version: String(nextVersion),
+      uploadedBy: userId,
+    });
+
+    // --- Drive mirror (best-effort for final papers) ---
+    const driveMirror = await this._mirrorFinalToDrive({
+      buffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.validatedMime,
+      projectId,
+      version: nextVersion,
+      type,
+    });
+
+    // --- Create submission record ---
+    const submission = await Submission.create({
+      projectId,
+      type,
+      chapter: null,
+      version: nextVersion,
+      fileName: file.originalname,
+      fileType: file.validatedMime,
+      fileSize: file.size,
+      storageKey,
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: userId,
+      isLate,
+      remarks: remarks || null,
+      driveFileId: driveMirror.driveFileId,
+      driveWebViewLink: driveMirror.driveWebViewLink,
+      driveWebContentLink: driveMirror.driveWebContentLink,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+
+    // --- Plagiarism + Notification (shared pipeline) ---
+    await this._enqueuePlagiarism(submission, {
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      type,
+    });
+
+    await this._notifyAdviser({
+      project,
+      submission,
+      notifType: 'chapter_submitted',
+      notifTitle,
+      docLabel: `${docLabelPrefix} (v${nextVersion})`,
+      extraMetadata: { type },
+    });
+
+    return { submission };
+  }
 
   /**
    * Upload the full Academic Version of the final paper.
    * This version is restricted to faculty only (viewable within the system).
-   *
-   * Business rules:
-   * - User must be a student on the owning team
-   * - Project must be in Capstone Phase 4
-   * - Project title must be approved
-   * - Late submissions require remarks
    *
    * @param {string} userId
    * @param {string} projectId
@@ -361,136 +588,25 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalAcademic(userId, projectId, data, file) {
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    if (user.role !== ROLES.STUDENT) {
-      throw new AppError('Only students can upload final papers.', 403, 'FORBIDDEN');
-    }
+    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload final papers');
+    this._assertFinalPaperEligible(project);
 
-    const project = await Project.findById(projectId).populate('teamId');
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-
-    // Verify user belongs to the project's team (members are plain ObjectIds)
-    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
-      throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
-    }
-
-    if (project.capstonePhase !== 4) {
-      throw new AppError(
-        'Final paper uploads are only allowed in Capstone Phase 4.',
-        400,
-        'WRONG_PHASE',
-      );
-    }
-
-    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
-      throw new AppError(
-        'Your project title must be approved before uploading final papers.',
-        400,
-        'TITLE_NOT_APPROVED',
-      );
-    }
-
-    const { remarks } = data;
-
-    // Late submission detection
-    const deadline = project.deadlines?.defense;
-    const isLate = deadline ? new Date() > new Date(deadline) : false;
-    if (isLate && (!remarks || remarks.trim().length === 0)) {
-      throw new AppError(
-        'This submission is past the deadline. You must provide remarks explaining the delay.',
-        400,
-        'LATE_REMARKS_REQUIRED',
-      );
-    }
-
-    // Auto-increment version
-    const latest = await Submission.findOne({
+    return this._uploadFinalPaper({
+      userId,
       projectId,
+      project,
+      remarks: data.remarks,
+      file,
       type: 'final_academic',
-    }).sort({ version: -1 });
-    const nextVersion = latest ? latest.version + 1 : 1;
-
-    // Upload to S3
-    const storageKey = storageService.buildFinalAcademicKey(
-      projectId,
-      nextVersion,
-      file.originalname,
-    );
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      type: 'final_academic',
-      version: String(nextVersion),
-      uploadedBy: userId,
+      buildStorageKey: storageService.buildFinalAcademicKey.bind(storageService),
+      notifTitle: 'Final Academic Paper Submitted',
+      docLabelPrefix: 'The full academic version',
     });
-
-    // Create submission record
-    const submission = await Submission.create({
-      projectId,
-      type: 'final_academic',
-      chapter: null,
-      version: nextVersion,
-      fileName: file.originalname,
-      fileType: file.validatedMime,
-      fileSize: file.size,
-      storageKey,
-      status: SUBMISSION_STATUSES.PENDING,
-      submittedBy: userId,
-      isLate,
-      remarks: remarks || null,
-      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
-    });
-
-    // Enqueue plagiarism check
-    const plagiarismPayload = {
-      submissionId: submission._id.toString(),
-      storageKey,
-      fileType: file.validatedMime,
-      projectId,
-      type: 'final_academic',
-    };
-    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
-    if (!jobId) {
-      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
-        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
-      });
-    } else {
-      await Submission.findByIdAndUpdate(submission._id, {
-        'plagiarismResult.jobId': jobId,
-      });
-    }
-
-    // Notify adviser
-    if (project.adviserId) {
-      const acadNotif = await Notification.create({
-        userId: project.adviserId,
-        type: 'chapter_submitted',
-        title: 'Final Academic Paper Submitted',
-        message: `The full academic version (v${nextVersion}) has been submitted for project "${project.title}".`,
-        metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_academic' },
-      });
-      emitToUser(project.adviserId, 'notification:new', acadNotif);
-
-      // Email the adviser
-      const adviser = await User.findById(project.adviserId).select('email firstName');
-      if (adviser?.email) {
-        enqueueEmailJob({
-          to: adviser.email,
-          subject: `Final Academic Paper Submitted — ${project.title}`,
-          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The full academic version (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
-          text: `Dear ${adviser.firstName || 'Adviser'}, The full academic version (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
-        });
-      }
-    }
-
-    return { submission };
   }
 
   /**
    * Upload the Journal/Publishable Version of the final paper.
    * This version is public-facing for archive searches.
-   *
-   * Business rules same as academic version.
    *
    * @param {string} userId
    * @param {string} projectId
@@ -499,129 +615,20 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalJournal(userId, projectId, data, file) {
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
-    if (user.role !== ROLES.STUDENT) {
-      throw new AppError('Only students can upload final papers.', 403, 'FORBIDDEN');
-    }
+    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload final papers');
+    this._assertFinalPaperEligible(project);
 
-    const project = await Project.findById(projectId).populate('teamId');
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-
-    // Verify user belongs to the project's team (members are plain ObjectIds)
-    if (!user.teamId || user.teamId.toString() !== project.teamId._id.toString()) {
-      throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
-    }
-
-    if (project.capstonePhase !== 4) {
-      throw new AppError(
-        'Final paper uploads are only allowed in Capstone Phase 4.',
-        400,
-        'WRONG_PHASE',
-      );
-    }
-
-    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
-      throw new AppError(
-        'Your project title must be approved before uploading final papers.',
-        400,
-        'TITLE_NOT_APPROVED',
-      );
-    }
-
-    const { remarks } = data;
-
-    // Late submission detection
-    const deadline = project.deadlines?.defense;
-    const isLate = deadline ? new Date() > new Date(deadline) : false;
-    if (isLate && (!remarks || remarks.trim().length === 0)) {
-      throw new AppError(
-        'This submission is past the deadline. You must provide remarks explaining the delay.',
-        400,
-        'LATE_REMARKS_REQUIRED',
-      );
-    }
-
-    // Auto-increment version
-    const latest = await Submission.findOne({
+    return this._uploadFinalPaper({
+      userId,
       projectId,
+      project,
+      remarks: data.remarks,
+      file,
       type: 'final_journal',
-    }).sort({ version: -1 });
-    const nextVersion = latest ? latest.version + 1 : 1;
-
-    // Upload to S3
-    const storageKey = storageService.buildFinalJournalKey(
-      projectId,
-      nextVersion,
-      file.originalname,
-    );
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      type: 'final_journal',
-      version: String(nextVersion),
-      uploadedBy: userId,
+      buildStorageKey: storageService.buildFinalJournalKey.bind(storageService),
+      notifTitle: 'Journal Version Submitted',
+      docLabelPrefix: 'The journal/publishable version',
     });
-
-    // Create submission record
-    const submission = await Submission.create({
-      projectId,
-      type: 'final_journal',
-      chapter: null,
-      version: nextVersion,
-      fileName: file.originalname,
-      fileType: file.validatedMime,
-      fileSize: file.size,
-      storageKey,
-      status: SUBMISSION_STATUSES.PENDING,
-      submittedBy: userId,
-      isLate,
-      remarks: remarks || null,
-      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
-    });
-
-    // Enqueue plagiarism check
-    const plagiarismPayload = {
-      submissionId: submission._id.toString(),
-      storageKey,
-      fileType: file.validatedMime,
-      projectId,
-      type: 'final_journal',
-    };
-    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
-    if (!jobId) {
-      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
-        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
-      });
-    } else {
-      await Submission.findByIdAndUpdate(submission._id, {
-        'plagiarismResult.jobId': jobId,
-      });
-    }
-
-    // Notify adviser
-    if (project.adviserId) {
-      const journalNotif = await Notification.create({
-        userId: project.adviserId,
-        type: 'chapter_submitted',
-        title: 'Journal Version Submitted',
-        message: `The journal/publishable version (v${nextVersion}) has been submitted for project "${project.title}".`,
-        metadata: { projectId, submissionId: submission._id, version: nextVersion, type: 'final_journal' },
-      });
-      emitToUser(project.adviserId, 'notification:new', journalNotif);
-
-      // Email the adviser
-      const adviser = await User.findById(project.adviserId).select('email firstName');
-      if (adviser?.email) {
-        enqueueEmailJob({
-          to: adviser.email,
-          subject: `Journal Version Submitted — ${project.title}`,
-          html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>The journal/publishable version (version ${nextVersion}) has been submitted for project <strong>${project.title}</strong>.</p><p>Please log in to review the document.</p>`,
-          text: `Dear ${adviser.firstName || 'Adviser'}, The journal/publishable version (version ${nextVersion}) has been submitted for project "${project.title}". Please log in to review the document.`,
-        });
-      }
-    }
-
-    return { submission };
   }
 
   /* ═══════════════════ Read ═══════════════════ */
@@ -717,18 +724,34 @@ class SubmissionService {
    * Authorization must be checked by the controller before calling this.
    *
    * @param {string} submissionId
+   * @param {string} requesterId
    * @returns {Object} { url, expiresIn }
    */
-  async getViewUrl(submissionId) {
+  async getViewUrl(submissionId, requesterId) {
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    const expiresIn = 300; // 5 minutes
-    const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
-    return { url, expiresIn };
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    this._assertCanViewSubmission(user, project);
+
+    const expiresIn = 300; // 5 minutes
+
+    try {
+      const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
+      return { url, expiresIn, source: 's3' };
+    } catch (error) {
+      if (submission.driveWebViewLink) {
+        return { url: submission.driveWebViewLink, expiresIn: null, source: 'drive' };
+      }
+      throw error;
+    }
   }
 
   /* ═══════════════════ Plagiarism ═══════════════════ */

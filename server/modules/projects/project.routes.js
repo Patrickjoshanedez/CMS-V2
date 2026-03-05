@@ -7,9 +7,11 @@ import upload, { prototypeUpload } from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
 import { validatePrototypeFile } from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
+import checkTitleLock from '../../middleware/checkTitleLock.js';
 import { ROLES } from '@cms/shared';
 import {
   createProjectSchema,
+  checkTitleSimilaritySchema,
   updateTitleSchema,
   submitTitleSchema,
   approveTitleSchema,
@@ -88,10 +90,18 @@ router.post(
   projectController.bulkUploadArchive,
 );
 
+// Real-time title similarity check (any authenticated user)
+router.post(
+  '/title-check',
+  validate(checkTitleSimilaritySchema),
+  projectController.checkTitleSimilarity,
+);
+
 // Update title/abstract/keywords (draft stage, team leader)
 router.patch(
   '/:id/title',
   authorize(ROLES.STUDENT),
+  checkTitleLock,
   validate(updateTitleSchema),
   projectController.updateTitle,
 );
@@ -108,6 +118,7 @@ router.post(
 router.patch(
   '/:id/title/revise',
   authorize(ROLES.STUDENT),
+  checkTitleLock,
   validate(updateTitleSchema),
   projectController.reviseAndResubmit,
 );

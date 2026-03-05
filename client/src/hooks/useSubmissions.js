@@ -42,6 +42,7 @@ export function useSubmission(submissionId, options = {}) {
       return data.data.submission;
     },
     enabled: !!submissionId,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -57,6 +58,7 @@ export function useProjectSubmissions(projectId, filters = {}, options = {}) {
       return data.data; // { submissions, pagination }
     },
     enabled: !!projectId,
+    staleTime: 1 * 60 * 1000, // 1 min
     ...options,
   });
 }
@@ -72,6 +74,7 @@ export function useChapterHistory(projectId, chapter, options = {}) {
       return data.data.submissions;
     },
     enabled: !!projectId && !!chapter,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -87,6 +90,7 @@ export function useLatestChapter(projectId, chapter, options = {}) {
       return data.data.submission;
     },
     enabled: !!projectId && !!chapter,
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -115,16 +119,17 @@ export function useViewUrl(submissionId, options = {}) {
  */
 function useSubmissionMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
   return useMutation({
     mutationFn,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: submissionKeys.all });
       // Also refresh the project data (phase status may change)
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
-      options.onSuccess?.(...args);
+      onSuccess?.(...args);
     },
-    onError: options.onError,
-    ...options,
+    onError,
+    ...restOptions,
   });
 }
 

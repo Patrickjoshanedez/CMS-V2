@@ -65,6 +65,8 @@ const deadlineSchema = new mongoose.Schema(
     chapter4: { type: Date, default: null },
     chapter5: { type: Date, default: null },
     defense: { type: Date, default: null },
+    /** Fields marked "To Be Announced" by the instructor. */
+    tba: { type: [String], default: [] },
   },
   { _id: false },
 );
@@ -250,6 +252,7 @@ const projectSchema = new mongoose.Schema(
 // teamId unique index is already created by `unique: true` in the schema field.
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
+projectSchema.index({ panelistIds: 1 });
 projectSchema.index({ academicYear: 1, projectStatus: 1 });
 projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });

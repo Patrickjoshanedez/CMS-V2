@@ -14,6 +14,11 @@ export const useAuthStore = create((set, _get) => ({
   user: null,
   isAuthenticated: false,
   loading: false,
+  /**
+   * True while we're checking the server for an existing session on app init.
+   * Routes should not render until this is false to avoid flash-redirects to /login.
+   */
+  sessionLoading: true,
   error: null,
 
   // Actions
@@ -115,6 +120,7 @@ export const useAuthStore = create((set, _get) => ({
 
   /**
    * Fetch the current user profile (used on app init to restore session).
+   * Always sets sessionLoading: false when complete.
    */
   fetchUser: async () => {
     try {
@@ -122,9 +128,10 @@ export const useAuthStore = create((set, _get) => ({
       set({
         user: response.data.data.user,
         isAuthenticated: true,
+        sessionLoading: false,
       });
     } catch {
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, sessionLoading: false });
     }
   },
 

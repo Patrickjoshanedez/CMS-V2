@@ -23,6 +23,7 @@ process.env.SMTP_HOST = 'localhost';
 process.env.SMTP_PORT = '2525';
 process.env.SMTP_USER = '';
 process.env.SMTP_PASS = '';
+process.env.RECAPTCHA_SECRET_KEY = ''; // Disable reCAPTCHA in tests
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();

@@ -844,7 +844,7 @@ export default function MyProjectPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">My Project</h3>
+          <h3 className="text-2xl font-bold tracking-tight">My Capstone</h3>
           <p className="text-muted-foreground">
             Track your capstone project progress and manage your submissions.
           </p>

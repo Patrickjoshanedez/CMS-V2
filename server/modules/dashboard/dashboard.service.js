@@ -11,8 +11,15 @@ import User from '../users/user.model.js';
 import Team from '../teams/team.model.js';
 import Project from '../projects/project.model.js';
 import Submission from '../submissions/submission.model.js';
+import Evaluation from '../evaluations/evaluation.model.js';
 import Notification from '../notifications/notification.model.js';
-import { ROLES, TITLE_STATUSES, SUBMISSION_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  ROLES,
+  TITLE_STATUSES,
+  SUBMISSION_STATUSES,
+  PROJECT_STATUSES,
+  EVALUATION_STATUSES,
+} from '@cms/shared';
 
 class DashboardService {
   /**
@@ -174,21 +181,27 @@ class DashboardService {
    * Adviser dashboard — assigned projects, pending reviews, recent chapters.
    */
   async _getAdviserStats(user) {
+    // Step 1: Get adviser's project IDs first for efficient submission query
+    const adviserProjectIds = await Project.find({ adviserId: user._id })
+      .select('_id')
+      .lean()
+      .then((projects) => projects.map((p) => p._id));
+
     const [assignedProjects, pendingReviews, recentNotifications] = await Promise.all([
       Project.find({ adviserId: user._id })
         .populate('teamId', 'name members')
         .sort({ updatedAt: -1 })
         .lean(),
-      // Find submissions that are pending/under_review for projects assigned to this adviser
-      Submission.find({
-        status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
-      })
-        .populate('projectId', 'title adviserId teamId')
-        .sort({ createdAt: -1 })
-        .lean()
-        .then((subs) =>
-          subs.filter((s) => s.projectId?.adviserId?.toString() === user._id.toString()),
-        ),
+      // Only query submissions for this adviser's projects (indexed on projectId)
+      adviserProjectIds.length > 0
+        ? Submission.find({
+            projectId: { $in: adviserProjectIds },
+            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
+          })
+            .populate('projectId', 'title')
+            .sort({ createdAt: -1 })
+            .lean()
+        : Promise.resolve([]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
 
@@ -214,6 +227,9 @@ class DashboardService {
       counts: {
         assignedProjects: assignedProjects.length,
         pendingReviews: pendingReviews.length,
+        activeProjects: assignedProjects.filter(
+          (p) => p.projectStatus === PROJECT_STATUSES.ACTIVE,
+        ).length,
       },
       recentNotifications,
     };
@@ -223,11 +239,15 @@ class DashboardService {
    * Panelist dashboard — assigned projects summary.
    */
   async _getPanelistStats(user) {
-    const [assignedProjects, recentNotifications] = await Promise.all([
+    const [assignedProjects, pendingEvaluations, recentNotifications] = await Promise.all([
       Project.find({ panelistIds: user._id })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
         .lean(),
+      Evaluation.countDocuments({
+        panelistId: user._id,
+        status: EVALUATION_STATUSES.DRAFT,
+      }),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
 
@@ -242,6 +262,10 @@ class DashboardService {
       })),
       counts: {
         assignedProjects: assignedProjects.length,
+        activeProjects: assignedProjects.filter(
+          (p) => p.projectStatus === PROJECT_STATUSES.ACTIVE,
+        ).length,
+        pendingEvaluations,
       },
       recentNotifications,
     };

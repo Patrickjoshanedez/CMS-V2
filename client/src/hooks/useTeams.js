@@ -35,6 +35,7 @@ export function useMyTeam(options = {}) {
       if (error?.response?.status === 404) return false;
       return failureCount < 3;
     },
+    staleTime: 2 * 60 * 1000, // 2 min
     ...options,
   });
 }
@@ -49,6 +50,7 @@ export function useTeams(filters = {}, options = {}) {
       const { data } = await teamService.listTeams(filters);
       return data.data; // { teams, pagination }
     },
+    staleTime: 1 * 60 * 1000, // 1 min
     ...options,
   });
 }
@@ -61,14 +63,15 @@ export function useTeams(filters = {}, options = {}) {
  */
 function useTeamMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
   return useMutation({
     mutationFn,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.all });
-      options.onSuccess?.(...args);
+      onSuccess?.(...args);
     },
-    onError: options.onError,
-    ...options,
+    onError,
+    ...restOptions,
   });
 }
 

@@ -1,0 +1,80 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: cms-mongodb-prod
+    restart: unless-stopped
+    volumes:
+      - mongodb_prod_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: cms-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redis_prod_data:/data
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server.prod
+    container_name: cms-server-prod
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - redis
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/cms_v2}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:8080}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change_me_access_secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh_secret}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      OTP_EXPIRES_MINUTES: ${OTP_EXPIRES_MINUTES:-10}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@cms-buksu.edu.ph}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      COPYLEAKS_EMAIL: ${COPYLEAKS_EMAIL:-}
+      COPYLEAKS_API_KEY: ${COPYLEAKS_API_KEY:-}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_SERVICE_ACCOUNT_EMAIL:-}
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:-}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
+      GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID: ${GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID:-}
+      GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: ${GOOGLE_DRIVE_TEMPLATE_FOLDER_ID:-}
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client.prod
+      args:
+        VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    container_name: cms-client-prod
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8080:80"
+
+volumes:
+  mongodb_prod_data:
+  redis_prod_data:

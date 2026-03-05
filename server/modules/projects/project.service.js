@@ -87,20 +87,13 @@ class ProjectService {
       academicYear: data.academicYear,
     });
 
-    // Notify team members
-    const otherMembers = team.members.filter((id) => id.toString() !== userId.toString());
-    if (otherMembers.length > 0) {
-      const createdNotifs = await Notification.insertMany(
-        otherMembers.map((memberId) => ({
-          userId: memberId,
-          type: 'system',
-          title: 'Project Created',
-          message: `A new project "${project.title}" has been created for your team.`,
-          metadata: { projectId: project._id },
-        })),
-      );
-      createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-    }
+    // Notify team members (exclude the creator)
+    await this._notifyTeamMembers(team._id, {
+      type: 'system',
+      title: 'Project Created',
+      message: `A new project "${project.title}" has been created for your team.`,
+      metadata: { projectId: project._id },
+    }, { excludeUserId: userId });
 
     return { project, similarProjects };
   }
@@ -209,6 +202,74 @@ class ProjectService {
     };
   }
 
+  /* ═══════════════════ Standalone Title Similarity Check ═══════════════════ */
+
+  /**
+   * Two-tier title similarity check for real-time duplicate detection.
+   *
+   * Tier 1 — MongoDB $text search narrows candidates to titles that share
+   *          significant keywords with the candidate string.
+   * Tier 2 — Levenshtein-based scoring (via findSimilarProjects) ranks the
+   *          narrowed set and filters by the system-configured threshold.
+   *
+   * @param {string} title - The proposed title to check.
+   * @param {string[]} [keywords=[]] - Optional keyword array for overlap scoring.
+   * @param {string|null} [excludeProjectId=null] - Exclude this project from results (e.g. when editing own title).
+   * @returns {Promise<{ similarProjects: Array, threshold: number }>}
+   */
+  async checkTitleSimilarity(title, keywords = [], excludeProjectId = null) {
+    // Read the configurable threshold from system settings (fallback 0.70)
+    let threshold = 0.70;
+    try {
+      const settings = await settingsService.getSettings();
+      if (settings.titleSimilarityThreshold) {
+        threshold = settings.titleSimilarityThreshold;
+      }
+    } catch {
+      // Use default on settings read failure
+    }
+
+    // Normalise the candidate title for text search
+    const normalised = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Build the base filter — exclude rejected projects
+    const filter = { projectStatus: { $ne: PROJECT_STATUSES.REJECTED } };
+    if (excludeProjectId) {
+      filter._id = { $ne: excludeProjectId };
+    }
+
+    // Tier 1: $text search to narrow candidates (fast index scan)
+    let candidates;
+    try {
+      candidates = await Project.find(
+        { ...filter, $text: { $search: normalised } },
+        { score: { $meta: 'textScore' } },
+      )
+        .sort({ score: { $meta: 'textScore' } })
+        .limit(50)
+        .select('title keywords')
+        .lean();
+    } catch {
+      // Fallback if $text search fails (e.g. empty string) — fetch all
+      candidates = [];
+    }
+
+    // If $text returned nothing, broaden to all non-rejected projects
+    // so Levenshtein can still catch close matches (e.g. word reordering)
+    if (candidates.length === 0) {
+      candidates = await Project.find(filter).select('title keywords').lean();
+    }
+
+    // Tier 2: Levenshtein + keyword overlap scoring
+    const similarProjects = findSimilarProjects(
+      { title, keywords: keywords || [] },
+      candidates,
+      { threshold },
+    );
+
+    return { similarProjects, threshold };
+  }
+
   /* ═══════════════════ Title editing (draft stage) ═══════════════════ */
 
   /**
@@ -220,8 +281,7 @@ class ProjectService {
    * @returns {Object} { project, similarProjects }
    */
   async updateTitle(projectId, userId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.DRAFT) {
       throw new AppError('Title can only be edited while in draft status.', 400, 'TITLE_NOT_DRAFT');
@@ -259,8 +319,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async submitTitle(projectId, userId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.DRAFT) {
       throw new AppError(
@@ -276,19 +335,12 @@ class ProjectService {
     await project.save();
 
     // Notify all instructors
-    const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
-    if (instructors.length > 0) {
-      const titleNotifs = await Notification.insertMany(
-        instructors.map((instr) => ({
-          userId: instr._id,
-          type: 'title_submitted',
-          title: 'New Title Submission',
-          message: `A project title "${project.title}" has been submitted for approval.`,
-          metadata: { projectId: project._id },
-        })),
-      );
-      titleNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-    }
+    await this._notifyInstructors({
+      type: 'title_submitted',
+      title: 'New Title Submission',
+      message: `A project title "${project.title}" has been submitted for approval.`,
+      metadata: { projectId: project._id },
+    });
 
     return { project };
   }
@@ -301,8 +353,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async approveTitle(projectId, instructorId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -335,8 +386,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async rejectTitle(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -371,8 +421,7 @@ class ProjectService {
    * @returns {Object} { project, similarProjects }
    */
   async reviseAndResubmit(projectId, userId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.REVISION_REQUIRED) {
       throw new AppError(
@@ -404,19 +453,12 @@ class ProjectService {
     );
 
     // Notify instructors
-    const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
-    if (instructors.length > 0) {
-      const revisedNotifs = await Notification.insertMany(
-        instructors.map((instr) => ({
-          userId: instr._id,
-          type: 'title_submitted',
-          title: 'Revised Title Submission',
-          message: `A revised project title "${project.title}" has been resubmitted for approval.`,
-          metadata: { projectId: project._id },
-        })),
-      );
-      revisedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-    }
+    await this._notifyInstructors({
+      type: 'title_submitted',
+      title: 'Revised Title Submission',
+      message: `A revised project title "${project.title}" has been resubmitted for approval.`,
+      metadata: { projectId: project._id },
+    });
 
     return { project, similarProjects };
   }
@@ -432,8 +474,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async requestTitleModification(projectId, userId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
       throw new AppError(
@@ -463,19 +504,12 @@ class ProjectService {
     await project.save();
 
     // Notify instructors
-    const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
-    if (instructors.length > 0) {
-      const modNotifs = await Notification.insertMany(
-        instructors.map((instr) => ({
-          userId: instr._id,
-          type: 'title_modification_requested',
-          title: 'Title Modification Request',
-          message: `Team requests to change title from "${project.title}" to "${data.proposedTitle}".`,
-          metadata: { projectId: project._id },
-        })),
-      );
-      modNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-    }
+    await this._notifyInstructors({
+      type: 'title_modification_requested',
+      title: 'Title Modification Request',
+      message: `Team requests to change title from "${project.title}" to "${data.proposedTitle}".`,
+      metadata: { projectId: project._id },
+    });
 
     return { project };
   }
@@ -488,8 +522,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async resolveTitleModification(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (
       project.titleStatus !== TITLE_STATUSES.PENDING_MODIFICATION ||
@@ -536,8 +569,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async assignAdviser(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     const adviser = await User.findById(data.adviserId);
     if (!adviser || adviser.role !== ROLES.ADVISER) {
@@ -576,8 +608,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async assignPanelist(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     const panelist = await User.findById(data.panelistId);
     if (!panelist || panelist.role !== ROLES.PANELIST) {
@@ -628,8 +659,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async removePanelist(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     const idx = project.panelistIds.findIndex((id) => id.toString() === data.panelistId);
     if (idx === -1) {
@@ -655,8 +685,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async selectAsPanelist(projectId, panelistId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.panelistIds.length >= 3) {
       throw new AppError(
@@ -702,16 +731,21 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async setDeadlines(projectId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
-    if (data.chapter1 !== undefined) project.deadlines.chapter1 = data.chapter1;
-    if (data.chapter2 !== undefined) project.deadlines.chapter2 = data.chapter2;
-    if (data.chapter3 !== undefined) project.deadlines.chapter3 = data.chapter3;
-    if (data.proposal !== undefined) project.deadlines.proposal = data.proposal;
-    if (data.chapter4 !== undefined) project.deadlines.chapter4 = data.chapter4;
-    if (data.chapter5 !== undefined) project.deadlines.chapter5 = data.chapter5;
-    if (data.defense !== undefined) project.deadlines.defense = data.defense;
+    const dateFields = ['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'];
+    dateFields.forEach((key) => {
+      if (data[key] !== undefined) project.deadlines[key] = data[key];
+    });
+
+    // Sync TBA flags — fields marked TBA have their date cleared.
+    if (data.tba !== undefined) {
+      project.deadlines.tba = data.tba;
+      data.tba.forEach((key) => {
+        project.deadlines[key] = null;
+      });
+    }
+
     await project.save();
 
     await this._notifyTeamMembers(project.teamId, {
@@ -735,8 +769,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async rejectProject(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     project.projectStatus = PROJECT_STATUSES.REJECTED;
     project.rejectionReason = data.reason;
@@ -768,8 +801,7 @@ class ProjectService {
    * @returns {Object} { project, previousPhase, newPhase }
    */
   async advancePhase(projectId, instructorId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     const { capstonePhase } = project;
 
@@ -828,8 +860,7 @@ class ProjectService {
    * @returns {Object} { project, prototype }
    */
   async addPrototype(projectId, userId, data, file = null) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     await this._assertTeamMember(project.teamId, userId);
 
@@ -859,6 +890,7 @@ class ProjectService {
       uploadedBy: userId,
     };
 
+    // Determine prototype type and validate input
     if (data.type === PROTOTYPE_TYPES.LINK) {
       if (!data.url) {
         throw new AppError('A URL is required for link-type prototypes.', 400, 'URL_REQUIRED');
@@ -866,7 +898,6 @@ class ProjectService {
       prototypeData.type = PROTOTYPE_TYPES.LINK;
       prototypeData.url = data.url;
     } else {
-      // Media type (image or video)
       if (!file) {
         throw new AppError(
           'A file is required for media-type prototypes.',
@@ -874,8 +905,6 @@ class ProjectService {
           'FILE_REQUIRED',
         );
       }
-
-      // Determine type from validated MIME
       const mime = file.validatedMime || file.mimetype;
       if (mime.startsWith('image/')) {
         prototypeData.type = PROTOTYPE_TYPES.IMAGE;
@@ -888,11 +917,15 @@ class ProjectService {
           'UNSUPPORTED_MEDIA_TYPE',
         );
       }
+    }
 
-      // Push a temporary prototype to get its _id for the storage key
-      project.prototypes.push(prototypeData);
-      const proto = project.prototypes[project.prototypes.length - 1];
+    // Push prototype to get its Mongoose subdocument _id
+    project.prototypes.push(prototypeData);
+    const proto = project.prototypes[project.prototypes.length - 1];
 
+    // Upload media file to S3 if present
+    if (file && proto.type !== PROTOTYPE_TYPES.LINK) {
+      const mime = file.validatedMime || file.mimetype;
       const key = storageService.buildPrototypeKey(
         project._id.toString(),
         proto._id.toString(),
@@ -909,29 +942,14 @@ class ProjectService {
       proto.fileName = file.originalname;
       proto.fileSize = file.size;
       proto.mimeType = mime;
-
-      await project.save();
-
-      await this._notifyAdviser(project, {
-        type: 'prototype_added',
-        title: 'New Prototype Added',
-        message: `A prototype "${data.title}" has been added to the project "${project.title}".`,
-        metadata: { projectId: project._id, prototypeId: proto._id },
-      });
-
-      return { project, prototype: proto };
     }
 
-    // Link-type — push and save
-    project.prototypes.push(prototypeData);
     await project.save();
-
-    const proto = project.prototypes[project.prototypes.length - 1];
 
     await this._notifyAdviser(project, {
       type: 'prototype_added',
       title: 'New Prototype Added',
-      message: `A prototype link "${data.title}" has been added to the project "${project.title}".`,
+      message: `A prototype "${data.title}" has been added to the project "${project.title}".`,
       metadata: { projectId: project._id, prototypeId: proto._id },
     });
 
@@ -948,8 +966,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async removePrototype(projectId, prototypeId, userId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     await this._assertTeamMember(project.teamId, userId);
 
@@ -981,9 +998,8 @@ class ProjectService {
    * @param {string} userId - Requesting user
    * @returns {Object} { prototypes }
    */
-  async getPrototypes(projectId, userId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+  async getPrototypes(projectId, _userId) {
+    const project = await this._getProjectOrFail(projectId);
 
     // Any team member, adviser, panelist, or instructor can view prototypes
     // (authorization is handled at the route level — we just return the data)
@@ -1019,8 +1035,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async archiveProject(projectId, instructorId, data) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (project.projectStatus === PROJECT_STATUSES.ARCHIVED) {
       throw new AppError('Project is already archived.', 400, 'ALREADY_ARCHIVED');
@@ -1049,56 +1064,8 @@ class ProjectService {
       plagiarismThreshold = DEFAULT_ORIGINALITY_THRESHOLD;
     }
 
-    const papersToCheck = [
-      { submission: academic, label: 'academic' },
-      { submission: journal, label: 'journal' },
-    ];
-
-    for (const { submission, label } of papersToCheck) {
-      const plagResult = submission.plagiarismResult;
-
-      if (!plagResult || !plagResult.status) {
-        throw new AppError(
-          `Plagiarism check has not been run on the final ${label} version.`,
-          400,
-          'PLAGIARISM_CHECK_PENDING',
-        );
-      }
-
-      if (plagResult.status === PLAGIARISM_STATUSES.QUEUED || plagResult.status === PLAGIARISM_STATUSES.PROCESSING) {
-        throw new AppError(
-          `Plagiarism check is still in progress for the final ${label} version.`,
-          400,
-          'PLAGIARISM_CHECK_PENDING',
-        );
-      }
-
-      if (plagResult.status === PLAGIARISM_STATUSES.FAILED) {
-        throw new AppError(
-          `Plagiarism check failed for the final ${label} version. Please re-submit the paper.`,
-          400,
-          'PLAGIARISM_CHECK_FAILED',
-        );
-      }
-
-      // plagResult.status === COMPLETED — verify score meets threshold
-      const score = plagResult.originalityScore ?? submission.originalityScore;
-      if (score == null) {
-        throw new AppError(
-          `Originality score is missing for the final ${label} version.`,
-          400,
-          'PLAGIARISM_CHECK_PENDING',
-        );
-      }
-
-      if (score < plagiarismThreshold) {
-        throw new AppError(
-          `Final ${label} version has an originality score of ${score}%, which is below the required ${plagiarismThreshold}%. Please revise and re-submit.`,
-          400,
-          'ORIGINALITY_BELOW_THRESHOLD',
-        );
-      }
-    }
+    this._assertPlagiarismCleared(academic, 'academic', plagiarismThreshold);
+    this._assertPlagiarismCleared(journal, 'journal', plagiarismThreshold);
 
     project.projectStatus = PROJECT_STATUSES.ARCHIVED;
     project.isArchived = true;
@@ -1168,8 +1135,7 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async uploadCertificate(projectId, instructorId, file) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (!project.isArchived && project.projectStatus !== PROJECT_STATUSES.ARCHIVED) {
       throw new AppError('Project must be archived before uploading a certificate.', 400, 'NOT_ARCHIVED');
@@ -1198,8 +1164,7 @@ class ProjectService {
    * @returns {Object} { url }
    */
   async getCertificateUrl(projectId) {
-    const project = await Project.findById(projectId);
-    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    const project = await this._getProjectOrFail(projectId);
 
     if (!project.certificateStorageKey) {
       throw new AppError('No certificate has been uploaded for this project.', 404, 'NO_CERTIFICATE');
@@ -1312,6 +1277,21 @@ class ProjectService {
   /* ═══════════════════ Helpers ═══════════════════ */
 
   /**
+   * Fetch a project by ID or throw 404.
+   * Used by nearly every public method to avoid repeating the same
+   * two-line fetch-and-guard pattern.
+   *
+   * @param {string} projectId
+   * @returns {Promise<Object>} Hydrated project document
+   * @private
+   */
+  async _getProjectOrFail(projectId) {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    return project;
+  }
+
+  /**
    * Assert that the given userId is the leader of the team.
    * @param {import('mongoose').Types.ObjectId} teamId
    * @param {string} userId
@@ -1360,15 +1340,25 @@ class ProjectService {
 
   /**
    * Send identical notifications to every member of a team.
+   * Optionally exclude a specific user (e.g. the action initiator).
+   *
    * @param {import('mongoose').Types.ObjectId} teamId
    * @param {{ type: string, title: string, message: string, metadata: Object }} notif
+   * @param {{ excludeUserId?: string }} [options={}]
    * @private
    */
-  async _notifyTeamMembers(teamId, notif) {
+  async _notifyTeamMembers(teamId, notif, { excludeUserId } = {}) {
     const team = await Team.findById(teamId);
     if (!team) return;
+
+    let recipients = team.members;
+    if (excludeUserId) {
+      recipients = recipients.filter((id) => id.toString() !== excludeUserId.toString());
+    }
+    if (recipients.length === 0) return;
+
     const notifs = await Notification.insertMany(
-      team.members.map((memberId) => ({
+      recipients.map((memberId) => ({
         userId: memberId,
         type: notif.type,
         title: notif.title,
@@ -1377,6 +1367,88 @@ class ProjectService {
       })),
     );
     notifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+  }
+
+  /**
+   * Notify all active instructors about a project event.
+   * Used for title submissions, revisions, and modification requests.
+   *
+   * @param {{ type: string, title: string, message: string, metadata: Object }} notif
+   * @private
+   */
+  async _notifyInstructors(notif) {
+    const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true });
+    if (instructors.length === 0) return;
+
+    const notifs = await Notification.insertMany(
+      instructors.map((instr) => ({
+        userId: instr._id,
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        metadata: notif.metadata,
+      })),
+    );
+    notifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+  }
+
+  /**
+   * Assert that a submission's plagiarism check has completed and meets
+   * the required originality threshold. Throws descriptive errors for
+   * each failure mode (not run, in progress, failed, below threshold).
+   *
+   * @param {Object} submission - Submission document with plagiarismResult
+   * @param {string} label - Human-readable label ('academic' | 'journal')
+   * @param {number} threshold - Minimum originality percentage required
+   * @private
+   */
+  _assertPlagiarismCleared(submission, label, threshold) {
+    const plagResult = submission.plagiarismResult;
+
+    if (!plagResult || !plagResult.status) {
+      throw new AppError(
+        `Plagiarism check has not been run on the final ${label} version.`,
+        400,
+        'PLAGIARISM_CHECK_PENDING',
+      );
+    }
+
+    if (
+      plagResult.status === PLAGIARISM_STATUSES.QUEUED ||
+      plagResult.status === PLAGIARISM_STATUSES.PROCESSING
+    ) {
+      throw new AppError(
+        `Plagiarism check is still in progress for the final ${label} version.`,
+        400,
+        'PLAGIARISM_CHECK_PENDING',
+      );
+    }
+
+    if (plagResult.status === PLAGIARISM_STATUSES.FAILED) {
+      throw new AppError(
+        `Plagiarism check failed for the final ${label} version. Please re-submit the paper.`,
+        400,
+        'PLAGIARISM_CHECK_FAILED',
+      );
+    }
+
+    // plagResult.status === COMPLETED — verify score meets threshold
+    const score = plagResult.originalityScore ?? submission.originalityScore;
+    if (score === null || score === undefined) {
+      throw new AppError(
+        `Originality score is missing for the final ${label} version.`,
+        400,
+        'PLAGIARISM_CHECK_PENDING',
+      );
+    }
+
+    if (score < threshold) {
+      throw new AppError(
+        `Final ${label} version has an originality score of ${score}%, which is below the required ${threshold}%. Please revise and re-submit.`,
+        400,
+        'ORIGINALITY_BELOW_THRESHOLD',
+      );
+    }
   }
 }
 

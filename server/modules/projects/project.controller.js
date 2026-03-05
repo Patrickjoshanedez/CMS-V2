@@ -140,6 +140,21 @@ export const resolveTitleModification = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/projects/title-check — Real-time title similarity check */
+export const checkTitleSimilarity = catchAsync(async (req, res) => {
+  const { title, keywords, excludeProjectId } = req.body;
+  const { similarProjects, threshold } = await projectService.checkTitleSimilarity(
+    title,
+    keywords,
+    excludeProjectId || null,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { similarProjects, threshold },
+  });
+});
+
 /** POST /api/projects/:id/adviser — Assign an adviser */
 export const assignAdviser = catchAsync(async (req, res) => {
   const { project } = await projectService.assignAdviser(req.params.id, req.user._id, req.body);

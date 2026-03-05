@@ -1,0 +1,70 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: cms-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: cms-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-server
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - redis
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/cms_v2
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CLIENT_URL: http://localhost:5173
+      JWT_ACCESS_SECRET: docker_access_secret_change_me
+      JWT_REFRESH_SECRET: docker_refresh_secret_change_me
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      OTP_EXPIRES_MINUTES: 10
+    ports:
+      - "5000:5000"
+    command: npm run dev:server
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/server/node_modules
+      - /app/client/node_modules
+      - /app/shared/node_modules
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    command: npm run dev:client -- --host 0.0.0.0 --port 5173
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/server/node_modules
+      - /app/client/node_modules
+      - /app/shared/node_modules
+
+volumes:
+  mongodb_data:
+  redis_data:

@@ -70,6 +70,9 @@ export const projectService = {
   reviseAndResubmit: (id, data) => api.patch(`/projects/${id}/title/revise`, data),
   requestTitleModification: (id, data) => api.post(`/projects/${id}/title/modification`, data),
 
+  // Real-time title similarity check
+  checkTitleSimilarity: (data) => api.post('/projects/title-check', data),
+
   // Instructor routes
   approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
   rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),

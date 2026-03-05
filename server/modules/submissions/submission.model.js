@@ -5,7 +5,8 @@
  * increment the version number. Previous versions are retained for audit purposes.
  * The latest version for a given chapter is the one with the highest version number.
  *
- * Storage: File binaries live in S3; this model stores only metadata and the S3 key.
+ * Storage: File binaries live in S3; final submissions may also be mirrored to Google Drive
+ * for institutional retrieval workflows.
  */
 import mongoose from 'mongoose';
 import {
@@ -172,6 +173,23 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Storage key is required'],
       trim: true,
+    },
+
+    // --- Optional Google Drive mirror metadata (used for final submissions) ---
+    driveFileId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    driveWebViewLink: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    driveWebContentLink: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     // --- Workflow ---

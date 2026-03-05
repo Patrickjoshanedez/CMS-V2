@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createAuthenticatedUserWithRole, request } from '../helpers.js';
-import SystemSettings from '../../modules/settings/settings.model.js';
 
 /* ═══════════════════════════════════════════════════════════════════
  *  System Settings API — /api/settings
@@ -14,9 +13,9 @@ import SystemSettings from '../../modules/settings/settings.model.js';
  * ═══════════════════════════════════════════════════════════════════ */
 
 describe('System Settings API — /api/settings', () => {
-  let instructorAgent, instructor;
-  let studentAgent, student;
-  let adviserAgent, adviser;
+  let instructorAgent;
+  let studentAgent;
+  let adviserAgent;
 
   beforeEach(async () => {
     const i = await createAuthenticatedUserWithRole('instructor', { email: 'settings-inst@test.com' });
@@ -24,11 +23,8 @@ describe('System Settings API — /api/settings', () => {
     const a = await createAuthenticatedUserWithRole('adviser', { email: 'settings-adv@test.com' });
 
     instructorAgent = i.agent;
-    instructor = i.user;
     studentAgent = s.agent;
-    student = s.user;
     adviserAgent = a.agent;
-    adviser = a.user;
   });
 
   /* ──────────── GET /api/settings ──────────── */
