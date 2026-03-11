@@ -40,6 +40,37 @@ const matchedSourceSchema = new mongoose.Schema(
       max: 100,
       required: true,
     },
+    /** Character-level spans in the submitted text that matched this source. */
+    spans: {
+      type: [
+        {
+          start: { type: Number, required: true },
+          end: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+    /** Short excerpt from the source document for display in the report viewer. */
+    sourceSnippet: {
+      type: String,
+      default: '',
+      maxlength: 600,
+    },
+    /** Winnowing Jaccard similarity for this candidate. */
+    winnowScore: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+    /** Semantic cosine similarity for this candidate. */
+    semanticScore: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -78,6 +109,15 @@ const plagiarismResultSchema = new mongoose.Schema(
     },
     error: {
       type: String,
+      default: null,
+    },
+    /**
+     * Full PlagiarismReport JSON from the Python microservice.
+     * Stored as Mixed to preserve the complete matches array with spans,
+     * snippets, and per-match scores without embedding a deep sub-schema.
+     */
+    fullReport: {
+      type: mongoose.Schema.Types.Mixed,
       default: null,
     },
   },

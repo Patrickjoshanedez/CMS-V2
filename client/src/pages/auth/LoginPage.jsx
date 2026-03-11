@@ -198,7 +198,7 @@ export default function LoginPage() {
           onError={handleGoogleError}
           theme={theme === 'dark' ? 'filled_black' : 'outline'}
           size="large"
-          width="100%"
+          width={360}
           text="signin_with"
           shape="rectangular"
         />

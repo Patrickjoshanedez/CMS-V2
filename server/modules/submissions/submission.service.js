@@ -19,6 +19,7 @@ import Submission from './submission.model.js';
 import Project from '../projects/project.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
+import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import storageService from '../../services/storage.service.js';
 import googleDocsService from '../../services/google-docs.service.js';
 import env from '../../config/env.js';
@@ -33,6 +34,11 @@ import {
   PROJECT_STATUSES,
   PLAGIARISM_STATUSES,
 } from '@cms/shared';
+
+const logger = {
+  info: (...args) => console.info(...args), // eslint-disable-line no-console
+  error: (...args) => console.error(...args), // eslint-disable-line no-console
+};
 
 class SubmissionService {
   /* ═══════════════════ Shared Private Helpers ═══════════════════ */
@@ -124,7 +130,14 @@ class SubmissionService {
    * @param {string} params.docLabel - E.g. "Chapter 2 (v3)" or "compiled proposal (v1)"
    * @param {Object} [params.extraMetadata] - Extra fields for notification metadata
    */
-  async _notifyAdviser({ project, submission, notifType, notifTitle, docLabel, extraMetadata = {} }) {
+  async _notifyAdviser({
+    project,
+    submission,
+    notifType,
+    notifTitle,
+    docLabel,
+    extraMetadata = {},
+  }) {
     if (!project.adviserId) return;
 
     const notif = await Notification.create({
@@ -244,11 +257,7 @@ class SubmissionService {
       return;
     }
 
-    throw new AppError(
-      'You do not have permission to view this submission.',
-      403,
-      'FORBIDDEN',
-    );
+    throw new AppError('You do not have permission to view this submission.', 403, 'FORBIDDEN');
   }
 
   /* ═══════════════════ Upload: Chapter ═══════════════════ */
@@ -510,7 +519,17 @@ class SubmissionService {
    * @param {string} params.docLabelPrefix - E.g. "The full academic version"
    * @returns {Promise<{ submission: Object }>}
    */
-  async _uploadFinalPaper({ userId, projectId, project, remarks, file, type, buildStorageKey, notifTitle, docLabelPrefix }) {
+  async _uploadFinalPaper({
+    userId,
+    projectId,
+    project,
+    remarks,
+    file,
+    type,
+    buildStorageKey,
+    notifTitle,
+    docLabelPrefix,
+  }) {
     // --- Late submission detection ---
     const { isLate } = this._detectLateSubmission(project, 'defense', remarks);
 
@@ -588,7 +607,11 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalAcademic(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload final papers');
+    const { project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'upload final papers',
+    );
     this._assertFinalPaperEligible(project);
 
     return this._uploadFinalPaper({
@@ -615,7 +638,11 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalJournal(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload final papers');
+    const { project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'upload final papers',
+    );
     this._assertFinalPaperEligible(project);
 
     return this._uploadFinalPaper({
@@ -778,6 +805,42 @@ class SubmissionService {
     };
   }
 
+  /**
+   * Get the full PlagiarismReport (match list with character-level spans and
+   * source snippets) for the highlight-and-compare viewer.
+   *
+   * @param {string} submissionId
+   * @returns {Object} { submissionId, originalityScore, fullReport, matchedSources }
+   */
+  async getPlagiarismReport(submissionId) {
+    const submission = await Submission.findById(submissionId).select(
+      'plagiarismResult originalityScore extractedText',
+    );
+
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const { plagiarismResult, originalityScore, extractedText } = submission;
+
+    if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+      throw new AppError(
+        'Plagiarism check has not completed yet.',
+        400,
+        'PLAGIARISM_NOT_COMPLETED',
+      );
+    }
+
+    return {
+      submissionId: submission._id,
+      originalityScore,
+      extractedText: extractedText || null,
+      fullReport: plagiarismResult.fullReport || null,
+      matchedSources: plagiarismResult.matchedSources || [],
+      processedAt: plagiarismResult.processedAt,
+    };
+  }
+
   /* ═══════════════════ Review Workflow ═══════════════════ */
 
   /**
@@ -805,12 +868,71 @@ class SubmissionService {
     submission.reviewedBy = reviewerId;
     submission.reviewNote = reviewNote || null;
 
-    // If approved, lock the submission to prevent unauthorized edits
+    // --- Plagiarism check enforcement before approval ---
     if (status === SUBMISSION_STATUSES.APPROVED) {
+      // Fetch plagiarism result from database
+      const plagiarismResult = await PlagiarismResult.findOne({
+        submissionId: submission._id,
+      }).lean();
+
+      // Require completed plagiarism check before approval
+      if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+        throw new AppError(
+          'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
+          400,
+          'PLAGIARISM_CHECK_REQUIRED',
+        );
+      }
+
+      // Check similarity threshold
+      const threshold = Number(process.env.PLAGIARISM_REJECT_THRESHOLD) || 50;
+      if (plagiarismResult.similarityPercentage > threshold) {
+        throw new AppError(
+          `Cannot approve: Plagiarism score (${plagiarismResult.similarityPercentage.toFixed(1)}%) exceeds threshold (${threshold}%). Please review matched sources or request revisions.`,
+          400,
+          'PLAGIARISM_SCORE_TOO_HIGH',
+        );
+      }
+
+      // Threshold passed - lock submission to prevent further edits
       submission.status = SUBMISSION_STATUSES.LOCKED;
     }
 
     await submission.save();
+
+    // --- Index approved submission in plagiarism corpus ---
+    if (status === SUBMISSION_STATUSES.APPROVED) {
+      try {
+        // Note: Full corpus indexing will be implemented when plagiarism service integration is complete
+        // For now, we log the intent. Full implementation requires:
+        // 1. Import plagiarismService
+        // 2. Extract text from file (using textExtraction utility)
+        // 3. Call plagiarismService.indexDocument()
+        logger.info(
+          { submissionId: submission._id, projectId: submission.projectId },
+          'Submission approved - ready for corpus indexing',
+        );
+
+        // TODO: Uncomment when plagiarism service corpus indexing is ready
+        // const plagiarismService = require('../plagiarism/plagiarism.service');
+        // await plagiarismService.indexDocument({
+        //   documentId: submission._id.toString(),
+        //   text: submission.extractedText || '',
+        //   title: `${submission.type} - Chapter ${submission.chapter || 'N/A'}`,
+        //   metadata: {
+        //     projectId: submission.projectId.toString(),
+        //     chapter: submission.chapter,
+        //     type: submission.type,
+        //   },
+        // });
+      } catch (indexError) {
+        // Don't fail approval if indexing fails
+        logger.error(
+          { error: indexError, submissionId: submission._id },
+          'Failed to index submission in plagiarism corpus',
+        );
+      }
+    }
 
     // --- If this is a proposal submission being approved, transition project status ---
     if (

@@ -16,4 +16,15 @@ export const plagiarismService = {
    *   Resolves with `{ data: { success, data: { plagiarismResult } } }`
    */
   getPlagiarismStatus: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism`),
+
+  /**
+   * Fetch the full PlagiarismReport with character-level span data.
+   * Only succeeds once the plagiarism check status is "completed".
+   *
+   * @param {string} submissionId - MongoDB ObjectId of the submission.
+   * @returns {Promise<import('axios').AxiosResponse>}
+   *   Resolves with `{ data: { success, data: { submissionId, originalityScore,
+   *     extractedText, fullReport, matchedSources, processedAt } } }`
+   */
+  getPlagiarismReport: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism/report`),
 };

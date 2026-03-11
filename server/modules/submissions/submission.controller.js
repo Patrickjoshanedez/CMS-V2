@@ -156,6 +156,20 @@ export const getPlagiarismStatus = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/submissions/:submissionId/plagiarism/report
+ * Returns the full PlagiarismReport (match list with character spans and snippets).
+ * Only accessible once the plagiarism check has completed.
+ */
+export const getPlagiarismReport = catchAsync(async (req, res) => {
+  const report = await submissionService.getPlagiarismReport(req.params.submissionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: report,
+  });
+});
+
 /* ═══════════════════ Review ═══════════════════ */
 
 /** POST /api/submissions/:submissionId/review — Review a submission (faculty) */

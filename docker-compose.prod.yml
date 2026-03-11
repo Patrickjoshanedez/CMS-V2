@@ -22,6 +22,7 @@ services:
     depends_on:
       - mongodb
       - redis
+      - plagiarism_api
     env_file:
       - .env.prod
     environment:
@@ -48,6 +49,14 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      
+      # === Plagiarism Detection (Production Thresholds) ===
+      PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
+      PLAGIARISM_WARNING_THRESHOLD: ${PLAGIARISM_WARNING_THRESHOLD:-25}
+      PLAGIARISM_REJECT_THRESHOLD: ${PLAGIARISM_REJECT_THRESHOLD:-40}
+      PLAGIARISM_ENGINE_TIMEOUT: ${PLAGIARISM_ENGINE_TIMEOUT:-180000}
+      PLAGIARISM_POLL_INTERVAL: ${PLAGIARISM_POLL_INTERVAL:-3000}
+      PLAGIARISM_POLL_MAX_ATTEMPTS: ${PLAGIARISM_POLL_MAX_ATTEMPTS:-60}
       COPYLEAKS_EMAIL: ${COPYLEAKS_EMAIL:-}
       COPYLEAKS_API_KEY: ${COPYLEAKS_API_KEY:-}
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
@@ -75,6 +84,87 @@ services:
     ports:
       - "8080:80"
 
+  # === Plagiarism Detection Services (Production Configuration) ===
+  
+  plagiarism_api:
+    build:
+      context: ./plagiarism_engine
+      dockerfile: Dockerfile
+    container_name: cms-plagiarism-api-prod
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - chromadb
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - LOG_LEVEL=WARNING
+      - LOG_JSON=true
+      - EMBEDDING_BATCH_SIZE=16  # Conservative for production
+      - MAX_DOCUMENT_SIZE=20971520  # 20MB
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1.5G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  plagiarism_worker:
+    build:
+      context: ./plagiarism_engine
+      dockerfile: Dockerfile
+    container_name: cms-plagiarism-worker-prod
+    restart: unless-stopped
+    command: celery -A plagiarism_engine.tasks worker --loglevel=warning --concurrency=2
+    depends_on:
+      - redis
+      - chromadb
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - LOG_LEVEL=WARNING
+      - EMBEDDING_BATCH_SIZE=16
+      - CELERY_WORKER_PREFETCH_MULTIPLIER=1
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '1.5'
+          memory: 2G
+
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: cms-chromadb-prod
+    restart: unless-stopped
+    volumes:
+      - chromadb_prod_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
 volumes:
   mongodb_prod_data:
   redis_prod_data:
+  chromadb_prod_data:

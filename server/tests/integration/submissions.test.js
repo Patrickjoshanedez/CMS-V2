@@ -14,6 +14,7 @@ import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
+import PlagiarismResult from '../../modules/plagiarism/plagiarism.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
 import { SUBMISSION_STATUSES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
@@ -76,16 +77,29 @@ function createPdfBuffer() {
   return header;
 }
 
+async function createCompletedPlagiarismResult(submissionId, similarityPercentage = 10) {
+  await PlagiarismResult.create({
+    submissionId,
+    taskId: `task-${submissionId.toString()}`,
+    status: 'completed',
+    similarityPercentage,
+    warningFlag: false,
+    textMatches: [],
+    rawData: {},
+    checkedAt: new Date(),
+  });
+}
+
 /* ================================================================== */
 /*  Test Suites                                                       */
 /* ================================================================== */
 
 describe('Submissions API — /api/submissions', () => {
   let studentAgent, studentUser;
-  let instructorAgent, instructorUser;
+  let instructorAgent, _instructorUser;
   let adviserAgent, adviserUser;
-  let panelistAgent, panelistUser;
-  let team, project;
+  let panelistAgent, _panelistUser;
+  let _team, project;
 
   beforeEach(async () => {
     // Reset mocks
@@ -100,20 +114,20 @@ describe('Submissions API — /api/submissions', () => {
     ({ agent: studentAgent, user: studentUser } = await createAuthenticatedUserWithRole('student', {
       email: 'sub-student@test.com',
     }));
-    ({ agent: instructorAgent, user: instructorUser } = await createAuthenticatedUserWithRole(
+    ({ agent: instructorAgent, user: _instructorUser } = await createAuthenticatedUserWithRole(
       'instructor',
       { email: 'sub-instructor@test.com' },
     ));
     ({ agent: adviserAgent, user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
       email: 'sub-adviser@test.com',
     }));
-    ({ agent: panelistAgent, user: panelistUser } = await createAuthenticatedUserWithRole(
+    ({ agent: panelistAgent, user: _panelistUser } = await createAuthenticatedUserWithRole(
       'panelist',
       { email: 'sub-panelist@test.com' },
     ));
 
     // Set up project with adviser
-    ({ team, project } = await createProjectSetup(studentUser._id, adviserUser._id));
+    ({ team: _team, project } = await createProjectSetup(studentUser._id, adviserUser._id));
 
     // Re-fetch student to get updated teamId
     studentUser = await User.findById(studentUser._id);
@@ -391,6 +405,7 @@ describe('Submissions API — /api/submissions', () => {
         submittedBy: studentUser._id,
       });
       submissionId = sub._id.toString();
+      await createCompletedPlagiarismResult(sub._id);
     });
 
     it('should allow adviser to approve (auto-locks)', async () => {
@@ -903,6 +918,7 @@ describe('Submissions API — /api/submissions', () => {
         submittedBy: studentUser._id,
       });
       proposalSubmissionId = proposal._id.toString();
+      await createCompletedPlagiarismResult(proposal._id);
 
       await Project.findByIdAndUpdate(project._id, {
         projectStatus: PROJECT_STATUSES.PROPOSAL_SUBMITTED,

@@ -7,6 +7,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { submissionService } from '../services/submissionService';
+import { plagiarismService } from '../services/plagiarismService';
 import { projectKeys } from './useProjects';
 
 /* ────────── Query Keys ────────── */
@@ -27,9 +28,35 @@ export const submissionKeys = {
   latestChapter: (projectId, chapter) => [...submissionKeys.latestChapters(), projectId, chapter],
   viewUrls: () => [...submissionKeys.all, 'viewUrl'],
   viewUrl: (id) => [...submissionKeys.viewUrls(), id],
+  plagiarismReports: () => [...submissionKeys.all, 'plagiarismReport'],
+  plagiarismReport: (id) => [...submissionKeys.plagiarismReports(), id],
 };
 
 /* ────────── Query Hooks ────────── */
+
+/**
+ * Fetch the full PlagiarismReport for a submission.
+ *
+ * Only enabled once the plagiarism check status is "completed"; callers should
+ * guard with `enabled: plagiarismStatus === 'completed'` via the Options prop.
+ *
+ * @param {string|null} submissionId
+ * @param {import('@tanstack/react-query').UseQueryOptions} options
+ * @returns Query result containing `{ submissionId, originalityScore, extractedText,
+ *   fullReport, matchedSources, processedAt }`
+ */
+export function usePlagiarismReport(submissionId, options = {}) {
+  return useQuery({
+    queryKey: submissionKeys.plagiarismReport(submissionId),
+    queryFn: async () => {
+      const { data } = await plagiarismService.getPlagiarismReport(submissionId);
+      return data.data;
+    },
+    enabled: !!submissionId,
+    staleTime: 5 * 60 * 1000, // 5 min — report is immutable once completed
+    ...options,
+  });
+}
 
 /**
  * Fetch a single submission by ID.

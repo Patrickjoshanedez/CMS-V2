@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Plagiarism Engine — Python Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Install in a fresh virtual environment:
+#   python -m venv .venv
+#   source .venv/bin/activate        # Linux / macOS
+#   .venv\Scripts\activate           # Windows
+#   pip install -r requirements.txt
+#
+# For production Docker builds the image installs these automatically.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi==0.111.1
+uvicorn[standard]==0.30.1          # ASGI server with WebSocket + reload support
+
+# ── Task queue ────────────────────────────────────────────────────────────────
+celery[redis]==5.4.0               # Celery + Redis transport
+redis==5.0.6                       # Redis client used by Celery
+
+# ── Embeddings ────────────────────────────────────────────────────────────────
+sentence-transformers==3.0.1       # all-MiniLM-L6-v2 and friends
+torch==2.3.1                       # CPU build; replace with torch+cu11x for GPU
+transformers==4.43.3               # Required by sentence-transformers
+numpy==1.26.4                      # NDArray math
+
+# ── Vector database ───────────────────────────────────────────────────────────
+chromadb==0.5.3                    # Persistent local ChromaDB with HNSW index
+
+# ── Configuration & validation ────────────────────────────────────────────────
+pydantic==2.8.2
+pydantic-settings==2.3.4           # BaseSettings + .env file loading
+
+# ── Text utilities ────────────────────────────────────────────────────────────
+bleach==6.1.0                      # Strip HTML from extracted text
+regex==2024.5.15                   # Better Unicode-aware regex
+
+# ── Logging & observability ───────────────────────────────────────────────────
+structlog==24.2.0                  # Optional structured logging (used if LOG_JSON=true)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Development / test extras (not needed in production Docker image)
+# ─────────────────────────────────────────────────────────────────────────────
+# pip install -r requirements.txt -r requirements-dev.txt
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Version pins — update carefully.  sentence-transformers and chromadb both
+# bundle their own torch wheels; keeping them on the same minor torch version
+# avoids symbol conflicts.
+# ─────────────────────────────────────────────────────────────────────────────

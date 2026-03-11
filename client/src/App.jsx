@@ -4,7 +4,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from 'sonner';
 
 // Lazy-loaded page imports
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
@@ -25,6 +25,7 @@ const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPa
 const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
 const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
+const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));
 const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
@@ -108,16 +109,22 @@ const PROTECTED_ROUTES = [
   { path: '/project/submissions/upload', Component: ChapterUploadPage },
   { path: '/project/proposal', Component: ProposalCompilationPage },
   { path: '/project/submissions/:submissionId', Component: SubmissionDetailPage },
+  { path: '/project/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },
 ];
 
 export default function App() {
   const { sessionLoading, fetchUser } = useAuthStore();
+  const hasFetchedSession = useRef(false);
 
   // Restore session on every hard refresh / first load.
   // We must wait for this to complete before rendering protected/guest routes,
   // otherwise ProtectedRoute will always redirect to /login on a fresh page load
   // because Zustand state resets (cookies persist but in-memory state does not).
   useEffect(() => {
+    if (hasFetchedSession.current) {
+      return;
+    }
+    hasFetchedSession.current = true;
     fetchUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -137,7 +144,15 @@ export default function App() {
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (
-            <Route key={path} path={path} element={<GuestRoute><Component /></GuestRoute>} />
+            <Route
+              key={path}
+              path={path}
+              element={
+                <GuestRoute>
+                  <Component />
+                </GuestRoute>
+              }
+            />
           ))}
 
           {/* Auth route — accessible without guard */}
@@ -145,12 +160,27 @@ export default function App() {
 
           {/* Protected routes — redirect to login if not authenticated */}
           {PROTECTED_ROUTES.map(({ path, Component }) => (
-            <Route key={path} path={path} element={<ProtectedRoute><Component /></ProtectedRoute>} />
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute>
+                  <Component />
+                </ProtectedRoute>
+              }
+            />
           ))}
 
           {/* Public routes */}
           <Route path="/forbidden" element={<ForbiddenPage />} />
-          <Route path="/" element={<GuestRoute><LandingPage /></GuestRoute>} />
+          <Route
+            path="/"
+            element={
+              <GuestRoute>
+                <LandingPage />
+              </GuestRoute>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

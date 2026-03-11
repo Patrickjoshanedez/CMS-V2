@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
+import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
 import { useAuthStore } from '@/stores/authStore';
 import {
   useSubmission,
@@ -17,8 +18,9 @@ import {
   useAddAnnotation,
   useRemoveAnnotation,
 } from '@/hooks/useSubmissions';
-import { ROLES, SUBMISSION_STATUSES } from '@cms/shared';
+import { ROLES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 import {
+  BarChart2,
   FileText,
   ExternalLink,
   ArrowLeft,
@@ -64,6 +66,7 @@ function formatBytes(bytes) {
  * FileInfoCard — displays metadata about the uploaded file.
  */
 function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
+  const navigate = useNavigate();
   return (
     <Card>
       <CardHeader>
@@ -113,6 +116,17 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               <ExternalLink className="mr-2 h-4 w-4" />
               View Document
             </a>
+          </Button>
+        )}
+        {submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
+            className="tw-gap-1.5"
+          >
+            <BarChart2 className="h-4 w-4" />
+            View Plagiarism Report
           </Button>
         )}
         {viewUrlLoading && (
@@ -467,7 +481,18 @@ export default function SubmissionDetailPage() {
 
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />
-
+        {/* Faculty: plagiarism checker */}
+        {isFaculty && (
+          <PlagiarismChecker
+            submissionId={submission._id}
+            submissionTitle={`${CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`} v${submission.version}`}
+            onCheckComplete={(result) => {
+              console.log('Plagiarism check completed:', result);
+            }}
+            showMatchDetails={true}
+            disabled={submission.status === SUBMISSION_STATUSES.LOCKED}
+          />
+        )}
         {/* Faculty: review controls */}
         {isFaculty && (
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />

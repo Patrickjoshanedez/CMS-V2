@@ -124,7 +124,7 @@ export const useAuthStore = create((set, _get) => ({
    */
   fetchUser: async () => {
     try {
-      const response = await userService.getMe();
+      const response = await userService.getMe({ skipAuthRefresh: true });
       set({
         user: response.data.data.user,
         isAuthenticated: true,
@@ -147,6 +147,15 @@ export const useAuthStore = create((set, _get) => ({
       disconnectSocket();
       set({ user: null, isAuthenticated: false, error: null });
     }
+  },
+
+  /**
+   * Clear local auth state without calling server logout.
+   * Used when refresh fails or when auth endpoints return expected 401s.
+   */
+  clearAuthState: () => {
+    disconnectSocket();
+    set({ user: null, isAuthenticated: false, error: null });
   },
 
   /**

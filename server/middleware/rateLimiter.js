@@ -5,16 +5,16 @@ import rateLimit from 'express-rate-limit';
  * Aggressive limits on auth routes to mitigate brute-force and spam-OTP attacks.
  * More lenient limits on general API routes.
  *
- * In the test environment, limits are raised to avoid false 429 failures
+ * In development and test environments, limits are raised to avoid false 429 failures
  * while still exercising the middleware stack.
  */
 
-const isTest = process.env.NODE_ENV === 'test';
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-/** General API rate limiter: 100 requests per 15 minutes per IP */
+/** General API rate limiter: 100 requests per 15 minutes per IP (1000 in dev) */
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isTest ? 10_000 : 100,
+  max: isDevelopment ? 1000 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -27,10 +27,10 @@ export const generalLimiter = rateLimit({
   },
 });
 
-/** Auth route limiter: 10 requests per 15 minutes per IP */
+/** Auth route limiter: 10 requests per 15 minutes per IP (200 in dev) */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isTest ? 10_000 : 10,
+  max: isDevelopment ? 200 : 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -43,10 +43,10 @@ export const authLimiter = rateLimit({
   },
 });
 
-/** OTP request limiter: 3 requests per 10 minutes per IP */
+/** OTP request limiter: 3 requests per 10 minutes per IP (50 in dev) */
 export const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: isTest ? 10_000 : 3,
+  max: isDevelopment ? 50 : 3,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

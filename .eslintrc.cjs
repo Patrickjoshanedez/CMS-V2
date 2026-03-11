@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ['server/**/*.ts'],
   env: {
     browser: true,
     node: true,

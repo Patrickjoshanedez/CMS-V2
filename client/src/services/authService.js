@@ -22,7 +22,7 @@ export const authService = {
  */
 
 export const userService = {
-  getMe: () => api.get('/users/me'),
+  getMe: (config = {}) => api.get('/users/me', config),
   updateMe: (data) => api.patch('/users/me', data),
   listUsers: (params) => api.get('/users', { params }),
   createUser: (data) => api.post('/users', data),

@@ -56,7 +56,8 @@ router.post(
   validate(uploadChapterSchema),
   auditLog('submission.chapter_uploaded', 'Submission', {
     getTargetId: (_req, body) => body?.data?._id,
-    getDescription: (req) => `Uploaded chapter ${req.body.chapter} for project ${req.params.projectId}`,
+    getDescription: (req) =>
+      `Uploaded chapter ${req.body.chapter} for project ${req.params.projectId}`,
     getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
   }),
   submissionController.uploadChapter,
@@ -136,7 +137,8 @@ router.post(
   validate(submissionIdParamSchema, 'params'),
   validate(reviewSubmissionSchema),
   auditLog('submission.reviewed', 'Submission', {
-    getDescription: (req) => `Reviewed submission ${req.params.submissionId} — ${req.body.decision}`,
+    getDescription: (req) =>
+      `Reviewed submission ${req.params.submissionId} — ${req.body.decision}`,
     getMetadata: (req) => ({ decision: req.body.decision, feedback: req.body.feedback }),
   }),
   submissionController.reviewSubmission,
@@ -203,6 +205,19 @@ router.get(
   '/:submissionId/view',
   validate(submissionIdParamSchema, 'params'),
   submissionController.getViewUrl,
+);
+
+/**
+ * GET /:submissionId/plagiarism/report
+ * Return the full PlagiarismReport with character-level span data for the
+ * highlight viewer.  Must be registered BEFORE /:submissionId/plagiarism to
+ * avoid Express matching "report" as a wildcard sub-param.
+ * Accessible by the submitting student and all faculty roles.
+ */
+router.get(
+  '/:submissionId/plagiarism/report',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getPlagiarismReport,
 );
 
 /**

@@ -130,6 +130,14 @@ class AuthService {
       throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
     }
 
+    if (user.authProvider === 'google' || !user.password) {
+      throw new AppError(
+        'This account uses Google sign-in. Please continue with Google.',
+        401,
+        'GOOGLE_ACCOUNT_PASSWORD_LOGIN_BLOCKED',
+      );
+    }
+
     // Compare passwords
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {

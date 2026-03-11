@@ -24,6 +24,7 @@ import storageService from '../services/storage.service.js';
 import Submission from '../modules/submissions/submission.model.js';
 import Project from '../modules/projects/project.model.js';
 import Notification from '../modules/notifications/notification.model.js';
+import PlagiarismResult from '../modules/plagiarism/plagiarism.model.js';
 import { emitToUser } from '../services/socket.service.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
@@ -87,6 +88,19 @@ async function processJob(job) {
     'plagiarismResult.jobId': job.id,
   });
 
+  await PlagiarismResult.findOneAndUpdate(
+    { submissionId },
+    {
+      $set: {
+        taskId: String(job.id),
+        status: PLAGIARISM_STATUSES.PROCESSING,
+        error: null,
+        errorMessage: null,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+
   // Step 1: Download file from S3
   const fileBuffer = await storageService.downloadFile(storageKey);
 
@@ -103,6 +117,24 @@ async function processJob(job) {
       'plagiarismResult.matchedSources': [],
       'plagiarismResult.processedAt': new Date(),
     });
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId },
+      {
+        $set: {
+          taskId: String(job.id),
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          similarityPercentage: 0,
+          textMatches: [],
+          checkedAt: new Date(),
+          completedAt: new Date(),
+          warningFlag: false,
+          error: null,
+          errorMessage: null,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
 
     console.log(`[Plagiarism Worker] Submission ${submissionId}: too little text, scored 100%.`);
     return { originalityScore: 100, matchedSources: [] };
@@ -125,6 +157,36 @@ async function processJob(job) {
     'plagiarismResult.matchedSources': result.matchedSources,
     'plagiarismResult.processedAt': new Date(),
   });
+
+  const similarityPercentage = Math.max(0, Math.min(100, 100 - result.originalityScore));
+
+  await PlagiarismResult.findOneAndUpdate(
+    { submissionId },
+    {
+      $set: {
+        taskId: String(job.id),
+        status: PLAGIARISM_STATUSES.COMPLETED,
+        similarityPercentage,
+        textMatches: (result.matchedSources || []).map((match) => ({
+          submissionId: match.submissionId || null,
+          id: match.submissionId || null,
+          title: match.projectTitle || 'Unknown Project',
+          chapter: match.chapter ?? null,
+          matchPercentage: match.matchPercentage ?? null,
+          similarity: match.matchPercentage ?? null,
+          sourceSnippet: match.sourceSnippet || '',
+          spans: match.spans || [],
+        })),
+        checkedAt: new Date(),
+        completedAt: new Date(),
+        warningFlag: similarityPercentage >= 50,
+        rawData: result,
+        error: null,
+        errorMessage: null,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
 
   // Step 6: Notify student
   const submission = await Submission.findById(submissionId).populate('submittedBy', 'email');
@@ -169,6 +231,20 @@ async function handleFailedJob(job, err) {
       'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
       'plagiarismResult.error': err.message,
     });
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId },
+      {
+        $set: {
+          taskId: String(job.id),
+          status: PLAGIARISM_STATUSES.FAILED,
+          error: err.message,
+          errorMessage: err.message,
+          checkedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
   } catch (updateErr) {
     console.error(`[Plagiarism Worker] Failed to update submission status: ${updateErr.message}`);
   }

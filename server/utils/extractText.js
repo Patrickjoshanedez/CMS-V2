@@ -47,12 +47,17 @@ export async function extractText(buffer, mimeType) {
  * @returns {Promise<string>}
  */
 async function extractFromPdf(buffer) {
-  // Dynamic import to avoid loading the library when not needed.
-  // Use the top-level 'pdf-parse' entry (strict exports forbid deep paths).
-  const pdfParseModule = await import('pdf-parse');
-  const pdfParse = pdfParseModule.default ?? pdfParseModule;
-  const result = await pdfParse(buffer);
-  return result.text || '';
+  // pdf-parse v2 exposes a PDFParse class, not a default function.
+  // Construct a parser per call and destroy it to avoid leaked resources.
+  const { PDFParse } = await import('pdf-parse');
+  const parser = new PDFParse({ data: buffer });
+
+  try {
+    const result = await parser.getText();
+    return result?.text || '';
+  } finally {
+    await parser.destroy();
+  }
 }
 
 /**
