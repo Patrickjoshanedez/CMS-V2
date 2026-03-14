@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Project from './project.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
+import Section from '../academics/section.model.js';
 import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
@@ -9,7 +10,15 @@ import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
-import { ROLES, TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES, PROTOTYPE_TYPES, PLAGIARISM_STATUSES } from '@cms/shared';
+import {
+  ROLES,
+  TITLE_STATUSES,
+  PROJECT_STATUSES,
+  CAPSTONE_PHASES,
+  PROTOTYPE_TYPES,
+  PLAGIARISM_STATUSES,
+  CAPSTONE_TITLE_MAPPING,
+} from '@cms/shared';
 
 /**
  * Default plagiarism threshold (fallback if settings cannot be loaded).
@@ -56,6 +65,74 @@ class ProjectService {
       );
     }
 
+    const section = await Section.findById(data.sectionId).populate('courseId', 'name code');
+    if (!section) {
+      throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
+    }
+
+    if (section.academicYear !== data.academicYear) {
+      throw new AppError(
+        'Selected section does not belong to the selected academic year.',
+        400,
+        'SECTION_YEAR_MISMATCH',
+      );
+    }
+
+    const teamMemberIds = team.members.map((memberId) => memberId.toString()).sort();
+    const assignedMemberIds = data.memberRoleAssignments
+      .map((assignment) => assignment.userId.toString())
+      .sort();
+
+    if (teamMemberIds.length !== assignedMemberIds.length) {
+      throw new AppError(
+        'Every team member (including the leader) must have one assigned professional capstone title.',
+        400,
+        'INCOMPLETE_ROLE_ASSIGNMENTS',
+      );
+    }
+
+    const teamMemberSet = new Set(teamMemberIds);
+    for (const assignedId of assignedMemberIds) {
+      if (!teamMemberSet.has(assignedId)) {
+        throw new AppError(
+          'Role assignments can only include members from your current team.',
+          403,
+          'INVALID_ASSIGNMENT_MEMBER',
+        );
+      }
+    }
+
+    const uniqueAssignedMemberIds = new Set(assignedMemberIds);
+    if (uniqueAssignedMemberIds.size !== assignedMemberIds.length) {
+      throw new AppError(
+        'Each team member can only be assigned one professional capstone title.',
+        400,
+        'DUPLICATE_MEMBER_ASSIGNMENT',
+      );
+    }
+
+    const professionalTitles = data.memberRoleAssignments.map(
+      (assignment) => assignment.professionalTitle,
+    );
+    const uniqueProfessionalTitles = new Set(professionalTitles);
+    if (uniqueProfessionalTitles.size !== professionalTitles.length) {
+      throw new AppError(
+        'Each professional capstone title can only be assigned once per project.',
+        400,
+        'DUPLICATE_PROFESSIONAL_TITLE',
+      );
+    }
+
+    const memberRoleAssignments = data.memberRoleAssignments.map((assignment) => {
+      const mapping = CAPSTONE_TITLE_MAPPING[assignment.professionalTitle];
+      return {
+        userId: assignment.userId,
+        professionalTitle: assignment.professionalTitle,
+        traditionalRole: mapping.traditionalRole,
+        responsibilities: mapping.responsibilities,
+      };
+    });
+
     // Prevent duplicate active projects per team (rejected projects don't block creation)
     const existingProject = await Project.findOne({
       teamId: team._id,
@@ -85,15 +162,27 @@ class ProjectService {
       abstract: data.abstract || '',
       keywords: data.keywords || [],
       academicYear: data.academicYear,
+      courseId: section.courseId._id,
+      sectionId: section._id,
+      memberRoleAssignments,
     });
 
+    team.courseId = section.courseId._id;
+    team.sectionId = section._id;
+    team.academicYear = section.academicYear;
+    await team.save();
+
     // Notify team members (exclude the creator)
-    await this._notifyTeamMembers(team._id, {
-      type: 'system',
-      title: 'Project Created',
-      message: `A new project "${project.title}" has been created for your team.`,
-      metadata: { projectId: project._id },
-    }, { excludeUserId: userId });
+    await this._notifyTeamMembers(
+      team._id,
+      {
+        type: 'system',
+        title: 'Project Created',
+        message: `A new project "${project.title}" has been created for your team.`,
+        metadata: { projectId: project._id },
+      },
+      { excludeUserId: userId },
+    );
 
     return { project, similarProjects };
   }
@@ -107,7 +196,7 @@ class ProjectService {
    */
   async getProject(projectId) {
     const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members academicYear')
+      .populate('teamId', 'name leaderId members academicYear courseId sectionId')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
       .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
@@ -130,9 +219,15 @@ class ProjectService {
     }
 
     const populateOpts = [
-      { path: 'teamId', select: 'name leaderId members academicYear' },
+      { path: 'teamId', select: 'name leaderId members academicYear courseId sectionId' },
       { path: 'adviserId', select: 'firstName middleName lastName email profilePicture' },
       { path: 'panelistIds', select: 'firstName middleName lastName email profilePicture' },
+      { path: 'sectionId', select: 'name academicYear courseId' },
+      { path: 'courseId', select: 'name code' },
+      {
+        path: 'memberRoleAssignments.userId',
+        select: 'firstName middleName lastName email',
+      },
     ];
 
     // Prefer the active (non-rejected) project; fall back to most-recent rejected
@@ -185,9 +280,11 @@ class ProjectService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('teamId', 'name leaderId members')
+        .populate('teamId', 'name leaderId members academicYear courseId sectionId')
         .populate('adviserId', 'firstName middleName lastName email')
-        .populate('panelistIds', 'firstName middleName lastName email'),
+        .populate('panelistIds', 'firstName middleName lastName email')
+        .populate('courseId', 'name code')
+        .populate('sectionId', 'name academicYear'),
       Project.countDocuments(filter),
     ]);
 
@@ -219,7 +316,7 @@ class ProjectService {
    */
   async checkTitleSimilarity(title, keywords = [], excludeProjectId = null) {
     // Read the configurable threshold from system settings (fallback 0.70)
-    let threshold = 0.70;
+    let threshold = 0.7;
     try {
       const settings = await settingsService.getSettings();
       if (settings.titleSimilarityThreshold) {
@@ -230,7 +327,11 @@ class ProjectService {
     }
 
     // Normalise the candidate title for text search
-    const normalised = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    const normalised = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     // Build the base filter — exclude rejected projects
     const filter = { projectStatus: { $ne: PROJECT_STATUSES.REJECTED } };
@@ -261,11 +362,9 @@ class ProjectService {
     }
 
     // Tier 2: Levenshtein + keyword overlap scoring
-    const similarProjects = findSimilarProjects(
-      { title, keywords: keywords || [] },
-      candidates,
-      { threshold },
-    );
+    const similarProjects = findSimilarProjects({ title, keywords: keywords || [] }, candidates, {
+      threshold,
+    });
 
     return { similarProjects, threshold };
   }
@@ -733,7 +832,15 @@ class ProjectService {
   async setDeadlines(projectId, data) {
     const project = await this._getProjectOrFail(projectId);
 
-    const dateFields = ['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'];
+    const dateFields = [
+      'chapter1',
+      'chapter2',
+      'chapter3',
+      'proposal',
+      'chapter4',
+      'chapter5',
+      'defense',
+    ];
     dateFields.forEach((key) => {
       if (data[key] !== undefined) project.deadlines[key] = data[key];
     });
@@ -899,11 +1006,7 @@ class ProjectService {
       prototypeData.url = data.url;
     } else {
       if (!file) {
-        throw new AppError(
-          'A file is required for media-type prototypes.',
-          400,
-          'FILE_REQUIRED',
-        );
+        throw new AppError('A file is required for media-type prototypes.', 400, 'FILE_REQUIRED');
       }
       const mime = file.validatedMime || file.mimetype;
       if (mime.startsWith('image/')) {
@@ -1110,7 +1213,9 @@ class ProjectService {
         .limit(limit)
         .populate('teamId', 'name members')
         .populate('adviserId', 'firstName middleName lastName')
-        .select('title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived'),
+        .select(
+          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived',
+        ),
       Project.countDocuments(filter),
     ]);
 
@@ -1138,7 +1243,11 @@ class ProjectService {
     const project = await this._getProjectOrFail(projectId);
 
     if (!project.isArchived && project.projectStatus !== PROJECT_STATUSES.ARCHIVED) {
-      throw new AppError('Project must be archived before uploading a certificate.', 400, 'NOT_ARCHIVED');
+      throw new AppError(
+        'Project must be archived before uploading a certificate.',
+        400,
+        'NOT_ARCHIVED',
+      );
     }
 
     const storageKey = storageService.buildCertificateKey(projectId, file.originalname);
@@ -1167,7 +1276,11 @@ class ProjectService {
     const project = await this._getProjectOrFail(projectId);
 
     if (!project.certificateStorageKey) {
-      throw new AppError('No certificate has been uploaded for this project.', 404, 'NO_CERTIFICATE');
+      throw new AppError(
+        'No certificate has been uploaded for this project.',
+        404,
+        'NO_CERTIFICATE',
+      );
     }
 
     const url = await storageService.getSignedUrl(project.certificateStorageKey, 3600);

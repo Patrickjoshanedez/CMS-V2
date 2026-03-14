@@ -15,9 +15,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import PropTypes from 'prop-types';
-import pino from 'pino';
-
-const logger = pino({ level: 'info' });
+const logger = console;
 
 /**
  * @typedef {Object} PlagiarismMatch

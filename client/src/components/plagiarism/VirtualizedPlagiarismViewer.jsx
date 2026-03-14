@@ -28,7 +28,8 @@
  * the similarity score alongside the matched excerpt.
  */
 import React, { useMemo, useRef, useCallback } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import * as ReactWindow from 'react-window';
+const { FixedSizeList: List } = ReactWindow;
 import PropTypes from 'prop-types';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */

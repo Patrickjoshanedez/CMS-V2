@@ -96,6 +96,7 @@ function PasswordStrengthMeter({ password }) {
  * password strength meter, gradient button, and stagger animations.
  */
 export default function RegisterPage() {
+  const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
   const navigate = useNavigate();
   const { register: registerUser, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -146,10 +147,14 @@ export default function RegisterPage() {
       setGoogleError('');
       clearError();
 
-      const captchaToken = recaptchaRef.current?.getValue();
-      if (!captchaToken) {
-        setCaptchaError('Please complete the reCAPTCHA verification.');
-        return;
+      let captchaToken;
+
+      if (isRecaptchaEnabled) {
+        captchaToken = recaptchaRef.current?.getValue();
+        if (!captchaToken) {
+          setCaptchaError('Please complete the reCAPTCHA verification.');
+          return;
+        }
       }
 
       await registerUser({
@@ -158,7 +163,7 @@ export default function RegisterPage() {
         lastName: data.lastName,
         email: data.email,
         password: data.password,
-        captchaToken,
+        ...(isRecaptchaEnabled ? { captchaToken } : {}),
       });
       navigate('/verify-otp', {
         state: { email: data.email, type: 'verification' },
@@ -166,7 +171,9 @@ export default function RegisterPage() {
       });
     } catch {
       // Error is handled by the store
-      recaptchaRef.current?.reset();
+      if (isRecaptchaEnabled) {
+        recaptchaRef.current?.reset();
+      }
     }
   };
 
@@ -305,17 +312,21 @@ export default function RegisterPage() {
         </div>
 
         {/* reCAPTCHA widget */}
-        <div className="auth-item mb-4 flex justify-center">
-          <ReCAPTCHA
-            ref={recaptchaRef}
-            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-            theme={theme === 'dark' ? 'dark' : 'light'}
-          />
-        </div>
-        {captchaError && (
-          <div className="auth-item mb-4">
-            <p className="text-sm text-destructive text-center">{captchaError}</p>
-          </div>
+        {isRecaptchaEnabled && (
+          <>
+            <div className="auth-item mb-4 flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                theme={theme === 'dark' ? 'dark' : 'light'}
+              />
+            </div>
+            {captchaError && (
+              <div className="auth-item mb-4">
+                <p className="text-sm text-destructive text-center">{captchaError}</p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Submit — gradient button */}

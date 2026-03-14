@@ -2,6 +2,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const parseBoolean = (value, defaultValue = false) => {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+
+  return value.toLowerCase() === 'true';
+};
+
 /**
  * Centralized environment configuration.
  * All env vars are accessed here — never use process.env directly in modules.
@@ -61,6 +69,7 @@ const env = Object.freeze({
   COPYLEAKS_API_KEY: process.env.COPYLEAKS_API_KEY || '',
 
   // reCAPTCHA v2
+  RECAPTCHA_ENABLED: parseBoolean(process.env.RECAPTCHA_ENABLED, true),
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || '',
 
   // Google OAuth2 credentials (from Google Cloud Console + OAuth Playground)
@@ -73,10 +82,9 @@ const env = Object.freeze({
 
   // Legacy service account vars — kept as empty fallback so old configs don't crash
   GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(
-    /\\n/g,
-    '\n',
-  ),
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: (
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || ''
+  ).replace(/\\n/g, '\n'),
 
   // Root Drive folder for all CMS-managed files
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',

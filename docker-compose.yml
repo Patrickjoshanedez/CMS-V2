@@ -1,10 +1,29 @@
+﻿# -------------------------------------------------------------------------------
+#  CMS V2 — All-in-One Docker Compose  (Local Development)
+#  Services: MongoDB · Redis · LocalStack S3 · Plagiarism Engine · API · WebUI
+#
+#  Start:  .\start-cms.ps1  (auto-debug)
+#    — or — docker-compose up -d --build
+# -------------------------------------------------------------------------------
+
 services:
+
+  # --- Infrastructure ----------------------------------------------------------
+
   mongodb:
     image: mongo:7
     container_name: cms-mongodb
     restart: unless-stopped
+    ports:
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - cms_network
 
@@ -12,8 +31,17 @@ services:
     image: redis:7-alpine
     container_name: cms-redis
     restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks:
       - cms_network
 
@@ -23,26 +51,26 @@ services:
     restart: unless-stopped
     ports:
       - "4566:4566"
-      - "4510-4559:4510-4559"
     environment:
-      - SERVICES=s3
-      - DEBUG=1
-      - DATA_DIR=/var/lib/localstack/data
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - DEFAULT_REGION=us-east-1
+      SERVICES: s3
+      DEBUG: 1
+      DATA_DIR: /var/lib/localstack/data
+      DEFAULT_REGION: us-east-1
     volumes:
       - localstack_data:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Auto-creates cms-buksu-uploads bucket when LocalStack is ready
+      - ./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
     networks:
       - cms_network
 
-  # ── Plagiarism Engine Services ──────────────────────────────────────────
+  # --- Plagiarism Engine -------------------------------------------------------
+
   plagiarism_redis:
     image: redis:7-alpine
     container_name: cms-plagiarism-redis
@@ -50,9 +78,10 @@ services:
     command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
+      start_period: 5s
     networks:
       - cms_network
 
@@ -71,20 +100,16 @@ services:
       - plagiarism_chroma:/app/chroma_store
       - plagiarism_models:/root/.cache/torch/sentence_transformers
     environment:
-      - CELERY_BROKER_URL=redis://plagiarism_redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://plagiarism_redis:6379/1
-      - CHROMA_PERSIST_DIR=/app/chroma_store
-      - EMBEDDING_MODEL=all-MiniLM-L6-v2
-      - LOG_LEVEL=INFO
+      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
+      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
+      CHROMA_PERSIST_DIR: /app/chroma_store
+      EMBEDDING_MODEL: all-MiniLM-L6-v2
+      LOG_LEVEL: INFO
     depends_on:
       plagiarism_redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "celery", "-A", "plagiarism_engine.tasks.celery_app", "inspect", "ping"]
-      interval: 30s
-      timeout: 15s
-      retries: 3
-      start_period: 30s
+      disable: true
     networks:
       - cms_network
 
@@ -106,13 +131,13 @@ services:
       - plagiarism_chroma:/app/chroma_store
       - plagiarism_models:/root/.cache/torch/sentence_transformers
     environment:
-      - CELERY_BROKER_URL=redis://plagiarism_redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://plagiarism_redis:6379/1
-      - CHROMA_PERSIST_DIR=/app/chroma_store
-      - API_HOST=0.0.0.0
-      - API_PORT=8001
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:5000
-      - LOG_LEVEL=INFO
+      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
+      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
+      CHROMA_PERSIST_DIR: /app/chroma_store
+      API_HOST: 0.0.0.0
+      API_PORT: "8001"
+      APP_CORS_ORIGINS: "http://localhost:5173,http://localhost:5000,http://cms-client:5173"
+      LOG_LEVEL: INFO
     depends_on:
       plagiarism_redis:
         condition: service_healthy
@@ -120,12 +145,14 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 30s
     networks:
       - cms_network
+
+  # --- Application -------------------------------------------------------------
 
   server:
     build:
@@ -134,46 +161,69 @@ services:
     container_name: cms-server
     restart: unless-stopped
     depends_on:
-      - mongodb
-      - redis
-      - localstack
-      - plagiarism_api
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      plagiarism_api:
+        condition: service_started
+    # NOTE: docker-compose environment: always beats dotenv, so the vars below
+    # override whatever is in server/.env (which dotenv loads at runtime).
+    # Non-infra vars (SMTP, Google OAuth) come from server/.env via dotenv.
     environment:
       NODE_ENV: development
-      PORT: 5000
+      PORT: "5000"
+      # -- Database (local container, NOT Atlas) ------------------------------
       MONGODB_URI: mongodb://mongodb:27017/cms_v2
+      # -- Redis (container service name) ------------------------------------
       REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      # -- App ---------------------------------------------------------------
       CLIENT_URL: http://localhost:5173
-      JWT_ACCESS_SECRET: docker_access_secret_change_me
-      JWT_REFRESH_SECRET: docker_refresh_secret_change_me
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
-      OTP_EXPIRES_MINUTES: 10
+      OTP_EXPIRES_MINUTES: "10"
+      # -- LocalStack S3 (container endpoint) --------------------------------
       S3_ENDPOINT: http://localstack:4566
       S3_BUCKET: cms-buksu-uploads
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: test
       S3_SECRET_ACCESS_KEY: test
-      S3_FORCE_PATH_STYLE: true
+      S3_FORCE_PATH_STYLE: "true"
+      # -- Plagiarism Engine -------------------------------------------------
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
-      PLAGIARISM_ENGINE_TIMEOUT: 120000
-      PLAGIARISM_WARNING_THRESHOLD: 30
-      PLAGIARISM_REJECT_THRESHOLD: 50
-      PLAGIARISM_POLL_INTERVAL: 2000
-      PLAGIARISM_POLL_MAX_ATTEMPTS: 60
-      PLAGIARISM_RESULTS_TTL: 7776000
+      PLAGIARISM_ENGINE_TIMEOUT: "120000"
+      PLAGIARISM_WARNING_THRESHOLD: "30"
+      PLAGIARISM_REJECT_THRESHOLD: "50"
+      PLAGIARISM_POLL_INTERVAL: "2000"
+      PLAGIARISM_POLL_MAX_ATTEMPTS: "60"
+      PLAGIARISM_RESULTS_TTL: "7776000"
     ports:
       - "5000:5000"
-    networks:
-      - cms_network
-    command: npm run dev:server
     volumes:
       - .:/app
       - /app/node_modules
       - /app/server/node_modules
       - /app/client/node_modules
       - /app/shared/node_modules
+    command: npm run dev:server
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:5000/api/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - cms_network
 
   client:
     build:
@@ -182,21 +232,24 @@ services:
     container_name: cms-client
     restart: unless-stopped
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     environment:
       VITE_API_URL: http://localhost:5000/api
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"
-    command: npm run dev:client -- --host 0.0.0.0 --port 5173
     volumes:
       - .:/app
       - /app/node_modules
       - /app/server/node_modules
       - /app/client/node_modules
       - /app/shared/node_modules
+    command: npm run dev:client -- --host 0.0.0.0 --port 5173
     networks:
       - cms_network
+
+# --- Persistent Storage ---------------------------------------------------------
 
 volumes:
   mongodb_data:
@@ -207,6 +260,8 @@ volumes:
     driver: local
   plagiarism_models:
     driver: local
+
+# --- Network --------------------------------------------------------------------
 
 networks:
   cms_network:

@@ -9,3 +9,8 @@ export { CAPSTONE_PHASES, CAPSTONE_PHASE_VALUES } from './constants/capstonePhas
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
 export { DOCUMENT_TYPES, DOCUMENT_TYPE_VALUES } from './constants/documentTypes.js';
+export {
+  CAPSTONE_TITLES,
+  CAPSTONE_TITLE_VALUES,
+  CAPSTONE_TITLE_MAPPING,
+} from './constants/capstoneTitles.js';

@@ -10,6 +10,7 @@ import {
   PROJECT_STATUS_VALUES,
   PROJECT_STATUSES,
   PROTOTYPE_TYPE_VALUES,
+  CAPSTONE_TITLE_VALUES,
 } from '@cms/shared';
 
 const titleModificationRequestSchema = new mongoose.Schema(
@@ -129,6 +130,35 @@ const prototypeSchema = new mongoose.Schema(
   },
 );
 
+const memberRoleAssignmentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    professionalTitle: {
+      type: String,
+      enum: {
+        values: CAPSTONE_TITLE_VALUES,
+        message: 'Invalid professional capstone title',
+      },
+      required: true,
+    },
+    traditionalRole: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    responsibilities: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     teamId: {
@@ -162,6 +192,24 @@ const projectSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Academic year is required'],
       match: [/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'],
+    },
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      required: [true, 'Course is required'],
+    },
+    sectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Section',
+      required: [true, 'Section is required'],
+    },
+    memberRoleAssignments: {
+      type: [memberRoleAssignmentSchema],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
+        message: 'Member role assignments are required',
+      },
+      required: true,
     },
     capstonePhase: {
       type: Number,
@@ -254,6 +302,7 @@ projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
 projectSchema.index({ panelistIds: 1 });
 projectSchema.index({ academicYear: 1, projectStatus: 1 });
+projectSchema.index({ courseId: 1, sectionId: 1, academicYear: 1 });
 projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
 projectSchema.index({ isArchived: 1, academicYear: 1 });

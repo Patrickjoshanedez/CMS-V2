@@ -63,10 +63,16 @@ from .models import (
     SourceMetadata,
     TaskStatus,
 )
-from .tasks import celery_app, check_document_task, index_document_task
 
-logger = logging.getLogger(__name__)
+import os as _os
 _cfg = get_settings()
+
+# CORS origins read directly from env to bypass pydantic-settings v2 list-parsing
+_cors_raw = _os.environ.get(
+    "APP_CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5000,http://cms-client:5173",
+)
+_cors_origins: list[str] = [o.strip() for o in _cors_raw.split(",") if o.strip()]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -105,7 +111,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cfg.CORS_ORIGINS,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

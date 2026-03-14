@@ -20,6 +20,7 @@ import settingsRoutes from './modules/settings/settings.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
 import documentRoutes from './modules/documents/document.routes.js';
 import plagiarismRoutes from './modules/plagiarism/plagiarism.routes.js';
+import academicRoutes from './modules/academics/academic.routes.js';
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/submissions', plagiarismRoutes);
+app.use('/api/academics', academicRoutes);
 
 // ---------- 404 Handler ----------
 

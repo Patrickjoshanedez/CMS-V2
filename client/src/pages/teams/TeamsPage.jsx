@@ -25,7 +25,6 @@ import {
   useCreateTeam,
   useInviteMember,
   useAcceptInvite,
-  useLockTeam,
 } from '@/hooks/useTeams';
 import { toast } from 'sonner';
 
@@ -274,11 +273,6 @@ function InviteMemberForm({ teamId }) {
 function StudentTeamDetail({ team, userId }) {
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
 
-  const lockTeam = useLockTeam({
-    onSuccess: () => toast.success('Team locked successfully.'),
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to lock team.'),
-  });
-
   return (
     <div className="space-y-4">
       <Card>
@@ -342,24 +336,6 @@ function StudentTeamDetail({ team, userId }) {
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />
-            </div>
-          )}
-
-          {/* Lock Button (leader only, team not locked) */}
-          {isLeader && !team.isLocked && (
-            <div className="flex justify-end pt-2">
-              <Button
-                variant="outline"
-                onClick={() => lockTeam.mutate(team._id)}
-                disabled={lockTeam.isPending}
-              >
-                {lockTeam.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Lock className="mr-2 h-4 w-4" />
-                )}
-                Lock Team
-              </Button>
             </div>
           )}
         </CardContent>

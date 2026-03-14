@@ -39,7 +39,7 @@ const navItems = {
   ],
   // Instructor/admin-specific
   instructor: [
-    { label: 'Users', icon: Users, path: '/users' },
+    { label: 'Students', icon: Users, path: '/users' },
     { label: 'Teams', icon: UsersRound, path: '/teams' },
     { label: 'Projects', icon: FileText, path: '/projects' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },

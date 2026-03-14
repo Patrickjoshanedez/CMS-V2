@@ -23,6 +23,7 @@ const loginSchema = z.object({
  * gradient submit button, and stagger entry animation.
  */
 export default function LoginPage() {
+  const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
   const navigate = useNavigate();
   const { login, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -46,17 +47,23 @@ export default function LoginPage() {
       setGoogleError('');
       clearError();
 
-      const captchaToken = recaptchaRef.current?.getValue();
-      if (!captchaToken) {
-        setCaptchaError('Please complete the reCAPTCHA verification.');
-        return;
+      let captchaToken;
+
+      if (isRecaptchaEnabled) {
+        captchaToken = recaptchaRef.current?.getValue();
+        if (!captchaToken) {
+          setCaptchaError('Please complete the reCAPTCHA verification.');
+          return;
+        }
       }
 
-      await login({ ...data, captchaToken });
+      await login({ ...data, ...(isRecaptchaEnabled ? { captchaToken } : {}) });
       navigate('/dashboard', { replace: true });
     } catch {
       // Error is handled by the store
-      recaptchaRef.current?.reset();
+      if (isRecaptchaEnabled) {
+        recaptchaRef.current?.reset();
+      }
     }
   };
 
@@ -150,17 +157,21 @@ export default function LoginPage() {
         </div>
 
         {/* reCAPTCHA widget */}
-        <div className="auth-item mb-4 flex justify-center">
-          <ReCAPTCHA
-            ref={recaptchaRef}
-            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-            theme={theme === 'dark' ? 'dark' : 'light'}
-          />
-        </div>
-        {captchaError && (
-          <div className="auth-item mb-4">
-            <p className="text-sm text-destructive text-center">{captchaError}</p>
-          </div>
+        {isRecaptchaEnabled && (
+          <>
+            <div className="auth-item mb-4 flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                theme={theme === 'dark' ? 'dark' : 'light'}
+              />
+            </div>
+            {captchaError && (
+              <div className="auth-item mb-4">
+                <p className="text-sm text-destructive text-center">{captchaError}</p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Submit — gradient button */}

@@ -15,6 +15,11 @@ import { HTTP_STATUS } from '@cms/shared';
  * @see https://developers.google.com/recaptcha/docs/verify
  */
 const verifyCaptcha = async (req, _res, next) => {
+  if (!env.RECAPTCHA_ENABLED) {
+    delete req.body.captchaToken;
+    return next();
+  }
+
   const secretKey = env.RECAPTCHA_SECRET_KEY;
 
   // Skip verification if no secret key is configured (dev fallback)

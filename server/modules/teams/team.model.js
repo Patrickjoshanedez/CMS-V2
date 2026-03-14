@@ -31,6 +31,16 @@ const teamSchema = new mongoose.Schema(
       required: [true, 'Academic year is required'],
       match: [/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY (e.g., 2025-2026)'],
     },
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      default: null,
+    },
+    sectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Section',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -43,6 +53,8 @@ const teamSchema = new mongoose.Schema(
 teamSchema.index({ leaderId: 1 });
 teamSchema.index({ members: 1 });
 teamSchema.index({ academicYear: 1 });
+teamSchema.index({ courseId: 1, academicYear: 1 });
+teamSchema.index({ sectionId: 1 });
 
 // --- Virtual: member count ---
 teamSchema.virtual('memberCount').get(function () {
@@ -57,10 +69,7 @@ teamSchema.virtual('isFull').get(function () {
 // --- Pre-validate: enforce max members ---
 teamSchema.pre('validate', function (next) {
   if (this.members && this.members.length > MAX_TEAM_MEMBERS) {
-    this.invalidate(
-      'members',
-      `Team cannot have more than ${MAX_TEAM_MEMBERS} members`,
-    );
+    this.invalidate('members', `Team cannot have more than ${MAX_TEAM_MEMBERS} members`);
   }
   next();
 });

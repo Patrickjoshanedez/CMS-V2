@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TITLE_STATUS_VALUES, PROJECT_STATUS_VALUES, PROTOTYPE_TYPE_VALUES } from '@cms/shared';
+import { TITLE_STATUS_VALUES, PROJECT_STATUS_VALUES, CAPSTONE_TITLE_VALUES } from '@cms/shared';
 
 /* ───── Reusable field schemas ───── */
 
@@ -41,6 +41,15 @@ export const createProjectSchema = z.object({
     .optional()
     .default([]),
   academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
+  sectionId: objectId,
+  memberRoleAssignments: z
+    .array(
+      z.object({
+        userId: objectId,
+        professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
+      }),
+    )
+    .min(1, 'At least one member role assignment is required'),
 });
 
 /* ───── Update title (draft stage only) ───── */
@@ -132,7 +141,9 @@ export const setDeadlinesSchema = z.object({
   chapter5: z.coerce.date().optional(),
   defense: z.coerce.date().optional(),
   tba: z
-    .array(z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']))
+    .array(
+      z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']),
+    )
     .optional(),
 });
 
@@ -221,15 +232,24 @@ export const searchArchiveQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(50).optional().default(10),
   search: z.string().trim().max(200).optional(),
-  academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format').optional(),
+  academicYear: z
+    .string()
+    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
+    .optional(),
   keyword: z.string().trim().max(100).optional(),
 });
 
 /* ───── Generate report query ───── */
 
 export const reportQuerySchema = z.object({
-  academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format').optional(),
-  adviserId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId').optional(),
+  academicYear: z
+    .string()
+    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
+    .optional(),
+  adviserId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId')
+    .optional(),
 });
 
 /** Bulk-upload legacy document (Instructor only). */
@@ -237,7 +257,13 @@ export const bulkUploadSchema = z.object({
   title: z.string().trim().min(10, 'Title must be at least 10 characters').max(300),
   abstract: z.string().trim().max(500).optional().default(''),
   keywords: z.preprocess(
-    (val) => (typeof val === 'string' ? val.split(',').map((k) => k.trim()).filter(Boolean) : val),
+    (val) =>
+      typeof val === 'string'
+        ? val
+            .split(',')
+            .map((k) => k.trim())
+            .filter(Boolean)
+        : val,
     z.array(z.string().trim().min(1)).max(10).optional().default([]),
   ),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),

@@ -126,3 +126,16 @@ export const projectService = {
 export const dashboardService = {
   getStats: () => api.get('/dashboard/stats'),
 };
+
+/**
+ * Academic hierarchy API service — courses, sections, years, and drill-down hierarchy.
+ */
+
+export const academicService = {
+  listCourses: () => api.get('/academics/courses'),
+  createCourse: (data) => api.post('/academics/courses', data),
+  listSections: (params) => api.get('/academics/sections', { params }),
+  createSection: (data) => api.post('/academics/sections', data),
+  listAcademicYears: () => api.get('/academics/academic-years'),
+  getHierarchy: (params) => api.get('/academics/hierarchy', { params }),
+};

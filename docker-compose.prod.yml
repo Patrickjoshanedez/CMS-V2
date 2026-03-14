@@ -84,6 +84,18 @@ services:
     ports:
       - "8080:80"
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: cms-ngrok-prod
+    restart: unless-stopped
+    environment:
+      # Using the token you provided
+      NGROK_AUTHTOKEN: 3AvXoKOmRsdmlaBjBUhz9G8vzic_2a78X7Fyp9cmbXZ95B7ci
+    # This automatically routes public traffic to the client's internal port 80
+    command: "http client:80"
+    depends_on:
+      - client
+
   # === Plagiarism Detection Services (Production Configuration) ===
   
   plagiarism_api:
