@@ -1,0 +1,37 @@
+
+> server@0.1.0 test
+> vitest run tests/integration/submissions.test.js
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server[39m
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould allow a student to upload a chapter PDF
+[22m[39m[Plagiarism Worker] Processing job sync-69b5af4279685a5a4810121d for submission 69b5af4279685a5a4810121d
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should auto-increment version on re-upload
+[Plagiarism Sync] Failed for 69b5af4279685a5a4810121d: 
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould auto-increment version on re-upload
+[22m[39m[Plagiarism Worker] Processing job sync-69b5af4479685a5a48101281 for submission 69b5af4479685a5a48101281
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould auto-increment version on re-upload
+[22m[39m[Plagiarism Worker] Processing job sync-69b5af4479685a5a4810128f for submission 69b5af4479685a5a4810128f
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should reject upload from non-student role
+[Plagiarism Sync] Failed for 69b5af4479685a5a4810128f: 
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should reject upload from non-student role
+[Plagiarism Sync] Failed for 69b5af4479685a5a48101281: 
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould accept late submission with remarks
+[22m[39m[Plagiarism Worker] Processing job sync-69b5af5379685a5a481014ae for submission 69b5af5379685a5a481014ae
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should reject upload when project title is not approved
+[Plagiarism Sync] Failed for 69b5af5379685a5a481014ae: 
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:submissionId/review ΓÇö Review submission[2m > [22m[2mshould allow adviser to approve (auto-locks)
+[22m[39m{
+  submissionId: new ObjectId([32m'69b5af6779685a5a4810178d'[39m),
+  projectId: new ObjectId([32m'69b5af6779685a5a4810178a'[39m)
+} Submission approved - ready for corpus indexing
+

@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 
+export const createAcademicYearSchema = z.object({
+  year: z
+    .string({ required_error: 'Academic year is required' })
+    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
+});
+
 export const createCourseSchema = z.object({
   name: z
     .string({ required_error: 'Course name is required' })

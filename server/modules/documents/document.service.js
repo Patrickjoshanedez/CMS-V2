@@ -36,7 +36,8 @@ class DocumentService {
       title: data.title,
       description: data.description || '',
       googleDocId: data.googleDocId,
-      googleDocUrl: metadata.webViewLink || `https://docs.google.com/document/d/${data.googleDocId}/edit`,
+      googleDocUrl:
+        metadata.webViewLink || `https://docs.google.com/document/d/${data.googleDocId}/edit`,
       documentType: data.documentType,
       createdBy: userId,
     });
@@ -131,10 +132,25 @@ class DocumentService {
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
-    const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members');
+    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    // Adviser Gate: Restrict document generation based on project status and adviser assignment
+    if (!project.adviserId) {
+      throw new AppError(
+        'Documents cannot be generated: No adviser is assigned to this project.',
+        403,
+        'NO_ADVISER_ASSIGNED',
+      );
+    }
+    if (project.titleStatus !== 'approved') {
+      throw new AppError(
+        'Documents cannot be generated: The project title must be approved first.',
+        403,
+        'TITLE_NOT_APPROVED',
+      );
     }
 
     // Authorization: must be a team member, adviser, or instructor
@@ -161,9 +177,13 @@ class DocumentService {
       if (!template.isActive) {
         throw new AppError('This template is deactivated.', 400, 'TEMPLATE_INACTIVE');
       }
-      doc = await googleDocsService.createFromTemplate(template.googleDocId, docTitle);
+      doc = await googleDocsService.createFromTemplate(
+        template.googleDocId,
+        docTitle,
+        project.driveFolderId,
+      );
     } else {
-      doc = await googleDocsService.createBlankDocument(docTitle);
+      doc = await googleDocsService.createBlankDocument(docTitle, project.driveFolderId);
     }
 
     const projectDocument = await ProjectDocument.create({
@@ -187,8 +207,7 @@ class DocumentService {
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
-    const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members');
+    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -224,8 +243,7 @@ class DocumentService {
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
-    const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members');
+    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -256,8 +274,7 @@ class DocumentService {
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
-    const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members');
+    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -273,7 +290,10 @@ class DocumentService {
     try {
       await googleDocsService.trashDocument(document.googleDocId);
     } catch (err) {
-      console.warn(`[DocumentService] Failed to trash Google Doc ${document.googleDocId}:`, err.message);
+      console.warn(
+        `[DocumentService] Failed to trash Google Doc ${document.googleDocId}:`,
+        err.message,
+      );
     }
 
     await document.deleteOne();

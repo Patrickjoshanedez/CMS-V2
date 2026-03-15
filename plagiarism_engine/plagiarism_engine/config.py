@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     )
 
     # ─── ChromaDB ─────────────────────────────────────────────────────────────
+    CHROMA_HOST: str | None = Field(default=None, description="Hostname for ChromaDB HTTP client.")
+    CHROMA_PORT: int = Field(default=8000, description="Port for ChromaDB HTTP client.")
     CHROMA_PERSIST_DIR: Path = Field(
         default=Path("./chroma_store"),
         description="Directory where ChromaDB persists its indexes.",

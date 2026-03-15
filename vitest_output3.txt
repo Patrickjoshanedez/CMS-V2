@@ -1,0 +1,27 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2[39m
+
+ [31mΓ¥»[39m server/tests/integration/submissions.test.js [2m([22m[2m0 test[22m[2m)[22m
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Failed Suites 1 ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+ FAIL  server/tests/integration/submissions.test.js [ server/tests/integration/submissions.test.js ]
+Error: Missing required environment variable: MONGODB_URI
+ Γ¥» server/config/env.js:22:11
+     20| for (const varName of requiredVars) {
+     21|   if (!process.env[varName]) {
+     22|     throw new Error(`Missing required environment variable: ${varName}ΓÇª
+       |           ^
+     23|   }
+     24| }
+ Γ¥» server/app.js:8:1
+ Γ¥» server/tests/helpers.js:2:1
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/1]ΓÄ»
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 02:54:28
+[2m   Duration [22m 1.21s[2m (transform 205ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)[22m
+

@@ -283,6 +283,7 @@ class DeleteResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response body for ``GET /health``."""
+    model_config = { "protected_namespaces": () }
 
     status: str = "ok"
     chroma_collection: str

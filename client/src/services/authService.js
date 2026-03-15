@@ -137,5 +137,6 @@ export const academicService = {
   listSections: (params) => api.get('/academics/sections', { params }),
   createSection: (data) => api.post('/academics/sections', data),
   listAcademicYears: () => api.get('/academics/academic-years'),
+  createAcademicYear: (data) => api.post('/academics/academic-years', data),
   getHierarchy: (params) => api.get('/academics/hierarchy', { params }),
 };

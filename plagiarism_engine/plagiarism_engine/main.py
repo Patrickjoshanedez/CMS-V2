@@ -67,6 +67,9 @@ from .models import (
 import os as _os
 _cfg = get_settings()
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 # CORS origins read directly from env to bypass pydantic-settings v2 list-parsing
 _cors_raw = _os.environ.get(
     "APP_CORS_ORIGINS",

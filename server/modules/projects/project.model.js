@@ -288,6 +288,11 @@ const projectSchema = new mongoose.Schema(
       maxlength: [2000, 'Completion notes must not exceed 2000 characters'],
       default: null,
     },
+    // --- Google Drive Integration ---
+    driveFolderId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

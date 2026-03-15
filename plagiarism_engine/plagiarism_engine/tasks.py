@@ -58,6 +58,7 @@ celery_app.conf.update(
 
     # Reliability
     task_acks_late=True,
+    broker_connection_retry_on_startup=True,
     task_reject_on_worker_lost=True,
 
     # Result TTL — keep results for 24 hours so the CMS can poll at leisure

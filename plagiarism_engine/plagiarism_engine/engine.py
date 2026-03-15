@@ -86,6 +86,8 @@ def _get_chroma_store() -> ChromaStore:
     cfg = get_settings()
     return ChromaStore(
         persist_dir=cfg.CHROMA_PERSIST_DIR,
+        host=cfg.CHROMA_HOST,
+        port=cfg.CHROMA_PORT,
         collection_name=cfg.CHROMA_COLLECTION_NAME,
         hnsw_space=cfg.HNSW_SPACE,
         hnsw_m=cfg.HNSW_M,

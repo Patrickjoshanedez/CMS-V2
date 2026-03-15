@@ -8,6 +8,7 @@
  * S3 operations are mocked — we replace storageService methods to avoid
  * requiring real AWS credentials in the test environment.
  */
+import mongoose from 'mongoose';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createAuthenticatedUserWithRole } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
@@ -51,6 +52,8 @@ async function createProjectSetup(studentId, adviserId = null) {
 
   const project = await Project.create({
     teamId: team._id,
+    courseId: new mongoose.Types.ObjectId(),
+    sectionId: new mongoose.Types.ObjectId(),
     title: 'Test Capstone Project',
     abstract: 'A test project for submission tests.',
     keywords: ['test'],
@@ -58,6 +61,14 @@ async function createProjectSetup(studentId, adviserId = null) {
     titleStatus: TITLE_STATUSES.APPROVED,
     projectStatus: PROJECT_STATUSES.ACTIVE,
     adviserId: adviserId || undefined,
+    memberRoleAssignments: [
+      {
+        userId: studentId,
+        professionalTitle: 'Lead Developer',
+        traditionalRole: 'Programmer',
+        responsibilities: 'Core system logic',
+      },
+    ],
     deadlines: {
       chapter1: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       chapter2: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -125,6 +136,9 @@ describe('Submissions API — /api/submissions', () => {
       'panelist',
       { email: 'sub-panelist@test.com' },
     ));
+
+    if (!studentUser) console.error('STUDENT_USER_IS_NULL');
+    if (!adviserUser) console.error('ADVISER_USER_IS_NULL');
 
     // Set up project with adviser
     ({ team: _team, project } = await createProjectSetup(studentUser._id, adviserUser._id));

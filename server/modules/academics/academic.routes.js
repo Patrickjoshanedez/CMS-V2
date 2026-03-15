@@ -5,6 +5,7 @@ import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import { ROLES } from '@cms/shared';
 import {
+  createAcademicYearSchema,
   createCourseSchema,
   createSectionSchema,
   listSectionsQuerySchema,
@@ -22,6 +23,13 @@ router.get(
   academicController.listSections,
 );
 router.get('/academic-years', academicController.listAcademicYears);
+
+router.post(
+  '/academic-years',
+  authorize(ROLES.INSTRUCTOR),
+  validate(createAcademicYearSchema),
+  academicController.createAcademicYear,
+);
 
 router.post(
   '/courses',

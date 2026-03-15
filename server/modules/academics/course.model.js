@@ -33,7 +33,6 @@ const courseSchema = new mongoose.Schema(
   },
 );
 
-courseSchema.index({ code: 1 }, { unique: true });
 courseSchema.index({ name: 1, isActive: 1 });
 
 const Course = mongoose.model('Course', courseSchema);

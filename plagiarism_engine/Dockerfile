@@ -56,17 +56,23 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source
+# Cache busted 1
 COPY plagiarism_engine/ /app/plagiarism_engine/
 
 # Create directories for ChromaDB persistence and model cache
-RUN mkdir -p /app/chroma_store /root/.cache/torch/sentence_transformers \
+RUN mkdir -p /app/chroma_store /app/.cache/torch/sentence_transformers \
     && chown -R appuser:appuser /app
 
 # Make the venv the default Python
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HF_HOME="/app/.cache/huggingface" \
+    TORCH_HOME="/app/.cache/torch"
+
+# Switch to non-root user
+USER appuser
 
 # Port the API listens on
 EXPOSE 8001
@@ -77,3 +83,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 # Default command — override in docker-compose.yml per service role
 CMD ["uvicorn", "plagiarism_engine.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+
+# Dummy cache breaker 1
+

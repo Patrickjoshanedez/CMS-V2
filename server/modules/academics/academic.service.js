@@ -1,5 +1,6 @@
 import Course from './course.model.js';
 import Section from './section.model.js';
+import AcademicYear from './academicYear.model.js';
 import Team from '../teams/team.model.js';
 import AppError from '../../utils/AppError.js';
 
@@ -57,9 +58,28 @@ class AcademicService {
   }
 
   async listAcademicYears() {
-    const years = await Section.distinct('academicYear', { isActive: true });
+    const sectionYears = await Section.distinct('academicYear', { isActive: true });
+    const explicitYears = await AcademicYear.distinct('year', { isActive: true });
+
+    // Merge them and delete duplicates just in case there are years used in sections but not explicitly created
+    const years = [...new Set([...sectionYears, ...explicitYears])];
     years.sort((a, b) => b.localeCompare(a));
+
     return { academicYears: years };
+  }
+
+  async createAcademicYear(instructorId, data) {
+    const existing = await AcademicYear.findOne({ year: data.year });
+    if (existing) {
+      throw new AppError('Academic year already exists.', 409, 'DUPLICATE_YEAR');
+    }
+
+    const yearDoc = await AcademicYear.create({
+      year: data.year,
+      createdBy: instructorId,
+    });
+
+    return { academicYear: yearDoc.year };
   }
 
   async getHierarchy(query) {

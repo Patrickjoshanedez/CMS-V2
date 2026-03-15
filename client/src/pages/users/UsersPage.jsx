@@ -19,6 +19,7 @@ import {
   FolderTree,
   BookOpen,
   Layers,
+  CalendarDays,
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
@@ -29,6 +30,7 @@ import {
   useCourses,
   useCreateCourse,
   useCreateSection,
+  useCreateAcademicYear,
   useSections,
 } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -82,6 +84,8 @@ function HierarchyView() {
   const [courseName, setCourseName] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [sectionName, setSectionName] = useState('');
+  const [newSectionYear, setNewSectionYear] = useState('');
+  const [newAcademicYear, setNewAcademicYear] = useState('');
 
   const { data: courses = [] } = useCourses();
   const { data: years = [] } = useAcademicYears();
@@ -111,7 +115,14 @@ function HierarchyView() {
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to create course.'),
   });
-
+  const createAcademicYear = useCreateAcademicYear({
+    onSuccess: () => {
+      toast.success('Academic Year created successfully');
+      setNewAcademicYear('');
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to create academic year.'),
+  });
   const createSection = useCreateSection({
     onSuccess: () => {
       toast.success('Section created successfully.');
@@ -129,12 +140,17 @@ function HierarchyView() {
     createCourse.mutate({ name: courseName.trim(), code: courseCode.trim() });
   };
 
+  const onCreateAcademicYear = (event) => {
+    event.preventDefault();
+    createAcademicYear.mutate({ year: newAcademicYear.trim() });
+  };
+
   const onCreateSection = (event) => {
     event.preventDefault();
     createSection.mutate({
       name: sectionName.trim(),
       courseId: selectedCourseId,
-      academicYear: selectedAcademicYear,
+      academicYear: newSectionYear.trim(),
     });
   };
 
@@ -212,7 +228,7 @@ function HierarchyView() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <form onSubmit={onCreateCourse} className="space-y-2 rounded-md border p-3">
               <Label className="flex items-center gap-2 text-sm">
                 <BookOpen className="h-4 w-4" />
@@ -235,6 +251,27 @@ function HierarchyView() {
               <Button type="submit" size="sm" disabled={createCourse.isPending}>
                 {createCourse.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Course
+              </Button>
+            </form>
+
+            <form onSubmit={onCreateAcademicYear} className="space-y-2 rounded-md border p-3">
+              <Label className="flex items-center gap-2 text-sm">
+                <CalendarDays className="h-4 w-4" />
+                Add Academic Year
+              </Label>
+              <div className="grid gap-2">
+                <Input
+                  value={newAcademicYear}
+                  onChange={(e) => setNewAcademicYear(e.target.value)}
+                  placeholder="2025-2026"
+                  pattern="\d{4}-\d{4}"
+                  title="Format: YYYY-YYYY"
+                  required
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={createAcademicYear.isPending}>
+                {createAcademicYear.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Year
               </Button>
             </form>
 
@@ -265,8 +302,8 @@ function HierarchyView() {
                 </select>
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={selectedAcademicYear}
-                  onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                  value={newSectionYear}
+                  onChange={(e) => setNewSectionYear(e.target.value)}
                   required
                 >
                   <option value="">Select Year</option>
@@ -280,7 +317,7 @@ function HierarchyView() {
               <Button
                 type="submit"
                 size="sm"
-                disabled={createSection.isPending || !selectedCourseId || !selectedAcademicYear}
+                disabled={createSection.isPending || !selectedCourseId || !newSectionYear}
               >
                 {createSection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Section

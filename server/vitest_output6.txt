@@ -1,0 +1,25 @@
+
+> server@0.1.0 test
+> vitest run tests/integration/submissions.test.js
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server[39m
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould allow a student to upload a chapter PDF
+[22m[39m[Plagiarism Worker] Processing job sync-69b5b049df5a2915524a8bf2 for submission 69b5b049df5a2915524a8bf2
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should auto-increment version on re-upload
+[Plagiarism Sync] Failed for 69b5b049df5a2915524a8bf2: 
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould auto-increment version on re-upload
+[22m[39m[Plagiarism Worker] Processing job sync-69b5b04cdf5a2915524a8c56 for submission 69b5b04cdf5a2915524a8c56
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould auto-increment version on re-upload
+[22m[39m[Plagiarism Worker] Processing job sync-69b5b04cdf5a2915524a8c64 for submission 69b5b04cdf5a2915524a8c64
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should reject upload from non-student role
+[Plagiarism Sync] Failed for 69b5b04cdf5a2915524a8c64: 
+
+stderr | tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should reject upload from non-student role
+[Plagiarism Sync] Failed for 69b5b04cdf5a2915524a8c56: 
+

@@ -20,6 +20,8 @@ celery[redis]==5.4.0               # Celery + Redis transport
 redis==5.0.6                       # Redis client used by Celery
 
 # ── Embeddings ────────────────────────────────────────────────────────────────
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 sentence-transformers==3.0.1       # all-MiniLM-L6-v2 and friends
 torch==2.3.1                       # CPU build; replace with torch+cu11x for GPU
 transformers==4.43.3               # Required by sentence-transformers

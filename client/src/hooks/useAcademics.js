@@ -62,6 +62,13 @@ export function useCreateSection(options = {}) {
   }, options);
 }
 
+export function useCreateAcademicYear(options = {}) {
+  return useAcademicMutation(async (payload) => {
+    const res = await academicService.createAcademicYear(payload);
+    return res.data;
+  }, options);
+}
+
 export function useAcademicYears(options = {}) {
   return useQuery({
     queryKey: academicKeys.years(),

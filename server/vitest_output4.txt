@@ -1,0 +1,24 @@
+
+> server@0.1.0 test
+> vitest run tests/integration/submissions.test.js -t should allow a student to upload a chapter PDF
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server[39m
+
+[90mstdout[2m | tests/integration/submissions.test.js[2m > [22m[2mSubmissions API ΓÇö /api/submissions[2m > [22m[2mPOST /:projectId/chapters ΓÇö Upload chapter[2m > [22m[2mshould allow a student to upload a chapter PDF
+[22m[39m[Plagiarism Worker] Processing job sync-69b5af268b7a76fb60736af8 for submission 69b5af268b7a76fb60736af8
+
+stderr | tests/integration/submissions.test.js
+[Plagiarism Sync] Failed for 69b5af268b7a76fb60736af8: 
+
+stderr | tests/integration/submissions.test.js
+[SubmissionService] Sync plagiarism fallback failed: Client must be connected before running operations
+
+ [32mΓ£ô[39m tests/integration/submissions.test.js [2m([22m[2m48 tests[22m[2m | [22m[33m47 skipped[39m[2m)[22m[33m 3646[2mms[22m[39m
+       [33m[2mΓ£ô[22m[39m should allow a student to upload a chapter PDF [33m 2808[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[2m | [22m[33m47 skipped[39m[90m (48)[39m
+[2m   Start at [22m 02:55:25
+[2m   Duration [22m 8.78s[2m (transform 1.06s, setup 946ms, import 3.79s, tests 3.65s, environment 0ms)[22m
+

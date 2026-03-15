@@ -113,5 +113,10 @@ export async function createAuthenticatedUserWithRole(role, overrides = {}) {
   });
 
   const user = await User.findOne({ email: userData.email });
+  if (!user) {
+    console.error('Failed to create/find user! Request payload:', userData);
+    const checkRes = await request.post('/api/auth/register').send(userData);
+    console.error('Re-trying registration to get error:', checkRes.body);
+  }
   return { agent, user };
 }

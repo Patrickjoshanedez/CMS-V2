@@ -1,0 +1,893 @@
+TITLE: should return team and project info when student has a team
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return system-wide counts and aggregations
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return assigned projects and pending reviews
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return assigned projects for panelist
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should upload final academic paper successfully (201)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should auto-increment version on re-upload
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if not a student (403)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if project not in phase 4
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if title not approved
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if user is not team member (403)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should require remarks for late submission
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should accept late submission with remarks
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should call storageService.uploadFile
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should upload final journal paper successfully (201)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should auto-increment version independently from academic
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if not a student (403)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if project not in phase 4
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject if title not approved
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create a draft evaluation with default criteria for assigned panelist
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return existing evaluation on subsequent call
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject non-assigned panelist
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject non-panelist role (student)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject invalid defense type
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should update criteria scores and overall comment
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject update to non-draft evaluation
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject update by different panelist
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject update by student
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should submit evaluation with all criteria scored
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject submission with unscored criteria
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject submission when score exceeds maxScore
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject double submission
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create notification for adviser on submission
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should release all submitted evaluations (instructor)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject release by non-instructor
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return 0 releasedCount if none submitted
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should show all evaluations to instructor
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should show only released evaluations to student
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should include summary statistics
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return evaluation details for adviser
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject student access
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should process a submission and store originality results
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should handle very short text by scoring 100% originality
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should detect similarity against corpus from another project
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create a notification after successful check
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should mark submission as failed when download errors
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return plagiarism status for a valid submission
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return queued status for a newly submitted document
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return 404 for non-existent submission ID
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return 400 for invalid submission ID format
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow adviser to check plagiarism status
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should require authentication
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should set plagiarismResult.status to QUEUED on chapter upload
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow a team leader to create a project
+ERROR: AssertionError: expected 400 to be 201 // Object.is equality
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:90:26
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///C:/Users/patrick%20josh/Desktop/BukSU/Capstone/CMS%20V2/node_modules/@vitest/runner/dist/index.js:1258:20
+---
+TITLE: should reject duplicate project for same team
+ERROR: AssertionError: expected 400 to be 409 // Object.is equality
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:109:26
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///C:/Users/patrick%20josh/Desktop/BukSU/Capstone/CMS%20V2/node_modules/@vitest/runner/dist/index.js:1258:20
+---
+TITLE: should return similar projects when title overlaps
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow team leader to submit title for approval
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:148:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to approve a submitted title
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:148:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to reject a submitted title
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:148:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow student to revise and resubmit after rejection
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:148:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should prevent student from approving a title
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:148:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow team leader to request title modification
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:215:39
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to resolve (approve) the modification
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:215:39
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to deny the modification
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:215:39
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to assign an adviser
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to assign a panelist
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject assigning more than 3 panelists
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to remove a panelist
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should prevent student from assigning adviser
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow panelist to self-select into a project
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:276:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to set deadlines
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:362:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject deadlines from student role
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:362:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to reject a project
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:395:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should prevent student from rejecting a project
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:395:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should return the student's own project via /me
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:422:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow faculty to get a project by ID
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:422:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to list projects
+ERROR: TypeError: Cannot read properties of undefined (reading 'project')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:422:33
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject list from student role
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow advancing from phase 1 if proposal is not approved
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should advance from phase 1 to 2 when proposal is approved
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should advance from phase 2 to 3 without proposal requirement
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow advancing beyond phase 4
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow student to advance phase
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should add a link prototype successfully
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject link with invalid URL
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject link with title too short
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow link prototype during phase 1
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow instructor to add a link prototype
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should return an empty array when no prototypes exist
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should return prototypes after adding a link
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to view prototypes
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should remove a link prototype successfully
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should return 404 for non-existent prototype ID
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT allow instructor to remove a prototype
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/projects.test.js:80:47
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should archive project with both final papers submitted (instructor)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when academic version is missing
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when journal version is missing
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archiving already archived project
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive by non-instructor (student)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when plagiarism check is pending
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when plagiarism check failed
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when originality score is below threshold
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject archive when plagiarism check is still processing
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return archived projects
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should filter by academic year
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should set canViewAcademic=false for students
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should set canViewAcademic=true for instructors
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should upload certificate for archived project (instructor)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject upload for non-archived project
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject upload by non-instructor
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should call storageService.uploadFile
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return signed URL for project with certificate
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should reject when no certificate uploaded
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return report grouped by academic year (instructor)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should filter by academic year
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should bulk upload a legacy document (instructor)
+ERROR: AssertionError: expected 400 to be 201 // Object.is equality
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/sprint11-projects.test.js:622:26
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///C:/Users/patrick%20josh/Desktop/BukSU/Capstone/CMS%20V2/node_modules/@vitest/runner/dist/index.js:1258:20
+---
+TITLE: should create an archived project record
+ERROR: AssertionError: expected null not to be null
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/sprint11-projects.test.js:636:27
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at file:///C:/Users/patrick%20josh/Desktop/BukSU/Capstone/CMS%20V2/node_modules/@vitest/runner/dist/index.js:1258:20
+---
+TITLE: should reject annotation from student role
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow the annotation author to remove it
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to remove any annotation
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject student attempting to review a submission
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject panelist attempting to unlock a submission
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject student attempting to annotate
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should compile proposal when all chapters 1-3 are locked
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should auto-increment proposal version on re-upload
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject if Chapter 1 is not locked
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject if any chapter is pending (not locked)
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject non-student role (adviser)
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject non-student role (panelist)
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject when project is not active
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject when title is not approved
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should require remarks for late proposal submission
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should accept late proposal with remarks
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should create notification for adviser on proposal upload
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should transition project to PROPOSAL_APPROVED when proposal is approved
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT transition project when proposal is rejected
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should NOT transition project when revisions are requested
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should generate notification with proposal label on approval
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should allow instructor to approve proposal and transition project
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should reject proposal review from student role
+ERROR: TypeError: Cannot read properties of null (reading '_id')
+    at C:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server/tests/integration/submissions.test.js:142:70
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+---
+TITLE: should return similar titles when input is ~85% match
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return empty similar list for a completely unique title
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return 403 when title is approved (locked)
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should return 403 on revise when title is approved
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should block approval if plagiarism check not completed
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should block approval if plagiarism check still pending
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should block approval if plagiarism check failed
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should block approval if similarity exceeds threshold
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow approval if similarity below threshold
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow approval if similarity exactly at threshold
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should use configurable threshold from environment
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow revisions request without plagiarism check
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should allow rejection without plagiarism check
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should lock submission after approval
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should prevent re-review of locked submission
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should transition project status when proposal approved
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should not transition project if not proposal type
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create notification when submission approved
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create notification when revisions requested
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---
+TITLE: should create notification when submission rejected
+ERROR: ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+    at model.Document.invalidate (C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3381:32)
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\document.js:3142:17
+    at C:\Users\patrick josh\Desktop\BukSU\Capstone\CMS V2\node_modules\mongoose\lib\schemaType.
+---

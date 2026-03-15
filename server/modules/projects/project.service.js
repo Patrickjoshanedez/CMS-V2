@@ -8,6 +8,7 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
+import googleDocsService from '../../services/google-docs.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
@@ -463,6 +464,17 @@ class ProjectService {
     }
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
+
+    // Create a unique Google Drive folder for the project workspace
+    try {
+      const folderName = `Project Workspace - ${project.title || project._id}`;
+      const folderId = await googleDocsService.createFolder(folderName);
+      project.driveFolderId = folderId;
+    } catch (error) {
+      console.error('Failed to create Drive folder for project:', error);
+      // Log the error but don't fail the complete approval process
+    }
+
     await project.save();
 
     // Notify team members

@@ -49,6 +49,16 @@ export const listAcademicYears = catchAsync(async (_req, res) => {
   });
 });
 
+export const createAcademicYear = catchAsync(async (req, res) => {
+  const { academicYear } = await academicService.createAcademicYear(req.user._id, req.body.year);
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Academic year created successfully.',
+    data: { academicYear },
+  });
+});
+
 export const getHierarchy = catchAsync(async (req, res) => {
   const { hierarchy } = await academicService.getHierarchy(req.query);
 

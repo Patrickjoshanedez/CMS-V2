@@ -1,0 +1,69 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/patrick josh/Desktop/BukSU/Capstone/CMS V2/server[39m
+
+ [31mΓ¥»[39m tests/integration/submissions.test.js [2m([22m[2m48 tests[22m[2m | [22m[31m1 failed[39m[2m | [22m[33m47 skipped[39m[2m)[22m[33m 3622[2mms[22m[39m
+[31m       [31m├ù[31m should allow a student to upload a chapter PDF[39m[33m 2857[2mms[22m[39m
+       [2m[90mΓåô[39m[22m should auto-increment version on re-upload
+       [2m[90mΓåô[39m[22m should reject upload from non-student role
+       [2m[90mΓåô[39m[22m should reject upload when no file is attached
+       [2m[90mΓåô[39m[22m should reject upload with invalid chapter number
+       [2m[90mΓåô[39m[22m should reject upload to locked chapter
+       [2m[90mΓåô[39m[22m should require remarks for late submissions
+       [2m[90mΓåô[39m[22m should accept late submission with remarks
+       [2m[90mΓåô[39m[22m should reject upload when project title is not approved
+       [2m[90mΓåô[39m[22m should get a single submission by ID
+       [2m[90mΓåô[39m[22m should list submissions by project
+       [2m[90mΓåô[39m[22m should filter submissions by chapter
+       [2m[90mΓåô[39m[22m should return chapter version history
+       [2m[90mΓåô[39m[22m should return latest chapter submission
+       [2m[90mΓåô[39m[22m should return a pre-signed URL
+       [2m[90mΓåô[39m[22m should allow adviser to approve (auto-locks)
+       [2m[90mΓåô[39m[22m should allow instructor to request revisions
+       [2m[90mΓåô[39m[22m should allow adviser to reject
+       [2m[90mΓåô[39m[22m should reject review from student role
+       [2m[90mΓåô[39m[22m should reject review of locked submission
+       [2m[90mΓåô[39m[22m should allow adviser to unlock a locked submission
+       [2m[90mΓåô[39m[22m should reject unlock from student role
+       [2m[90mΓåô[39m[22m should reject unlock of non-locked submission
+       [2m[90mΓåô[39m[22m should allow adviser to add an annotation
+       [2m[90mΓåô[39m[22m should allow instructor to add an annotation
+       [2m[90mΓåô[39m[22m should reject annotation from student role
+       [2m[90mΓåô[39m[22m should allow the annotation author to remove it
+       [2m[90mΓåô[39m[22m should allow instructor to remove any annotation
+       [2m[90mΓåô[39m[22m should reject student attempting to review a submission
+       [2m[90mΓåô[39m[22m should reject panelist attempting to unlock a submission
+       [2m[90mΓåô[39m[22m should reject student attempting to annotate
+       [2m[90mΓåô[39m[22m should compile proposal when all chapters 1-3 are locked
+       [2m[90mΓåô[39m[22m should auto-increment proposal version on re-upload
+       [2m[90mΓåô[39m[22m should reject if Chapter 1 is not locked
+       [2m[90mΓåô[39m[22m should reject if any chapter is pending (not locked)
+       [2m[90mΓåô[39m[22m should reject non-student role (adviser)
+       [2m[90mΓåô[39m[22m should reject non-student role (panelist)
+       [2m[90mΓåô[39m[22m should reject when project is not active
+       [2m[90mΓåô[39m[22m should reject when title is not approved
+       [2m[90mΓåô[39m[22m should require remarks for late proposal submission
+       [2m[90mΓåô[39m[22m should accept late proposal with remarks
+       [2m[90mΓåô[39m[22m should create notification for adviser on proposal upload
+       [2m[90mΓåô[39m[22m should transition project to PROPOSAL_APPROVED when proposal is approved
+       [2m[90mΓåô[39m[22m should NOT transition project when proposal is rejected
+       [2m[90mΓåô[39m[22m should NOT transition project when revisions are requested
+       [2m[90mΓåô[39m[22m should generate notification with proposal label on approval
+       [2m[90mΓåô[39m[22m should allow instructor to approve proposal and transition project
+       [2m[90mΓåô[39m[22m should reject proposal review from student role
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Failed Tests 1 ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+ FAIL  tests/integration/submissions.test.js > Submissions API ΓÇö /api/submissions > POST /:projectId/chapters ΓÇö Upload chapter > should allow a student to upload a chapter PDF
+ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, memberRoleAssignments: Member role assignments are required
+ Γ¥» model.Document.invalidate ../node_modules/mongoose/lib/document.js:3381:32
+ Γ¥» ../node_modules/mongoose/lib/document.js:3142:17
+ Γ¥» ../node_modules/mongoose/lib/schemaType.js:1446:9
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/1]ΓÄ»
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m47 skipped[39m[90m (48)[39m
+[2m   Start at [22m 02:35:30
+[2m   Duration [22m 8.16s[2m (transform 960ms, setup 735ms, import 3.52s, tests 3.62s, environment 0ms)[22m
+

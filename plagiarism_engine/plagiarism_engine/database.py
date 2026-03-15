@@ -87,6 +87,8 @@ class ChromaStore:
         hnsw_m: int = 16,
         hnsw_ef_construction: int = 200,
         hnsw_ef_search: int = 100,
+        host: str | None = None,
+        port: int | None = None,
     ) -> None:
         try:
             import chromadb
@@ -96,12 +98,18 @@ class ChromaStore:
                 "chromadb is required.  Install with: pip install chromadb"
             ) from exc
 
-        persist_dir.mkdir(parents=True, exist_ok=True)
-
-        self._client = chromadb.PersistentClient(
-            path=str(persist_dir),
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
+        if host:
+            self._client = chromadb.HttpClient(
+                host=host,
+                port=port or 8000,
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
+        else:
+            persist_dir.mkdir(parents=True, exist_ok=True)
+            self._client = chromadb.PersistentClient(
+                path=str(persist_dir),
+                settings=ChromaSettings(anonymized_telemetry=False),
+            )
 
         # HNSW metadata is applied at *collection creation time* only.
         # If the collection already exists, the existing HNSW config is used.
@@ -109,9 +117,9 @@ class ChromaStore:
             name=collection_name,
             metadata={
                 "hnsw:space": hnsw_space,
-                "hnsw:M": str(hnsw_m),
-                "hnsw:ef_construction": str(hnsw_ef_construction),
-                "hnsw:ef": str(hnsw_ef_search),
+                "hnsw:M": hnsw_m,
+                "hnsw:construction_ef": hnsw_ef_construction,
+                "hnsw:search_ef": hnsw_ef_search,
             },
         )
         self._collection_name = collection_name
@@ -371,3 +379,4 @@ class ChromaStore:
         doc_ids = {m.get("document_id", "") for m in results["metadatas"]}
         doc_ids.discard("")
         return sorted(doc_ids)
+

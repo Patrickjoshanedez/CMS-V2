@@ -38,17 +38,21 @@ class GoogleDocsService {
   async _ensureInitialized() {
     if (this._initialized) return;
 
-    const hasOAuth2 =
-      !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN);
+    const hasOAuth2 = !!(
+      env.GOOGLE_CLIENT_ID &&
+      env.GOOGLE_CLIENT_SECRET &&
+      env.GOOGLE_REFRESH_TOKEN
+    );
 
-    const hasServiceAccount =
-      !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+    const hasServiceAccount = !!(
+      env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    );
 
     if (!hasOAuth2 && !hasServiceAccount) {
       throw new AppError(
         'Google Docs integration is not configured. ' +
-        'Provide either (GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + REFRESH_TOKEN) ' +
-        'or (GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) in your .env file.',
+          'Provide either (GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + REFRESH_TOKEN) ' +
+          'or (GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) in your .env file.',
         503,
         'GOOGLE_DOCS_NOT_CONFIGURED',
       );
@@ -78,7 +82,7 @@ class GoogleDocsService {
       // without Domain-Wide Delegation (Google Workspace only).
       auth = new google.auth.JWT({
         email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        key:   env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        key: env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
         scopes: [
           'https://www.googleapis.com/auth/documents',
           'https://www.googleapis.com/auth/drive',
@@ -89,7 +93,7 @@ class GoogleDocsService {
       await auth.authorize();
     }
 
-    this.docs  = google.docs({ version: 'v1', auth });
+    this.docs = google.docs({ version: 'v1', auth });
     this.drive = google.drive({ version: 'v3', auth });
     this._initialized = true;
   }
@@ -99,10 +103,14 @@ class GoogleDocsService {
    * @returns {boolean}
    */
   isConfigured() {
-    const hasOAuth2 =
-      !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN);
-    const hasServiceAccount =
-      !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+    const hasOAuth2 = !!(
+      env.GOOGLE_CLIENT_ID &&
+      env.GOOGLE_CLIENT_SECRET &&
+      env.GOOGLE_REFRESH_TOKEN
+    );
+    const hasServiceAccount = !!(
+      env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    );
     return hasOAuth2 || hasServiceAccount;
   }
 
@@ -112,11 +120,15 @@ class GoogleDocsService {
    */
   getAuthStrategy() {
     if (!this._initialized) {
-      const hasOAuth2 =
-        !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_REFRESH_TOKEN);
+      const hasOAuth2 = !!(
+        env.GOOGLE_CLIENT_ID &&
+        env.GOOGLE_CLIENT_SECRET &&
+        env.GOOGLE_REFRESH_TOKEN
+      );
       if (hasOAuth2) return 'oauth2';
-      const hasServiceAccount =
-        !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+      const hasServiceAccount = !!(
+        env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+      );
       if (hasServiceAccount) return 'service-account';
       return 'none';
     }
@@ -124,12 +136,45 @@ class GoogleDocsService {
   }
 
   /**
+   * Create a folder in Google Drive.
+   * @param {string} folderName - Name of the folder to create.
+   * @param {string} [parentFolderId] - ID of the parent folder (defaults to GOOGLE_DRIVE_FOLDER_ID environment variable).
+   * @returns {Promise<string>} The ID of the newly created folder.
+   */
+  async createFolder(folderName, parentFolderId = env.GOOGLE_DRIVE_FOLDER_ID) {
+    await this._ensureInitialized();
+
+    try {
+      const fileMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+      };
+
+      if (parentFolderId) {
+        fileMetadata.parents = [parentFolderId];
+      }
+
+      const response = await this.drive.files.create({
+        requestBody: fileMetadata,
+        fields: 'id',
+      });
+
+      return response.data.id;
+    } catch (error) {
+      throw this._wrapError(error, 'Failed to create Google Drive folder');
+    }
+  }
+
+  /**
    * Create a blank Google Doc in the configured Drive folder.
    * @param {string} title - Document title.
+   * @param {string} [folderId] - ID of the folder where the document should be created.
    * @returns {Promise<{ docId: string, docUrl: string }>}
    */
-  async createBlankDocument(title) {
+  async createBlankDocument(title, folderId) {
     await this._ensureInitialized();
+
+    const parentId = folderId || env.GOOGLE_DRIVE_FOLDER_ID;
 
     try {
       // Use drive.files.create() with the Google Docs MIME type rather than
@@ -140,7 +185,7 @@ class GoogleDocsService {
         requestBody: {
           name: title,
           mimeType: 'application/vnd.google-apps.document',
-          ...(env.GOOGLE_DRIVE_FOLDER_ID && { parents: [env.GOOGLE_DRIVE_FOLDER_ID] }),
+          ...(parentId && { parents: [parentId] }),
         },
         fields: 'id',
       });
@@ -163,19 +208,20 @@ class GoogleDocsService {
    * Copy an existing Google Doc (template) to create a new document.
    * @param {string} templateDocId - The Google Doc ID of the template to copy.
    * @param {string} title - Title for the new document copy.
+   * @param {string} [folderId] - ID of the folder where the document should be created.
    * @returns {Promise<{ docId: string, docUrl: string }>}
    */
-  async createFromTemplate(templateDocId, title) {
+  async createFromTemplate(templateDocId, title, folderId) {
     await this._ensureInitialized();
+
+    const parentId = folderId || env.GOOGLE_DRIVE_FOLDER_ID;
 
     try {
       const response = await this.drive.files.copy({
         fileId: templateDocId,
         requestBody: {
           name: title,
-          ...(env.GOOGLE_DRIVE_FOLDER_ID && {
-            parents: [env.GOOGLE_DRIVE_FOLDER_ID],
-          }),
+          ...(parentId && { parents: [parentId] }),
         },
       });
 
@@ -321,12 +367,7 @@ class GoogleDocsService {
   async listFilesInFolder(folderId, options = {}) {
     await this._ensureInitialized();
 
-    const {
-      pageSize = 50,
-      pageToken,
-      mimeType,
-      orderBy = 'name',
-    } = options;
+    const { pageSize = 50, pageToken, mimeType, orderBy = 'name' } = options;
 
     // Build the query: files inside the folder, not trashed
     let q = `'${folderId}' in parents and trashed = false`;
@@ -616,7 +657,10 @@ class GoogleDocsService {
       });
     } catch (error) {
       // Non-critical — log but don't fail the operation
-      console.warn(`[GoogleDocsService] Failed to move file ${fileId} to folder ${folderId}:`, error.message);
+      console.warn(
+        `[GoogleDocsService] Failed to move file ${fileId} to folder ${folderId}:`,
+        error.message,
+      );
     }
   }
 
@@ -633,7 +677,11 @@ class GoogleDocsService {
     const status = error.code || error.response?.status || 500;
     const message = error.errors?.[0]?.message || error.message || 'Unknown Google API error';
 
-    return new AppError(`${context}: ${message}`, status >= 100 && status < 600 ? status : 500, 'GOOGLE_API_ERROR');
+    return new AppError(
+      `${context}: ${message}`,
+      status >= 100 && status < 600 ? status : 500,
+      'GOOGLE_API_ERROR',
+    );
   }
 }
 
