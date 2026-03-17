@@ -56,6 +56,22 @@ function useUserMutation(mutationFn, userOptions = {}) {
 /* ────────── Mutation Hooks ────────── */
 
 /**
+ * Fetch all active instructors (any authenticated user).
+ * Used in student profile setup to pick an instructor.
+ */
+export function useInstructors(options = {}) {
+  return useQuery({
+    queryKey: [...userKeys.all, 'instructors'],
+    queryFn: async () => {
+      const { data } = await userService.listInstructors();
+      return data.data.instructors;
+    },
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+}
+
+/**
  * Create a new user (Instructor-only).
  */
 export function useCreateUser(options = {}) {

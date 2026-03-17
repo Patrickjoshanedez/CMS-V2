@@ -88,15 +88,27 @@ export default function Header({ onMenuClick }) {
         <ThemeToggle />
 
         {/* User avatar */}
-        <div className="flex items-center gap-2 rounded-md px-2 py-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            {initials}
+        <button
+          onClick={() => navigate('/profile')}
+          className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent"
+          aria-label="Go to profile"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground overflow-hidden">
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.fullName || 'avatar'}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              initials
+            )}
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden sm:block text-left">
             <p className="text-sm font-medium leading-tight">{user?.fullName}</p>
             <p className="text-xs text-muted-foreground">{roleLabel}</p>
           </div>
-        </div>
+        </button>
       </div>
     </header>
   );

@@ -10,7 +10,7 @@ import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
-import { ROLES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES } from '@cms/shared';
 import {
   FileText,
   Upload,
@@ -223,6 +223,8 @@ export default function ProjectSubmissionsPage() {
     );
   }
 
+  const canUpload = isStudent && project?.titleStatus === TITLE_STATUSES.APPROVED;
+
   /* ────── Main Render ────── */
   return (
     <DashboardLayout>
@@ -245,7 +247,7 @@ export default function ProjectSubmissionsPage() {
               <span className="font-medium">{project.title}</span>
             </p>
           </div>
-          {isStudent && (
+          {canUpload && (
             <Button onClick={() => navigate('/project/submissions/upload')}>
               <Upload className="mr-2 h-4 w-4" />
               Upload Chapter
@@ -289,7 +291,7 @@ export default function ProjectSubmissionsPage() {
 
         {/* Submissions list */}
         {submissions.length === 0 ? (
-          <EmptyState canUpload={isStudent} />
+          <EmptyState canUpload={canUpload} />
         ) : (
           <div className="space-y-3">
             {submissions.map((sub) => (

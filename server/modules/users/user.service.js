@@ -1,5 +1,7 @@
 import User from './user.model.js';
 import AppError from '../../utils/AppError.js';
+import { ROLES } from '@cms/shared';
+import storageService from '../../services/storage.service.js';
 
 /**
  * UserService — Business logic for user management (CRUD).
@@ -13,10 +15,27 @@ class UserService {
    * @returns {Object} { user }
    */
   async getMe(userId) {
-    const user = await User.findById(userId).populate('teamId', 'name isLocked');
-    if (!user) {
+    const userDoc = await User.findById(userId)
+      .populate('teamId', 'name isLocked')
+      .populate({
+        path: 'sectionId',
+        select: 'name academicYear code',
+        populate: { path: 'courseId', select: 'name code' },
+      })
+      .populate('instructorId', 'firstName middleName lastName email');
+    if (!userDoc) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    const user = userDoc.toObject();
+    if (user.profilePicture) {
+      try {
+        user.avatarUrl = await storageService.getSignedUrl(user.profilePicture, 7200);
+      } catch {
+        user.avatarUrl = null;
+      }
+    }
+
     return { user };
   }
 
@@ -28,7 +47,14 @@ class UserService {
    * @returns {Object} { user }
    */
   async updateMe(userId, data) {
-    const allowedFields = ['firstName', 'middleName', 'lastName', 'profilePicture'];
+    const allowedFields = [
+      'firstName',
+      'middleName',
+      'lastName',
+      'profilePicture',
+      'sectionId',
+      'instructorId',
+    ];
     const updateData = {};
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
@@ -136,6 +162,44 @@ class UserService {
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    return { user };
+  }
+
+  /**
+   * List all active instructors (any authenticated user can call this).
+   * Used by students to select their instructor in profile settings.
+   * @returns {Object} { instructors }
+   */
+  async listInstructors() {
+    const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true })
+      .select('firstName middleName lastName email')
+      .sort({ firstName: 1 });
+    return { instructors };
+  }
+
+  /**
+   * Upload a profile picture to S3 and save the key to the user's profilePicture field.
+   * @param {string} userId
+   * @param {Buffer} buffer
+   * @param {string} mimeType
+   * @returns {Object} { user }
+   */
+  async uploadAvatar(userId, buffer, mimeType) {
+    const key = storageService.buildAvatarKey(userId);
+    await storageService.uploadFile(buffer, key, mimeType, { userId: userId.toString() });
+
+    const userDoc = await User.findByIdAndUpdate(userId, { profilePicture: key }, { new: true });
+    if (!userDoc) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const user = userDoc.toObject();
+    try {
+      user.avatarUrl = await storageService.getSignedUrl(key, 7200);
+    } catch {
+      user.avatarUrl = null;
     }
 
     return { user };

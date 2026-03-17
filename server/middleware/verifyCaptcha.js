@@ -31,7 +31,11 @@ const verifyCaptcha = async (req, _res, next) => {
 
   if (!captchaToken) {
     return next(
-      new AppError('Please complete the reCAPTCHA verification.', HTTP_STATUS.BAD_REQUEST),
+      new AppError(
+        'Please complete the reCAPTCHA verification.',
+        HTTP_STATUS.BAD_REQUEST,
+        'CAPTCHA_REQUIRED',
+      ),
     );
   }
 
@@ -45,7 +49,11 @@ const verifyCaptcha = async (req, _res, next) => {
 
     if (!data.success) {
       return next(
-        new AppError('reCAPTCHA verification failed. Please try again.', HTTP_STATUS.BAD_REQUEST),
+        new AppError(
+          'reCAPTCHA verification failed. Please try again.',
+          HTTP_STATUS.BAD_REQUEST,
+          'CAPTCHA_FAILED',
+        ),
       );
     }
 
@@ -64,6 +72,7 @@ const verifyCaptcha = async (req, _res, next) => {
       new AppError(
         'reCAPTCHA verification service unavailable. Please try again later.',
         HTTP_STATUS.SERVICE_UNAVAILABLE,
+        'CAPTCHA_SERVICE_UNAVAILABLE',
       ),
     );
   }

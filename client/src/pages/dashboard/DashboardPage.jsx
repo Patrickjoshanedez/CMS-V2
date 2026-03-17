@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Users, UsersRound, Bell, FileText, GraduationCap, ClipboardList } from 'lucide-react';
 import { ROLES } from '@cms/shared';
+import { toast } from 'sonner';
 
 /**
  * DashboardPage — role-based dashboard shell.
@@ -11,6 +13,19 @@ import { ROLES } from '@cms/shared';
  */
 
 function StudentDashboard({ user }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user.sectionId || !user.instructorId) {
+      toast.info('Complete your profile', {
+        description: 'Please set your section and instructor to get started.',
+        action: { label: 'Go to Profile', onClick: () => navigate('/profile') },
+        duration: 8000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>

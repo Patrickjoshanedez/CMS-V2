@@ -20,9 +20,11 @@ const queryClient = new QueryClient({
   },
 });
 
+// GoogleOAuthProvider is intentionally outside React.StrictMode to prevent
+// google.accounts.id.initialize() from being called twice in development.
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+    <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter
           future={{
@@ -33,6 +35,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <App />
         </BrowserRouter>
       </QueryClientProvider>
-    </GoogleOAuthProvider>
-  </React.StrictMode>,
+    </React.StrictMode>
+  </GoogleOAuthProvider>,
 );

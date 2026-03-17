@@ -6,6 +6,31 @@ import { HTTP_STATUS } from '@cms/shared';
  * UserController — Thin handlers that delegate to UserService.
  */
 
+/** POST /api/users/me/avatar — Upload profile picture */
+export const uploadAvatar = catchAsync(async (req, res) => {
+  const { user } = await userService.uploadAvatar(
+    req.user._id,
+    req.file.buffer,
+    req.file.validatedMime,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Profile picture updated.',
+    data: { user },
+  });
+});
+
+/** GET /api/users/instructors — List all instructors (any authenticated user) */
+export const listInstructors = catchAsync(async (req, res) => {
+  const { instructors } = await userService.listInstructors();
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { instructors },
+  });
+});
+
 /** GET /api/users/me — Get current user's profile */
 export const getMe = catchAsync(async (req, res) => {
   const { user } = await userService.getMe(req.user._id);

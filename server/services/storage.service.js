@@ -119,6 +119,18 @@ class StorageService {
   }
 
   /**
+   * Build a storage key for a user avatar.
+   * Format: avatars/{userId}/profile
+   * Fixed key so each upload overwrites the previous avatar.
+   *
+   * @param {string} userId - MongoDB ObjectId of the user
+   * @returns {string} S3 object key
+   */
+  buildAvatarKey(userId) {
+    return `avatars/${userId}/profile`;
+  }
+
+  /**
    * Upload a file buffer to cloud storage.
    *
    * @param {Buffer} buffer - File content

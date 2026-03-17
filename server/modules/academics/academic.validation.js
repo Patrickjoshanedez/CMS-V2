@@ -27,6 +27,11 @@ export const createSectionSchema = z.object({
     .trim()
     .min(2, 'Section name must be at least 2 characters')
     .max(40, 'Section name must not exceed 40 characters'),
+  code: z
+    .string({ required_error: 'Section code is required' })
+    .trim()
+    .min(2, 'Section code must be at least 2 characters')
+    .max(20, 'Section code must not exceed 20 characters'),
   courseId: z.string().regex(objectIdPattern, 'Invalid course ID'),
   academicYear: z
     .string({ required_error: 'Academic year is required' })

@@ -69,7 +69,9 @@ export const updateProfileSchema = z.object({
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must not exceed 50 characters')
     .optional(),
-  profilePicture: z.string().url('Profile picture must be a valid URL').nullable().optional(),
+  profilePicture: z.string().nullable().optional(),
+  sectionId: z.string().nullable().optional(),
+  instructorId: z.string().nullable().optional(),
 });
 
 export const changeRoleSchema = z.object({

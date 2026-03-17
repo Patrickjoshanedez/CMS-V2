@@ -182,3 +182,54 @@ const validatePrototypeFile = async (req, _res, next) => {
 };
 
 export { ALLOWED_PROTOTYPE_MIME_TYPES, validatePrototypeFile };
+
+/**
+ * Allowed MIME types for avatar uploads (images only, no video).
+ */
+const ALLOWED_AVATAR_MIME_TYPES = {
+  'image/jpeg': 'JPEG',
+  'image/png': 'PNG',
+  'image/webp': 'WEBP',
+};
+
+/**
+ * Validate an uploaded avatar image.
+ * Max 5 MB, JPEG/PNG/WEBP only, magic-byte verified.
+ */
+export const validateAvatarFile = async (req, _res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+    }
+
+    const { buffer, size } = req.file;
+    const maxBytes = 5 * 1024 * 1024; // 5 MB
+    if (size > maxBytes) {
+      return next(
+        new AppError(
+          `File size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the 5MB limit for avatars.`,
+          413,
+          'FILE_TOO_LARGE',
+        ),
+      );
+    }
+
+    const { fileTypeFromBuffer } = await import('file-type');
+    const typeResult = await fileTypeFromBuffer(buffer);
+
+    if (!typeResult || !ALLOWED_AVATAR_MIME_TYPES[typeResult.mime]) {
+      return next(
+        new AppError(
+          'Only JPEG, PNG, and WEBP images are allowed for avatars.',
+          400,
+          'INVALID_FILE_TYPE',
+        ),
+      );
+    }
+
+    req.file.validatedMime = typeResult.mime;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};

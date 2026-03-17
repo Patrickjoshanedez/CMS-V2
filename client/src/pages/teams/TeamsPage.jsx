@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -26,6 +27,7 @@ import {
   useInviteMember,
   useAcceptInvite,
 } from '@/hooks/useTeams';
+import { useAcademicYears } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 
 /**
@@ -83,6 +85,8 @@ function CreateTeamForm({ onCancel }) {
   const [name, setName] = useState('');
   const [academicYear, setAcademicYear] = useState('');
 
+  const { data: years = [], isLoading: yearsLoading } = useAcademicYears();
+
   const createTeam = useCreateTeam({
     onSuccess: () => {
       toast.success('Team created successfully!');
@@ -94,7 +98,7 @@ function CreateTeamForm({ onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createTeam.mutate({ name: name.trim(), academicYear: academicYear.trim() });
+    createTeam.mutate({ name: name.trim(), academicYear });
   };
 
   return (
@@ -130,16 +134,27 @@ function CreateTeamForm({ onCancel }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="academicYear">Academic Year *</Label>
-            <Input
+            <select
               id="academicYear"
-              placeholder="e.g. 2025-2026"
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
               value={academicYear}
               onChange={(e) => setAcademicYear(e.target.value)}
               required
-              pattern="\d{4}-\d{4}"
-              title="Format: YYYY-YYYY (e.g. 2025-2026)"
-              disabled={createTeam.isPending}
-            />
+              disabled={createTeam.isPending || yearsLoading}
+            >
+              <option value="">
+                {yearsLoading
+                  ? 'Loading...'
+                  : years.length === 0
+                    ? 'No academic years available'
+                    : 'Select academic year'}
+              </option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button
@@ -150,7 +165,7 @@ function CreateTeamForm({ onCancel }) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTeam.isPending}>
+            <Button type="submit" disabled={createTeam.isPending || !academicYear}>
               {createTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Team
             </Button>
@@ -499,9 +514,12 @@ function FacultyTeamsView() {
 
 /* ────────── Student View ────────── */
 
-function StudentTeamView({ userId }) {
+function StudentTeamView({ user }) {
+  const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAcceptForm, setShowAcceptForm] = useState(false);
+
+  const isProfileComplete = Boolean(user.sectionId && user.instructorId);
 
   const { data: team, isLoading, isError, error } = useMyTeam();
 
@@ -528,6 +546,26 @@ function StudentTeamView({ userId }) {
   // No team — show creation / accept invite flow
   if (!team) {
     if (showCreateForm) {
+      if (!isProfileComplete) {
+        return (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-950/30">
+            <p className="font-semibold text-amber-800 dark:text-amber-200">
+              Complete your profile first
+            </p>
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+              You need to set your section and instructor before creating a team.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button size="sm" onClick={() => navigate('/profile')}>
+                Go to Profile
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        );
+      }
       return <CreateTeamForm onCancel={() => setShowCreateForm(false)} />;
     }
     if (showAcceptForm) {
@@ -543,7 +581,7 @@ function StudentTeamView({ userId }) {
   }
 
   // Has team — show detail
-  return <StudentTeamDetail team={team} userId={userId} />;
+  return <StudentTeamDetail team={team} userId={user._id} />;
 }
 
 /* ────────── Main Page ────────── */
@@ -574,7 +612,7 @@ export default function TeamsPage() {
           </p>
         </div>
 
-        {isStudent ? <StudentTeamView userId={user._id} /> : <FacultyTeamsView />}
+        {isStudent ? <StudentTeamView user={user} /> : <FacultyTeamsView />}
       </div>
     </DashboardLayout>
   );

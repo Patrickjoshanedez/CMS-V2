@@ -36,7 +36,7 @@ import {
 import { toast } from 'sonner';
 
 /**
- * UsersPage — Instructor-only student and RBAC management page.
+ * UsersPage — Instructor-only user and RBAC management page.
  *
  * Features:
  * - Paginated user list with search and role filter
@@ -84,6 +84,7 @@ function HierarchyView() {
   const [courseName, setCourseName] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [sectionName, setSectionName] = useState('');
+  const [sectionCode, setSectionCode] = useState('');
   const [newSectionYear, setNewSectionYear] = useState('');
   const [newAcademicYear, setNewAcademicYear] = useState('');
 
@@ -97,14 +98,11 @@ function HierarchyView() {
     { enabled: Boolean(selectedCourseId || selectedAcademicYear) },
   );
 
-  const { data: hierarchy = [], isLoading } = useAcademicHierarchy(
-    {
-      courseId: selectedCourseId || undefined,
-      academicYear: selectedAcademicYear || undefined,
-      sectionId: selectedSectionId || undefined,
-    },
-    { enabled: Boolean(selectedCourseId || selectedAcademicYear || selectedSectionId) },
-  );
+  const { data: hierarchy = [], isLoading } = useAcademicHierarchy({
+    courseId: selectedCourseId || undefined,
+    academicYear: selectedAcademicYear || undefined,
+    sectionId: selectedSectionId || undefined,
+  });
 
   const createCourse = useCreateCourse({
     onSuccess: () => {
@@ -127,6 +125,7 @@ function HierarchyView() {
     onSuccess: () => {
       toast.success('Section created successfully.');
       setSectionName('');
+      setSectionCode('');
     },
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to create section.'),
@@ -149,6 +148,7 @@ function HierarchyView() {
     event.preventDefault();
     createSection.mutate({
       name: sectionName.trim(),
+      code: sectionCode.trim(),
       courseId: selectedCourseId,
       academicYear: newSectionYear.trim(),
     });
@@ -280,11 +280,17 @@ function HierarchyView() {
                 <Layers className="h-4 w-4" />
                 Add Section
               </Label>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <Input
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
-                  placeholder="BSIT-3C"
+                  placeholder="Name e.g. BSIT-3C"
+                  required
+                />
+                <Input
+                  value={sectionCode}
+                  onChange={(e) => setSectionCode(e.target.value)}
+                  placeholder="Code e.g. 3C"
                   required
                 />
                 <select
@@ -317,7 +323,9 @@ function HierarchyView() {
               <Button
                 type="submit"
                 size="sm"
-                disabled={createSection.isPending || !selectedCourseId || !newSectionYear}
+                disabled={
+                  createSection.isPending || !selectedCourseId || !newSectionYear || !sectionCode
+                }
               >
                 {createSection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Section
@@ -343,7 +351,7 @@ function HierarchyView() {
           )}
 
           {!isLoading && hierarchy.length === 0 && (
-            <p className="text-sm text-muted-foreground">No sections matched your filters yet.</p>
+            <p className="text-sm text-muted-foreground">No sections found.</p>
           )}
 
           {!isLoading &&
@@ -352,6 +360,11 @@ function HierarchyView() {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{section.courseId?.code}</Badge>
                   <span className="text-sm font-semibold">{section.name}</span>
+                  {section.code && (
+                    <Badge variant="outline" className="font-mono text-xs">
+                      {section.code}
+                    </Badge>
+                  )}
                   <span className="text-xs text-muted-foreground">{section.academicYear}</span>
                   <span className="text-xs text-muted-foreground">
                     {section.teamCount} teams | {section.studentCount} students
@@ -463,7 +476,7 @@ function CreateUserForm({ onCancel }) {
 
   const createUser = useCreateUser({
     onSuccess: () => {
-      toast.success('Student created successfully!');
+      toast.success('User created successfully!');
       setFormData({
         firstName: '',
         lastName: '',
@@ -474,8 +487,7 @@ function CreateUserForm({ onCancel }) {
       });
       onCancel();
     },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to create student.'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to create user.'),
   });
 
   const handleChange = useCallback(
@@ -500,10 +512,8 @@ function CreateUserForm({ onCancel }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Create a New Student</CardTitle>
-        <CardDescription>
-          The student will be pre-verified and can log in immediately.
-        </CardDescription>
+        <CardTitle className="text-base">Create a New User</CardTitle>
+        <CardDescription>The user will be pre-verified and can log in immediately.</CardDescription>
       </CardHeader>
       <CardContent>
         {createUser.error && (
@@ -612,7 +622,7 @@ function CreateUserForm({ onCancel }) {
             </Button>
             <Button type="submit" disabled={createUser.isPending}>
               {createUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Student
+              Create User
             </Button>
           </div>
         </form>
@@ -629,7 +639,7 @@ function Pagination({ pagination, onPageChange }) {
   return (
     <div className="flex items-center justify-between pt-4">
       <p className="text-sm text-muted-foreground">
-        Page {pagination.page} of {pagination.pages} ({pagination.total} students)
+        Page {pagination.page} of {pagination.pages} ({pagination.total} users)
       </p>
       <div className="flex gap-2">
         <Button
@@ -726,7 +736,7 @@ export default function UsersPage() {
         <div className="flex flex-col items-center justify-center py-16">
           <Shield className="mb-4 h-12 w-12 text-muted-foreground" />
           <h2 className="text-lg font-semibold">Access Denied</h2>
-          <p className="text-sm text-muted-foreground">Only Instructors can manage students.</p>
+          <p className="text-sm text-muted-foreground">Only Instructors can manage users.</p>
         </div>
       </DashboardLayout>
     );
@@ -738,7 +748,7 @@ export default function UsersPage() {
         {/* Page header + section switcher */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Student Management</h1>
+            <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
             <p className="text-sm text-muted-foreground">
               Manage hierarchy (Course {'>'} Year {'>'} Section {'>'} Teams {'>'} Students) and
               RBAC.
@@ -771,7 +781,7 @@ export default function UsersPage() {
             <div className="flex justify-end">
               <Button onClick={() => setShowCreateForm((prev) => !prev)}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                {showCreateForm ? 'Cancel' : 'New Student'}
+                {showCreateForm ? 'Cancel' : 'New User'}
               </Button>
             </div>
 
@@ -829,7 +839,7 @@ export default function UsersPage() {
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  {error?.response?.data?.error?.message || 'Failed to load students.'}
+                  {error?.response?.data?.error?.message || 'Failed to load users.'}
                 </AlertDescription>
               </Alert>
             )}
@@ -838,11 +848,11 @@ export default function UsersPage() {
             {!isLoading && !isError && users.length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
                 <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">No students found</h3>
+                <h3 className="text-lg font-semibold">No users found</h3>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                   {search || roleFilter
                     ? 'Try adjusting your filters.'
-                    : 'Start by creating a new student.'}
+                    : 'Start by creating a new user.'}
                 </p>
               </div>
             )}
@@ -851,9 +861,9 @@ export default function UsersPage() {
             {!isLoading && !isError && users.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Students and Roles</CardTitle>
+                  <CardTitle>Users and Roles</CardTitle>
                   <CardDescription>
-                    Showing {users.length} of {pagination.total || 0} students
+                    Showing {users.length} of {pagination.total || 0} users
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">

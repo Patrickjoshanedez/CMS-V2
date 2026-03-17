@@ -24,7 +24,10 @@ export const authService = {
 export const userService = {
   getMe: (config = {}) => api.get('/users/me', config),
   updateMe: (data) => api.patch('/users/me', data),
+  uploadAvatar: (formData) =>
+    api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   listUsers: (params) => api.get('/users', { params }),
+  listInstructors: () => api.get('/users/instructors'),
   createUser: (data) => api.post('/users', data),
   updateUser: (id, data) => api.patch(`/users/${id}`, data),
   changeRole: (id, data) => api.patch(`/users/${id}/role`, data),

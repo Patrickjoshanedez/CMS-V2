@@ -451,7 +451,7 @@ class AuthService {
       email,
       code: plainOtp,
       type,
-      expiresAt: new Date(Date.now() + (Number(env.OTP_EXPIRY_MINUTES) || 10) * 60 * 1000),
+      expiresAt: new Date(Date.now() + (Number(env.OTP_EXPIRES_MINUTES) || 10) * 60 * 1000),
     });
 
     // Send OTP via email

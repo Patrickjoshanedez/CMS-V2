@@ -74,6 +74,16 @@ const userSchema = new mongoose.Schema(
       ref: 'Team',
       default: null,
     },
+    sectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Section',
+      default: null,
+    },
+    instructorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     profilePicture: {
       type: String,
       default: null,

@@ -9,6 +9,14 @@ const sectionSchema = new mongoose.Schema(
       minlength: [2, 'Section name must be at least 2 characters'],
       maxlength: [40, 'Section name must not exceed 40 characters'],
     },
+    code: {
+      type: String,
+      required: [true, 'Section code is required'],
+      trim: true,
+      uppercase: true,
+      minlength: [2, 'Section code must be at least 2 characters'],
+      maxlength: [20, 'Section code must not exceed 20 characters'],
+    },
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',

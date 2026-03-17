@@ -35,6 +35,7 @@ class AcademicService {
 
     const section = await Section.create({
       name: data.name,
+      code: data.code.trim().toUpperCase(),
       courseId: data.courseId,
       academicYear: data.academicYear,
       createdBy: instructorId,
