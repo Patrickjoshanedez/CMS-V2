@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -26,6 +26,7 @@ import {
   useTeams,
   useCreateTeam,
   useInviteMember,
+  useInviteCandidates,
   useAcceptInvite,
   useLockTeam,
 } from '@/hooks/useTeams';
@@ -122,17 +123,18 @@ function CreateTeamForm({ onCancel }) {
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name *</Label>
+            <Label htmlFor="teamName">Team Name (Optional)</Label>
             <Input
               id="teamName"
-              placeholder="e.g. Group Alpha"
+              placeholder="Leave blank to use your last name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
-              minLength={3}
               maxLength={100}
               disabled={createTeam.isPending}
             />
+            <p className="text-xs text-muted-foreground">
+              If left blank, your team name will default to your last name.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="academicYear">Academic Year *</Label>
@@ -180,13 +182,16 @@ function CreateTeamForm({ onCancel }) {
 
 /* ────────── Accept Invite Form ────────── */
 
-function AcceptInviteForm({ onCancel }) {
-  const [token, setToken] = useState('');
+function AcceptInviteForm({ onCancel, initialToken = '' }) {
+  const [inviteCode, setInviteCode] = useState(initialToken);
+  const { fetchUser } = useAuthStore();
 
   const acceptInvite = useAcceptInvite({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await fetchUser();
       toast.success('Invite accepted! You are now part of the team.');
-      setToken('');
+      setInviteCode('');
+      onCancel?.();
     },
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to accept invite.'),
@@ -194,36 +199,59 @@ function AcceptInviteForm({ onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    acceptInvite.mutate(token.trim());
+    const normalized = inviteCode.trim();
+    const payload = normalized.length === 6 ? normalized.toUpperCase() : normalized;
+    acceptInvite.mutate(payload);
   };
+
+  const isCodeLike = inviteCode.trim().length === 6;
+  const isTokenLike = inviteCode.trim().length > 6;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Accept a Team Invite</CardTitle>
-        <CardDescription>Paste the invite token you received via email.</CardDescription>
+        <CardDescription>
+          Enter the 6-character invite code shared by the team leader.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {acceptInvite.error && (
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              {acceptInvite.error?.response?.data?.error?.message || 'Invalid or expired token.'}
+              {acceptInvite.error?.response?.data?.error?.message ||
+                'Invalid or expired invite code.'}
             </AlertDescription>
           </Alert>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="inviteToken">Invite Token *</Label>
-            <Input
-              id="inviteToken"
-              placeholder="Paste your invite token here"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-              disabled={acceptInvite.isPending}
-            />
-          </div>
+          {!isTokenLike && (
+            <div className="space-y-2">
+              <Label htmlFor="inviteToken">Invite Code *</Label>
+              <Input
+                id="inviteToken"
+                placeholder="e.g. A7K9P2"
+                value={inviteCode}
+                onChange={(e) => {
+                  const normalized = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                  setInviteCode(normalized.slice(0, 6));
+                }}
+                minLength={6}
+                maxLength={6}
+                required
+                disabled={acceptInvite.isPending}
+                className="uppercase tracking-widest"
+              />
+            </div>
+          )}
+
+          {isTokenLike && (
+            <div className="rounded-md border bg-muted/40 p-3">
+              <p className="text-sm font-medium">Invite link detected</p>
+              <p className="mt-1 break-all text-xs text-muted-foreground">{inviteCode}</p>
+            </div>
+          )}
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
@@ -233,7 +261,10 @@ function AcceptInviteForm({ onCancel }) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={acceptInvite.isPending || !token.trim()}>
+            <Button
+              type="submit"
+              disabled={acceptInvite.isPending || (!isCodeLike && !isTokenLike)}
+            >
               {acceptInvite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Accept Invite
             </Button>
@@ -248,11 +279,35 @@ function AcceptInviteForm({ onCancel }) {
 
 function InviteMemberForm({ teamId }) {
   const [email, setEmail] = useState('');
+  const [lastInviteCode, setLastInviteCode] = useState('');
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 220);
+
+    return () => window.clearTimeout(timerId);
+  }, [query]);
+
+  const { data: candidates = [], isFetching: isFetchingCandidates } = useInviteCandidates(
+    teamId,
+    debouncedQuery,
+  );
 
   const inviteMember = useInviteMember({
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast.success('Invitation sent!');
+      const generatedInviteCode = result?.data?.invite?.inviteCode;
+      if (generatedInviteCode) {
+        setLastInviteCode(generatedInviteCode);
+      }
       setEmail('');
+      setQuery('');
+      setDebouncedQuery('');
+      setShowSuggestions(false);
     },
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to send invite.'),
   });
@@ -263,25 +318,104 @@ function InviteMemberForm({ teamId }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <Input
-        placeholder="Enter student email to invite"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        disabled={inviteMember.isPending}
-        className="flex-1"
-      />
-      <Button type="submit" size="sm" disabled={inviteMember.isPending || !email.trim()}>
-        {inviteMember.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Send className="h-4 w-4" />
+    <div className="space-y-2">
+      {lastInviteCode && (
+        <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+            Team invite code:{' '}
+            <span className="font-semibold tracking-widest">{lastInviteCode}</span>
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              await navigator.clipboard.writeText(lastInviteCode);
+              toast.success('Invite code copied.');
+            }}
+          >
+            Copy
+          </Button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="relative flex gap-2">
+        <Input
+          placeholder="Type a name (e.g. Leon) or email"
+          type="text"
+          value={email}
+          onChange={(e) => {
+            const value = e.target.value;
+            setEmail(value);
+            setQuery(value);
+            setShowSuggestions(true);
+          }}
+          onFocus={() => {
+            if ((debouncedQuery || query).length >= 2) {
+              setShowSuggestions(true);
+            }
+          }}
+          onBlur={() => {
+            window.setTimeout(() => setShowSuggestions(false), 120);
+          }}
+          required
+          disabled={inviteMember.isPending}
+          className="flex-1"
+          autoComplete="off"
+        />
+
+        {showSuggestions && (debouncedQuery.length >= 2 || query.trim().length >= 2) && (
+          <div className="absolute left-0 right-20 top-11 z-20 rounded-md border bg-popover shadow-md">
+            {isFetchingCandidates ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Searching students...
+              </div>
+            ) : candidates.length > 0 ? (
+              <ul className="max-h-56 overflow-auto py-1">
+                {candidates.map((candidate) => (
+                  <li key={candidate._id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        setEmail(candidate.email);
+                        setQuery(candidate.email);
+                        setDebouncedQuery(candidate.email);
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {candidate.fullName}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {candidate.email}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                No matching students found.
+              </div>
+            )}
+          </div>
         )}
-        <span className="ml-2 hidden sm:inline">Invite</span>
-      </Button>
-    </form>
+
+        <Button type="submit" size="sm" disabled={inviteMember.isPending || !email.trim()}>
+          {inviteMember.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+          <span className="ml-2 hidden sm:inline">Invite</span>
+        </Button>
+      </form>
+    </div>
   );
 }
 
@@ -289,6 +423,7 @@ function InviteMemberForm({ teamId }) {
 
 function StudentTeamDetail({ team, userId }) {
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
+  const [showFinalizeDetails, setShowFinalizeDetails] = useState(false);
 
   const lockTeam = useLockTeam({
     onSuccess: () => toast.success('Team finalized! No further member changes are allowed.'),
@@ -367,31 +502,77 @@ function StudentTeamDetail({ team, userId }) {
           {/* Invite Form (leader only, team not locked) */}
           {isLeader && !team.isLocked && (
             <div>
-              {/* Finalize Team Members (leader only, team not locked) */}
-              {isLeader && !team.isLocked && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Ready to proceed?
-                  </p>
-                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                    Finalizing the team locks the member roster permanently. No new members can be
-                    added after this step, and you will be able to create your capstone project.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="mt-3"
-                    onClick={handleFinalize}
-                    disabled={lockTeam.isPending}
-                  >
-                    {lockTeam.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <UserCheck className="mr-2 h-4 w-4" />
-                    )}
-                    Finalize Team Members
-                  </Button>
-                </div>
-              )}
+              {/* Expandable Finalization Confirmation */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Ready to proceed?
+                </p>
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                  This step is a confirmation before capstone project creation. Review your roster
+                  details first.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={`mt-3 w-full justify-between transition-all duration-200 ${
+                    showFinalizeDetails ? 'py-6 text-base' : ''
+                  }`}
+                  onClick={() => setShowFinalizeDetails((prev) => !prev)}
+                  disabled={lockTeam.isPending}
+                  aria-expanded={showFinalizeDetails}
+                >
+                  <span className="font-medium">
+                    {showFinalizeDetails ? 'Hide' : 'Show'} confirmation details
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {team.members?.length || 0} member{team.members?.length !== 1 ? 's' : ''}
+                  </span>
+                </Button>
+
+                {showFinalizeDetails && (
+                  <div className="mt-3 rounded-md border bg-background/70 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Confirmation Details
+                    </p>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li>
+                        <span className="text-muted-foreground">Team:</span> {team.name}
+                      </li>
+                      <li>
+                        <span className="text-muted-foreground">Academic Year:</span>{' '}
+                        {team.academicYear}
+                      </li>
+                      <li>
+                        <span className="text-muted-foreground">Leader:</span>{' '}
+                        {formatName(team.leaderId)}
+                      </li>
+                      <li>
+                        <span className="text-muted-foreground">Members:</span>{' '}
+                        {team.members?.length || 0}
+                      </li>
+                    </ul>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      If you still expect roster changes, do not confirm yet.
+                    </p>
+
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      onClick={handleFinalize}
+                      disabled={lockTeam.isPending}
+                    >
+                      {lockTeam.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <UserCheck className="mr-2 h-4 w-4" />
+                      )}
+                      Confirm Team Roster
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />
             </div>
@@ -463,11 +644,81 @@ function TeamCard({ team }) {
   );
 }
 
+function FacultyTeamDetail({ team }) {
+  const leader = team.leaderId;
+  const members = team.members || [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">{team.name || 'Untitled Team'}</CardTitle>
+        <CardDescription className="flex flex-wrap items-center gap-2">
+          <span>
+            {members.length} member{members.length !== 1 ? 's' : ''}
+          </span>
+          {team.academicYear && (
+            <>
+              <span>&bull;</span>
+              <span>{team.academicYear}</span>
+            </>
+          )}
+          {team.isLocked && (
+            <Badge variant="secondary" className="gap-1">
+              <Lock className="h-3 w-3" />
+              Finalized
+            </Badge>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-md border p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Team Leader
+          </p>
+          <p className="mt-1 text-sm font-medium">{formatName(leader)}</p>
+          <p className="text-xs text-muted-foreground">{leader?.email || 'No email provided'}</p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Members
+          </p>
+          <div className="space-y-2">
+            {members.map((member) => {
+              const memberId = member._id || member;
+              const isThisLeader = (leader?._id || leader) === memberId;
+
+              return (
+                <div key={memberId} className="flex items-center gap-3 rounded-md border p-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {member.firstName?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{formatName(member)}</p>
+                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                  </div>
+                  {isThisLeader && (
+                    <Badge variant="outline" className="gap-1">
+                      <Crown className="h-3 w-3" />
+                      Leader
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Faculty Team List View ────────── */
 
 function FacultyTeamsView() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({});
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
 
   const { data, isLoading, isError, error } = useTeams(filters);
 
@@ -496,6 +747,7 @@ function FacultyTeamsView() {
   }
 
   const teams = data?.teams || [];
+  const selectedTeam = teams.find((team) => team._id === selectedTeamId) || null;
   const pagination = data?.pagination;
 
   return (
@@ -520,11 +772,30 @@ function FacultyTeamsView() {
       {teams.length === 0 ? (
         <EmptyTeamState role={ROLES.INSTRUCTOR} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => (
-            <TeamCard key={team._id} team={team} />
-          ))}
-        </div>
+        <>
+          {selectedTeam && <FacultyTeamDetail team={selectedTeam} />}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {teams.map((team) => {
+              const isSelected = selectedTeamId === team._id;
+
+              return (
+                <button
+                  key={team._id}
+                  type="button"
+                  onClick={() => setSelectedTeamId(team._id)}
+                  className={`text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    isSelected ? 'rounded-lg ring-2 ring-primary' : 'rounded-lg'
+                  }`}
+                  aria-pressed={isSelected}
+                  aria-label={`View details for ${team.name || 'team'}`}
+                >
+                  <TeamCard team={team} />
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Pagination */}
@@ -559,8 +830,10 @@ function FacultyTeamsView() {
 
 function StudentTeamView({ user }) {
   const navigate = useNavigate();
+  const { token, action } = useParams();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showAcceptForm, setShowAcceptForm] = useState(false);
+  const [showAcceptForm, setShowAcceptForm] = useState(Boolean(token));
+  const routeInviteToken = action === 'accept' ? token || '' : '';
 
   const isProfileComplete = Boolean(user.sectionId && user.instructorId);
 
@@ -612,7 +885,12 @@ function StudentTeamView({ user }) {
       return <CreateTeamForm onCancel={() => setShowCreateForm(false)} />;
     }
     if (showAcceptForm) {
-      return <AcceptInviteForm onCancel={() => setShowAcceptForm(false)} />;
+      return (
+        <AcceptInviteForm
+          initialToken={routeInviteToken}
+          onCancel={() => setShowAcceptForm(false)}
+        />
+      );
     }
     return (
       <EmptyTeamState

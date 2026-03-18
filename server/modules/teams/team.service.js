@@ -9,16 +9,45 @@ import { v4 as uuidv4 } from 'uuid';
 import { ROLES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
+const INVITE_CODE_LENGTH = 6;
+
+const INVITE_CODE_ALPHANUMERIC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+const generateInviteCodeValue = () => {
+  let code = '';
+  for (let index = 0; index < INVITE_CODE_LENGTH; index += 1) {
+    const randomIndex = Math.floor(Math.random() * INVITE_CODE_ALPHANUMERIC.length);
+    code += INVITE_CODE_ALPHANUMERIC[randomIndex];
+  }
+  return code;
+};
 
 /**
  * TeamService — Business logic for team management.
  * Handles creation, invitations, membership, and lock workflow.
  */
 class TeamService {
+  async generateUniqueInviteCode() {
+    for (let attempts = 0; attempts < 10; attempts += 1) {
+      const candidateCode = generateInviteCodeValue();
+      // eslint-disable-next-line no-await-in-loop
+      const existingInvite = await TeamInvite.exists({ inviteCode: candidateCode });
+      if (!existingInvite) {
+        return candidateCode;
+      }
+    }
+
+    throw new AppError(
+      'Unable to generate invite code. Please try again.',
+      500,
+      'INVITE_CODE_GEN_FAILED',
+    );
+  }
+
   /**
    * Create a new project team. The requesting student becomes the leader.
    * @param {string} userId - The ID of the student creating the team.
-   * @param {Object} data - { name, academicYear }
+   * @param {Object} data - { name?, academicYear }
    * @returns {Object} { team }
    */
   async createTeam(userId, data) {
@@ -39,8 +68,12 @@ class TeamService {
       );
     }
 
+    const normalizedName = typeof data.name === 'string' ? data.name.trim() : '';
+    const fallbackTeamName = user.lastName;
+    const teamName = normalizedName || fallbackTeamName;
+
     const team = await Team.create({
-      name: data.name,
+      name: teamName,
       academicYear: data.academicYear,
       leaderId: userId,
       members: [userId],
@@ -138,14 +171,18 @@ class TeamService {
     }
 
     const token = uuidv4();
+    const inviteCode = await this.generateUniqueInviteCode();
     const invite = await TeamInvite.create({
       teamId,
       email: data.email,
       token,
+      inviteCode,
     });
 
     // Send invite email
-    await sendTeamInviteEmail(data.email, team.name, token);
+    const inviter = await User.findById(leaderId).select('firstName middleName lastName');
+    const inviterName = inviter?.fullName || 'A team leader';
+    await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
 
     // Create an in-app notification for the invited user
     const inviteNotif = await Notification.create({
@@ -153,11 +190,66 @@ class TeamService {
       type: 'team_invite',
       title: 'Team Invitation',
       message: `You have been invited to join team "${team.name}".`,
-      metadata: { teamId, inviteToken: token },
+      metadata: { teamId, inviteToken: token, inviteCode },
     });
     emitToUser(invitedUser._id, 'notification:new', inviteNotif);
 
     return { invite };
+  }
+
+  /**
+   * Search student invite candidates for a team (leader-only).
+   * Excludes current team members and inactive users.
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @param {Object} query - { search?, limit? }
+   * @returns {Object} { candidates }
+   */
+  async listInviteCandidates(teamId, leaderId, query) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId.toString() !== leaderId.toString()) {
+      throw new AppError('Only the team leader can search invite candidates.', 403, 'FORBIDDEN');
+    }
+
+    if (team.isLocked) {
+      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
+    }
+
+    const search = typeof query.search === 'string' ? query.search.trim() : '';
+    const limit = Number.isFinite(query.limit) ? query.limit : 8;
+    const memberIds = team.members.map((id) => id.toString());
+
+    const filter = {
+      role: ROLES.STUDENT,
+      isActive: true,
+      _id: { $nin: memberIds },
+    };
+
+    if (search) {
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select('firstName middleName lastName email')
+      .sort({ firstName: 1, lastName: 1 })
+      .limit(limit);
+
+    const candidates = users.map((user) => ({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+    }));
+
+    return { candidates };
   }
 
   /**
@@ -167,7 +259,12 @@ class TeamService {
    * @returns {Object} { team }
    */
   async acceptInvite(token, userId) {
-    const invite = await TeamInvite.findOne({ token });
+    const normalizedInput = (token || '').trim();
+    const normalizedCode = normalizedInput.toUpperCase();
+
+    const invite = await TeamInvite.findOne({
+      $or: [{ token: normalizedInput }, { inviteCode: normalizedCode }],
+    });
     if (!invite || !invite.isValid()) {
       throw new AppError('This invitation is invalid or has expired.', 400, 'INVALID_INVITE');
     }

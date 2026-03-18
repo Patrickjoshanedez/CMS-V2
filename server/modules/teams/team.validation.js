@@ -6,10 +6,11 @@ import { z } from 'zod';
 
 export const createTeamSchema = z.object({
   name: z
-    .string({ required_error: 'Team name is required' })
+    .string()
     .trim()
-    .min(3, 'Team name must be at least 3 characters')
-    .max(100, 'Team name must not exceed 100 characters'),
+    .max(100, 'Team name must not exceed 100 characters')
+    .optional()
+    .or(z.literal('')),
   academicYear: z
     .string({ required_error: 'Academic year is required' })
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY (e.g. 2024-2025)'),
@@ -21,6 +22,11 @@ export const inviteMemberSchema = z.object({
     .trim()
     .email('Please provide a valid email address')
     .toLowerCase(),
+});
+
+export const inviteCandidatesQuerySchema = z.object({
+  search: z.string().trim().max(100).optional().default(''),
+  limit: z.coerce.number().int().positive().max(20).default(8),
 });
 
 export const listTeamsQuerySchema = z.object({

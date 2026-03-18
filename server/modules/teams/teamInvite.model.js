@@ -20,6 +20,15 @@ const teamInviteSchema = new mongoose.Schema(
       required: [true, 'Invite token is required'],
       unique: true,
     },
+    inviteCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      minlength: [6, 'Invite code must be 6 characters'],
+      maxlength: [6, 'Invite code must be 6 characters'],
+      unique: true,
+      sparse: true,
+    },
     status: {
       type: String,
       enum: {
@@ -41,6 +50,7 @@ const teamInviteSchema = new mongoose.Schema(
 
 // --- Indexes ---
 // Note: token already has unique:true at field level — no need to duplicate
+// Note: inviteCode already has unique+sparse at field level — no need to duplicate
 teamInviteSchema.index({ teamId: 1 });
 teamInviteSchema.index({ email: 1, teamId: 1 });
 // TTL index: auto-cleanup expired invites

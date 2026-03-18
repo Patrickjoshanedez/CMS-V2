@@ -7,6 +7,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { teamService } from '../services/authService';
+import { useAuthStore } from '@/stores/authStore';
 
 /* ────────── Query Keys ────────── */
 
@@ -15,6 +16,7 @@ export const teamKeys = {
   my: () => [...teamKeys.all, 'my'],
   lists: () => [...teamKeys.all, 'list'],
   list: (filters) => [...teamKeys.lists(), filters],
+  inviteCandidates: (teamId, search) => [...teamKeys.all, 'invite-candidates', teamId, search],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -55,6 +57,25 @@ export function useTeams(filters = {}, options = {}) {
   });
 }
 
+/**
+ * Search student invite candidates for a team leader.
+ */
+export function useInviteCandidates(teamId, search, options = {}) {
+  return useQuery({
+    queryKey: teamKeys.inviteCandidates(teamId, search),
+    queryFn: async () => {
+      const { data } = await teamService.listInviteCandidates(teamId, {
+        search,
+        limit: 8,
+      });
+      return data.data.candidates;
+    },
+    enabled: Boolean(teamId) && (search?.trim()?.length ?? 0) >= 2,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+}
+
 /* ────────── Mutation Helper ────────── */
 
 /**
@@ -66,8 +87,9 @@ function useTeamMutation(mutationFn, options = {}) {
   const { onSuccess, onError, ...restOptions } = options;
   return useMutation({
     mutationFn,
-    onSuccess: (...args) => {
+    onSuccess: async (...args) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.all });
+      await useAuthStore.getState().fetchUser();
       onSuccess?.(...args);
     },
     onError,

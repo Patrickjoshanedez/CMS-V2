@@ -121,20 +121,29 @@ export const sendOtpEmail = async (email, otp, type) => {
  * @param {string} teamName - Name of the team
  * @param {string} inviterName - Name of the person who sent the invite
  * @param {string} inviteToken - UUID invite token for the accept/decline link
+ * @param {string} [inviteCode] - 6-character invite code for manual entry
  */
-export const sendTeamInviteEmail = async (email, teamName, inviterName, inviteToken) => {
+export const sendTeamInviteEmail = async (
+  email,
+  teamName,
+  inviterName,
+  inviteToken,
+  inviteCode,
+) => {
   const clientUrl = env.CLIENT_URL || 'http://localhost:5173';
   const acceptUrl = `${clientUrl}/teams/invites/${inviteToken}/accept`;
   const declineUrl = `${clientUrl}/teams/invites/${inviteToken}/decline`;
 
   const subject = `You've been invited to join "${teamName}" — CMS`;
 
-  const text = `${inviterName} has invited you to join the team "${teamName}".\n\nAccept: ${acceptUrl}\nDecline: ${declineUrl}\n\nThis invite expires in 48 hours.`;
+  const inviteCodeText = inviteCode ? `Invite code: ${inviteCode}\n\n` : '';
+  const text = `${inviterName} has invited you to join the team "${teamName}".\n\n${inviteCodeText}Accept: ${acceptUrl}\nDecline: ${declineUrl}\n\nThis invite expires in 48 hours.`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
       <h2 style="color: #1a1a1a;">Team Invitation</h2>
       <p><strong>${inviterName}</strong> has invited you to join the team <strong>"${teamName}"</strong>.</p>
+      ${inviteCode ? `<p style="font-size: 14px; color: #374151;">Invite code: <strong style="letter-spacing: 2px;">${inviteCode}</strong></p>` : ''}
       <div style="margin: 24px 0;">
         <a href="${acceptUrl}" style="background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-right: 12px;">Accept Invite</a>
         <a href="${declineUrl}" style="background: #dc2626; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none;">Decline</a>

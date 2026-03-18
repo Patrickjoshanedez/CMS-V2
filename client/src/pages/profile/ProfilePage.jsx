@@ -114,6 +114,35 @@ export default function ProfilePage() {
   };
 
   const handleSaveAcademic = async () => {
+    const selectedSectionRecord = sections.find((section) => section._id === sectionId);
+    const selectedInstructorRecord = instructors.find(
+      (instructor) => instructor._id === instructorId,
+    );
+
+    const selectedSectionName = selectedSectionRecord?.name || 'Not selected';
+    const selectedSectionCode = selectedSectionRecord?.code || 'Not selected';
+    const selectedInstructorName = selectedInstructorRecord
+      ? [
+          selectedInstructorRecord.firstName,
+          selectedInstructorRecord.middleName,
+          selectedInstructorRecord.lastName,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : 'Not selected';
+
+    const isConfirmed = window.confirm(
+      `Please review your academic details:\n\n` +
+        `Section: ${selectedSectionName}\n` +
+        `Section Code: ${selectedSectionCode}\n` +
+        `Instructor: ${selectedInstructorName}\n\n` +
+        `Are these details correct and are you sure you want to save?`,
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
     setAcademicSaveError('');
     setAcademicSaveSuccess(false);
     setIsSavingAcademic(true);

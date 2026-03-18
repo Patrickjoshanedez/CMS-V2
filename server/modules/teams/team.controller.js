@@ -38,6 +38,20 @@ export const inviteMember = catchAsync(async (req, res) => {
   });
 });
 
+/** GET /api/teams/:id/invite-candidates — Search invite candidate students (Leader only) */
+export const listInviteCandidates = catchAsync(async (req, res) => {
+  const { candidates } = await teamService.listInviteCandidates(
+    req.params.id,
+    req.user._id,
+    req.query,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { candidates },
+  });
+});
+
 /** POST /api/teams/invites/:token/accept — Accept a team invitation */
 export const acceptInvite = catchAsync(async (req, res) => {
   const { team } = await teamService.acceptInvite(req.params.token, req.user._id);

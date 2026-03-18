@@ -7,6 +7,7 @@ import { ROLES } from '@cms/shared';
 import {
   createTeamSchema,
   inviteMemberSchema,
+  inviteCandidatesQuerySchema,
   listTeamsQuerySchema,
 } from './team.validation.js';
 
@@ -19,12 +20,7 @@ const router = Router();
 router.use(authenticate);
 
 // --- Student team routes ---
-router.post(
-  '/',
-  authorize(ROLES.STUDENT),
-  validate(createTeamSchema),
-  teamController.createTeam,
-);
+router.post('/', authorize(ROLES.STUDENT), validate(createTeamSchema), teamController.createTeam);
 
 router.get('/me', teamController.getMyTeam);
 
@@ -33,6 +29,13 @@ router.post(
   authorize(ROLES.STUDENT),
   validate(inviteMemberSchema),
   teamController.inviteMember,
+);
+
+router.get(
+  '/:id/invite-candidates',
+  authorize(ROLES.STUDENT),
+  validate(inviteCandidatesQuerySchema, 'query'),
+  teamController.listInviteCandidates,
 );
 
 // --- Invite response routes (any authenticated student) ---

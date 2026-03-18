@@ -84,6 +84,7 @@ const PROTECTED_ROUTES = [
   // General
   { path: '/dashboard', Component: DashboardPage },
   { path: '/teams', Component: TeamsPage },
+  { path: '/teams/invites/:token/:action', Component: TeamsPage },
   { path: '/team', Component: TeamsPage },
   { path: '/users', Component: UsersPage },
   { path: '/profile', Component: ProfilePage },
