@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
@@ -25,7 +26,12 @@ import {
   useRequestTitleModification,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
-import { TITLE_STATUSES, CAPSTONE_PHASES, SUBMISSION_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  TITLE_STATUSES,
+  CAPSTONE_PHASES,
+  SUBMISSION_STATUSES,
+  PROJECT_STATUSES,
+} from '@cms/shared';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -91,7 +97,8 @@ function RejectedProjectState({ project }) {
       <Alert variant="destructive">
         <XCircle className="h-4 w-4" />
         <AlertDescription>
-          Your project <span className="font-semibold">&ldquo;{project.title}&rdquo;</span> has been rejected.
+          Your project <span className="font-semibold">&ldquo;{project.title}&rdquo;</span> has been
+          rejected.
           {project.rejectionReason && (
             <span className="mt-1 block text-sm">
               <span className="font-medium">Reason:</span> {project.rejectionReason}
@@ -517,6 +524,23 @@ function SubmittedCard() {
   );
 }
 
+function PanelistsPendingCard() {
+  return (
+    <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30">
+      <CardContent className="flex items-start gap-3 pt-6">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+        <div>
+          <p className="text-sm font-semibold text-green-800 dark:text-green-200">Title Approved</p>
+          <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+            Your title has been approved. Waiting for the instructor to assign panelists before you
+            can proceed to Capstone 1.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Actions section selector ────────── */
 
 function TitleActionsSection({ project }) {
@@ -579,12 +603,11 @@ function chapterStatusIcon(status) {
 }
 
 /**
- * ChapterProgressSection — Shows chapters 1-3 (or 1-5 for later phases)
- * with their current submission status, providing at-a-glance workflow progress.
+ * ChapterProgressSection — Shows specified chapters with their current submission status.
+ * @param {number[]} chapters - Array of chapter numbers to display, e.g. [1,2,3] or [4,5]
  */
-function ChapterProgressSection({ project, submissions }) {
+function ChapterProgressSection({ project, submissions, chapters = [1, 2, 3] }) {
   const navigate = useNavigate();
-  const maxChapter = project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 ? 5 : 3;
 
   // Build a map of latest submission per chapter from the submissions list
   const chapterMap = {};
@@ -603,9 +626,7 @@ function ChapterProgressSection({ project, submissions }) {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base">Chapter Progress</CardTitle>
-            <CardDescription>
-              Track the status of each chapter submission.
-            </CardDescription>
+            <CardDescription>Track the status of each chapter submission.</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
             <ClipboardList className="mr-2 h-4 w-4" />
@@ -615,7 +636,7 @@ function ChapterProgressSection({ project, submissions }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {Array.from({ length: maxChapter }, (_, i) => i + 1).map((chapter) => {
+          {Array.from(chapters).map((chapter) => {
             const sub = chapterMap[chapter];
             const { label, variant } = sub
               ? chapterStatusBadge(sub.status)
@@ -627,7 +648,11 @@ function ChapterProgressSection({ project, submissions }) {
                 className="flex items-center justify-between rounded-lg border px-4 py-3"
               >
                 <div className="flex items-center gap-3">
-                  {sub ? chapterStatusIcon(sub.status) : <FileText className="h-4 w-4 text-muted-foreground" />}
+                  {sub ? (
+                    chapterStatusIcon(sub.status)
+                  ) : (
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  )}
                   <span className="text-sm font-medium">{CHAPTER_LABELS[chapter]}</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -669,7 +694,8 @@ function getNextStep(project, submissions) {
   if (titleStatus === TITLE_STATUSES.DRAFT) {
     return {
       title: 'Submit Your Title',
-      description: 'Your project title is still in draft. Edit it and submit it for instructor approval to proceed.',
+      description:
+        'Your project title is still in draft. Edit it and submit it for instructor approval to proceed.',
       action: null, // actions are in TitleActionsSection
       icon: Edit3,
       color: 'text-blue-600 dark:text-blue-400',
@@ -679,7 +705,8 @@ function getNextStep(project, submissions) {
   if (titleStatus === TITLE_STATUSES.SUBMITTED) {
     return {
       title: 'Awaiting Title Review',
-      description: 'Your title is under review by the instructor. You\'ll be notified once a decision is made.',
+      description:
+        "Your title is under review by the instructor. You'll be notified once a decision is made.",
       action: null,
       icon: Clock,
       color: 'text-amber-600 dark:text-amber-400',
@@ -736,7 +763,10 @@ function getNextStep(project, submissions) {
     // Check if chapters 1-3 are done (locked or approved)
     const allChaptersReady = [1, 2, 3].every((ch) => {
       const sub = chapterMap[ch];
-      return sub && (sub.status === SUBMISSION_STATUSES.LOCKED || sub.status === SUBMISSION_STATUSES.APPROVED);
+      return (
+        sub &&
+        (sub.status === SUBMISSION_STATUSES.LOCKED || sub.status === SUBMISSION_STATUSES.APPROVED)
+      );
     });
 
     if (allChaptersReady) {
@@ -745,7 +775,8 @@ function getNextStep(project, submissions) {
       if (!hasProposal) {
         return {
           title: 'Compile Your Proposal',
-          description: 'All chapters 1–3 are approved/locked. Compile and submit your full proposal.',
+          description:
+            'All chapters 1–3 are approved/locked. Compile and submit your full proposal.',
           action: { label: 'Compile Proposal', path: '/project/proposal' },
           icon: BookOpen,
           color: 'text-green-600 dark:text-green-400',
@@ -772,7 +803,10 @@ function getNextStep(project, submissions) {
           color: 'text-blue-600 dark:text-blue-400',
         };
       }
-      if (sub.status === SUBMISSION_STATUSES.PENDING || sub.status === SUBMISSION_STATUSES.UNDER_REVIEW) {
+      if (
+        sub.status === SUBMISSION_STATUSES.PENDING ||
+        sub.status === SUBMISSION_STATUSES.UNDER_REVIEW
+      ) {
         return {
           title: `${CHAPTER_LABELS[ch]} Under Review`,
           description: `Your ${CHAPTER_LABELS[ch]} is being reviewed. Wait for adviser feedback.`,
@@ -822,7 +856,6 @@ export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
   const { data: project, isLoading, error } = useMyProject();
 
-  // Fetch submissions when a project exists (used by ChapterProgressSection & NextStepCard)
   const { data: submissions } = useProjectSubmissions(
     project?._id,
     { limit: 50 },
@@ -839,6 +872,23 @@ export default function MyProjectPage() {
       </DashboardLayout>
     );
   }
+
+  // Derived unlock conditions
+  const hasPanelists = project?.panelistIds?.length > 0;
+  const capstone1Unlocked = project?.titleStatus === TITLE_STATUSES.APPROVED && hasPanelists;
+  const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
+  const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
+  const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+
+  // Auto-advance to the highest unlocked tab on first load
+  const getDefaultTab = () => {
+    if (!project) return 'proposal';
+    if (finalUnlocked) return 'final';
+    if (capstone3Unlocked) return 'capstone_3';
+    if (capstone2Unlocked) return 'capstone_2';
+    if (capstone1Unlocked) return 'capstone_1';
+    return 'proposal';
+  };
 
   return (
     <DashboardLayout>
@@ -873,53 +923,72 @@ export default function MyProjectPage() {
 
         {project && !isLoading && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
           <>
-            {/* Workflow phase stepper — always visible at top */}
+            {/* Phase stepper — always visible above tabs */}
             <WorkflowPhaseTracker project={project} />
 
-            {/* Contextual next-step guidance card */}
-            <NextStepCard project={project} submissions={submissions} />
+            {/* Tabbed workflow */}
+            <Tabs defaultValue={getDefaultTab()}>
+              <TabsList>
+                <TabsTrigger value="proposal">Proposal</TabsTrigger>
+                <TabsTrigger value="capstone_1" locked={!capstone1Unlocked}>
+                  Capstone 1
+                </TabsTrigger>
+                <TabsTrigger value="capstone_2" locked={!capstone2Unlocked}>
+                  Capstone 2
+                </TabsTrigger>
+                <TabsTrigger value="capstone_3" locked={!capstone3Unlocked}>
+                  Capstone 3
+                </TabsTrigger>
+                <TabsTrigger value="final" locked={!finalUnlocked}>
+                  Final Defense
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Deadline warnings — compact inline alert for urgent deadlines */}
-            {project.deadlines && (
-              <DeadlineWarning deadlines={project.deadlines} compact />
-            )}
+              {/* ── Proposal Tab ── */}
+              <TabsContent value="proposal">
+                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+                <ProjectInfoCard project={project} />
+                <TitleActionsSection project={project} />
+                {project.titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists && (
+                  <PanelistsPendingCard />
+                )}
+              </TabsContent>
 
-            {/* Project info & title management */}
-            <ProjectInfoCard project={project} />
-            <TitleActionsSection project={project} />
+              {/* ── Capstone 1 Tab ── */}
+              <TabsContent value="capstone_1">
+                <NextStepCard project={project} submissions={submissions} />
+                <ChapterProgressSection
+                  project={project}
+                  submissions={submissions}
+                  chapters={[1, 2, 3]}
+                />
+                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
+                <EvaluationPanel projectId={project._id} defenseType="proposal" />
+              </TabsContent>
 
-            {/* Chapter progress — visible once title is approved */}
-            {project.titleStatus === TITLE_STATUSES.APPROVED && (
-              <ChapterProgressSection project={project} submissions={submissions} />
-            )}
-
-            {/* Full deadline overview — visible once title is approved and deadlines exist */}
-            {project.titleStatus === TITLE_STATUSES.APPROVED && project.deadlines && (
-              <DeadlineWarning deadlines={project.deadlines} />
-            )}
-
-            {/* Prototype showcasing — visible from Capstone 2 onwards */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
-              <>
+              {/* ── Capstone 2 Tab ── */}
+              <TabsContent value="capstone_2">
                 <PrototypeUploadForm projectId={project._id} />
                 <PrototypeGallery projectId={project._id} canDelete />
-              </>
-            )}
+                <EvaluationPanel projectId={project._id} defenseType="midterm" />
+              </TabsContent>
 
-            {/* Evaluation panel — proposal defense */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
-              <EvaluationPanel projectId={project._id} defenseType="proposal" />
-            )}
+              {/* ── Capstone 3 Tab ── */}
+              <TabsContent value="capstone_3">
+                <ChapterProgressSection
+                  project={project}
+                  submissions={submissions}
+                  chapters={[4, 5]}
+                />
+                <EvaluationPanel projectId={project._id} defenseType="paper" />
+              </TabsContent>
 
-            {/* Evaluation panel — final defense (Capstone 4) */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
-              <EvaluationPanel projectId={project._id} defenseType="final" />
-            )}
-
-            {/* Final paper upload — Capstone 4 */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
-              <FinalPaperUpload projectId={project._id} />
-            )}
+              {/* ── Final Defense Tab ── */}
+              <TabsContent value="final">
+                <FinalPaperUpload projectId={project._id} />
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>

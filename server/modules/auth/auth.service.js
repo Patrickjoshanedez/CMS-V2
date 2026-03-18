@@ -333,7 +333,33 @@ class AuthService {
    */
   async googleLogin({ credential }) {
     if (!env.GOOGLE_CLIENT_ID) {
-      throw new AppError('Google login is not configured.', 500, 'GOOGLE_NOT_CONFIGURED');
+      throw new AppError(
+        'Google login is not configured on the server. Missing GOOGLE_CLIENT_ID.',
+        503,
+        'GOOGLE_NOT_CONFIGURED',
+      );
+    }
+
+    // Best-effort early audience check for clearer diagnostics when frontend
+    // and backend are using different OAuth client IDs.
+    try {
+      const tokenParts = String(credential || '').split('.');
+      if (tokenParts.length >= 2) {
+        const payloadJson = Buffer.from(tokenParts[1], 'base64url').toString('utf8');
+        const decodedPayload = JSON.parse(payloadJson);
+        if (decodedPayload?.aud && decodedPayload.aud !== env.GOOGLE_CLIENT_ID) {
+          throw new AppError(
+            'Google token audience mismatch. Ensure VITE_GOOGLE_CLIENT_ID matches server GOOGLE_CLIENT_ID.',
+            401,
+            'GOOGLE_AUDIENCE_MISMATCH',
+          );
+        }
+      }
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      // Ignore decode issues and continue with full Google verification below.
     }
 
     const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);

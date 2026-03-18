@@ -1,10 +1,12 @@
 /**
  * Defense types for the Capstone Management System.
- * Distinguishes between proposal defense (Capstone 1) and final defense (Capstone 4).
+ * Maps to each capstone phase's evaluation event.
  */
 export const DEFENSE_TYPES = Object.freeze({
-  PROPOSAL: 'proposal',
-  FINAL: 'final',
+  PROPOSAL: 'proposal', // Capstone 1 — paper/manuscript evaluation
+  MIDTERM: 'midterm', // Capstone 2 — presentation/progress defense
+  PAPER: 'paper', // Capstone 3 — chapters 4-5 paper evaluation
+  FINAL: 'final', // Capstone 4 — final system defense
 });
 
 /**

@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
+import { useAuthStore } from '@/stores/authStore';
 import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CAPSTONE_TITLE_VALUES } from '@cms/shared';
+import { CAPSTONE_TITLES, CAPSTONE_TITLE_VALUES } from '@cms/shared';
 
 /**
  * CreateProjectPage — Students create a new capstone project.
@@ -24,6 +25,7 @@ import { CAPSTONE_TITLE_VALUES } from '@cms/shared';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+const SOLO_PROFESSIONAL_TITLE = CAPSTONE_TITLES.UI_UX_DESIGNER_RESEARCHER;
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
@@ -40,6 +42,7 @@ export default function CreateProjectPage() {
   });
 
   const { data: team, isLoading: isTeamLoading } = useMyTeam();
+  const user = useAuthStore((state) => state.user);
   const { data: academicYears = [] } = useAcademicYears();
 
   const [form, setForm] = useState({
@@ -52,6 +55,21 @@ export default function CreateProjectPage() {
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
+  const [soloCapstoneConfirmed, setSoloCapstoneConfirmed] = useState(false);
+
+  const teamMembers = useMemo(() => {
+    if (team?.members?.length > 0) {
+      return team.members;
+    }
+
+    if (user?._id) {
+      return [user];
+    }
+
+    return [];
+  }, [team?.members, user]);
+
+  const isSoloCapstoneFlow = !isTeamLoading && (!team?.members || team.members.length === 0);
 
   const { data: sections = [], isLoading: isSectionsLoading } = useSections(
     { academicYear: form.academicYear || undefined },
@@ -71,7 +89,7 @@ export default function CreateProjectPage() {
   }, [form.sectionId, sectionOptions]);
 
   useEffect(() => {
-    const members = team?.members || [];
+    const members = teamMembers;
     if (members.length === 0) {
       return;
     }
@@ -83,7 +101,7 @@ export default function CreateProjectPage() {
       }
       return next;
     });
-  }, [team]);
+  }, [teamMembers]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -111,7 +129,18 @@ export default function CreateProjectPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const members = team?.members || [];
+    const members = teamMembers;
+
+    if (members.length === 0) {
+      toast.error('Add or load team/member information before creating a project.');
+      return;
+    }
+
+    if (isSoloCapstoneFlow && !soloCapstoneConfirmed) {
+      toast.error('Confirm the solo capstone acknowledgment before continuing.');
+      return;
+    }
+
     const assignmentPayload = members.map((member) => ({
       userId: member._id,
       professionalTitle: memberRoleAssignments[member._id],
@@ -130,6 +159,8 @@ export default function CreateProjectPage() {
       academicYear: form.academicYear,
       sectionId: form.sectionId,
       memberRoleAssignments: assignmentPayload,
+      allowSoloCapstone: isSoloCapstoneFlow,
+      soloCapstoneConfirmed: isSoloCapstoneFlow ? soloCapstoneConfirmed : false,
     });
   };
 
@@ -137,6 +168,20 @@ export default function CreateProjectPage() {
     setMemberRoleAssignments((prev) => ({
       ...prev,
       [memberId]: professionalTitle,
+    }));
+  };
+
+  const handleSoloCapstoneToggle = (checked) => {
+    setSoloCapstoneConfirmed(checked);
+
+    if (!isSoloCapstoneFlow || teamMembers.length === 0) {
+      return;
+    }
+
+    const soloMemberId = teamMembers[0]._id;
+    setMemberRoleAssignments((prev) => ({
+      ...prev,
+      [soloMemberId]: checked ? SOLO_PROFESSIONAL_TITLE : '',
     }));
   };
 
@@ -313,7 +358,9 @@ export default function CreateProjectPage() {
               <div className="space-y-2 rounded-md border p-4">
                 <Label className="text-sm font-semibold">Member Role Assignment *</Label>
                 <p className="text-xs text-muted-foreground">
-                  Assign one professional capstone title to each team member, including yourself.
+                  {isSoloCapstoneFlow
+                    ? 'Solo capstone mode is available. Assign your professional capstone title and confirm acknowledgment.'
+                    : 'Assign one professional capstone title to each team member, including yourself.'}
                 </p>
 
                 {isTeamLoading && (
@@ -323,18 +370,42 @@ export default function CreateProjectPage() {
                   </div>
                 )}
 
-                {!isTeamLoading && (!team?.members || team.members.length === 0) && (
-                  <Alert variant="destructive">
+                {!isTeamLoading && isSoloCapstoneFlow && (
+                  <Alert>
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      You need an active team with members before initializing a project.
+                      <div className="space-y-2">
+                        <p className="font-medium">
+                          Your client approved solo capstone, but confirmation is required.
+                        </p>
+                        <ul className="list-disc space-y-1 pl-5 text-xs">
+                          <li>Set weekly milestones and include adviser checkpoints.</li>
+                          <li>Keep a revision journal to track scope, risks, and decisions.</li>
+                          <li>Start with a narrow MVP to avoid overload in later chapters.</li>
+                        </ul>
+                      </div>
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {!isTeamLoading && team?.members?.length > 0 && (
+                {!isTeamLoading && isSoloCapstoneFlow && (
+                  <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={soloCapstoneConfirmed}
+                      onChange={(e) => handleSoloCapstoneToggle(e.target.checked)}
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <span>
+                      I confirm I will proceed as a solo capstone student and accept adviser-guided
+                      checkpoints for this project.
+                    </span>
+                  </label>
+                )}
+
+                {!isTeamLoading && teamMembers.length > 0 && (
                   <div className="space-y-3">
-                    {team.members.map((member) => (
+                    {teamMembers.map((member) => (
                       <div
                         key={member._id}
                         className="grid gap-2 rounded-md border p-3 sm:grid-cols-2"
@@ -347,6 +418,7 @@ export default function CreateProjectPage() {
                           value={memberRoleAssignments[member._id] || ''}
                           onChange={(e) => handleMemberRoleChange(member._id, e.target.value)}
                           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          disabled={isSoloCapstoneFlow}
                           required
                         >
                           <option value="">Select professional capstone title</option>
@@ -356,6 +428,12 @@ export default function CreateProjectPage() {
                             </option>
                           ))}
                         </select>
+                        {isSoloCapstoneFlow && (
+                          <p className="text-xs text-muted-foreground">
+                            Solo capstone uses the professional title that maps to the traditional
+                            role &quot;All-Around&quot;.
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

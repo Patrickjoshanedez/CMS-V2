@@ -48,23 +48,6 @@ class ProjectService {
     if (user.role !== ROLES.STUDENT) {
       throw new AppError('Only students can create projects.', 403, 'FORBIDDEN');
     }
-    if (!user.teamId) {
-      throw new AppError('You must be in a team before creating a project.', 400, 'NO_TEAM');
-    }
-
-    const team = await Team.findById(user.teamId);
-    if (!team) throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
-
-    if (team.leaderId.toString() !== userId.toString()) {
-      throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
-    }
-    if (!team.isLocked) {
-      throw new AppError(
-        'Your team must be locked before creating a project.',
-        400,
-        'TEAM_NOT_LOCKED',
-      );
-    }
 
     const section = await Section.findById(data.sectionId).populate('courseId', 'name code');
     if (!section) {
@@ -76,6 +59,36 @@ class ProjectService {
         'Selected section does not belong to the selected academic year.',
         400,
         'SECTION_YEAR_MISMATCH',
+      );
+    }
+
+    let team = null;
+    if (!user.teamId) {
+      if (!data.allowSoloCapstone || !data.soloCapstoneConfirmed) {
+        throw new AppError(
+          'You must have an active team, or explicitly confirm solo capstone mode to continue.',
+          400,
+          'NO_TEAM',
+        );
+      }
+
+      team = await this._createSoloTeamForStudent(user, data.academicYear);
+    }
+
+    if (!team) {
+      team = await Team.findById(user.teamId);
+    }
+
+    if (!team) throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+
+    if (team.leaderId.toString() !== userId.toString()) {
+      throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
+    }
+    if (!team.isLocked) {
+      throw new AppError(
+        'Your team must be locked before creating a project.',
+        400,
+        'TEAM_NOT_LOCKED',
       );
     }
 
@@ -186,6 +199,27 @@ class ProjectService {
     );
 
     return { project, similarProjects };
+  }
+
+  /**
+   * Create a locked single-member team for an explicitly confirmed solo capstone flow.
+   * This keeps downstream project rules consistent by preserving team-based ownership.
+   */
+  async _createSoloTeamForStudent(user, academicYear) {
+    const soloTeamName = `${user.firstName} ${user.lastName} - Solo Capstone`;
+
+    const team = await Team.create({
+      name: soloTeamName,
+      leaderId: user._id,
+      members: [user._id],
+      isLocked: true,
+      academicYear,
+    });
+
+    user.teamId = team._id;
+    await user.save();
+
+    return team;
   }
 
   /* ═══════════════════ Read ═══════════════════ */

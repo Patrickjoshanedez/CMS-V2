@@ -50,6 +50,8 @@ export const createProjectSchema = z.object({
       }),
     )
     .min(1, 'At least one member role assignment is required'),
+  allowSoloCapstone: z.boolean().optional().default(false),
+  soloCapstoneConfirmed: z.boolean().optional().default(false),
 });
 
 /* ───── Update title (draft stage only) ───── */

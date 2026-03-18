@@ -14,7 +14,9 @@ const objectIdField = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid ID format');
 export const projectDefenseParamSchema = z.object({
   projectId: objectIdField,
   defenseType: z.enum(DEFENSE_TYPE_VALUES, {
-    errorMap: () => ({ message: 'Defense type must be "proposal" or "final"' }),
+    errorMap: () => ({
+      message: 'Defense type must be "proposal", "midterm", "paper", or "final"',
+    }),
   }),
 });
 

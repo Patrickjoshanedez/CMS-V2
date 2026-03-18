@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Search,
   Send,
+  UserCheck,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import {
@@ -26,6 +27,7 @@ import {
   useCreateTeam,
   useInviteMember,
   useAcceptInvite,
+  useLockTeam,
 } from '@/hooks/useTeams';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -288,6 +290,22 @@ function InviteMemberForm({ teamId }) {
 function StudentTeamDetail({ team, userId }) {
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
 
+  const lockTeam = useLockTeam({
+    onSuccess: () => toast.success('Team finalized! No further member changes are allowed.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
+  });
+
+  const handleFinalize = () => {
+    if (
+      !window.confirm(
+        'Finalize team members? This locks the roster permanently and cannot be undone.',
+      )
+    )
+      return;
+    lockTeam.mutate(team._id);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -305,7 +323,7 @@ function StudentTeamDetail({ team, userId }) {
                 {team.isLocked && (
                   <Badge variant="secondary" className="gap-1">
                     <Lock className="h-3 w-3" />
-                    Locked
+                    Finalized
                   </Badge>
                 )}
               </CardDescription>
@@ -349,6 +367,31 @@ function StudentTeamDetail({ team, userId }) {
           {/* Invite Form (leader only, team not locked) */}
           {isLeader && !team.isLocked && (
             <div>
+              {/* Finalize Team Members (leader only, team not locked) */}
+              {isLeader && !team.isLocked && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    Ready to proceed?
+                  </p>
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    Finalizing the team locks the member roster permanently. No new members can be
+                    added after this step, and you will be able to create your capstone project.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="mt-3"
+                    onClick={handleFinalize}
+                    disabled={lockTeam.isPending}
+                  >
+                    {lockTeam.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserCheck className="mr-2 h-4 w-4" />
+                    )}
+                    Finalize Team Members
+                  </Button>
+                </div>
+              )}
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />
             </div>
@@ -383,7 +426,7 @@ function TeamCard({ team }) {
               {team.isLocked && (
                 <Badge variant="secondary" className="ml-1 gap-1 text-xs">
                   <Lock className="h-3 w-3" />
-                  Locked
+                  Finalized
                 </Badge>
               )}
             </CardDescription>

@@ -24,6 +24,11 @@ import academicRoutes from './modules/academics/academic.routes.js';
 
 const app = express();
 
+// Respect X-Forwarded-* headers when running behind Nginx/Ingress.
+if (env.TRUST_PROXY) {
+  app.set('trust proxy', 1);
+}
+
 // ---------- Global Middleware ----------
 
 // Security headers

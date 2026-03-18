@@ -343,7 +343,8 @@ export default function ProfilePage() {
                   {sections.map((s) => (
                     <option key={s._id} value={s._id}>
                       {s.courseId?.code ? `[${s.courseId.code}] ` : ''}
-                      {s.name} ({s.academicYear})
+                      {s.name}
+                      {s.code ? ` - ${s.code}` : ''} ({s.academicYear})
                     </option>
                   ))}
                 </select>

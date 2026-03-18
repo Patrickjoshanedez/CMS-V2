@@ -10,6 +10,36 @@ const parseBoolean = (value, defaultValue = false) => {
   return value.toLowerCase() === 'true';
 };
 
+const parseNullableBoolean = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  return null;
+};
+
+const parseCookieSameSite = (value, defaultValue = 'strict') => {
+  if (typeof value !== 'string') {
+    return defaultValue;
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized === 'strict' || normalized === 'lax' || normalized === 'none') {
+    return normalized;
+  }
+
+  return defaultValue;
+};
+
 /**
  * Centralized environment configuration.
  * All env vars are accessed here — never use process.env directly in modules.
@@ -48,6 +78,11 @@ const env = Object.freeze({
 
   // Client
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+
+  // Cookies / reverse proxy
+  TRUST_PROXY: parseBoolean(process.env.TRUST_PROXY, false),
+  COOKIE_SECURE: parseNullableBoolean(process.env.COOKIE_SECURE),
+  COOKIE_SAME_SITE: parseCookieSameSite(process.env.COOKIE_SAME_SITE, 'strict'),
 
   // AWS S3 (Cloud Storage — LocalStack for dev, real AWS for prod)
   S3_BUCKET: process.env.S3_BUCKET || 'cms-buksu-uploads',

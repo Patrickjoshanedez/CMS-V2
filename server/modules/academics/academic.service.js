@@ -33,8 +33,10 @@ class AcademicService {
       throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
     }
 
+    const normalizedSection = (data.section || data.name || '').trim().toUpperCase();
+
     const section = await Section.create({
-      name: data.name,
+      name: normalizedSection,
       code: data.code.trim().toUpperCase(),
       courseId: data.courseId,
       academicYear: data.academicYear,

@@ -10,12 +10,7 @@ import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import {
-  ROLES,
-  EVALUATION_STATUSES,
-  DEFENSE_TYPES,
-  PROJECT_STATUSES,
-} from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES, PROJECT_STATUSES } from '@cms/shared';
 
 class EvaluationService {
   /* ═══════════════════ Default Rubric ═══════════════════ */
@@ -26,16 +21,41 @@ class EvaluationService {
    */
   getDefaultCriteria(defenseType) {
     if (defenseType === DEFENSE_TYPES.PROPOSAL) {
+      // Capstone 1 — Paper/Manuscript Evaluation (Chapters 1-3)
+      // Scoring: 1 = Needs Improvement, 2 = Meets Expectations, 3 = Exceeds Expectations
       return [
-        { name: 'Problem Statement & Objectives', maxScore: 20, score: null, comment: '' },
-        { name: 'Review of Related Literature', maxScore: 20, score: null, comment: '' },
-        { name: 'Methodology & Design', maxScore: 20, score: null, comment: '' },
-        { name: 'Feasibility & Significance', maxScore: 15, score: null, comment: '' },
-        { name: 'Presentation & Communication', maxScore: 15, score: null, comment: '' },
-        { name: 'Q&A / Defense of Proposal', maxScore: 10, score: null, comment: '' },
+        { name: 'Problem Definition and Objectives', maxScore: 3, score: null, comment: '' },
+        { name: 'Presentation and Writing Quality', maxScore: 3, score: null, comment: '' },
+        { name: 'Originality and Innovation', maxScore: 3, score: null, comment: '' },
+        { name: 'Independence', maxScore: 3, score: null, comment: '' },
       ];
     }
-    // Final defense criteria
+    if (defenseType === DEFENSE_TYPES.MIDTERM) {
+      // Capstone 2 — Presentation/Progress Defense
+      // Scoring: 1 = Needs Improvement, 2 = Satisfactory, 3 = Proficient, 4 = Excellent
+      return [
+        { name: 'Completeness of Report', maxScore: 4, score: null, comment: '' },
+        { name: 'System Development Progress', maxScore: 4, score: null, comment: '' },
+        { name: 'Alignment with Objectives', maxScore: 4, score: null, comment: '' },
+        { name: 'Technical Quality', maxScore: 4, score: null, comment: '' },
+        { name: 'Documentation of Progress', maxScore: 4, score: null, comment: '' },
+        { name: 'Adherence to Timeline', maxScore: 4, score: null, comment: '' },
+        { name: 'Problem Identification and Resolution', maxScore: 4, score: null, comment: '' },
+        { name: 'Presentation Quality', maxScore: 4, score: null, comment: '' },
+      ];
+    }
+    if (defenseType === DEFENSE_TYPES.PAPER) {
+      // Capstone 3 — Paper/Manuscript Evaluation (Chapters 4-5)
+      // Scoring: 1 = Needs Improvement, 2 = Meets Expectations, 3 = Exceeds Expectations
+      return [
+        { name: 'Presentation of Results', maxScore: 3, score: null, comment: '' },
+        { name: 'Analysis and Interpretation', maxScore: 3, score: null, comment: '' },
+        { name: 'Summary, Conclusions and Recommendations', maxScore: 3, score: null, comment: '' },
+        { name: 'Presentation and Writing Quality', maxScore: 3, score: null, comment: '' },
+        { name: 'Independence', maxScore: 3, score: null, comment: '' },
+      ];
+    }
+    // Capstone 4 — Final System Defense
     return [
       { name: 'System Functionality & Completeness', maxScore: 25, score: null, comment: '' },
       { name: 'Technical Implementation', maxScore: 20, score: null, comment: '' },
@@ -62,9 +82,7 @@ class EvaluationService {
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
     // Verify panelist is assigned to this project
-    const isPanelist = project.panelistIds.some(
-      (id) => id.toString() === panelistId.toString(),
-    );
+    const isPanelist = project.panelistIds.some((id) => id.toString() === panelistId.toString());
     if (!isPanelist) {
       throw new AppError(
         'You are not assigned as a panelist for this project.',
@@ -283,16 +301,18 @@ class EvaluationService {
     const summary = {
       totalPanelists: evaluations.length,
       submittedCount: scoredEvals.length,
-      averageScore: scoredEvals.length > 0
-        ? Math.round(
-            (scoredEvals.reduce((sum, e) => sum + e.totalScore, 0) / scoredEvals.length) * 100,
-          ) / 100
-        : null,
-      averageMaxScore: scoredEvals.length > 0
-        ? Math.round(
-            (scoredEvals.reduce((sum, e) => sum + e.maxTotalScore, 0) / scoredEvals.length) * 100,
-          ) / 100
-        : null,
+      averageScore:
+        scoredEvals.length > 0
+          ? Math.round(
+              (scoredEvals.reduce((sum, e) => sum + e.totalScore, 0) / scoredEvals.length) * 100,
+            ) / 100
+          : null,
+      averageMaxScore:
+        scoredEvals.length > 0
+          ? Math.round(
+              (scoredEvals.reduce((sum, e) => sum + e.maxTotalScore, 0) / scoredEvals.length) * 100,
+            ) / 100
+          : null,
       averagePercentage: null,
     };
 

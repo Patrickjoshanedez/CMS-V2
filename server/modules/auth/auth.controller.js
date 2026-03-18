@@ -6,22 +6,40 @@ import env from '../../config/env.js';
 
 /**
  * Cookie options for access and refresh tokens.
- * HTTP-only, Secure (in production), SameSite=Strict per .instructions.md Rule 2.
+ * HTTP-only, request-aware Secure, and configurable SameSite.
  */
-const getAccessTokenCookieOptions = () => ({
-  httpOnly: true,
-  secure: env.isProduction,
-  sameSite: 'strict',
+const getCookieSecurityOptions = (req) => {
+  const forwardedProtoHeader = req.headers['x-forwarded-proto'];
+  const forwardedProto = Array.isArray(forwardedProtoHeader)
+    ? forwardedProtoHeader[0]
+    : forwardedProtoHeader;
+
+  const isHttpsRequest = Boolean(req.secure || forwardedProto === 'https');
+  const secure = env.COOKIE_SECURE ?? isHttpsRequest;
+
+  // Browsers reject SameSite=None cookies unless Secure=true.
+  const sameSite = secure
+    ? env.COOKIE_SAME_SITE
+    : env.COOKIE_SAME_SITE === 'none'
+      ? 'lax'
+      : env.COOKIE_SAME_SITE;
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/',
+  };
+};
+
+const getAccessTokenCookieOptions = (req) => ({
+  ...getCookieSecurityOptions(req),
   maxAge: 15 * 60 * 1000, // 15 minutes
-  path: '/',
 });
 
-const getRefreshTokenCookieOptions = () => ({
-  httpOnly: true,
-  secure: env.isProduction,
-  sameSite: 'strict',
+const getRefreshTokenCookieOptions = (req) => ({
+  ...getCookieSecurityOptions(req),
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  path: '/',
 });
 
 /**
@@ -78,8 +96,8 @@ export const login = catchAsync(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.login(req.body);
 
   // Set cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
 
   // Fire-and-forget audit log for login
   auditService
@@ -112,8 +130,8 @@ export const refresh = catchAsync(async (req, res) => {
   const { accessToken, refreshToken } = await authService.refreshToken(refreshTokenStr);
 
   // Set new cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -130,18 +148,8 @@ export const logout = catchAsync(async (req, res) => {
   await authService.logout(req.user._id);
 
   // Clear cookies
-  res.clearCookie('accessToken', {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'strict',
-    path: '/',
-  });
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'strict',
-    path: '/',
-  });
+  res.clearCookie('accessToken', getCookieSecurityOptions(req));
+  res.clearCookie('refreshToken', getCookieSecurityOptions(req));
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -170,18 +178,8 @@ export const resetPassword = catchAsync(async (req, res) => {
   await authService.resetPassword(req.body);
 
   // Clear cookies in case the user is logged in on this device
-  res.clearCookie('accessToken', {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'strict',
-    path: '/',
-  });
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'strict',
-    path: '/',
-  });
+  res.clearCookie('accessToken', getCookieSecurityOptions(req));
+  res.clearCookie('refreshToken', getCookieSecurityOptions(req));
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -220,8 +218,8 @@ export const googleLogin = catchAsync(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.googleLogin({ credential });
 
   // Set cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
 
   // Fire-and-forget audit log
   auditService

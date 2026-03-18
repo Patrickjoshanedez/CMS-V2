@@ -147,7 +147,7 @@ function HierarchyView() {
   const onCreateSection = (event) => {
     event.preventDefault();
     createSection.mutate({
-      name: sectionName.trim(),
+      section: sectionName.trim(),
       code: sectionCode.trim(),
       courseId: selectedCourseId,
       academicYear: newSectionYear.trim(),
@@ -222,6 +222,7 @@ function HierarchyView() {
                 {sections.map((section) => (
                   <option key={section._id} value={section._id}>
                     {section.name}
+                    {section.code ? ` (${section.code})` : ''}
                   </option>
                 ))}
               </select>
@@ -284,13 +285,16 @@ function HierarchyView() {
                 <Input
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
-                  placeholder="Name e.g. BSIT-3C"
+                  placeholder="Section/Year e.g. 1A"
+                  title="Format: Year + Cluster (e.g., 1A, 2B, 4C)"
+                  pattern="\d{1,2}[A-Za-z]"
                   required
                 />
                 <Input
                   value={sectionCode}
                   onChange={(e) => setSectionCode(e.target.value)}
-                  placeholder="Code e.g. 3C"
+                  placeholder="Section Code e.g. T88"
+                  title="Section code example: T88"
                   required
                 />
                 <select
