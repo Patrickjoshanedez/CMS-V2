@@ -1,8 +1,8 @@
 ---
 name: i-delight
 description: Add moments of joy, personality, and unexpected touches that make interfaces memorable and enjoyable to use. Elevates functional to delightful.
-user-invokable: true
-argument-hint: [TARGET=<value>]
+user-invocable: true
+argument-hint: "TARGET"
 ---
 
 Identify opportunities to add moments of joy, personality, and unexpected polish that transform functional interfaces into delightful experiences.

@@ -1,8 +1,8 @@
 ---
 name: i-normalize
 description: Normalize design to match your design system and ensure consistency
-user-invokable: true
-argument-hint: [FEATURE=<value>]
+user-invocable: true
+argument-hint: "FEATURE"
 ---
 
 Analyze and redesign the feature to perfectly match our design system standards, aesthetics, and established patterns.

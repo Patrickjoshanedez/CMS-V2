@@ -1,8 +1,8 @@
 ---
 name: i-harden
 description: Improve interface resilience through better error handling, i18n support, text overflow handling, and edge case management. Makes interfaces robust and production-ready.
-user-invokable: true
-argument-hint: [TARGET=<value>]
+user-invocable: true
+argument-hint: "TARGET"
 ---
 
 Strengthen interfaces against edge cases, errors, internationalization issues, and real-world usage scenarios that break idealized designs.

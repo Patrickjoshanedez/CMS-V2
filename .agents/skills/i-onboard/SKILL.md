@@ -1,8 +1,8 @@
 ---
 name: i-onboard
 description: Design or improve onboarding flows, empty states, and first-time user experiences. Helps users get started successfully and understand value quickly.
-user-invokable: true
-argument-hint: [TARGET=<value>]
+user-invocable: true
+argument-hint: "TARGET"
 ---
 
 ## MANDATORY PREPARATION

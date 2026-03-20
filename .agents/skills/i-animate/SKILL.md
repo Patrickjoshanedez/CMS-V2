@@ -1,8 +1,8 @@
 ---
 name: i-animate
 description: Review a feature and enhance it with purposeful animations, micro-interactions, and motion effects that improve usability and delight.
-user-invokable: true
-argument-hint: [TARGET=<value>]
+user-invocable: true
+argument-hint: "TARGET"
 ---
 
 Analyze a feature and strategically add animations and micro-interactions that enhance understanding, provide feedback, and create delight.

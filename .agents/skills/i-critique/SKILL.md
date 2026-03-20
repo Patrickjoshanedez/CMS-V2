@@ -1,8 +1,8 @@
 ---
 name: i-critique
 description: Evaluate design effectiveness from a UX perspective. Assesses visual hierarchy, information architecture, emotional resonance, and overall design quality with actionable feedback.
-user-invokable: true
-argument-hint: [AREA=<value>]
+user-invocable: true
+argument-hint: "AREA"
 ---
 
 ## MANDATORY PREPARATION

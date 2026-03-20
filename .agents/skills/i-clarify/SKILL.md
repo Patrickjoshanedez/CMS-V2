@@ -1,8 +1,8 @@
 ---
 name: i-clarify
 description: Improve unclear UX copy, error messages, microcopy, labels, and instructions. Makes interfaces easier to understand and use.
-user-invokable: true
-argument-hint: [TARGET=<value>]
+user-invocable: true
+argument-hint: "TARGET"
 ---
 
 Identify and improve unclear, confusing, or poorly written interface text to make the product easier to understand and use.
