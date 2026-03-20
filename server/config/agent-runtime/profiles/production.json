@@ -1,0 +1,181 @@
+{
+  "id": "cms-agent-production",
+  "version": "1.0.0",
+  "status": "active",
+  "activatedAt": "2026-03-20T00:00:00Z",
+  "checksum": "replace-with-build-checksum",
+  "description": "Production environment: Conservative, battle-tested configuration for live deployment",
+  "modeProfiles": {
+    "execution": {
+      "useWhen": ["implementation", "bugfix", "migration", "task completion"],
+      "behaviors": [
+        "prioritize correctness and safety",
+        "apply verification only for high-risk changes",
+        "use proven tools and patterns",
+        "minimize experimental features"
+      ]
+    },
+    "explainability": {
+      "useWhen": ["why", "how", "explain decision"],
+      "behaviors": [
+        "provide clear reasoning",
+        "cite primary sources only",
+        "focus on critical evidence"
+      ]
+    },
+    "proactive": {
+      "useWhen": ["task complete", "what next"],
+      "behaviors": [
+        "suggest proven next steps",
+        "surface critical blockers only",
+        "reference deployment checklist"
+      ]
+    }
+  },
+  "confidencePolicy": {
+    "high": {
+      "min": 0.9,
+      "max": 1.0,
+      "policy": "answer_with_citations",
+      "description": "High confidence - answer with citations"
+    },
+    "medium": {
+      "min": 0.75,
+      "max": 0.89,
+      "policy": "answer_with_uncertainty",
+      "description": "Medium confidence - show uncertainty but proceed"
+    },
+    "low": {
+      "min": 0.0,
+      "max": 0.74,
+      "policy": "refuse_and_request_clarification",
+      "description": "Low confidence - refuse and request clarification"
+    }
+  },
+  "verification": {
+    "autoTrigger": [
+      "factual high-impact claims",
+      "numeric outputs",
+      "security-critical code",
+      "performance-critical code",
+      "data integrity operations"
+    ],
+    "steps": [
+      "retrieve evidence via authoritative sources",
+      "generate response",
+      "run evaluator checks",
+      "apply confidence policy",
+      "return with citations"
+    ],
+    "evaluatorSettings": {
+      "runAlways": true,
+      "strictMode": true,
+      "logLevel": "info",
+      "captureEvidence": false
+    }
+  },
+  "triggerPolicies": [
+    {
+      "name": "context7-library-touch",
+      "enabled": true,
+      "when": ["new dependency", "external API behavior change", "security-related library update"],
+      "action": [
+        "resolve library id",
+        "fetch security-critical docs",
+        "validate API usage",
+        "run evaluator with strict validation"
+      ],
+      "decisionMode": "BLOCK",
+      "description": "Conservative library validation for production"
+    }
+  ],
+  "browserVerification": {
+    "enabled": true,
+    "runOnCompletion": true,
+    "captureScreenshots": false,
+    "requiredScenarios": ["happy path", "rbac enforcement", "error handling"],
+    "assertionLevel": "critical",
+    "timeout": 20000
+  },
+  "sessionMemory": {
+    "enabled": true,
+    "autoSave": true,
+    "compactionThreshold": 50,
+    "forkSupport": false,
+    "persistLevel": "essential"
+  },
+  "debugPanel": {
+    "enabled": false,
+    "realTimeMonitoring": false,
+    "trackToolCalls": false,
+    "trackCustomizations": false,
+    "trackContext7": false,
+    "trackBrowserEvents": false,
+    "performanceProfiling": false
+  },
+  "pluginRegistry": [
+    {
+      "id": "plagiarism-engine",
+      "enabled": true,
+      "triggers": ["plagiarism", "cap1", "cap4"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100
+    },
+    {
+      "id": "context7-agent-ops",
+      "enabled": true,
+      "triggers": ["context7", "library docs"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100
+    },
+    {
+      "id": "cms-capstone-expert",
+      "enabled": true,
+      "triggers": ["capstone", "cms", "workflow"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100,
+      "note": "Production-stable domain expertise"
+    }
+  ],
+  "experimentalFeatures": {
+    "advancedDocumentSearch": {
+      "enabled": false,
+      "rolloutPercentage": 0,
+      "allowedRoles": [],
+      "description": "Disabled in production - use basic search"
+    },
+    "splitScreenViewer": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "allowedRoles": ["advisor", "panelist", "instructor"],
+      "description": "Stable split-screen comparison"
+    },
+    "dynamicPlagiarismThreshold": {
+      "enabled": false,
+      "rolloutPercentage": 0,
+      "allowedRoles": [],
+      "description": "Disabled - use fixed thresholds"
+    },
+    "realTimeCollaboration": {
+      "enabled": false,
+      "rolloutPercentage": 0,
+      "allowedRoles": [],
+      "description": "Not available in production"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "logDecisionSource": false,
+    "logBrowserSessions": false,
+    "logPluginLoading": false,
+    "logVerificationSteps": false,
+    "logLibraryTriggers": false,
+    "components": {
+      "agentRuntime": "info",
+      "decisionEngine": "warn",
+      "browserVerification": "info",
+      "plagiarismChecker": "info",
+      "documentProcessing": "warn"
+    }
+  }
+}

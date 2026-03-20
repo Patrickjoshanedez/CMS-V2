@@ -1,4 +1,4 @@
-import api from './api';
+import { plagiarismService as basePlagiarismService } from './plagiarism.service';
 
 /**
  * Plagiarism API service — all plagiarism/originality-related HTTP calls.
@@ -15,7 +15,7 @@ export const plagiarismService = {
    * @returns {Promise<import('axios').AxiosResponse>}
    *   Resolves with `{ data: { success, data: { plagiarismResult } } }`
    */
-  getPlagiarismStatus: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism`),
+  getPlagiarismStatus: basePlagiarismService.getPlagiarismStatus,
 
   /**
    * Fetch the full PlagiarismReport with character-level span data.
@@ -26,5 +26,5 @@ export const plagiarismService = {
    *   Resolves with `{ data: { success, data: { submissionId, originalityScore,
    *     extractedText, fullReport, matchedSources, processedAt } } }`
    */
-  getPlagiarismReport: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism/report`),
+  getPlagiarismReport: basePlagiarismService.getPlagiarismReport,
 };

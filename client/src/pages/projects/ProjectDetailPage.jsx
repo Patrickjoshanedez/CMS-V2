@@ -15,6 +15,7 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
+import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import {
   useProject,
   useApproveTitle,
@@ -27,6 +28,7 @@ import {
   useRejectProject,
   useAdvancePhase,
 } from '@/hooks/useProjects';
+import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { userService } from '@/services/authService';
 import { useQuery } from '@tanstack/react-query';
 import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES } from '@cms/shared';
@@ -41,7 +43,6 @@ import {
   XCircle,
   UserPlus,
   Trash2,
-  Clock,
   ShieldAlert,
   FileText,
   ArrowUpCircle,
@@ -59,17 +60,6 @@ import { toast } from 'sonner';
  *   - Set deadlines (instructor / adviser)
  *   - Reject entire project (instructor only)
  */
-
-/* ────────── Helpers ────────── */
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-PH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 /* ────────── Sub-components ────────── */
 
@@ -174,9 +164,7 @@ function ProjectInfoPanel({ project }) {
         )}
 
         {/* Deadlines — color-coded urgency display */}
-        {project.deadlines && (
-          <DeadlineWarning deadlines={project.deadlines} />
-        )}
+        {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
       </CardContent>
     </Card>
   );
@@ -515,7 +503,15 @@ const FIELD_MIN_PHASE = {
   defense: 4,
 };
 
-const DEADLINE_KEYS = ['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense'];
+const DEADLINE_KEYS = [
+  'chapter1',
+  'chapter2',
+  'chapter3',
+  'proposal',
+  'chapter4',
+  'chapter5',
+  'defense',
+];
 
 /**
  * Set deadlines card — instructor / adviser.
@@ -574,9 +570,8 @@ function DeadlinesCard({ project }) {
           Deadlines
         </CardTitle>
         <CardDescription>
-          Currently in <strong>Capstone {currentPhase}</strong>. Future-phase
-          deadlines default to &ldquo;No Deadline&rdquo; — toggle TBA to
-          announce them early.
+          Currently in <strong>Capstone {currentPhase}</strong>. Future-phase deadlines default to
+          &ldquo;No Deadline&rdquo; — toggle TBA to announce them early.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -598,9 +593,7 @@ function DeadlinesCard({ project }) {
                     id={`dl-${key}`}
                     type="date"
                     value={deadlines[key]}
-                    onChange={(e) =>
-                      setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
+                    onChange={(e) => setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))}
                   />
                 ) : isTba ? (
                   /* Marked as TBA */
@@ -654,8 +647,7 @@ function DeadlinesCard({ project }) {
 function AdvancePhaseCard({ project }) {
   const advance = useAdvancePhase({
     onSuccess: () => toast.success('Phase advanced!'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to advance phase.'),
+    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to advance phase.'),
   });
 
   const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
@@ -763,6 +755,11 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { data: project, isLoading, error } = useProject(id);
+  const { data: chapterSubmissions } = useProjectSubmissions(
+    project?._id,
+    { limit: 200, type: 'chapter' },
+    { enabled: !!project?._id },
+  );
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
 
@@ -797,6 +794,17 @@ export default function ProjectDetailPage() {
           <>
             {/* Info panel */}
             <ProjectInfoPanel project={project} />
+
+            {/* Chapter progress + rounds (faculty visibility) */}
+            <ChapterProgressWithRounds
+              project={project}
+              submissions={chapterSubmissions}
+              chapters={[1, 2, 3, 4, 5]}
+              title="Chapter Progress & Rounds"
+              description="Per chapter status with round tabs including adviser review comments, document, and date."
+              showUploadButton={false}
+              showAllSubmissionsButton={false}
+            />
 
             {/* Title review — only when submitted */}
             {project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (

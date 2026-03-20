@@ -27,6 +27,16 @@ const parseNullableBoolean = (value) => {
   return null;
 };
 
+const parsePositiveInteger = (value, defaultValue) => {
+  const parsed = parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
 const parseCookieSameSite = (value, defaultValue = 'strict') => {
   if (typeof value !== 'string') {
     return defaultValue;
@@ -134,6 +144,11 @@ const env = Object.freeze({
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
   MAX_PROTOTYPE_SIZE_MB: parseInt(process.env.MAX_PROTOTYPE_SIZE_MB, 10) || 50,
+
+  // Agent runtime dynamic configuration
+  AGENT_RUNTIME_ACTIVE_PROFILE: process.env.AGENT_RUNTIME_ACTIVE_PROFILE || 'default',
+  AGENT_RUNTIME_CACHE_TTL_MS: parsePositiveInteger(process.env.AGENT_RUNTIME_CACHE_TTL_MS, 30000),
+  AGENT_RUNTIME_STRICT_MODE: parseBoolean(process.env.AGENT_RUNTIME_STRICT_MODE, true),
 
   // Helpers
   isDevelopment: (process.env.NODE_ENV || 'development') === 'development',

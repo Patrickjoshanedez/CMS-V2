@@ -1,0 +1,80 @@
+{
+  "id": "cms-agent-default",
+  "version": "1.0.0",
+  "status": "active",
+  "activatedAt": "2026-03-20T00:00:00Z",
+  "checksum": "replace-with-build-checksum",
+  "modeProfiles": {
+    "execution": {
+      "useWhen": ["implementation", "bugfix", "migration", "task completion"],
+      "behaviors": [
+        "prioritize correctness",
+        "apply grounding and verification",
+        "use tools over assumptions"
+      ]
+    },
+    "explainability": {
+      "useWhen": ["why", "how", "show steps", "explain decision"],
+      "behaviors": ["show reasoning summary", "explain trade-offs", "cite evidence"]
+    },
+    "proactive": {
+      "useWhen": ["task complete", "what next"],
+      "behaviors": ["suggest next steps", "surface blockers", "recommend tests/docs"]
+    }
+  },
+  "confidencePolicy": {
+    "high": { "min": 0.9, "max": 1.0, "policy": "answer_with_citations" },
+    "medium": { "min": 0.7, "max": 0.89, "policy": "answer_with_uncertainty" },
+    "low": { "min": 0.0, "max": 0.69, "policy": "refuse_and_request_clarification" }
+  },
+  "verification": {
+    "autoTrigger": [
+      "factual high-impact claims",
+      "numeric outputs",
+      "external API/library-dependent code",
+      "best/latest/correct/production-ready asks"
+    ],
+    "steps": [
+      "retrieve evidence",
+      "draft response",
+      "run evaluator",
+      "apply confidence policy",
+      "return with citations"
+    ]
+  },
+  "triggerPolicies": [
+    {
+      "name": "context7-library-touch",
+      "when": ["new dependency", "new external import", "external API behavior change"],
+      "action": [
+        "resolve library id",
+        "fetch topic docs",
+        "validate planned API usage",
+        "run evaluator checks"
+      ],
+      "decisionMode": "WARN"
+    }
+  ],
+  "browserVerification": {
+    "enabled": true,
+    "requiredScenarios": [
+      "happy path",
+      "rbac enforcement",
+      "validation errors",
+      "edge cases",
+      "responsive checks"
+    ]
+  },
+  "pluginRegistry": [
+    {
+      "id": "plagiarism-engine",
+      "enabled": true,
+      "triggers": ["plagiarism", "similarity", "originality"]
+    },
+    {
+      "id": "context7-agent-ops",
+      "enabled": true,
+      "triggers": ["context7", "library docs", "api validation"]
+    }
+  ]
+}

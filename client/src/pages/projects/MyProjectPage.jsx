@@ -18,6 +18,7 @@ import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
+import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import {
   useMyProject,
   useUpdateTitle,
@@ -49,10 +50,8 @@ import {
   Upload,
   CheckCircle2,
   Clock,
-  Lock,
   ArrowRight,
   BookOpen,
-  ClipboardList,
 } from 'lucide-react';
 
 /**
@@ -570,116 +569,6 @@ const CHAPTER_LABELS = {
   5: 'Chapter 5',
 };
 
-/**
- * Map submission status to a visual badge.
- */
-function chapterStatusBadge(status) {
-  const map = {
-    [SUBMISSION_STATUSES.PENDING]: { label: 'Pending', variant: 'secondary' },
-    [SUBMISSION_STATUSES.UNDER_REVIEW]: { label: 'Under Review', variant: 'outline' },
-    [SUBMISSION_STATUSES.APPROVED]: { label: 'Approved', variant: 'default' },
-    [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: { label: 'Needs Revision', variant: 'destructive' },
-    [SUBMISSION_STATUSES.LOCKED]: { label: 'Locked', variant: 'default' },
-    [SUBMISSION_STATUSES.REJECTED]: { label: 'Rejected', variant: 'destructive' },
-  };
-  return map[status] || { label: 'Not Started', variant: 'outline' };
-}
-
-function chapterStatusIcon(status) {
-  switch (status) {
-    case SUBMISSION_STATUSES.LOCKED:
-      return <Lock className="h-4 w-4 text-primary" />;
-    case SUBMISSION_STATUSES.APPROVED:
-      return <CheckCircle2 className="h-4 w-4 text-primary" />;
-    case SUBMISSION_STATUSES.UNDER_REVIEW:
-    case SUBMISSION_STATUSES.PENDING:
-      return <Clock className="h-4 w-4 text-muted-foreground" />;
-    case SUBMISSION_STATUSES.REVISIONS_REQUIRED:
-    case SUBMISSION_STATUSES.REJECTED:
-      return <AlertTriangle className="h-4 w-4 text-destructive" />;
-    default:
-      return <FileText className="h-4 w-4 text-muted-foreground" />;
-  }
-}
-
-/**
- * ChapterProgressSection — Shows specified chapters with their current submission status.
- * @param {number[]} chapters - Array of chapter numbers to display, e.g. [1,2,3] or [4,5]
- */
-function ChapterProgressSection({ project, submissions, chapters = [1, 2, 3] }) {
-  const navigate = useNavigate();
-
-  // Build a map of latest submission per chapter from the submissions list
-  const chapterMap = {};
-  if (submissions?.submissions) {
-    for (const sub of submissions.submissions) {
-      const existing = chapterMap[sub.chapter];
-      if (!existing || new Date(sub.uploadedAt) > new Date(existing.uploadedAt)) {
-        chapterMap[sub.chapter] = sub;
-      }
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Chapter Progress</CardTitle>
-            <CardDescription>Track the status of each chapter submission.</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
-            <ClipboardList className="mr-2 h-4 w-4" />
-            All Submissions
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {Array.from(chapters).map((chapter) => {
-            const sub = chapterMap[chapter];
-            const { label, variant } = sub
-              ? chapterStatusBadge(sub.status)
-              : { label: 'Not Started', variant: 'outline' };
-
-            return (
-              <div
-                key={chapter}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  {sub ? (
-                    chapterStatusIcon(sub.status)
-                  ) : (
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="text-sm font-medium">{CHAPTER_LABELS[chapter]}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={variant}>{label}</Badge>
-                  {sub?.version > 1 && (
-                    <span className="text-xs text-muted-foreground">v{sub.version}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Upload chapter button */}
-        {project.titleStatus === TITLE_STATUSES.APPROVED && (
-          <div className="mt-4">
-            <Button onClick={() => navigate('/project/submissions/upload')} className="w-full">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Chapter
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 /* ────────── Next Step Guidance Card ────────── */
 
 /**
@@ -858,7 +747,7 @@ export default function MyProjectPage() {
 
   const { data: submissions } = useProjectSubmissions(
     project?._id,
-    { limit: 50 },
+    { limit: 200, type: 'chapter' },
     { enabled: !!project?._id },
   );
 
@@ -957,10 +846,11 @@ export default function MyProjectPage() {
               {/* ── Capstone 1 Tab ── */}
               <TabsContent value="capstone_1">
                 <NextStepCard project={project} submissions={submissions} />
-                <ChapterProgressSection
+                <ChapterProgressWithRounds
                   project={project}
                   submissions={submissions}
                   chapters={[1, 2, 3]}
+                  showUploadButton={project.titleStatus === TITLE_STATUSES.APPROVED}
                 />
                 {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
                 <EvaluationPanel projectId={project._id} defenseType="proposal" />
@@ -975,10 +865,11 @@ export default function MyProjectPage() {
 
               {/* ── Capstone 3 Tab ── */}
               <TabsContent value="capstone_3">
-                <ChapterProgressSection
+                <ChapterProgressWithRounds
                   project={project}
                   submissions={submissions}
                   chapters={[4, 5]}
+                  showUploadButton={project.titleStatus === TITLE_STATUSES.APPROVED}
                 />
                 <EvaluationPanel projectId={project._id} defenseType="paper" />
               </TabsContent>

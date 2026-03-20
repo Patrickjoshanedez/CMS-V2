@@ -97,6 +97,7 @@ function PasswordStrengthMeter({ password }) {
  */
 export default function RegisterPage() {
   const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
+  const isGoogleLoginConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const navigate = useNavigate();
   const { register: registerUser, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -356,17 +357,25 @@ export default function RegisterPage() {
       </div>
 
       {/* ─── Google Sign-Up Button ─── */}
-      <div className="auth-item flex justify-center">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme={theme === 'dark' ? 'filled_black' : 'outline'}
-          size="large"
-          text="signup_with"
-          shape="rectangular"
-          width="100%"
-        />
-      </div>
+      {isGoogleLoginConfigured ? (
+        <div className="auth-item flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme={theme === 'dark' ? 'filled_black' : 'outline'}
+            size="large"
+            text="signup_with"
+            shape="rectangular"
+            width="100%"
+          />
+        </div>
+      ) : (
+        <div className="auth-item">
+          <p className="text-sm text-destructive text-center">
+            Google Sign-Up is temporarily unavailable. Missing VITE_GOOGLE_CLIENT_ID.
+          </p>
+        </div>
+      )}
 
       {googleError && (
         <div className="auth-item mt-3">

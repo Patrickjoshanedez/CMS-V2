@@ -332,6 +332,10 @@ class AuthService {
    * @returns {Object} { user, accessToken, refreshToken }
    */
   async googleLogin({ credential }) {
+    if (typeof credential !== 'string' || credential.trim().length === 0) {
+      throw new AppError('Google credential is required.', 400, 'MISSING_CREDENTIAL');
+    }
+
     if (!env.GOOGLE_CLIENT_ID) {
       throw new AppError(
         'Google login is not configured on the server. Missing GOOGLE_CLIENT_ID.',
@@ -376,6 +380,10 @@ class AuthService {
     }
 
     const payload = ticket.getPayload();
+    if (!payload) {
+      throw new AppError('Invalid Google token payload.', 401, 'GOOGLE_PAYLOAD_INVALID');
+    }
+
     const {
       sub: googleId,
       email,
@@ -383,6 +391,14 @@ class AuthService {
       family_name: lastName,
       email_verified,
     } = payload;
+
+    if (!googleId || !email) {
+      throw new AppError(
+        'Google token payload is missing required fields.',
+        401,
+        'GOOGLE_PAYLOAD_INVALID',
+      );
+    }
 
     if (!email_verified) {
       throw new AppError('Google email is not verified.', 401, 'GOOGLE_EMAIL_NOT_VERIFIED');
@@ -392,7 +408,7 @@ class AuthService {
     let user = await User.findOne({ googleId });
 
     if (!user) {
-      user = await User.findOne({ email });
+      user = await User.findOne({ email: String(email).toLowerCase() });
 
       if (user) {
         // Existing local user — link their Google account
@@ -404,7 +420,7 @@ class AuthService {
         user = await User.create({
           firstName: firstName || 'Google',
           lastName: lastName || 'User',
-          email,
+          email: String(email).toLowerCase(),
           googleId,
           authProvider: 'google',
           isVerified: true, // Google already verified the email

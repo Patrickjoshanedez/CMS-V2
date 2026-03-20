@@ -378,6 +378,75 @@ const currentStudents = [
   },
 ];
 
+/**
+ * Scenario users for validating edge cases in user/team workflows.
+ * These are current-year students but not part of seeded teams.
+ */
+const scenarioStudents = [
+  {
+    firstName: 'Lara',
+    middleName: 'Mae',
+    lastName: 'Quintero',
+    email: 'scenario.orphan.complete@buksu.edu.ph',
+    role: 'student',
+    isVerified: true,
+    isActive: true,
+    scenarioTag: 'orphan_profile_complete',
+  },
+  {
+    firstName: 'Noel',
+    middleName: 'Ivan',
+    lastName: 'Misa',
+    email: 'scenario.no.section@buksu.edu.ph',
+    role: 'student',
+    isVerified: true,
+    isActive: true,
+    scenarioTag: 'missing_section',
+  },
+  {
+    firstName: 'Priya',
+    middleName: 'S.',
+    lastName: 'Ramos',
+    email: 'scenario.no.adviser@buksu.edu.ph',
+    role: 'student',
+    isVerified: true,
+    isActive: true,
+    scenarioTag: 'missing_adviser',
+  },
+  {
+    firstName: 'Tim',
+    middleName: 'Alex',
+    lastName: 'Uy',
+    email: 'scenario.inactive@buksu.edu.ph',
+    role: 'student',
+    isVerified: true,
+    isActive: false,
+    scenarioTag: 'inactive_student',
+  },
+  {
+    firstName: 'Mika',
+    middleName: 'Joy',
+    lastName: 'Abarca',
+    email: 'scenario.unverified@buksu.edu.ph',
+    role: 'student',
+    isVerified: false,
+    isActive: true,
+    scenarioTag: 'unverified_student',
+  },
+  {
+    firstName: 'Gio',
+    middleName: 'Lee',
+    lastName: 'Tan',
+    email: 'scenario.google@buksu.edu.ph',
+    role: 'student',
+    isVerified: true,
+    isActive: true,
+    authProvider: 'google',
+    googleId: 'google-seed-scenario-001',
+    scenarioTag: 'google_oauth_student',
+  },
+];
+
 /** 20 alumni students for 5 archived teams (4 each). */
 const archivedStudents = [
   // ── Archived Team 0: Valenzuela (0-3) ──
@@ -778,35 +847,47 @@ async function seed() {
     ...advisers,
     ...panelists,
     ...currentStudents,
+    ...scenarioStudents,
     ...archivedStudents,
   ];
   const createdUsers = [];
+  const createdByEmail = new Map();
   for (const def of allUserDefs) {
-    const u = await User.create({
+    const isGoogle = def.authProvider === 'google';
+    const baseUser = {
       firstName: def.firstName,
       middleName: def.middleName ?? '',
       lastName: def.lastName,
       email: def.email,
       role: def.role,
-      password: DEFAULT_PASSWORD,
-      authProvider: 'local',
-      isVerified: true,
-      isActive: true,
-    });
+      authProvider: def.authProvider || 'local',
+      isVerified: def.isVerified ?? true,
+      isActive: def.isActive ?? true,
+    };
+
+    if (isGoogle) {
+      baseUser.googleId = def.googleId;
+    } else {
+      baseUser.password = DEFAULT_PASSWORD;
+    }
+
+    const u = await User.create(baseUser);
     createdUsers.push(u);
+    createdByEmail.set(u.email, u);
   }
 
-  const cInstructors = createdUsers.filter((u) => u.role === 'instructor');
-  const cAdvisers = createdUsers.filter((u) => u.role === 'adviser');
-  const cPanelists = createdUsers.filter((u) => u.role === 'panelist');
-  const cAllStudents = createdUsers.filter((u) => u.role === 'student');
-  const cCurStudents = cAllStudents.slice(0, currentStudents.length);
-  const cArcStudents = cAllStudents.slice(currentStudents.length);
+  const cInstructors = instructors.map((u) => createdByEmail.get(u.email));
+  const cAdvisers = advisers.map((u) => createdByEmail.get(u.email));
+  const cPanelists = panelists.map((u) => createdByEmail.get(u.email));
+  const cCurStudents = currentStudents.map((u) => createdByEmail.get(u.email));
+  const cScenarioStudents = scenarioStudents.map((u) => createdByEmail.get(u.email));
+  const cArcStudents = archivedStudents.map((u) => createdByEmail.get(u.email));
 
   console.log(`   ✅ ${cInstructors.length} instructor(s)`);
   console.log(`   ✅ ${cAdvisers.length} adviser(s)`);
   console.log(`   ✅ ${cPanelists.length} panelist(s)`);
   console.log(`   ✅ ${cCurStudents.length} current student(s)`);
+  console.log(`   ✅ ${cScenarioStudents.length} scenario student(s)`);
   console.log(`   ✅ ${cArcStudents.length} archived/alumni student(s)`);
 
   const adminId = cInstructors[0]._id;
@@ -866,6 +947,63 @@ async function seed() {
   };
   console.log(`   ✅ ${CURRENT_YEAR}: Section A (${secAcur.name}), Section B (${secBcur.name})`);
   console.log(`   ✅ ${PREV_YEAR}:   Section A (${secAprev.name}), Section B (${secBprev.name})`);
+
+  // Assign profile contexts for orphan + scenario students.
+  // These cover profile-complete, incomplete, inactive, unverified, and OAuth states.
+  const scenarioAssignments = [
+    {
+      email: 'student13@buksu.edu.ph',
+      sectionKey: 'A',
+      adviserIndex: 0,
+    },
+    {
+      email: 'scenario.orphan.complete@buksu.edu.ph',
+      sectionKey: 'A',
+      adviserIndex: 0,
+    },
+    {
+      email: 'scenario.no.section@buksu.edu.ph',
+      sectionKey: null,
+      adviserIndex: 0,
+    },
+    {
+      email: 'scenario.no.adviser@buksu.edu.ph',
+      sectionKey: 'B',
+      adviserIndex: null,
+    },
+    {
+      email: 'scenario.inactive@buksu.edu.ph',
+      sectionKey: 'B',
+      adviserIndex: 1,
+    },
+    {
+      email: 'scenario.unverified@buksu.edu.ph',
+      sectionKey: 'B',
+      adviserIndex: 1,
+    },
+    {
+      email: 'scenario.google@buksu.edu.ph',
+      sectionKey: 'A',
+      adviserIndex: 0,
+    },
+  ];
+
+  for (const assignment of scenarioAssignments) {
+    const userDoc = createdByEmail.get(assignment.email);
+    if (!userDoc) continue;
+
+    const updatePayload = {};
+    if (assignment.sectionKey) {
+      updatePayload.sectionId = sectionMap[assignment.sectionKey];
+    }
+    if (assignment.adviserIndex !== null && assignment.adviserIndex !== undefined) {
+      updatePayload.instructorId = cAdvisers[assignment.adviserIndex]._id;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      await User.updateOne({ _id: userDoc._id }, { $set: updatePayload });
+    }
+  }
 
   // ── 4. Current year: teams + projects ─────────────────────────
   console.log(`\n🏗️  Creating current teams (${CURRENT_YEAR})...`);
@@ -1054,6 +1192,22 @@ async function seed() {
     console.log(
       `   📧 ${u.email.padEnd(34)} ${u.firstName} ${u.lastName} ${u.teamId ? '(in team)' : '(orphaned)'}`,
     );
+  }
+
+  console.log('\n   SCENARIO STUDENTS (EDGE CASES):');
+  const refreshedScenario = await User.find({ _id: { $in: cScenarioStudents.map((s) => s._id) } })
+    .sort({ email: 1 })
+    .lean();
+  for (const u of refreshedScenario) {
+    const flags = [
+      u.authProvider === 'google' ? 'google-oauth' : 'local-auth',
+      u.isActive ? 'active' : 'inactive',
+      u.isVerified ? 'verified' : 'unverified',
+      u.sectionId ? 'with-section' : 'no-section',
+      u.instructorId ? 'with-adviser' : 'no-adviser',
+      u.teamId ? 'in-team' : 'orphaned',
+    ];
+    console.log(`   📧 ${u.email.padEnd(34)} ${u.firstName} ${u.lastName} [${flags.join(', ')}]`);
   }
 
   console.log('\n   ALUMNI STUDENTS (2024-2025):');

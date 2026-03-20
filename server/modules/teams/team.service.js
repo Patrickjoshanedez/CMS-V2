@@ -274,6 +274,16 @@ class TeamService {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
+    const hasSection = Boolean(user.sectionId);
+    const hasInstructor = Boolean(user.instructorId);
+    if (!hasSection || !hasInstructor) {
+      throw new AppError(
+        'Complete your profile first (section and adviser are required) before joining a team.',
+        400,
+        'PROFILE_INCOMPLETE',
+      );
+    }
+
     if (user.email !== invite.email) {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }

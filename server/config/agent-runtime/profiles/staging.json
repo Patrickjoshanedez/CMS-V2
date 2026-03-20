@@ -1,0 +1,211 @@
+{
+  "id": "cms-agent-staging",
+  "version": "1.0.0",
+  "status": "active",
+  "activatedAt": "2026-03-20T00:00:00Z",
+  "checksum": "replace-with-build-checksum",
+  "description": "Staging environment: Testing new features and experimental behaviors with enhanced logging",
+  "modeProfiles": {
+    "execution": {
+      "useWhen": ["implementation", "bugfix", "migration", "task completion"],
+      "behaviors": [
+        "prioritize correctness",
+        "apply grounding and verification",
+        "use tools over assumptions",
+        "enable comprehensive browser verification"
+      ]
+    },
+    "explainability": {
+      "useWhen": ["why", "how", "show steps", "explain decision"],
+      "behaviors": [
+        "provide detailed reasoning summary",
+        "explain all trade-offs",
+        "cite all evidence with complete citations",
+        "expose decision trees"
+      ]
+    },
+    "proactive": {
+      "useWhen": ["task complete", "what next"],
+      "behaviors": [
+        "suggest comprehensive next steps",
+        "surface all potential blockers",
+        "recommend tests, docs, and verification",
+        "provide deployment checklist"
+      ]
+    }
+  },
+  "confidencePolicy": {
+    "high": {
+      "min": 0.85,
+      "max": 1.0,
+      "policy": "answer_with_citations",
+      "description": "High confidence - always cite sources"
+    },
+    "medium": {
+      "min": 0.65,
+      "max": 0.84,
+      "policy": "answer_with_explicit_uncertainty",
+      "description": "Medium confidence - show uncertainty and verification advice"
+    },
+    "low": {
+      "min": 0.0,
+      "max": 0.64,
+      "policy": "refuse_and_request_clarification",
+      "description": "Low confidence - refuse and ask for clarification"
+    }
+  },
+  "verification": {
+    "autoTrigger": [
+      "factual high-impact claims",
+      "numeric outputs",
+      "external API/library-dependent code",
+      "best/latest/correct/production-ready asks",
+      "security implications",
+      "performance-critical code",
+      "architectural decisions",
+      "capability bounds"
+    ],
+    "steps": [
+      "retrieve evidence via tools/RAG",
+      "generate draft response",
+      "run evaluator checks",
+      "apply confidence policy",
+      "return with citations and caveats"
+    ],
+    "evaluatorSettings": {
+      "runAlways": true,
+      "strictMode": true,
+      "logLevel": "debug",
+      "captureEvidence": true
+    }
+  },
+  "triggerPolicies": [
+    {
+      "name": "context7-library-touch",
+      "enabled": true,
+      "when": [
+        "new dependency",
+        "new external import",
+        "external API behavior change",
+        "library version change",
+        "integration request"
+      ],
+      "action": [
+        "resolve library id",
+        "fetch topic docs",
+        "validate planned API usage against docs",
+        "run evaluator checks with strict validation",
+        "log decision source"
+      ],
+      "decisionMode": "WARN",
+      "description": "Comprehensive library validation for staging"
+    }
+  ],
+  "browserVerification": {
+    "enabled": true,
+    "runOnCompletion": true,
+    "captureScreenshots": true,
+    "requiredScenarios": [
+      "happy path",
+      "rbac enforcement across all roles",
+      "validation error handling",
+      "edge cases and boundaries",
+      "error recovery flows",
+      "responsive design mobile",
+      "responsive design tablet",
+      "responsive design desktop",
+      "accessibility features",
+      "performance baseline"
+    ],
+    "assertionLevel": "comprehensive",
+    "timeout": 30000
+  },
+  "sessionMemory": {
+    "enabled": true,
+    "autoSave": true,
+    "compactionThreshold": 30,
+    "forkSupport": true,
+    "persistLevel": "comprehensive"
+  },
+  "debugPanel": {
+    "enabled": true,
+    "realTimeMonitoring": true,
+    "trackToolCalls": true,
+    "trackCustomizations": true,
+    "trackContext7": true,
+    "trackBrowserEvents": true,
+    "performanceProfiling": true
+  },
+  "pluginRegistry": [
+    {
+      "id": "plagiarism-engine",
+      "enabled": true,
+      "triggers": ["plagiarism", "similarity", "originality", "cap1", "cap4"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100
+    },
+    {
+      "id": "context7-agent-ops",
+      "enabled": true,
+      "triggers": ["context7", "library docs", "api validation", "code generation"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100
+    },
+    {
+      "id": "cms-capstone-expert",
+      "enabled": true,
+      "triggers": ["capstone", "cms", "workflow", "cap1", "cap2", "cap3", "cap4"],
+      "version": "1.0.0",
+      "rolloutPercentage": 100,
+      "note": "CMS-specific domain expertise fully enabled"
+    }
+  ],
+  "experimentalFeatures": {
+    "advancedDocumentSearch": {
+      "enabled": true,
+      "rolloutPercentage": 75,
+      "allowedRoles": ["instructor", "admin", "advisor"],
+      "description": "Testing advanced search with NLP and semantic analysis"
+    },
+    "splitScreenViewer": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "allowedRoles": ["advisor", "panelist", "instructor"],
+      "description": "Side-by-side document comparison for chapter review"
+    },
+    "dynamicPlagiarismThreshold": {
+      "enabled": true,
+      "rolloutPercentage": 60,
+      "allowedRoles": ["instructor"],
+      "description": "Adaptive plagiarism checking based on submission type"
+    },
+    "realTimeCollaboration": {
+      "enabled": false,
+      "rolloutPercentage": 0,
+      "allowedRoles": [],
+      "description": "Not ready - collaborative real-time document editing"
+    },
+    "aiAssistantCodeGeneration": {
+      "enabled": true,
+      "rolloutPercentage": 50,
+      "allowedRoles": ["instructor"],
+      "description": "Context7-powered code generation in agent"
+    }
+  },
+  "logging": {
+    "level": "debug",
+    "logDecisionSource": true,
+    "logBrowserSessions": true,
+    "logPluginLoading": true,
+    "logVerificationSteps": true,
+    "logLibraryTriggers": true,
+    "components": {
+      "agentRuntime": "debug",
+      "decisionEngine": "debug",
+      "browserVerification": "debug",
+      "plagiarismChecker": "debug",
+      "documentProcessing": "debug",
+      "context7Integration": "debug"
+    }
+  }
+}

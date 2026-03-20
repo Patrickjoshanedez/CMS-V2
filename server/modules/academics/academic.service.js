@@ -2,6 +2,7 @@ import Course from './course.model.js';
 import Section from './section.model.js';
 import AcademicYear from './academicYear.model.js';
 import Team from '../teams/team.model.js';
+import User from '../users/user.model.js';
 import AppError from '../../utils/AppError.js';
 
 class AcademicService {
@@ -107,6 +108,29 @@ class AcademicService {
           .lean()
       : [];
 
+    // Count students from user assignments so orphaned/non-team students are included.
+    const studentCounts = sectionIds.length
+      ? await User.aggregate([
+          {
+            $match: {
+              sectionId: { $in: sectionIds },
+              role: 'student',
+              isActive: true,
+            },
+          },
+          {
+            $group: {
+              _id: '$sectionId',
+              count: { $sum: 1 },
+            },
+          },
+        ])
+      : [];
+
+    const studentCountBySection = new Map(
+      studentCounts.map((item) => [item._id?.toString(), item.count || 0]),
+    );
+
     const teamsBySection = new Map();
     for (const team of teams) {
       const key = team.sectionId?.toString();
@@ -121,7 +145,7 @@ class AcademicService {
         ...section,
         teams: sectionTeams,
         teamCount: sectionTeams.length,
-        studentCount: sectionTeams.reduce((total, team) => total + (team.members?.length || 0), 0),
+        studentCount: studentCountBySection.get(section._id.toString()) || 0,
       };
     });
 

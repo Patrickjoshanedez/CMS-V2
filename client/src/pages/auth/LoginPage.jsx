@@ -24,6 +24,7 @@ const loginSchema = z.object({
  */
 export default function LoginPage() {
   const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
+  const isGoogleLoginConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const navigate = useNavigate();
   const { login, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -203,17 +204,25 @@ export default function LoginPage() {
       </div>
 
       {/* Google Sign-In */}
-      <div className="auth-item flex justify-center">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme={theme === 'dark' ? 'filled_black' : 'outline'}
-          size="large"
-          width={360}
-          text="signin_with"
-          shape="rectangular"
-        />
-      </div>
+      {isGoogleLoginConfigured ? (
+        <div className="auth-item flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme={theme === 'dark' ? 'filled_black' : 'outline'}
+            size="large"
+            width={360}
+            text="signin_with"
+            shape="rectangular"
+          />
+        </div>
+      ) : (
+        <div className="auth-item">
+          <p className="text-sm text-destructive text-center">
+            Google Sign-In is temporarily unavailable. Missing VITE_GOOGLE_CLIENT_ID.
+          </p>
+        </div>
+      )}
       {googleError && (
         <div className="auth-item mt-2">
           <p className="text-sm text-destructive text-center">{googleError}</p>

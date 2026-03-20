@@ -51,3 +51,20 @@ server/vitest-results.json
 server/sprint*-output.txt
 server/sprint*-results.json
 server/s11.json
+
+# Local workspace artifacts (generated during manual runs)
+api_err.log
+build.log
+error.log
+api_logs.txt
+build_logs.txt
+docker_ps.txt
+inspect.txt
+logs.txt
+logs_preview.txt
+out.txt
+ps_output.txt
+server_logs.txt
+srv_logs.txt
+update_logs.txt
+vitest_output*.txt

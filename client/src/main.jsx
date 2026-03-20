@@ -6,6 +6,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import './index.css';
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -22,19 +24,29 @@ const queryClient = new QueryClient({
 
 // GoogleOAuthProvider is intentionally outside React.StrictMode to prevent
 // google.accounts.id.initialize() from being called twice in development.
+const appTree = (
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>
+  </React.StrictMode>
+);
+
+if (!googleClientId) {
+  console.warn('VITE_GOOGLE_CLIENT_ID is missing. Google Sign-In will be disabled.');
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </React.StrictMode>
-  </GoogleOAuthProvider>,
+  googleClientId ? (
+    <GoogleOAuthProvider clientId={googleClientId}>{appTree}</GoogleOAuthProvider>
+  ) : (
+    appTree
+  ),
 );

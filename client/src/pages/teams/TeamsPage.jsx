@@ -193,8 +193,15 @@ function AcceptInviteForm({ onCancel, initialToken = '' }) {
       setInviteCode('');
       onCancel?.();
     },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to accept invite.'),
+    onError: (err) => {
+      const errorCode = err?.response?.data?.error?.code;
+      if (errorCode === 'PROFILE_INCOMPLETE') {
+        toast.error('Please complete your profile (section and adviser) before joining a team.');
+        return;
+      }
+
+      toast.error(err?.response?.data?.error?.message || 'Failed to accept invite.');
+    },
   });
 
   const handleSubmit = (e) => {
