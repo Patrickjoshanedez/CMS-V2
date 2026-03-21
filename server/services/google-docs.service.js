@@ -348,6 +348,51 @@ class GoogleDocsService {
     }
   }
 
+  /**
+   * List comments and replies for a Google Doc using the Drive Comments API.
+   *
+   * @param {string} docId - Google Doc file ID.
+   * @param {object} [options]
+   * @param {number} [options.pageSize=100] - Max comments to return.
+   * @param {string} [options.pageToken] - Pagination token for next page.
+   * @returns {Promise<{ comments: Array, nextPageToken: string|null }>}
+   */
+  async listDocumentComments(docId, options = {}) {
+    await this._ensureInitialized();
+
+    const { pageSize = 100, pageToken } = options;
+
+    try {
+      const response = await this.drive.comments.list({
+        fileId: docId,
+        includeDeleted: false,
+        pageSize,
+        pageToken: pageToken || undefined,
+        fields:
+          'nextPageToken, comments(id,content,anchor,quotedFileContent,createdTime,modifiedTime,resolved,deleted,author(displayName,emailAddress,photoLink),replies(id,content,createdTime,modifiedTime,deleted,author(displayName,emailAddress,photoLink)))',
+      });
+
+      return {
+        comments: response.data.comments || [],
+        nextPageToken: response.data.nextPageToken || null,
+      };
+    } catch (error) {
+      if (error.code === 404) {
+        throw new AppError('Google document not found for comments.', 404, 'DOCUMENT_NOT_FOUND');
+      }
+
+      if (error.code === 403) {
+        throw new AppError(
+          'Google document comments are not accessible with current credentials.',
+          403,
+          'DOCUMENT_COMMENTS_FORBIDDEN',
+        );
+      }
+
+      throw this._wrapError(error, 'Failed to list Google document comments');
+    }
+  }
+
   /* ═══════════════════════════════════════════════════════════════
    * GOOGLE DRIVE — FILE RETRIEVAL & MANAGEMENT
    * ═══════════════════════════════════════════════════════════════ */
@@ -541,6 +586,108 @@ class GoogleDocsService {
     } catch (error) {
       throw this._wrapError(error, `Failed to upload "${fileName}" to Drive`);
     }
+  }
+
+  /**
+   * Find a folder by exact name under a parent folder.
+   * @param {string} folderName
+   * @param {string} parentFolderId
+   * @returns {Promise<string|null>}
+   */
+  async findFolderByName(folderName, parentFolderId) {
+    await this._ensureInitialized();
+
+    if (!folderName || !parentFolderId) {
+      return null;
+    }
+
+    const safeFolderName = folderName.replace(/'/g, "\\'");
+
+    const response = await this.drive.files.list({
+      q:
+        `mimeType = 'application/vnd.google-apps.folder' and ` +
+        `name = '${safeFolderName}' and ` +
+        `'${parentFolderId}' in parents and trashed = false`,
+      pageSize: 1,
+      fields: 'files(id,name)',
+    });
+
+    return response.data.files?.[0]?.id || null;
+  }
+
+  /**
+   * Ensure a user-scoped Drive folder exists under the CMS root folder.
+   * Folder naming format: "user-{userId}".
+   *
+   * @param {Object} params
+   * @param {string} params.userId
+   * @returns {Promise<string>} folderId
+   */
+  async ensureUserDriveFolder({ userId }) {
+    await this._ensureInitialized();
+
+    const rootFolderId = env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!rootFolderId) {
+      throw new AppError(
+        'No Drive root folder configured. Set GOOGLE_DRIVE_FOLDER_ID.',
+        503,
+        'DRIVE_FOLDER_NOT_CONFIGURED',
+      );
+    }
+
+    const folderName = `user-${userId}`;
+    const existingFolderId = await this.findFolderByName(folderName, rootFolderId);
+    if (existingFolderId) {
+      return existingFolderId;
+    }
+
+    return this.createFolder(folderName, rootFolderId);
+  }
+
+  /**
+   * Upload a source file and import it as a Google Doc to preserve formatting
+   * as much as Drive import supports.
+   *
+   * @param {Object} params
+   * @param {Buffer} params.fileBuffer
+   * @param {string} params.sourceMimeType
+   * @param {string} params.docTitle
+   * @param {string} [params.folderId]
+   * @returns {Promise<{ docId: string, docUrl: string, fileName: string }>}
+   */
+  async uploadAndConvertToGoogleDoc({ fileBuffer, sourceMimeType, docTitle, folderId }) {
+    await this._ensureInitialized();
+
+    const targetFolder = folderId || env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!targetFolder) {
+      throw new AppError(
+        'No Drive folder configured. Set GOOGLE_DRIVE_FOLDER_ID or pass a folderId.',
+        503,
+        'DRIVE_FOLDER_NOT_CONFIGURED',
+      );
+    }
+
+    const { Readable } = await import('node:stream');
+
+    const response = await this.drive.files.create({
+      requestBody: {
+        name: docTitle,
+        mimeType: 'application/vnd.google-apps.document',
+        parents: [targetFolder],
+      },
+      media: {
+        mimeType: sourceMimeType,
+        body: Readable.from(fileBuffer),
+      },
+      fields: 'id,name,webViewLink',
+    });
+
+    return {
+      docId: response.data.id,
+      fileName: response.data.name,
+      docUrl:
+        response.data.webViewLink || `https://docs.google.com/document/d/${response.data.id}/edit`,
+    };
   }
 
   /**

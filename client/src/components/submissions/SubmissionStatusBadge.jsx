@@ -10,8 +10,17 @@ import { SUBMISSION_STATUSES } from '@cms/shared';
 
 const statusConfig = {
   [SUBMISSION_STATUSES.PENDING]: { label: 'Pending', variant: 'warning' },
+  [SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD]: {
+    label: 'Pending Student Upload',
+    variant: 'outline',
+  },
+  [SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW]: {
+    label: 'Pending Instructor Review',
+    variant: 'warning',
+  },
   [SUBMISSION_STATUSES.UNDER_REVIEW]: { label: 'Under Review', variant: 'info' },
   [SUBMISSION_STATUSES.APPROVED]: { label: 'Approved', variant: 'success' },
+  [SUBMISSION_STATUSES.ACCEPTED]: { label: 'Accepted', variant: 'success' },
   [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: {
     label: 'Revisions Required',
     variant: 'warning',

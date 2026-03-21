@@ -98,6 +98,18 @@ curl http://localhost:8001/health
 
 ## 📋 First-Time Setup Notes
 
+### Google Sign-In (if enabled)
+
+If you get `Error 400: origin_mismatch`, add your active frontend origin to Google Cloud Console:
+
+`APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins`
+
+Common local origins:
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+
+For tunnel/dev URLs, add the exact HTTPS origin currently in use (for example your ngrok URL), then restart the client container.
+
 ### On First Run:
 1. **ML Model Download** — The plagiarism engine will download the `all-MiniLM-L6-v2` model (~90MB) on first startup. This may take 2-5 minutes depending on your internet speed.
 

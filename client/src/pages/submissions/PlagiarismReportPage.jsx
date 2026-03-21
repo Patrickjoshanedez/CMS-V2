@@ -35,13 +35,13 @@ import VirtualizedPlagiarismViewer from '../../components/plagiarism/Virtualized
 function ScoreBadge({ score }) {
   const pct = Math.round(score ?? 0);
 
-  let colorClass = 'tw-bg-green-100 tw-text-green-800 tw-border-green-300';
-  if (pct < 70) colorClass = 'tw-bg-red-100 tw-text-red-800 tw-border-red-300';
-  else if (pct < 85) colorClass = 'tw-bg-yellow-100 tw-text-yellow-800 tw-border-yellow-300';
+  let colorClass = 'bg-green-100 text-green-800 border-green-300';
+  if (pct < 70) colorClass = 'bg-red-100 text-red-800 border-red-300';
+  else if (pct < 85) colorClass = 'bg-yellow-100 text-yellow-800 border-yellow-300';
 
   return (
     <span
-      className={`tw-inline-flex tw-items-center tw-px-2.5 tw-py-0.5 tw-rounded-full tw-text-sm tw-font-semibold tw-border ${colorClass}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold border ${colorClass}`}
     >
       {pct}% Original
     </span>
@@ -59,73 +59,68 @@ function MatchCard({ match, isSelected, onSelect }) {
     ? `Chapter ${match.source_metadata.chapter}`
     : null;
 
-  let borderColor = 'tw-border-yellow-300';
-  if (pct >= 85) borderColor = 'tw-border-red-400';
-  else if (pct >= 65) borderColor = 'tw-border-orange-400';
+  let borderColor = 'border-yellow-300';
+  if (pct >= 85) borderColor = 'border-red-400';
+  else if (pct >= 65) borderColor = 'border-orange-400';
 
   return (
     <div
       className={[
-        'tw-border-l-4 tw-rounded-lg tw-bg-white tw-shadow-sm tw-overflow-hidden tw-transition-shadow',
+        'border-l-4 rounded-lg bg-white shadow-sm overflow-hidden transition-shadow',
         borderColor,
-        isSelected ? 'tw-ring-2 tw-ring-blue-500' : 'hover:tw-shadow-md',
+        isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-md',
       ].join(' ')}
     >
       {/* Header row */}
-      <button
-        type="button"
-        onClick={() => onSelect(match)}
-        className="tw-w-full tw-text-left tw-px-4 tw-py-3 tw-flex tw-items-start tw-justify-between tw-gap-2 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-inset focus:tw-ring-blue-400"
-        aria-pressed={isSelected}
-      >
-        <div className="tw-flex-1 tw-min-w-0">
-          <p className="tw-text-sm tw-font-semibold tw-text-gray-900 tw-truncate">{title}</p>
+      <div className="w-full text-left px-4 py-3 flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate">{title}</p>
           {(author || chapter) && (
-            <p className="tw-text-xs tw-text-gray-500 tw-mt-0.5">
+            <p className="text-xs text-gray-500 mt-0.5">
               {[author, chapter].filter(Boolean).join(' · ')}
             </p>
           )}
-          <div className="tw-mt-1 tw-flex tw-items-center tw-gap-2">
+          <div className="mt-1 flex items-center gap-2">
             <span
-              className={`tw-text-xs tw-font-bold ${
-                pct >= 85
-                  ? 'tw-text-red-700'
-                  : pct >= 65
-                    ? 'tw-text-orange-700'
-                    : 'tw-text-yellow-700'
+              className={`text-xs font-bold ${
+                pct >= 85 ? 'text-red-700' : pct >= 65 ? 'text-orange-700' : 'text-yellow-700'
               }`}
             >
               {pct}% similarity
             </span>
             {match.winnow_score !== null && match.winnow_score !== undefined && (
-              <span className="tw-text-xs tw-text-gray-400">
+              <span className="text-xs text-gray-400">
                 W:{Math.round(match.winnow_score * 100)}% S:
                 {Math.round((match.semantic_score ?? 0) * 100)}%
               </span>
             )}
           </div>
         </div>
-        {/* Expand snippet toggle */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded((v) => !v);
-          }}
-          className="tw-text-gray-400 hover:tw-text-gray-600 tw-flex-shrink-0 tw-p-0.5"
-          aria-label={expanded ? 'Collapse source snippet' : 'Expand source snippet'}
-        >
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-      </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onSelect(match)}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+            aria-pressed={isSelected}
+          >
+            {isSelected ? 'Selected' : 'Select'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-gray-400 hover:text-gray-600 p-0.5"
+            aria-label={expanded ? 'Collapse source snippet' : 'Expand source snippet'}
+          >
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      </div>
 
       {/* Expandable snippet */}
       {expanded && match.source_snippet && (
-        <div className="tw-px-4 tw-pb-3 tw-border-t tw-border-gray-100">
-          <p className="tw-text-xs tw-text-gray-400 tw-mt-2 tw-mb-1 tw-font-medium">
-            Source excerpt:
-          </p>
-          <blockquote className="tw-text-xs tw-text-gray-600 tw-italic tw-bg-gray-50 tw-rounded tw-p-2 tw-border-l-2 tw-border-gray-300 tw-line-clamp-5">
+        <div className="px-4 pb-3 border-t border-gray-100">
+          <p className="text-xs text-gray-400 mt-2 mb-1 font-medium">Source excerpt:</p>
+          <blockquote className="text-xs text-gray-600 italic bg-gray-50 rounded p-2 border-l-2 border-gray-300 line-clamp-5">
             {match.source_snippet}
           </blockquote>
         </div>
@@ -157,10 +152,10 @@ export default function PlagiarismReportPage() {
   /* ── Loading state ── */
   if (isLoading) {
     return (
-      <div className="tw-flex tw-items-center tw-justify-center tw-min-h-screen tw-bg-gray-50">
-        <div className="tw-text-center">
-          <div className="tw-animate-spin tw-rounded-full tw-h-10 tw-w-10 tw-border-4 tw-border-blue-600 tw-border-t-transparent tw-mx-auto tw-mb-3" />
-          <p className="tw-text-gray-500 tw-text-sm">Loading plagiarism report…</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Loading plagiarism report…</p>
         </div>
       </div>
     );
@@ -169,18 +164,16 @@ export default function PlagiarismReportPage() {
   /* ── Error state ── */
   if (isError) {
     return (
-      <div className="tw-flex tw-items-center tw-justify-center tw-min-h-screen tw-bg-gray-50 tw-p-4">
-        <div className="tw-max-w-md tw-text-center">
-          <AlertTriangle className="tw-h-10 tw-w-10 tw-text-red-500 tw-mx-auto tw-mb-3" />
-          <h2 className="tw-text-lg tw-font-semibold tw-text-gray-900 tw-mb-1">
-            Failed to load report
-          </h2>
-          <p className="tw-text-sm tw-text-gray-500">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="max-w-md text-center">
+          <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Failed to load report</h2>
+          <p className="text-sm text-gray-500">
             {error?.response?.data?.message || error?.message || 'An unexpected error occurred.'}
           </p>
           <button
             onClick={() => navigate(-1)}
-            className="tw-mt-4 tw-inline-flex tw-items-center tw-gap-2 tw-text-sm tw-text-blue-600 hover:tw-text-blue-700"
+            className="mt-4 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
           >
             <ArrowLeft size={16} />
             Go back
@@ -197,55 +190,53 @@ export default function PlagiarismReportPage() {
   const processedAt = data?.processedAt ? new Date(data.processedAt).toLocaleDateString() : null;
 
   return (
-    <div className="tw-flex tw-flex-col tw-min-h-screen tw-bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       {/* ── Top bar ── */}
-      <header className="tw-bg-white tw-border-b tw-border-gray-200 tw-px-6 tw-py-4 tw-flex tw-items-center tw-justify-between tw-flex-shrink-0">
-        <div className="tw-flex tw-items-center tw-gap-3">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="tw-inline-flex tw-items-center tw-gap-1.5 tw-text-sm tw-text-gray-500 hover:tw-text-gray-800 tw-transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
             aria-label="Go back to submission detail"
           >
             <ArrowLeft size={18} />
             Back
           </button>
-          <span className="tw-text-gray-300">|</span>
-          <h1 className="tw-text-base tw-font-semibold tw-text-gray-900">Plagiarism Report</h1>
+          <span className="text-gray-300">|</span>
+          <h1 className="text-base font-semibold text-gray-900">Plagiarism Report</h1>
         </div>
 
         {/* Summary badges */}
-        <div className="tw-flex tw-items-center tw-gap-3">
+        <div className="flex items-center gap-3">
           {originality !== null && originality !== undefined && <ScoreBadge score={originality} />}
           {sortedMatches.length > 0 && (
-            <span className="tw-text-xs tw-text-gray-500">
+            <span className="text-xs text-gray-500">
               {sortedMatches.length} source{sortedMatches.length !== 1 ? 's' : ''} detected
             </span>
           )}
           {processedAt && (
-            <span className="tw-text-xs tw-text-gray-400 tw-hidden sm:tw-inline">
-              Checked {processedAt}
-            </span>
+            <span className="text-xs text-gray-400 hidden sm:inline">Checked {processedAt}</span>
           )}
         </div>
       </header>
 
       {/* ── Summary bar ── */}
       {data?.fullReport && (
-        <div className="tw-bg-white tw-border-b tw-border-gray-100 tw-px-6 tw-py-2 tw-flex tw-items-center tw-gap-6 tw-text-xs tw-text-gray-500">
+        <div className="bg-white border-b border-gray-100 px-6 py-2 flex items-center gap-6 text-xs text-gray-500">
           <span>
-            <span className="tw-font-medium tw-text-gray-700">
+            <span className="font-medium text-gray-700">
               {data.fullReport.total_characters?.toLocaleString() ?? '—'}
             </span>{' '}
             total chars
           </span>
           <span>
-            <span className="tw-font-medium tw-text-red-600">
+            <span className="font-medium text-red-600">
               {data.fullReport.matched_characters?.toLocaleString() ?? '—'}
             </span>{' '}
             matched chars ({Math.round(plagiarismPct ?? 0)}%)
           </span>
           <span>
-            <span className="tw-font-medium tw-text-gray-700">
+            <span className="font-medium text-gray-700">
               {data.fullReport.candidates_evaluated ?? '—'}
             </span>{' '}
             candidates evaluated
@@ -254,7 +245,7 @@ export default function PlagiarismReportPage() {
             data.fullReport.processing_time_ms !== undefined && (
               <span>
                 Processed in{' '}
-                <span className="tw-font-medium tw-text-gray-700">
+                <span className="font-medium text-gray-700">
                   {(data.fullReport.processing_time_ms / 1000).toFixed(1)}s
                 </span>
               </span>
@@ -263,24 +254,24 @@ export default function PlagiarismReportPage() {
       )}
 
       {/* ── Split pane body ── */}
-      <main className="tw-flex tw-flex-1 tw-overflow-hidden tw-gap-0">
+      <main className="flex flex-1 overflow-hidden gap-0">
         {/* Left pane — Viewer */}
         <section
-          className="tw-flex-1 tw-min-w-0 tw-flex tw-flex-col tw-border-r tw-border-gray-200 tw-overflow-hidden"
+          className="flex-1 min-w-0 flex flex-col border-r border-gray-200 overflow-hidden"
           aria-label="Submission text with highlighted matches"
         >
-          <div className="tw-px-4 tw-py-3 tw-bg-gray-50 tw-border-b tw-border-gray-200 tw-flex tw-items-center tw-justify-between">
-            <h2 className="tw-text-sm tw-font-semibold tw-text-gray-700">Submission Text</h2>
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">Submission Text</h2>
             {selectedMatchId && (
               <button
                 onClick={() => setSelectedMatchId(null)}
-                className="tw-text-xs tw-text-blue-600 hover:tw-text-blue-700"
+                className="text-xs text-blue-600 hover:text-blue-700"
               >
                 Clear selection
               </button>
             )}
           </div>
-          <div className="tw-flex-1 tw-overflow-hidden">
+          <div className="flex-1 overflow-hidden">
             <VirtualizedPlagiarismViewer
               text={data?.extractedText ?? ''}
               matches={matches}
@@ -292,22 +283,22 @@ export default function PlagiarismReportPage() {
 
         {/* Right pane — Match list */}
         <aside
-          className="tw-w-80 tw-flex-shrink-0 tw-flex tw-flex-col tw-bg-gray-50 tw-overflow-hidden"
+          className="w-80 flex-shrink-0 flex flex-col bg-gray-50 overflow-hidden"
           aria-label="Detected plagiarism sources"
         >
-          <div className="tw-px-4 tw-py-3 tw-border-b tw-border-gray-200 tw-bg-white">
-            <h2 className="tw-text-sm tw-font-semibold tw-text-gray-700">Detected Sources</h2>
-            <p className="tw-text-xs tw-text-gray-400 tw-mt-0.5">
+          <div className="px-4 py-3 border-b border-gray-200 bg-white">
+            <h2 className="text-sm font-semibold text-gray-700">Detected Sources</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
               Click a source to scroll to its match in the text.
             </p>
           </div>
 
-          <div className="tw-flex-1 tw-overflow-y-auto tw-p-3 tw-space-y-2">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {sortedMatches.length === 0 ? (
-              <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-h-40 tw-text-center">
-                <CheckCircle className="tw-h-8 tw-w-8 tw-text-green-500 tw-mb-2" />
-                <p className="tw-text-sm tw-font-medium tw-text-gray-700">No matches found</p>
-                <p className="tw-text-xs tw-text-gray-400 tw-mt-1">
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                <p className="text-sm font-medium text-gray-700">No matches found</p>
+                <p className="text-xs text-gray-400 mt-1">
                   This submission appears to be original.
                 </p>
               </div>
@@ -324,9 +315,9 @@ export default function PlagiarismReportPage() {
           </div>
 
           {/* Info footer */}
-          <div className="tw-px-3 tw-py-2 tw-border-t tw-border-gray-200 tw-bg-white">
-            <p className="tw-flex tw-items-start tw-gap-1.5 tw-text-xs tw-text-gray-400">
-              <Info size={12} className="tw-flex-shrink-0 tw-mt-0.5" />
+          <div className="px-3 py-2 border-t border-gray-200 bg-white">
+            <p className="flex items-start gap-1.5 text-xs text-gray-400">
+              <Info size={12} className="flex-shrink-0 mt-0.5" />
               Scores combine lexical fingerprinting (70%) and semantic similarity (30%).
             </p>
           </div>

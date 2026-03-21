@@ -24,6 +24,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from typing import TYPE_CHECKING
 
@@ -70,7 +71,10 @@ def get_embedding_model(model_name: str = "all-MiniLM-L6-v2") -> "EmbeddingModel
     if _model_instance is None:
         with _model_lock:
             if _model_instance is None:
-                _model_instance = EmbeddingModel(model_name=model_name)
+                _model_instance = EmbeddingModel(
+                    model_name=model_name,
+                    device=os.getenv("EMBEDDING_DEVICE", "auto"),
+                )
 
     return _model_instance
 
@@ -95,27 +99,54 @@ class EmbeddingModel:
         self,
         model_name: str = "all-MiniLM-L6-v2",
         batch_size: int = 32,
+        device: str = "auto",
         show_progress: bool = False,
     ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
+            import torch
         except ImportError as exc:
             raise ImportError(
                 "sentence-transformers is required.  "
                 "Install it with: pip install sentence-transformers"
             ) from exc
 
-        logger.info("Loading embedding model '%s'…", model_name)
-        self._model: SentenceTransformer = SentenceTransformer(model_name)
+        resolved_device = self._resolve_device(device=device, torch_module=torch)
+
+        logger.info("Loading embedding model '%s' on device '%s'...", model_name, resolved_device)
+        self._model: SentenceTransformer = SentenceTransformer(model_name, device=resolved_device)
         self._model_name = model_name
         self._batch_size = batch_size
+        self._device = resolved_device
         self._show_progress = show_progress
         self._embedding_dim: int = self._model.get_sentence_embedding_dimension()
         logger.info(
-            "Model '%s' loaded. Embedding dim: %d.",
+            "Model '%s' loaded. Embedding dim: %d. Active device: %s.",
             model_name,
             self._embedding_dim,
+            self._device,
         )
+
+    @staticmethod
+    def _resolve_device(device: str, torch_module: "object") -> str:
+        """Resolve the target compute backend for sentence-transformers.
+
+        auto: prefers CUDA, then MPS, then CPU.
+        """
+        requested = (device or "auto").strip().lower()
+
+        if requested != "auto":
+            return requested
+
+        try:
+            if getattr(torch_module, "cuda").is_available():
+                return "cuda"
+            if hasattr(torch_module.backends, "mps") and torch_module.backends.mps.is_available():
+                return "mps"
+        except Exception:
+            pass
+
+        return "cpu"
 
     # ─── Properties ──────────────────────────────────────────────────────────
 

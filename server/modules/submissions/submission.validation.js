@@ -113,15 +113,36 @@ export const reviewSubmissionSchema = z.object({
 /**
  * Add an annotation (highlight & comment) to a submission.
  */
-export const addAnnotationSchema = z.object({
-  page: z.coerce.number().int().min(1, 'Page must be at least 1').optional().default(1),
-  content: z
-    .string()
-    .trim()
-    .min(1, 'Annotation content is required')
-    .max(2000, 'Annotation must not exceed 2000 characters'),
-  highlightCoords: z.any().optional().default(null),
-});
+export const addAnnotationSchema = z
+  .object({
+    page: z.coerce.number().int().min(1, 'Page must be at least 1').optional().default(1),
+    lineStart: z.coerce.number().int().min(1, 'Line start must be at least 1').optional(),
+    lineEnd: z.coerce.number().int().min(1, 'Line end must be at least 1').optional(),
+    content: z
+      .string()
+      .trim()
+      .min(1, 'Annotation content is required')
+      .max(2000, 'Annotation must not exceed 2000 characters'),
+    selectedText: z
+      .string()
+      .trim()
+      .max(2000, 'Selected text must not exceed 2000 characters')
+      .optional()
+      .default(''),
+    highlightCoords: z.any().optional().default(null),
+  })
+  .refine(
+    (data) => {
+      if (!data.lineStart || !data.lineEnd) {
+        return true;
+      }
+      return data.lineEnd >= data.lineStart;
+    },
+    {
+      message: 'Line end must be greater than or equal to line start',
+      path: ['lineEnd'],
+    },
+  );
 
 /**
  * Request to unlock a locked submission.
@@ -132,6 +153,41 @@ export const unlockRequestSchema = z.object({
     .trim()
     .min(10, 'Unlock reason must be at least 10 characters')
     .max(1000, 'Unlock reason must not exceed 1000 characters'),
+});
+
+/**
+ * Add a reply to an annotation thread.
+ */
+export const addAnnotationReplySchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(1, 'Reply content is required')
+    .max(2000, 'Reply must not exceed 2000 characters'),
+});
+
+/**
+ * Request a new revision round.
+ */
+export const requestRevisionRoundSchema = z.object({
+  overallFeedback: z
+    .string()
+    .trim()
+    .max(2000, 'Overall feedback must not exceed 2000 characters')
+    .optional()
+    .default(''),
+});
+
+/**
+ * Mark a submission as accepted and close the review thread.
+ */
+export const markAcceptedSchema = z.object({
+  overallFeedback: z
+    .string()
+    .trim()
+    .max(2000, 'Overall feedback must not exceed 2000 characters')
+    .optional()
+    .default(''),
 });
 
 /* ═══════════════════ Query ═══════════════════ */

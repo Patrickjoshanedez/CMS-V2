@@ -15,7 +15,13 @@ import User from '../../users/user.model.js';
 import Notification from '../../notifications/notification.model.js';
 import submissionService from '../submission.service.js';
 import { AppError } from '../../../utils/AppError.js';
-import { SUBMISSION_STATUSES, PLAGIARISM_STATUSES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  SUBMISSION_STATUSES,
+  PLAGIARISM_STATUSES,
+  PROJECT_STATUSES,
+  CAPSTONE_TITLES,
+  CAPSTONE_TITLE_MAPPING,
+} from '@cms/shared';
 
 describe('Submission Review with Plagiarism Check Integration', () => {
   let studentUser, adviserUser, project, submission;
@@ -48,10 +54,23 @@ describe('Submission Review with Plagiarism Check Integration', () => {
     });
 
     // Create test project
+    const selectedCapstoneTitle = CAPSTONE_TITLES.LEAD_DEVELOPER;
+    const selectedRoleMapping = CAPSTONE_TITLE_MAPPING[selectedCapstoneTitle];
+
     project = await Project.create({
       title: 'Test Capstone Project',
       teamId: new mongoose.Types.ObjectId(),
       academicYear: '2025-2026',
+      courseId: new mongoose.Types.ObjectId(),
+      sectionId: new mongoose.Types.ObjectId(),
+      memberRoleAssignments: [
+        {
+          userId: studentUser._id,
+          professionalTitle: selectedCapstoneTitle,
+          traditionalRole: selectedRoleMapping.traditionalRole,
+          responsibilities: selectedRoleMapping.responsibilities,
+        },
+      ],
       projectStatus: PROJECT_STATUSES.ACTIVE,
       adviserId: adviserUser._id,
     });
@@ -206,6 +225,9 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       // Set custom threshold to 70%
       process.env.PLAGIARISM_REJECT_THRESHOLD = '70';
 
+      const dynamicThresholdEnabled =
+        process.env.AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD === 'true';
+
       // Create plagiarism result with 65% similarity (below new threshold)
       await PlagiarismResult.create({
         submissionId: submission._id,
@@ -216,11 +238,19 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         completedAt: new Date(),
       });
 
-      const result = await submissionService.reviewSubmission(submission._id, adviserUser._id, {
-        status: SUBMISSION_STATUSES.APPROVED,
-      });
+      if (dynamicThresholdEnabled) {
+        await expect(
+          submissionService.reviewSubmission(submission._id, adviserUser._id, {
+            status: SUBMISSION_STATUSES.APPROVED,
+          }),
+        ).rejects.toThrow('exceeds threshold (50%)');
+      } else {
+        const result = await submissionService.reviewSubmission(submission._id, adviserUser._id, {
+          status: SUBMISSION_STATUSES.APPROVED,
+        });
 
-      expect(result.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+        expect(result.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+      }
 
       // Now test with 75% (above threshold)
       const submission2 = await Submission.create({
@@ -249,7 +279,11 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionService.reviewSubmission(submission2._id, adviserUser._id, {
           status: SUBMISSION_STATUSES.APPROVED,
         }),
-      ).rejects.toThrow('Plagiarism score (75.0%) exceeds threshold (70%)');
+      ).rejects.toThrow(
+        dynamicThresholdEnabled
+          ? 'Plagiarism score (75.0%) exceeds threshold (50%)'
+          : 'Plagiarism score (75.0%) exceeds threshold (70%)',
+      );
     });
   });
 

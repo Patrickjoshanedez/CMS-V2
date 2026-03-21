@@ -42,6 +42,40 @@ const getRefreshTokenCookieOptions = (req) => ({
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 });
 
+const getClientIp = (req) => req.ip || req.connection?.remoteAddress;
+
+const sendSuccess = (res, status, message, data) => {
+  const payload = { success: true, message };
+  if (data !== undefined) {
+    payload.data = data;
+  }
+  return res.status(status).json(payload);
+};
+
+const setAuthCookies = (req, res, { accessToken, refreshToken }) => {
+  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
+  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
+};
+
+const clearAuthCookies = (req, res) => {
+  res.clearCookie('accessToken', getCookieSecurityOptions(req));
+  res.clearCookie('refreshToken', getCookieSecurityOptions(req));
+};
+
+const logAuthEvent = ({ action, user, description, req }) => {
+  auditService
+    .log({
+      action,
+      actor: user._id,
+      actorRole: user.role,
+      targetType: 'User',
+      targetId: user._id,
+      description,
+      ipAddress: getClientIp(req),
+    })
+    .catch(() => {});
+};
+
 /**
  * AuthController — Thin handlers that delegate to AuthService.
  * Each method sets appropriate HTTP status, cookies, and JSON response.
@@ -54,11 +88,12 @@ const getRefreshTokenCookieOptions = (req) => ({
 export const register = catchAsync(async (req, res) => {
   const { user } = await authService.register(req.body);
 
-  res.status(HTTP_STATUS.CREATED).json({
-    success: true,
-    message: 'Registration successful. Please check your email for the verification code.',
-    data: { user },
-  });
+  return sendSuccess(
+    res,
+    HTTP_STATUS.CREATED,
+    'Registration successful. Please check your email for the verification code.',
+    { user },
+  );
 });
 
 /**
@@ -68,11 +103,7 @@ export const register = catchAsync(async (req, res) => {
 export const verifyOtp = catchAsync(async (req, res) => {
   const { user } = await authService.verifyOtp(req.body);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'OTP verified successfully.',
-    data: { user },
-  });
+  return sendSuccess(res, HTTP_STATUS.OK, 'OTP verified successfully.', { user });
 });
 
 /**
@@ -82,10 +113,11 @@ export const verifyOtp = catchAsync(async (req, res) => {
 export const resendOtp = catchAsync(async (req, res) => {
   await authService.resendOtp(req.body);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'If an account with that email exists, a new verification code has been sent.',
-  });
+  return sendSuccess(
+    res,
+    HTTP_STATUS.OK,
+    'If an account with that email exists, a new verification code has been sent.',
+  );
 });
 
 /**
@@ -95,28 +127,16 @@ export const resendOtp = catchAsync(async (req, res) => {
 export const login = catchAsync(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.login(req.body);
 
-  // Set cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
+  setAuthCookies(req, res, { accessToken, refreshToken });
 
-  // Fire-and-forget audit log for login
-  auditService
-    .log({
-      action: 'auth.login',
-      actor: user._id,
-      actorRole: user.role,
-      targetType: 'User',
-      targetId: user._id,
-      description: `User ${user.email} logged in`,
-      ipAddress: req.ip || req.connection?.remoteAddress,
-    })
-    .catch(() => {});
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Login successful.',
-    data: { user },
+  logAuthEvent({
+    action: 'auth.login',
+    user,
+    description: `User ${user.email} logged in`,
+    req,
   });
+
+  return sendSuccess(res, HTTP_STATUS.OK, 'Login successful.', { user });
 });
 
 /**
@@ -129,14 +149,9 @@ export const refresh = catchAsync(async (req, res) => {
 
   const { accessToken, refreshToken } = await authService.refreshToken(refreshTokenStr);
 
-  // Set new cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
+  setAuthCookies(req, res, { accessToken, refreshToken });
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Token refreshed successfully.',
-  });
+  return sendSuccess(res, HTTP_STATUS.OK, 'Token refreshed successfully.');
 });
 
 /**
@@ -147,14 +162,9 @@ export const refresh = catchAsync(async (req, res) => {
 export const logout = catchAsync(async (req, res) => {
   await authService.logout(req.user._id);
 
-  // Clear cookies
-  res.clearCookie('accessToken', getCookieSecurityOptions(req));
-  res.clearCookie('refreshToken', getCookieSecurityOptions(req));
+  clearAuthCookies(req, res);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Logged out successfully.',
-  });
+  return sendSuccess(res, HTTP_STATUS.OK, 'Logged out successfully.');
 });
 
 /**
@@ -164,10 +174,11 @@ export const logout = catchAsync(async (req, res) => {
 export const forgotPassword = catchAsync(async (req, res) => {
   await authService.forgotPassword(req.body);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'If an account with that email exists, a password reset code has been sent.',
-  });
+  return sendSuccess(
+    res,
+    HTTP_STATUS.OK,
+    'If an account with that email exists, a password reset code has been sent.',
+  );
 });
 
 /**
@@ -177,14 +188,13 @@ export const forgotPassword = catchAsync(async (req, res) => {
 export const resetPassword = catchAsync(async (req, res) => {
   await authService.resetPassword(req.body);
 
-  // Clear cookies in case the user is logged in on this device
-  res.clearCookie('accessToken', getCookieSecurityOptions(req));
-  res.clearCookie('refreshToken', getCookieSecurityOptions(req));
+  clearAuthCookies(req, res);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Password reset successful. Please log in with your new password.',
-  });
+  return sendSuccess(
+    res,
+    HTTP_STATUS.OK,
+    'Password reset successful. Please log in with your new password.',
+  );
 });
 
 /**
@@ -194,10 +204,7 @@ export const resetPassword = catchAsync(async (req, res) => {
 export const changePassword = catchAsync(async (req, res) => {
   await authService.changePassword(req.user._id, req.body);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Password changed successfully.',
-  });
+  return sendSuccess(res, HTTP_STATUS.OK, 'Password changed successfully.');
 });
 
 /**
@@ -217,26 +224,14 @@ export const googleLogin = catchAsync(async (req, res) => {
 
   const { user, accessToken, refreshToken } = await authService.googleLogin({ credential });
 
-  // Set cookies
-  res.cookie('accessToken', accessToken, getAccessTokenCookieOptions(req));
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions(req));
+  setAuthCookies(req, res, { accessToken, refreshToken });
 
-  // Fire-and-forget audit log
-  auditService
-    .log({
-      action: 'auth.google_login',
-      actor: user._id,
-      actorRole: user.role,
-      targetType: 'User',
-      targetId: user._id,
-      description: `User ${user.email} logged in via Google`,
-      ipAddress: req.ip || req.connection?.remoteAddress,
-    })
-    .catch(() => {});
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Google login successful.',
-    data: { user },
+  logAuthEvent({
+    action: 'auth.google_login',
+    user,
+    description: `User ${user.email} logged in via Google`,
+    req,
   });
+
+  return sendSuccess(res, HTTP_STATUS.OK, 'Google login successful.', { user });
 });

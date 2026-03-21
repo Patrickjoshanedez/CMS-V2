@@ -25,6 +25,7 @@ const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPa
 const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
 const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
+const SubmissionReviewPage = lazy(() => import('./pages/submissions/SubmissionReviewPage'));
 const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));
 const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
@@ -33,6 +34,7 @@ const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const TemplateManagementPage = lazy(() => import('./pages/documents/TemplateManagementPage'));
 const DocumentEditorPage = lazy(() => import('./pages/documents/DocumentEditorPage'));
+const TeamReviewWorkflowPage = lazy(() => import('./pages/adviser/TeamReviewWorkflowPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -105,11 +107,13 @@ const PROTECTED_ROUTES = [
   // Documents
   { path: '/documents/templates', Component: TemplateManagementPage },
   { path: '/projects/:projectId/documents/:docId', Component: DocumentEditorPage },
+  { path: '/adviser/team-review', Component: TeamReviewWorkflowPage },
   // Submissions
   { path: '/project/submissions', Component: ProjectSubmissionsPage },
   { path: '/project/submissions/upload', Component: ChapterUploadPage },
   { path: '/project/proposal', Component: ProposalCompilationPage },
   { path: '/project/submissions/:submissionId', Component: SubmissionDetailPage },
+  { path: '/project/submissions/:submissionId/review', Component: SubmissionReviewPage },
   { path: '/project/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },
 ];
 

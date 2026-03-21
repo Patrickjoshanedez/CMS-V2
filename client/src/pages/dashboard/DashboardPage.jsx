@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { Users, UsersRound, Bell, FileText, GraduationCap, ClipboardList } from 'lucide-react';
+import AdviserDashboardV2 from '@/components/dashboards/AdviserDashboard';
+import PanelistDashboardV2 from '@/components/dashboards/PanelistDashboard';
+import InstructorDashboardV2 from '@/components/dashboards/InstructorDashboard';
+import { UsersRound, Bell, FileText } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 
@@ -58,107 +61,15 @@ function StudentDashboard({ user }) {
 }
 
 function InstructorDashboard({ user: _user }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-2xl font-bold tracking-tight">Instructor Dashboard</h3>
-        <p className="text-muted-foreground">Manage students, teams, and the capstone process.</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          icon={Users}
-          title="Users"
-          description="Manage student accounts"
-          accent="text-blue-500"
-        />
-        <DashboardCard
-          icon={UsersRound}
-          title="Teams"
-          description="View all teams"
-          accent="text-purple-500"
-        />
-        <DashboardCard
-          icon={ClipboardList}
-          title="Submissions"
-          description="Review pending work"
-          accent="text-green-500"
-        />
-        <DashboardCard
-          icon={GraduationCap}
-          title="Archive"
-          description="Past capstone papers"
-          accent="text-orange-500"
-        />
-      </div>
-    </div>
-  );
+  return <InstructorDashboardV2 />;
 }
 
 function AdviserDashboard({ user: _user }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-2xl font-bold tracking-tight">Adviser Dashboard</h3>
-        <p className="text-muted-foreground">
-          Guide your assigned teams through the capstone process.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <DashboardCard
-          icon={UsersRound}
-          title="My Teams"
-          description="View assigned teams"
-          accent="text-blue-500"
-        />
-        <DashboardCard
-          icon={FileText}
-          title="Chapters to Review"
-          description="No pending reviews"
-          accent="text-green-500"
-        />
-        <DashboardCard
-          icon={Bell}
-          title="Notifications"
-          description="Check updates"
-          accent="text-orange-500"
-        />
-      </div>
-    </div>
-  );
+  return <AdviserDashboardV2 />;
 }
 
 function PanelistDashboard({ user: _user }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-2xl font-bold tracking-tight">Panelist Dashboard</h3>
-        <p className="text-muted-foreground">Review proposals and evaluate defenses.</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <DashboardCard
-          icon={FileText}
-          title="Proposals"
-          description="No proposals to review"
-          accent="text-blue-500"
-        />
-        <DashboardCard
-          icon={ClipboardList}
-          title="Defenses"
-          description="No upcoming defenses"
-          accent="text-purple-500"
-        />
-        <DashboardCard
-          icon={Bell}
-          title="Notifications"
-          description="Check updates"
-          accent="text-orange-500"
-        />
-      </div>
-    </div>
-  );
+  return <PanelistDashboardV2 />;
 }
 
 function DashboardCard({ icon: Icon, title, description, accent = 'text-primary' }) {

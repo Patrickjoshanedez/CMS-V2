@@ -47,6 +47,8 @@ export const teamService = {
   acceptInvite: (token) => api.post(`/teams/invites/${token}/accept`),
   declineInvite: (token) => api.post(`/teams/invites/${token}/decline`),
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
+  assignMemberRole: (teamId, memberId, data) =>
+    api.patch(`/teams/${teamId}/members/${memberId}/role`, data),
   listTeams: (params) => api.get('/teams', { params }),
 };
 

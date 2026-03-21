@@ -42,3 +42,21 @@ export const listTeamsQuerySchema = z.object({
     .transform((val) => val === 'true')
     .optional(),
 });
+
+const TEAM_MEMBER_ROLES = [
+  'Programmer',
+  'Documentor',
+  'Pitcher',
+  'UI/UX',
+  'QA/Tester',
+  'Researcher',
+  'Backend Developer',
+  'Frontend Developer',
+];
+
+export const assignMemberRoleSchema = z.object({
+  role: z
+    .union([z.enum(TEAM_MEMBER_ROLES), z.literal('')])
+    .optional()
+    .default(''),
+});

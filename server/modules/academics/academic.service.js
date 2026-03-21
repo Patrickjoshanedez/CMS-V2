@@ -99,12 +99,31 @@ class AcademicService {
 
     const sectionIds = sections.map((section) => section._id);
 
-    const teamFilter = { sectionId: { $in: sectionIds } };
+    const activeStudents = sectionIds.length
+      ? await User.find({
+          sectionId: { $in: sectionIds },
+          role: 'student',
+          isActive: true,
+        })
+          .select('_id sectionId')
+          .lean()
+      : [];
+
+    const studentIds = activeStudents.map((student) => student._id);
+    const studentSectionById = new Map(
+      activeStudents.map((student) => [student._id.toString(), student.sectionId?.toString()]),
+    );
+
+    // Include both:
+    // 1) Teams explicitly linked to a section
+    // 2) Legacy teams missing sectionId but containing section-assigned students
     const teams = sectionIds.length
-      ? await Team.find(teamFilter)
+      ? await Team.find({
+          $or: [{ sectionId: { $in: sectionIds } }, { members: { $in: studentIds } }],
+        })
           .sort({ createdAt: -1 })
           .populate('leaderId', 'firstName middleName lastName email')
-          .populate('members', 'firstName middleName lastName email role')
+          .populate('members', 'firstName middleName lastName email role sectionId')
           .lean()
       : [];
 
@@ -131,10 +150,24 @@ class AcademicService {
       studentCounts.map((item) => [item._id?.toString(), item.count || 0]),
     );
 
+    const sectionIdSet = new Set(sectionIds.map((id) => id.toString()));
     const teamsBySection = new Map();
     for (const team of teams) {
-      const key = team.sectionId?.toString();
-      if (!key) continue;
+      let key = team.sectionId?.toString() || null;
+
+      // Fallback mapping for legacy teams without sectionId.
+      if (!key || !sectionIdSet.has(key)) {
+        for (const member of team.members || []) {
+          const memberSectionId =
+            member.sectionId?.toString() || studentSectionById.get(member._id?.toString()) || null;
+          if (memberSectionId && sectionIdSet.has(memberSectionId)) {
+            key = memberSectionId;
+            break;
+          }
+        }
+      }
+
+      if (!key || !sectionIdSet.has(key)) continue;
       if (!teamsBySection.has(key)) teamsBySection.set(key, []);
       teamsBySection.get(key).push(team);
     }

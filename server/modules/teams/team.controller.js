@@ -84,6 +84,22 @@ export const lockTeam = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/members/:memberId/role — Assign role for a team member (Leader only) */
+export const assignMemberRole = catchAsync(async (req, res) => {
+  const { team } = await teamService.assignMemberRole(
+    req.params.id,
+    req.user._id,
+    req.params.memberId,
+    req.body.role || '',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team member role updated successfully.',
+    data: { team },
+  });
+});
+
 /** GET /api/teams — List all teams (Instructor/Adviser) */
 export const listTeams = catchAsync(async (req, res) => {
   const { teams, pagination } = await teamService.listTeams(req.query);

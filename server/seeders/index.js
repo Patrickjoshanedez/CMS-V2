@@ -223,58 +223,30 @@ const ARCHIVE_SCORES = [
 
 const instructors = [
   {
-    firstName: 'Maria',
-    middleName: 'Cruz',
-    lastName: 'Santos',
-    email: 'instructor@buksu.edu.ph',
-    role: 'instructor',
-  },
-  {
-    firstName: 'Roberto',
-    middleName: 'Lim',
-    lastName: 'Garcia',
-    email: 'instructor2@buksu.edu.ph',
+    firstName: 'Patrick Josh',
+    middleName: 'S.',
+    lastName: 'Añedez',
+    email: '2301103203@student.buksu.edu.ph',
     role: 'instructor',
   },
 ];
 
 const advisers = [
   {
-    firstName: 'Ana',
-    middleName: 'Reyes',
-    lastName: 'Dela Cruz',
-    email: 'adviser1@buksu.edu.ph',
-    role: 'adviser',
-  },
-  {
-    firstName: 'Jose',
-    middleName: 'Bautista',
-    lastName: 'Mendoza',
-    email: 'adviser2@buksu.edu.ph',
+    firstName: 'Leon',
+    middleName: '',
+    lastName: 'Mentor',
+    email: 'leon.mentor.buksu@gmail.com',
     role: 'adviser',
   },
 ];
 
 const panelists = [
   {
-    firstName: 'Elena',
-    middleName: 'Villanueva',
-    lastName: 'Ramos',
-    email: 'panelist1@buksu.edu.ph',
-    role: 'panelist',
-  },
-  {
-    firstName: 'Carlos',
-    middleName: 'Aquino',
-    lastName: 'Torres',
-    email: 'panelist2@buksu.edu.ph',
-    role: 'panelist',
-  },
-  {
-    firstName: 'Patricia',
-    middleName: 'Luna',
-    lastName: 'Fernandez',
-    email: 'panelist3@buksu.edu.ph',
+    firstName: 'Steven Joe',
+    middleName: '',
+    lastName: 'Bautista',
+    email: '2301105311@student.buksu.edu.ph',
     role: 'panelist',
   },
 ];
@@ -283,63 +255,48 @@ const panelists = [
 const currentStudents = [
   // ── Team Alpha (0-3) ──
   {
-    firstName: 'Juan',
-    middleName: 'Miguel',
-    lastName: 'Reyes',
-    email: 'student1@buksu.edu.ph',
+    firstName: 'Bennettchristiangeofferdon',
+    middleName: '',
+    lastName: 'Student',
+    email: 'bennettchristiangeofferdon15@gmail.com',
     role: 'student',
   },
   {
-    firstName: 'Maria',
-    middleName: 'Clara',
-    lastName: 'Lopez',
-    email: 'student2@buksu.edu.ph',
+    firstName: 'Throylan',
+    middleName: '',
+    lastName: 'Antipuesto',
+    email: '2301106923@student.buksu.edu.ph',
     role: 'student',
   },
   {
-    firstName: 'Pedro',
-    middleName: 'Jose',
-    lastName: 'Alvarez',
-    email: 'student3@buksu.edu.ph',
+    firstName: 'Chris',
+    middleName: '',
+    lastName: 'Student',
+    email: 'chris.student.buksu@gmail.com',
     role: 'student',
   },
   {
-    firstName: 'Angela',
-    middleName: 'Rose',
-    lastName: 'Castillo',
-    email: 'student4@buksu.edu.ph',
+    firstName: 'Yojp',
+    middleName: '',
+    lastName: 'Korj',
+    email: 'korjyojp@gmail.com',
     role: 'student',
   },
   // ── Team Beta (4-7) ──
   {
-    firstName: 'Marco',
-    middleName: 'Luis',
-    lastName: 'Rivera',
-    email: 'student5@buksu.edu.ph',
+    firstName: 'John Jethro',
+    middleName: '',
+    lastName: 'Israel',
+    email: '2501107801@student.buksu.edu.ph',
     role: 'student',
   },
   {
-    firstName: 'Sofia',
-    middleName: 'Grace',
-    lastName: 'Navarro',
-    email: 'student6@buksu.edu.ph',
+    firstName: 'Lara',
+    middleName: 'Mae',
+    lastName: 'Quintero',
+    email: 'lara.mae.quintero@student.buksu.edu.ph',
     role: 'student',
   },
-  {
-    firstName: 'Diego',
-    middleName: 'Antonio',
-    lastName: 'Romero',
-    email: 'student7@buksu.edu.ph',
-    role: 'student',
-  },
-  {
-    firstName: 'Isabel',
-    middleName: 'Marie',
-    lastName: 'Santos',
-    email: 'student8@buksu.edu.ph',
-    role: 'student',
-  },
-  // ── Team Gamma (8-11) ──
   {
     firstName: 'Rafael',
     middleName: 'James',
@@ -354,6 +311,7 @@ const currentStudents = [
     email: 'student10@buksu.edu.ph',
     role: 'student',
   },
+  // ── Team Gamma (8-10) ──
   {
     firstName: 'Gabriel',
     middleName: 'Mark',
@@ -368,7 +326,7 @@ const currentStudents = [
     email: 'student12@buksu.edu.ph',
     role: 'student',
   },
-  // ── Orphaned (12) ──
+  // ── Orphaned (10) ──
   {
     firstName: 'Kevin',
     middleName: 'Paul',
@@ -622,7 +580,7 @@ const currentTeamDefs = [
       titleStatus: 'approved',
       projectStatus: 'active',
       adviserIndex: 0,
-      panelistIndices: [0, 1],
+      panelistIndices: [0],
     },
   },
   {
@@ -645,14 +603,14 @@ const currentTeamDefs = [
       capstonePhase: 1,
       titleStatus: 'submitted',
       projectStatus: 'active',
-      adviserIndex: 1,
+      adviserIndex: 0,
       panelistIndices: [],
     },
   },
   {
     name: 'Team Gamma',
     leaderIndex: 8,
-    memberIndices: [8, 9, 10, 11],
+    memberIndices: [8, 9, 10],
     isLocked: false,
     sectionKey: 'A',
     project: null,
@@ -677,7 +635,7 @@ const archivedTeamDefs = [
         'automation',
       ],
       adviserIndex: 0,
-      panelistIndices: [0, 1],
+      panelistIndices: [0],
       archivedAt: new Date('2025-05-15'),
       completionNotes:
         'Project successfully passed all capstone phases. Deployed to the university intranet for pilot testing.',
@@ -699,8 +657,8 @@ const archivedTeamDefs = [
         'local government',
         'document management',
       ],
-      adviserIndex: 1,
-      panelistIndices: [1, 2],
+      adviserIndex: 0,
+      panelistIndices: [0],
       archivedAt: new Date('2025-05-16'),
       completionNotes:
         'Delivered to partner barangay in Valencia City. End-user training conducted.',
@@ -717,7 +675,7 @@ const archivedTeamDefs = [
         'An AI-assisted attendance system combining QR code scanning and facial recognition to provide tamper-proof, real-time attendance tracking for classrooms and events.',
       keywords: ['attendance monitoring', 'QR code', 'facial recognition', 'AI', 'smart classroom'],
       adviserIndex: 0,
-      panelistIndices: [0, 2],
+      panelistIndices: [0],
       archivedAt: new Date('2025-05-18'),
       completionNotes:
         'Prototype approved for adoption by the IT department for faculty attendance tracking.',
@@ -740,8 +698,8 @@ const archivedTeamDefs = [
         'Bukidnon',
         'mobile app',
       ],
-      adviserIndex: 1,
-      panelistIndices: [0, 1],
+      adviserIndex: 0,
+      panelistIndices: [0],
       archivedAt: new Date('2025-05-20'),
       completionNotes:
         'Awarded Best Capstone Project for Academic Year 2024-2025. Partnered with DA Region X for validation.',
@@ -764,7 +722,7 @@ const archivedTeamDefs = [
         'reservation system',
       ],
       adviserIndex: 0,
-      panelistIndices: [1, 2],
+      panelistIndices: [0],
       archivedAt: new Date('2025-05-22'),
       completionNotes:
         'System deployed at the main campus library. All 5,000+ catalog entries migrated.',
@@ -974,12 +932,12 @@ async function seed() {
     {
       email: 'scenario.inactive@buksu.edu.ph',
       sectionKey: 'B',
-      adviserIndex: 1,
+      adviserIndex: 0,
     },
     {
       email: 'scenario.unverified@buksu.edu.ph',
       sectionKey: 'B',
-      adviserIndex: 1,
+      adviserIndex: 0,
     },
     {
       email: 'scenario.google@buksu.edu.ph',

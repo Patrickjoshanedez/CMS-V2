@@ -39,7 +39,7 @@ vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
  * Create a locked team, link the student to it, and create an active project
  * with an approved title. Returns { team, project }.
  */
-async function createProjectSetup(studentId, adviserId = null) {
+async function createProjectSetup(studentId, adviserId = null, instructorId = null) {
   const team = await Team.create({
     name: 'Test Team',
     leaderId: studentId,
@@ -48,7 +48,10 @@ async function createProjectSetup(studentId, adviserId = null) {
     academicYear: '2024-2025',
   });
 
-  await User.findByIdAndUpdate(studentId, { teamId: team._id });
+  await User.findByIdAndUpdate(studentId, {
+    teamId: team._id,
+    ...(instructorId ? { instructorId } : {}),
+  });
 
   const project = await Project.create({
     teamId: team._id,
@@ -141,7 +144,11 @@ describe('Submissions API — /api/submissions', () => {
     if (!adviserUser) console.error('ADVISER_USER_IS_NULL');
 
     // Set up project with adviser
-    ({ team: _team, project } = await createProjectSetup(studentUser._id, adviserUser._id));
+    ({ team: _team, project } = await createProjectSetup(
+      studentUser._id,
+      adviserUser._id,
+      _instructorUser._id,
+    ));
 
     // Re-fetch student to get updated teamId
     studentUser = await User.findById(studentUser._id);
@@ -166,12 +173,24 @@ describe('Submissions API — /api/submissions', () => {
       expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
     });
 
-    it('should auto-increment version on re-upload', async () => {
+    it('should auto-increment version on re-upload after adviser revision request', async () => {
       // First upload
-      await studentAgent
+      const firstUpload = await studentAgent
         .post(`/api/submissions/${project._id}/chapters`)
         .field('chapter', '1')
         .attach('file', createPdfBuffer(), 'chapter1-v1.pdf');
+
+      expect(firstUpload.status).toBe(201);
+
+      // Adviser requests revisions before allowing re-upload
+      const reviewRes = await adviserAgent
+        .post(`/api/submissions/${firstUpload.body.data.submission._id}/review`)
+        .send({
+          status: SUBMISSION_STATUSES.REVISIONS_REQUIRED,
+          reviewNote: 'Revise methodology section before next review.',
+        });
+
+      expect(reviewRes.status).toBe(200);
 
       // Second upload
       const res = await studentAgent
@@ -181,6 +200,7 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.submission.version).toBe(2);
+      expect(res.body.data.submission.revisionRound).toBe(1);
     });
 
     it('should reject upload from non-student role', async () => {
@@ -207,6 +227,16 @@ describe('Submissions API — /api/submissions', () => {
         .attach('file', createPdfBuffer(), 'chapter6.pdf');
 
       expect(res.status).toBe(400);
+    });
+
+    it('should reject chapter 2 upload when chapter 1 is not yet approved', async () => {
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '2')
+        .attach('file', createPdfBuffer(), 'chapter2.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
 
     it('should reject upload to locked chapter', async () => {
@@ -815,6 +845,40 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(403);
     });
 
+    it('should reject proposal compile when adviser is not assigned', async () => {
+      const { agent: studentNoAdviserAgent, user: studentNoAdviser } =
+        await createAuthenticatedUserWithRole('student', {
+          email: 'proposal-no-adviser@test.com',
+        });
+
+      const { project: noAdviserProject } = await createProjectSetup(
+        studentNoAdviser._id,
+        null,
+        _instructorUser._id,
+      );
+
+      for (const chapter of [1, 2, 3]) {
+        await Submission.create({
+          projectId: noAdviserProject._id,
+          chapter,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${chapter}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 1000,
+          storageKey: `uploads/chapter${chapter}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentNoAdviser._id,
+        });
+      }
+
+      const res = await studentNoAdviserAgent
+        .post(`/api/submissions/${noAdviserProject._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'proposal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
     it('should reject non-student role (panelist)', async () => {
       await lockChapters123();
 

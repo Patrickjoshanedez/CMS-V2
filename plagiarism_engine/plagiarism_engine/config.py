@@ -58,6 +58,13 @@ class Settings(BaseSettings):
         ge=1,
         description="Number of text segments to encode in a single batch.",
     )
+    EMBEDDING_DEVICE: str = Field(
+        default="auto",
+        description=(
+            "Embedding device selection. Use auto, cpu, cuda, cuda:0, or mps. "
+            "auto selects the fastest available backend."
+        ),
+    )
     TOP_K_CANDIDATES: int = Field(
         default=5,
         ge=1,

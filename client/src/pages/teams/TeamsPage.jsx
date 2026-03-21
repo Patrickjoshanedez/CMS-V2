@@ -29,6 +29,7 @@ import {
   useInviteCandidates,
   useAcceptInvite,
   useLockTeam,
+  useAssignMemberRole,
 } from '@/hooks/useTeams';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -431,11 +432,34 @@ function InviteMemberForm({ teamId }) {
 function StudentTeamDetail({ team, userId }) {
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
   const [showFinalizeDetails, setShowFinalizeDetails] = useState(false);
+  const assignment = team.assignment || {};
+  const panelists = assignment.panelists || [];
+  const memberRoleAssignments = team.memberRoles || [];
+  const memberRoleMap = new Map(
+    memberRoleAssignments.map((item) => [item?.userId?._id || item?.userId, item?.role || '']),
+  );
+
+  const TEAM_MEMBER_ROLE_OPTIONS = [
+    'Programmer',
+    'Documentor',
+    'Pitcher',
+    'UI/UX',
+    'QA/Tester',
+    'Researcher',
+    'Backend Developer',
+    'Frontend Developer',
+  ];
 
   const lockTeam = useLockTeam({
     onSuccess: () => toast.success('Team finalized! No further member changes are allowed.'),
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
+  });
+
+  const assignMemberRole = useAssignMemberRole({
+    onSuccess: () => toast.success('Team role updated.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to update team role.'),
   });
 
   const handleFinalize = () => {
@@ -483,6 +507,7 @@ function StudentTeamDetail({ team, userId }) {
               {team.members?.map((member) => {
                 const memberId = member._id || member;
                 const isThisLeader = (team.leaderId?._id || team.leaderId) === memberId;
+                const selectedRole = memberRoleMap.get(memberId) || '';
 
                 return (
                   <div key={memberId} className="flex items-center gap-3 rounded-md border p-3">
@@ -500,9 +525,81 @@ function StudentTeamDetail({ team, userId }) {
                         Leader
                       </Badge>
                     )}
+
+                    <div className="ml-auto min-w-[170px]">
+                      <Label className="mb-1 block text-xs text-muted-foreground">Team Role</Label>
+                      <select
+                        className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                        value={selectedRole}
+                        disabled={!isLeader || team.isLocked || assignMemberRole.isPending}
+                        onChange={(event) => {
+                          assignMemberRole.mutate({
+                            teamId: team._id,
+                            memberId,
+                            role: event.target.value,
+                          });
+                        }}
+                      >
+                        <option value="">No role</option>
+                        {TEAM_MEMBER_ROLE_OPTIONS.map((roleOption) => (
+                          <option key={roleOption} value={roleOption}>
+                            {roleOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">
+              Current Capstone Committee
+            </p>
+            <div className="space-y-2">
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Instructor
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {assignment.instructor ? formatName(assignment.instructor) : 'Not assigned yet'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {assignment.instructor?.email || 'No instructor assigned to your profile yet'}
+                </p>
+              </div>
+
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Adviser
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {assignment.adviser ? formatName(assignment.adviser) : 'Not assigned yet'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {assignment.adviser?.email || 'No adviser assigned yet'}
+                </p>
+              </div>
+
+              <div className="rounded-md border p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Panelists
+                </p>
+                {panelists.length > 0 ? (
+                  <div className="mt-1 space-y-1">
+                    {panelists.map((panelist) => (
+                      <div key={panelist._id} className="text-sm">
+                        <p className="font-medium">{formatName(panelist)}</p>
+                        <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -654,6 +751,8 @@ function TeamCard({ team }) {
 function FacultyTeamDetail({ team }) {
   const leader = team.leaderId;
   const members = team.members || [];
+  const assignment = team.assignment || {};
+  const panelists = assignment.panelists || [];
 
   return (
     <Card>
@@ -684,6 +783,55 @@ function FacultyTeamDetail({ team }) {
           </p>
           <p className="mt-1 text-sm font-medium">{formatName(leader)}</p>
           <p className="text-xs text-muted-foreground">{leader?.email || 'No email provided'}</p>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Current Capstone Committee
+          </p>
+          <div className="space-y-2">
+            <div className="rounded-md border p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Instructor
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {assignment.instructor ? formatName(assignment.instructor) : 'Not assigned yet'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {assignment.instructor?.email || 'No instructor assigned yet'}
+              </p>
+            </div>
+
+            <div className="rounded-md border p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Adviser
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {assignment.adviser ? formatName(assignment.adviser) : 'Not assigned yet'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {assignment.adviser?.email || 'No adviser assigned yet'}
+              </p>
+            </div>
+
+            <div className="rounded-md border p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Panelists
+              </p>
+              {panelists.length > 0 ? (
+                <div className="mt-1 space-y-1">
+                  {panelists.map((panelist) => (
+                    <div key={panelist._id} className="text-sm">
+                      <p className="font-medium">{formatName(panelist)}</p>
+                      <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div>

@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { authService, userService } from '../services/authService';
 import { disconnectSocket } from '../services/socket';
 
+const extractErrorMessage = (error, fallbackMessage) =>
+  error.response?.data?.error?.message || fallbackMessage;
+
+const runAuthRequest = async ({ set, request, fallbackMessage, onSuccess }) => {
+  set({ loading: true, error: null });
+  try {
+    const response = await request();
+    if (onSuccess) {
+      onSuccess(response);
+    }
+    set({ loading: false });
+    return response?.data;
+  } catch (error) {
+    set({ loading: false, error: extractErrorMessage(error, fallbackMessage) });
+    throw error;
+  }
+};
+
 /**
  * Auth Store (Zustand) — manages authentication state.
  *
@@ -28,48 +46,33 @@ export const useAuthStore = create((set, _get) => ({
    * user must verify OTP first.
    */
   register: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await authService.register(data);
-      set({ loading: false });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Registration failed.';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: () => authService.register(data),
+      fallbackMessage: 'Registration failed.',
+    });
   },
 
   /**
    * Verify OTP after registration or for password reset.
    */
   verifyOtp: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await authService.verifyOtp(data);
-      set({ loading: false });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'OTP verification failed.';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: () => authService.verifyOtp(data),
+      fallbackMessage: 'OTP verification failed.',
+    });
   },
 
   /**
    * Resend OTP to the given email.
    */
   resendOtp: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await authService.resendOtp(data);
-      set({ loading: false });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Failed to resend OTP.';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: () => authService.resendOtp(data),
+      fallbackMessage: 'Failed to resend OTP.',
+    });
   },
 
   /**
@@ -77,23 +80,23 @@ export const useAuthStore = create((set, _get) => ({
    * We fetch the user profile to populate the store.
    */
   login: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const loginResponse = await authService.login(data);
-      const userResponse = await userService.getMe();
-
-      set({
-        user: userResponse.data.data.user,
-        isAuthenticated: true,
-        loading: false,
-      });
-
-      return loginResponse.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Login failed.';
-      set({ loading: false, error: message, isAuthenticated: false, user: null });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: async () => {
+        const loginResponse = await authService.login(data);
+        const userResponse = await userService.getMe();
+        return { loginResponse, userResponse };
+      },
+      fallbackMessage: 'Login failed.',
+      onSuccess: ({ userResponse }) => {
+        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      },
+    })
+      .catch((error) => {
+        set({ isAuthenticated: false, user: null });
+        throw error;
+      })
+      .then((response) => response.loginResponse.data);
   },
 
   /**
@@ -101,21 +104,20 @@ export const useAuthStore = create((set, _get) => ({
    * We fetch the user profile to populate the store.
    */
   googleLogin: async (credential) => {
-    set({ loading: true, error: null });
-    try {
-      await authService.googleLogin({ credential });
-      const userResponse = await userService.getMe();
-
-      set({
-        user: userResponse.data.data.user,
-        isAuthenticated: true,
-        loading: false,
-      });
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Google login failed.';
-      set({ loading: false, error: message, isAuthenticated: false, user: null });
+    return runAuthRequest({
+      set,
+      request: async () => {
+        await authService.googleLogin({ credential });
+        return userService.getMe();
+      },
+      fallbackMessage: 'Google login failed.',
+      onSuccess: (userResponse) => {
+        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      },
+    }).catch((error) => {
+      set({ isAuthenticated: false, user: null });
       throw error;
-    }
+    });
   },
 
   /**
@@ -162,32 +164,22 @@ export const useAuthStore = create((set, _get) => ({
    * Forgot password — sends OTP to email.
    */
   forgotPassword: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await authService.forgotPassword(data);
-      set({ loading: false });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Failed to send reset email.';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: () => authService.forgotPassword(data),
+      fallbackMessage: 'Failed to send reset email.',
+    });
   },
 
   /**
    * Reset password with OTP code.
    */
   resetPassword: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await authService.resetPassword(data);
-      set({ loading: false });
-      return response.data;
-    } catch (error) {
-      const message = error.response?.data?.error?.message || 'Password reset failed.';
-      set({ loading: false, error: message });
-      throw error;
-    }
+    return runAuthRequest({
+      set,
+      request: () => authService.resetPassword(data),
+      fallbackMessage: 'Password reset failed.',
+    });
   },
 
   /** Clear any stored error */

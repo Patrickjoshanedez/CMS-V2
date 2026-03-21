@@ -112,12 +112,12 @@ function buildFragments(paraText, paraStart, paraEnd, sortedMatches) {
 }
 
 /**
- * Map a 0-1 similarity_score to a Tailwind tw- highlight colour class.
+ * Map a 0-1 similarity_score to a Tailwind  highlight colour class.
  */
 function highlightClass(score) {
-  if (score >= 0.85) return 'tw-bg-red-200 tw-text-red-900';
-  if (score >= 0.65) return 'tw-bg-orange-200 tw-text-orange-900';
-  return 'tw-bg-yellow-200 tw-text-yellow-900';
+  if (score >= 0.85) return 'bg-red-200 text-red-900';
+  if (score >= 0.65) return 'bg-orange-200 text-orange-900';
+  return 'bg-yellow-200 text-yellow-900';
 }
 
 /* ─── ParagraphRow ───────────────────────────────────────────────────────── */
@@ -137,7 +137,7 @@ const ParagraphRow = React.memo(function ParagraphRow({
   return (
     <div
       style={style}
-      className="tw-px-4 tw-py-2 tw-text-sm tw-leading-relaxed tw-text-gray-800 tw-border-b tw-border-gray-100"
+      className="px-4 py-2 text-sm leading-relaxed text-gray-800 border-b border-gray-100"
     >
       {fragments.map((frag, idx) => {
         if (!frag.isMatch) {
@@ -156,11 +156,11 @@ const ParagraphRow = React.memo(function ParagraphRow({
             onClick={() => onSelectMatch(frag.match)}
             onKeyDown={(e) => e.key === 'Enter' && onSelectMatch(frag.match)}
             className={[
-              'tw-cursor-pointer tw-rounded tw-px-0.5 tw-transition-all',
+              'cursor-pointer rounded px-0.5 transition-all',
               highlightClass(frag.match.similarity_score),
               isSelected
-                ? 'tw-ring-2 tw-ring-offset-1 tw-ring-blue-500'
-                : 'hover:tw-ring-1 hover:tw-ring-offset-1 hover:tw-ring-blue-300',
+                ? 'ring-2 ring-offset-1 ring-blue-500'
+                : 'hover:ring-1 hover:ring-offset-1 hover:ring-blue-300',
             ].join(' ')}
           >
             {frag.text}
@@ -230,27 +230,27 @@ export default function VirtualizedPlagiarismViewer({
 
   if (!text) {
     return (
-      <div className="tw-flex tw-items-center tw-justify-center tw-h-64 tw-text-gray-400 tw-text-sm">
+      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
         No extracted text available for this submission.
       </div>
     );
   }
 
   return (
-    <div className="tw-border tw-border-gray-200 tw-rounded-lg tw-overflow-hidden tw-bg-white">
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
       {/* Legend */}
-      <div className="tw-flex tw-items-center tw-gap-4 tw-px-4 tw-py-2 tw-border-b tw-border-gray-200 tw-bg-gray-50 tw-text-xs tw-text-gray-600">
-        <span className="tw-font-medium">Highlight key:</span>
-        <span className="tw-inline-flex tw-items-center tw-gap-1">
-          <span className="tw-w-3 tw-h-3 tw-rounded tw-bg-yellow-200 tw-border tw-border-yellow-300" />
+      <div className="flex items-center gap-4 px-4 py-2 border-b border-gray-200 bg-gray-50 text-xs text-gray-600">
+        <span className="font-medium">Highlight key:</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />
           Low (50–64%)
         </span>
-        <span className="tw-inline-flex tw-items-center tw-gap-1">
-          <span className="tw-w-3 tw-h-3 tw-rounded tw-bg-orange-200 tw-border tw-border-orange-300" />
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-orange-200 border border-orange-300" />
           Medium (65–84%)
         </span>
-        <span className="tw-inline-flex tw-items-center tw-gap-1">
-          <span className="tw-w-3 tw-h-3 tw-rounded tw-bg-red-200 tw-border tw-border-red-300" />
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-red-200 border border-red-300" />
           High (≥85%)
         </span>
       </div>

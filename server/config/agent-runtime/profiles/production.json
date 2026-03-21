@@ -177,5 +177,12 @@
       "plagiarismChecker": "info",
       "documentProcessing": "warn"
     }
+  },
+  "settings": {
+    "thresholds": {
+      "plagiarism": {
+        "rejectPercent": 40
+      }
+    }
   }
 }

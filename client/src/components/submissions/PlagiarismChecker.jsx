@@ -81,25 +81,23 @@ const PlagiarismChecker = ({
     data: plagiarismResult,
     isLoading: _isLoadingResult,
     refetch: refetchResult,
-  } = useQuery(
-    ['plagiarism', submissionId],
-    async () => {
+  } = useQuery({
+    queryKey: ['plagiarism', submissionId],
+    queryFn: async () => {
       const response = await fetch(`/api/submissions/${submissionId}/plagiarism/result`);
       if (!response.ok) throw new Error('Failed to fetch plagiarism result');
       return (await response.json()).data;
     },
-    {
-      staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: false, // Manual polling
-    },
-  );
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: false, // Manual polling
+  });
 
   // ───────────────────────────────────────────────────────────────────────
   // Trigger Plagiarism Check
   // ───────────────────────────────────────────────────────────────────────
 
-  const { mutate: triggerCheck, isLoading: isChecking } = useMutation(
-    async (payload) => {
+  const { mutate: triggerCheck, isPending: isChecking } = useMutation({
+    mutationFn: async (payload) => {
       const response = await fetch(`/api/submissions/${submissionId}/plagiarism/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,23 +107,21 @@ const PlagiarismChecker = ({
       if (!response.ok) throw new Error('Failed to start plagiarism check');
       return response.json();
     },
-    {
-      onSuccess: () => {
-        logger.info(`Plagiarism check started for submission: ${submissionId}`);
-        onCheckStart?.();
+    onSuccess: () => {
+      logger.info(`Plagiarism check started for submission: ${submissionId}`);
+      onCheckStart?.();
 
-        // Start polling for result
-        const interval = setInterval(() => {
-          refetchResult();
-        }, 2000); // Poll every 2 seconds
+      // Start polling for result
+      const interval = setInterval(() => {
+        refetchResult();
+      }, 2000); // Poll every 2 seconds
 
-        setPollInterval(interval);
-      },
-      onError: (error) => {
-        logger.error(`Error starting plagiarism check: ${error.message}`);
-      },
+      setPollInterval(interval);
     },
-  );
+    onError: (error) => {
+      logger.error(`Error starting plagiarism check: ${error.message}`);
+    },
+  });
 
   // ───────────────────────────────────────────────────────────────────────
   // Handle Check Complete
@@ -164,6 +160,11 @@ const PlagiarismChecker = ({
   const hasResult = plagiarismResult && plagiarismResult.status === 'completed';
   const isProcessing =
     isChecking || (plagiarismResult?.status === 'pending' && pollInterval !== null);
+  const similarityPercentage = Number(plagiarismResult?.similarity_percentage ?? 0);
+  const textMatches = Array.isArray(plagiarismResult?.text_matches)
+    ? plagiarismResult.text_matches.filter(Boolean)
+    : [];
+  const matchCount = Number(textMatches?.length ?? 0);
 
   return (
     <div className="tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-p-4 tw-mb-6">
@@ -172,12 +173,8 @@ const PlagiarismChecker = ({
         <div className="tw-flex tw-items-center tw-gap-3">
           <div className="tw-text-xl tw-font-semibold tw-text-gray-900">🔍 Plagiarism Analysis</div>
           {hasResult && (
-            <span
-              className={`${getSimilarityColor(
-                plagiarismResult.similarity_percentage,
-              )} tw-text-sm tw-font-bold`}
-            >
-              {plagiarismResult.similarity_percentage.toFixed(1)}% Similar
+            <span className={`${getSimilarityColor(similarityPercentage)} tw-text-sm tw-font-bold`}>
+              {similarityPercentage.toFixed(1)}% Similar
             </span>
           )}
         </div>
@@ -195,11 +192,9 @@ const PlagiarismChecker = ({
 
       {/* Collapsed Summary */}
       {!isExpanded && hasResult && (
-        <div
-          className={`tw-p-3 tw-rounded tw-border ${getSimilarityBg(plagiarismResult.similarity_percentage)}`}
-        >
+        <div className={`tw-p-3 tw-rounded tw-border ${getSimilarityBg(similarityPercentage)}`}>
           <p className="tw-text-sm tw-text-gray-700">
-            Similarity: <strong>{plagiarismResult.similarity_percentage.toFixed(1)}%</strong>
+            Similarity: <strong>{similarityPercentage.toFixed(1)}%</strong>
             {plagiarismResult.warning_flag && (
               <span className="tw-text-red-600 tw-font-semibold tw-ml-2">
                 ⚠️ Warning: High Similarity
@@ -240,9 +235,7 @@ const PlagiarismChecker = ({
 
           {/* Result Display */}
           {hasResult && (
-            <div
-              className={`tw-p-4 tw-rounded tw-border ${getSimilarityBg(plagiarismResult.similarity_percentage)}`}
-            >
+            <div className={`tw-p-4 tw-rounded tw-border ${getSimilarityBg(similarityPercentage)}`}>
               {/* Similarity Percentage */}
               <div className="tw-mb-4">
                 <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
@@ -250,9 +243,9 @@ const PlagiarismChecker = ({
                     Similarity Score
                   </span>
                   <span
-                    className={`tw-text-2xl tw-font-bold ${getSimilarityColor(plagiarismResult.similarity_percentage)}`}
+                    className={`tw-text-2xl tw-font-bold ${getSimilarityColor(similarityPercentage)}`}
                   >
-                    {plagiarismResult.similarity_percentage.toFixed(1)}%
+                    {similarityPercentage.toFixed(1)}%
                   </span>
                 </div>
 
@@ -260,30 +253,28 @@ const PlagiarismChecker = ({
                 <div className="tw-w-full tw-bg-gray-300 tw-rounded-full tw-h-2 tw-overflow-hidden">
                   <div
                     className={`tw-h-full tw-transition-all ${
-                      plagiarismResult.similarity_percentage < 15
+                      similarityPercentage < 15
                         ? 'tw-bg-green-600'
-                        : plagiarismResult.similarity_percentage < 30
+                        : similarityPercentage < 30
                           ? 'tw-bg-yellow-600'
-                          : plagiarismResult.similarity_percentage < 50
+                          : similarityPercentage < 50
                             ? 'tw-bg-orange-600'
                             : 'tw-bg-red-600'
                     }`}
-                    style={{ width: `${Math.min(plagiarismResult.similarity_percentage, 100)}%` }}
+                    style={{ width: `${Math.min(similarityPercentage, 100)}%` }}
                   />
                 </div>
 
                 {/* Guideline Text */}
                 <p className="tw-text-xs tw-text-gray-600 tw-mt-2">
-                  {plagiarismResult.similarity_percentage < 15 &&
-                    '✓ Low similarity — likely original work'}
-                  {plagiarismResult.similarity_percentage >= 15 &&
-                    plagiarismResult.similarity_percentage < 30 &&
+                  {similarityPercentage < 15 && '✓ Low similarity — likely original work'}
+                  {similarityPercentage >= 15 &&
+                    similarityPercentage < 30 &&
                     '⚠ Moderate similarity — review required'}
-                  {plagiarismResult.similarity_percentage >= 30 &&
-                    plagiarismResult.similarity_percentage < 50 &&
+                  {similarityPercentage >= 30 &&
+                    similarityPercentage < 50 &&
                     '⚠ High similarity — careful review needed'}
-                  {plagiarismResult.similarity_percentage >= 50 &&
-                    '🚨 Very high similarity — likely plagiarism'}
+                  {similarityPercentage >= 50 && '🚨 Very high similarity — likely plagiarism'}
                 </p>
               </div>
 
@@ -310,48 +301,50 @@ const PlagiarismChecker = ({
           )}
 
           {/* Matched Sources */}
-          {hasResult && showMatchDetails && plagiarismResult.text_matches.length > 0 && (
+          {hasResult && showMatchDetails && matchCount > 0 && (
             <div className="tw-space-y-2">
               <h4 className="tw-font-semibold tw-text-gray-900 tw-text-sm">
-                Matched Sources ({plagiarismResult.text_matches.length})
+                Matched Sources ({matchCount})
               </h4>
               <div className="tw-space-y-2 tw-max-h-48 tw-overflow-y-auto">
-                {plagiarismResult.text_matches.slice(0, 5).map((match) => (
-                  <div
-                    key={match.id}
-                    className="tw-p-2 tw-bg-gray-100 tw-rounded tw-border tw-border-gray-200"
-                  >
-                    <div className="tw-flex tw-items-center tw-justify-between tw-mb-1">
-                      <a
-                        href={match.url || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="tw-text-sm tw-font-medium tw-text-blue-600 hover:tw-underline tw-truncate"
-                      >
-                        {match.title}
-                      </a>
-                      <span className="tw-text-xs tw-font-bold tw-text-gray-700">
-                        {match.similarity.toFixed(1)}%
-                      </span>
+                {textMatches.slice(0, 5).map((match) => {
+                  const matchSimilarity = Number(match?.similarity ?? 0);
+
+                  return (
+                    <div
+                      key={match.id}
+                      className="tw-p-2 tw-bg-gray-100 tw-rounded tw-border tw-border-gray-200"
+                    >
+                      <div className="tw-flex tw-items-center tw-justify-between tw-mb-1">
+                        <a
+                          href={match.url || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tw-text-sm tw-font-medium tw-text-blue-600 hover:tw-underline tw-truncate"
+                        >
+                          {match.title}
+                        </a>
+                        <span className="tw-text-xs tw-font-bold tw-text-gray-700">
+                          {matchSimilarity.toFixed(1)}%
+                        </span>
+                      </div>
+                      {match.excerpt && (
+                        <p className="tw-text-xs tw-text-gray-600 tw-italic tw-truncate">
+                          &quot;{match.excerpt}&quot;
+                        </p>
+                      )}
                     </div>
-                    {match.excerpt && (
-                      <p className="tw-text-xs tw-text-gray-600 tw-italic tw-truncate">
-                        &quot;{match.excerpt}&quot;
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {plagiarismResult.text_matches.length > 5 && (
-                <p className="tw-text-xs tw-text-gray-500">
-                  +{plagiarismResult.text_matches.length - 5} more matches
-                </p>
+              {matchCount > 5 && (
+                <p className="tw-text-xs tw-text-gray-500">+{matchCount - 5} more matches</p>
               )}
             </div>
           )}
 
           {/* No Matches Message */}
-          {hasResult && plagiarismResult.text_matches.length === 0 && (
+          {hasResult && matchCount === 0 && (
             <div className="tw-p-3 tw-bg-green-50 tw-border tw-border-green-200 tw-rounded">
               <p className="tw-text-sm tw-text-green-800">
                 ✓ No plagiarism detected. Submission appears to be original.
@@ -371,13 +364,6 @@ PlagiarismChecker.propTypes = {
   onCheckStart: PropTypes.func,
   disabled: PropTypes.bool,
   showMatchDetails: PropTypes.bool,
-};
-
-PlagiarismChecker.defaultProps = {
-  onCheckComplete: null,
-  onCheckStart: null,
-  disabled: false,
-  showMatchDetails: true,
 };
 
 export default React.memo(PlagiarismChecker);

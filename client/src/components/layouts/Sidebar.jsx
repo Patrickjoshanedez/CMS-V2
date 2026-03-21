@@ -11,6 +11,7 @@ import {
   FileText,
   Upload,
   ClipboardList,
+  ClipboardCheck,
   Archive,
   BarChart3,
   ScrollText,
@@ -48,6 +49,7 @@ const navItems = {
   // Adviser-specific
   adviser: [
     { label: 'My Teams', icon: UsersRound, path: '/teams' },
+    { label: 'Team Review', icon: ClipboardCheck, path: '/adviser/team-review' },
     { label: 'Projects', icon: FileText, path: '/projects' },
   ],
   // Panelist-specific

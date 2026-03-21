@@ -3,7 +3,7 @@ import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import { useAuthStore } from '@/stores/authStore';
 
 const OTP_LENGTH = 6;
@@ -133,22 +133,10 @@ export default function VerifyOtpPage() {
   return (
     <AuthLayout title="Verify your email" description={`We sent a 6-digit code to ${email}`}>
       {/* Error alert */}
-      {error && (
-        <div className="auth-item mb-4">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert message={error} />
 
       {/* Success alert */}
-      {successMessage && (
-        <div className="auth-item mb-4">
-          <Alert variant="success">
-            <AlertDescription>{successMessage}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert message={successMessage} variant="success" />
 
       {/* OTP input grid */}
       <div className="auth-item flex justify-center gap-3">

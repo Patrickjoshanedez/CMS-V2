@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
+import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { useAuthStore } from '@/stores/authStore';
 
 const forgotPasswordSchema = z.object({
@@ -55,24 +56,17 @@ export default function ForgotPasswordPage() {
       description="Enter your email and we'll send you a reset code."
     >
       {/* Error alert */}
-      {error && (
-        <div className="auth-item mb-4">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert message={error} />
 
       {/* Success alert */}
-      {sent && (
-        <div className="auth-item mb-4">
-          <Alert variant="success">
-            <AlertDescription>
-              If an account with that email exists, a reset code has been sent. Redirecting…
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert
+        message={
+          sent
+            ? 'If an account with that email exists, a reset code has been sent. Redirecting…'
+            : ''
+        }
+        variant="success"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* Email */}
@@ -95,20 +89,12 @@ export default function ForgotPasswordPage() {
 
         {/* Submit — gradient button */}
         <div className="auth-item">
-          <button
-            type="submit"
-            disabled={loading || sent}
-            className="auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Sending code…
-              </>
-            ) : (
-              'Send reset code'
-            )}
-          </button>
+          <AuthSubmitButton
+            loading={loading}
+            loadingLabel="Sending code…"
+            idleLabel="Send reset code"
+            disabled={sent}
+          />
         </div>
       </form>
 

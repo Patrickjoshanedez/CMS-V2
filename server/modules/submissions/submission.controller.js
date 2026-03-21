@@ -144,6 +144,19 @@ export const getViewUrl = catchAsync(async (req, res) => {
   });
 });
 
+/** GET /api/submissions/:submissionId/google-comments — Get Google Docs comments for synced doc */
+export const getGoogleDocComments = catchAsync(async (req, res) => {
+  const commentsData = await submissionService.getGoogleDocComments(
+    req.params.submissionId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: commentsData,
+  });
+});
+
 /* ═══════════════════ Plagiarism ═══════════════════ */
 
 /** GET /api/submissions/:submissionId/plagiarism — Get plagiarism check status */
@@ -221,6 +234,22 @@ export const addAnnotation = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/submissions/:submissionId/annotations/:annotationId/replies — Add threaded reply */
+export const addAnnotationReply = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.addAnnotationReply(
+    req.params.submissionId,
+    req.params.annotationId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Reply added.',
+    data: { submission },
+  });
+});
+
 /** DELETE /api/submissions/:submissionId/annotations/:annotationId — Remove an annotation */
 export const removeAnnotation = catchAsync(async (req, res) => {
   const { submission } = await submissionService.removeAnnotation(
@@ -234,5 +263,105 @@ export const removeAnnotation = catchAsync(async (req, res) => {
     success: true,
     message: 'Annotation removed.',
     data: { submission },
+  });
+});
+
+/**
+ * POST /api/submissions/:submissionId/annotations/:annotationId/resolve
+ * Mark an annotation as resolved (adviser/instructor).
+ */
+export const markAnnotationResolved = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.markAnnotationResolved(
+    req.params.submissionId,
+    req.params.annotationId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Annotation marked as resolved.',
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Feedback & Versions ═══════════════════ */
+
+/**
+ * GET /api/submissions/:submissionId/feedback
+ * Get submission feedback context: annotations, review notes, timeline, deadline.
+ */
+export const getSubmissionFeedback = catchAsync(async (req, res) => {
+  const { feedback } = await submissionService.getSubmissionFeedback(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Feedback retrieved.',
+    data: { feedback },
+  });
+});
+
+/** GET /api/submissions/:submissionId/review-workspace — Get split-view review data */
+export const getSubmissionReviewWorkspace = catchAsync(async (req, res) => {
+  const { workspace } = await submissionService.getSubmissionReviewWorkspace(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { workspace },
+  });
+});
+
+/** POST /api/submissions/:submissionId/request-revision-round */
+export const requestRevisionRound = catchAsync(async (req, res) => {
+  const { submission, nextRound } = await submissionService.requestRevisionRound(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Revision round requested. Next round is now open for student upload.',
+    data: { submission, nextRound },
+  });
+});
+
+/** POST /api/submissions/:submissionId/accept */
+export const markSubmissionAccepted = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.markSubmissionAccepted(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Submission marked as accepted and closed.',
+    data: { submission },
+  });
+});
+
+/**
+ * GET /api/submissions/:submissionId/versions
+ * Get all versions (upload history) for a submission.
+ */
+export const getSubmissionVersions = catchAsync(async (req, res) => {
+  const { versions } = await submissionService.getSubmissionVersions(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Versions retrieved.',
+    data: { versions },
   });
 });

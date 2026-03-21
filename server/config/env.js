@@ -112,6 +112,8 @@ const env = Object.freeze({
   // Plagiarism / Copyleaks (empty = fallback mock mode)
   COPYLEAKS_EMAIL: process.env.COPYLEAKS_EMAIL || '',
   COPYLEAKS_API_KEY: process.env.COPYLEAKS_API_KEY || '',
+  PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
+  PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
 
   // reCAPTCHA v2
   RECAPTCHA_ENABLED: parseBoolean(process.env.RECAPTCHA_ENABLED, true),
@@ -149,6 +151,10 @@ const env = Object.freeze({
   AGENT_RUNTIME_ACTIVE_PROFILE: process.env.AGENT_RUNTIME_ACTIVE_PROFILE || 'default',
   AGENT_RUNTIME_CACHE_TTL_MS: parsePositiveInteger(process.env.AGENT_RUNTIME_CACHE_TTL_MS, 30000),
   AGENT_RUNTIME_STRICT_MODE: parseBoolean(process.env.AGENT_RUNTIME_STRICT_MODE, true),
+  AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD: parseBoolean(
+    process.env.AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD,
+    false,
+  ),
 
   // Helpers
   isDevelopment: (process.env.NODE_ENV || 'development') === 'development',

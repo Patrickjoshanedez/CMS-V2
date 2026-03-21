@@ -77,6 +77,25 @@ cp server/.env.example server/.env
 
 Edit `server/.env` with your MongoDB URI, JWT secrets, and SMTP credentials. Refer to the `.env.example` file for all required variables.
 
+### Google Sign-In setup (prevents Error 400: origin_mismatch)
+
+If Google login is enabled, configure both frontend and Google Cloud Console:
+
+1. Set `VITE_GOOGLE_CLIENT_ID` in `client/.env`.
+2. Set `GOOGLE_CLIENT_ID` in `server/.env` to the same value.
+3. In Google Cloud Console: `APIs & Services > Credentials > OAuth 2.0 Client IDs > <your web client>`.
+4. Add every frontend origin you actually use to `Authorized JavaScript origins`, for example:
+
+   - `http://localhost:5173`
+   - `http://127.0.0.1:5173`
+   - `https://<your-ngrok-subdomain>.ngrok-free.dev`
+
+Important:
+
+- Google matches origin exactly (`scheme + host + port`).
+- Wildcards are not supported for OAuth JavaScript origins.
+- After edits, restart the client dev server/container.
+
 ### 4. Start development servers
 
 ```bash

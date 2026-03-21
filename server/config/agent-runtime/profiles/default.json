@@ -76,5 +76,12 @@
       "enabled": true,
       "triggers": ["context7", "library docs", "api validation"]
     }
-  ]
+  ],
+  "settings": {
+    "thresholds": {
+      "plagiarism": {
+        "rejectPercent": 50
+      }
+    }
+  }
 }

@@ -14,8 +14,8 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "seed": "npm run seed --workspace=server",
     "seed:server": "npm run seed --workspace=server",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/**",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/** --fix",
     "format": "prettier --write .",
     "prepare": "husky"
   },

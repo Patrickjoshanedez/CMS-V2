@@ -154,3 +154,14 @@ export function useLockTeam(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Assign or clear a role for a team member (leader only).
+ * @param {Object} params — { teamId: string, memberId: string, role: string }
+ */
+export function useAssignMemberRole(options = {}) {
+  return useTeamMutation(async ({ teamId, memberId, role }) => {
+    const res = await teamService.assignMemberRole(teamId, memberId, { role });
+    return res.data;
+  }, options);
+}

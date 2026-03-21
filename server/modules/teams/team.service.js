@@ -1,7 +1,9 @@
 import Team from './team.model.js';
 import TeamInvite from './teamInvite.model.js';
 import User from '../users/user.model.js';
+import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
+import Section from '../academics/section.model.js';
 import { sendTeamInviteEmail } from '../notifications/email.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
@@ -9,6 +11,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { ROLES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
+const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
+  'Programmer',
+  'Documentor',
+  'Pitcher',
+  'UI/UX',
+  'QA/Tester',
+  'Researcher',
+  'Backend Developer',
+  'Frontend Developer',
+];
 const INVITE_CODE_LENGTH = 6;
 
 const INVITE_CODE_ALPHANUMERIC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -72,11 +84,22 @@ class TeamService {
     const fallbackTeamName = user.lastName;
     const teamName = normalizedName || fallbackTeamName;
 
+    let sectionId = null;
+    let courseId = null;
+
+    if (user.sectionId) {
+      sectionId = user.sectionId;
+      const section = await Section.findById(user.sectionId).select('courseId').lean();
+      courseId = section?.courseId || null;
+    }
+
     const team = await Team.create({
       name: teamName,
       academicYear: data.academicYear,
       leaderId: userId,
       members: [userId],
+      sectionId,
+      courseId,
     });
 
     // Link the user to the team
@@ -98,14 +121,37 @@ class TeamService {
     }
 
     const team = await Team.findById(user.teamId)
-      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate({
+        path: 'leaderId',
+        select: 'firstName middleName lastName email profilePicture instructorId',
+        populate: {
+          path: 'instructorId',
+          select: 'firstName middleName lastName email profilePicture',
+        },
+      })
       .populate('members', 'firstName middleName lastName email profilePicture role');
 
     if (!team) {
       throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
     }
 
-    return { team };
+    const currentProject = await Project.findOne({ teamId: team._id })
+      .sort({ createdAt: -1 })
+      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    const teamObject = team.toObject();
+    teamObject.assignment = {
+      instructor: teamObject.leaderId?.instructorId || null,
+      adviser: currentProject?.adviserId || null,
+      panelists: currentProject?.panelistIds || [],
+      capstonePhase: currentProject?.capstonePhase || null,
+      titleStatus: currentProject?.titleStatus || null,
+      projectStatus: currentProject?.projectStatus || null,
+    };
+
+    return { team: teamObject };
   }
 
   /**
@@ -422,6 +468,85 @@ class TeamService {
   }
 
   /**
+   * Assign or clear a member role (leader-only action).
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @param {string} memberId
+   * @param {string} role
+   * @returns {Object} { team }
+   */
+  async assignMemberRole(teamId, leaderId, memberId, role) {
+    const team = await Team.findById(teamId)
+      .populate({
+        path: 'leaderId',
+        select: 'firstName middleName lastName email instructorId',
+        populate: {
+          path: 'instructorId',
+          select: 'firstName middleName lastName email profilePicture',
+        },
+      })
+      .populate('members', 'firstName middleName lastName email role')
+      .populate('memberRoles.userId', 'firstName middleName lastName email');
+
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId?._id?.toString() !== leaderId.toString()) {
+      throw new AppError('Only the team leader can assign team member roles.', 403, 'FORBIDDEN');
+    }
+
+    const targetMemberExists = (team.members || []).some(
+      (member) => member?._id?.toString() === memberId.toString(),
+    );
+    if (!targetMemberExists) {
+      throw new AppError(
+        'The selected member is not part of this team.',
+        400,
+        'MEMBER_NOT_IN_TEAM',
+      );
+    }
+
+    if (role && !TEAM_MEMBER_ROLES.includes(role)) {
+      throw new AppError('Invalid team role provided.', 400, 'INVALID_TEAM_ROLE');
+    }
+
+    const existingIndex = (team.memberRoles || []).findIndex(
+      (assignment) => assignment?.userId?._id?.toString() === memberId.toString(),
+    );
+
+    if (!role) {
+      if (existingIndex >= 0) {
+        team.memberRoles.splice(existingIndex, 1);
+      }
+    } else if (existingIndex >= 0) {
+      team.memberRoles[existingIndex].role = role;
+    } else {
+      team.memberRoles.push({ userId: memberId, role });
+    }
+
+    await team.save();
+
+    const currentProject = await Project.findOne({ teamId: team._id })
+      .sort({ createdAt: -1 })
+      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    const teamObject = team.toObject();
+    teamObject.assignment = {
+      instructor: teamObject.leaderId?.instructorId || null,
+      adviser: currentProject?.adviserId || null,
+      panelists: currentProject?.panelistIds || [],
+      capstonePhase: currentProject?.capstonePhase || null,
+      titleStatus: currentProject?.titleStatus || null,
+      projectStatus: currentProject?.projectStatus || null,
+    };
+
+    return { team: teamObject };
+  }
+
+  /**
    * List all teams (Instructor/Adviser only, paginated).
    * @param {Object} query - { page, limit, academicYear?, search?, isLocked? }
    * @returns {Object} { teams, pagination }
@@ -442,13 +567,53 @@ class TeamService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('leaderId', 'firstName middleName lastName email')
+        .populate({
+          path: 'leaderId',
+          select: 'firstName middleName lastName email instructorId',
+          populate: {
+            path: 'instructorId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+        })
         .populate('members', 'firstName middleName lastName email role'),
       Team.countDocuments(filter),
     ]);
 
+    const teamIds = teams.map((team) => team._id);
+    const latestProjects = teamIds.length
+      ? await Project.find({ teamId: { $in: teamIds } })
+          .sort({ createdAt: -1 })
+          .select('teamId adviserId panelistIds capstonePhase titleStatus projectStatus')
+          .populate('adviserId', 'firstName middleName lastName email profilePicture')
+          .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+          .lean()
+      : [];
+
+    const projectByTeamId = new Map();
+    for (const project of latestProjects) {
+      const key = project.teamId?.toString();
+      if (!key || projectByTeamId.has(key)) continue;
+      projectByTeamId.set(key, project);
+    }
+
+    const teamsWithAssignment = teams.map((teamDoc) => {
+      const team = teamDoc.toObject();
+      const currentProject = projectByTeamId.get(team._id.toString());
+
+      team.assignment = {
+        instructor: team.leaderId?.instructorId || null,
+        adviser: currentProject?.adviserId || null,
+        panelists: currentProject?.panelistIds || [],
+        capstonePhase: currentProject?.capstonePhase || null,
+        titleStatus: currentProject?.titleStatus || null,
+        projectStatus: currentProject?.projectStatus || null,
+      };
+
+      return team;
+    });
+
     return {
-      teams,
+      teams: teamsWithAssignment,
       pagination: {
         page,
         limit,

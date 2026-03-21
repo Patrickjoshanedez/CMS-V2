@@ -140,11 +140,27 @@ const annotationSchema = new mongoose.Schema(
       min: 1,
       default: 1,
     },
+    lineStart: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    lineEnd: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
     content: {
       type: String,
       required: true,
       trim: true,
       maxlength: 2000,
+    },
+    selectedText: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: '',
     },
     highlightCoords: {
       type: mongoose.Schema.Types.Mixed,
@@ -153,6 +169,36 @@ const annotationSchema = new mongoose.Schema(
     createdAt: {
       type: Date,
       default: Date.now,
+    },
+    resolved: {
+      type: Boolean,
+      default: false,
+    },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    replies: {
+      type: [
+        {
+          userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+          },
+          content: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 2000,
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
     },
   },
   { _id: true },
@@ -189,6 +235,11 @@ const submissionSchema = new mongoose.Schema(
       type: Number,
       default: 1,
       min: 1,
+    },
+    revisionRound: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     // --- File metadata (binary lives in S3) ---
@@ -229,6 +280,31 @@ const submissionSchema = new mongoose.Schema(
     driveWebContentLink: {
       type: String,
       trim: true,
+      default: null,
+    },
+
+    userDriveFolderId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    syncedGoogleDocId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    syncedGoogleDocUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    googleDocSyncStatus: {
+      type: String,
+      enum: ['not_requested', 'synced', 'not_supported', 'failed'],
+      default: 'not_requested',
+    },
+    googleDocSyncedAt: {
+      type: Date,
       default: null,
     },
 
@@ -298,6 +374,24 @@ const submissionSchema = new mongoose.Schema(
       type: [annotationSchema],
       default: [],
     },
+
+    // --- Review timeline (Phase 1: Student Feedback Enhancement) ---
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    revisionDeadline: {
+      type: Date,
+      default: null,
+    },
+    revisionExpectedDays: {
+      type: Number,
+      default: 5, // Default: students have 5 days to revise after feedback
+    },
+    reviewClosed: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -335,6 +429,10 @@ submissionSchema.index(
 );
 // Quick lookup: proposal submissions for a project
 submissionSchema.index({ projectId: 1, type: 1 });
+// Fast lookup for revisions due soon
+submissionSchema.index({ revisionDeadline: 1, status: 1 });
+// Find submissions awaiting revision response
+submissionSchema.index({ status: 1, revisionDeadline: 1, reviewedAt: 1 });
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

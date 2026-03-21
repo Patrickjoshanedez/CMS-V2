@@ -9,6 +9,7 @@ import {
   inviteMemberSchema,
   inviteCandidatesQuerySchema,
   listTeamsQuerySchema,
+  assignMemberRoleSchema,
 } from './team.validation.js';
 
 const router = Router();
@@ -44,6 +45,14 @@ router.post('/invites/:token/decline', teamController.declineInvite);
 
 // --- Team lock route (Leader or Instructor) ---
 router.patch('/:id/lock', teamController.lockTeam);
+
+// --- Team member role assignment (Leader only) ---
+router.patch(
+  '/:id/members/:memberId/role',
+  authorize(ROLES.STUDENT),
+  validate(assignMemberRoleSchema),
+  teamController.assignMemberRole,
+);
 
 // --- Instructor/Adviser listing route ---
 router.get(

@@ -3,20 +3,27 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { GoogleLogin } from '@react-oauth/google';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
+import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/components/ThemeProvider';
+import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
   password: z.string().min(1, 'Password is required.'),
 });
+
+const getGoogleOriginMismatchMessage = () => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'your frontend origin';
+  return `Google sign-in failed. If you see "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
+};
 
 /**
  * LoginPage — split-screen login form with floating inputs,
@@ -24,7 +31,8 @@ const loginSchema = z.object({
  */
 export default function LoginPage() {
   const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
-  const isGoogleLoginConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const googleAuth = getGoogleAuthRuntimeConfig();
+  const isGoogleLoginConfigured = googleAuth.isEnabled;
   const navigate = useNavigate();
   const { login, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -75,24 +83,18 @@ export default function LoginPage() {
       await googleLogin(credentialResponse.credential);
       navigate('/dashboard', { replace: true });
     } catch {
-      setGoogleError('Google sign-in failed. Please try again.');
+      setGoogleError(getGoogleOriginMismatchMessage());
     }
   };
 
   const handleGoogleError = () => {
-    setGoogleError('Google sign-in was unsuccessful. Please try again.');
+    setGoogleError(getGoogleOriginMismatchMessage());
   };
 
   return (
     <AuthLayout title="Welcome back" description="Sign in to your account to continue.">
       {/* Error alert */}
-      {error && (
-        <div className="auth-item mb-4">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert message={error} />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* Email */}
@@ -177,20 +179,7 @@ export default function LoginPage() {
 
         {/* Submit — gradient button */}
         <div className="auth-item">
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Signing in…
-              </>
-            ) : (
-              'Sign in'
-            )}
-          </button>
+          <AuthSubmitButton loading={loading} loadingLabel="Signing in…" idleLabel="Sign in" />
         </div>
       </form>
 
@@ -219,7 +208,9 @@ export default function LoginPage() {
       ) : (
         <div className="auth-item">
           <p className="text-sm text-destructive text-center">
-            Google Sign-In is temporarily unavailable. Missing VITE_GOOGLE_CLIENT_ID.
+            {googleAuth.isDisabledByDevPolicy
+              ? 'Google Sign-In is disabled in local development. Set VITE_ENABLE_GOOGLE_LOGIN=true after whitelisting your origin in Google Cloud Console.'
+              : 'Google Sign-In is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
           </p>
         </div>
       )}

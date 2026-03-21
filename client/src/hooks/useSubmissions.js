@@ -28,8 +28,10 @@ export const submissionKeys = {
   latestChapter: (projectId, chapter) => [...submissionKeys.latestChapters(), projectId, chapter],
   viewUrls: () => [...submissionKeys.all, 'viewUrl'],
   viewUrl: (id) => [...submissionKeys.viewUrls(), id],
+  googleDocComments: (id) => [...submissionKeys.all, 'googleDocComments', id],
   plagiarismReports: () => [...submissionKeys.all, 'plagiarismReport'],
   plagiarismReport: (id) => [...submissionKeys.plagiarismReports(), id],
+  reviewWorkspace: (id) => [...submissionKeys.all, 'reviewWorkspace', id],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -138,6 +140,39 @@ export function useViewUrl(submissionId, options = {}) {
   });
 }
 
+/**
+ * Fetch Google Docs comments/replies for a submission's synced Google Doc.
+ */
+export function useGoogleDocComments(submissionId, options = {}) {
+  return useQuery({
+    queryKey: submissionKeys.googleDocComments(submissionId),
+    queryFn: async () => {
+      const { data } = await submissionService.getGoogleDocComments(submissionId);
+      return data.data;
+    },
+    enabled: !!submissionId,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    ...options,
+  });
+}
+
+/**
+ * Fetch split-view review workspace for a submission thread.
+ */
+export function useSubmissionReviewWorkspace(submissionId, options = {}) {
+  return useQuery({
+    queryKey: submissionKeys.reviewWorkspace(submissionId),
+    queryFn: async () => {
+      const { data } = await submissionService.getReviewWorkspace(submissionId);
+      return data.data.workspace;
+    },
+    enabled: !!submissionId,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+}
+
 /* ────────── Mutation Helper ────────── */
 
 /**
@@ -219,6 +254,36 @@ export function useAddAnnotation(options = {}) {
 export function useRemoveAnnotation(options = {}) {
   return useSubmissionMutation(async ({ submissionId, annotationId }) => {
     const res = await submissionService.removeAnnotation(submissionId, annotationId);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Add a threaded reply to an annotation.
+ */
+export function useAddAnnotationReply(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, annotationId, ...data }) => {
+    const res = await submissionService.addAnnotationReply(submissionId, annotationId, data);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Request another revision round.
+ */
+export function useRequestRevisionRound(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, ...data }) => {
+    const res = await submissionService.requestRevisionRound(submissionId, data);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Mark submission accepted and close review thread.
+ */
+export function useMarkSubmissionAccepted(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, ...data }) => {
+    const res = await submissionService.markAccepted(submissionId, data);
     return res.data;
   }, options);
 }

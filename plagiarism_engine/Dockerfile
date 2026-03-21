@@ -20,6 +20,8 @@
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 
+ARG TORCH_VARIANT=cpu
+
 # System libraries required to compile some wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -35,7 +37,12 @@ COPY requirements.txt .
 # Install into /app/.venv so script shebang paths stay valid in runtime stage
 RUN python -m venv /app/.venv \
     && /app/.venv/bin/pip install --upgrade pip \
-    && /app/.venv/bin/pip install --no-cache-dir -r requirements.txt
+        && cp requirements.txt /tmp/requirements.resolved.txt \
+        && if [ "$TORCH_VARIANT" = "cu121" ]; then \
+                sed -i 's|https://download.pytorch.org/whl/cpu|https://download.pytorch.org/whl/cu121|g' /tmp/requirements.resolved.txt; \
+                sed -i 's|^torch==2.3.1.*$|torch==2.3.1+cu121|g' /tmp/requirements.resolved.txt; \
+            fi \
+        && /app/.venv/bin/pip install --no-cache-dir -r /tmp/requirements.resolved.txt
 
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────

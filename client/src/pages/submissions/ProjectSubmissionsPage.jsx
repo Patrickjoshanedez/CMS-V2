@@ -149,6 +149,8 @@ export default function ProjectSubmissionsPage() {
   const submissions = submissionsData?.submissions || [];
   const isLoading = projectLoading || subsLoading;
   const error = projectError || subsError;
+  const lateCount = submissions.filter((item) => item.isLate).length;
+  const lockedCount = submissions.filter((item) => item.status === 'LOCKED').length;
 
   /* ────── Loading ────── */
   if (isLoading) {
@@ -258,6 +260,34 @@ export default function ProjectSubmissionsPage() {
         {/* Deadline alerts — compact warnings for approaching/overdue deadlines */}
         {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
 
+        {/* Quick summary */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Total Submissions
+              </p>
+              <p className="mt-1 text-2xl font-semibold">{submissions.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Approved And Locked
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-600">{lockedCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Late Submissions
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-amber-600">{lateCount}</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Filters */}
         <Card>
           <CardHeader className="pb-3">
@@ -265,6 +295,7 @@ export default function ProjectSubmissionsPage() {
               <Filter className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium">Filter</CardTitle>
             </div>
+            <p className="text-xs text-muted-foreground">Focus submissions by chapter number.</p>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">

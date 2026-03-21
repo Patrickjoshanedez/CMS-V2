@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -81,6 +81,10 @@ function HierarchyView() {
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
+  const [navAcademicYear, setNavAcademicYear] = useState('');
+  const [navCourseKey, setNavCourseKey] = useState('');
+  const [navSectionId, setNavSectionId] = useState('');
+  const [navTeamId, setNavTeamId] = useState('');
   const [courseName, setCourseName] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [sectionName, setSectionName] = useState('');
@@ -133,6 +137,95 @@ function HierarchyView() {
 
   const selectedCourse = courses.find((course) => course._id === selectedCourseId);
   const selectedSection = sections.find((section) => section._id === selectedSectionId);
+
+  const folderHierarchy = useMemo(() => {
+    const yearsMap = new Map();
+
+    hierarchy.forEach((section) => {
+      const yearKey = section.academicYear || 'Unknown Academic Year';
+      const courseObject = section.courseId || {};
+      const courseKey =
+        courseObject._id || `${courseObject.code || 'UNKNOWN'}-${courseObject.name || section._id}`;
+
+      if (!yearsMap.has(yearKey)) {
+        yearsMap.set(yearKey, {
+          academicYear: yearKey,
+          coursesMap: new Map(),
+          sectionCount: 0,
+          teamCount: 0,
+          studentCount: 0,
+        });
+      }
+
+      const yearNode = yearsMap.get(yearKey);
+
+      if (!yearNode.coursesMap.has(courseKey)) {
+        yearNode.coursesMap.set(courseKey, {
+          courseKey,
+          course: courseObject,
+          sections: [],
+          teamCount: 0,
+          studentCount: 0,
+        });
+      }
+
+      const courseNode = yearNode.coursesMap.get(courseKey);
+      courseNode.sections.push(section);
+      courseNode.teamCount += section.teamCount || 0;
+      courseNode.studentCount += section.studentCount || 0;
+
+      yearNode.sectionCount += 1;
+      yearNode.teamCount += section.teamCount || 0;
+      yearNode.studentCount += section.studentCount || 0;
+    });
+
+    return Array.from(yearsMap.values())
+      .map((yearNode) => ({
+        ...yearNode,
+        courses: Array.from(yearNode.coursesMap.values()).sort((a, b) => {
+          const left = a.course?.code || a.course?.name || '';
+          const right = b.course?.code || b.course?.name || '';
+          return left.localeCompare(right);
+        }),
+      }))
+      .sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+  }, [hierarchy]);
+
+  const selectedYearNode =
+    folderHierarchy.find((node) => node.academicYear === navAcademicYear) || null;
+  const selectedCourseNode =
+    selectedYearNode?.courses?.find((courseNode) => courseNode.courseKey === navCourseKey) || null;
+  const selectedFolderSection =
+    selectedCourseNode?.sections?.find((section) => section._id === navSectionId) || null;
+  const selectedFolderTeam =
+    selectedFolderSection?.teams?.find((team) => team._id === navTeamId) || null;
+
+  const canGoBack = Boolean(navTeamId || navSectionId || navCourseKey || navAcademicYear);
+
+  useEffect(() => {
+    setNavAcademicYear('');
+    setNavCourseKey('');
+    setNavSectionId('');
+    setNavTeamId('');
+  }, [selectedCourseId, selectedAcademicYear, selectedSectionId]);
+
+  const handleBack = () => {
+    if (navTeamId) {
+      setNavTeamId('');
+      return;
+    }
+    if (navSectionId) {
+      setNavSectionId('');
+      return;
+    }
+    if (navCourseKey) {
+      setNavCourseKey('');
+      return;
+    }
+    if (navAcademicYear) {
+      setNavAcademicYear('');
+    }
+  };
 
   const onCreateCourse = (event) => {
     event.preventDefault();
@@ -341,12 +434,104 @@ function HierarchyView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Teams and Student Members</CardTitle>
+          <CardTitle>Hierarchy Navigator</CardTitle>
           <CardDescription>
-            Hover rows for quick details. Active selection stays visible via breadcrumb.
+            Folder-style navigation: Academic Year -&gt; Course -&gt; Section -&gt; Team -&gt;
+            Students.
           </CardDescription>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => {
+                setNavAcademicYear('');
+                setNavCourseKey('');
+                setNavSectionId('');
+                setNavTeamId('');
+              }}
+            >
+              School Years
+            </Button>
+            {navAcademicYear && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => {
+                    setNavCourseKey('');
+                    setNavSectionId('');
+                    setNavTeamId('');
+                  }}
+                >
+                  {navAcademicYear}
+                </Button>
+              </>
+            )}
+            {selectedCourseNode && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => {
+                    setNavSectionId('');
+                    setNavTeamId('');
+                  }}
+                >
+                  {selectedCourseNode.course?.code || selectedCourseNode.course?.name || 'Course'}
+                </Button>
+              </>
+            )}
+            {selectedFolderSection && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setNavTeamId('')}
+                >
+                  {selectedFolderSection.name}
+                </Button>
+              </>
+            )}
+            {selectedFolderTeam && (
+              <>
+                <ChevronRight className="h-3 w-3" />
+                <span className="rounded-md bg-muted px-2 py-1">{selectedFolderTeam.name}</span>
+              </>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">
+              {!navAcademicYear && 'Select an academic year'}
+              {navAcademicYear && !navCourseKey && 'Select a course'}
+              {navAcademicYear && navCourseKey && !navSectionId && 'Select a section'}
+              {navAcademicYear && navCourseKey && navSectionId && !navTeamId && 'Select a team'}
+              {navAcademicYear && navCourseKey && navSectionId && navTeamId && 'Students'}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleBack}
+              disabled={!canGoBack}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back
+            </Button>
+          </div>
+
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -358,47 +543,127 @@ function HierarchyView() {
             <p className="text-sm text-muted-foreground">No sections found.</p>
           )}
 
-          {!isLoading &&
-            hierarchy.map((section) => (
-              <div key={section._id} className="rounded-md border p-3">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{section.courseId?.code}</Badge>
-                  <span className="text-sm font-semibold">{section.name}</span>
-                  {section.code && (
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {section.code}
-                    </Badge>
-                  )}
-                  <span className="text-xs text-muted-foreground">{section.academicYear}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {section.teamCount} teams | {section.studentCount} students
-                  </span>
-                </div>
+          {!isLoading && !navAcademicYear && (
+            <div className="space-y-2">
+              {folderHierarchy.map((yearNode) => (
+                <button
+                  key={yearNode.academicYear}
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                  onClick={() => setNavAcademicYear(yearNode.academicYear)}
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{yearNode.academicYear}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {yearNode.sectionCount} sections | {yearNode.teamCount} teams |{' '}
+                      {yearNode.studentCount} students
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          )}
 
-                <div className="space-y-2">
-                  {(section.teams || []).map((team) => (
-                    <div key={team._id} className="rounded-md border bg-muted/30 p-2">
-                      <p className="text-sm font-medium">{team.name}</p>
-                      <div className="mt-1 grid gap-1 sm:grid-cols-2">
-                        {(team.members || []).map((member) => (
-                          <div
-                            key={member._id}
-                            className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
-                          >
-                            <p className="font-medium">
-                              {[member.firstName, member.middleName, member.lastName]
-                                .filter(Boolean)
-                                .join(' ')}
-                            </p>
-                            <p className="text-muted-foreground">{member.email}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          {!isLoading && navAcademicYear && !navCourseKey && (
+            <div className="space-y-2">
+              {(selectedYearNode?.courses || []).map((courseNode) => (
+                <button
+                  key={courseNode.courseKey}
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                  onClick={() => setNavCourseKey(courseNode.courseKey)}
+                >
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {courseNode.course?.code || 'N/A'} -{' '}
+                      {courseNode.course?.name || 'Unknown Course'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {courseNode.sections.length} sections | {courseNode.teamCount} teams |{' '}
+                      {courseNode.studentCount} students
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && navAcademicYear && navCourseKey && !navSectionId && (
+            <div className="space-y-2">
+              {(selectedCourseNode?.sections || []).map((section) => (
+                <button
+                  key={section._id}
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                  onClick={() => setNavSectionId(section._id)}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{section.code || section.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {section.teamCount} teams | {section.studentCount} students
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && navAcademicYear && navCourseKey && navSectionId && !navTeamId && (
+            <div className="space-y-2">
+              {(selectedFolderSection?.teams || []).map((team) => (
+                <button
+                  key={team._id}
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                  onClick={() => setNavTeamId(team._id)}
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{team.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {team.members?.length || 0} students
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+
+              {(selectedFolderSection?.teams || []).length === 0 && (
+                <p className="rounded-md border bg-muted/30 p-2 text-sm text-muted-foreground">
+                  No teams in this section yet.
+                </p>
+              )}
+            </div>
+          )}
+
+          {!isLoading && navAcademicYear && navCourseKey && navSectionId && navTeamId && (
+            <div className="rounded-md border bg-background p-3">
+              <p className="mb-2 text-sm font-semibold">Students in {selectedFolderTeam?.name}</p>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {(selectedFolderTeam?.members || []).map((member) => (
+                  <div
+                    key={member._id}
+                    className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
+                  >
+                    <p className="font-medium">
+                      {[member.firstName, member.middleName, member.lastName]
+                        .filter(Boolean)
+                        .join(' ')}
+                    </p>
+                    <p className="text-muted-foreground">{member.email}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+
+              {(selectedFolderTeam?.members || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No student members found in this team.
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

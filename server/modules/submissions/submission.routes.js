@@ -28,6 +28,9 @@ import {
   finalPaperSchema,
   reviewSubmissionSchema,
   addAnnotationSchema,
+  addAnnotationReplySchema,
+  requestRevisionRoundSchema,
+  markAcceptedSchema,
   unlockRequestSchema,
   listSubmissionsQuerySchema,
 } from './submission.validation.js';
@@ -145,6 +148,30 @@ router.post(
 );
 
 /**
+ * POST /:submissionId/request-revision-round
+ * Marks the active round as revision requested and creates the next pending student round.
+ */
+router.post(
+  '/:submissionId/request-revision-round',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(requestRevisionRoundSchema),
+  submissionController.requestRevisionRound,
+);
+
+/**
+ * POST /:submissionId/accept
+ * Locks and marks the review thread accepted/finalized.
+ */
+router.post(
+  '/:submissionId/accept',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(markAcceptedSchema),
+  submissionController.markSubmissionAccepted,
+);
+
+/**
  * POST /:submissionId/unlock
  * Unlock a locked submission so the student can upload a new version.
  * Only advisers and instructors can unlock.
@@ -175,6 +202,18 @@ router.post(
 );
 
 /**
+ * POST /:submissionId/annotations/:annotationId/replies
+ * Add a threaded reply to an annotation.
+ */
+router.post(
+  '/:submissionId/annotations/:annotationId/replies',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionAnnotationParamSchema, 'params'),
+  validate(addAnnotationReplySchema),
+  submissionController.addAnnotationReply,
+);
+
+/**
  * DELETE /:submissionId/annotations/:annotationId
  * Remove an annotation. Only the annotation author or an instructor can remove.
  */
@@ -183,6 +222,51 @@ router.delete(
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(submissionAnnotationParamSchema, 'params'),
   submissionController.removeAnnotation,
+);
+
+/**
+ * POST /:submissionId/annotations/:annotationId/resolve
+ * Mark an annotation as resolved/addressed. Only adviser and instructor.
+ */
+router.post(
+  '/:submissionId/annotations/:annotationId/resolve',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionAnnotationParamSchema, 'params'),
+  submissionController.markAnnotationResolved,
+);
+
+/* ────── Feedback & version routes (any authenticated role) ────── */
+
+/**
+ * GET /:submissionId/feedback
+ * Get student feedback context: annotations, review notes, review timeline, revision deadline.
+ * Accessible by the submitting student and all faculty.
+ */
+router.get(
+  '/:submissionId/feedback',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionFeedback,
+);
+
+/**
+ * GET /:submissionId/review-workspace
+ * Returns review thread metadata and round timeline used by split-view review page.
+ */
+router.get(
+  '/:submissionId/review-workspace',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionReviewWorkspace,
+);
+
+/**
+ * GET /:submissionId/versions
+ * Get all versions of a submission (upload history).
+ * Accessible by the submitting student and all faculty.
+ */
+router.get(
+  '/:submissionId/versions',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionVersions,
 );
 
 /* ────── Shared routes (any authenticated role) ────── */
@@ -205,6 +289,16 @@ router.get(
   '/:submissionId/view',
   validate(submissionIdParamSchema, 'params'),
   submissionController.getViewUrl,
+);
+
+/**
+ * GET /:submissionId/google-comments
+ * Get Google Docs comments/replies for the submission's synced Google Doc.
+ */
+router.get(
+  '/:submissionId/google-comments',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getGoogleDocComments,
 );
 
 /**

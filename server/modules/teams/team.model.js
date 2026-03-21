@@ -1,6 +1,16 @@
 import mongoose from 'mongoose';
 
 const MAX_TEAM_MEMBERS = 4;
+const TEAM_MEMBER_ROLES = [
+  'Programmer',
+  'Documentor',
+  'Pitcher',
+  'UI/UX',
+  'QA/Tester',
+  'Researcher',
+  'Backend Developer',
+  'Frontend Developer',
+];
 
 const teamSchema = new mongoose.Schema(
   {
@@ -20,6 +30,20 @@ const teamSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
+      },
+    ],
+    memberRoles: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: TEAM_MEMBER_ROLES,
+          required: true,
+        },
       },
     ],
     isLocked: {
@@ -71,6 +95,33 @@ teamSchema.pre('validate', function (next) {
   if (this.members && this.members.length > MAX_TEAM_MEMBERS) {
     this.invalidate('members', `Team cannot have more than ${MAX_TEAM_MEMBERS} members`);
   }
+
+  if (Array.isArray(this.memberRoles)) {
+    const roleOwnerSet = new Set();
+    const memberIdSet = new Set((this.members || []).map((memberId) => memberId.toString()));
+
+    this.memberRoles.forEach((assignment, index) => {
+      const targetId = assignment?.userId?.toString();
+      if (!targetId) return;
+
+      if (!memberIdSet.has(targetId)) {
+        this.invalidate(
+          `memberRoles.${index}.userId`,
+          'Role can only be assigned to current team members',
+        );
+      }
+
+      if (roleOwnerSet.has(targetId)) {
+        this.invalidate(
+          `memberRoles.${index}.userId`,
+          'Each member can only have one assigned role',
+        );
+      }
+
+      roleOwnerSet.add(targetId);
+    });
+  }
+
   next();
 });
 
@@ -78,6 +129,7 @@ teamSchema.pre('validate', function (next) {
 
 /** Maximum number of members allowed per team */
 teamSchema.statics.MAX_MEMBERS = MAX_TEAM_MEMBERS;
+teamSchema.statics.MEMBER_ROLES = TEAM_MEMBER_ROLES;
 
 const Team = mongoose.model('Team', teamSchema);
 

@@ -3,15 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { GoogleLogin } from '@react-oauth/google';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
+import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from '@/components/ThemeProvider';
+import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
 
 const registerSchema = z
   .object({
@@ -42,6 +44,11 @@ const registerSchema = z
     message: 'Passwords do not match.',
     path: ['confirmPassword'],
   });
+
+const getGoogleOriginMismatchMessage = () => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'your frontend origin';
+  return `Google sign-up failed. If you see "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
+};
 
 /* ─── Password Strength Meter ─── */
 
@@ -97,7 +104,8 @@ function PasswordStrengthMeter({ password }) {
  */
 export default function RegisterPage() {
   const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
-  const isGoogleLoginConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const googleAuth = getGoogleAuthRuntimeConfig();
+  const isGoogleLoginConfigured = googleAuth.isEnabled;
   const navigate = useNavigate();
   const { register: registerUser, googleLogin, loading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -139,7 +147,7 @@ export default function RegisterPage() {
   };
 
   const handleGoogleError = () => {
-    setGoogleError('Google sign-up failed. Please try again.');
+    setGoogleError(getGoogleOriginMismatchMessage());
   };
 
   const onSubmit = async (data) => {
@@ -185,13 +193,7 @@ export default function RegisterPage() {
       wide
     >
       {/* Error alert */}
-      {error && (
-        <div className="auth-item mb-4">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
+      <AuthStatusAlert message={error} />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         {/* First name + Last name */}
@@ -332,20 +334,11 @@ export default function RegisterPage() {
 
         {/* Submit — gradient button */}
         <div className="auth-item">
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-btn-gradient w-full flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#673ab7]/50 focus:ring-offset-2 focus:ring-offset-background"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating account…
-              </>
-            ) : (
-              'Create account'
-            )}
-          </button>
+          <AuthSubmitButton
+            loading={loading}
+            loadingLabel="Creating account…"
+            idleLabel="Create account"
+          />
         </div>
       </form>
 
@@ -372,7 +365,9 @@ export default function RegisterPage() {
       ) : (
         <div className="auth-item">
           <p className="text-sm text-destructive text-center">
-            Google Sign-Up is temporarily unavailable. Missing VITE_GOOGLE_CLIENT_ID.
+            {googleAuth.isDisabledByDevPolicy
+              ? 'Google Sign-Up is disabled in local development. Set VITE_ENABLE_GOOGLE_LOGIN=true after whitelisting your origin in Google Cloud Console.'
+              : 'Google Sign-Up is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
           </p>
         </div>
       )}
