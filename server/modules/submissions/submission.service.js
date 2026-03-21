@@ -16,12 +16,14 @@
  * then delegates to the shared pipeline, cutting ~400 lines of duplication.
  */
 import Submission from './submission.model.js';
+import SubmissionRound from './submissionRound.model.js';
 import Project from '../projects/project.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import storageService from '../../services/storage.service.js';
 import googleDocsService from '../../services/google-docs.service.js';
+import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
 import env from '../../config/env.js';
 import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
@@ -116,6 +118,55 @@ class SubmissionService {
         'plagiarismResult.jobId': jobId,
       });
     }
+  }
+
+  /**
+   * Resolve plagiarism reject threshold for approval decisions.
+   * Default behavior remains env-based unless runtime toggle is explicitly enabled.
+   *
+   * Runtime profile path (optional): settings.thresholds.plagiarism.rejectPercent
+   * Accepted range: 0 < threshold <= 100
+   *
+   * @returns {Promise<number>}
+   */
+  async _getPlagiarismRejectThreshold() {
+    const envThreshold =
+      Number(process.env.PLAGIARISM_REJECT_THRESHOLD) ||
+      Number(env.PLAGIARISM_REJECT_THRESHOLD) ||
+      50;
+
+    const runtimeToggle =
+      process.env.AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD === 'true' ||
+      env.AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD;
+
+    if (!runtimeToggle) {
+      return envThreshold;
+    }
+
+    try {
+      const { profile } = await agentRuntimeConfigService.getActiveProfile();
+      const runtimeThresholdRaw = profile?.settings?.thresholds?.plagiarism?.rejectPercent;
+      const runtimeThreshold = Number(runtimeThresholdRaw);
+
+      if (Number.isFinite(runtimeThreshold) && runtimeThreshold > 0 && runtimeThreshold <= 100) {
+        logger.info(
+          {
+            runtimeThreshold,
+            envThreshold,
+            profileId: profile?.id,
+          },
+          'Using runtime plagiarism reject threshold for submission approval',
+        );
+        return runtimeThreshold;
+      }
+    } catch (error) {
+      logger.error(
+        { error: error.message, envThreshold },
+        'Failed to resolve runtime plagiarism reject threshold. Falling back to env value',
+      );
+    }
+
+    return envThreshold;
   }
 
   /**
@@ -220,6 +271,156 @@ class SubmissionService {
     }
   }
 
+  /**
+   * Store submissions in a user-scoped Drive folder and import a Google
+   * Doc copy when source format is importable.
+   *
+   * @param {Object} params
+   * @param {Object} params.user
+   * @param {Buffer} params.buffer
+   * @param {string} params.fileName
+   * @param {string} params.mimeType
+   * @param {string} params.projectId
+   * @param {number} params.version
+   * @param {'chapter'|'proposal'|'final_academic'|'final_journal'} params.type
+   * @returns {Promise<{
+   * userDriveFolderId: string|null,
+   * driveFileId: string|null,
+   * driveWebViewLink: string|null,
+   * driveWebContentLink: string|null,
+   * syncedGoogleDocId: string|null,
+   * syncedGoogleDocUrl: string|null,
+   * googleDocSyncStatus: 'not_requested'|'synced'|'not_supported'|'failed',
+   * googleDocSyncedAt: Date|null
+   * }>}
+   */
+  async _syncSubmissionToUserDriveAndGoogleDoc({
+    user,
+    buffer,
+    fileName,
+    mimeType,
+    projectId,
+    version,
+    type,
+  }) {
+    const fallback = {
+      userDriveFolderId: null,
+      driveFileId: null,
+      driveWebViewLink: null,
+      driveWebContentLink: null,
+      syncedGoogleDocId: null,
+      syncedGoogleDocUrl: null,
+      googleDocSyncStatus: 'failed',
+      googleDocSyncedAt: null,
+    };
+
+    if (!googleDocsService.isConfigured()) {
+      return {
+        ...fallback,
+        googleDocSyncStatus: 'not_requested',
+      };
+    }
+
+    const importableToGoogleDoc = new Set([
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ]);
+
+    try {
+      const userDriveFolderId = await googleDocsService.ensureUserDriveFolder({
+        userId: user._id.toString(),
+      });
+
+      const uploadedOriginal = await googleDocsService.uploadFileToDrive(
+        buffer,
+        fileName,
+        mimeType,
+        userDriveFolderId,
+        {
+          description: `CMS ${type} submission for project ${projectId} (v${version})`,
+          appProperties: {
+            projectId: String(projectId),
+            submissionType: type,
+            version: String(version),
+            submittedBy: user._id.toString(),
+          },
+        },
+      );
+
+      if (type === 'final_journal') {
+        await googleDocsService.setViewPermission(uploadedOriginal.fileId);
+      }
+
+      let syncedGoogleDocId = null;
+      let syncedGoogleDocUrl = null;
+      let googleDocSyncStatus = 'not_supported';
+      let googleDocSyncedAt = null;
+
+      if (importableToGoogleDoc.has(mimeType)) {
+        const titleWithoutExtension = fileName.replace(/\.[^.]+$/, '');
+        const docTitle = `${titleWithoutExtension} (Google Doc Sync)`;
+
+        const importedDoc = await googleDocsService.uploadAndConvertToGoogleDoc({
+          fileBuffer: buffer,
+          sourceMimeType: mimeType,
+          docTitle,
+          folderId: userDriveFolderId,
+        });
+
+        if (type === 'final_journal') {
+          await googleDocsService.setViewPermission(importedDoc.docId);
+        }
+
+        syncedGoogleDocId = importedDoc.docId;
+        syncedGoogleDocUrl = importedDoc.docUrl;
+        googleDocSyncStatus = 'synced';
+        googleDocSyncedAt = new Date();
+      }
+
+      return {
+        userDriveFolderId,
+        driveFileId: uploadedOriginal.fileId,
+        driveWebViewLink: uploadedOriginal.webViewLink || null,
+        driveWebContentLink: uploadedOriginal.webContentLink || null,
+        syncedGoogleDocId,
+        syncedGoogleDocUrl,
+        googleDocSyncStatus,
+        googleDocSyncedAt,
+      };
+    } catch (error) {
+      console.warn(
+        `[SubmissionService] User Drive + Google Doc sync failed for ${type}: ${error.message}`,
+      );
+      return fallback;
+    }
+  }
+
+  /**
+   * If a placeholder round exists for this upload version, convert it into
+   * an instructor-review round and attach the concrete submission reference.
+   *
+   * @param {Object} submission
+   */
+  async _syncPendingRoundForUpload(submission) {
+    const query = {
+      projectId: submission.projectId,
+      chapter: submission.chapter || null,
+      type: submission.type,
+      roundNumber: submission.version,
+      status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
+      sourceSubmissionId: null,
+    };
+
+    const update = {
+      sourceSubmissionId: submission._id,
+      filePath: submission.storageKey,
+      status: SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW,
+      isPlaceholder: false,
+    };
+
+    await SubmissionRound.findOneAndUpdate(query, update).exec();
+  }
+
   /* ═══════════════════ View Authorization ═══════════════════ */
 
   /**
@@ -279,8 +480,29 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadChapter(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(userId, projectId, 'upload chapters');
+    const { user, project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'upload chapters',
+    );
     const { chapter, remarks } = data;
+
+    if (chapter > 1) {
+      const previousChapterLocked = await Submission.findOne({
+        projectId,
+        chapter: chapter - 1,
+        type: 'chapter',
+        status: SUBMISSION_STATUSES.LOCKED,
+      });
+
+      if (!previousChapterLocked) {
+        throw new AppError(
+          `Chapter ${chapter - 1} must be approved before you can submit Chapter ${chapter}.`,
+          400,
+          'PREVIOUS_CHAPTER_NOT_APPROVED',
+        );
+      }
+    }
 
     // --- Project state checks (chapter-specific) ---
     if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
@@ -298,6 +520,7 @@ class SubmissionService {
     const latestSubmission = await Submission.findOne({
       projectId,
       chapter,
+      type: 'chapter',
     }).sort({ version: -1 });
 
     if (latestSubmission && latestSubmission.status === SUBMISSION_STATUSES.LOCKED) {
@@ -308,12 +531,29 @@ class SubmissionService {
       );
     }
 
+    if (latestSubmission && latestSubmission.reviewClosed) {
+      throw new AppError(
+        'This review thread is already accepted and closed.',
+        400,
+        'REVIEW_THREAD_CLOSED',
+      );
+    }
+
+    if (latestSubmission && latestSubmission.status !== SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+      throw new AppError(
+        'You can only upload a new chapter version after adviser revisions are requested.',
+        400,
+        'REVISION_NOT_REQUESTED',
+      );
+    }
+
     // --- Late submission detection ---
     const deadlineField = chapter <= 3 ? `chapter${chapter}` : 'proposal';
     const { isLate } = this._detectLateSubmission(project, deadlineField, remarks);
 
     // --- Auto-increment version ---
     const nextVersion = latestSubmission ? latestSubmission.version + 1 : 1;
+    const revisionRound = latestSubmission ? (latestSubmission.revisionRound || 0) + 1 : 0;
 
     // --- Upload to S3 ---
     const storageKey = storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
@@ -324,11 +564,22 @@ class SubmissionService {
       uploadedBy: userId,
     });
 
+    const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
+      user,
+      buffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.validatedMime,
+      projectId,
+      version: nextVersion,
+      type: 'chapter',
+    });
+
     // --- Create submission record ---
     const submission = await Submission.create({
       projectId,
       chapter,
       version: nextVersion,
+      revisionRound,
       fileName: file.originalname,
       fileType: file.validatedMime,
       fileSize: file.size,
@@ -337,8 +588,18 @@ class SubmissionService {
       submittedBy: userId,
       isLate,
       remarks: remarks || null,
+      userDriveFolderId: driveSync.userDriveFolderId,
+      driveFileId: driveSync.driveFileId,
+      driveWebViewLink: driveSync.driveWebViewLink,
+      driveWebContentLink: driveSync.driveWebContentLink,
+      syncedGoogleDocId: driveSync.syncedGoogleDocId,
+      syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
+      googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
+
+    await this._syncPendingRoundForUpload(submission);
 
     // --- Plagiarism + Notification (shared pipeline) ---
     await this._enqueuePlagiarism(submission, {
@@ -381,8 +642,22 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async compileProposal(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(userId, projectId, 'compile proposals');
+    const { user, project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'compile proposals',
+    );
     const { remarks } = data;
+
+    const hasAdviser = Boolean(project.adviserId);
+    const hasInstructor = Boolean(user.instructorId);
+    if (!hasAdviser || !hasInstructor) {
+      throw new AppError(
+        'Proposal submission requires both an assigned adviser and instructor.',
+        400,
+        'MISSING_ADVISER_OR_INSTRUCTOR',
+      );
+    }
 
     // --- Project state checks (proposal-specific) ---
     if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
@@ -437,6 +712,16 @@ class SubmissionService {
       uploadedBy: userId,
     });
 
+    const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
+      user,
+      buffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.validatedMime,
+      projectId,
+      version: nextVersion,
+      type: 'proposal',
+    });
+
     // --- Create submission record ---
     const submission = await Submission.create({
       projectId,
@@ -451,8 +736,18 @@ class SubmissionService {
       submittedBy: userId,
       isLate,
       remarks: remarks || null,
+      userDriveFolderId: driveSync.userDriveFolderId,
+      driveFileId: driveSync.driveFileId,
+      driveWebViewLink: driveSync.driveWebViewLink,
+      driveWebContentLink: driveSync.driveWebContentLink,
+      syncedGoogleDocId: driveSync.syncedGoogleDocId,
+      syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
+      googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
+
+    await this._syncPendingRoundForUpload(submission);
 
     // --- Plagiarism + Notification (shared pipeline) ---
     await this._enqueuePlagiarism(submission, {
@@ -510,6 +805,7 @@ class SubmissionService {
    * @param {Object} params
    * @param {string} params.userId
    * @param {string} params.projectId
+   * @param {Object} params.user - Authenticated uploader
    * @param {Object} params.project - Hydrated project
    * @param {string} params.remarks
    * @param {Object} params.file - multer file
@@ -522,6 +818,7 @@ class SubmissionService {
   async _uploadFinalPaper({
     userId,
     projectId,
+    user,
     project,
     remarks,
     file,
@@ -546,8 +843,19 @@ class SubmissionService {
       uploadedBy: userId,
     });
 
-    // --- Drive mirror (best-effort for final papers) ---
-    const driveMirror = await this._mirrorFinalToDrive({
+    // --- Legacy Drive archive mirror (best-effort) ---
+    await this._mirrorFinalToDrive({
+      buffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.validatedMime,
+      projectId,
+      version: nextVersion,
+      type,
+    });
+
+    // --- User Drive storage + Google Doc sync (best-effort) ---
+    const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
+      user,
       buffer: file.buffer,
       fileName: file.originalname,
       mimeType: file.validatedMime,
@@ -570,11 +878,18 @@ class SubmissionService {
       submittedBy: userId,
       isLate,
       remarks: remarks || null,
-      driveFileId: driveMirror.driveFileId,
-      driveWebViewLink: driveMirror.driveWebViewLink,
-      driveWebContentLink: driveMirror.driveWebContentLink,
+      userDriveFolderId: driveSync.userDriveFolderId,
+      driveFileId: driveSync.driveFileId,
+      driveWebViewLink: driveSync.driveWebViewLink,
+      driveWebContentLink: driveSync.driveWebContentLink,
+      syncedGoogleDocId: driveSync.syncedGoogleDocId,
+      syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
+      googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
+
+    await this._syncPendingRoundForUpload(submission);
 
     // --- Plagiarism + Notification (shared pipeline) ---
     await this._enqueuePlagiarism(submission, {
@@ -607,7 +922,7 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalAcademic(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(
+    const { user, project } = await this._authorizeStudentUpload(
       userId,
       projectId,
       'upload final papers',
@@ -617,6 +932,7 @@ class SubmissionService {
     return this._uploadFinalPaper({
       userId,
       projectId,
+      user,
       project,
       remarks: data.remarks,
       file,
@@ -638,7 +954,7 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async uploadFinalJournal(userId, projectId, data, file) {
-    const { project } = await this._authorizeStudentUpload(
+    const { user, project } = await this._authorizeStudentUpload(
       userId,
       projectId,
       'upload final papers',
@@ -648,6 +964,7 @@ class SubmissionService {
     return this._uploadFinalPaper({
       userId,
       projectId,
+      user,
       project,
       remarks: data.remarks,
       file,
@@ -669,7 +986,8 @@ class SubmissionService {
     const submission = await Submission.findById(submissionId)
       .populate('submittedBy', 'firstName middleName lastName email')
       .populate('reviewedBy', 'firstName middleName lastName email')
-      .populate('annotations.userId', 'firstName middleName lastName email');
+      .populate('annotations.userId', 'firstName middleName lastName email')
+      .populate('annotations.replies.userId', 'firstName middleName lastName email');
 
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
@@ -781,6 +1099,107 @@ class SubmissionService {
     }
   }
 
+  /**
+   * Get Google Docs comments for a submission's synced document.
+   *
+   * Returns a status envelope so the frontend can gracefully render fallback states:
+   * - ok: comments retrieved
+   * - not_linked: submission has no synced Google Doc
+   * - unavailable: Google integration not configured
+   * - error: API call failed
+   *
+   * @param {string} submissionId
+   * @param {string} requesterId
+   * @returns {Promise<{status:string, docId:string|null, comments:Array, message?:string}>}
+   */
+  async getGoogleDocComments(submissionId, requesterId) {
+    const submission = await Submission.findById(submissionId).select(
+      'projectId syncedGoogleDocId',
+    );
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project);
+
+    if (!googleDocsService.isConfigured()) {
+      return {
+        status: 'unavailable',
+        docId: null,
+        comments: [],
+        message: 'Google Docs integration is not configured.',
+      };
+    }
+
+    const docId = submission.syncedGoogleDocId || null;
+    if (!docId) {
+      return {
+        status: 'not_linked',
+        docId: null,
+        comments: [],
+        message: 'No synced Google Doc found for this submission.',
+      };
+    }
+
+    try {
+      const { comments } = await googleDocsService.listDocumentComments(docId, { pageSize: 100 });
+
+      const normalizedComments = comments
+        .filter((comment) => !comment.deleted)
+        .map((comment) => ({
+          id: comment.id,
+          content: comment.content || '',
+          anchor: comment.anchor || null,
+          quotedText: comment.quotedFileContent?.value || null,
+          resolved: !!comment.resolved,
+          createdTime: comment.createdTime || null,
+          modifiedTime: comment.modifiedTime || null,
+          author: {
+            displayName: comment.author?.displayName || 'Unknown',
+            email: comment.author?.emailAddress || null,
+            photoLink: comment.author?.photoLink || null,
+          },
+          replies: (comment.replies || [])
+            .filter((reply) => !reply.deleted)
+            .map((reply) => ({
+              id: reply.id,
+              content: reply.content || '',
+              createdTime: reply.createdTime || null,
+              modifiedTime: reply.modifiedTime || null,
+              author: {
+                displayName: reply.author?.displayName || 'Unknown',
+                email: reply.author?.emailAddress || null,
+                photoLink: reply.author?.photoLink || null,
+              },
+            })),
+        }));
+
+      return {
+        status: 'ok',
+        docId,
+        comments: normalizedComments,
+      };
+    } catch (error) {
+      logger.error('[SubmissionService] Failed to fetch Google Docs comments:', error.message);
+      return {
+        status: 'error',
+        docId,
+        comments: [],
+        message: 'Failed to load Google Docs comments.',
+      };
+    }
+  }
+
   /* ═══════════════════ Plagiarism ═══════════════════ */
 
   /**
@@ -867,6 +1286,16 @@ class SubmissionService {
     submission.status = status;
     submission.reviewedBy = reviewerId;
     submission.reviewNote = reviewNote || null;
+    submission.reviewedAt = new Date(); // Phase 1: Track review timestamp
+
+    // --- Set revision deadline if revisions requested ---
+    if (status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+      const revisionDeadlineDate = new Date();
+      revisionDeadlineDate.setDate(
+        revisionDeadlineDate.getDate() + submission.revisionExpectedDays,
+      );
+      submission.revisionDeadline = revisionDeadlineDate;
+    }
 
     // --- Plagiarism check enforcement before approval ---
     if (status === SUBMISSION_STATUSES.APPROVED) {
@@ -885,7 +1314,7 @@ class SubmissionService {
       }
 
       // Check similarity threshold
-      const threshold = Number(process.env.PLAGIARISM_REJECT_THRESHOLD) || 50;
+      const threshold = await this._getPlagiarismRejectThreshold();
       if (plagiarismResult.similarityPercentage > threshold) {
         throw new AppError(
           `Cannot approve: Plagiarism score (${plagiarismResult.similarityPercentage.toFixed(1)}%) exceeds threshold (${threshold}%). Please review matched sources or request revisions.`,
@@ -966,17 +1395,24 @@ class SubmissionService {
         ? `Proposal (v${submission.version})`
         : `Chapter ${submission.chapter} (v${submission.version})`;
 
+    const revisionDeadlineText =
+      status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && submission.revisionDeadline
+        ? ` Revision deadline: ${submission.revisionDeadline.toISOString().slice(0, 10)}.`
+        : '';
+
     await Notification.create({
       userId: submission.submittedBy,
       type: notifType,
       title: 'Submission Reviewed',
-      message: `Your ${docLabel} has been ${statusLabel}.`,
+      message: `Your ${docLabel} has been ${statusLabel}.${revisionDeadlineText}`,
       metadata: {
         submissionId: submission._id,
         projectId: submission.projectId,
         chapter: submission.chapter,
         type: submission.type,
         newStatus: submission.status,
+        reviewedAt: submission.reviewedAt,
+        revisionDeadline: submission.revisionDeadline,
       },
     }).then((n) => emitToUser(n.userId, 'notification:new', n));
 
@@ -1034,7 +1470,7 @@ class SubmissionService {
    *
    * @param {string} submissionId
    * @param {string} userId - The annotating faculty member
-   * @param {Object} data - { page, content, highlightCoords }
+   * @param {Object} data - { page, lineStart, lineEnd, content, selectedText, highlightCoords }
    * @returns {Object} { submission }
    */
   async addAnnotation(submissionId, userId, data) {
@@ -1046,7 +1482,10 @@ class SubmissionService {
     submission.annotations.push({
       userId,
       page: data.page || 1,
+      lineStart: data.lineStart || null,
+      lineEnd: data.lineEnd || null,
       content: data.content,
+      selectedText: data.selectedText || '',
       highlightCoords: data.highlightCoords || null,
     });
 
@@ -1065,6 +1504,36 @@ class SubmissionService {
       },
     });
     emitToUser(submission.submittedBy, 'notification:new', annotNotif);
+
+    return { submission };
+  }
+
+  /**
+   * Add a threaded reply to an existing annotation.
+   *
+   * @param {string} submissionId
+   * @param {string} annotationId
+   * @param {string} userId
+   * @param {{ content: string }} data
+   * @returns {Object} { submission }
+   */
+  async addAnnotationReply(submissionId, annotationId, userId, data) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const annotation = submission.annotations.id(annotationId);
+    if (!annotation) {
+      throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
+    }
+
+    annotation.replies.push({
+      userId,
+      content: data.content,
+    });
+
+    await submission.save();
 
     return { submission };
   }
@@ -1097,6 +1566,370 @@ class SubmissionService {
 
     submission.annotations.pull({ _id: annotationId });
     await submission.save();
+
+    return { submission };
+  }
+
+  /**
+   * Mark an annotation as resolved (adviser/instructor marks it as addressed).
+   *
+   * @param {string} submissionId
+   * @param {string} annotationId
+   * @param {string} userId - The faculty member marking as resolved
+   * @returns {Object} { submission }
+   */
+  async markAnnotationResolved(submissionId, annotationId, _userId) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const annotation = submission.annotations.id(annotationId);
+    if (!annotation) {
+      throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
+    }
+
+    annotation.resolved = true;
+    annotation.resolvedAt = new Date();
+    await submission.save();
+
+    return { submission };
+  }
+
+  /**
+   * Get submission feedback context: annotations, review notes, timeline, deadline.
+   * Includes review timeline and calculated deadline info.
+   *
+   * @param {string} submissionId
+   * @param {string} userId - Current user
+   * @param {string} userRole - User's role
+   * @returns {Object} { feedback }
+   */
+  async getSubmissionFeedback(submissionId, userId, userRole) {
+    const submission = await Submission.findById(submissionId)
+      .populate('submittedBy', 'name email')
+      .populate('projectId', 'title')
+      .lean();
+
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    // Authorization: student can view their own feedback, faculty can view all
+    if (userRole === ROLES.STUDENT && submission.submittedBy._id.toString() !== userId.toString()) {
+      throw new AppError('You can only view your own submissions.', 403, 'FORBIDDEN');
+    }
+
+    const now = new Date();
+    const daysRemaining = submission.revisionDeadline
+      ? Math.ceil((submission.revisionDeadline - now) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const feedback = {
+      submissionId: submission._id,
+      projectId: submission.projectId._id,
+      projectTitle: submission.projectId.title,
+      chapter: submission.chapter,
+      version: submission.version,
+      status: submission.status,
+      submittedBy: submission.submittedBy,
+      submittedAt: submission.createdAt,
+      reviewedAt: submission.reviewedAt,
+      reviewedBy: submission.reviewedBy,
+      reviewNote: submission.reviewNote,
+      revisionDeadline: submission.revisionDeadline,
+      daysRemaining,
+      annotations: submission.annotations.map((ann) => ({
+        _id: ann._id,
+        page: ann.page,
+        lineStart: ann.lineStart,
+        lineEnd: ann.lineEnd,
+        content: ann.content,
+        selectedText: ann.selectedText || '',
+        highlightCoords: ann.highlightCoords,
+        addedBy: ann.userId,
+        addedAt: ann.createdAt,
+        resolved: ann.resolved || false,
+        replies: (ann.replies || []).map((reply) => ({
+          _id: reply._id,
+          userId: reply.userId,
+          content: reply.content,
+          createdAt: reply.createdAt,
+        })),
+      })),
+      unaddressedCount: submission.annotations.filter((a) => !a.resolved).length,
+      plagiarism: {
+        score: submission.plagiarismResult?.percentageMatched || null,
+        status: submission.plagiarismResult?.status || 'not_checked',
+      },
+    };
+
+    return { feedback };
+  }
+
+  /**
+   * Get all versions (upload history) for a submission.
+   *
+   * @param {string} submissionId - The submission to fetch versions for
+   * @param {string} userId - Current user
+   * @param {string} userRole - User's role
+   * @returns {Object} { versions }
+   */
+  async getSubmissionVersions(submissionId, userId, userRole) {
+    const submission = await Submission.findById(submissionId)
+      .populate('submittedBy', 'name email')
+      .lean();
+
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    // Authorization: student can view their own versions, faculty can view all
+    if (userRole === ROLES.STUDENT && submission.submittedBy._id.toString() !== userId.toString()) {
+      throw new AppError('You can only view your own submissions.', 403, 'FORBIDDEN');
+    }
+
+    // Fetch all versions of this chapter from the same project
+    const allVersions = await Submission.find({
+      projectId: submission.projectId,
+      chapter: submission.chapter,
+      submittedBy: submission.submittedBy,
+    })
+      .select('version createdAt status fileName fileSize submittedBy reviewNote plagiarismResult')
+      .populate('submittedBy', 'name')
+      .sort({ version: -1 })
+      .lean();
+
+    const versions = allVersions.map((v) => ({
+      _id: v._id,
+      version: v.version,
+      submittedAt: v.createdAt,
+      status: v.status,
+      fileName: v.fileName,
+      fileSize: v.fileSize,
+      submittedBy: v.submittedBy,
+      reviewNote: v.reviewNote,
+      plagiarismScore: v.plagiarismResult?.percentageMatched || null,
+    }));
+
+    return { versions };
+  }
+
+  /**
+   * Build and return the review workspace payload for split-view UI.
+   * Rounds are derived from existing submission versions, plus any pending
+   * placeholder rounds stored in SubmissionRound.
+   *
+   * @param {string} submissionId
+   * @param {string} userId
+   * @param {string} userRole
+   * @returns {Object} { workspace }
+   */
+  async getSubmissionReviewWorkspace(submissionId, userId, userRole) {
+    const { submission } = await this.getSubmission(submissionId);
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'name members');
+    const user = await User.findById(userId);
+
+    if (!project || !user) {
+      throw new AppError('Project or user not found.', 404, 'NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project);
+
+    const baseFilter = {
+      projectId: submission.projectId,
+      chapter: submission.chapter,
+      type: submission.type,
+    };
+
+    const versionSubmissions = await Submission.find(baseFilter)
+      .sort({ version: 1 })
+      .select(
+        '_id chapter type version fileName fileSize fileType status createdAt originalityScore plagiarismResult reviewNote reviewClosed annotations driveWebViewLink syncedGoogleDocId syncedGoogleDocUrl',
+      )
+      .populate('annotations.userId', 'firstName middleName lastName')
+      .populate('annotations.replies.userId', 'firstName middleName lastName')
+      .lean();
+
+    const placeholderRounds = await SubmissionRound.find({
+      ...baseFilter,
+      sourceSubmissionId: null,
+      status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
+    })
+      .sort({ roundNumber: 1 })
+      .lean();
+
+    const rounds = versionSubmissions.map((item) => ({
+      roundNumber: item.version,
+      label: item.version === 1 ? 'Round 1 (Original)' : `Round ${item.version} (Revision)`,
+      status:
+        item.status === SUBMISSION_STATUSES.PENDING
+          ? SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW
+          : item.status,
+      sourceSubmissionId: item._id,
+      createdAt: item.createdAt,
+      fileName: item.fileName,
+      fileSize: item.fileSize,
+      fileType: item.fileType,
+      originalityScore: item.originalityScore,
+      reviewNote: item.reviewNote,
+      reviewClosed: item.reviewClosed || false,
+      annotations: item.annotations || [],
+      driveWebViewLink: item.driveWebViewLink || null,
+      syncedGoogleDocId: item.syncedGoogleDocId || null,
+      syncedGoogleDocUrl: item.syncedGoogleDocUrl || null,
+      isPlaceholder: false,
+    }));
+
+    placeholderRounds.forEach((placeholder) => {
+      rounds.push({
+        roundNumber: placeholder.roundNumber,
+        label: `Round ${placeholder.roundNumber} (Pending Upload)`,
+        status: placeholder.status,
+        sourceSubmissionId: null,
+        createdAt: placeholder.createdAt,
+        fileName: null,
+        fileSize: null,
+        fileType: null,
+        originalityScore: null,
+        reviewNote: placeholder.overallFeedback || null,
+        reviewClosed: false,
+        annotations: [],
+        driveWebViewLink: null,
+        syncedGoogleDocId: null,
+        syncedGoogleDocUrl: null,
+        isPlaceholder: true,
+      });
+    });
+
+    rounds.sort((a, b) => a.roundNumber - b.roundNumber);
+
+    const workspace = {
+      submissionId: submission._id,
+      projectId: project._id,
+      projectTitle: project.title,
+      chapter: submission.chapter,
+      type: submission.type,
+      teamName: project.teamId?.name || 'Unknown Team',
+      rounds,
+    };
+
+    return { workspace };
+  }
+
+  /**
+   * Request another revision and create the next pending student upload round.
+   *
+   * @param {string} submissionId
+   * @param {string} reviewerId
+   * @param {{ overallFeedback?: string }} data
+   * @returns {Object} { submission, nextRound }
+   */
+  async requestRevisionRound(submissionId, reviewerId, data) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    if (submission.reviewClosed) {
+      throw new AppError('Review thread is already closed.', 400, 'REVIEW_THREAD_CLOSED');
+    }
+
+    submission.status = SUBMISSION_STATUSES.REVISIONS_REQUIRED;
+    submission.reviewNote = data.overallFeedback || submission.reviewNote;
+    submission.reviewedBy = reviewerId;
+    submission.reviewedAt = new Date();
+    await submission.save();
+
+    const nextRoundNumber = (submission.version || 1) + 1;
+
+    const nextRound = await SubmissionRound.findOneAndUpdate(
+      {
+        projectId: submission.projectId,
+        chapter: submission.chapter,
+        type: submission.type,
+        roundNumber: nextRoundNumber,
+      },
+      {
+        $set: {
+          status: SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD,
+          overallFeedback: data.overallFeedback || null,
+          createdBy: reviewerId,
+          sourceSubmissionId: null,
+          isPlaceholder: true,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    ).lean();
+
+    await Notification.create({
+      userId: submission.submittedBy,
+      type: 'submission_revisions_required',
+      title: 'Another Revision Requested',
+      message: `Round ${nextRoundNumber} is open for upload. Please submit your revised document.`,
+      metadata: {
+        submissionId: submission._id,
+        projectId: submission.projectId,
+        roundNumber: nextRoundNumber,
+      },
+    }).then((n) => emitToUser(n.userId, 'notification:new', n));
+
+    return { submission, nextRound };
+  }
+
+  /**
+   * Mark current submission accepted and close the review thread.
+   *
+   * @param {string} submissionId
+   * @param {string} reviewerId
+   * @param {{ overallFeedback?: string }} data
+   * @returns {Object} { submission }
+   */
+  async markSubmissionAccepted(submissionId, reviewerId, data) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    submission.status = SUBMISSION_STATUSES.ACCEPTED;
+    submission.reviewClosed = true;
+    submission.reviewedBy = reviewerId;
+    submission.reviewedAt = new Date();
+    if (data.overallFeedback) {
+      submission.reviewNote = data.overallFeedback;
+    }
+    await submission.save();
+
+    await Submission.updateMany(
+      {
+        projectId: submission.projectId,
+        chapter: submission.chapter,
+        type: submission.type,
+      },
+      {
+        $set: {
+          reviewClosed: true,
+        },
+      },
+    );
+
+    await SubmissionRound.updateMany(
+      {
+        projectId: submission.projectId,
+        chapter: submission.chapter,
+        type: submission.type,
+        sourceSubmissionId: null,
+      },
+      {
+        $set: {
+          status: 'approved',
+        },
+      },
+    );
 
     return { submission };
   }

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   useSubmission,
   useViewUrl,
+  useGoogleDocComments,
   useReviewSubmission,
   useUnlockSubmission,
   useAddAnnotation,
@@ -60,6 +61,32 @@ function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function isPrivateOrLocalHost(hostname) {
+  if (!hostname) return true;
+
+  const normalized = hostname.toLowerCase();
+  if (normalized === 'localhost' || normalized.endsWith('.local')) return true;
+  if (normalized === '127.0.0.1' || normalized === '::1') return true;
+
+  if (/^10\./.test(normalized)) return true;
+  if (/^192\.168\./.test(normalized)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true;
+
+  return false;
+}
+
+function canUseGoogleViewer(rawUrl) {
+  if (!rawUrl) return false;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') return false;
+    return !isPrivateOrLocalHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /* ────────── Sub-components ────────── */
 
 /**
@@ -67,18 +94,41 @@ function formatBytes(bytes) {
  */
 function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
   const navigate = useNavigate();
+  const chapterLabel = CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`;
+  const googleDocUrl =
+    submission.syncedGoogleDocUrl ||
+    (submission.syncedGoogleDocId
+      ? `https://docs.google.com/document/d/${submission.syncedGoogleDocId}/edit`
+      : null);
+  const googleDriveUrl = submission.driveWebViewLink || null;
+
+  const canUseGView = canUseGoogleViewer(viewUrl?.url);
+  const googleDocsViewerUrl = viewUrl?.url
+    ? `https://docs.google.com/gview?url=${encodeURIComponent(viewUrl.url)}&embedded=false`
+    : null;
+  const documentUrl =
+    googleDocUrl || googleDriveUrl || (canUseGView ? googleDocsViewerUrl : viewUrl?.url || null);
+
+  const documentButtonLabel = googleDocUrl
+    ? 'Open in Google Docs'
+    : googleDriveUrl
+      ? 'Open in Google Drive'
+      : 'View Document';
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          {CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`}
-          <Badge variant="outline">v{submission.version}</Badge>
+    <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
+      <CardHeader className="border-b border-border/60 pb-5">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-xl sm:text-2xl">
+          <FileText className="h-5 w-5 text-primary" />
+          <span>{chapterLabel}</span>
+          <Badge variant="outline" className="font-medium">
+            v{submission.version}
+          </Badge>
         </CardTitle>
         <CardDescription>Uploaded {formatDate(submission.createdAt)}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+      <CardContent className="space-y-6 p-5 sm:p-6">
+        <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/25 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <InfoRow label="File" value={submission.fileName} />
           <InfoRow label="Size" value={formatBytes(submission.fileSize)} />
           <InfoRow label="Type" value={submission.fileType} />
@@ -87,7 +137,9 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           </InfoRow>
           {submission.isLate && (
             <InfoRow label="Late Submission">
-              <Badge variant="warning">Late</Badge>
+              <Badge variant="warning" className="font-medium">
+                Late
+              </Badge>
             </InfoRow>
           )}
           {submission.originalityScore !== null && submission.originalityScore !== undefined && (
@@ -95,43 +147,67 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           )}
         </div>
 
+        {submission.originalityScore !== null && submission.originalityScore !== undefined && (
+          <div className="space-y-2 rounded-lg border border-border/60 bg-background/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-foreground">Originality Score</p>
+              <p className="text-sm font-semibold text-foreground">
+                {submission.originalityScore}%
+              </p>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${Math.max(0, Math.min(100, submission.originalityScore))}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {submission.remarks && (
-          <div>
+          <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
             <p className="text-sm font-medium text-muted-foreground">Remarks</p>
-            <p className="mt-1 text-sm">{submission.remarks}</p>
+            <p className="text-sm text-foreground">{submission.remarks}</p>
           </div>
         )}
 
         {submission.reviewNote && (
-          <div>
+          <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
             <p className="text-sm font-medium text-muted-foreground">Review Note</p>
-            <p className="mt-1 text-sm">{submission.reviewNote}</p>
+            <p className="text-sm text-foreground">{submission.reviewNote}</p>
           </div>
         )}
 
-        {/* View document link */}
-        {viewUrl && (
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <a href={viewUrl.url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Document
-            </a>
-          </Button>
-        )}
-        {submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
-            className="tw-gap-1.5"
-          >
-            <BarChart2 className="h-4 w-4" />
-            View Plagiarism Report
-          </Button>
-        )}
-        {viewUrlLoading && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" /> Generating view link…
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {documentUrl && (
+            <Button asChild variant="outline" className="sm:w-auto">
+              <a href={documentUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {documentButtonLabel}
+              </a>
+            </Button>
+          )}
+          {submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
+              className="sm:w-auto"
+            >
+              <BarChart2 className="mr-2 h-4 w-4" />
+              View Plagiarism Report
+            </Button>
+          )}
+          {!googleDocUrl && viewUrlLoading && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
+            </p>
+          )}
+        </div>
+
+        {!googleDocUrl && !googleDriveUrl && viewUrl?.url && !canUseGView && (
+          <p className="text-xs text-muted-foreground">
+            Google preview is unavailable for local/private files. Opened using direct file URL
+            instead.
           </p>
         )}
       </CardContent>
@@ -141,9 +217,9 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
 
 function InfoRow({ label, value, children }) {
   return (
-    <div>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      {children || <p className="mt-0.5 text-sm">{value}</p>}
+    <div className="space-y-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      {children || <p className="text-sm font-medium break-all text-foreground">{value}</p>}
     </div>
   );
 }
@@ -292,9 +368,18 @@ function UnlockPanel({ submissionId, currentStatus }) {
 /**
  * AnnotationsPanel — view existing annotations and add new ones (faculty).
  */
-function AnnotationsPanel({ submission, isFaculty, userId }) {
+function AnnotationsPanel({
+  submission,
+  isFaculty,
+  userId,
+  googleDocCommentsData,
+  googleDocCommentsLoading,
+}) {
   const [content, setContent] = useState('');
   const [page, setPage] = useState('1');
+  const [lineStart, setLineStart] = useState('');
+  const [lineEnd, setLineEnd] = useState('');
+  const [selectedText, setSelectedText] = useState('');
 
   const addMutation = useAddAnnotation({
     onSuccess: () => toast.success('Annotation added.'),
@@ -310,9 +395,31 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
   const handleAdd = (e) => {
     e.preventDefault();
     if (!content.trim()) return;
+    const normalizedLineStart = Number(lineStart);
+    const normalizedLineEnd = Number(lineEnd);
+
+    if (lineStart && lineEnd && normalizedLineEnd < normalizedLineStart) {
+      toast.error('Line end must be greater than or equal to line start.');
+      return;
+    }
+
     addMutation.mutate(
-      { submissionId: submission._id, content: content.trim(), page: Number(page) || 1 },
-      { onSuccess: () => setContent('') },
+      {
+        submissionId: submission._id,
+        content: content.trim(),
+        page: Number(page) || 1,
+        ...(lineStart ? { lineStart: normalizedLineStart } : {}),
+        ...(lineEnd ? { lineEnd: normalizedLineEnd } : {}),
+        ...(selectedText.trim() ? { selectedText: selectedText.trim() } : {}),
+      },
+      {
+        onSuccess: () => {
+          setContent('');
+          setLineStart('');
+          setLineEnd('');
+          setSelectedText('');
+        },
+      },
     );
   };
 
@@ -321,6 +428,9 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
   };
 
   const annotations = submission.annotations || [];
+  const googleComments = googleDocCommentsData?.comments || [];
+  const googleCommentsStatus = googleDocCommentsData?.status;
+  const googleCommentsMessage = googleDocCommentsData?.message;
 
   return (
     <Card>
@@ -333,23 +443,122 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
         <CardDescription>Highlight &amp; comment feedback on the document.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <MessageSquare className="h-4 w-4 text-primary" />
+            <span>Google Docs Comments</span>
+            {googleCommentsStatus === 'ok' && googleComments.length > 0 && (
+              <Badge variant="secondary">{googleComments.length}</Badge>
+            )}
+          </div>
+
+          {googleDocCommentsLoading && (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading Google Docs comments...
+            </p>
+          )}
+
+          {!googleDocCommentsLoading &&
+            googleCommentsStatus === 'ok' &&
+            googleComments.length === 0 && (
+              <p className="text-xs text-muted-foreground">No Google Docs comments found yet.</p>
+            )}
+
+          {!googleDocCommentsLoading && googleCommentsStatus === 'not_linked' && (
+            <p className="text-xs text-muted-foreground">
+              This submission is not yet linked to a synced Google Doc.
+            </p>
+          )}
+
+          {!googleDocCommentsLoading &&
+            (googleCommentsStatus === 'unavailable' || googleCommentsStatus === 'error') && (
+              <p className="text-xs text-muted-foreground">
+                {googleCommentsMessage || 'Google Docs comments are currently unavailable.'}
+              </p>
+            )}
+
+          {!googleDocCommentsLoading &&
+            googleCommentsStatus === 'ok' &&
+            googleComments.length > 0 && (
+              <div className="space-y-2">
+                {googleComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="rounded-md border border-border/60 bg-background/70 p-3"
+                  >
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <User className="h-3 w-3" />
+                      <span className="font-medium text-foreground">
+                        {comment.author?.displayName || 'Unknown'}
+                      </span>
+                      <span>&middot;</span>
+                      <span>{formatDate(comment.createdTime)}</span>
+                    </div>
+                    {comment.quotedText && (
+                      <blockquote className="mt-1 border-l-2 border-primary/40 pl-2 text-xs italic text-muted-foreground">
+                        {comment.quotedText}
+                      </blockquote>
+                    )}
+                    <p className="mt-1 text-sm text-foreground">{comment.content || '—'}</p>
+
+                    {comment.replies?.length > 0 && (
+                      <div className="mt-2 space-y-1 border-l border-border/60 pl-3">
+                        {comment.replies.map((reply) => (
+                          <div key={reply.id} className="rounded-md bg-muted/20 p-2">
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span className="font-medium text-foreground">
+                                {reply.author?.displayName || 'Unknown'}
+                              </span>
+                              <span>&middot;</span>
+                              <span>{formatDate(reply.createdTime)}</span>
+                            </div>
+                            <p className="text-xs text-foreground">{reply.content || '—'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
+
         {/* Existing annotations */}
         {annotations.length === 0 && (
-          <p className="text-sm text-muted-foreground">No annotations yet.</p>
+          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+            No annotations yet.
+          </div>
         )}
         {annotations.map((ann) => (
           <div
             key={ann._id}
-            className="flex items-start justify-between rounded-md border bg-muted/50 p-3"
+            className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/70 p-4"
           >
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <User className="h-3 w-3" />
                 <span>Page {ann.page}</span>
+                {(ann.lineStart || ann.lineEnd) && (
+                  <>
+                    <span>&middot;</span>
+                    <span>
+                      Line {ann.lineStart || ann.lineEnd}
+                      {ann.lineEnd && ann.lineStart && ann.lineEnd !== ann.lineStart
+                        ? `-${ann.lineEnd}`
+                        : ''}
+                    </span>
+                  </>
+                )}
                 <span>&middot;</span>
                 <span>{formatDate(ann.createdAt)}</span>
               </div>
-              <p className="text-sm">{ann.content}</p>
+              {ann.selectedText && (
+                <blockquote className="text-xs text-muted-foreground border-l-2 border-primary/40 pl-2 italic">
+                  {ann.selectedText}
+                </blockquote>
+              )}
+              <p className="text-sm leading-relaxed text-foreground">{ann.content}</p>
             </div>
             {/* Only annotation author or instructor can remove */}
             {(ann.userId === userId || ann.userId?._id === userId) && (
@@ -391,6 +600,34 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
                   className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
                 />
               </div>
+              <div className="w-24 space-y-1">
+                <Label htmlFor="annLineStart" className="text-xs">
+                  Line Start
+                </Label>
+                <input
+                  id="annLineStart"
+                  type="number"
+                  min={1}
+                  value={lineStart}
+                  onChange={(e) => setLineStart(e.target.value)}
+                  disabled={addMutation.isPending}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                />
+              </div>
+              <div className="w-24 space-y-1">
+                <Label htmlFor="annLineEnd" className="text-xs">
+                  Line End
+                </Label>
+                <input
+                  id="annLineEnd"
+                  type="number"
+                  min={1}
+                  value={lineEnd}
+                  onChange={(e) => setLineEnd(e.target.value)}
+                  disabled={addMutation.isPending}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                />
+              </div>
               <div className="flex-1 space-y-1">
                 <Label htmlFor="annContent" className="text-xs">
                   Comment
@@ -405,6 +642,20 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
                   rows={2}
                 />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="annSelectedText" className="text-xs">
+                Highlighted Text (optional)
+              </Label>
+              <Textarea
+                id="annSelectedText"
+                placeholder="Paste the exact highlighted text snippet here..."
+                value={selectedText}
+                onChange={(e) => setSelectedText(e.target.value)}
+                disabled={addMutation.isPending}
+                maxLength={2000}
+                rows={2}
+              />
             </div>
             <div className="flex justify-end">
               <Button type="submit" size="sm" disabled={addMutation.isPending || !content.trim()}>
@@ -441,8 +692,19 @@ export default function SubmissionDetailPage() {
   const { data: submission, isLoading, error } = useSubmission(submissionId);
 
   const { data: viewUrl, isLoading: viewUrlLoading } = useViewUrl(submissionId, {
-    enabled: !!submission,
+    enabled:
+      !!submission &&
+      !submission.syncedGoogleDocUrl &&
+      !submission.syncedGoogleDocId &&
+      !submission.driveWebViewLink,
   });
+
+  const { data: googleDocCommentsData, isLoading: googleDocCommentsLoading } = useGoogleDocComments(
+    submissionId,
+    {
+      enabled: !!submission,
+    },
+  );
 
   /* ────── Loading ────── */
   if (isLoading) {
@@ -477,6 +739,15 @@ export default function SubmissionDetailPage() {
             Back
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">Submission Detail</h1>
+          {isFaculty && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/project/submissions/${submission._id}/review`)}
+            >
+              Open Review Workspace
+            </Button>
+          )}
         </div>
 
         {/* File info */}
@@ -486,9 +757,7 @@ export default function SubmissionDetailPage() {
           <PlagiarismChecker
             submissionId={submission._id}
             submissionTitle={`${CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`} v${submission.version}`}
-            onCheckComplete={(result) => {
-              console.log('Plagiarism check completed:', result);
-            }}
+            onCheckComplete={() => {}}
             showMatchDetails={true}
             disabled={submission.status === SUBMISSION_STATUSES.LOCKED}
           />
@@ -504,7 +773,13 @@ export default function SubmissionDetailPage() {
         )}
 
         {/* Annotations */}
-        <AnnotationsPanel submission={submission} isFaculty={isFaculty} userId={user?._id} />
+        <AnnotationsPanel
+          submission={submission}
+          isFaculty={isFaculty}
+          userId={user?._id}
+          googleDocCommentsData={googleDocCommentsData}
+          googleDocCommentsLoading={googleDocCommentsLoading}
+        />
       </div>
     </DashboardLayout>
   );

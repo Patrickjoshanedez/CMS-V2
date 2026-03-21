@@ -594,9 +594,26 @@ Get a single submission by ID.
 ```json
 {
   "success": true,
-  "data": { "submission": { "_id": "...", "chapter": 1, "version": 2, "status": "approved", "annotations": [...], ... } }
+  "data": {
+    "submission": {
+      "_id": "...",
+      "chapter": 1,
+      "version": 2,
+      "status": "approved",
+      "driveWebViewLink": "https://drive.google.com/file/d/.../view",
+      "syncedGoogleDocId": "1abc...",
+      "syncedGoogleDocUrl": "https://docs.google.com/document/d/1abc.../edit",
+      "annotations": [...]
+    }
+  }
 }
 ```
+
+**Document open priority (frontend):**
+1. `syncedGoogleDocUrl`
+2. `syncedGoogleDocId` mapped to `https://docs.google.com/document/d/:id/edit`
+3. `driveWebViewLink`
+4. `GET /view` URL (gview only for public HTTPS files)
 
 ---
 
@@ -610,6 +627,44 @@ Generate a temporary pre-signed URL (15 min) to view the uploaded document.
 {
   "success": true,
   "data": { "url": "https://s3.amazonaws.com/...", "expiresIn": 900 }
+}
+```
+
+**Important:** Google `gview` cannot reliably preview `localhost`, private-network, or non-HTTPS object URLs.
+When Google-hosted fields (`syncedGoogleDocUrl`, `syncedGoogleDocId`, `driveWebViewLink`) are present,
+clients should prefer those for Google redirection.
+
+---
+
+### `GET /api/submissions/:submissionId/review-workspace`
+
+Get split-view review workspace metadata and revision rounds.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "workspace": {
+      "submissionId": "...",
+      "projectId": "...",
+      "projectTitle": "...",
+      "chapter": 1,
+      "type": "chapter",
+      "teamName": "Team A",
+      "rounds": [
+        {
+          "roundNumber": 1,
+          "sourceSubmissionId": "...",
+          "driveWebViewLink": "https://drive.google.com/file/d/.../view",
+          "syncedGoogleDocId": "1abc...",
+          "syncedGoogleDocUrl": "https://docs.google.com/document/d/1abc.../edit"
+        }
+      ]
+    }
+  }
 }
 ```
 
