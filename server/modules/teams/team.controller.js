@@ -73,17 +73,6 @@ export const declineInvite = catchAsync(async (req, res) => {
   });
 });
 
-/** PATCH /api/teams/:id/lock — Lock a team (Leader or Instructor) */
-export const lockTeam = catchAsync(async (req, res) => {
-  const { team } = await teamService.lockTeam(req.params.id, req.user);
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Team locked successfully.',
-    data: { team },
-  });
-});
-
 /** PATCH /api/teams/:id/members/:memberId/role — Assign role for a team member (Leader only) */
 export const assignMemberRole = catchAsync(async (req, res) => {
   const { team } = await teamService.assignMemberRole(
@@ -96,6 +85,21 @@ export const assignMemberRole = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Team member role updated successfully.',
+    data: { team },
+  });
+});
+
+/** PATCH /api/teams/:id/google-doc-link — Attach or clear team Google Docs link (Leader only) */
+export const updateGoogleDocLink = catchAsync(async (req, res) => {
+  const { team } = await teamService.updateGoogleDocLink(
+    req.params.id,
+    req.user._id,
+    req.body.googleDocUrl || '',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team Google Docs link updated successfully.',
     data: { team },
   });
 });

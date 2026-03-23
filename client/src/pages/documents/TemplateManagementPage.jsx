@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -8,37 +9,24 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import {
-  useTemplates,
-  useCreateTemplate,
-  useUpdateTemplate,
-  useDeleteTemplate,
+  useProjectManuscripts,
+  useUploadManuscript,
+  useSubmitManuscriptReview,
+  useSyncManuscriptComments,
+  useSyncManuscriptPermissions,
 } from '@/hooks/useDocuments';
-import { ROLES, DOCUMENT_TYPES } from '@cms/shared';
+import { DOCUMENT_TYPES, ROLES } from '@cms/shared';
 import {
-  Loader2,
-  Plus,
-  FileText,
-  Pencil,
-  Trash2,
-  ExternalLink,
   AlertCircle,
-  X,
-  Eye,
-  EyeOff,
+  ExternalLink,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Save,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-/**
- * TemplateManagementPage — Instructor-only page for managing
- * Google Docs templates that are used to generate project documents.
- *
- * Instructors can:
- * - Register an existing Google Doc as a template (by pasting its ID or URL)
- * - Browse, filter, and edit template metadata
- * - Activate/deactivate or delete templates
- */
-
-/** Human-readable labels for document types */
 const DOC_TYPE_LABELS = {
   [DOCUMENT_TYPES.CHAPTER_1]: 'Chapter 1',
   [DOCUMENT_TYPES.CHAPTER_2]: 'Chapter 2',
@@ -50,178 +38,160 @@ const DOC_TYPE_LABELS = {
   [DOCUMENT_TYPES.FINAL_JOURNAL]: 'Final (Journal)',
 };
 
-/** Extract Google Doc ID from a full URL or return the string as-is */
-function extractDocId(input) {
-  if (!input) return '';
-  const match = input.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  return match ? match[1] : input.trim();
-}
+function UploadForm({ onSubmit, isLoading, canUpload }) {
+  const [documentType, setDocumentType] = useState(DOCUMENT_TYPES.CHAPTER_1);
+  const [title, setTitle] = useState('');
+  const [externalDocUrl, setExternalDocUrl] = useState('');
+  const [externalDocProvider, setExternalDocProvider] = useState('google_docs');
 
-/* ────────── Create / Edit Form ────────── */
-
-function TemplateForm({ initial, onSubmit, onCancel, isLoading }) {
-  const [title, setTitle] = useState(initial?.title || '');
-  const [description, setDescription] = useState(initial?.description || '');
-  const [googleDocId, setGoogleDocId] = useState(initial?.googleDocId || '');
-  const [documentType, setDocumentType] = useState(initial?.documentType || DOCUMENT_TYPES.CHAPTER_1);
-  const isEdit = !!initial;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const payload = { title, description, documentType };
-    if (!isEdit) {
-      payload.googleDocId = extractDocId(googleDocId);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!externalDocUrl.trim()) {
+      toast.error('Please enter a document URL.');
+      return;
     }
-    onSubmit(payload);
+
+    try {
+      new URL(externalDocUrl);
+    } catch {
+      toast.error('Please enter a valid URL.');
+      return;
+    }
+
+    onSubmit({
+      documentType,
+      title: title.trim() || undefined,
+      externalDocUrl: externalDocUrl.trim(),
+      externalDocProvider,
+    });
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {!isEdit && (
-        <div className="space-y-2">
-          <Label htmlFor="googleDocId">Google Doc ID or URL *</Label>
-          <Input
-            id="googleDocId"
-            value={googleDocId}
-            onChange={(e) => setGoogleDocId(e.target.value)}
-            placeholder="Paste the Google Docs URL or document ID"
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            The Google Doc must be shared with the service account email, or be publicly accessible.
-          </p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="title">Template Title *</Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Chapter 1 — Introduction Template"
-          required
-          minLength={3}
-          maxLength={200}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Input
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief description of what this template is for"
-          maxLength={500}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="documentType">Document Type *</Label>
-        <select
-          id="documentType"
-          value={documentType}
-          onChange={(e) => setDocumentType(e.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          disabled={isEdit}
-        >
-          {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isEdit ? 'Save Changes' : 'Register Template'}
-        </Button>
-        {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
-    </form>
-  );
-}
-
-/* ────────── Template Card ────────── */
-
-function TemplateCard({ template, onEdit, onDelete, onToggleActive }) {
-  const [confirming, setConfirming] = useState(false);
+  if (!canUpload) {
+    return null;
+  }
 
   return (
-    <Card className={!template.isActive ? 'opacity-60' : ''}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <h3 className="truncate font-medium">{template.title}</h3>
+    <Card>
+      <CardHeader>
+        <CardTitle>Submit Manuscript</CardTitle>
+        <CardDescription>
+          Submit a link to your external document (Google Docs, etc.). Advisers and instructors will review via the link.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type</Label>
+              <select
+                id="documentType"
+                value={documentType}
+                onChange={(event) => setDocumentType(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
-            {template.description && (
-              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                {template.description}
-              </p>
-            )}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{DOC_TYPE_LABELS[template.documentType] || template.documentType}</Badge>
-              <Badge variant={template.isActive ? 'default' : 'secondary'}>
-                {template.isActive ? 'Active' : 'Inactive'}
-              </Badge>
+            <div className="space-y-2">
+              <Label htmlFor="title">Optional Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Leave empty to use default title"
+                maxLength={300}
+              />
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open(template.googleDocUrl, '_blank')}
-              title="Open in Google Docs"
+          <div className="space-y-2">
+            <Label htmlFor="provider">Document Provider</Label>
+            <select
+              id="provider"
+              value={externalDocProvider}
+              onChange={(event) => setExternalDocProvider(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
+              <option value="google_docs">Google Docs</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="docUrl">Document URL *</Label>
+            <Input
+              id="docUrl"
+              type="url"
+              value={externalDocUrl}
+              onChange={(event) => setExternalDocUrl(event.target.value)}
+              placeholder="https://docs.google.com/document/d/... or other URL"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Share a link to your document (must be accessible to advisers/instructors).
+            </p>
+          </div>
+
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+            Submit Document Link
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ManuscriptRow({ manuscript, projectId, canReview, onSyncPermissions, onSyncComments, onSubmitReview }) {
+  const navigate = useNavigate();
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <h3 className="truncate font-semibold">{manuscript.title}</h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">
+                {DOC_TYPE_LABELS[manuscript.documentType] || manuscript.documentType}
+              </Badge>
+              <Badge variant="secondary">{manuscript.reviewStatus || 'pending_review'}</Badge>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => onToggleActive(template)}
-              title={template.isActive ? 'Deactivate' : 'Activate'}
+              onClick={() => navigate(`/projects/${projectId}/documents/${manuscript.documentType}`)}
             >
-              {template.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => onEdit(template)} title="Edit">
-              <Pencil className="h-4 w-4" />
+
+            <Button variant="outline" size="sm" onClick={() => onSyncPermissions(manuscript.documentType)}>
+              <Save className="mr-2 h-4 w-4" />
+              Sync Permissions
             </Button>
-            {confirming ? (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    onDelete(template._id);
-                    setConfirming(false);
-                  }}
-                >
-                  Confirm
+
+            {canReview && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => onSyncComments(manuscript.documentType)}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Sync Comments
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-                  <X className="h-4 w-4" />
+                <Button size="sm" onClick={() => onSubmitReview(manuscript.documentType)}>
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit Review
                 </Button>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setConfirming(true)}
-                title="Delete"
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              </>
             )}
           </div>
         </div>
@@ -230,190 +200,129 @@ function TemplateCard({ template, onEdit, onDelete, onToggleActive }) {
   );
 }
 
-/* ────────── Main Page ────────── */
-
 export default function TemplateManagementPage() {
   const { user } = useAuthStore();
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null); // template being edited
-  const [typeFilter, setTypeFilter] = useState('');
+  const [projectId, setProjectId] = useState('');
 
-  const queryFilters = typeFilter ? { documentType: typeFilter } : {};
-  const { data, isLoading, error: fetchError } = useTemplates(queryFilters);
+  const canUpload = useMemo(
+    () => user?.role === ROLES.STUDENT || user?.role === ROLES.INSTRUCTOR,
+    [user?.role],
+  );
 
-  const createMutation = useCreateTemplate({
-    onSuccess: () => {
-      toast.success('Template registered successfully');
-      setShowForm(false);
-    },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to create template'),
+  const canReview = useMemo(
+    () => user?.role === ROLES.ADVISER || user?.role === ROLES.INSTRUCTOR,
+    [user?.role],
+  );
+
+  const {
+    data,
+    isLoading,
+    error: listError,
+  } = useProjectManuscripts(projectId, {
+    enabled: !!projectId,
   });
 
-  const updateMutation = useUpdateTemplate({
-    onSuccess: () => {
-      toast.success('Template updated');
-      setEditing(null);
-    },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to update template'),
+  const uploadMutation = useUploadManuscript(projectId, {
+    onSuccess: () => toast.success('Manuscript uploaded successfully.'),
+    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to upload manuscript.'),
   });
 
-  const deleteMutation = useDeleteTemplate({
-    onSuccess: () => toast.success('Template deleted'),
-    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to delete template'),
+  const syncPermissionsMutation = useSyncManuscriptPermissions(projectId, {
+    onSuccess: () => toast.success('Permissions synchronized.'),
+    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to sync permissions.'),
   });
 
-  const handleCreate = useCallback(
-    (payload) => createMutation.mutate(payload),
-    [createMutation],
-  );
+  const syncCommentsMutation = useSyncManuscriptComments(projectId, {
+    onSuccess: () => toast.success('Comments synchronized.'),
+    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to sync comments.'),
+  });
 
-  const handleUpdate = useCallback(
-    (payload) => updateMutation.mutate({ templateId: editing._id, ...payload }),
-    [updateMutation, editing],
-  );
+  const submitReviewMutation = useSubmitManuscriptReview(projectId, {
+    onSuccess: () => toast.success('Review submitted and comments archived.'),
+    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to submit review.'),
+  });
 
-  const handleDelete = useCallback(
-    (templateId) => deleteMutation.mutate(templateId),
-    [deleteMutation],
-  );
-
-  const handleToggleActive = useCallback(
-    (template) => {
-      updateMutation.mutate({
-        templateId: template._id,
-        isActive: !template.isActive,
-      });
-    },
-    [updateMutation],
-  );
-
-  // Instructor-only guard
-  if (user?.role !== ROLES.INSTRUCTOR) {
-    return (
-      <DashboardLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>You don&apos;t have permission to manage templates.</AlertDescription>
-        </Alert>
-      </DashboardLayout>
-    );
-  }
-
-  const templates = data?.templates || [];
+  const manuscripts = data?.manuscripts || [];
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Document Templates</h1>
-            <p className="text-muted-foreground">
-              Manage Google Docs templates used to generate capstone documents.
-            </p>
-          </div>
-          {!showForm && !editing && (
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Register Template
-            </Button>
-          )}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Manuscript Review Workspace</h1>
+          <p className="text-muted-foreground">
+            Enter a project ID to upload manuscripts, open Google review links, and manage review sync.
+          </p>
         </div>
 
-        {/* Create / Edit Form */}
-        {(showForm || editing) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{editing ? 'Edit Template' : 'Register New Template'}</CardTitle>
-              <CardDescription>
-                {editing
-                  ? 'Update the template metadata below.'
-                  : 'Paste a Google Docs URL or ID to register it as a template. The document must be accessible by the CMS service account.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TemplateForm
-                initial={editing}
-                onSubmit={editing ? handleUpdate : handleCreate}
-                onCancel={() => {
-                  setShowForm(false);
-                  setEditing(null);
-                }}
-                isLoading={createMutation.isPending || updateMutation.isPending}
-              />
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Context</CardTitle>
+            <CardDescription>
+              This workspace is project-scoped. Provide the project ID before loading manuscripts.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="projectId">Project ID</Label>
+            <Input
+              id="projectId"
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value.trim())}
+              placeholder="Paste a project ID"
+            />
+          </CardContent>
+        </Card>
+
+        <UploadForm
+          canUpload={canUpload && !!projectId}
+          onSubmit={(payload) => uploadMutation.mutate(payload)}
+          isLoading={uploadMutation.isPending}
+        />
+
+        {!projectId && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Set a project ID first to load manuscript records.</AlertDescription>
+          </Alert>
         )}
 
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <Label htmlFor="typeFilter" className="whitespace-nowrap text-sm">
-            Filter by type:
-          </Label>
-          <select
-            id="typeFilter"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <option value="">All Types</option>
-            {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Loading */}
-        {isLoading && (
+        {projectId && isLoading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         )}
 
-        {/* Error */}
-        {fetchError && (
+        {projectId && listError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {fetchError?.response?.data?.message || 'Failed to load templates.'}
+              {listError?.response?.data?.message || 'Failed to load manuscripts for this project.'}
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Empty state */}
-        {!isLoading && !fetchError && templates.length === 0 && (
+        {projectId && !isLoading && !listError && manuscripts.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="mb-3 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">No templates yet</h3>
+              <h3 className="text-lg font-medium">No manuscripts found</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Register your first Google Docs template to get started.
+                Upload the first manuscript file to initialize this project review workspace.
               </p>
-              {!showForm && (
-                <Button className="mt-4" onClick={() => setShowForm(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Register Template
-                </Button>
-              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Template list */}
-        {!isLoading && templates.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {templates.map((t) => (
-              <TemplateCard
-                key={t._id}
-                template={t}
-                onEdit={(tpl) => {
-                  setEditing(tpl);
-                  setShowForm(false);
-                }}
-                onDelete={handleDelete}
-                onToggleActive={handleToggleActive}
+        {manuscripts.length > 0 && (
+          <div className="grid gap-3">
+            {manuscripts.map((manuscript) => (
+              <ManuscriptRow
+                key={manuscript._id}
+                manuscript={manuscript}
+                projectId={projectId}
+                canReview={canReview}
+                onSyncPermissions={(documentType) => syncPermissionsMutation.mutate(documentType)}
+                onSyncComments={(documentType) => syncCommentsMutation.mutate(documentType)}
+                onSubmitReview={(documentType) => submitReviewMutation.mutate(documentType)}
               />
             ))}
           </div>

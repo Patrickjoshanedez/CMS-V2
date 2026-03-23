@@ -5,7 +5,7 @@ import GoogleDocViewer from '@/components/documents/GoogleDocViewer';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { useProjectDocument } from '@/hooks/useDocuments';
+import { useManuscriptOpenLink } from '@/hooks/useDocuments';
 import { ROLES, DOCUMENT_TYPES } from '@cms/shared';
 import { Loader2, ArrowLeft, AlertCircle, FileText } from 'lucide-react';
 
@@ -24,24 +24,25 @@ const DOC_TYPE_LABELS = {
 /**
  * DocumentEditorPage — Full-page embedded Google Doc viewer / editor.
  *
- * Route: /projects/:projectId/documents/:docId
+ * Route: /projects/:projectId/documents/:documentType
  *
- * The backend returns an `embedUrl` that is either a /edit or /preview URL
+ * The backend returns an `openLink` that is either an /edit or /preview URL
  * depending on the user's role:
  *   - Students + Advisers → /edit  (canEdit = true)
  *   - Panelists           → /preview (canEdit = false)
  */
 export default function DocumentEditorPage() {
-  const { projectId, docId } = useParams();
+  const { projectId, documentType, docId } = useParams();
+  const resolvedDocumentType = documentType || docId;
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const { data, isLoading, error } = useProjectDocument(projectId, docId);
+  const { data, isLoading, error } = useManuscriptOpenLink(projectId, resolvedDocumentType);
 
   // Determine edit capability based on role
   const canEdit = user?.role === ROLES.STUDENT || user?.role === ROLES.ADVISER;
 
-  const doc = data?.document;
+  const doc = data?.manuscript;
 
   return (
     <DashboardLayout>
@@ -99,7 +100,7 @@ export default function DocumentEditorPage() {
         {doc && (
           <div className="flex-1">
             <GoogleDocViewer
-              embedUrl={doc.embedUrl}
+              embedUrl={data?.openLink}
               title={doc.title}
               canEdit={canEdit}
               className="h-full min-h-[600px]"

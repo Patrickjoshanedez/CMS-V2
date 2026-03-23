@@ -52,6 +52,8 @@ export default function CreateProjectPage() {
     academicYear: defaultAcademicYear,
     sectionId: '',
   });
+  const [titleProposals, setTitleProposals] = useState(['', '', '', '', '']);
+  const [selectedTitleIndex, setSelectedTitleIndex] = useState(0);
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
@@ -107,6 +109,32 @@ export default function CreateProjectPage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleTitleProposalChange = (index, value) => {
+    setTitleProposals((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const addTitleProposal = () => {
+    setTitleProposals((prev) => {
+      if (prev.length >= 10) return prev;
+      return [...prev, ''];
+    });
+  };
+
+  const removeTitleProposal = (index) => {
+    setTitleProposals((prev) => {
+      if (prev.length <= 5) return prev;
+      const next = prev.filter((_, idx) => idx !== index);
+      if (selectedTitleIndex >= next.length) {
+        setSelectedTitleIndex(next.length - 1);
+      }
+      return next;
+    });
+  };
+
   const addKeyword = () => {
     const kw = keywordInput.trim();
     if (kw && !keywordList.includes(kw) && keywordList.length < 10) {
@@ -130,6 +158,19 @@ export default function CreateProjectPage() {
     e.preventDefault();
 
     const members = teamMembers;
+    const normalizedTitleProposals = [...new Set(titleProposals.map((proposal) => proposal.trim()))]
+      .filter(Boolean);
+
+    if (normalizedTitleProposals.length < 5) {
+      toast.error('Please provide at least 5 unique title proposals.');
+      return;
+    }
+
+    const selectedTitle = titleProposals[selectedTitleIndex]?.trim();
+    if (!selectedTitle) {
+      toast.error('Select a valid primary title from your proposals.');
+      return;
+    }
 
     if (members.length === 0) {
       toast.error('Add or load team/member information before creating a project.');
@@ -153,7 +194,8 @@ export default function CreateProjectPage() {
     }
 
     createProject.mutate({
-      title: form.title,
+      title: selectedTitle,
+      titleProposals: normalizedTitleProposals,
       abstract: form.abstract || undefined,
       keywords: keywordList.length > 0 ? keywordList : undefined,
       academicYear: form.academicYear,
@@ -242,19 +284,55 @@ export default function CreateProjectPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Title */}
+              {/* Title Proposals */}
               <div className="space-y-2">
-                <Label htmlFor="title">Project Title *</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="Enter your capstone project title"
-                  value={form.title}
-                  onChange={handleChange}
-                  required
-                  minLength={10}
-                  maxLength={300}
-                />
+                <Label>Title Proposals * (minimum 5)</Label>
+                <div className="space-y-2">
+                  {titleProposals.map((proposal, index) => (
+                    <div key={`title-proposal-${index}`} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="selectedTitleProposal"
+                        checked={selectedTitleIndex === index}
+                        onChange={() => setSelectedTitleIndex(index)}
+                        className="h-4 w-4"
+                        aria-label={`Select proposal ${index + 1} as primary title`}
+                      />
+                      <Input
+                        placeholder={`Proposal ${index + 1}`}
+                        value={proposal}
+                        onChange={(e) => handleTitleProposalChange(index, e.target.value)}
+                        required={index < 5}
+                        minLength={10}
+                        maxLength={300}
+                      />
+                      {titleProposals.length > 5 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeTitleProposal(index)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Choose one proposal as the primary title for submission.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addTitleProposal}
+                    disabled={titleProposals.length >= 10}
+                  >
+                    Add Proposal
+                  </Button>
+                </div>
               </div>
 
               {/* Abstract */}

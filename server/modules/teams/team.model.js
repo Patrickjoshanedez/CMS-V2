@@ -65,6 +65,11 @@ const teamSchema = new mongoose.Schema(
       ref: 'Section',
       default: null,
     },
+    googleDocUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   {
     timestamps: true,
@@ -98,19 +103,12 @@ teamSchema.pre('validate', function (next) {
 
   if (Array.isArray(this.memberRoles)) {
     const roleOwnerSet = new Set();
-    const memberIdSet = new Set((this.members || []).map((memberId) => memberId.toString()));
 
     this.memberRoles.forEach((assignment, index) => {
       const targetId = assignment?.userId?.toString();
       if (!targetId) return;
 
-      if (!memberIdSet.has(targetId)) {
-        this.invalidate(
-          `memberRoles.${index}.userId`,
-          'Role can only be assigned to current team members',
-        );
-      }
-
+      // Only check for duplicate roles, not membership
       if (roleOwnerSet.has(targetId)) {
         this.invalidate(
           `memberRoles.${index}.userId`,

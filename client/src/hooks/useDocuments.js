@@ -1,8 +1,7 @@
 /**
  * React Query hooks for the Documents module.
  *
- * Provides query hooks (data fetching) and mutation hooks (write actions)
- * for Google Docs template management and per-project document CRUD.
+ * Provides query hooks and mutation hooks for the manuscript review workflow.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentService } from '../services/documentService';
@@ -11,132 +10,79 @@ import { documentService } from '../services/documentService';
 
 export const documentKeys = {
   all: ['documents'],
-  templates: () => [...documentKeys.all, 'templates'],
-  templateList: (filters) => [...documentKeys.templates(), 'list', filters],
-  templateDetail: (id) => [...documentKeys.templates(), 'detail', id],
-  projectDocs: (projectId) => [...documentKeys.all, 'project', projectId],
-  projectDocList: (projectId, filters) => [...documentKeys.projectDocs(projectId), 'list', filters],
-  projectDocDetail: (projectId, docId) => [...documentKeys.projectDocs(projectId), 'detail', docId],
+  projectManuscripts: (projectId) => [...documentKeys.all, 'project', projectId, 'manuscripts'],
+  manuscriptOpenLink: (projectId, documentType) => [
+    ...documentKeys.projectManuscripts(projectId),
+    'open-link',
+    documentType,
+  ],
+  manuscriptComments: (projectId, documentType) => [
+    ...documentKeys.projectManuscripts(projectId),
+    'comments',
+    documentType,
+  ],
 };
 
-/* ────────── Template Query Hooks ────────── */
+/* ────────── Query Hooks ────────── */
 
 /**
- * Fetch paginated/filtered template list.
+ * Fetch manuscripts for a specific project.
  */
-export function useTemplates(filters = {}, options = {}) {
+export function useProjectManuscripts(projectId, options = {}) {
   return useQuery({
-    queryKey: documentKeys.templateList(filters),
+    queryKey: documentKeys.projectManuscripts(projectId),
     queryFn: async () => {
-      const { data } = await documentService.listTemplates(filters);
-      return data.data; // { templates }
-    },
-    staleTime: 5 * 60 * 1000, // 5 min
-    ...options,
-  });
-}
-
-/**
- * Fetch a single template by ID.
- */
-export function useTemplate(id, options = {}) {
-  return useQuery({
-    queryKey: documentKeys.templateDetail(id),
-    queryFn: async () => {
-      const { data } = await documentService.getTemplate(id);
-      return data.data; // { template }
-    },
-    enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-}
-
-/* ────────── Template Mutation Hooks ────────── */
-
-/** Helper — invalidate all template-related queries after a mutation */
-function useTemplateMutation(mutationFn, options = {}) {
-  const queryClient = useQueryClient();
-  const { onSuccess, onError, ...restOptions } = options;
-  return useMutation({
-    mutationFn,
-    onSuccess: (...args) => {
-      queryClient.invalidateQueries({ queryKey: documentKeys.templates() });
-      onSuccess?.(...args);
-    },
-    onError,
-    ...restOptions,
-  });
-}
-
-/** Create a new template (instructor) */
-export function useCreateTemplate(options = {}) {
-  return useTemplateMutation(async (data) => {
-    const res = await documentService.createTemplate(data);
-    return res.data;
-  }, options);
-}
-
-/** Update template metadata (instructor) */
-export function useUpdateTemplate(options = {}) {
-  return useTemplateMutation(async ({ templateId, ...data }) => {
-    const res = await documentService.updateTemplate(templateId, data);
-    return res.data;
-  }, options);
-}
-
-/** Delete a template (instructor) */
-export function useDeleteTemplate(options = {}) {
-  return useTemplateMutation(async (templateId) => {
-    const res = await documentService.deleteTemplate(templateId);
-    return res.data;
-  }, options);
-}
-
-/* ────────── Project Document Query Hooks ────────── */
-
-/**
- * Fetch documents for a specific project.
- */
-export function useProjectDocuments(projectId, filters = {}, options = {}) {
-  return useQuery({
-    queryKey: documentKeys.projectDocList(projectId, filters),
-    queryFn: async () => {
-      const { data } = await documentService.listProjectDocuments(projectId, filters);
-      return data.data; // { documents }
+      const { data } = await documentService.listProjectManuscripts(projectId);
+      return data.data;
     },
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000, // 2 min
-    ...options,
-  });
-}
-
-/**
- * Fetch a single project document (with role-based embed URL).
- */
-export function useProjectDocument(projectId, docId, options = {}) {
-  return useQuery({
-    queryKey: documentKeys.projectDocDetail(projectId, docId),
-    queryFn: async () => {
-      const { data } = await documentService.getProjectDocument(projectId, docId);
-      return data.data; // { document }
-    },
-    enabled: !!projectId && !!docId,
     staleTime: 2 * 60 * 1000,
     ...options,
   });
 }
 
-/* ────────── Project Document Mutation Hooks ────────── */
+/**
+ * Fetch role-based open-link data for a manuscript.
+ */
+export function useManuscriptOpenLink(projectId, documentType, options = {}) {
+  return useQuery({
+    queryKey: documentKeys.manuscriptOpenLink(projectId, documentType),
+    queryFn: async () => {
+      const { data } = await documentService.getOpenLink(projectId, documentType);
+      return data.data;
+    },
+    enabled: !!projectId && !!documentType,
+    staleTime: 2 * 60 * 1000,
+    ...options,
+  });
+}
 
-/** Helper — invalidate project-document queries after a mutation */
-function useProjectDocMutation(projectId, mutationFn, options = {}) {
+/**
+ * Fetch archived comments for a manuscript.
+ */
+export function useArchivedManuscriptComments(projectId, documentType, options = {}) {
+  return useQuery({
+    queryKey: documentKeys.manuscriptComments(projectId, documentType),
+    queryFn: async () => {
+      const { data } = await documentService.getArchivedComments(projectId, documentType);
+      return data.data;
+    },
+    enabled: !!projectId && !!documentType,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+}
+
+/* ────────── Mutation Hooks ────────── */
+
+function useProjectManuscriptMutation(projectId, mutationFn, options = {}) {
   const queryClient = useQueryClient();
   const { onSuccess, onError, ...restOptions } = options;
+
   return useMutation({
     mutationFn,
     onSuccess: (...args) => {
-      queryClient.invalidateQueries({ queryKey: documentKeys.projectDocs(projectId) });
+      queryClient.invalidateQueries({ queryKey: documentKeys.projectManuscripts(projectId) });
       onSuccess?.(...args);
     },
     onError,
@@ -144,24 +90,57 @@ function useProjectDocMutation(projectId, mutationFn, options = {}) {
   });
 }
 
-/** Generate a new document for a project (from template or blank) */
-export function useGenerateDocument(projectId, options = {}) {
-  return useProjectDocMutation(
+/** Upload a manuscript with an external document link. */
+export function useUploadManuscript(projectId, options = {}) {
+  return useProjectManuscriptMutation(
     projectId,
-    async (data) => {
-      const res = await documentService.generateDocument(projectId, data);
+    async ({ documentType, title, externalDocUrl, externalDocProvider = 'google_docs' }) => {
+      const payload = {
+        documentType,
+        externalDocUrl,
+        externalDocProvider,
+      };
+      if (title) {
+        payload.title = title;
+      }
+
+      const res = await documentService.uploadManuscript(projectId, payload);
       return res.data;
     },
     options,
   );
 }
 
-/** Delete a project document */
-export function useDeleteProjectDocument(projectId, options = {}) {
-  return useProjectDocMutation(
+/** Synchronize Drive permissions for a manuscript. */
+export function useSyncManuscriptPermissions(projectId, options = {}) {
+  return useProjectManuscriptMutation(
     projectId,
-    async (docId) => {
-      const res = await documentService.deleteProjectDocument(projectId, docId);
+    async (documentType) => {
+      const res = await documentService.syncPermissions(projectId, documentType);
+      return res.data;
+    },
+    options,
+  );
+}
+
+/** Submit adviser/instructor review and archive comments. */
+export function useSubmitManuscriptReview(projectId, options = {}) {
+  return useProjectManuscriptMutation(
+    projectId,
+    async (documentType) => {
+      const res = await documentService.submitReview(projectId, documentType);
+      return res.data;
+    },
+    options,
+  );
+}
+
+/** Pull latest comments from Drive into archived thread data. */
+export function useSyncManuscriptComments(projectId, options = {}) {
+  return useProjectManuscriptMutation(
+    projectId,
+    async (documentType) => {
+      const res = await documentService.syncComments(projectId, documentType);
       return res.data;
     },
     options,

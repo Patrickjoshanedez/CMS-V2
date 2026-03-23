@@ -1,38 +1,77 @@
 /**
- * Document models — DocTemplate + ProjectDocument.
+ * Classroom-style manuscript review model.
  *
- * DocTemplate: Instructor-defined templates (stored as Google Doc IDs).
- * ProjectDocument: Generated documents per project (copies of templates).
+ * Stores one active manuscript reference per project + documentType.
+ * The drafting source is link-first (for example Google Docs share links),
+ * while archived comments and permission snapshots remain internal.
  */
 import mongoose from 'mongoose';
 import { DOCUMENT_TYPE_VALUES } from '@cms/shared';
 
-// --------------- DocTemplate ---------------
-
-const docTemplateSchema = new mongoose.Schema(
+const permissionEntrySchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: [true, 'Template title is required'],
-      trim: true,
-      minlength: [3, 'Template title must be at least 3 characters'],
-      maxlength: [200, 'Template title must not exceed 200 characters'],
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
-    description: {
+    email: {
       type: String,
+      required: true,
       trim: true,
-      maxlength: [500, 'Description must not exceed 500 characters'],
-      default: '',
+      lowercase: true,
     },
-    googleDocId: {
+    role: {
       type: String,
-      required: [true, 'Google Doc ID is required'],
-      trim: true,
+      enum: ['writer', 'commenter', 'reader'],
+      required: true,
     },
-    googleDocUrl: {
-      type: String,
-      required: [true, 'Google Doc URL is required'],
-      trim: true,
+    grantedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
+const archivedReplySchema = new mongoose.Schema(
+  {
+    externalReplyId: { type: String, required: true },
+    content: { type: String, default: '' },
+    authorName: { type: String, default: '' },
+    authorEmail: { type: String, default: '' },
+    createdAtExternal: { type: Date, default: null },
+    modifiedAtExternal: { type: Date, default: null },
+    deleted: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const archivedCommentSchema = new mongoose.Schema(
+  {
+    externalCommentId: { type: String, required: true },
+    content: { type: String, default: '' },
+    quotedText: { type: String, default: '' },
+    authorName: { type: String, default: '' },
+    authorEmail: { type: String, default: '' },
+    createdAtExternal: { type: Date, default: null },
+    modifiedAtExternal: { type: Date, default: null },
+    resolved: { type: Boolean, default: false },
+    deleted: { type: Boolean, default: false },
+    replies: {
+      type: [archivedReplySchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
+const manuscriptSchema = new mongoose.Schema(
+  {
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
     },
     documentType: {
       type: String,
@@ -41,42 +80,6 @@ const docTemplateSchema = new mongoose.Schema(
         values: DOCUMENT_TYPE_VALUES,
         message: 'Invalid document type',
       },
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  },
-);
-
-docTemplateSchema.index({ documentType: 1, isActive: 1 });
-docTemplateSchema.index({ createdBy: 1 });
-
-export const DocTemplate = mongoose.model('DocTemplate', docTemplateSchema);
-
-// --------------- ProjectDocument ---------------
-
-const projectDocumentSchema = new mongoose.Schema(
-  {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Project',
-      required: [true, 'Project ID is required'],
-    },
-    templateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'DocTemplate',
-      default: null, // null if created without a template (blank doc)
     },
     title: {
       type: String,
@@ -85,28 +88,89 @@ const projectDocumentSchema = new mongoose.Schema(
       minlength: [3, 'Document title must be at least 3 characters'],
       maxlength: [300, 'Document title must not exceed 300 characters'],
     },
-    googleDocId: {
+    originalFileName: {
       type: String,
-      required: [true, 'Google Doc ID is required'],
+      trim: true,
+      default: '',
+    },
+    mimeType: {
+      type: String,
+      trim: true,
+      required: [true, 'MIME type is required'],
+    },
+    externalDocUrl: {
+      type: String,
+      required: [true, 'External document URL is required'],
       trim: true,
     },
-    googleDocUrl: {
+    externalDocProvider: {
       type: String,
-      required: [true, 'Google Doc URL is required'],
+      enum: ['google_docs', 'other'],
+      default: 'google_docs',
+    },
+    driveFileId: {
+      type: String,
       trim: true,
+      default: null,
     },
-    documentType: {
+    driveWebViewLink: {
       type: String,
-      required: [true, 'Document type is required'],
-      enum: {
-        values: DOCUMENT_TYPE_VALUES,
-        message: 'Invalid document type',
-      },
+      trim: true,
+      default: null,
     },
-    createdBy: {
+    driveEditLink: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    reviewStatus: {
+      type: String,
+      enum: ['pending_review', 'in_review', 'review_submitted', 'finalized'],
+      default: 'pending_review',
+    },
+    reviewSubmittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reviewSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+    commentsLastSyncedAt: {
+      type: Date,
+      default: null,
+    },
+    commentsSyncCursor: {
+      type: String,
+      default: null,
+    },
+    permissionSnapshot: {
+      students: {
+        type: [permissionEntrySchema],
+        default: [],
+      },
+      adviser: {
+        type: [permissionEntrySchema],
+        default: [],
+      },
+      panelists: {
+        type: [permissionEntrySchema],
+        default: [],
+      },
+      lastSyncedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    archivedComments: {
+      type: [archivedCommentSchema],
+      default: [],
     },
   },
   {
@@ -116,8 +180,10 @@ const projectDocumentSchema = new mongoose.Schema(
   },
 );
 
-// A project can have one document per type (e.g., one Chapter 1 doc, one Proposal doc)
-projectDocumentSchema.index({ projectId: 1, documentType: 1 }, { unique: true });
-projectDocumentSchema.index({ googleDocId: 1 }, { unique: true });
+manuscriptSchema.index({ projectId: 1, documentType: 1 }, { unique: true });
+manuscriptSchema.index({ uploadedBy: 1, createdAt: -1 });
+manuscriptSchema.index({ reviewStatus: 1, updatedAt: -1 });
 
-export const ProjectDocument = mongoose.model('ProjectDocument', projectDocumentSchema);
+const Manuscript = mongoose.model('Manuscript', manuscriptSchema);
+
+export default Manuscript;

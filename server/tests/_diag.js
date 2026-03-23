@@ -41,7 +41,9 @@ console.log(show('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'));
 console.log('\n── OAuth2 ───────────────────────────────────────');
 console.log(show('GOOGLE_CLIENT_ID'));
 console.log(show('GOOGLE_CLIENT_SECRET'));
+console.log(show('GOOGLE_REDIRECT_URI'));
 console.log(show('REDIRECT_URI'));
+console.log(show('GOOGLE_REFRESH_TOKEN'));
 console.log(show('REFRESH_TOKEN'));
 
 console.log('\n── Drive Folders ────────────────────────────────');
@@ -49,12 +51,14 @@ console.log(show('GOOGLE_DRIVE_FOLDER_ID'));
 console.log(show('GOOGLE_DRIVE_TEMPLATE_FOLDER_ID'));
 console.log(show('GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID'));
 
-const hasSA     = !!(parsed.GOOGLE_SERVICE_ACCOUNT_EMAIL && parsed.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
-const hasOAuth2 = !!(parsed.GOOGLE_CLIENT_ID && parsed.GOOGLE_CLIENT_SECRET && parsed.REFRESH_TOKEN);
+const refreshToken = parsed.GOOGLE_REFRESH_TOKEN || parsed.REFRESH_TOKEN;
+const redirectUri = parsed.GOOGLE_REDIRECT_URI || parsed.REDIRECT_URI;
+const hasSA = !!(parsed.GOOGLE_SERVICE_ACCOUNT_EMAIL && parsed.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+const hasOAuth2 = !!(parsed.GOOGLE_CLIENT_ID && parsed.GOOGLE_CLIENT_SECRET && refreshToken && redirectUri);
 
 console.log('\n── Auth strategy ────────────────────────────────');
-if (hasSA)            console.log('  → Service Account JWT   ✅ (will be used — highest priority)');
-if (hasOAuth2)        console.log('  → OAuth2 + refresh token ✅ (available as fallback)');
+if (hasOAuth2) console.log('  → OAuth2 + refresh token ✅ (will be used — highest priority)');
+if (hasSA) console.log('  → Service Account JWT ✅ (fallback when OAuth2 is incomplete)');
 if (!hasSA && !hasOAuth2) console.log('  ❌  No valid auth strategy found');
 
 // Detect duplicate keys (last value wins in dotenv)

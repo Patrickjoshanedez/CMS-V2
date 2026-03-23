@@ -2,69 +2,9 @@ import documentService from './document.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
 
-/**
- * DocumentController — Thin handlers delegating to DocumentService.
- */
-
-/* ════════════════ Templates (Instructor) ════════════════ */
-
-/** POST /api/documents/templates */
-export const createTemplate = catchAsync(async (req, res) => {
-  const { template } = await documentService.createTemplate(req.user._id, req.body);
-
-  res.status(HTTP_STATUS.CREATED).json({
-    success: true,
-    message: 'Template registered successfully.',
-    data: { template },
-  });
-});
-
-/** GET /api/documents/templates */
-export const listTemplates = catchAsync(async (req, res) => {
-  const { templates } = await documentService.listTemplates(req.query);
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    data: { templates },
-  });
-});
-
-/** GET /api/documents/templates/:id */
-export const getTemplate = catchAsync(async (req, res) => {
-  const { template } = await documentService.getTemplate(req.params.id);
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    data: { template },
-  });
-});
-
-/** PATCH /api/documents/templates/:id */
-export const updateTemplate = catchAsync(async (req, res) => {
-  const { template } = await documentService.updateTemplate(req.params.id, req.body);
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'Template updated.',
-    data: { template },
-  });
-});
-
-/** DELETE /api/documents/templates/:id */
-export const deleteTemplate = catchAsync(async (req, res) => {
-  const result = await documentService.deleteTemplate(req.params.id);
-
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: result.message,
-  });
-});
-
-/* ════════════════ Project Documents ════════════════ */
-
-/** POST /api/documents/projects/:projectId/generate */
-export const generateDocument = catchAsync(async (req, res) => {
-  const { document } = await documentService.generateDocument(
+/** POST /api/documents/projects/:projectId/manuscripts */
+export const uploadManuscript = catchAsync(async (req, res) => {
+  const { manuscript } = await documentService.uploadManuscript(
     req.user._id,
     req.params.projectId,
     req.body,
@@ -72,49 +12,94 @@ export const generateDocument = catchAsync(async (req, res) => {
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
-    message: 'Document generated successfully.',
-    data: { document },
+    message: 'Manuscript link submitted successfully.',
+    data: { manuscript },
   });
 });
 
-/** GET /api/documents/projects/:projectId */
-export const listProjectDocuments = catchAsync(async (req, res) => {
-  const { documents } = await documentService.listProjectDocuments(
+/** GET /api/documents/projects/:projectId/manuscripts */
+export const listProjectManuscripts = catchAsync(async (req, res) => {
+  const { manuscripts } = await documentService.listProjectManuscripts(req.user._id, req.params.projectId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { manuscripts },
+  });
+});
+
+/** GET /api/documents/projects/:projectId/manuscripts/:documentType/open-link */
+export const getOpenLink = catchAsync(async (req, res) => {
+  const { manuscript, openLink, mode } = await documentService.getOpenLink(
     req.user._id,
     req.params.projectId,
-    req.query,
+    req.params.documentType,
   );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    data: { documents },
+    data: {
+      manuscript,
+      openLink,
+      mode,
+    },
   });
 });
 
-/** GET /api/documents/projects/:projectId/:docId */
-export const getProjectDocument = catchAsync(async (req, res) => {
-  const { document } = await documentService.getProjectDocument(
+/** POST /api/documents/projects/:projectId/manuscripts/:documentType/sync-permissions */
+export const syncPermissions = catchAsync(async (req, res) => {
+  const { manuscript } = await documentService.syncPermissions(
     req.user._id,
     req.params.projectId,
-    req.params.docId,
+    req.params.documentType,
   );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    data: { document },
+    message: 'Manuscript permissions snapshot synchronized successfully.',
+    data: { manuscript },
   });
 });
 
-/** DELETE /api/documents/projects/:projectId/:docId */
-export const deleteProjectDocument = catchAsync(async (req, res) => {
-  const result = await documentService.deleteProjectDocument(
+/** POST /api/documents/projects/:projectId/manuscripts/:documentType/submit-review */
+export const submitReview = catchAsync(async (req, res) => {
+  const { manuscript } = await documentService.submitReview(
     req.user._id,
     req.params.projectId,
-    req.params.docId,
+    req.params.documentType,
   );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: result.message,
+    message: 'Review submitted successfully.',
+    data: { manuscript },
+  });
+});
+
+/** POST /api/documents/projects/:projectId/manuscripts/:documentType/sync-comments */
+export const syncComments = catchAsync(async (req, res) => {
+  const { manuscript } = await documentService.syncComments(
+    req.user._id,
+    req.params.projectId,
+    req.params.documentType,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Archived comments synchronized successfully.',
+    data: { manuscript },
+  });
+});
+
+/** GET /api/documents/projects/:projectId/manuscripts/:documentType/comments */
+export const getArchivedComments = catchAsync(async (req, res) => {
+  const result = await documentService.getArchivedComments(
+    req.user._id,
+    req.params.projectId,
+    req.params.documentType,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
   });
 });

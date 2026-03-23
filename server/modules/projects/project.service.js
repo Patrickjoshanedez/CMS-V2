@@ -8,7 +8,7 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
-import googleDocsService from '../../services/google-docs.service.js';
+import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
@@ -36,10 +36,10 @@ class ProjectService {
 
   /**
    * Create a new project for the authenticated student's team.
-   * The student must be a team leader with a locked team and no existing project.
+    * The student must be a team leader with no existing active project.
    * Also runs a similarity check against existing titles and returns warnings.
    * @param {string} userId - The requesting student (team leader).
-   * @param {Object} data - { title, abstract?, keywords?, academicYear }
+    * @param {Object} data - { title, titleProposals, abstract?, keywords?, academicYear }
    * @returns {Object} { project, similarProjects }
    */
   async createProject(userId, data) {
@@ -84,11 +84,18 @@ class ProjectService {
     if (team.leaderId.toString() !== userId.toString()) {
       throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
     }
-    if (!team.isLocked) {
+
+    const normalizedTitleProposals = [...new Set((data.titleProposals || []).map((proposal) => proposal.trim()))];
+
+    if (normalizedTitleProposals.length < 5) {
+      throw new AppError('At least 5 unique title proposals are required.', 400, 'MIN_TITLE_PROPOSALS');
+    }
+
+    if (!normalizedTitleProposals.includes(data.title.trim())) {
       throw new AppError(
-        'Your team must be locked before creating a project.',
+        'Selected project title must be one of the submitted title proposals.',
         400,
-        'TEAM_NOT_LOCKED',
+        'TITLE_NOT_IN_PROPOSALS',
       );
     }
 
@@ -173,6 +180,7 @@ class ProjectService {
     const project = await Project.create({
       teamId: team._id,
       title: data.title,
+      titleProposals: normalizedTitleProposals,
       abstract: data.abstract || '',
       keywords: data.keywords || [],
       academicYear: data.academicYear,
@@ -499,10 +507,11 @@ class ProjectService {
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
 
-    // Create a unique Google Drive folder for the project workspace
+    // Create a unique Google Drive folder for the project workspace.
+    // Fail-open behavior is preserved so title approval is not blocked if Drive is unavailable.
     try {
       const folderName = `Project Workspace - ${project.title || project._id}`;
-      const folderId = await googleDocsService.createFolder(folderName);
+      const { folderId } = await googleDriveReviewService.createProjectFolder(folderName);
       project.driveFolderId = folderId;
     } catch (error) {
       console.error('Failed to create Drive folder for project:', error);

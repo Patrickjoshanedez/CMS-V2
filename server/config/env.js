@@ -133,6 +133,10 @@ const env = Object.freeze({
     process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || ''
   ).replace(/\\n/g, '\n'),
 
+  // Google Drive auth mode: auto | service_account | oauth
+  // auto prefers service-account auth when both are configured
+  GOOGLE_DRIVE_AUTH_MODE: (process.env.GOOGLE_DRIVE_AUTH_MODE || 'auto').trim().toLowerCase(),
+
   // Root Drive folder for all CMS-managed files
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
 
@@ -142,6 +146,9 @@ const env = Object.freeze({
 
   // Single Google Drive template folder for the full paper template
   GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID || '',
+
+  // Master Google Doc template ID for cloning (Cap1-3 chapters, proposals, final papers)
+  GOOGLE_DRIVE_TEMPLATE_FULL_PAPER_ID: process.env.GOOGLE_DRIVE_TEMPLATE_FULL_PAPER_ID || '',
 
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,

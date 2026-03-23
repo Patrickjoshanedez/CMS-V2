@@ -303,6 +303,18 @@ const submissionSchema = new mongoose.Schema(
       enum: ['not_requested', 'synced', 'not_supported', 'failed'],
       default: 'not_requested',
     },
+    googleDocSyncErrorCode: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 120,
+    },
+    googleDocSyncErrorMessage: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 500,
+    },
     googleDocSyncedAt: {
       type: Date,
       default: null,

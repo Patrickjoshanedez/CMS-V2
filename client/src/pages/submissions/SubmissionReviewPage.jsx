@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
-import GoogleDocViewer from '@/components/documents/GoogleDocViewer';
 import {
   useAddAnnotation,
   useAddAnnotationReply,
@@ -28,14 +27,6 @@ function formatBytes(bytes) {
   const units = ['B', 'KB', 'MB', 'GB'];
   const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function resolveGoogleDocUrl(round) {
-  if (round?.syncedGoogleDocUrl) return round.syncedGoogleDocUrl;
-  if (round?.syncedGoogleDocId) {
-    return `https://docs.google.com/document/d/${round.syncedGoogleDocId}/edit`;
-  }
-  return null;
 }
 
 function normalizeWorkspace(data) {
@@ -207,11 +198,9 @@ export default function SubmissionReviewPage() {
     );
   }
 
-  const currentDocUrl =
-    resolveGoogleDocUrl(activeRound) ||
-    activeRound?.driveWebViewLink ||
-    viewUrlQuery.data?.url ||
-    null;
+  const currentDocUrl = viewUrlQuery.data?.url || null;
+  const viewUrlErrorCode = viewUrlQuery.error?.response?.data?.error?.code || null;
+  const isSubmissionFileUnavailable = viewUrlErrorCode === 'SUBMISSION_FILE_UNAVAILABLE';
   const extractedText = plagiarismQuery.data?.extractedText || '';
   const originalityScore = activeRound?.originalityScore;
 
@@ -341,8 +330,7 @@ export default function SubmissionReviewPage() {
                     Document Viewer
                   </CardTitle>
                   <CardDescription>
-                    Google Docs iframe supports native Google comments. For in-app highlights, use
-                    Text Annotation Mode.
+                    Open/download the file to inspect native document comments, then use Text Annotation Mode for in-app feedback.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -353,12 +341,42 @@ export default function SubmissionReviewPage() {
                   ) : (
                     <>
                       {currentDocUrl ? (
-                        <GoogleDocViewer
-                          embedUrl={currentDocUrl}
-                          title={activeRound?.fileName || 'Submission Document'}
-                          canEdit
-                          className="min-h-[520px]"
-                        />
+                        <div className="rounded-lg border border-border/70 bg-background/70 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-foreground">
+                              Open the submitted file to view attached comments in your PDF/Docx tool.
+                            </p>
+                            <Button asChild variant="outline">
+                              <a href={currentDocUrl} target="_blank" rel="noopener noreferrer">
+                                <FileText className="mr-2 h-4 w-4" />
+                                Open / Download File
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : isSubmissionFileUnavailable ? (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-amber-900">
+                              Submission file is unavailable. Ask the student to upload a new revision.
+                            </p>
+                            <Button variant="outline" disabled title="Submission file unavailable">
+                              <FileText className="mr-2 h-4 w-4" />
+                              Open / Download File
+                            </Button>
+                          </div>
+                        </div>
+                      ) : viewUrlQuery.isError ? (
+                        <div className="rounded-lg border border-red-300 bg-red-50 p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-red-800">
+                              Unable to load secure document URL right now. Please try again.
+                            </p>
+                            <Button variant="outline" onClick={() => viewUrlQuery.refetch()}>
+                              Retry
+                            </Button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
                           Loading secure document URL...

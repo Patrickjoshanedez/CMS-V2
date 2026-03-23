@@ -144,24 +144,23 @@ export function useDeclineInvite(options = {}) {
 }
 
 /**
- * Lock a team (leader or instructor only).
- * Prevents further member changes.
- * @param {string} teamId
- */
-export function useLockTeam(options = {}) {
-  return useTeamMutation(async (teamId) => {
-    const res = await teamService.lockTeam(teamId);
-    return res.data;
-  }, options);
-}
-
-/**
  * Assign or clear a role for a team member (leader only).
  * @param {Object} params — { teamId: string, memberId: string, role: string }
  */
 export function useAssignMemberRole(options = {}) {
   return useTeamMutation(async ({ teamId, memberId, role }) => {
     const res = await teamService.assignMemberRole(teamId, memberId, { role });
+    return res.data;
+  }, options);
+}
+
+/**
+ * Attach or clear team-level Google Docs link (leader only).
+ * @param {Object} params — { teamId: string, googleDocUrl: string }
+ */
+export function useUpdateGoogleDocLink(options = {}) {
+  return useTeamMutation(async ({ teamId, googleDocUrl }) => {
+    const res = await teamService.updateGoogleDocLink(teamId, { googleDocUrl });
     return res.data;
   }, options);
 }

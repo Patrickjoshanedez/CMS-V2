@@ -5,92 +5,63 @@ import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import { ROLES } from '@cms/shared';
 import {
-  createTemplateSchema,
-  updateTemplateSchema,
-  listTemplatesQuerySchema,
-  templateIdParamSchema,
-  generateDocumentSchema,
-  listProjectDocsQuerySchema,
-  projectDocParamSchema,
-  projectDocIdParamSchema,
+  projectIdParamSchema,
+  projectDocumentTypeParamSchema,
+  uploadManuscriptSchema,
 } from './document.validation.js';
 
 const router = Router();
 
-/**
- * Document routes — /api/documents
- * All routes require authentication.
- */
 router.use(authenticate);
 
-/* ══════════ Template routes (Instructor only) ══════════ */
+router.post(
+  '/projects/:projectId/manuscripts',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR),
+  validate(projectIdParamSchema, 'params'),
+  validate(uploadManuscriptSchema),
+  documentController.uploadManuscript,
+);
+
+router.get(
+  '/projects/:projectId/manuscripts',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  validate(projectIdParamSchema, 'params'),
+  documentController.listProjectManuscripts,
+);
+
+router.get(
+  '/projects/:projectId/manuscripts/:documentType/open-link',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  validate(projectDocumentTypeParamSchema, 'params'),
+  documentController.getOpenLink,
+);
 
 router.post(
-  '/templates',
-  authorize(ROLES.INSTRUCTOR),
-  validate(createTemplateSchema),
-  documentController.createTemplate,
+  '/projects/:projectId/manuscripts/:documentType/sync-permissions',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.INSTRUCTOR),
+  validate(projectDocumentTypeParamSchema, 'params'),
+  documentController.syncPermissions,
 );
-
-router.get(
-  '/templates',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT, ROLES.PANELIST),
-  validate(listTemplatesQuerySchema, 'query'),
-  documentController.listTemplates,
-);
-
-router.get(
-  '/templates/:id',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT, ROLES.PANELIST),
-  validate(templateIdParamSchema, 'params'),
-  documentController.getTemplate,
-);
-
-router.patch(
-  '/templates/:id',
-  authorize(ROLES.INSTRUCTOR),
-  validate(templateIdParamSchema, 'params'),
-  validate(updateTemplateSchema),
-  documentController.updateTemplate,
-);
-
-router.delete(
-  '/templates/:id',
-  authorize(ROLES.INSTRUCTOR),
-  validate(templateIdParamSchema, 'params'),
-  documentController.deleteTemplate,
-);
-
-/* ══════════ Project document routes ══════════ */
 
 router.post(
-  '/projects/:projectId/generate',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.INSTRUCTOR),
-  validate(projectDocParamSchema, 'params'),
-  validate(generateDocumentSchema),
-  documentController.generateDocument,
+  '/projects/:projectId/manuscripts/:documentType/submit-review',
+  authorize(ROLES.ADVISER, ROLES.INSTRUCTOR),
+  validate(projectDocumentTypeParamSchema, 'params'),
+  documentController.submitReview,
+);
+
+router.post(
+  '/projects/:projectId/manuscripts/:documentType/sync-comments',
+  authorize(ROLES.ADVISER, ROLES.INSTRUCTOR),
+  validate(projectDocumentTypeParamSchema, 'params'),
+  documentController.syncComments,
 );
 
 router.get(
-  '/projects/:projectId',
+  '/projects/:projectId/manuscripts/:documentType/comments',
   authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
-  validate(projectDocParamSchema, 'params'),
-  validate(listProjectDocsQuerySchema, 'query'),
-  documentController.listProjectDocuments,
-);
-
-router.get(
-  '/projects/:projectId/:docId',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
-  validate(projectDocIdParamSchema, 'params'),
-  documentController.getProjectDocument,
-);
-
-router.delete(
-  '/projects/:projectId/:docId',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.INSTRUCTOR),
-  validate(projectDocIdParamSchema, 'params'),
-  documentController.deleteProjectDocument,
+  validate(projectDocumentTypeParamSchema, 'params'),
+  documentController.getArchivedComments,
 );
 
 export default router;

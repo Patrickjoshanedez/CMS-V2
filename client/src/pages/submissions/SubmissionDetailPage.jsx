@@ -13,7 +13,6 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   useSubmission,
   useViewUrl,
-  useGoogleDocComments,
   useReviewSubmission,
   useUnlockSubmission,
   useAddAnnotation,
@@ -61,32 +60,6 @@ function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-function isPrivateOrLocalHost(hostname) {
-  if (!hostname) return true;
-
-  const normalized = hostname.toLowerCase();
-  if (normalized === 'localhost' || normalized.endsWith('.local')) return true;
-  if (normalized === '127.0.0.1' || normalized === '::1') return true;
-
-  if (/^10\./.test(normalized)) return true;
-  if (/^192\.168\./.test(normalized)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true;
-
-  return false;
-}
-
-function canUseGoogleViewer(rawUrl) {
-  if (!rawUrl) return false;
-
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== 'https:') return false;
-    return !isPrivateOrLocalHost(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
 /* ────────── Sub-components ────────── */
 
 /**
@@ -95,25 +68,7 @@ function canUseGoogleViewer(rawUrl) {
 function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
   const navigate = useNavigate();
   const chapterLabel = CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`;
-  const googleDocUrl =
-    submission.syncedGoogleDocUrl ||
-    (submission.syncedGoogleDocId
-      ? `https://docs.google.com/document/d/${submission.syncedGoogleDocId}/edit`
-      : null);
-  const googleDriveUrl = submission.driveWebViewLink || null;
-
-  const canUseGView = canUseGoogleViewer(viewUrl?.url);
-  const googleDocsViewerUrl = viewUrl?.url
-    ? `https://docs.google.com/gview?url=${encodeURIComponent(viewUrl.url)}&embedded=false`
-    : null;
-  const documentUrl =
-    googleDocUrl || googleDriveUrl || (canUseGView ? googleDocsViewerUrl : viewUrl?.url || null);
-
-  const documentButtonLabel = googleDocUrl
-    ? 'Open in Google Docs'
-    : googleDriveUrl
-      ? 'Open in Google Drive'
-      : 'View Document';
+  const documentUrl = viewUrl?.url || null;
 
   return (
     <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
@@ -183,7 +138,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
             <Button asChild variant="outline" className="sm:w-auto">
               <a href={documentUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="mr-2 h-4 w-4" />
-                {documentButtonLabel}
+                Open / Download Document
               </a>
             </Button>
           )}
@@ -197,17 +152,16 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               View Plagiarism Report
             </Button>
           )}
-          {!googleDocUrl && viewUrlLoading && (
+          {viewUrlLoading && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
             </p>
           )}
         </div>
 
-        {!googleDocUrl && !googleDriveUrl && viewUrl?.url && !canUseGView && (
+        {documentUrl && (
           <p className="text-xs text-muted-foreground">
-            Google preview is unavailable for local/private files. Opened using direct file URL
-            instead.
+            Open or download this file to read attached document comments in your PDF/Docx reader.
           </p>
         )}
       </CardContent>
@@ -368,13 +322,7 @@ function UnlockPanel({ submissionId, currentStatus }) {
 /**
  * AnnotationsPanel — view existing annotations and add new ones (faculty).
  */
-function AnnotationsPanel({
-  submission,
-  isFaculty,
-  userId,
-  googleDocCommentsData,
-  googleDocCommentsLoading,
-}) {
+function AnnotationsPanel({ submission, isFaculty, userId }) {
   const [content, setContent] = useState('');
   const [page, setPage] = useState('1');
   const [lineStart, setLineStart] = useState('');
@@ -428,10 +376,6 @@ function AnnotationsPanel({
   };
 
   const annotations = submission.annotations || [];
-  const googleComments = googleDocCommentsData?.comments || [];
-  const googleCommentsStatus = googleDocCommentsData?.status;
-  const googleCommentsMessage = googleDocCommentsData?.message;
-
   return (
     <Card>
       <CardHeader>
@@ -446,82 +390,11 @@ function AnnotationsPanel({
         <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <MessageSquare className="h-4 w-4 text-primary" />
-            <span>Google Docs Comments</span>
-            {googleCommentsStatus === 'ok' && googleComments.length > 0 && (
-              <Badge variant="secondary">{googleComments.length}</Badge>
-            )}
+            <span>File Comments</span>
           </div>
-
-          {googleDocCommentsLoading && (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Loading Google Docs comments...
-            </p>
-          )}
-
-          {!googleDocCommentsLoading &&
-            googleCommentsStatus === 'ok' &&
-            googleComments.length === 0 && (
-              <p className="text-xs text-muted-foreground">No Google Docs comments found yet.</p>
-            )}
-
-          {!googleDocCommentsLoading && googleCommentsStatus === 'not_linked' && (
-            <p className="text-xs text-muted-foreground">
-              This submission is not yet linked to a synced Google Doc.
-            </p>
-          )}
-
-          {!googleDocCommentsLoading &&
-            (googleCommentsStatus === 'unavailable' || googleCommentsStatus === 'error') && (
-              <p className="text-xs text-muted-foreground">
-                {googleCommentsMessage || 'Google Docs comments are currently unavailable.'}
-              </p>
-            )}
-
-          {!googleDocCommentsLoading &&
-            googleCommentsStatus === 'ok' &&
-            googleComments.length > 0 && (
-              <div className="space-y-2">
-                {googleComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="rounded-md border border-border/60 bg-background/70 p-3"
-                  >
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <User className="h-3 w-3" />
-                      <span className="font-medium text-foreground">
-                        {comment.author?.displayName || 'Unknown'}
-                      </span>
-                      <span>&middot;</span>
-                      <span>{formatDate(comment.createdTime)}</span>
-                    </div>
-                    {comment.quotedText && (
-                      <blockquote className="mt-1 border-l-2 border-primary/40 pl-2 text-xs italic text-muted-foreground">
-                        {comment.quotedText}
-                      </blockquote>
-                    )}
-                    <p className="mt-1 text-sm text-foreground">{comment.content || '—'}</p>
-
-                    {comment.replies?.length > 0 && (
-                      <div className="mt-2 space-y-1 border-l border-border/60 pl-3">
-                        {comment.replies.map((reply) => (
-                          <div key={reply.id} className="rounded-md bg-muted/20 p-2">
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                              <span className="font-medium text-foreground">
-                                {reply.author?.displayName || 'Unknown'}
-                              </span>
-                              <span>&middot;</span>
-                              <span>{formatDate(reply.createdTime)}</span>
-                            </div>
-                            <p className="text-xs text-foreground">{reply.content || '—'}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+          <p className="text-xs text-muted-foreground">
+            Google Docs comments are disabled. Open/download the submission file to read attached comments.
+          </p>
         </div>
 
         {/* Existing annotations */}
@@ -692,19 +565,8 @@ export default function SubmissionDetailPage() {
   const { data: submission, isLoading, error } = useSubmission(submissionId);
 
   const { data: viewUrl, isLoading: viewUrlLoading } = useViewUrl(submissionId, {
-    enabled:
-      !!submission &&
-      !submission.syncedGoogleDocUrl &&
-      !submission.syncedGoogleDocId &&
-      !submission.driveWebViewLink,
+    enabled: !!submission,
   });
-
-  const { data: googleDocCommentsData, isLoading: googleDocCommentsLoading } = useGoogleDocComments(
-    submissionId,
-    {
-      enabled: !!submission,
-    },
-  );
 
   /* ────── Loading ────── */
   if (isLoading) {
@@ -777,8 +639,6 @@ export default function SubmissionDetailPage() {
           submission={submission}
           isFaculty={isFaculty}
           userId={user?._id}
-          googleDocCommentsData={googleDocCommentsData}
-          googleDocCommentsLoading={googleDocCommentsLoading}
         />
       </div>
     </DashboardLayout>

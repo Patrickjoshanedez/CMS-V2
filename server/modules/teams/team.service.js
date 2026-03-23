@@ -36,9 +36,21 @@ const generateInviteCodeValue = () => {
 
 /**
  * TeamService — Business logic for team management.
- * Handles creation, invitations, membership, and lock workflow.
+ * Handles creation, invitations, and membership workflows.
  */
 class TeamService {
+  _isValidGoogleDocUrl(url) {
+    try {
+      const parsedUrl = new URL(url);
+      const host = parsedUrl.hostname.toLowerCase();
+      const isGoogleDocsHost = host === 'docs.google.com';
+      const isGoogleDriveHost = host === 'drive.google.com';
+      return isGoogleDocsHost || isGoogleDriveHost;
+    } catch {
+      return false;
+    }
+  }
+
   async generateUniqueInviteCode() {
     for (let attempts = 0; attempts < 10; attempts += 1) {
       const candidateCode = generateInviteCodeValue();
@@ -173,10 +185,6 @@ class TeamService {
       throw new AppError('Only the team leader can send invitations.', 403, 'FORBIDDEN');
     }
 
-    if (team.isLocked) {
-      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
-    }
-
     if (team.members.length >= MAX_TEAM_MEMBERS) {
       throw new AppError(
         `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,
@@ -259,10 +267,6 @@ class TeamService {
 
     if (team.leaderId.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can search invite candidates.', 403, 'FORBIDDEN');
-    }
-
-    if (team.isLocked) {
-      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
     }
 
     const search = typeof query.search === 'string' ? query.search.trim() : '';
@@ -357,10 +361,6 @@ class TeamService {
       throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
     }
 
-    if (team.isLocked) {
-      throw new AppError('This team is locked and cannot accept new members.', 403, 'TEAM_LOCKED');
-    }
-
     if (team.members.length >= MAX_TEAM_MEMBERS) {
       throw new AppError(
         `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,
@@ -425,49 +425,6 @@ class TeamService {
   }
 
   /**
-   * Lock a team (Instructor or team leader action).
-   * A locked team cannot accept new members or invitations.
-   * @param {string} teamId
-   * @param {Object} requestingUser - req.user
-   * @returns {Object} { team }
-   */
-  async lockTeam(teamId, requestingUser) {
-    const team = await Team.findById(teamId);
-    if (!team) {
-      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
-    }
-
-    // Only the team leader or an instructor can lock
-    const isLeader = team.leaderId.toString() === requestingUser._id.toString();
-    const isInstructor = requestingUser.role === ROLES.INSTRUCTOR;
-
-    if (!isLeader && !isInstructor) {
-      throw new AppError(
-        'Only the team leader or an instructor can lock a team.',
-        403,
-        'FORBIDDEN',
-      );
-    }
-
-    team.isLocked = true;
-    await team.save();
-
-    // Notify all team members of the lock
-    const lockNotifs = await Notification.insertMany(
-      team.members.map((memberId) => ({
-        userId: memberId,
-        type: 'team_locked',
-        title: 'Team Locked',
-        message: `Team "${team.name}" has been locked. No further membership changes are allowed.`,
-        metadata: { teamId: team._id },
-      })),
-    );
-    lockNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
-
-    return { team };
-  }
-
-  /**
    * Assign or clear a member role (leader-only action).
    * @param {string} teamId
    * @param {string} leaderId
@@ -494,17 +451,6 @@ class TeamService {
 
     if (team.leaderId?._id?.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can assign team member roles.', 403, 'FORBIDDEN');
-    }
-
-    const targetMemberExists = (team.members || []).some(
-      (member) => member?._id?.toString() === memberId.toString(),
-    );
-    if (!targetMemberExists) {
-      throw new AppError(
-        'The selected member is not part of this team.',
-        400,
-        'MEMBER_NOT_IN_TEAM',
-      );
     }
 
     if (role && !TEAM_MEMBER_ROLES.includes(role)) {
@@ -547,17 +493,76 @@ class TeamService {
   }
 
   /**
+   * Attach or clear a team-level Google Docs link (leader-only action).
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @param {string} googleDocUrl
+   * @returns {Object} { team }
+   */
+  async updateGoogleDocLink(teamId, leaderId, googleDocUrl) {
+    const team = await Team.findById(teamId)
+      .populate({
+        path: 'leaderId',
+        select: 'firstName middleName lastName email instructorId',
+        populate: {
+          path: 'instructorId',
+          select: 'firstName middleName lastName email profilePicture',
+        },
+      })
+      .populate('members', 'firstName middleName lastName email role')
+      .populate('memberRoles.userId', 'firstName middleName lastName email');
+
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId?._id?.toString() !== leaderId.toString()) {
+      throw new AppError('Only the team leader can update the team document link.', 403, 'FORBIDDEN');
+    }
+
+    const normalizedLink = typeof googleDocUrl === 'string' ? googleDocUrl.trim() : '';
+    if (normalizedLink && !this._isValidGoogleDocUrl(normalizedLink)) {
+      throw new AppError(
+        'Please provide a valid Google Docs or Google Drive link.',
+        400,
+        'INVALID_GOOGLE_DOC_URL',
+      );
+    }
+
+    team.googleDocUrl = normalizedLink;
+    await team.save();
+
+    const currentProject = await Project.findOne({ teamId: team._id })
+      .sort({ createdAt: -1 })
+      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    const teamObject = team.toObject();
+    teamObject.assignment = {
+      instructor: teamObject.leaderId?.instructorId || null,
+      adviser: currentProject?.adviserId || null,
+      panelists: currentProject?.panelistIds || [],
+      capstonePhase: currentProject?.capstonePhase || null,
+      titleStatus: currentProject?.titleStatus || null,
+      projectStatus: currentProject?.projectStatus || null,
+    };
+
+    return { team: teamObject };
+  }
+
+  /**
    * List all teams (Instructor/Adviser only, paginated).
-   * @param {Object} query - { page, limit, academicYear?, search?, isLocked? }
+   * @param {Object} query - { page, limit, academicYear?, sectionId?, search? }
    * @returns {Object} { teams, pagination }
    */
   async listTeams(query) {
-    const { page = 1, limit = 20, academicYear, search, isLocked } = query;
+    const { page = 1, limit = 20, academicYear, sectionId, search } = query;
     const skip = (page - 1) * limit;
 
     const filter = {};
     if (academicYear) filter.academicYear = academicYear;
-    if (isLocked !== undefined) filter.isLocked = isLocked;
+    if (sectionId) filter.sectionId = sectionId;
     if (search) {
       filter.name = { $regex: search, $options: 'i' };
     }

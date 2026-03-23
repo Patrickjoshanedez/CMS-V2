@@ -916,6 +916,175 @@ Compile and upload the full proposal document after Chapters 1–3 are approved 
 
 ---
 
+## Documents
+
+All manuscript-review workspace endpoints are under `/api/documents`. Authentication required.
+
+### `POST /api/documents/projects/:projectId/manuscripts`
+
+Create or update a manuscript record for a project document type using an external document link (link-first workflow).
+
+**Auth:** Bearer token (JWT cookie). Roles: `student`, `instructor`
+
+**Request Body (JSON):**
+| Field               | Type   | Required | Description |
+| ------------------- | ------ | -------- | ----------- |
+| documentType        | string | yes      | One of `chapter_1`, `chapter_2`, `chapter_3`, `chapter_4`, `chapter_5`, `proposal`, `final_academic`, `final_journal` |
+| externalDocUrl      | string | yes      | Fully-qualified URL to external manuscript document |
+| externalDocProvider | string | no       | `google_docs` (default) or `other` |
+| title               | string | no       | Optional custom title (3–300 chars). If omitted, server uses `<project title> - <documentType>` |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Manuscript link submitted successfully.",
+  "data": {
+    "manuscript": {
+      "_id": "...",
+      "projectId": "...",
+      "documentType": "chapter_1",
+      "title": "Chapter 1 Draft",
+      "externalDocUrl": "https://docs.google.com/document/d/.../edit",
+      "externalDocProvider": "google_docs",
+      "reviewStatus": "pending_review",
+      "uploadedBy": "..."
+    }
+  }
+}
+```
+
+**Errors:**
+- 400 — Validation error (invalid projectId, invalid `documentType`, invalid URL)
+- 403 — Role/ownership violation (student not from target project team)
+- 404 — Project not found
+- 409 — Duplicate key conflict from data/index inconsistency
+
+---
+
+### `GET /api/documents/projects/:projectId/manuscripts`
+
+List manuscript records for a project.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "manuscripts": [
+      {
+        "_id": "...",
+        "documentType": "chapter_1",
+        "title": "...",
+        "externalDocUrl": "https://...",
+        "externalDocProvider": "google_docs",
+        "reviewStatus": "pending_review",
+        "openLink": "https://docs.google.com/document/d/.../edit"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `GET /api/documents/projects/:projectId/manuscripts/:documentType/open-link`
+
+Resolve the role-aware open link for the manuscript.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "manuscript": { "_id": "...", "documentType": "chapter_1" },
+    "openLink": "https://docs.google.com/document/d/.../preview",
+    "mode": "preview"
+  }
+}
+```
+
+**Behavior note:**
+- For `panelist`, Google Docs links are normalized to `/preview` mode.
+- For other allowed roles, the original link is returned.
+
+---
+
+### `POST /api/documents/projects/:projectId/manuscripts/:documentType/sync-permissions`
+
+Refresh manuscript permission snapshot metadata (role mapping for students/adviser/panelists).
+
+**Auth:** Bearer token. Roles: `student` (project owner), `adviser` (assigned), `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Manuscript permissions snapshot synchronized successfully.",
+  "data": { "manuscript": { "_id": "..." } }
+}
+```
+
+---
+
+### `POST /api/documents/projects/:projectId/manuscripts/:documentType/submit-review`
+
+Mark manuscript review as submitted.
+
+**Auth:** Bearer token. Roles: `adviser` (assigned), `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Review submitted successfully.",
+  "data": { "manuscript": { "reviewStatus": "review_submitted" } }
+}
+```
+
+---
+
+### `POST /api/documents/projects/:projectId/manuscripts/:documentType/sync-comments`
+
+Refresh archived comment sync metadata.
+
+**Auth:** Bearer token. Roles: `adviser` (assigned), `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Archived comments synchronized successfully.",
+  "data": { "manuscript": { "_id": "..." } }
+}
+```
+
+---
+
+### `GET /api/documents/projects/:projectId/manuscripts/:documentType/comments`
+
+Return archived comments for a manuscript.
+
+**Auth:** Bearer token. Roles: `student`, `adviser`, `panelist`, `instructor`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "manuscriptId": "...",
+    "comments": [],
+    "commentsLastSyncedAt": null
+  }
+}
+```
+
+---
+
 ## Dashboard
 
 All dashboard endpoints are under `/api/dashboard`. Require authentication.

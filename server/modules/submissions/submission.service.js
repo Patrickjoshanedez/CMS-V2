@@ -22,7 +22,7 @@ import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import storageService from '../../services/storage.service.js';
-import googleDocsService from '../../services/google-docs.service.js';
+import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
 import env from '../../config/env.js';
 import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
@@ -94,6 +94,30 @@ class SubmissionService {
     return { isLate };
   }
 
+  /**
+   * Extract concise diagnostic data from Google sync errors so UI and logs can
+   * show actionable reasons (for example invalid_grant, quota limits).
+   *
+   * @param {unknown} error
+   * @returns {{ code: string|null, message: string|null }}
+   */
+  _extractGoogleSyncError(error) {
+    const rawCode = error?.code;
+    const appCode = error?.code && typeof error?.code === 'string' ? error.code : null;
+    const responseCode = error?.response?.data?.error;
+
+    const code =
+      appCode ||
+      (typeof responseCode === 'string' ? responseCode : null) ||
+      (typeof rawCode === 'number' ? String(rawCode) : null);
+
+    const message =
+      typeof error?.message === 'string' && error.message.trim().length > 0
+        ? error.message.trim().slice(0, 500)
+        : null;
+
+    return { code, message };
+  }
   /**
    * Enqueue a plagiarism check via BullMQ. Falls back to synchronous execution
    * when Redis is unavailable (dev/test environments).
@@ -230,59 +254,34 @@ class SubmissionService {
    * @returns {Promise<{ driveFileId: string|null, driveWebViewLink: string|null, driveWebContentLink: string|null }>}
    */
   async _mirrorFinalToDrive({ buffer, fileName, mimeType, projectId, version, type }) {
-    const fallback = {
+    // Google Drive mirror intentionally disabled.
+    // Keep backward-compatible payload shape for existing consumers.
+    return {
       driveFileId: null,
       driveWebViewLink: null,
       driveWebContentLink: null,
     };
-
-    if (!googleDocsService.isConfigured()) {
-      return fallback;
-    }
-
-    try {
-      const uploaded = await googleDocsService.uploadFileToDrive(
-        buffer,
-        fileName,
-        mimeType,
-        env.GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID || null,
-        {
-          description: `CMS ${type} submission for project ${projectId} (v${version})`,
-          appProperties: {
-            projectId: String(projectId),
-            submissionType: type,
-            version: String(version),
-          },
-        },
-      );
-
-      if (type === 'final_journal') {
-        await googleDocsService.setViewPermission(uploaded.fileId);
-      }
-
-      return {
-        driveFileId: uploaded.fileId,
-        driveWebViewLink: uploaded.webViewLink || null,
-        driveWebContentLink: uploaded.webContentLink || null,
-      };
-    } catch (error) {
-      console.warn(`[SubmissionService] Drive mirror failed for ${type}: ${error.message}`);
-      return fallback;
-    }
   }
 
   /**
-   * Store submissions in a user-scoped Drive folder and import a Google
-   * Doc copy when source format is importable.
+   * Store submissions in Google Drive and create an editable Google Doc.
+   *
+   * Workflow:
+   * 1. Clone master template → creates per-student copy of Google Doc
+   * 2. Set "Anyone Can Edit" permission → students can access via link
+   * 3. Return doc URL for embedding in UI
+   *
+   * On error, gracefully degrades: returns nulls for Google sync fields
+   * but does NOT fail the upload. Audit logs all sync attempts.
    *
    * @param {Object} params
-   * @param {Object} params.user
-   * @param {Buffer} params.buffer
-   * @param {string} params.fileName
-   * @param {string} params.mimeType
-   * @param {string} params.projectId
-   * @param {number} params.version
-   * @param {'chapter'|'proposal'|'final_academic'|'final_journal'} params.type
+   * @param {Object} params.user - User performing upload
+   * @param {Buffer} params.buffer - File content (unused for Google Docs, kept for compatibility)
+   * @param {string} params.fileName - Name for cloned doc
+   * @param {string} params.mimeType - Original file MIME type
+   * @param {string} params.projectId - Project reference for audit
+   * @param {number} params.version - Version number
+   * @param {'chapter'|'proposal'|'final_academic'|'final_journal'} params.type - Submission type
    * @returns {Promise<{
    * userDriveFolderId: string|null,
    * driveFileId: string|null,
@@ -291,108 +290,52 @@ class SubmissionService {
    * syncedGoogleDocId: string|null,
    * syncedGoogleDocUrl: string|null,
    * googleDocSyncStatus: 'not_requested'|'synced'|'not_supported'|'failed',
+   * googleDocSyncErrorCode: string|null,
+   * googleDocSyncErrorMessage: string|null,
    * googleDocSyncedAt: Date|null
    * }>}
    */
   async _syncSubmissionToUserDriveAndGoogleDoc({
     user,
-    buffer,
     fileName,
-    mimeType,
     projectId,
     version,
     type,
   }) {
-    const fallback = {
+    // Default response — used if sync disabled, type unsupported, or service unavailable
+    const nullResponse = {
       userDriveFolderId: null,
       driveFileId: null,
       driveWebViewLink: null,
       driveWebContentLink: null,
       syncedGoogleDocId: null,
       syncedGoogleDocUrl: null,
-      googleDocSyncStatus: 'failed',
+      googleDocSyncStatus: 'not_requested',
+      googleDocSyncErrorCode: null,
+      googleDocSyncErrorMessage: null,
       googleDocSyncedAt: null,
     };
 
-    if (!googleDocsService.isConfigured()) {
-      return {
-        ...fallback,
-        googleDocSyncStatus: 'not_requested',
-      };
-    }
-
-    const importableToGoogleDoc = new Set([
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
-    ]);
-
-    try {
-      const userDriveFolderId = await googleDocsService.ensureUserDriveFolder({
-        userId: user._id.toString(),
-      });
-
-      const uploadedOriginal = await googleDocsService.uploadFileToDrive(
-        buffer,
+    await auditService.log({
+      action: 'submission.google_docs_sync_skipped',
+      actor: user._id,
+      actorRole: user.role,
+      targetType: 'Submission',
+      targetId: null,
+      description: `Skipped Google Docs sync for ${type} submission (v${version}).`,
+      metadata: {
+        projectId,
+        version,
+        type,
         fileName,
-        mimeType,
-        userDriveFolderId,
-        {
-          description: `CMS ${type} submission for project ${projectId} (v${version})`,
-          appProperties: {
-            projectId: String(projectId),
-            submissionType: type,
-            version: String(version),
-            submittedBy: user._id.toString(),
-          },
-        },
-      );
+        reason: 'google_integration_de_scoped',
+      },
+    });
 
-      if (type === 'final_journal') {
-        await googleDocsService.setViewPermission(uploadedOriginal.fileId);
-      }
-
-      let syncedGoogleDocId = null;
-      let syncedGoogleDocUrl = null;
-      let googleDocSyncStatus = 'not_supported';
-      let googleDocSyncedAt = null;
-
-      if (importableToGoogleDoc.has(mimeType)) {
-        const titleWithoutExtension = fileName.replace(/\.[^.]+$/, '');
-        const docTitle = `${titleWithoutExtension} (Google Doc Sync)`;
-
-        const importedDoc = await googleDocsService.uploadAndConvertToGoogleDoc({
-          fileBuffer: buffer,
-          sourceMimeType: mimeType,
-          docTitle,
-          folderId: userDriveFolderId,
-        });
-
-        if (type === 'final_journal') {
-          await googleDocsService.setViewPermission(importedDoc.docId);
-        }
-
-        syncedGoogleDocId = importedDoc.docId;
-        syncedGoogleDocUrl = importedDoc.docUrl;
-        googleDocSyncStatus = 'synced';
-        googleDocSyncedAt = new Date();
-      }
-
-      return {
-        userDriveFolderId,
-        driveFileId: uploadedOriginal.fileId,
-        driveWebViewLink: uploadedOriginal.webViewLink || null,
-        driveWebContentLink: uploadedOriginal.webContentLink || null,
-        syncedGoogleDocId,
-        syncedGoogleDocUrl,
-        googleDocSyncStatus,
-        googleDocSyncedAt,
-      };
-    } catch (error) {
-      console.warn(
-        `[SubmissionService] User Drive + Google Doc sync failed for ${type}: ${error.message}`,
-      );
-      return fallback;
-    }
+    return {
+      ...nullResponse,
+      googleDocSyncStatus: 'not_supported',
+    };
   }
 
   /**
@@ -595,6 +538,8 @@ class SubmissionService {
       syncedGoogleDocId: driveSync.syncedGoogleDocId,
       syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
       googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
+      googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
@@ -743,6 +688,8 @@ class SubmissionService {
       syncedGoogleDocId: driveSync.syncedGoogleDocId,
       syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
       googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
+      googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
@@ -885,6 +832,8 @@ class SubmissionService {
       syncedGoogleDocId: driveSync.syncedGoogleDocId,
       syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
       googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
+      googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
@@ -1088,14 +1037,33 @@ class SubmissionService {
 
     const expiresIn = 300; // 5 minutes
 
+    const fallbackUrl = submission.driveWebViewLink || submission.syncedGoogleDocUrl || null;
+
+    if (!submission.storageKey) {
+      if (fallbackUrl) {
+        return { url: fallbackUrl, expiresIn, source: 'google_drive' };
+      }
+
+      throw new AppError(
+        'Submission file is unavailable. Please ask the student to upload a new revision.',
+        404,
+        'SUBMISSION_FILE_UNAVAILABLE',
+      );
+    }
+
     try {
       const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
       return { url, expiresIn, source: 's3' };
-    } catch (error) {
-      if (submission.driveWebViewLink) {
-        return { url: submission.driveWebViewLink, expiresIn: null, source: 'drive' };
+    } catch (_error) {
+      if (fallbackUrl) {
+        return { url: fallbackUrl, expiresIn, source: 'google_drive' };
       }
-      throw error;
+
+      throw new AppError(
+        'Submission file is unavailable. Please ask the student to upload a new revision.',
+        404,
+        'SUBMISSION_FILE_UNAVAILABLE',
+      );
     }
   }
 
@@ -1132,72 +1100,13 @@ class SubmissionService {
 
     this._assertCanViewSubmission(user, project);
 
-    if (!googleDocsService.isConfigured()) {
-      return {
-        status: 'unavailable',
-        docId: null,
-        comments: [],
-        message: 'Google Docs integration is not configured.',
-      };
-    }
-
-    const docId = submission.syncedGoogleDocId || null;
-    if (!docId) {
-      return {
-        status: 'not_linked',
-        docId: null,
-        comments: [],
-        message: 'No synced Google Doc found for this submission.',
-      };
-    }
-
-    try {
-      const { comments } = await googleDocsService.listDocumentComments(docId, { pageSize: 100 });
-
-      const normalizedComments = comments
-        .filter((comment) => !comment.deleted)
-        .map((comment) => ({
-          id: comment.id,
-          content: comment.content || '',
-          anchor: comment.anchor || null,
-          quotedText: comment.quotedFileContent?.value || null,
-          resolved: !!comment.resolved,
-          createdTime: comment.createdTime || null,
-          modifiedTime: comment.modifiedTime || null,
-          author: {
-            displayName: comment.author?.displayName || 'Unknown',
-            email: comment.author?.emailAddress || null,
-            photoLink: comment.author?.photoLink || null,
-          },
-          replies: (comment.replies || [])
-            .filter((reply) => !reply.deleted)
-            .map((reply) => ({
-              id: reply.id,
-              content: reply.content || '',
-              createdTime: reply.createdTime || null,
-              modifiedTime: reply.modifiedTime || null,
-              author: {
-                displayName: reply.author?.displayName || 'Unknown',
-                email: reply.author?.emailAddress || null,
-                photoLink: reply.author?.photoLink || null,
-              },
-            })),
-        }));
-
-      return {
-        status: 'ok',
-        docId,
-        comments: normalizedComments,
-      };
-    } catch (error) {
-      logger.error('[SubmissionService] Failed to fetch Google Docs comments:', error.message);
-      return {
-        status: 'error',
-        docId,
-        comments: [],
-        message: 'Failed to load Google Docs comments.',
-      };
-    }
+    return {
+      status: 'unavailable',
+      docId: null,
+      comments: [],
+      message:
+        'Google Docs comments are disabled. Download the document and read comments directly in your document reader/editor.',
+    };
   }
 
   /* ═══════════════════ Plagiarism ═══════════════════ */

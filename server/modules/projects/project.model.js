@@ -174,6 +174,15 @@ const projectSchema = new mongoose.Schema(
       minlength: [10, 'Project title must be at least 10 characters'],
       maxlength: [300, 'Project title must not exceed 300 characters'],
     },
+    titleProposals: {
+      type: [String],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length >= 5 && arr.length <= 10,
+        message: 'A project must include between 5 and 10 title proposals',
+      },
+      required: [true, 'Title proposals are required'],
+      default: [],
+    },
     abstract: {
       type: String,
       trim: true,

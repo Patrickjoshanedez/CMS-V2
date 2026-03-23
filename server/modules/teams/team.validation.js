@@ -36,11 +36,8 @@ export const listTeamsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY')
     .optional(),
+  sectionId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId').optional(),
   search: z.string().trim().max(100).optional(),
-  isLocked: z
-    .string()
-    .transform((val) => val === 'true')
-    .optional(),
 });
 
 const TEAM_MEMBER_ROLES = [
@@ -57,6 +54,15 @@ const TEAM_MEMBER_ROLES = [
 export const assignMemberRoleSchema = z.object({
   role: z
     .union([z.enum(TEAM_MEMBER_ROLES), z.literal('')])
+    .optional()
+    .default(''),
+});
+
+export const updateTeamGoogleDocLinkSchema = z.object({
+  googleDocUrl: z
+    .string()
+    .trim()
+    .max(2000, 'Google Docs URL is too long')
     .optional()
     .default(''),
 });

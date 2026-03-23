@@ -27,7 +27,7 @@ import Team from '../modules/teams/team.model.js';
 import TeamInvite from '../modules/teams/teamInvite.model.js';
 import Project from '../modules/projects/project.model.js';
 import Submission from '../modules/submissions/submission.model.js';
-import { DocTemplate, ProjectDocument } from '../modules/documents/document.model.js';
+import Manuscript from '../modules/documents/document.model.js';
 import Evaluation from '../modules/evaluations/evaluation.model.js';
 import Notification from '../modules/notifications/notification.model.js';
 import Plagiarism from '../modules/plagiarism/plagiarism.model.js';
@@ -777,8 +777,7 @@ async function seed() {
   const toClear = [
     { model: Evaluation, name: 'Evaluations' },
     { model: Submission, name: 'Submissions' },
-    { model: ProjectDocument, name: 'ProjectDocuments' },
-    { model: DocTemplate, name: 'DocTemplates' },
+    { model: Manuscript, name: 'Manuscripts' },
     { model: Plagiarism, name: 'PlagiarismResults' },
     { model: Notification, name: 'Notifications' },
     { model: AuditLog, name: 'AuditLogs' },

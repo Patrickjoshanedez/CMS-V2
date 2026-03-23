@@ -1,33 +1,30 @@
 import api from './api';
 
 /**
- * Document API service — Google Docs template & project document calls.
+ * Document API service — manuscript workflow calls.
  */
 
 export const documentService = {
-  /* ── Templates (Instructor) ── */
+  /* ── Manuscripts ── */
 
-  createTemplate: (data) => api.post('/documents/templates', data),
+  uploadManuscript: (projectId, payload) =>
+    api.post(`/documents/projects/${projectId}/manuscripts`, payload),
 
-  listTemplates: (params) => api.get('/documents/templates', { params }),
+  listProjectManuscripts: (projectId) =>
+    api.get(`/documents/projects/${projectId}/manuscripts`),
 
-  getTemplate: (id) => api.get(`/documents/templates/${id}`),
+  getOpenLink: (projectId, documentType) =>
+    api.get(`/documents/projects/${projectId}/manuscripts/${documentType}/open-link`),
 
-  updateTemplate: (id, data) => api.patch(`/documents/templates/${id}`, data),
+  syncPermissions: (projectId, documentType) =>
+    api.post(`/documents/projects/${projectId}/manuscripts/${documentType}/sync-permissions`),
 
-  deleteTemplate: (id) => api.delete(`/documents/templates/${id}`),
+  submitReview: (projectId, documentType) =>
+    api.post(`/documents/projects/${projectId}/manuscripts/${documentType}/submit-review`),
 
-  /* ── Project Documents ── */
+  syncComments: (projectId, documentType) =>
+    api.post(`/documents/projects/${projectId}/manuscripts/${documentType}/sync-comments`),
 
-  generateDocument: (projectId, data) =>
-    api.post(`/documents/projects/${projectId}/generate`, data),
-
-  listProjectDocuments: (projectId, params) =>
-    api.get(`/documents/projects/${projectId}`, { params }),
-
-  getProjectDocument: (projectId, docId) =>
-    api.get(`/documents/projects/${projectId}/${docId}`),
-
-  deleteProjectDocument: (projectId, docId) =>
-    api.delete(`/documents/projects/${projectId}/${docId}`),
+  getArchivedComments: (projectId, documentType) =>
+    api.get(`/documents/projects/${projectId}/manuscripts/${documentType}/comments`),
 };

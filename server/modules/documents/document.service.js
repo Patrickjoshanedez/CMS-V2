@@ -1,410 +1,300 @@
-import { DocTemplate, ProjectDocument } from './document.model.js';
+import Manuscript from './document.model.js';
 import Project from '../projects/project.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
-import googleDocsService from '../../services/google-docs.service.js';
 import AppError from '../../utils/AppError.js';
 import { ROLES } from '@cms/shared';
 
-/**
- * DocumentService — Business logic for Google Docs template management
- * and per-project document generation / retrieval.
- */
 class DocumentService {
-  /* ═══════════════════ Templates (Instructor) ═══════════════════ */
+  async uploadManuscript(userId, projectId, payload) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
 
-  /**
-   * Register an existing Google Doc as a CMS template.
-   * Verifies the doc is accessible by the service account before saving.
-   */
-  async createTemplate(userId, data) {
-    if (!googleDocsService.isConfigured()) {
-      throw new AppError(
-        'Google Docs integration is not configured. Please contact the administrator.',
-        503,
-        'GOOGLE_DOCS_NOT_CONFIGURED',
-      );
-    }
+    this._assertCanUpload(user, project);
 
-    // Verify the doc actually exists and is a Google Doc
-    await googleDocsService.verifyDocumentAccess(data.googleDocId);
+    const title = payload.title || `${project.title} - ${payload.documentType}`;
+    const permissionSnapshot = await this._syncPermissionsInternal(project);
 
-    // Get the doc metadata (URL, etc.)
-    const metadata = await googleDocsService.getDocumentMetadata(data.googleDocId);
+    const fallbackDriveFileId = `external:${projectId}:${payload.documentType}`;
 
-    const template = await DocTemplate.create({
-      title: data.title,
-      description: data.description || '',
-      googleDocId: data.googleDocId,
-      googleDocUrl:
-        metadata.webViewLink || `https://docs.google.com/document/d/${data.googleDocId}/edit`,
-      documentType: data.documentType,
-      createdBy: userId,
-    });
-
-    return { template };
-  }
-
-  /**
-   * List all templates, optionally filtered by type and active status.
-   */
-  async listTemplates(query) {
-    const filter = {};
-    if (query.documentType) filter.documentType = query.documentType;
-    if (query.isActive !== undefined) filter.isActive = query.isActive;
-
-    const templates = await DocTemplate.find(filter)
-      .sort({ documentType: 1, createdAt: -1 })
-      .populate('createdBy', 'firstName middleName lastName email');
-
-    return { templates };
-  }
-
-  /**
-   * Get a single template by ID.
-   */
-  async getTemplate(templateId) {
-    const template = await DocTemplate.findById(templateId).populate(
-      'createdBy',
-      'firstName middleName lastName email',
+    const manuscript = await Manuscript.findOneAndUpdate(
+      { projectId, documentType: payload.documentType },
+      {
+        $set: {
+          projectId,
+          documentType: payload.documentType,
+          title,
+          originalFileName: '',
+          mimeType: 'text/uri-list',
+          externalDocUrl: payload.externalDocUrl,
+          externalDocProvider: payload.externalDocProvider || 'google_docs',
+          // Keep a deterministic placeholder so environments with legacy unique indexes on driveFileId don't fail on null.
+          driveFileId: fallbackDriveFileId,
+          driveWebViewLink: null,
+          driveEditLink: null,
+          uploadedBy: user._id,
+          reviewStatus: 'pending_review',
+          reviewSubmittedBy: null,
+          reviewSubmittedAt: null,
+          commentsLastSyncedAt: null,
+          commentsSyncCursor: null,
+          archivedComments: [],
+          permissionSnapshot,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     );
-    if (!template) {
-      throw new AppError('Template not found.', 404, 'TEMPLATE_NOT_FOUND');
-    }
-    return { template };
+
+    return { manuscript };
   }
 
-  /**
-   * Update template metadata (title, description, isActive).
-   */
-  async updateTemplate(templateId, data) {
-    const template = await DocTemplate.findById(templateId);
-    if (!template) {
-      throw new AppError('Template not found.', 404, 'TEMPLATE_NOT_FOUND');
-    }
+  async listProjectManuscripts(userId, projectId) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanView(user, project);
 
-    if (data.title !== undefined) template.title = data.title;
-    if (data.description !== undefined) template.description = data.description;
-    if (data.isActive !== undefined) template.isActive = data.isActive;
+    const manuscripts = await Manuscript.find({ projectId })
+      .sort({ createdAt: -1 })
+      .populate('uploadedBy', 'firstName middleName lastName email')
+      .lean();
 
-    await template.save();
-    return { template };
+    return {
+      manuscripts: manuscripts.map((manuscript) => ({
+        ...manuscript,
+        openLink: this._resolveOpenLink(user, manuscript),
+      })),
+    };
   }
 
-  /**
-   * Delete a template (hard delete). Only if no project documents reference it.
-   */
-  async deleteTemplate(templateId) {
-    const template = await DocTemplate.findById(templateId);
-    if (!template) {
-      throw new AppError('Template not found.', 404, 'TEMPLATE_NOT_FOUND');
-    }
+  async getOpenLink(userId, projectId, documentType) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanView(user, project);
 
-    const refCount = await ProjectDocument.countDocuments({ templateId });
-    if (refCount > 0) {
-      throw new AppError(
-        `Cannot delete this template — it is referenced by ${refCount} project document(s). Deactivate it instead.`,
-        409,
-        'TEMPLATE_IN_USE',
-      );
-    }
+    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
+    const openLink = this._resolveOpenLink(user, manuscript);
 
-    await template.deleteOne();
-    return { message: 'Template deleted.' };
+    return {
+      manuscript,
+      openLink,
+      mode: openLink.includes('/preview') ? 'preview' : 'edit',
+    };
   }
 
-  /* ═══════════════════ Project Documents ═══════════════════ */
+  async syncPermissions(userId, projectId, documentType) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanManagePermissions(user, project);
 
-  /**
-   * Generate a new Google Doc for a project.
-   * If templateId is supplied, the doc is copied from the template; otherwise a blank doc is created.
-   * Only team members, adviser, or the instructor can generate.
-   */
-  async generateDocument(userId, projectId, data) {
-    if (!googleDocsService.isConfigured()) {
-      throw new AppError(
-        'Google Docs integration is not configured. Please contact the administrator.',
-        503,
-        'GOOGLE_DOCS_NOT_CONFIGURED',
-      );
-    }
+    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
+    const permissionSnapshot = await this._syncPermissionsInternal(project);
 
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    manuscript.permissionSnapshot = permissionSnapshot;
+    await manuscript.save();
 
-    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
-
-    // Adviser Gate: Restrict document generation based on project status and adviser assignment
-    if (!project.adviserId) {
-      throw new AppError(
-        'Documents cannot be generated: No adviser is assigned to this project.',
-        403,
-        'NO_ADVISER_ASSIGNED',
-      );
-    }
-    if (project.titleStatus !== 'approved') {
-      throw new AppError(
-        'Documents cannot be generated: The project title must be approved first.',
-        403,
-        'TITLE_NOT_APPROVED',
-      );
-    }
-
-    // Authorization: must be a team member, adviser, or instructor
-    this._assertCanManageDocs(user, project);
-
-    // Check if a document already exists for this type on this project
-    const existing = await ProjectDocument.findOne({ projectId, documentType: data.documentType });
-    if (existing) {
-      throw new AppError(
-        `A ${data.documentType} document already exists for this project.`,
-        409,
-        'DOCUMENT_EXISTS',
-      );
-    }
-
-    let doc;
-    const docTitle = data.title || `${project.title} — ${data.documentType}`;
-
-    if (data.templateId) {
-      const template = await DocTemplate.findById(data.templateId);
-      if (!template) {
-        throw new AppError('Template not found.', 404, 'TEMPLATE_NOT_FOUND');
-      }
-      if (!template.isActive) {
-        throw new AppError('This template is deactivated.', 400, 'TEMPLATE_INACTIVE');
-      }
-      doc = await googleDocsService.createFromTemplate(
-        template.googleDocId,
-        docTitle,
-        project.driveFolderId,
-      );
-    } else {
-      doc = await googleDocsService.createBlankDocument(docTitle, project.driveFolderId);
-    }
-
-    const projectDocument = await ProjectDocument.create({
-      projectId,
-      templateId: data.templateId || null,
-      title: docTitle,
-      googleDocId: doc.docId,
-      googleDocUrl: doc.docUrl,
-      documentType: data.documentType,
-      createdBy: userId,
-    });
-
-    return { document: projectDocument };
+    return { manuscript };
   }
 
-  /**
-   * List all documents belonging to a project, optionally filtered by type.
-   * Returns different embed URLs based on the requesting user's role.
-   */
-  async listProjectDocuments(userId, projectId, query) {
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  async submitReview(userId, projectId, documentType) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanSubmitReview(user, project);
 
-    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
+    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
 
-    // Authorization: must be a team member, adviser, panelist, or instructor
-    this._assertCanViewDocs(user, project);
+    manuscript.reviewStatus = 'review_submitted';
+    manuscript.reviewSubmittedBy = user._id;
+    manuscript.reviewSubmittedAt = new Date();
+    manuscript.commentsLastSyncedAt = new Date();
+    manuscript.commentsSyncCursor = null;
+    await manuscript.save();
 
-    const filter = { projectId };
-    if (query.documentType) filter.documentType = query.documentType;
-
-    const documents = await ProjectDocument.find(filter)
-      .sort({ documentType: 1, createdAt: -1 })
-      .populate('createdBy', 'firstName middleName lastName email')
-      .populate('templateId', 'title');
-
-    // Decorate each document with the appropriate embed URL
-    const canEdit = this._canEditDocs(user, project);
-    const decoratedDocs = documents.map((d) => {
-      const obj = d.toObject();
-      obj.embedUrl = canEdit
-        ? `https://docs.google.com/document/d/${d.googleDocId}/edit`
-        : `https://docs.google.com/document/d/${d.googleDocId}/preview`;
-      return obj;
-    });
-
-    return { documents: decoratedDocs };
+    return { manuscript };
   }
 
-  /**
-   * Get a single project document with role-based embed URL.
-   */
-  async getProjectDocument(userId, projectId, docId) {
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  async syncComments(userId, projectId, documentType) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanSubmitReview(user, project);
 
-    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
+    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
+    manuscript.commentsLastSyncedAt = new Date();
+    await manuscript.save();
 
-    this._assertCanViewDocs(user, project);
-
-    const document = await ProjectDocument.findOne({ _id: docId, projectId })
-      .populate('createdBy', 'firstName middleName lastName email')
-      .populate('templateId', 'title');
-    if (!document) {
-      throw new AppError('Document not found.', 404, 'DOCUMENT_NOT_FOUND');
-    }
-
-    const canEdit = this._canEditDocs(user, project);
-    const obj = document.toObject();
-    obj.embedUrl = canEdit
-      ? `https://docs.google.com/document/d/${document.googleDocId}/edit`
-      : `https://docs.google.com/document/d/${document.googleDocId}/preview`;
-
-    return { document: obj };
+    return { manuscript };
   }
 
-  /**
-   * Delete a project document and trash the Google Doc.
-   * Only team leader, adviser, or instructor can delete.
-   */
-  async deleteProjectDocument(userId, projectId, docId) {
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  async getArchivedComments(userId, projectId, documentType) {
+    const user = await this._getUserOrFail(userId);
+    const project = await this._getProjectOrFail(projectId);
+    this._assertCanView(user, project);
 
-    const project = await Project.findById(projectId).populate('teamId', 'name leaderId members');
-    if (!project) {
-      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
-    }
+    const manuscript = await this._getManuscriptOrFail(projectId, documentType);
 
-    this._assertCanManageDocs(user, project);
-
-    const document = await ProjectDocument.findOne({ _id: docId, projectId });
-    if (!document) {
-      throw new AppError('Document not found.', 404, 'DOCUMENT_NOT_FOUND');
-    }
-
-    // Trash the Google Doc (non-critical; log but don't block deletion)
-    try {
-      await googleDocsService.trashDocument(document.googleDocId);
-    } catch (err) {
-      console.warn(
-        `[DocumentService] Failed to trash Google Doc ${document.googleDocId}:`,
-        err.message,
-      );
-    }
-
-    await document.deleteOne();
-    return { message: 'Document deleted.' };
+    return {
+      manuscriptId: manuscript._id,
+      comments: manuscript.archivedComments,
+      commentsLastSyncedAt: manuscript.commentsLastSyncedAt,
+    };
   }
 
-  /* ═══════════════════ Authorization helpers ═══════════════════ */
+  async _syncPermissionsInternal(project) {
+    const users = await this._loadProjectUsers(project);
 
-  /**
-   * Assert the user can manage (create/delete) documents for the project.
-   * Allowed: team members, adviser, instructor.
-   */
-  _assertCanManageDocs(user, project) {
-    const userId = user._id.toString();
+    const studentPermissions = users.students
+      .filter((user) => !!user.email)
+      .map((student) => ({ userId: student._id, email: student.email.toLowerCase(), role: 'writer' }));
 
-    // Instructor has global access
-    if (user.role === ROLES.INSTRUCTOR) return;
+    const adviserPermissions = users.adviser?.email
+      ? [{ userId: users.adviser._id, email: users.adviser.email.toLowerCase(), role: 'commenter' }]
+      : [];
 
-    // Adviser assigned to this project
-    if (
-      user.role === ROLES.ADVISER &&
-      project.adviserId &&
-      project.adviserId.toString() === userId
-    ) {
+    const panelistPermissions = users.panelists
+      .filter((panelist) => !!panelist.email)
+      .map((panelist) => ({ userId: panelist._id, email: panelist.email.toLowerCase(), role: 'reader' }));
+
+    const grantedAt = new Date();
+
+    return {
+      students: studentPermissions.map((entry) => ({ ...entry, grantedAt })),
+      adviser: adviserPermissions.map((entry) => ({ ...entry, grantedAt })),
+      panelists: panelistPermissions.map((entry) => ({ ...entry, grantedAt })),
+      lastSyncedAt: grantedAt,
+    };
+  }
+
+  async _loadProjectUsers(project) {
+    const team = await Team.findById(project.teamId).select('members');
+    if (!team) {
+      throw new AppError('Project team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    const [students, adviser, panelists] = await Promise.all([
+      User.find({ _id: { $in: team.members } }).select('email firstName middleName lastName'),
+      project.adviserId
+        ? User.findById(project.adviserId).select('email firstName middleName lastName')
+        : null,
+      project.panelistIds?.length
+        ? User.find({ _id: { $in: project.panelistIds } }).select('email firstName middleName lastName')
+        : [],
+    ]);
+
+    return { students, adviser, panelists };
+  }
+
+  _resolveOpenLink(user, manuscript) {
+    const link = manuscript.externalDocUrl || manuscript.driveEditLink || manuscript.driveWebViewLink;
+    if (!link) {
+      return null;
+    }
+
+    if (user.role === ROLES.PANELIST) {
+      return this._toGooglePreviewUrl(link);
+    }
+
+    return link;
+  }
+
+  _toGooglePreviewUrl(url) {
+    if (!url) return null;
+
+    if (url.includes('docs.google.com/document/d/')) {
+      return url
+        .replace('/edit?embedded=true', '/preview')
+        .replace('/edit', '/preview');
+    }
+
+    return url;
+  }
+
+  _assertCanUpload(user, project) {
+    if (user.role === ROLES.INSTRUCTOR) {
       return;
     }
 
-    // Team member
-    if (
-      user.role === ROLES.STUDENT &&
-      project.teamId &&
-      project.teamId.members?.map((m) => m.toString()).includes(userId)
-    ) {
-      return;
+    if (user.role !== ROLES.STUDENT) {
+      throw new AppError('Only students can upload manuscripts.', 403, 'FORBIDDEN');
     }
 
-    throw new AppError(
-      'You do not have permission to manage documents for this project.',
-      403,
-      'FORBIDDEN',
+    if (!user.teamId || String(user.teamId) !== String(project.teamId)) {
+      throw new AppError('You can only upload manuscripts for your own project.', 403, 'FORBIDDEN');
+    }
+  }
+
+  _assertCanView(user, project) {
+    const teamIdMatches = user.teamId && String(user.teamId) === String(project.teamId);
+    const isAssignedAdviser = project.adviserId && String(project.adviserId) === String(user._id);
+    const isAssignedPanelist = (project.panelistIds || []).some(
+      (panelistId) => String(panelistId) === String(user._id),
     );
-  }
 
-  /**
-   * Assert the user can view documents for the project.
-   * Allowed: team members, adviser, panelists, instructor.
-   */
-  _assertCanViewDocs(user, project) {
-    const userId = user._id.toString();
-
-    if (user.role === ROLES.INSTRUCTOR) return;
-
-    if (
-      user.role === ROLES.ADVISER &&
-      project.adviserId &&
-      project.adviserId.toString() === userId
-    ) {
+    if (user.role === ROLES.INSTRUCTOR || teamIdMatches || isAssignedAdviser || isAssignedPanelist) {
       return;
     }
 
-    if (
-      user.role === ROLES.PANELIST &&
-      project.panelistIds?.map((p) => p.toString()).includes(userId)
-    ) {
+    throw new AppError('You are not allowed to access this manuscript.', 403, 'FORBIDDEN');
+  }
+
+  _assertCanManagePermissions(user, project) {
+    if (user.role === ROLES.INSTRUCTOR) {
       return;
     }
 
-    if (
-      user.role === ROLES.STUDENT &&
-      project.teamId &&
-      project.teamId.members?.map((m) => m.toString()).includes(userId)
-    ) {
+    const isAssignedAdviser = project.adviserId && String(project.adviserId) === String(user._id);
+    const isStudentOwner = user.role === ROLES.STUDENT && String(user.teamId || '') === String(project.teamId);
+
+    if (isAssignedAdviser || isStudentOwner) {
       return;
     }
 
-    throw new AppError(
-      'You do not have permission to view documents for this project.',
-      403,
-      'FORBIDDEN',
-    );
+    throw new AppError('You are not allowed to manage manuscript permissions.', 403, 'FORBIDDEN');
   }
 
-  /**
-   * Determine if the user can edit (vs. view-only) the Google Doc.
-   * Editors: students (team members), adviser, instructor.
-   * View-only: panelists.
-   */
-  _canEditDocs(user, project) {
-    const userId = user._id.toString();
-
-    if (user.role === ROLES.INSTRUCTOR) return true;
-
-    if (
-      user.role === ROLES.ADVISER &&
-      project.adviserId &&
-      project.adviserId.toString() === userId
-    ) {
-      return true;
+  _assertCanSubmitReview(user, project) {
+    if (user.role === ROLES.INSTRUCTOR) {
+      return;
     }
 
-    if (
-      user.role === ROLES.STUDENT &&
-      project.teamId &&
-      project.teamId.members?.map((m) => m.toString()).includes(userId)
-    ) {
-      return true;
+    const isAssignedAdviser = project.adviserId && String(project.adviserId) === String(user._id);
+    if (isAssignedAdviser) {
+      return;
     }
 
-    // Panelist → view-only
-    return false;
+    throw new AppError('Only the assigned adviser or an instructor can submit reviews.', 403, 'FORBIDDEN');
   }
+
+  async _getUserOrFail(userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    return user;
+  }
+
+  async _getProjectOrFail(projectId) {
+    const project = await Project.findById(projectId).select('title teamId adviserId panelistIds');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    return project;
+  }
+
+  async _getManuscriptOrFail(projectId, documentType) {
+    const manuscript = await Manuscript.findOne({ projectId, documentType })
+      .populate('uploadedBy', 'firstName middleName lastName email')
+      .populate('reviewSubmittedBy', 'firstName middleName lastName email');
+
+    if (!manuscript) {
+      throw new AppError('Manuscript not found for this project and document type.', 404, 'MANUSCRIPT_NOT_FOUND');
+    }
+
+    return manuscript;
+  }
+
 }
 
-export default new DocumentService();
+const documentService = new DocumentService();
+
+export default documentService;

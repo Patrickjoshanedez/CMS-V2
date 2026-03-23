@@ -105,6 +105,7 @@ const PROTECTED_ROUTES = [
   // Admin
   { path: '/admin/audit-log', Component: AuditLogPage },
   // Documents
+  { path: '/documents/manuscripts', Component: TemplateManagementPage },
   { path: '/documents/templates', Component: TemplateManagementPage },
   { path: '/projects/:projectId/documents/:docId', Component: DocumentEditorPage },
   { path: '/adviser/team-review', Component: TeamReviewWorkflowPage },

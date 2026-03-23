@@ -10,6 +10,7 @@ import {
   inviteCandidatesQuerySchema,
   listTeamsQuerySchema,
   assignMemberRoleSchema,
+  updateTeamGoogleDocLinkSchema,
 } from './team.validation.js';
 
 const router = Router();
@@ -43,15 +44,19 @@ router.get(
 router.post('/invites/:token/accept', teamController.acceptInvite);
 router.post('/invites/:token/decline', teamController.declineInvite);
 
-// --- Team lock route (Leader or Instructor) ---
-router.patch('/:id/lock', teamController.lockTeam);
-
 // --- Team member role assignment (Leader only) ---
 router.patch(
   '/:id/members/:memberId/role',
   authorize(ROLES.STUDENT),
   validate(assignMemberRoleSchema),
   teamController.assignMemberRole,
+);
+
+router.patch(
+  '/:id/google-doc-link',
+  authorize(ROLES.STUDENT),
+  validate(updateTeamGoogleDocLinkSchema),
+  teamController.updateGoogleDocLink,
 );
 
 // --- Instructor/Adviser listing route ---

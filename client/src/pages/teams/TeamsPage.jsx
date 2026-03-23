@@ -14,11 +14,11 @@ import {
   Mail,
   Crown,
   Loader2,
-  Lock,
   AlertTriangle,
   Search,
   Send,
-  UserCheck,
+  Link as LinkIcon,
+  ExternalLink,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import {
@@ -28,10 +28,10 @@ import {
   useInviteMember,
   useInviteCandidates,
   useAcceptInvite,
-  useLockTeam,
   useAssignMemberRole,
+  useUpdateGoogleDocLink,
 } from '@/hooks/useTeams';
-import { useAcademicYears } from '@/hooks/useAcademics';
+import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 
 /**
@@ -431,9 +431,9 @@ function InviteMemberForm({ teamId }) {
 
 function StudentTeamDetail({ team, userId }) {
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
-  const [showFinalizeDetails, setShowFinalizeDetails] = useState(false);
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
+  const [googleDocUrlInput, setGoogleDocUrlInput] = useState(team.googleDocUrl || '');
   const memberRoleAssignments = team.memberRoles || [];
   const memberRoleMap = new Map(
     memberRoleAssignments.map((item) => [item?.userId?._id || item?.userId, item?.role || '']),
@@ -450,27 +450,21 @@ function StudentTeamDetail({ team, userId }) {
     'Frontend Developer',
   ];
 
-  const lockTeam = useLockTeam({
-    onSuccess: () => toast.success('Team finalized! No further member changes are allowed.'),
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
-  });
-
   const assignMemberRole = useAssignMemberRole({
     onSuccess: () => toast.success('Team role updated.'),
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to update team role.'),
   });
 
-  const handleFinalize = () => {
-    if (
-      !window.confirm(
-        'Finalize team members? This locks the roster permanently and cannot be undone.',
-      )
-    )
-      return;
-    lockTeam.mutate(team._id);
-  };
+  const updateGoogleDocLink = useUpdateGoogleDocLink({
+    onSuccess: () => toast.success('Team Google Docs link updated.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to update team Google Docs link.'),
+  });
+
+  useEffect(() => {
+    setGoogleDocUrlInput(team.googleDocUrl || '');
+  }, [team.googleDocUrl]);
 
   return (
     <div className="space-y-4">
@@ -486,12 +480,6 @@ function StudentTeamDetail({ team, userId }) {
                 </span>
                 <span className="text-muted-foreground">&bull;</span>
                 <span>{team.academicYear}</span>
-                {team.isLocked && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Lock className="h-3 w-3" />
-                    Finalized
-                  </Badge>
-                )}
               </CardDescription>
             </div>
             <div className="rounded-md bg-muted p-2 text-primary">
@@ -500,6 +488,64 @@ function StudentTeamDetail({ team, userId }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Members List */}
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">Team Document</p>
+            {isLeader ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="url"
+                    placeholder="https://docs.google.com/document/d/..."
+                    value={googleDocUrlInput}
+                    onChange={(event) => setGoogleDocUrlInput(event.target.value)}
+                    disabled={updateGoogleDocLink.isPending}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      updateGoogleDocLink.mutate({
+                        teamId: team._id,
+                        googleDocUrl: googleDocUrlInput.trim(),
+                      })
+                    }
+                    disabled={updateGoogleDocLink.isPending}
+                  >
+                    {updateGoogleDocLink.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                    )}
+                    Attach Link
+                  </Button>
+                </div>
+
+                {team.googleDocUrl ? (
+                  <Button type="button" variant="secondary" asChild>
+                    <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open Team Google Doc
+                    </a>
+                  </Button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No team Google Docs link attached yet.
+                  </p>
+                )}
+              </div>
+            ) : team.googleDocUrl ? (
+              <Button type="button" variant="secondary" asChild>
+                <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open Team Google Doc
+                </a>
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">No team Google Docs link attached yet.</p>
+            )}
+          </div>
+
           {/* Members List */}
           <div>
             <p className="mb-2 text-sm font-medium text-muted-foreground">Members</p>
@@ -531,7 +577,7 @@ function StudentTeamDetail({ team, userId }) {
                       <select
                         className="h-8 w-full rounded-md border bg-background px-2 text-xs"
                         value={selectedRole}
-                        disabled={!isLeader || team.isLocked || assignMemberRole.isPending}
+                        disabled={!isLeader || assignMemberRole.isPending}
                         onChange={(event) => {
                           assignMemberRole.mutate({
                             teamId: team._id,
@@ -603,80 +649,9 @@ function StudentTeamDetail({ team, userId }) {
             </div>
           </div>
 
-          {/* Invite Form (leader only, team not locked) */}
-          {isLeader && !team.isLocked && (
+          {/* Invite Form (leader only) */}
+          {isLeader && (
             <div>
-              {/* Expandable Finalization Confirmation */}
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Ready to proceed?
-                </p>
-                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                  This step is a confirmation before capstone project creation. Review your roster
-                  details first.
-                </p>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={`mt-3 w-full justify-between transition-all duration-200 ${
-                    showFinalizeDetails ? 'py-6 text-base' : ''
-                  }`}
-                  onClick={() => setShowFinalizeDetails((prev) => !prev)}
-                  disabled={lockTeam.isPending}
-                  aria-expanded={showFinalizeDetails}
-                >
-                  <span className="font-medium">
-                    {showFinalizeDetails ? 'Hide' : 'Show'} confirmation details
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {team.members?.length || 0} member{team.members?.length !== 1 ? 's' : ''}
-                  </span>
-                </Button>
-
-                {showFinalizeDetails && (
-                  <div className="mt-3 rounded-md border bg-background/70 p-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Confirmation Details
-                    </p>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      <li>
-                        <span className="text-muted-foreground">Team:</span> {team.name}
-                      </li>
-                      <li>
-                        <span className="text-muted-foreground">Academic Year:</span>{' '}
-                        {team.academicYear}
-                      </li>
-                      <li>
-                        <span className="text-muted-foreground">Leader:</span>{' '}
-                        {formatName(team.leaderId)}
-                      </li>
-                      <li>
-                        <span className="text-muted-foreground">Members:</span>{' '}
-                        {team.members?.length || 0}
-                      </li>
-                    </ul>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      If you still expect roster changes, do not confirm yet.
-                    </p>
-
-                    <Button
-                      size="sm"
-                      className="mt-3"
-                      onClick={handleFinalize}
-                      disabled={lockTeam.isPending}
-                    >
-                      {lockTeam.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <UserCheck className="mr-2 h-4 w-4" />
-                      )}
-                      Confirm Team Roster
-                    </Button>
-                  </div>
-                )}
-              </div>
-
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />
             </div>
@@ -707,12 +682,6 @@ function TeamCard({ team }) {
                   <span>&bull;</span>
                   <span>{team.academicYear}</span>
                 </>
-              )}
-              {team.isLocked && (
-                <Badge variant="secondary" className="ml-1 gap-1 text-xs">
-                  <Lock className="h-3 w-3" />
-                  Finalized
-                </Badge>
               )}
             </CardDescription>
           </div>
@@ -767,12 +736,6 @@ function FacultyTeamDetail({ team }) {
               <span>&bull;</span>
               <span>{team.academicYear}</span>
             </>
-          )}
-          {team.isLocked && (
-            <Badge variant="secondary" className="gap-1">
-              <Lock className="h-3 w-3" />
-              Finalized
-            </Badge>
           )}
         </CardDescription>
       </CardHeader>
@@ -874,12 +837,25 @@ function FacultyTeamsView() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({});
   const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const [academicYear, setAcademicYear] = useState('');
+  const [sectionId, setSectionId] = useState('');
+
+  const { data: years = [] } = useAcademicYears();
+  const { data: sections = [] } = useSections(
+    { academicYear: academicYear || undefined },
+    { enabled: Boolean(academicYear) },
+  );
 
   const { data, isLoading, isError, error } = useTeams(filters);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setFilters((prev) => ({ ...prev, search: search.trim() || undefined, page: 1 }));
+    setFilters({
+      search: search.trim() || undefined,
+      academicYear: academicYear || undefined,
+      sectionId: sectionId || undefined,
+      page: 1,
+    });
   };
 
   if (isLoading) {
@@ -908,7 +884,7 @@ function FacultyTeamsView() {
   return (
     <div className="space-y-4">
       {/* Search bar */}
-      <form onSubmit={handleSearch} className="flex gap-2">
+      <form onSubmit={handleSearch} className="grid gap-2 md:grid-cols-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -918,6 +894,34 @@ function FacultyTeamsView() {
             className="pl-9"
           />
         </div>
+        <select
+          value={academicYear}
+          onChange={(e) => {
+            setAcademicYear(e.target.value);
+            setSectionId('');
+          }}
+          className="h-10 rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">All academic years</option>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sectionId}
+          onChange={(e) => setSectionId(e.target.value)}
+          disabled={!academicYear}
+          className="h-10 rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">All sections</option>
+          {sections.map((section) => (
+            <option key={section._id} value={section._id}>
+              {section.courseId?.code} - {section.name}
+            </option>
+          ))}
+        </select>
         <Button type="submit" variant="outline">
           Search
         </Button>
