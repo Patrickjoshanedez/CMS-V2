@@ -35,10 +35,10 @@ if (env.TRUST_PROXY) {
 // Security headers
 app.use(helmet());
 
-// CORS — allow the client origin with credentials (cookies)
+// CORS — allow configured origins with credentials (cookies)
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: env.CORS_ALLOWED_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

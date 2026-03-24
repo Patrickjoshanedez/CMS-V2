@@ -51,6 +51,33 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
 };
 
 /**
+ * Build list of allowed CORS origins.
+ * Includes CLIENT_URL, comma-separated CORS_ALLOWED_ORIGINS, and optional ngrok support.
+ *
+ * Examples:
+ * - ['http://localhost:5173'] if only CLIENT_URL is set
+ * - ['http://localhost:5173', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
+ *   if CORS_ALLOWED_ORIGINS and ALLOW_NGROK_ORIGINS are set
+ */
+const buildAllowedOrigins = () => {
+  const origins = new Set();
+
+  // Always include CLIENT_URL
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  origins.add(clientUrl);
+
+  // Parse comma-separated CORS_ALLOWED_ORIGINS if present
+  if (process.env.CORS_ALLOWED_ORIGINS) {
+    const additional = process.env.CORS_ALLOWED_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+    additional.forEach((origin) => origins.add(origin));
+  }
+
+  return Array.from(origins);
+};
+
+/**
  * Centralized environment configuration.
  * All env vars are accessed here — never use process.env directly in modules.
  * Throws on startup if critical vars are missing.
@@ -88,6 +115,8 @@ const env = Object.freeze({
 
   // Client
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  CORS_ALLOWED_ORIGINS: buildAllowedOrigins(),
+  ALLOW_NGROK_ORIGINS: parseBoolean(process.env.ALLOW_NGROK_ORIGINS, false),
 
   // Cookies / reverse proxy
   TRUST_PROXY: parseBoolean(process.env.TRUST_PROXY, false),
