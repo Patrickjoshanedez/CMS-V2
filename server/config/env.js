@@ -51,6 +51,33 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
 };
 
 /**
+ * Build list of allowed CORS origins.
+ * Includes CLIENT_URL, comma-separated CORS_ALLOWED_ORIGINS, and optional ngrok support.
+ *
+ * Examples:
+ * - ['http://localhost:5173'] if only CLIENT_URL is set
+ * - ['http://localhost:5173', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
+ *   if CORS_ALLOWED_ORIGINS and ALLOW_NGROK_ORIGINS are set
+ */
+const buildAllowedOrigins = () => {
+  const origins = new Set();
+
+  // Always include CLIENT_URL
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  origins.add(clientUrl);
+
+  // Parse comma-separated CORS_ALLOWED_ORIGINS if present
+  if (process.env.CORS_ALLOWED_ORIGINS) {
+    const additional = process.env.CORS_ALLOWED_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+    additional.forEach((origin) => origins.add(origin));
+  }
+
+  return Array.from(origins);
+};
+
+/**
  * Centralized environment configuration.
  * All env vars are accessed here — never use process.env directly in modules.
  * Throws on startup if critical vars are missing.
@@ -88,6 +115,8 @@ const env = Object.freeze({
 
   // Client
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  CORS_ALLOWED_ORIGINS: buildAllowedOrigins(),
+  ALLOW_NGROK_ORIGINS: parseBoolean(process.env.ALLOW_NGROK_ORIGINS, false),
 
   // Cookies / reverse proxy
   TRUST_PROXY: parseBoolean(process.env.TRUST_PROXY, false),
@@ -109,9 +138,7 @@ const env = Object.freeze({
   REDIS_PORT: parseInt(process.env.REDIS_PORT, 10) || 6379,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD || '',
 
-  // Plagiarism / Copyleaks (empty = fallback mock mode)
-  COPYLEAKS_EMAIL: process.env.COPYLEAKS_EMAIL || '',
-  COPYLEAKS_API_KEY: process.env.COPYLEAKS_API_KEY || '',
+  // Plagiarism (native engine)
   PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
   PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
 
@@ -120,8 +147,13 @@ const env = Object.freeze({
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || '',
 
   // Google OAuth2 credentials (from Google Cloud Console + OAuth Playground)
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+  // Prefer GOOGLE_AUTH_*; GOOGLE_CLIENT_* is retained for backward compatibility.
+  GOOGLE_AUTH_CLIENT_ID: process.env.GOOGLE_AUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_AUTH_CLIENT_SECRET:
+    process.env.GOOGLE_AUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_AUTH_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET:
+    process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_AUTH_CLIENT_SECRET || '',
   // Accepts both REDIRECT_URI and GOOGLE_REDIRECT_URI for flexibility
   GOOGLE_REDIRECT_URI: process.env.REDIRECT_URI || process.env.GOOGLE_REDIRECT_URI || '',
   // Accepts both REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN for flexibility
@@ -137,11 +169,10 @@ const env = Object.freeze({
   // auto prefers service-account auth when both are configured
   GOOGLE_DRIVE_AUTH_MODE: (process.env.GOOGLE_DRIVE_AUTH_MODE || 'auto').trim().toLowerCase(),
 
-  // Root Drive folder for all CMS-managed files
+  // Root Drive folder for review-doc organization (not primary binary storage)
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
 
-  // Drive folder for finalized capstone document storage (alongside S3)
-  // Instructor bulk-archives and Cap4 final submissions are stored here
+  // Drive folder for mirrored/review docs (AWS S3 remains the system of record for uploads)
   GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID: process.env.GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID || '',
 
   // Single Google Drive template folder for the full paper template

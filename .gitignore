@@ -68,3 +68,7 @@ server_logs.txt
 srv_logs.txt
 update_logs.txt
 vitest_output*.txt
+
+# Local OAuth helper artifacts (must never be committed)
+scripts/credentials.json
+scripts/token.json

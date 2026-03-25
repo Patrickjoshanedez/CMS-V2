@@ -82,7 +82,7 @@ Edit `server/.env` with your MongoDB URI, JWT secrets, and SMTP credentials. Ref
 If Google login is enabled, configure both frontend and Google Cloud Console:
 
 1. Set `VITE_GOOGLE_CLIENT_ID` in `client/.env`.
-2. Set `GOOGLE_CLIENT_ID` in `server/.env` to the same value.
+2. Set `GOOGLE_AUTH_CLIENT_ID` in `server/.env` to the same value.
 3. In Google Cloud Console: `APIs & Services > Credentials > OAuth 2.0 Client IDs > <your web client>`.
 4. Add every frontend origin you actually use to `Authorized JavaScript origins`, for example:
 
@@ -177,7 +177,7 @@ The production compose file reads values from `.env.prod` via `env_file`. At min
 - `JWT_REFRESH_SECRET`
 - `MONGODB_URI` (optional if using included `mongodb` service)
 
-For email, S3, reCAPTCHA, Copyleaks, and Google integrations, set the corresponding env vars from `server/.env.example`.
+For email, S3, reCAPTCHA, and Google integrations, set the corresponding env vars from `server/.env.example`.
 
 ---
 

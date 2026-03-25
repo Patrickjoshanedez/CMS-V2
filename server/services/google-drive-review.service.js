@@ -21,11 +21,13 @@ class GoogleDriveReviewService {
   }
 
   isConfigured() {
-    const hasServiceAccount = !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+    const hasServiceAccount = !!(
+      env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    );
     const hasOAuthRefreshToken = !!(
-      env.GOOGLE_CLIENT_ID
-      && env.GOOGLE_CLIENT_SECRET
-      && env.GOOGLE_REFRESH_TOKEN
+      env.GOOGLE_AUTH_CLIENT_ID &&
+      env.GOOGLE_AUTH_CLIENT_SECRET &&
+      env.GOOGLE_REFRESH_TOKEN
     );
 
     const mode = env.GOOGLE_DRIVE_AUTH_MODE || 'auto';
@@ -52,11 +54,13 @@ class GoogleDriveReviewService {
       );
     }
 
-    const hasServiceAccount = !!(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+    const hasServiceAccount = !!(
+      env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    );
     const hasOAuthRefreshToken = !!(
-      env.GOOGLE_CLIENT_ID
-      && env.GOOGLE_CLIENT_SECRET
-      && env.GOOGLE_REFRESH_TOKEN
+      env.GOOGLE_AUTH_CLIENT_ID &&
+      env.GOOGLE_AUTH_CLIENT_SECRET &&
+      env.GOOGLE_REFRESH_TOKEN
     );
     const mode = env.GOOGLE_DRIVE_AUTH_MODE || 'auto';
 
@@ -71,8 +75,8 @@ class GoogleDriveReviewService {
         );
       }
       auth = new google.auth.OAuth2(
-        env.GOOGLE_CLIENT_ID,
-        env.GOOGLE_CLIENT_SECRET,
+        env.GOOGLE_AUTH_CLIENT_ID,
+        env.GOOGLE_AUTH_CLIENT_SECRET,
         env.GOOGLE_REDIRECT_URI,
       );
       auth.setCredentials({
@@ -101,8 +105,8 @@ class GoogleDriveReviewService {
         });
       } else {
         auth = new google.auth.OAuth2(
-          env.GOOGLE_CLIENT_ID,
-          env.GOOGLE_CLIENT_SECRET,
+          env.GOOGLE_AUTH_CLIENT_ID,
+          env.GOOGLE_AUTH_CLIENT_SECRET,
           env.GOOGLE_REDIRECT_URI,
         );
         auth.setCredentials({
@@ -335,15 +339,15 @@ class GoogleDriveReviewService {
    * @returns {Promise<{ clonedDocId: string, editUrl: string, previewUrl: string }>}
    * @throws {AppError} If template not found or API quota exhausted
    */
-  async createFromTemplate(templateDocId, newFileName, destinationFolderId = env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID) {
+  async createFromTemplate(
+    templateDocId,
+    newFileName,
+    destinationFolderId = env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID,
+  ) {
     await this._ensureInitialized();
 
     if (!templateDocId) {
-      throw new AppError(
-        'Template document ID is required.',
-        400,
-        'TEMPLATE_DOC_ID_MISSING',
-      );
+      throw new AppError('Template document ID is required.', 400, 'TEMPLATE_DOC_ID_MISSING');
     }
 
     if (!destinationFolderId) {
@@ -413,11 +417,7 @@ class GoogleDriveReviewService {
     await this._ensureInitialized();
 
     if (!fileId) {
-      throw new AppError(
-        'File ID is required.',
-        400,
-        'FILE_ID_MISSING',
-      );
+      throw new AppError('File ID is required.', 400, 'FILE_ID_MISSING');
     }
 
     try {
@@ -476,11 +476,7 @@ class GoogleDriveReviewService {
     } catch (error) {
       const status = error?.response?.status;
       if (status === 404) {
-        throw new AppError(
-          `Document not found (ID: ${fileId}).`,
-          404,
-          'DOCUMENT_NOT_FOUND',
-        );
+        throw new AppError(`Document not found (ID: ${fileId}).`, 404, 'DOCUMENT_NOT_FOUND');
       }
       if (status === 403) {
         throw new AppError(

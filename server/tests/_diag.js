@@ -3,9 +3,9 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Parse .env manually — no other module imports needed
-const __dir   = dirname(fileURLToPath(import.meta.url));
+const __dir = dirname(fileURLToPath(import.meta.url));
 const envPath = resolve(__dir, '../.env');
-const raw     = readFileSync(envPath, 'utf8');
+const raw = readFileSync(envPath, 'utf8');
 
 // Simple dotenv-style parser (handles quoted values, \n escapes)
 const parsed = {};
@@ -39,6 +39,8 @@ console.log(show('GOOGLE_SERVICE_ACCOUNT_EMAIL'));
 console.log(show('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY'));
 
 console.log('\n── OAuth2 ───────────────────────────────────────');
+console.log(show('GOOGLE_AUTH_CLIENT_ID'));
+console.log(show('GOOGLE_AUTH_CLIENT_SECRET'));
 console.log(show('GOOGLE_CLIENT_ID'));
 console.log(show('GOOGLE_CLIENT_SECRET'));
 console.log(show('GOOGLE_REDIRECT_URI'));
@@ -53,8 +55,10 @@ console.log(show('GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID'));
 
 const refreshToken = parsed.GOOGLE_REFRESH_TOKEN || parsed.REFRESH_TOKEN;
 const redirectUri = parsed.GOOGLE_REDIRECT_URI || parsed.REDIRECT_URI;
+const oauthClientId = parsed.GOOGLE_AUTH_CLIENT_ID || parsed.GOOGLE_CLIENT_ID;
+const oauthClientSecret = parsed.GOOGLE_AUTH_CLIENT_SECRET || parsed.GOOGLE_CLIENT_SECRET;
 const hasSA = !!(parsed.GOOGLE_SERVICE_ACCOUNT_EMAIL && parsed.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
-const hasOAuth2 = !!(parsed.GOOGLE_CLIENT_ID && parsed.GOOGLE_CLIENT_SECRET && refreshToken && redirectUri);
+const hasOAuth2 = !!(oauthClientId && oauthClientSecret && refreshToken && redirectUri);
 
 console.log('\n── Auth strategy ────────────────────────────────');
 if (hasOAuth2) console.log('  → OAuth2 + refresh token ✅ (will be used — highest priority)');

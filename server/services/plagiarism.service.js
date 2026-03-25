@@ -4,18 +4,14 @@
  * Architecture:
  *   1. **Internal engine (always available):** Jaccard token-overlap similarity
  *      comparing the submitted text against all stored texts in the archive.
- *   2. **External API (Copyleaks):** When COPYLEAKS_EMAIL and COPYLEAKS_API_KEY
- *      are configured, the system submits to Copyleaks for a professional scan.
- *   3. **Fallback mock mode:** When neither the external API nor an archive is
- *      available, returns a mock score (70-100%) for development/testing.
+ *   2. **Fallback mock mode:** When no archive corpus is available, returns a
+ *      mock score (70-100%) for development/testing.
  *
- * The service adapter pattern ensures swapping providers requires changes
- * in only this single file.
+ * This service is intentionally native/internal and does not call third-party
+ * plagiarism APIs.
  *
  * @module services/plagiarism.service
  */
-import env from '../config/env.js';
-
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  Tokenization & Similarity Helpers                                */
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -159,52 +155,6 @@ export function generateMockResult() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  External API (Copyleaks) — Adapter                               */
-/* ═══════════════════════════════════════════════════════════════════ */
-
-/**
- * Check if the external Copyleaks API is configured.
- * @returns {boolean}
- */
-export function isCopyleaksConfigured() {
-  return !!(env.COPYLEAKS_EMAIL && env.COPYLEAKS_API_KEY);
-}
-
-/**
- * Submit a document to Copyleaks for scanning.
- * This is a placeholder implementation — actual integration requires
- * Copyleaks SDK or API calls with OAuth2 authentication.
- *
- * @param {string} text - The extracted plain text to scan
- * @returns {Promise<string>} The scan ID for polling results
- * @throws {Error} If API is not configured or submission fails
- */
-export async function submitToCopyleaks(_text) {
-  if (!isCopyleaksConfigured()) {
-    throw new Error('Copyleaks API is not configured. Set COPYLEAKS_EMAIL and COPYLEAKS_API_KEY.');
-  }
-
-  // TODO: Implement actual Copyleaks API integration
-  // For now, this throws so the caller falls back to internal engine
-  throw new Error('Copyleaks integration not yet implemented — using internal engine.');
-}
-
-/**
- * Get scan results from Copyleaks.
- *
- * @param {string} scanId - The scan ID returned from submitToCopyleaks
- * @returns {Promise<{ originalityScore: number, matchedSources: Array }>}
- */
-export async function getCopyleaksResult(_scanId) {
-  if (!isCopyleaksConfigured()) {
-    throw new Error('Copyleaks API is not configured.');
-  }
-
-  // TODO: Implement actual Copyleaks result polling
-  throw new Error('Copyleaks integration not yet implemented.');
-}
-
-/* ═══════════════════════════════════════════════════════════════════ */
 /*  Main Service API                                                 */
 /* ═══════════════════════════════════════════════════════════════════ */
 
@@ -212,35 +162,21 @@ export async function getCopyleaksResult(_scanId) {
  * Run an originality check on the given text.
  *
  * Strategy:
- *   1. If Copyleaks is configured → use external API
- *   2. If corpus is provided → use internal Jaccard engine
- *   3. Otherwise → return mock result (dev mode)
+ *   1. If corpus is provided → use internal Jaccard engine
+ *   2. Otherwise → return mock result (dev mode)
  *
  * @param {string} text - Extracted plain text from the submission
  * @param {Array} corpus - Array of existing documents to compare against
  * @returns {Promise<{ originalityScore: number, matchedSources: Array }>}
  */
 export async function checkOriginality(text, corpus = []) {
-  // Strategy 1: Try external API if configured
-  if (isCopyleaksConfigured()) {
-    try {
-      const scanId = await submitToCopyleaks(text);
-      return await getCopyleaksResult(scanId);
-    } catch (err) {
-      console.warn(
-        `[Plagiarism] Copyleaks failed, falling back to internal engine: ${err.message}`,
-      );
-      // Fall through to internal engine
-    }
-  }
-
-  // Strategy 2: Internal comparison engine
+  // Strategy 1: Internal comparison engine
   if (corpus.length > 0) {
     return compareAgainstCorpus(text, corpus);
   }
 
-  // Strategy 3: Mock result (no corpus, no API)
-  console.warn('[Plagiarism] No corpus and no API configured — returning mock score.');
+  // Strategy 2: Mock result (no corpus)
+  console.warn('[Plagiarism] No corpus available — returning mock score.');
   return generateMockResult();
 }
 
@@ -250,8 +186,5 @@ export default {
   buildShingles,
   compareAgainstCorpus,
   generateMockResult,
-  isCopyleaksConfigured,
-  submitToCopyleaks,
-  getCopyleaksResult,
   checkOriginality,
 };

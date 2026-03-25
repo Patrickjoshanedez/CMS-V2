@@ -336,9 +336,9 @@ class AuthService {
       throw new AppError('Google credential is required.', 400, 'MISSING_CREDENTIAL');
     }
 
-    if (!env.GOOGLE_CLIENT_ID) {
+    if (!env.GOOGLE_AUTH_CLIENT_ID) {
       throw new AppError(
-        'Google login is not configured on the server. Missing GOOGLE_CLIENT_ID.',
+        'Google login is not configured on the server. Missing GOOGLE_AUTH_CLIENT_ID.',
         503,
         'GOOGLE_NOT_CONFIGURED',
       );
@@ -351,9 +351,9 @@ class AuthService {
       if (tokenParts.length >= 2) {
         const payloadJson = Buffer.from(tokenParts[1], 'base64url').toString('utf8');
         const decodedPayload = JSON.parse(payloadJson);
-        if (decodedPayload?.aud && decodedPayload.aud !== env.GOOGLE_CLIENT_ID) {
+        if (decodedPayload?.aud && decodedPayload.aud !== env.GOOGLE_AUTH_CLIENT_ID) {
           throw new AppError(
-            'Google token audience mismatch. Ensure VITE_GOOGLE_CLIENT_ID matches server GOOGLE_CLIENT_ID.',
+            'Google token audience mismatch. Ensure VITE_GOOGLE_CLIENT_ID matches server GOOGLE_AUTH_CLIENT_ID.',
             401,
             'GOOGLE_AUDIENCE_MISMATCH',
           );
@@ -366,14 +366,14 @@ class AuthService {
       // Ignore decode issues and continue with full Google verification below.
     }
 
-    const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+    const client = new OAuth2Client(env.GOOGLE_AUTH_CLIENT_ID);
 
     // Verify the Google ID token
     let ticket;
     try {
       ticket = await client.verifyIdToken({
         idToken: credential,
-        audience: env.GOOGLE_CLIENT_ID,
+        audience: env.GOOGLE_AUTH_CLIENT_ID,
       });
     } catch {
       throw new AppError('Invalid Google token.', 401, 'GOOGLE_TOKEN_INVALID');

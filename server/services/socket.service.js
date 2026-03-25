@@ -29,7 +29,7 @@ export function initializeSocket(httpServer) {
 
   io = new Server(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: env.CORS_ALLOWED_ORIGINS,
       credentials: true,
     },
     // Clients will send the JWT in the auth handshake
