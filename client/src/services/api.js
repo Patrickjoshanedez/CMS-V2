@@ -16,6 +16,18 @@ const api = axios.create({
   },
 });
 
+// For FormData payloads, allow the browser/XHR layer to set multipart boundary.
+api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config?.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
+  }
+
+  return config;
+});
+
 // Track if we're currently refreshing to prevent infinite loops
 let isRefreshing = false;
 let failedQueue = [];
