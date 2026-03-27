@@ -1,5 +1,8 @@
 ---
 name: verification-loop
+version: 1.1.0
+version: 1.1.0
+schema-version: 1
 description: Verification-first loop for test, lint, runtime, and evidence checks before declaring completion.
 ---
 

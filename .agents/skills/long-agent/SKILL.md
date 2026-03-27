@@ -1,5 +1,8 @@
 ---
 name: long-agent
+version: 1.1.0
+version: 1.1.0
+schema-version: 1
 description: Long-horizon execution skill for multi-step autonomous workflows, durable checkpoints, and strict verification gates.
 ---
 

@@ -1,5 +1,8 @@
 ---
 name: devops-iac-engineer
+version: 1.1.0
+version: 1.1.0
+schema-version: 1
 description: DevOps and Infrastructure-as-Code skill for repeatable cloud provisioning, CI/CD pipelines, and safe environment promotion.
 ---
 

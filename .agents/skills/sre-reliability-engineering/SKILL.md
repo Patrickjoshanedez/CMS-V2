@@ -1,5 +1,8 @@
 ---
 name: sre-reliability-engineering
+version: 1.1.0
+version: 1.1.0
+schema-version: 1
 description: Reliability-engineering patterns for resilience, fault isolation, graceful degradation, and recovery automation.
 ---
 

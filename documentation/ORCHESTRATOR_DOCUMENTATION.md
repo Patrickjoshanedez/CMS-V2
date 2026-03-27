@@ -53,6 +53,14 @@ The system is built upon a hierarchy of strictly bounded personas. No single age
 
 The Orchestrator derives its determinism from a series of Python script hooks triggered at specific agent lifecycle events (defined in `.github/hooks/orchestrator-automation.json`). 
 
+### Current Hook Registry Version
+- `orchestrator-automation.json` version: `1.1.0`
+- schemaVersion: `1`
+
+### `PostTaskCompletion` Hooks
+Fired after task completion to enforce knowledge-retention checks:
+- **`post_task_continual_learning.py`**: Verifies that the `continual-learning` skill exists and is acknowledged in `.github/copilot-instructions.md`.
+
 ### `SubagentStart` Hooks
 Fired when a new agent is invoked, injecting strict boundary policies:
 - **`orchestrator_policy.py`**: Ensures Coders focus on testable logic, Researchers stick to factual retrieval, and the Orchestrator avoids manual labor.
@@ -64,6 +72,11 @@ Fired right before a tool is executed to prevent runaway context and enforce rul
 - **`qa_todo_enforcement.py`**: If issues are detected, forcibly halts finalization, demanding the Orchestrator inject debugging tasks into the todo list and trigger a testing mandate.
 - **`error_recovery_policy.py`**: Detects transient API/Stream failures and applies an autonomous exponentially-backed-off retry loop, preventing structural collapse over network blips.
 - **`socratic_continuation_hook.py`**: Detects keywords like "proceed" or "continue." If a task was arbitrarily truncated, it triggers a continuous reflection loop, forcing the Context-Manager to summarize states and the Orchestrator to reassess missing pieces.
+
+### `PostToolUse` Hooks
+Fired after a tool is executed to enforce completion quality requirements:
+- **`continual_learning_checkpoint.py`**: Validates `task_complete` events and requires continual-learning checkpoint language in summaries. The validator accepts summaries that include at least one of these keywords: `lesson`, `learned`, `prevention`, `retrospective`, `runbook`, `checklist`.
+- **Location:** Rule file is `.github/hooks/orchestrator-automation.json`; script file is `.github/hooks/scripts/continual_learning_checkpoint.py`.
 
 ---
 
