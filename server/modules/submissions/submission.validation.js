@@ -8,6 +8,14 @@ import { SUBMISSION_STATUS_VALUES } from '@cms/shared';
 /* ═══════════════════ Reusable fields ═══════════════════ */
 
 const objectIdField = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid ID format');
+const optionalUrlField = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : undefined;
+  },
+  z.string().url('Prototype link must be a valid URL').optional(),
+);
 
 /* ═══════════════════ Params ═══════════════════ */
 
@@ -65,20 +73,7 @@ export const uploadChapterSchema = z.object({
     .max(1000, 'Remarks must not exceed 1000 characters')
     .optional()
     .default(''),
-});
-
-/**
- * Compile proposal body — sent as multipart form data.
- * The file itself is handled by multer; Zod validates the text fields.
- * No chapter field needed — proposals are project-level.
- */
-export const compileProposalSchema = z.object({
-  remarks: z
-    .string()
-    .trim()
-    .max(1000, 'Remarks must not exceed 1000 characters')
-    .optional()
-    .default(''),
+  prototypeLink: optionalUrlField,
 });
 
 /**

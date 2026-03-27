@@ -261,7 +261,7 @@ const FEATURES = [
     icon: BookOpen,
     title: 'Documentation Hub',
     description:
-      'Centralized storage for comprehensive capstone manuscripts — submit chapters individually, compile proposals, and track revisions with inline comments.',
+      'Centralized storage for comprehensive capstone manuscripts — submit chapters, track revisions by round, and manage feedback with inline comments.',
   },
 ];
 

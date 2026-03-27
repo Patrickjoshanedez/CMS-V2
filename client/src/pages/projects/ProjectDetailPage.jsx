@@ -15,11 +15,13 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
+import FinalDocumentsList from '@/components/submissions/FinalDocumentsList';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import {
   useProject,
   useApproveTitle,
   useRejectTitle,
+  useAddTitleComment,
   useResolveTitleModification,
   useAssignAdviser,
   useAssignPanelist,
@@ -31,7 +33,7 @@ import {
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { userService } from '@/services/authService';
 import { useQuery } from '@tanstack/react-query';
-import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES } from '@cms/shared';
+import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
 import {
   ArrowLeft,
   Loader2,
@@ -47,6 +49,8 @@ import {
   FileText,
   ArrowUpCircle,
   Award,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -62,6 +66,90 @@ import { toast } from 'sonner';
  */
 
 /* ────────── Sub-components ────────── */
+
+/**
+ * Displays title proposals and allows advisers/panelists/instructors to comment on them.
+ */
+function TitleProposalsSection({ project, currentUser }) {
+  const [commentText, setCommentText] = useState({});
+  const addComment = useAddTitleComment({
+    onSuccess: () => {
+      toast.success('Comment added successfully');
+      setCommentText({});
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to add comment.'),
+  });
+
+  const canComment = [ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR].includes(currentUser.role);
+  
+  if (!project.titleProposals || project.titleProposals.length === 0) {
+    return null;
+  }
+
+  const handleCommentSubmit = (proposalId) => {
+    const text = commentText[proposalId];
+    if (!text || text.trim().length === 0) return;
+    addComment.mutate({ projectId: project._id, proposalId, text });
+  };
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <MessageSquare className="h-5 w-5" />
+          Title Proposals & Feedback
+        </CardTitle>
+        <CardDescription>Review the proposed titles safely before making a final decision.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {project.titleProposals.map((proposal, idx) => (
+          <div key={proposal._id || idx} className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-4">
+            <h4 className="font-semibold text-base">
+              Proposal {idx + 1}: <span className="font-normal">{proposal.title}</span>
+            </h4>
+            
+            {proposal.comments && proposal.comments.length > 0 && (
+              <div className="space-y-3 bg-muted/30 p-3 rounded-md">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comments</p>
+                {proposal.comments.map((comment, cIdx) => (
+                  <div key={cIdx} className="text-sm space-y-1 bg-background p-2 rounded border">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{comment.name}</span>
+                      <span>{new Date(comment.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-foreground/90">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {canComment && (
+              <div className="flex gap-2">
+                <Input
+                  className="flex-1"
+                  placeholder="Add a comment or feedback on this title..."
+                  value={commentText[proposal._id] || ''}
+                  onChange={(e) => setCommentText(prev => ({ ...prev, [proposal._id]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCommentSubmit(proposal._id);
+                  }}
+                />
+                <Button 
+                  size="sm" 
+                  disabled={!commentText[proposal._id]?.trim() || addComment.isPending}
+                  onClick={() => handleCommentSubmit(proposal._id)}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 /**
  * Reusable project info panel — title, badges, abstract, keywords, meta.
@@ -794,7 +882,10 @@ export default function ProjectDetailPage() {
           <>
             {/* Info panel */}
             <ProjectInfoPanel project={project} />
-
+              {/* Title Proposals Section */}
+              <div className="-mt-2 mb-6">
+                <TitleProposalsSection project={project} currentUser={user} />
+              </div>
             {/* Chapter progress + rounds (faculty visibility) */}
             <ChapterProgressWithRounds
               project={project}
@@ -845,8 +936,14 @@ export default function ProjectDetailPage() {
               <EvaluationPanel projectId={project._id} defenseType="final" />
             )}
 
-            {/* Final paper upload — Capstone 4 */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+              {/* Final Papers repository view (visible to anyone in Phase 4) */}
+              {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+                <FinalDocumentsList project={project} />
+              )}
+
+              {/* Final paper upload — Capstone 4 */}
+              {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+                project.projectStatus !== PROJECT_STATUSES.ARCHIVED &&
               (user?.role === ROLES.STUDENT || isInstructor) && (
                 <FinalPaperUpload projectId={project._id} />
               )}

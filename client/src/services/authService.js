@@ -25,13 +25,16 @@ export const userService = {
   getMe: (config = {}) => api.get('/users/me', config),
   updateMe: (updatePayload) => api.patch('/users/me', updatePayload),
   uploadAvatar: (avatarFormData) =>
-    api.post('/users/me/avatar', avatarFormData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    api.post('/users/me/avatar', avatarFormData),
   listUsers: (queryParams) => api.get('/users', { params: queryParams }),
   listInstructors: () => api.get('/users/instructors'),
   createUser: (data) => api.post('/users', data),
   updateUser: (id, data) => api.patch(`/users/${id}`, data),
   changeRole: (id, data) => api.patch(`/users/${id}/role`, data),
   deleteUser: (id) => api.delete(`/users/${id}`),
+  importStudents: (formData) => api.post('/users/import-students', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 /**
@@ -83,6 +86,7 @@ export const projectService = {
   // Instructor routes
   approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
   rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),
+  addTitleComment: (projectId, proposalId, data) => api.post(`/projects/${projectId}/title-proposals/${proposalId}/comments`, data),
   resolveTitleModification: (id, data) =>
     api.post(`/projects/${id}/title/modification/resolve`, data),
   assignAdviser: (id, data) => api.post(`/projects/${id}/adviser`, data),

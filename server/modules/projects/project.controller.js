@@ -94,7 +94,22 @@ export const rejectTitle = catchAsync(async (req, res) => {
     data: { project },
   });
 });
+/** POST /api/projects/:id/title-proposals/:proposalId/comments — Add a comment to a title proposal */
+export const addTitleComment = catchAsync(async (req, res) => {
+  const { id: projectId, proposalId } = req.params;
+  const project = await projectService.addTitleComment({
+    projectId,
+    proposalId,
+    user: req.user,
+    text: req.body.text
+  });
 
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Comment added successfully.',
+    data: { project },
+  });
+});
 /** PATCH /api/projects/:id/title/revise — Revise and resubmit title */
 export const reviseAndResubmit = catchAsync(async (req, res) => {
   const { project, similarProjects } = await projectService.reviseAndResubmit(

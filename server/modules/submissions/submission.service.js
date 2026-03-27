@@ -6,7 +6,7 @@
  * StorageService handles S3 I/O; this service owns the workflow.
  *
  * ARCHITECTURE NOTE (refactored):
- * The four upload methods (uploadChapter, compileProposal, uploadFinalAcademic,
+ * The three upload methods (uploadChapter, uploadFinalAcademic,
  * uploadFinalJournal) share a common pipeline extracted into private helpers:
  *   _authorizeStudentUpload()  — user lookup + role + team membership
  *   _detectLateSubmission()    — deadline lookup + remarks enforcement
@@ -202,7 +202,7 @@ class SubmissionService {
    * @param {Object} params.submission - The new submission document
    * @param {string} params.notifType - Notification type constant
    * @param {string} params.notifTitle - Human-readable notification title
-   * @param {string} params.docLabel - E.g. "Chapter 2 (v3)" or "compiled proposal (v1)"
+  * @param {string} params.docLabel - E.g. "Chapter 2 (v3)" or "final journal (v1)"
    * @param {Object} [params.extraMetadata] - Extra fields for notification metadata
    */
   async _notifyAdviser({
@@ -281,7 +281,7 @@ class SubmissionService {
    * @param {string} params.mimeType - Original file MIME type
    * @param {string} params.projectId - Project reference for audit
    * @param {number} params.version - Version number
-   * @param {'chapter'|'proposal'|'final_academic'|'final_journal'} params.type - Submission type
+  * @param {'chapter'|'final_academic'|'final_journal'} params.type - Submission type
    * @returns {Promise<{
    * userDriveFolderId: string|null,
    * driveFileId: string|null,
@@ -373,8 +373,17 @@ class SubmissionService {
    * @param {Object} user
    * @param {Object} project
    */
-  _assertCanViewSubmission(user, project) {
+  _assertCanViewSubmission(user, project, submission = null) {
     const userId = user._id.toString();
+    
+    // Central Archiving: Anyone can view the public journal variant of an archived project
+    if (
+      submission &&
+      project.projectStatus === 'archived' &&
+      submission.type === 'final_journal'
+    ) {
+      return;
+    }
 
     if (user.role === ROLES.INSTRUCTOR) return;
 
@@ -428,24 +437,11 @@ class SubmissionService {
       projectId,
       'upload chapters',
     );
-    const { chapter, remarks } = data;
-
-    if (chapter > 1) {
-      const previousChapterLocked = await Submission.findOne({
-        projectId,
-        chapter: chapter - 1,
-        type: 'chapter',
-        status: SUBMISSION_STATUSES.LOCKED,
-      });
-
-      if (!previousChapterLocked) {
-        throw new AppError(
-          `Chapter ${chapter - 1} must be approved before you can submit Chapter ${chapter}.`,
-          400,
-          'PREVIOUS_CHAPTER_NOT_APPROVED',
-        );
-      }
-    }
+    const { chapter, remarks, prototypeLink } = data;
+    const normalizedPrototypeLink =
+      typeof prototypeLink === 'string' && prototypeLink.trim().length > 0
+        ? prototypeLink.trim()
+        : null;
 
     // --- Project state checks (chapter-specific) ---
     if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
@@ -457,6 +453,26 @@ class SubmissionService {
         400,
         'TITLE_NOT_APPROVED',
       );
+    }
+
+    // Enforce Capstone 1 chapter sequencing: Chapter 2/3 requires prior chapter approval.
+    if (chapter > 1 && chapter <= 3) {
+      const previousChapterSubmission = await Submission.findOne({
+        projectId,
+        chapter: chapter - 1,
+        type: 'chapter',
+      }).sort({ version: -1 });
+
+      if (
+        !previousChapterSubmission ||
+        previousChapterSubmission.status !== SUBMISSION_STATUSES.LOCKED
+      ) {
+        throw new AppError(
+          `Chapter ${chapter - 1} must be approved before uploading Chapter ${chapter}.`,
+          400,
+          'PREVIOUS_CHAPTER_NOT_APPROVED',
+        );
+      }
     }
 
     // --- Check if previous version is locked ---
@@ -531,6 +547,7 @@ class SubmissionService {
       submittedBy: userId,
       isLate,
       remarks: remarks || null,
+      prototypeLink: normalizedPrototypeLink,
       userDriveFolderId: driveSync.userDriveFolderId,
       driveFileId: driveSync.driveFileId,
       driveWebViewLink: driveSync.driveWebViewLink,
@@ -561,159 +578,6 @@ class SubmissionService {
       notifTitle: 'New Chapter Submission',
       docLabel: `Chapter ${chapter} (v${nextVersion})`,
       extraMetadata: { chapter },
-    });
-
-    return { submission };
-  }
-
-  /* ═══════════════════ Upload: Proposal Compilation ═══════════════════ */
-
-  /**
-   * Compile and upload the full proposal document.
-   *
-   * Business rules enforced:
-   * - User must be a student on the owning team
-   * - Project must be active with approved title
-   * - Chapters 1, 2, and 3 must each have at least one LOCKED submission
-   * - Late submission detection against proposal deadline
-   * - Version auto-increments from previous proposal uploads
-   *
-   * On success, the project status transitions to PROPOSAL_SUBMITTED.
-   *
-   * @param {string} userId - The authenticated student
-   * @param {string} projectId - Target project
-   * @param {Object} data - { remarks }
-   * @param {Object} file - multer file object with buffer, originalname, size, validatedMime
-   * @returns {Object} { submission }
-   */
-  async compileProposal(userId, projectId, data, file) {
-    const { user, project } = await this._authorizeStudentUpload(
-      userId,
-      projectId,
-      'compile proposals',
-    );
-    const { remarks } = data;
-
-    const hasAdviser = Boolean(project.adviserId);
-    const hasInstructor = Boolean(user.instructorId);
-    if (!hasAdviser || !hasInstructor) {
-      throw new AppError(
-        'Proposal submission requires both an assigned adviser and instructor.',
-        400,
-        'MISSING_ADVISER_OR_INSTRUCTOR',
-      );
-    }
-
-    // --- Project state checks (proposal-specific) ---
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
-      throw new AppError(
-        'Cannot submit proposal for a non-active project.',
-        400,
-        'PROJECT_NOT_ACTIVE',
-      );
-    }
-    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
-      throw new AppError(
-        'Your project title must be approved before submitting a proposal.',
-        400,
-        'TITLE_NOT_APPROVED',
-      );
-    }
-
-    // --- Validate that Chapters 1, 2, and 3 each have a LOCKED submission ---
-    const requiredChapters = [1, 2, 3];
-    for (const ch of requiredChapters) {
-      const locked = await Submission.findOne({
-        projectId,
-        chapter: ch,
-        type: 'chapter',
-        status: SUBMISSION_STATUSES.LOCKED,
-      });
-      if (!locked) {
-        throw new AppError(
-          `Chapter ${ch} must be approved (locked) before compiling the proposal.`,
-          400,
-          'CHAPTER_NOT_LOCKED',
-        );
-      }
-    }
-
-    // --- Late submission detection ---
-    const { isLate } = this._detectLateSubmission(project, 'proposal', remarks);
-
-    // --- Auto-increment version for proposals ---
-    const latestProposal = await Submission.findOne({
-      projectId,
-      type: 'proposal',
-    }).sort({ version: -1 });
-    const nextVersion = latestProposal ? latestProposal.version + 1 : 1;
-
-    // --- Upload to S3 ---
-    const storageKey = storageService.buildProposalKey(projectId, nextVersion, file.originalname);
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      type: 'proposal',
-      version: String(nextVersion),
-      uploadedBy: userId,
-    });
-
-    const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
-      user,
-      buffer: file.buffer,
-      fileName: file.originalname,
-      mimeType: file.validatedMime,
-      projectId,
-      version: nextVersion,
-      type: 'proposal',
-    });
-
-    // --- Create submission record ---
-    const submission = await Submission.create({
-      projectId,
-      type: 'proposal',
-      chapter: null,
-      version: nextVersion,
-      fileName: file.originalname,
-      fileType: file.validatedMime,
-      fileSize: file.size,
-      storageKey,
-      status: SUBMISSION_STATUSES.PENDING,
-      submittedBy: userId,
-      isLate,
-      remarks: remarks || null,
-      userDriveFolderId: driveSync.userDriveFolderId,
-      driveFileId: driveSync.driveFileId,
-      driveWebViewLink: driveSync.driveWebViewLink,
-      driveWebContentLink: driveSync.driveWebContentLink,
-      syncedGoogleDocId: driveSync.syncedGoogleDocId,
-      syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
-      googleDocSyncStatus: driveSync.googleDocSyncStatus,
-      googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
-      googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
-      googleDocSyncedAt: driveSync.googleDocSyncedAt,
-      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
-    });
-
-    await this._syncPendingRoundForUpload(submission);
-
-    // --- Plagiarism + Notification (shared pipeline) ---
-    await this._enqueuePlagiarism(submission, {
-      storageKey,
-      fileType: file.validatedMime,
-      projectId,
-      type: 'proposal',
-    });
-
-    // --- Transition project status to PROPOSAL_SUBMITTED ---
-    project.projectStatus = PROJECT_STATUSES.PROPOSAL_SUBMITTED;
-    await project.save();
-
-    await this._notifyAdviser({
-      project,
-      submission,
-      notifType: 'proposal_submitted',
-      notifTitle: 'Proposal Submitted',
-      docLabel: `The compiled proposal (v${nextVersion})`,
     });
 
     return { submission };
@@ -1022,6 +886,7 @@ class SubmissionService {
    * @returns {Object} { url, expiresIn }
    */
   async getViewUrl(submissionId, requesterId) {
+    const expiresIn = 300;
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
@@ -1033,9 +898,7 @@ class SubmissionService {
     const project = await Project.findById(submission.projectId).populate('teamId', 'members');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
-    this._assertCanViewSubmission(user, project);
-
-    const expiresIn = 300; // 5 minutes
+    this._assertCanViewSubmission(user, project, submission);
 
     const fallbackUrl = submission.driveWebViewLink || submission.syncedGoogleDocUrl || null;
 

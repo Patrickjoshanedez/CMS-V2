@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
+import DocumentPreview from '@/components/documents/DocumentPreview';
 import {
   useAddAnnotation,
   useAddAnnotationReply,
@@ -341,18 +342,20 @@ export default function SubmissionReviewPage() {
                   ) : (
                     <>
                       {currentDocUrl ? (
-                        <div className="rounded-lg border border-border/70 bg-background/70 p-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-sm text-foreground">
-                              Open the submitted file to view attached comments in your PDF/Docx tool.
-                            </p>
-                            <Button asChild variant="outline">
-                              <a href={currentDocUrl} target="_blank" rel="noopener noreferrer">
-                                <FileText className="mr-2 h-4 w-4" />
-                                Open / Download File
-                              </a>
-                            </Button>
-                          </div>
+                          <div className="space-y-4">
+                            <div className="rounded-lg border border-border/70 bg-background/70 p-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-foreground">
+                                  Use the preview below to inspect the document, or open/download it to use your native PDF/Docx annotator.
+                                </p>
+                              </div>
+                            </div>
+                            <DocumentPreview
+                              fileUrl={currentDocUrl}
+                              fileName={activeRound?.fileName || 'Document'}
+                              fileType={activeRound?.fileType || ''}
+                              className="h-[600px] shadow-sm"
+                            />
                         </div>
                       ) : isSubmissionFileUnavailable ? (
                         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">

@@ -338,22 +338,8 @@ class TeamService {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }
 
-    // Allow "orphaned" students to join new teams — if user already has a team, remove them first
     if (user.teamId) {
-      const previousTeam = await Team.findById(user.teamId);
-      if (previousTeam) {
-        previousTeam.members = previousTeam.members.filter(
-          (memberId) => memberId.toString() !== userId.toString(),
-        );
-        // If the user was the leader and there are remaining members, transfer leadership
-        if (
-          previousTeam.leaderId.toString() === userId.toString() &&
-          previousTeam.members.length > 0
-        ) {
-          previousTeam.leaderId = previousTeam.members[0];
-        }
-        await previousTeam.save();
-      }
+      throw new AppError('You are already part of a team. Please leave your current team before joining a new one.', 400, 'ALREADY_IN_TEAM');
     }
 
     const team = await Team.findById(invite.teamId);

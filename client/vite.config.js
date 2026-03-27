@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import http from 'http';
 
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:5001';
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:5000';
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
 const allowedHosts = [
   'localhost',
@@ -13,7 +13,10 @@ const allowedHosts = [
 ];
 
 const createProxyErrorHandler = (label) => (err, req, res) => {
-  console.warn(`[vite] ${label} proxy error:`, err.message, 'target=', apiProxyTarget);
+  // Suppress "ECONNREFUSED" console noise when backend is simply not running or unreachable
+  if (err.code !== 'ECONNREFUSED') {
+    console.warn(`[vite] ${label} proxy error:`, err.message, 'target=', apiProxyTarget);
+  }
 
   if (!res || res.headersSent) {
     return;

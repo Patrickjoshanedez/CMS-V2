@@ -51,7 +51,6 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  BookOpen,
 } from 'lucide-react';
 
 /**
@@ -659,21 +658,9 @@ function getNextStep(project, submissions) {
     });
 
     if (allChaptersReady) {
-      // Check if proposal has been compiled
-      const hasProposal = submissions?.submissions?.some((s) => s.type === 'proposal');
-      if (!hasProposal) {
-        return {
-          title: 'Compile Your Proposal',
-          description:
-            'All chapters 1–3 are approved/locked. Compile and submit your full proposal.',
-          action: { label: 'Compile Proposal', path: '/project/proposal' },
-          icon: BookOpen,
-          color: 'text-green-600 dark:text-green-400',
-        };
-      }
       return {
-        title: 'Proposal Submitted',
-        description: 'Your full proposal has been compiled. Await adviser and panelist review.',
+        title: 'Ready for Defense',
+        description: 'All chapters 1–3 are approved/locked. You are ready for your Capstone 1 defense.',
         action: { label: 'View Submissions', path: '/project/submissions' },
         icon: CheckCircle2,
         color: 'text-green-600 dark:text-green-400',
@@ -771,12 +758,11 @@ export default function MyProjectPage() {
 
   // Auto-advance to the highest unlocked tab on first load
   const getDefaultTab = () => {
-    if (!project) return 'proposal';
+    if (!project) return 'capstone_1';
     if (finalUnlocked) return 'final';
     if (capstone3Unlocked) return 'capstone_3';
     if (capstone2Unlocked) return 'capstone_2';
-    if (capstone1Unlocked) return 'capstone_1';
-    return 'proposal';
+    return 'capstone_1';
   };
 
   return (
@@ -815,10 +801,19 @@ export default function MyProjectPage() {
             {/* Phase stepper — always visible above tabs */}
             <WorkflowPhaseTracker project={project} />
 
+            {/* Title / Project Info visible before or alongside tabs */}
+            <div className="space-y-6">
+              {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+              <ProjectInfoCard project={project} />
+              <TitleActionsSection project={project} />
+              {project.titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists && (
+                <PanelistsPendingCard />
+              )}
+            </div>
+
             {/* Tabbed workflow */}
             <Tabs defaultValue={getDefaultTab()}>
               <TabsList>
-                <TabsTrigger value="proposal">Proposal</TabsTrigger>
                 <TabsTrigger value="capstone_1" locked={!capstone1Unlocked}>
                   Capstone 1
                 </TabsTrigger>
@@ -832,16 +827,6 @@ export default function MyProjectPage() {
                   Final Defense
                 </TabsTrigger>
               </TabsList>
-
-              {/* ── Proposal Tab ── */}
-              <TabsContent value="proposal">
-                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
-                <ProjectInfoCard project={project} />
-                <TitleActionsSection project={project} />
-                {project.titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists && (
-                  <PanelistsPendingCard />
-                )}
-              </TabsContent>
 
               {/* ── Capstone 1 Tab ── */}
               <TabsContent value="capstone_1">

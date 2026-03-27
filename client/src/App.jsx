@@ -52,9 +52,6 @@ const MyProjectPage = lazyPage(() => import('./pages/projects/MyProjectPage'));
 const ProjectsPage = lazyPage(() => import('./pages/projects/ProjectsPage'));
 const ProjectDetailPage = lazyPage(() => import('./pages/projects/ProjectDetailPage'));
 const ChapterUploadPage = lazyPage(() => import('./pages/submissions/ChapterUploadPage'));
-const ProposalCompilationPage = lazyPage(
-  () => import('./pages/submissions/ProposalCompilationPage'),
-);
 const ProjectSubmissionsPage = lazyPage(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazyPage(() => import('./pages/submissions/SubmissionDetailPage'));
 const SubmissionReviewPage = lazyPage(() => import('./pages/submissions/SubmissionReviewPage'));
@@ -144,7 +141,6 @@ const PROTECTED_ROUTES = [
   // Submissions
   { path: '/project/submissions', Component: ProjectSubmissionsPage },
   { path: '/project/submissions/upload', Component: ChapterUploadPage },
-  { path: '/project/proposal', Component: ProposalCompilationPage },
   { path: '/project/submissions/:submissionId', Component: SubmissionDetailPage },
   { path: '/project/submissions/:submissionId/review', Component: SubmissionReviewPage },
   { path: '/project/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },

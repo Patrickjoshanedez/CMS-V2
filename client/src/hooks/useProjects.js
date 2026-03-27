@@ -174,6 +174,14 @@ export function useRejectTitle(options = {}) {
   }, options);
 }
 
+/** Add a comment to a title proposal */
+export function useAddTitleComment(options = {}) {
+  return useProjectMutation(async ({ projectId, proposalId, text }) => {
+    const res = await projectService.addTitleComment(projectId, proposalId, { text });
+    return res.data;
+  }, options);
+}
+
 /** Resolve a title modification request (instructor) */
 export function useResolveTitleModification(options = {}) {
   return useProjectMutation(async ({ projectId, ...data }) => {

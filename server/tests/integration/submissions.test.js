@@ -58,7 +58,13 @@ async function createProjectSetup(studentId, adviserId = null, instructorId = nu
     courseId: new mongoose.Types.ObjectId(),
     sectionId: new mongoose.Types.ObjectId(),
     title: 'Test Capstone Project',
-    titleProposals: ['Proposal 1', 'Proposal 2', 'Proposal 3', 'Proposal 4', 'Proposal 5'],
+    titleProposals: [
+      { title: 'Proposal 1', comments: [] },
+      { title: 'Proposal 2', comments: [] },
+      { title: 'Proposal 3', comments: [] },
+      { title: 'Proposal 4', comments: [] },
+      { title: 'Proposal 5', comments: [] },
+    ],
     abstract: 'A test project for submission tests.',
     keywords: ['test'],
     academicYear: '2024-2025',
@@ -306,6 +312,33 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
+    });
+
+    it('should accept chapter upload with a valid prototype link', async () => {
+      await Project.findByIdAndUpdate(project._id, { capstonePhase: 3 });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '4')
+        .field('prototypeLink', 'https://prototype.example.com/demo-v1')
+        .attach('file', createPdfBuffer(), 'chapter4.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.submission.chapter).toBe(4);
+      expect(res.body.data.submission.prototypeLink).toBe('https://prototype.example.com/demo-v1');
+    });
+
+    it('should reject chapter upload with an invalid prototype link', async () => {
+      await Project.findByIdAndUpdate(project._id, { capstonePhase: 4 });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '5')
+        .field('prototypeLink', 'invalid-url')
+        .attach('file', createPdfBuffer(), 'chapter5.pdf');
+
+      expect(res.status).toBe(400);
     });
   });
 
@@ -696,269 +729,6 @@ describe('Submissions API — /api/submissions', () => {
         content: 'Student annotation attempt.',
       });
       expect(res.status).toBe(403);
-    });
-  });
-
-  /* ────────── Proposal Compilation ────────── */
-  describe('POST /:projectId/proposal — Compile proposal', () => {
-    /**
-     * Helper: create locked submissions for chapters 1, 2, and 3.
-     */
-    async function lockChapters123() {
-      for (const ch of [1, 2, 3]) {
-        await Submission.create({
-          projectId: project._id,
-          chapter: ch,
-          type: 'chapter',
-          version: 1,
-          fileName: `chapter${ch}.pdf`,
-          fileType: 'application/pdf',
-          fileSize: 5000,
-          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
-          status: SUBMISSION_STATUSES.LOCKED,
-          submittedBy: studentUser._id,
-        });
-      }
-    }
-
-    beforeEach(async () => {
-      // Add proposal deadline to project
-      await Project.findByIdAndUpdate(project._id, {
-        'deadlines.proposal': new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
-      });
-    });
-
-    it('should compile proposal when all chapters 1-3 are locked', async () => {
-      await lockChapters123();
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'full-proposal.pdf');
-
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.submission.type).toBe('proposal');
-      expect(res.body.data.submission.chapter).toBeNull();
-      expect(res.body.data.submission.version).toBe(1);
-      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.PENDING);
-
-      // Verify project transitioned to PROPOSAL_SUBMITTED
-      const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
-
-      // Verify S3 upload was called with proposal key
-      expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
-      const uploadedKey = storageService.uploadFile.mock.calls[0][1];
-      expect(uploadedKey).toContain('proposal');
-    });
-
-    it('should auto-increment proposal version on re-upload', async () => {
-      await lockChapters123();
-
-      // First proposal
-      await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal-v1.pdf');
-
-      // Reset project to active for second upload
-      await Project.findByIdAndUpdate(project._id, {
-        projectStatus: PROJECT_STATUSES.ACTIVE,
-      });
-
-      // Second proposal
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal-v2.pdf');
-
-      expect(res.status).toBe(201);
-      expect(res.body.data.submission.version).toBe(2);
-    });
-
-    it('should reject if Chapter 1 is not locked', async () => {
-      // Only lock chapters 2 and 3
-      for (const ch of [2, 3]) {
-        await Submission.create({
-          projectId: project._id,
-          chapter: ch,
-          type: 'chapter',
-          version: 1,
-          fileName: `chapter${ch}.pdf`,
-          fileType: 'application/pdf',
-          fileSize: 5000,
-          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
-          status: SUBMISSION_STATUSES.LOCKED,
-          submittedBy: studentUser._id,
-        });
-      }
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('CHAPTER_NOT_LOCKED');
-    });
-
-    it('should reject if any chapter is pending (not locked)', async () => {
-      // Lock ch 1 and 3, but ch 2 is only pending
-      for (const ch of [1, 3]) {
-        await Submission.create({
-          projectId: project._id,
-          chapter: ch,
-          type: 'chapter',
-          version: 1,
-          fileName: `chapter${ch}.pdf`,
-          fileType: 'application/pdf',
-          fileSize: 5000,
-          storageKey: `projects/${project._id}/chapters/${ch}/v1/chapter${ch}.pdf`,
-          status: SUBMISSION_STATUSES.LOCKED,
-          submittedBy: studentUser._id,
-        });
-      }
-      await Submission.create({
-        projectId: project._id,
-        chapter: 2,
-        type: 'chapter',
-        version: 1,
-        fileName: 'chapter2.pdf',
-        fileType: 'application/pdf',
-        fileSize: 5000,
-        storageKey: `projects/${project._id}/chapters/2/v1/chapter2.pdf`,
-        status: SUBMISSION_STATUSES.PENDING,
-        submittedBy: studentUser._id,
-      });
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('CHAPTER_NOT_LOCKED');
-    });
-
-    it('should reject non-student role (adviser)', async () => {
-      await lockChapters123();
-
-      const res = await adviserAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(403);
-    });
-
-    it('should reject proposal compile when adviser is not assigned', async () => {
-      const { agent: studentNoAdviserAgent, user: studentNoAdviser } =
-        await createAuthenticatedUserWithRole('student', {
-          email: 'proposal-no-adviser@test.com',
-        });
-
-      const { project: noAdviserProject } = await createProjectSetup(
-        studentNoAdviser._id,
-        null,
-        _instructorUser._id,
-      );
-
-      for (const chapter of [1, 2, 3]) {
-        await Submission.create({
-          projectId: noAdviserProject._id,
-          chapter,
-          type: 'chapter',
-          version: 1,
-          fileName: `chapter${chapter}.pdf`,
-          fileType: 'application/pdf',
-          fileSize: 1000,
-          storageKey: `uploads/chapter${chapter}.pdf`,
-          status: SUBMISSION_STATUSES.LOCKED,
-          submittedBy: studentNoAdviser._id,
-        });
-      }
-
-      const res = await studentNoAdviserAgent
-        .post(`/api/submissions/${noAdviserProject._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.success).toBe(false);
-    });
-    it('should reject non-student role (panelist)', async () => {
-      await lockChapters123();
-
-      const res = await panelistAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(403);
-    });
-
-    it('should reject when project is not active', async () => {
-      await lockChapters123();
-      await Project.findByIdAndUpdate(project._id, {
-        projectStatus: PROJECT_STATUSES.PROPOSAL_SUBMITTED,
-      });
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('PROJECT_NOT_ACTIVE');
-    });
-
-    it('should reject when title is not approved', async () => {
-      await lockChapters123();
-      await Project.findByIdAndUpdate(project._id, { titleStatus: 'draft' });
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
-    });
-
-    it('should require remarks for late proposal submission', async () => {
-      await lockChapters123();
-      await Project.findByIdAndUpdate(project._id, {
-        'deadlines.proposal': new Date(Date.now() - 1000),
-      });
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'late-proposal.pdf');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('LATE_REMARKS_REQUIRED');
-    });
-
-    it('should accept late proposal with remarks', async () => {
-      await lockChapters123();
-      await Project.findByIdAndUpdate(project._id, {
-        'deadlines.proposal': new Date(Date.now() - 1000),
-      });
-
-      const res = await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .field('remarks', 'Delayed due to data collection issues.')
-        .attach('file', createPdfBuffer(), 'late-proposal.pdf');
-
-      expect(res.status).toBe(201);
-      expect(res.body.data.submission.isLate).toBe(true);
-      expect(res.body.data.submission.remarks).toContain('data collection');
-    });
-
-    it('should create notification for adviser on proposal upload', async () => {
-      await lockChapters123();
-
-      await studentAgent
-        .post(`/api/submissions/${project._id}/proposal`)
-        .attach('file', createPdfBuffer(), 'proposal.pdf');
-
-      const notifications = await Notification.find({
-        userId: adviserUser._id,
-        type: 'proposal_submitted',
-      });
-      expect(notifications).toHaveLength(1);
-      expect(notifications[0].message).toContain('compiled proposal');
     });
   });
 

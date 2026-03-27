@@ -32,6 +32,60 @@ const DEFAULT_ORIGINALITY_THRESHOLD = 75;
  * Handles creation, title workflow, adviser/panelist assignment, and status transitions.
  */
 class ProjectService {
+  _normalizeTitleProposalComments(comments) {
+    if (!Array.isArray(comments)) return [];
+
+    return comments
+      .map((comment) => {
+        if (!comment || typeof comment !== 'object') return null;
+
+        const text = typeof comment.text === 'string' ? comment.text.trim() : '';
+        if (!text) return null;
+
+        const normalizedComment = {
+          text,
+          createdAt: comment.createdAt ? new Date(comment.createdAt) : new Date(),
+        };
+
+        if (comment.user && mongoose.Types.ObjectId.isValid(comment.user)) {
+          normalizedComment.user = comment.user;
+        }
+
+        if (typeof comment.name === 'string' && comment.name.trim()) {
+          normalizedComment.name = comment.name.trim();
+        }
+
+        return normalizedComment;
+      })
+      .filter(Boolean);
+  }
+
+  _normalizeTitleProposals(titleProposals = []) {
+    if (!Array.isArray(titleProposals)) return [];
+
+    const normalizedByTitle = new Map();
+
+    for (const proposal of titleProposals) {
+      let title = '';
+      let comments = [];
+
+      if (typeof proposal === 'string') {
+        title = proposal.trim();
+      } else if (proposal && typeof proposal === 'object') {
+        title = typeof proposal.title === 'string' ? proposal.title.trim() : '';
+        comments = this._normalizeTitleProposalComments(proposal.comments);
+      }
+
+      if (!title) continue;
+
+      if (!normalizedByTitle.has(title)) {
+        normalizedByTitle.set(title, { title, comments });
+      }
+    }
+
+    return [...normalizedByTitle.values()];
+  }
+
   /* ═══════════════════ Creation ═══════════════════ */
 
   /**
@@ -85,13 +139,14 @@ class ProjectService {
       throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
     }
 
-    const normalizedTitleProposals = [...new Set((data.titleProposals || []).map((proposal) => proposal.trim()))];
+    const normalizedTitleProposals = this._normalizeTitleProposals(data.titleProposals);
 
     if (normalizedTitleProposals.length < 5) {
       throw new AppError('At least 5 unique title proposals are required.', 400, 'MIN_TITLE_PROPOSALS');
     }
 
-    if (!normalizedTitleProposals.includes(data.title.trim())) {
+    const proposalTitles = normalizedTitleProposals.map((proposal) => proposal.title);
+    if (!proposalTitles.includes(data.title.trim())) {
       throw new AppError(
         'Selected project title must be one of the submitted title proposals.',
         400,
@@ -220,7 +275,6 @@ class ProjectService {
       name: soloTeamName,
       leaderId: user._id,
       members: [user._id],
-      isLocked: true,
       academicYear,
     });
 
@@ -306,6 +360,7 @@ class ProjectService {
       projectStatus,
       search,
       adviserId,
+      sectionId,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -314,6 +369,7 @@ class ProjectService {
     if (titleStatus) filter.titleStatus = titleStatus;
     if (projectStatus) filter.projectStatus = projectStatus;
     if (adviserId) filter.adviserId = adviserId;
+    if (sectionId) filter.sectionId = sectionId;
     if (search) {
       filter.$text = { $search: search };
     }
@@ -433,6 +489,9 @@ class ProjectService {
 
     // Merge updates
     if (data.title !== undefined) project.title = data.title;
+    if (data.titleProposals !== undefined) {
+      project.titleProposals = this._normalizeTitleProposals(data.titleProposals);
+    }
     if (data.abstract !== undefined) project.abstract = data.abstract;
     if (data.keywords !== undefined) project.keywords = data.keywords;
     await project.save();
@@ -565,6 +624,29 @@ class ProjectService {
   }
 
   /**
+   * Add a comment to a specific title proposal.
+   */
+  async addTitleComment({ projectId, proposalId, user, text }) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const proposal = project.titleProposals.id(proposalId);
+    if (!proposal) {
+      throw new AppError('Title proposal not found', 404, 'NOT_FOUND');
+    }
+
+    proposal.comments.push({
+      user: user.id || user._id,
+      name: user.name || `${user.firstName} ${user.lastName}`.trim(),
+      text,
+      createdAt: new Date(),
+    });
+
+    await project.save();
+
+    return project;
+  }
+
+  /**
    * Resubmit a project whose title was sent back for revision.
    * The team leader can edit and re-submit. Alias for updateTitle + submitTitle
    * when status is REVISION_REQUIRED.
@@ -589,6 +671,9 @@ class ProjectService {
 
     // Apply edits
     if (data.title !== undefined) project.title = data.title;
+    if (data.titleProposals !== undefined) {
+      project.titleProposals = this._normalizeTitleProposals(data.titleProposals);
+    }
     if (data.abstract !== undefined) project.abstract = data.abstract;
     if (data.keywords !== undefined) project.keywords = data.keywords;
     project.titleStatus = TITLE_STATUSES.SUBMITTED;

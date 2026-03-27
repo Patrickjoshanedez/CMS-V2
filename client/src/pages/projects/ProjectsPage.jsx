@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import { useProjects } from '@/hooks/useProjects';
+import { useSections } from '@/hooks/useAcademics';
 import { Search, ChevronLeft, ChevronRight, Loader2, FileText, AlertTriangle } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 
@@ -32,16 +33,19 @@ export default function ProjectsPage() {
   const { user, fetchUser } = useAuthStore();
   const [search, setSearch] = useState('');
   const [titleStatus, setTitleStatus] = useState('');
+  const [sectionId, setSectionId] = useState('');
   const [page, setPage] = useState(1);
 
   const filters = {
     ...(search && { search }),
     ...(titleStatus && { titleStatus }),
+    ...(sectionId && { sectionId }),
     page,
     limit: 10,
   };
 
   const { data, isLoading, error, refetch } = useProjects(filters);
+  const { data: sectionsData } = useSections();
 
   if (!user) {
     fetchUser();
@@ -75,7 +79,7 @@ export default function ProjectsPage() {
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by title or keyword…"
@@ -87,7 +91,24 @@ export default function ProjectsPage() {
               className="pl-9"
             />
           </div>
-          <div className="flex gap-2">
+          
+          <select
+            className="flex h-10 w-full sm:w-48 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            value={sectionId}
+            onChange={(e) => {
+              setSectionId(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All Sections</option>
+            {sectionsData?.map((sec) => (
+              <option key={sec._id} value={sec._id}>
+                {sec.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex flex-wrap gap-2">
             {STATUS_FILTERS.map((f) => (
               <Button
                 key={f.value}

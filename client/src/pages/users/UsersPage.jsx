@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
-import { useUsers, useCreateUser, useChangeRole, useDeleteUser } from '@/hooks/useUsers';
+import { useUsers, useCreateUser, useChangeRole, useDeleteUser, useImportStudents } from '@/hooks/useUsers';
 import {
   useAcademicHierarchy,
   useAcademicYears,
@@ -730,7 +730,85 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
     </div>
   );
 }
+/* ────────── Import Students Form ────────── */
+function ImportStudentsForm({ onCancel }) {
+  const [file, setFile] = useState(null);
+  const [sectionId, setSectionId] = useState('');
+  
+  const { data: sections = [], isLoading: isLoadingSections } = useSections();
+  const importMutation = useImportStudents({
+    onSuccess: (res) => {
+      const { created, skipped } = res?.data?.data || {};
+      toast.success(`Import complete: ${created} created, ${skipped} skipped.`);
+      onCancel();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to import students.');
+    },
+  });
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!file || !sectionId) {
+      toast.error('File and section are required.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('sectionId', sectionId);
+    importMutation.mutate(formData);
+  };
+
+  return (
+    <Card className="mb-6 border-primary/20 bg-primary/5">
+      <CardHeader>
+        <CardTitle className="text-lg">Import Students via CSV</CardTitle>
+        <CardDescription>
+          Upload a CSV with columns: firstName, lastName, email. Select the section they should be assigned to.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="sectionSelect">Target Section</Label>
+            <select
+              id="sectionSelect"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={sectionId}
+              onChange={(e) => setSectionId(e.target.value)}
+              disabled={isLoadingSections}
+              required
+            >
+              <option value="" disabled>Select a section</option>
+              {sections.map((sec) => (
+                <option key={sec._id} value={sec._id}>{sec.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="csvFile">CSV File</Label>
+            <Input
+              id="csvFile"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setFile(e.target.files[0])}
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={importMutation.isPending}>
+              {importMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Upload & Import
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 /* ────────── Create User Form ────────── */
 
 function CreateUserForm({ onCancel }) {
@@ -945,6 +1023,7 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showImportForm, setShowImportForm] = useState(false);
 
   // Build query params
   const filters = useMemo(() => {
@@ -1047,15 +1126,22 @@ export default function UsersPage() {
 
         {activePanel === 'rbac' && (
           <>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowImportForm((prev) => !prev)}>
+                <Users className="mr-2 h-4 w-4" />
+                {showImportForm ? 'Cancel Import' : 'Import Students'}
+              </Button>
               <Button onClick={() => setShowCreateForm((prev) => !prev)}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                {showCreateForm ? 'Cancel' : 'New User'}
+                {showCreateForm ? 'Cancel Form' : 'New User'}
               </Button>
             </div>
 
             {/* Create student form */}
             {showCreateForm && <CreateUserForm onCancel={() => setShowCreateForm(false)} />}
+            
+            {/* Import students form */}
+            {showImportForm && <ImportStudentsForm onCancel={() => setShowImportForm(false)} />}
 
             {/* Filters */}
             <Card>

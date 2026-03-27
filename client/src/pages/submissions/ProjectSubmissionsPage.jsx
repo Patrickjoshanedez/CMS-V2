@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject } from '@/hooks/useProjects';
@@ -18,7 +19,6 @@ import {
   Loader2,
   Clock,
   ChevronRight,
-  Filter,
   ArrowLeft,
 } from 'lucide-react';
 
@@ -125,7 +125,7 @@ export default function ProjectSubmissionsPage() {
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === ROLES.STUDENT;
 
-  const [chapterFilter, setChapterFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('1');
 
   const {
     data: project,
@@ -134,15 +134,12 @@ export default function ProjectSubmissionsPage() {
     refetch: refetchProject,
   } = useMyProject();
 
-  const filters = {};
-  if (chapterFilter) filters.chapter = chapterFilter;
-
   const {
     data: submissionsData,
     isLoading: subsLoading,
     error: subsError,
     refetch: refetchSubs,
-  } = useProjectSubmissions(project?._id, filters, {
+  } = useProjectSubmissions(project?._id, {}, {
     enabled: !!project?._id,
   });
 
@@ -288,47 +285,37 @@ export default function ProjectSubmissionsPage() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-medium">Filter</CardTitle>
-            </div>
-            <p className="text-xs text-muted-foreground">Focus submissions by chapter number.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant={chapterFilter === '' ? 'default' : 'outline'}
-                onClick={() => setChapterFilter('')}
-              >
-                All
-              </Button>
-              {CHAPTER_LABELS.map((label, idx) => (
-                <Button
-                  key={idx + 1}
-                  size="sm"
-                  variant={chapterFilter === String(idx + 1) ? 'default' : 'outline'}
-                  onClick={() => setChapterFilter(String(idx + 1))}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Submissions list */}
         {submissions.length === 0 ? (
           <EmptyState canUpload={canUpload} />
         ) : (
-          <div className="space-y-3">
-            {submissions.map((sub) => (
-              <SubmissionRow key={sub._id} submission={sub} />
-            ))}
-          </div>
+          <Tabs defaultValue="1" onValueChange={setActiveTab} value={activeTab}>
+            <TabsList className="mb-4 flex flex-wrap h-auto">
+              {CHAPTER_LABELS.map((label, idx) => (
+                <TabsTrigger key={idx + 1} value={String(idx + 1)}>
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            {CHAPTER_LABELS.map((label, idx) => {
+              const chapterNum = String(idx + 1);
+              const chapterSubmissions = submissions.filter((sub) => String(sub.chapter) === chapterNum);
+              return (
+                <TabsContent key={chapterNum} value={chapterNum}>
+                  <div className="space-y-3">
+                    {chapterSubmissions.length === 0 ? (
+                      <EmptyState canUpload={canUpload} />
+                    ) : (
+                      chapterSubmissions.map((sub) => (
+                        <SubmissionRow key={sub._id} submission={sub} />
+                      ))
+                    )}
+                  </div>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         )}
       </div>
     </DashboardLayout>

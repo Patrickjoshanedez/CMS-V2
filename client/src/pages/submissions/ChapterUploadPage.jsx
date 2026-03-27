@@ -57,6 +57,7 @@ export default function ChapterUploadPage() {
   const [chapter, setChapter] = useState(preselectedChapter || '');
   const [file, setFile] = useState(null);
   const [remarks, setRemarks] = useState('');
+  const [prototypeLink, setPrototypeLink] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [clientError, setClientError] = useState('');
 
@@ -140,6 +141,9 @@ export default function ChapterUploadPage() {
     if (remarks.trim()) {
       formData.append('remarks', remarks.trim());
     }
+    if (prototypeLink.trim()) {
+      formData.append('prototypeLink', prototypeLink.trim());
+    }
 
     uploadMutation.mutate({
       projectId: project._id,
@@ -171,25 +175,23 @@ export default function ChapterUploadPage() {
   })();
 
   const selectedChapterNumber = Number(chapter);
+  const isPrototypeFocusedChapter = selectedChapterNumber === 4 || selectedChapterNumber === 5;
   const selectedLatestSubmission = latestChapterSubmissions.get(selectedChapterNumber);
   const selectedNextRound = selectedLatestSubmission
     ? (selectedLatestSubmission.revisionRound || 0) + 1
     : 0;
   const nextAllowedChapter = (() => {
-    for (let candidate = 2; candidate <= 5; candidate += 1) {
-      const previous = latestChapterSubmissions.get(candidate - 1);
-      if (previous?.status !== SUBMISSION_STATUSES.LOCKED) return candidate - 1;
+    let highest = 1;
+    for (let candidate = 1; candidate <= 5; candidate += 1) {
+      if (latestChapterSubmissions.has(candidate)) {
+        highest = candidate;
+      }
     }
-    return 5;
+    return Math.min(highest + 1, 5);
   })();
 
   const canSubmitSelectedChapter = (() => {
     if (!selectedChapterNumber) return false;
-
-    if (selectedChapterNumber > 1) {
-      const previous = latestChapterSubmissions.get(selectedChapterNumber - 1);
-      if (previous?.status !== SUBMISSION_STATUSES.LOCKED) return false;
-    }
 
     if (!selectedLatestSubmission) return true;
     return selectedLatestSubmission.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED;
@@ -357,9 +359,7 @@ export default function ChapterUploadPage() {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Chapter workflow is sequential. The previous chapter must be approved and locked before
-            continuing, and re-uploading the same chapter is only allowed after adviser revision
-            request.
+            You can upload any chapter at any time. Re-uploading the same chapter is only allowed after adviser revision request.
           </AlertDescription>
         </Alert>
 
@@ -423,15 +423,11 @@ export default function ChapterUploadPage() {
                   <option value="">Select a chapter...</option>
                   {CHAPTER_LABELS.map((label, idx) => {
                     const chapterValue = idx + 1;
-                    const previous = latestChapterSubmissions.get(chapterValue - 1);
-                    const hasPreviousApproval =
-                      chapterValue === 1 || previous?.status === SUBMISSION_STATUSES.LOCKED;
 
                     return (
                       <option
                         key={chapterValue}
                         value={chapterValue}
-                        disabled={!hasPreviousApproval}
                       >
                         {label}
                       </option>
@@ -508,6 +504,23 @@ export default function ChapterUploadPage() {
                   rows={3}
                 />
                 <p className="text-xs text-muted-foreground">{remarks.length}/1000 characters</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="prototypeLink">Prototype or Demo Link (optional)</Label>
+                <Input
+                  id="prototypeLink"
+                  type="url"
+                  placeholder="https://example.com/demo"
+                  value={prototypeLink}
+                  onChange={(e) => setPrototypeLink(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isPrototypeFocusedChapter
+                    ? 'Recommended for Chapter 4 and 5 submissions to share your prototype or demo.'
+                    : 'Mainly used for Chapter 4 and 5 prototype or demo references.'}
+                </p>
               </div>
 
               {/* Actions */}
