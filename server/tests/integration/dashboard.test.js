@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createAuthenticatedUserWithRole, createAuthenticatedAgent } from '../helpers.js';
+import { createAuthenticatedUserWithRole, createAuthenticatedAgent, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
@@ -59,12 +59,11 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
       await User.findByIdAndUpdate(user._id, { teamId: team._id });
 
       // Create a project for the team
-      const project = await Project.create({
-        teamId: team._id,
-        title: 'Dashboard Test Project Title',
-        academicYear: '2024-2025',
-        capstonePhase: 1,
-      });
+      const { course, section } = await createCourseAndSection(user._id);
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [user._id]);
+      payload.title = 'Dashboard Test Project Title';
+      payload.capstonePhase = 1;
+      const project = await Project.create(payload);
 
       // Create a submission for the project
       await Submission.create({
@@ -100,7 +99,7 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
 
   describe('Instructor role', () => {
     it('should return system-wide counts and aggregations', async () => {
-      const { agent } = await createAuthenticatedUserWithRole('instructor', {
+      const { agent, user } = await createAuthenticatedUserWithRole('instructor', {
         email: 'instructor-dash@example.com',
       });
 
@@ -121,13 +120,12 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
         academicYear: '2024-2025',
       });
 
-      await Project.create({
-        teamId: team._id,
-        title: 'Seed Project For Instructor Stats',
-        academicYear: '2024-2025',
-        titleStatus: 'submitted',
-        projectStatus: 'active',
-      });
+      const { course, section } = await createCourseAndSection(user._id);
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
+      payload.title = 'Seed Project For Instructor Stats';
+      payload.projectStatus = 'active';
+      payload.titleStatus = 'submitted';
+      await Project.create(payload);
 
       const res = await agent.get('/api/dashboard/stats');
 
@@ -169,12 +167,11 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
         academicYear: '2024-2025',
       });
 
-      const project = await Project.create({
-        teamId: team._id,
-        title: 'Adviser Assigned Project Title',
-        academicYear: '2024-2025',
-        adviserId: adviser._id,
-      });
+      const { course, section } = await createCourseAndSection(adviser._id);
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [student._id]);
+      payload.title = 'Adviser Assigned Project Title';
+      payload.adviserId = adviser._id;
+      const project = await Project.create(payload);
 
       // Create a pending submission for this project
       await Submission.create({
@@ -240,12 +237,11 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
         academicYear: '2024-2025',
       });
 
-      await Project.create({
-        teamId: team._id,
-        title: 'Panelist Review Project Title',
-        academicYear: '2024-2025',
-        panelistIds: [panelist._id],
-      });
+      const { course, section } = await createCourseAndSection(panelist._id);
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [student._id]);
+      payload.title = 'Panelist Review Project Title';
+      payload.panelistIds = [panelist._id];
+      await Project.create(payload);
 
       const res = await agent.get('/api/dashboard/stats');
 

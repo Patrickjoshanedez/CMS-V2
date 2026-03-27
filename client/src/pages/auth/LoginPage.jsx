@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -76,20 +76,41 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
+  const handleGoogleSuccess = useCallback(async (credentialResponse) => {
+    if (!credentialResponse?.credential) {
+      setGoogleError('Google sign-in did not return a credential. Please try again.');
+      return;
+    }
+
     try {
       setGoogleError('');
       clearError();
       await googleLogin(credentialResponse.credential);
       navigate('/dashboard', { replace: true });
-    } catch {
-      setGoogleError(getGoogleOriginMismatchMessage());
+    } catch (error) {
+      const apiMessage = error?.response?.data?.error?.message;
+      setGoogleError(apiMessage || getGoogleOriginMismatchMessage());
     }
-  };
+  }, [clearError, googleLogin, navigate]);
 
-  const handleGoogleError = () => {
+  const handleGoogleError = useCallback(() => {
     setGoogleError(getGoogleOriginMismatchMessage());
-  };
+  }, []);
+
+  const googleLoginButton = useMemo(
+    () => (
+      <GoogleLogin
+        onSuccess={handleGoogleSuccess}
+        onError={handleGoogleError}
+        theme={theme === 'dark' ? 'filled_black' : 'outline'}
+        size="large"
+        width={360}
+        text="signin_with"
+        shape="rectangular"
+      />
+    ),
+    [handleGoogleError, handleGoogleSuccess, theme],
+  );
 
   return (
     <AuthLayout title="Welcome back" description="Sign in to your account to continue.">
@@ -195,15 +216,7 @@ export default function LoginPage() {
       {/* Google Sign-In */}
       {isGoogleLoginConfigured ? (
         <div className="auth-item flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            theme={theme === 'dark' ? 'filled_black' : 'outline'}
-            size="large"
-            width={360}
-            text="signin_with"
-            shape="rectangular"
-          />
+          {googleLoginButton}
         </div>
       ) : (
         <div className="auth-item">

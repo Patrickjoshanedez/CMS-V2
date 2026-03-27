@@ -42,6 +42,7 @@ async function createProjectSetup(studentId, adviserId) {
   const project = await Project.create({
     teamId: team._id,
     title: 'Sprint11 Capstone Project',
+    titleProposals: ['Proposal 1', 'Proposal 2', 'Proposal 3', 'Proposal 4', 'Proposal 5'],
     abstract: 'Testing Sprint 11 features.',
     keywords: ['testing', 'capstone'],
     academicYear: '2024-2025',

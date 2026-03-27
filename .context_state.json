@@ -1,0 +1,12 @@
+{
+    "db_reset_seed_commands": "root:npm run seed|npm run seed:server; server:npm run seed|node seeders/index.js; maintenance:node seeders/fix-googleid.js; caveat:seed wipes collections via deleteMany using MONGODB_URI",
+    "active_task": "update_context_manager_agent_prompt",
+    "iteration": "1",
+    "target_file": ".github/agents/context-manager.agent.md",
+    "status": "planning",
+    "session.current_task": "configure ngrok for CMS-V2",
+    "session.status": "planning",
+    "session.last_updated_iso": "2026-03-25T11:05:29Z",
+    "blockers": "[{id:blk-ngrok-001,description:No active ngrok URL configured in env files; localhost values are still in use.,status:open,timestamp_iso:2026-03-25T11:05:29Z}]",
+    "next_actions": "[Choose tunnel direction (frontend 5173 or backend 5001),Start ngrok and capture public URL,Set CLIENT_URL and CORS_ALLOWED_ORIGINS to include ngrok URL,Add ngrok origin to Google OAuth Authorized JavaScript origins,If Drive OAuth mode is used, set GOOGLE_REDIRECT_URI to a registered callback URL]"
+}

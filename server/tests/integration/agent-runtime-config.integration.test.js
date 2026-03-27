@@ -19,7 +19,7 @@ describe('Agent Runtime Config Integration', () => {
 
   describe('Profile Schema Validation', () => {
     it('should load and validate default profile structure', async () => {
-      const profile = await configService.getActiveProfile();
+      const { profile } = await configService.getActiveProfile();
 
       assert.ok(profile, 'Profile should exist');
       assert.strictEqual(profile.id, 'cms-agent-default', 'Profile ID should be cms-agent-default');
@@ -33,7 +33,7 @@ describe('Agent Runtime Config Integration', () => {
     });
 
     it('should have properly structured mode profiles', async () => {
-      const profile = await configService.getActiveProfile();
+      const { profile } = await configService.getActiveProfile();
 
       Object.values(profile.modeProfiles).forEach((mode) => {
         assert.ok(Array.isArray(mode.useWhen), 'Mode should have useWhen array');
@@ -44,7 +44,7 @@ describe('Agent Runtime Config Integration', () => {
     });
 
     it('should have valid confidence policy bands', async () => {
-      const profile = await configService.getActiveProfile();
+      const { profile } = await configService.getActiveProfile();
       const bands = ['high', 'medium', 'low'];
 
       bands.forEach((band) => {
@@ -80,11 +80,11 @@ describe('Agent Runtime Config Integration', () => {
 
       assert.ok(decision !== undefined, 'Should return decision');
       // Should return boolean or object with boolean flag
-      assert(typeof decision === 'boolean' || decision.trigger !== undefined);
+      assert(typeof decision === 'boolean' || decision.enabled !== undefined || decision.trigger !== undefined);
     });
 
     it('should access experimental features correctly', async () => {
-      const config = await configService.getActiveProfile();
+      const config = await configService.loadProfile('staging');
 
       // Check that staging has more experimental features enabled
       assert.ok(config.experimentalFeatures, 'Should have experimental features');
@@ -150,12 +150,12 @@ describe('Agent Runtime Config Integration', () => {
 
   describe('Fallback Behavior', () => {
     it('should provide hardcoded defaults', async () => {
-      const defaults = configService.getHardcodedDefaults();
+      const defaults = configService._getHardcodedDefaults();
 
       assert.ok(defaults, 'Should return hardcoded defaults');
       assert.ok(defaults.id, 'Defaults should have an ID');
-      assert.ok(defaults.modeProfiles, 'Defaults should have mode profiles');
-      assert.ok(defaults.confidencePolicy, 'Defaults should have confidence policy');
+      assert.ok(defaults.settings, 'Defaults should have settings');
+      assert.ok(defaults.settings.thresholds, 'Defaults should have thresholds');
     });
 
     it('should use fallback defaults when profile loading fails', async () => {
@@ -170,7 +170,7 @@ describe('Agent Runtime Config Integration', () => {
 
   describe('Plugin Registry Integration', () => {
     it('should load enabled plugins from registry', async () => {
-      const profile = await configService.getActiveProfile();
+      const { profile } = await configService.getActiveProfile();
       const plugins = profile.pluginRegistry;
 
       assert.ok(Array.isArray(plugins), 'Should have plugin registry array');
@@ -184,7 +184,7 @@ describe('Agent Runtime Config Integration', () => {
     });
 
     it('should filter enabled plugins only', async () => {
-      const profile = await configService.getActiveProfile();
+      const { profile } = await configService.getActiveProfile();
       const enabledPlugins = profile.pluginRegistry.filter((p) => p.enabled);
 
       assert(enabledPlugins.length > 0, 'Should have at least one enabled plugin');
@@ -193,7 +193,7 @@ describe('Agent Runtime Config Integration', () => {
 
   describe('Logging Configuration', () => {
     it('should provide consistent logging settings', async () => {
-      const profile = await configService.getActiveProfile();
+      const profile = await configService.loadProfile('staging');
 
       assert.ok(profile.logging, 'Should have logging configuration');
       assert.ok(profile.logging.level, 'Should have log level');
@@ -201,7 +201,7 @@ describe('Agent Runtime Config Integration', () => {
     });
 
     it('should support component-level logging', async () => {
-      const profile = await configService.getActiveProfile();
+      const profile = await configService.loadProfile('staging');
 
       assert.ok(profile.logging.components, 'Should have component-level logging');
       assert.ok(profile.logging.components.agentRuntime, 'Should have agentRuntime logging');

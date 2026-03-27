@@ -19,6 +19,10 @@ ENV NODE_ENV=production
 
 COPY --from=deps /app /app
 
+RUN chown -R node:node /app
+
+USER node
+
 EXPOSE 5000
 
 CMD ["npm", "run", "start", "--workspace=server"]

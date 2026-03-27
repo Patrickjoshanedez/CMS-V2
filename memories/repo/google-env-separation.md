@@ -1,0 +1,6 @@
+- Keep credentials strictly separated:
+  - OAuth login: `GOOGLE_AUTH_CLIENT_ID`, `GOOGLE_AUTH_CLIENT_SECRET`
+  - Google Drive OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Do not reintroduce cross-fallbacks between `GOOGLE_AUTH_*` and `GOOGLE_CLIENT_*` in `server/config/env.js`.
+- `server/modules/auth/auth.service.js` should use `GOOGLE_AUTH_*`.
+- `server/services/google-drive-review.service.js` should use `GOOGLE_CLIENT_*`.

@@ -58,6 +58,7 @@ async function createProjectSetup(studentId, adviserId = null, instructorId = nu
     courseId: new mongoose.Types.ObjectId(),
     sectionId: new mongoose.Types.ObjectId(),
     title: 'Test Capstone Project',
+    titleProposals: ['Proposal 1', 'Proposal 2', 'Proposal 3', 'Proposal 4', 'Proposal 5'],
     abstract: 'A test project for submission tests.',
     keywords: ['test'],
     academicYear: '2024-2025',

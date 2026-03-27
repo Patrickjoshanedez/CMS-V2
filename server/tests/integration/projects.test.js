@@ -6,7 +6,7 @@
  * and project rejection. RBAC is also tested.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createAuthenticatedUserWithRole, request } from '../helpers.js';
+import { createAuthenticatedUserWithRole, request, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
@@ -32,13 +32,6 @@ async function createLockedTeam(leaderId) {
   return team;
 }
 
-const VALID_PROJECT = {
-  title: 'Capstone Management System with Plagiarism Checker',
-  abstract: 'A web-based system for managing capstone projects.',
-  keywords: ['capstone', 'plagiarism', 'management'],
-  academicYear: '2024-2025',
-};
-
 /* ================================================================== */
 /*  Test Suites                                                       */
 /* ================================================================== */
@@ -50,6 +43,9 @@ describe('Projects API — /api/projects', () => {
   let adviserAgent, adviserUser;
   let panelistAgent, panelistUser;
   let team;
+  let course;
+  let section;
+  let validProjectPayload;
 
   beforeEach(async () => {
     // Create authenticated users with roles
@@ -80,31 +76,38 @@ describe('Projects API — /api/projects', () => {
     team = await createLockedTeam(studentUser._id);
     // Re-fetch student to get updated teamId
     studentUser = await User.findById(studentUser._id);
+
+    // Setup academic properties and payload
+    const courseSec = await createCourseAndSection(instructorUser._id);
+    course = courseSec.course;
+    section = courseSec.section;
+    validProjectPayload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
+    delete validProjectPayload.teamId; // not needed in body, inferred by service
   });
 
   /* ────────── Project Creation ────────── */
   describe('POST / — create project', () => {
     it('should allow a team leader to create a project', async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.project.title).toBe(VALID_PROJECT.title);
+      expect(res.body.data.project.title).toBe(validProjectPayload.title);
       expect(res.body.data.project.titleStatus).toBe('draft');
       expect(res.body.data.project.projectStatus).toBe('active');
     });
 
     it('should reject creation from instructor role', async () => {
-      const res = await instructorAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await instructorAgent.post('/api/projects').send(validProjectPayload);
 
       expect(res.status).toBe(403);
     });
 
     it('should reject duplicate project for same team', async () => {
-      await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      await studentAgent.post('/api/projects').send(validProjectPayload);
       const res = await studentAgent
         .post('/api/projects')
-        .send({ ...VALID_PROJECT, title: 'Completely Different Title For Testing' });
+        .send({ ...validProjectPayload, title: 'Completely Different Title For Testing' });
 
       expect(res.status).toBe(409);
     });
@@ -124,14 +127,13 @@ describe('Projects API — /api/projects', () => {
       });
       await User.findByIdAndUpdate(student2._id, { teamId: team2._id });
 
-      await Project.create({
-        teamId: team2._id,
-        title: 'Capstone Management System with Plagiarism Detection',
-        academicYear: '2024-2025',
-      });
+      const similarProjectPayload = createValidProjectPayload(team2._id, course._id, section._id, [student2._id]);
+      similarProjectPayload.title = 'Capstone Management System with Plagiarism Detection';
+
+      await Project.create(similarProjectPayload);
 
       // Now create with similar title
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
 
       expect(res.status).toBe(201);
       // Should still succeed but may include similarProjects
@@ -144,7 +146,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -211,7 +213,7 @@ describe('Projects API — /api/projects', () => {
 
     beforeEach(async () => {
       // Create → submit → approve
-      const createRes = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = createRes.body.data.project._id;
 
       await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
@@ -263,7 +265,7 @@ describe('Projects API — /api/projects', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.project.titleStatus).toBe('approved');
       // Title should remain unchanged
-      expect(res.body.data.project.title).toBe(VALID_PROJECT.title);
+      expect(res.body.data.project.title).toBe(validProjectPayload.title);
     });
   });
 
@@ -272,7 +274,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -358,7 +360,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -391,7 +393,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -418,7 +420,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -426,7 +428,7 @@ describe('Projects API — /api/projects', () => {
       const res = await studentAgent.get('/api/projects/me');
 
       expect(res.status).toBe(200);
-      expect(res.body.data.project.title).toBe(VALID_PROJECT.title);
+      expect(res.body.data.project.title).toBe(validProjectPayload.title);
     });
 
     it('should allow faculty to get a project by ID', async () => {
@@ -456,7 +458,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
     });
 
@@ -515,7 +517,7 @@ describe('Projects API — /api/projects', () => {
     let projectId;
 
     beforeEach(async () => {
-      const res = await studentAgent.post('/api/projects').send(VALID_PROJECT);
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
 
       // Set project to Capstone phase 2 (prototypes only allowed in phase 2 & 3)

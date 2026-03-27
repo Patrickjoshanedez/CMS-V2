@@ -7,6 +7,7 @@ import { authLimiter, otpLimiter } from '../../middleware/rateLimiter.js';
 import {
   registerSchema,
   loginSchema,
+  googleLoginSchema,
   verifyOtpSchema,
   resendOtpSchema,
   forgotPasswordSchema,
@@ -34,7 +35,7 @@ router.post(
 router.post('/verify-otp', authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 router.post('/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOtp);
 router.post('/login', authLimiter, verifyCaptcha, validate(loginSchema), authController.login);
-router.post('/google', authLimiter, authController.googleLogin);
+router.post('/google', authLimiter, validate(googleLoginSchema), authController.googleLogin);
 router.post('/refresh', authLimiter, authController.refresh);
 router.post(
   '/forgot-password',

@@ -6,7 +6,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "node --watch server.js",
+    "dev": "node scripts/dev-preflight.js && node --watch server.js",
     "start": "node server.js",
     "seed": "node seeders/index.js",
     "test": "vitest run",

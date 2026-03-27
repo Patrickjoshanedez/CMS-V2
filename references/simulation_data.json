@@ -1,0 +1,37 @@
+[
+    {
+        "phase": "Parallel Execution",
+        "time_taken_seconds": 0.31,
+        "tasks": 3,
+        "results": [
+            {
+                "agent": "researcher",
+                "reflection_passed": true,
+                "data": "Summary for python 3.12: [Mock Data]"
+            },
+            {
+                "agent": "researcher",
+                "reflection_passed": true,
+                "data": "Summary for docker compose: [Mock Data]"
+            },
+            {
+                "agent": "reviewer",
+                "reflection_passed": true,
+                "data": "100x Quality Review: APPROVED."
+            }
+        ]
+    },
+    {
+        "phase": "Reflection Loop",
+        "status": "Success",
+        "time_taken_seconds": 2.0,
+        "final_result": {
+            "agent": "coder",
+            "reflection_passed": true,
+            "feedback": "Code looks good now.",
+            "data": {
+                "code": "def fast_math(a: int, b: int) -> int:\n    return a + b"
+            }
+        }
+    }
+]

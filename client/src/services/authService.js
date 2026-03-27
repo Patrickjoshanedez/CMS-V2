@@ -5,14 +5,14 @@ import api from './api';
  */
 
 export const authService = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
-  googleLogin: (data) => api.post('/auth/google', data),
-  verifyOtp: (data) => api.post('/auth/verify-otp', data),
-  resendOtp: (data) => api.post('/auth/resend-otp', data),
-  forgotPassword: (data) => api.post('/auth/forgot-password', data),
-  resetPassword: (data) => api.post('/auth/reset-password', data),
-  changePassword: (data) => api.post('/auth/change-password', data),
+  register: (registrationPayload) => api.post('/auth/register', registrationPayload),
+  login: (credentials) => api.post('/auth/login', credentials),
+  googleLogin: (googleAuthPayload) => api.post('/auth/google', googleAuthPayload),
+  verifyOtp: (otpPayload) => api.post('/auth/verify-otp', otpPayload),
+  resendOtp: (userIdPayload) => api.post('/auth/resend-otp', userIdPayload),
+  forgotPassword: (emailPayload) => api.post('/auth/forgot-password', emailPayload),
+  resetPassword: (resetPayload) => api.post('/auth/reset-password', resetPayload),
+  changePassword: (passwordPayload) => api.post('/auth/change-password', passwordPayload),
   refresh: () => api.post('/auth/refresh'),
   logout: () => api.post('/auth/logout'),
 };
@@ -23,10 +23,10 @@ export const authService = {
 
 export const userService = {
   getMe: (config = {}) => api.get('/users/me', config),
-  updateMe: (data) => api.patch('/users/me', data),
-  uploadAvatar: (formData) =>
-    api.post('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  listUsers: (params) => api.get('/users', { params }),
+  updateMe: (updatePayload) => api.patch('/users/me', updatePayload),
+  uploadAvatar: (avatarFormData) =>
+    api.post('/users/me/avatar', avatarFormData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  listUsers: (queryParams) => api.get('/users', { params: queryParams }),
   listInstructors: () => api.get('/users/instructors'),
   createUser: (data) => api.post('/users', data),
   updateUser: (id, data) => api.patch(`/users/${id}`, data),

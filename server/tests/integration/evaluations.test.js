@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createAuthenticatedUserWithRole } from '../helpers.js';
+import { createAuthenticatedUserWithRole, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
@@ -23,17 +23,17 @@ async function createProjectWithPanelist(studentId, adviserId, panelistId) {
   });
   await User.findByIdAndUpdate(studentId, { teamId: team._id });
 
-  const project = await Project.create({
-    teamId: team._id,
-    title: 'Test Capstone for Evaluation',
-    abstract: 'Testing evaluation grading.',
-    keywords: ['test'],
-    academicYear: '2024-2025',
-    titleStatus: TITLE_STATUSES.APPROVED,
-    projectStatus: PROJECT_STATUSES.ACTIVE,
-    adviserId: adviserId || undefined,
-    panelistIds: panelistId ? [panelistId] : [],
-  });
+  const { course, section } = await createCourseAndSection(panelistId || studentId);
+  const payload = createValidProjectPayload(team._id, course._id, section._id, [studentId]);
+  payload.title = 'Test Capstone for Evaluation';
+  payload.abstract = 'Testing evaluation grading.';
+  payload.keywords = ['test'];
+  payload.titleStatus = TITLE_STATUSES.APPROVED;
+  payload.projectStatus = PROJECT_STATUSES.ACTIVE;
+  if(adviserId) payload.adviserId = adviserId;
+  if(panelistId) payload.panelistIds = [panelistId];
+
+  const project = await Project.create(payload);
   return { team, project };
 }
 
@@ -96,7 +96,7 @@ describe('Evaluations API — /api/evaluations', () => {
 
       const evaluation = res.body.data.evaluation;
       expect(evaluation.status).toBe(EVALUATION_STATUSES.DRAFT);
-      expect(evaluation.criteria).toHaveLength(6);
+      expect(evaluation.criteria).toHaveLength(4);
       expect(evaluation.defenseType).toBe(DEFENSE_TYPES.PROPOSAL);
       expect(evaluation.projectId).toBe(project._id.toString());
       expect(evaluation.panelistId).toBe(panelist._id.toString());
@@ -170,7 +170,7 @@ describe('Evaluations API — /api/evaluations', () => {
       const updated = res.body.data.evaluation;
       expect(updated.overallComment).toBe('Good work overall.');
       expect(updated.criteria[0].score).toBe(18);
-      expect(updated.criteria).toHaveLength(6);
+      expect(updated.criteria).toHaveLength(4);
     });
 
     it('should reject update to non-draft evaluation', async () => {

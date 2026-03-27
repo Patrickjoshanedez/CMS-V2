@@ -741,6 +741,20 @@ function buildRoleAssignments(memberIds) {
   });
 }
 
+function buildTitleProposals(primaryTitle, keywords = []) {
+  const normalizedKeywords = (keywords || []).filter(Boolean);
+  const proposals = [
+    primaryTitle,
+    `${primaryTitle} — Design and Implementation`,
+    `${primaryTitle} — A Web-Based Solution`,
+    `${primaryTitle} for Academic Institutions`,
+    `Development of ${primaryTitle}`,
+    ...normalizedKeywords.map((keyword) => `${primaryTitle}: ${keyword}`),
+  ];
+
+  return [...new Set(proposals)].slice(0, 10);
+}
+
 function deadlineFrom(base, daysOffset) {
   const d = new Date(base);
   d.setDate(d.getDate() + daysOffset);
@@ -1003,6 +1017,7 @@ async function seed() {
     await Project.create({
       teamId: team._id,
       title: pd.title,
+      titleProposals: buildTitleProposals(pd.title, pd.keywords),
       abstract: pd.abstract,
       keywords: pd.keywords,
       academicYear: CURRENT_YEAR,
@@ -1063,6 +1078,7 @@ async function seed() {
     const project = await Project.create({
       teamId: team._id,
       title: pd.title,
+      titleProposals: buildTitleProposals(pd.title, pd.keywords),
       abstract: pd.abstract,
       keywords: pd.keywords,
       academicYear: PREV_YEAR,

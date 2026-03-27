@@ -74,6 +74,7 @@ async function createProjectSetup(studentId, adviserId = null) {
   const project = await Project.create({
     teamId: team._id,
     title: 'Plagiarism Test Project',
+    titleProposals: ['Proposal 1', 'Proposal 2', 'Proposal 3', 'Proposal 4', 'Proposal 5'],
     abstract: 'Testing plagiarism checker integration.',
     keywords: ['plagiarism', 'test'],
     academicYear: '2024-2025',

@@ -46,6 +46,13 @@ export const loginSchema = z.object({
   password: z.string({ required_error: 'Password is required' }).min(1, 'Password is required'),
 });
 
+export const googleLoginSchema = z.object({
+  credential: z
+    .string({ required_error: 'Google credential is required' })
+    .trim()
+    .min(1, 'Google credential is required'),
+});
+
 export const verifyOtpSchema = z.object({
   email: z
     .string({ required_error: 'Email is required' })

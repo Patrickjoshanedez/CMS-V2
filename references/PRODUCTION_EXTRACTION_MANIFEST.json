@@ -1,0 +1,227 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2026-03-26",
+    "author": "Patrick Josh Añedez",
+    "project": "Orchestrator Framework - Production Setup",
+    "description": "Comprehensive file catalog and extraction manifest for orchestration framework"
+  },
+  "critical_files": {
+    "python_modules": {
+      "description": "Core Python orchestration logic - REQUIRED for execution",
+      "status": "CRITICAL",
+      "files": [
+        {
+          "source": "orchestrator/__init__.py",
+          "target": "{target}/orchestrator/__init__.py",
+          "purpose": "Package initialization and exports",
+          "required": true
+        },
+        {
+          "source": "orchestrator/dispatcher.py",
+          "target": "{target}/orchestrator/dispatcher.py",
+          "purpose": "Agent dispatcher and routing logic",
+          "required": true
+        },
+        {
+          "source": "orchestrator/state/db_manager.py",
+          "target": "{target}/orchestrator/state/db_manager.py",
+          "purpose": "SQLite state management and persistence",
+          "required": true
+        },
+        {
+          "source": "orchestrator/state/__init__.py",
+          "target": "{target}/orchestrator/state/__init__.py",
+          "purpose": "State module exports",
+          "required": true
+        }
+      ]
+    },
+    "hooks": {
+      "description": "Git hooks and automation triggers",
+      "status": "CRITICAL",
+      "directory": ".github/hooks",
+      "files": [
+        {
+          "name": "pre-commit",
+          "purpose": "Code quality checks before commit",
+          "required": true
+        },
+        {
+          "name": "pre-push",
+          "purpose": "Validation before push to repository",
+          "required": true
+        },
+        {
+          "name": "post-checkout",
+          "purpose": "Environment setup after checkout",
+          "required": false
+        }
+      ]
+    },
+    "instructions": {
+      "description": "Agent behavior and system instructions",
+      "status": "CRITICAL",
+      "directory": ".github/instructions",
+      "count": 7,
+      "files": [
+        "context-manager.instructions.md",
+        "orchestrator.instructions.md",
+        "logic-debugger.instructions.md",
+        "python-agents.instructions.md",
+        "laravel-saas.instructions.md",
+        "frontend-specialist.instructions.md",
+        "socrates-vibecoding.instructions.md"
+      ]
+    },
+    "agents": {
+      "description": "Agent definitions and workflows",
+      "status": "CRITICAL",
+      "directory": ".github/agents",
+      "count": 7,
+      "files": [
+        "orchestrator.agent.md",
+        "coder.agent.md",
+        "context-manager.agent.md",
+        "logic-debugger.agent.md",
+        "reviewer.agent.md",
+        "researcher.agent.md",
+        "project-manager.agent.md"
+      ]
+    },
+    "skills": {
+      "description": "Reusable capability modules and patterns",
+      "status": "CRITICAL",
+      "directory": ".github/skills",
+      "subdirectories": 20,
+      "purpose": "Domain-specific toolkits and development patterns"
+    },
+    "documentation": {
+      "description": "System documentation and guides",
+      "status": "IMPORTANT",
+      "directory": "documentation/",
+      "files": [
+        "ORCHESTRATOR_DOCUMENTATION.md",
+        "ARCHITECTURE_REVIEW_AND_GAPS.md",
+        "Orchestrator_v2_Implementation_Plan.md",
+        "Orchestrator Framework_ Gaps & Vision.md"
+      ]
+    },
+    "configuration": {
+      "description": "System configuration and project setup",
+      "status": "CRITICAL",
+      "files": [
+        {
+          "source": "pyproject.toml",
+          "purpose": "Python project metadata and dependencies",
+          "required": true
+        },
+        {
+          "source": ".github/copilot-instructions.md",
+          "purpose": "System-wide engineering standards",
+          "required": true
+        }
+      ]
+    },
+    "tests": {
+      "description": "Test suites and validation",
+      "status": "IMPORTANT",
+      "directory": "tests/",
+      "required": true
+    },
+    "context": {
+      "description": "Execution context and state",
+      "status": "CRITICAL",
+      "files": [
+        "context/state.json",
+        "context/saas_architecture.md"
+      ]
+    }
+  },
+  "extraction_manifest": {
+    "all_files": [
+      ".github/instructions/**/*.md",
+      ".github/agents/**/*.md",
+      ".github/skills/**/*",
+      ".github/hooks/**/*",
+      "orchestrator/**/*.py",
+      "tests/**/*.py",
+      "documentation/**/*.md",
+      "context/**/*",
+      "pyproject.toml",
+      "README.md"
+    ],
+    "exclude": [
+      ".git/**",
+      ".venv/**",
+      "__pycache__/**",
+      "*.pyc",
+      ".pytest_cache/**",
+      ".egg-info/**",
+      "node_modules/**"
+    ]
+  },
+  "production_checklist": {
+    "python_modules": {
+      "requirement": "All orchestrator/*.py files present",
+      "validation": "Check file count >= 4",
+      "critical": true
+    },
+    "instructions": {
+      "requirement": "All 7 instruction files extracted",
+      "validation": "Check file count == 7",
+      "critical": true
+    },
+    "agents": {
+      "requirement": "All 7 agent definitions extracted",
+      "validation": "Check file count == 7",
+      "critical": true
+    },
+    "skills": {
+      "requirement": "Skills directory with 20+ subdirectories",
+      "validation": "Check subdirectory count >= 20",
+      "critical": true
+    },
+    "hooks": {
+      "requirement": "Git hooks configured",
+      "validation": "Check .github/hooks exists",
+      "critical": false
+    },
+    "documentation": {
+      "requirement": "All documentation files present",
+      "validation": "Check file count >= 4",
+      "critical": true
+    },
+    "context": {
+      "requirement": "Context files and architecture docs",
+      "validation": "Check context/ directory exists",
+      "critical": true
+    }
+  },
+  "templates": {
+    "context_folder": {
+      "description": "Production-ready context folder structure",
+      "structure": {
+        "context/": {
+          "state.json": "Current execution state and session context",
+          "architecture.json": "System architecture in machine-readable format",
+          "metadata.json": "Project metadata and configuration",
+          "catalog.json": "File catalog and dependencies",
+          "saas_architecture.md": "Multi-tenant architecture documentation",
+          "documentation/": "Converted documentation files"
+        }
+      }
+    },
+    "file_catalog": {
+      "description": "Machine-readable file catalog for validation",
+      "format": "JSON",
+      "includes": [
+        "file paths",
+        "purpose",
+        "criticality level",
+        "last modified",
+        "hash for integrity"
+      ]
+    }
+  }
+}

@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const currentNodeEnv = process.env.NODE_ENV || 'development';
+const isDevelopmentEnv = currentNodeEnv === 'development';
+
 const parseBoolean = (value, defaultValue = false) => {
   if (typeof value !== 'string') {
     return defaultValue;
@@ -126,12 +129,12 @@ const env = Object.freeze({
   // AWS S3 (Cloud Storage — LocalStack for dev, real AWS for prod)
   S3_BUCKET: process.env.S3_BUCKET || 'cms-buksu-uploads',
   S3_REGION: process.env.S3_REGION || 'us-east-1',
-  S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || 'test',
-  S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || 'test',
-  S3_ENDPOINT: process.env.S3_ENDPOINT || '', // e.g. http://localhost:4566 for LocalStack
+  S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || (isDevelopmentEnv ? 'test' : ''),
+  S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || (isDevelopmentEnv ? 'test' : ''),
+  S3_ENDPOINT: process.env.S3_ENDPOINT || (isDevelopmentEnv ? 'http://localhost:4566' : ''),
   S3_FORCE_PATH_STYLE:
     process.env.S3_FORCE_PATH_STYLE === 'true' ||
-    (process.env.NODE_ENV || 'development') === 'development',
+    isDevelopmentEnv,
 
   // Redis (BullMQ)
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
@@ -146,14 +149,12 @@ const env = Object.freeze({
   RECAPTCHA_ENABLED: parseBoolean(process.env.RECAPTCHA_ENABLED, true),
   RECAPTCHA_SECRET_KEY: process.env.RECAPTCHA_SECRET_KEY || '',
 
-  // Google OAuth2 credentials (from Google Cloud Console + OAuth Playground)
-  // Prefer GOOGLE_AUTH_*; GOOGLE_CLIENT_* is retained for backward compatibility.
-  GOOGLE_AUTH_CLIENT_ID: process.env.GOOGLE_AUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '',
-  GOOGLE_AUTH_CLIENT_SECRET:
-    process.env.GOOGLE_AUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || '',
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_AUTH_CLIENT_ID || '',
-  GOOGLE_CLIENT_SECRET:
-    process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_AUTH_CLIENT_SECRET || '',
+  // Google OAuth2 credentials
+  // Auth login uses GOOGLE_AUTH_* and Drive OAuth uses GOOGLE_CLIENT_*.
+  GOOGLE_AUTH_CLIENT_ID: process.env.GOOGLE_AUTH_CLIENT_ID || '',
+  GOOGLE_AUTH_CLIENT_SECRET: process.env.GOOGLE_AUTH_CLIENT_SECRET || '',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
   // Accepts both REDIRECT_URI and GOOGLE_REDIRECT_URI for flexibility
   GOOGLE_REDIRECT_URI: process.env.REDIRECT_URI || process.env.GOOGLE_REDIRECT_URI || '',
   // Accepts both REFRESH_TOKEN and GOOGLE_REFRESH_TOKEN for flexibility
@@ -195,8 +196,8 @@ const env = Object.freeze({
   ),
 
   // Helpers
-  isDevelopment: (process.env.NODE_ENV || 'development') === 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  isDevelopment: isDevelopmentEnv,
+  isProduction: currentNodeEnv === 'production',
 });
 
 export default env;

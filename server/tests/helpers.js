@@ -1,4 +1,5 @@
 import supertest from 'supertest';
+import mongoose from 'mongoose';
 import app from '../app.js';
 import User from '../modules/users/user.model.js';
 import OTP from '../modules/auth/otp.model.js';
@@ -119,4 +120,50 @@ export async function createAuthenticatedUserWithRole(role, overrides = {}) {
     console.error('Re-trying registration to get error:', checkRes.body);
   }
   return { agent, user };
+}
+
+import Course from '../modules/academics/course.model.js';
+import Section from '../modules/academics/section.model.js';
+import Team from '../modules/teams/team.model.js';
+
+export async function createCourseAndSection(userId) {
+  const course = await Course.create({
+    name: 'Auto Generated Test Course',
+    code: 'AUTO' + Date.now().toString().slice(-4),
+    createdBy: userId,
+  });
+  const section = await Section.create({
+    name: 'Auto Section A',
+    code: 'SEC' + Date.now().toString().slice(-4),
+    courseId: course._id,
+    academicYear: '2024-2025',
+    createdBy: userId,
+  });
+  return { course, section };
+}
+
+export function createValidProjectPayload(teamId, courseId, sectionId, members = []) {
+  const leaderId = members[0] || new mongoose.Types.ObjectId();
+  return {
+    teamId,
+    courseId,
+    sectionId,
+    title: 'Capstone Management System with Plagiarism Checker',
+    titleProposals: [
+      'Capstone Management System with Plagiarism Checker 1',
+      'Capstone Management System with Plagiarism Checker 2',
+      'Capstone Management System with Plagiarism Checker 3',
+      'Capstone Management System with Plagiarism Checker 4',
+      'Capstone Management System with Plagiarism Checker 5'
+    ],
+    abstract: 'A web-based system for managing capstone projects.',
+    keywords: ['capstone', 'plagiarism', 'management'],
+    academicYear: '2024-2025',
+    memberRoleAssignments: members.map((mId, i) => ({
+      userId: mId,
+      professionalTitle: i === 0 ? 'Lead Developer' : 'Technical Lead / Analyst',
+      traditionalRole: i === 0 ? 'Programmer' : 'Documentor',
+      responsibilities: i === 0 ? 'System Logic' : 'Research'
+    }))
+  };
 }

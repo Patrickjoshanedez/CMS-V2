@@ -1,0 +1,145 @@
+{
+  "timestamp": "2026-03-26T20:11:51.035707",
+  "workspace": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator",
+  "status": "COMPLETE",
+  "components": {
+    "scripts": {
+      "production_extractor.py": {
+        "description": "Extracts critical files",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\scripts\\production_extractor.py"
+      },
+      "documentation_converter.py": {
+        "description": "Converts Markdown to JSON/Python",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\scripts\\documentation_converter.py"
+      },
+      "context_generator.py": {
+        "description": "Generates production context folders",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\scripts\\context_generator.py"
+      },
+      "production_orchestrator.py": {
+        "description": "Orchestrates entire pipeline",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\scripts\\production_orchestrator.py"
+      }
+    },
+    "documentation": {
+      "docs/production/PRODUCTION_IMPLEMENTATION_GUIDE.md": {
+        "description": "Complete implementation guide",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\docs\\production\\PRODUCTION_IMPLEMENTATION_GUIDE.md"
+      },
+      "references/PRODUCTION_EXTRACTION_MANIFEST.json": {
+        "description": "File catalog and validation rules",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\references\\PRODUCTION_EXTRACTION_MANIFEST.json"
+      },
+      "docs/agents/AGENT_WORKFLOW_EXTRACTION.md": {
+        "description": "Agent extraction documentation",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\docs\\agents\\AGENT_WORKFLOW_EXTRACTION.md"
+      },
+      "README.md": {
+        "description": "Project README",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\README.md"
+      }
+    },
+    "dependencies": {
+      "json": {
+        "description": "JSON processing (builtin)",
+        "available": true
+      },
+      "pathlib": {
+        "description": "Path handling (builtin)",
+        "available": true
+      },
+      "dataclasses": {
+        "description": "Data structures (builtin)",
+        "available": true
+      },
+      "hashlib": {
+        "description": "File hashing (builtin)",
+        "available": true
+      },
+      "subprocess": {
+        "description": "Process execution (builtin)",
+        "available": true
+      }
+    },
+    "directories": {
+      "orchestrator": {
+        "description": "Python orchestration framework",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\orchestrator"
+      },
+      ".github/instructions": {
+        "description": "Agent instructions",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\.github\\instructions"
+      },
+      ".github/agents": {
+        "description": "Agent definitions",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\.github\\agents"
+      },
+      ".github/skills": {
+        "description": "Skills library",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\.github\\skills"
+      },
+      ".github/hooks": {
+        "description": "Git hooks",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\.github\\hooks"
+      },
+      "documentation": {
+        "description": "Documentation files",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\documentation"
+      },
+      "docs": {
+        "description": "Organized documentation domains",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\docs"
+      },
+      "references": {
+        "description": "Reference manifests and metadata",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\references"
+      },
+      "tools": {
+        "description": "Operational tooling modules",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\tools"
+      },
+      "examples": {
+        "description": "Executable examples and debug helpers",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\examples"
+      },
+      "assets": {
+        "description": "Static assets and research material",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\assets"
+      },
+      "context": {
+        "description": "Context and state files",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\context"
+      },
+      "scripts": {
+        "description": "Production scripts",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\scripts"
+      },
+      "tests": {
+        "description": "Test suites",
+        "exists": true,
+        "path": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\Orchestrator\\tests"
+      }
+    }
+  }
+}

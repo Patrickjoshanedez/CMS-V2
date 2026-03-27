@@ -25,8 +25,8 @@ class GoogleDriveReviewService {
       env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
     );
     const hasOAuthRefreshToken = !!(
-      env.GOOGLE_AUTH_CLIENT_ID &&
-      env.GOOGLE_AUTH_CLIENT_SECRET &&
+      env.GOOGLE_CLIENT_ID &&
+      env.GOOGLE_CLIENT_SECRET &&
       env.GOOGLE_REFRESH_TOKEN
     );
 
@@ -58,8 +58,8 @@ class GoogleDriveReviewService {
       env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
     );
     const hasOAuthRefreshToken = !!(
-      env.GOOGLE_AUTH_CLIENT_ID &&
-      env.GOOGLE_AUTH_CLIENT_SECRET &&
+      env.GOOGLE_CLIENT_ID &&
+      env.GOOGLE_CLIENT_SECRET &&
       env.GOOGLE_REFRESH_TOKEN
     );
     const mode = env.GOOGLE_DRIVE_AUTH_MODE || 'auto';
@@ -75,8 +75,8 @@ class GoogleDriveReviewService {
         );
       }
       auth = new google.auth.OAuth2(
-        env.GOOGLE_AUTH_CLIENT_ID,
-        env.GOOGLE_AUTH_CLIENT_SECRET,
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET,
         env.GOOGLE_REDIRECT_URI,
       );
       auth.setCredentials({
@@ -105,8 +105,8 @@ class GoogleDriveReviewService {
         });
       } else {
         auth = new google.auth.OAuth2(
-          env.GOOGLE_AUTH_CLIENT_ID,
-          env.GOOGLE_AUTH_CLIENT_SECRET,
+          env.GOOGLE_CLIENT_ID,
+          env.GOOGLE_CLIENT_SECRET,
           env.GOOGLE_REDIRECT_URI,
         );
         auth.setCredentials({

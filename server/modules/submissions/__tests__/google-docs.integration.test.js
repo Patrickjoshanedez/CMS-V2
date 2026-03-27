@@ -19,7 +19,7 @@ import googleDriveReviewService from '../../../services/google-drive-review.serv
 import submissionService from '../../../modules/submissions/submission.service.js';
 import env from '../../../config/env.js';
 
-describe('GoogleDriveReviewService', () => {
+describe.skipIf(!env.GOOGLE_DRIVE_TEMPLATE_FULL_PAPER_ID || !env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID)('GoogleDriveReviewService (Integration)', () => {
   let clonedDocId = null;
 
   describe('Configuration Check', () => {
