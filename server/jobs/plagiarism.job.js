@@ -29,6 +29,13 @@ import { emitToUser } from '../services/socket.service.js';
 import panelistTriageService from '../services/panelistTriage.service.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
+/**
+ * Minimum originality score (%) required to proceed with panelist triage.
+ * Submissions scoring below this threshold fail the plagiarism gate and
+ * do not enter the panelist review pipeline.
+ */
+const ORIGINALITY_THRESHOLD_FOR_TRIAGE = 50;
+
 /** @type {Worker|null} */
 let plagiarismWorker = null;
 
@@ -207,9 +214,9 @@ async function processJob(job) {
     emitToUser(submission.submittedBy._id || submission.submittedBy, 'notification:new', plagNotif);
 
     // Trigger agentic triage pipeline for the panelist workflow when originality
-    // check passes (score >= 50% originality). Triage runs asynchronously and
+    // check passes (score >= ORIGINALITY_THRESHOLD_FOR_TRIAGE). Triage runs asynchronously and
     // does not block the plagiarism job's completion.
-    if (result.originalityScore >= 50) {
+    if (result.originalityScore >= ORIGINALITY_THRESHOLD_FOR_TRIAGE) {
       panelistTriageService.runTriagePipeline(submissionId, projectId).catch((triageErr) => {
         console.error(
           `[Plagiarism Worker] Panelist triage pipeline error for ${submissionId}: ${triageErr.message}`,

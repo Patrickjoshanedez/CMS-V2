@@ -15,7 +15,7 @@ const { contextValidator, sentimentAnalyzer } = panelistTriageService;
 describe('contextValidator (Guardian Agent)', () => {
   const baseEvent = {
     rawText:
-      'Abstract: This study investigates the development of a CMS platform. ' +
+      'Abstract: This study investigates the development of a Capstone Management platform. ' +
       'Methodology: A qualitative approach was employed with structured interviews. ' +
       'Conclusion: The system meets all defined academic requirements. ' +
       'Bibliography: [1] Smith, J. (2023). Systems Engineering. Pearson. ' +
@@ -24,7 +24,7 @@ describe('contextValidator (Guardian Agent)', () => {
       'The results demonstrate clear patterns in student submission behaviour. ' +
       'Further analysis reveals a strong correlation between workload and outcomes.',
     wordCount: 80,
-    projectTitle: 'CMS Platform',
+    projectTitle: 'Capstone Management Platform',
   };
 
   it('should pass a complete, well-formed document', () => {
@@ -66,7 +66,7 @@ describe('contextValidator (Guardian Agent)', () => {
     const event = {
       rawText: 'This is a short incomplete document.',
       wordCount: 100,
-      projectTitle: 'CMS Platform',
+      projectTitle: 'Distributed Systems Architecture',
     };
     const result = contextValidator(event);
     expect(result.passed).toBe(false);

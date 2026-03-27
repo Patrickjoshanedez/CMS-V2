@@ -45,7 +45,6 @@ const COLLOQUIAL_PATTERNS = [
   /\bgotta\b/i,
   /\bkinda\b/i,
   /\bstuff\b/i,
-  /\bthings\b/i,
   /\blots of\b/i,
   /\ba lot of\b/i,
   /\bbasically\b/i,
@@ -123,11 +122,20 @@ function contextValidator(event) {
     }
   }
 
-  // Check that the submitted document mentions the approved project title
-  if (projectTitle && !lowerText.includes(projectTitle.toLowerCase().slice(0, 20))) {
-    failures.push(
-      `Document title does not appear to match the approved project title: "${projectTitle}".`,
-    );
+  // Check that significant keywords from the approved project title appear in the document.
+  // Filters out short stop-words to avoid false positives on common conjunctions.
+  if (projectTitle) {
+    const titleKeywords = projectTitle
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 4);
+    const titleMissing =
+      titleKeywords.length > 0 && !titleKeywords.some((kw) => lowerText.includes(kw));
+    if (titleMissing) {
+      failures.push(
+        `Document does not appear to reference keywords from the approved project title: "${projectTitle}".`,
+      );
+    }
   }
 
   return {
