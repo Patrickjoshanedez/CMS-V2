@@ -22,6 +22,7 @@ import documentRoutes from './modules/documents/document.routes.js';
 import plagiarismRoutes from './modules/plagiarism/plagiarism.routes.js';
 import academicRoutes from './modules/academics/academic.routes.js';
 import agentRuntimeRoutes from './modules/agent-runtime/agentRuntime.routes.js';
+import adminQueuesRoutes from './modules/admin/adminQueues.routes.js';
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/submissions', plagiarismRoutes);
 app.use('/api/academics', academicRoutes);
 app.use('/api/agent-runtime', agentRuntimeRoutes);
+app.use('/admin/queues', adminQueuesRoutes);
 
 // ---------- 404 Handler ----------
 

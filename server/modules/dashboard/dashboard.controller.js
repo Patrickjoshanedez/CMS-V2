@@ -107,9 +107,16 @@ export const getInstructorWorkload = catchAsync(async (req, res) => {
 /**
  * POST /api/dashboard/instructor/optimize
  * Returns optimization suggestions for adviser assignment balancing.
+ *
+ * Body (optional):
+ *   { mode: 'mid_semester' | 'end_semester' }
+ *
+ * Delegates to the Strategy Pattern via WorkloadOptimizationContext.
+ * The `mode` parameter selects the active concrete strategy at runtime.
  */
 export const optimizeInstructorWorkload = catchAsync(async (req, res) => {
-  const optimization = await dashboardService.optimizeInstructorWorkload(req.user._id);
+  const mode = req.body?.mode || 'mid_semester';
+  const optimization = await dashboardService.optimizeInstructorWorkload(req.user._id, mode);
 
   res.status(200).json({
     success: true,

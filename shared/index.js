@@ -14,3 +14,8 @@ export {
   CAPSTONE_TITLE_VALUES,
   CAPSTONE_TITLE_MAPPING,
 } from './constants/capstoneTitles.js';
+export {
+  WorkloadOptimizationResultSchema,
+  WorkloadSuggestionSchema,
+  AdviserSnapshotSchema,
+} from './schemas/workloadOptimizationResult.schema.js';

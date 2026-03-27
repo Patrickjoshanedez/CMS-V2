@@ -24,8 +24,12 @@ module.exports = {
   overrides: [
     {
       files: ['client/**/*.{js,jsx}'],
-      plugins: ['react', 'react-hooks'],
-      extends: ['plugin:react/recommended', 'plugin:react-hooks/recommended'],
+      plugins: ['react', 'react-hooks', 'tailwindcss'],
+      extends: [
+        'plugin:react/recommended',
+        'plugin:react-hooks/recommended',
+        'plugin:tailwindcss/recommended',
+      ],
       settings: {
         react: {
           version: 'detect',
@@ -34,6 +38,12 @@ module.exports = {
       rules: {
         'react/react-in-jsx-scope': 'off',
         'react/prop-types': 'off',
+        // Enforce deterministic Tailwind class ordering to eliminate merge conflicts
+        'tailwindcss/classnames-order': 'warn',
+        // Prevent rogue custom class names outside the Tailwind design system
+        'tailwindcss/no-custom-classname': 'warn',
+        // Merge redundant utility classes into their shorthand equivalents
+        'tailwindcss/enforces-shorthand': 'warn',
       },
     },
   ],
