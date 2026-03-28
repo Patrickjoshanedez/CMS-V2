@@ -7,6 +7,7 @@ export const PROJECT_STATUSES = Object.freeze({
   PROPOSAL_APPROVED: 'proposal_approved',
   REJECTED: 'rejected',
   ARCHIVED: 'archived',
+  DEFENSE_READY: 'defense_ready',
 });
 
 export const PROJECT_STATUS_VALUES = Object.values(PROJECT_STATUSES);
