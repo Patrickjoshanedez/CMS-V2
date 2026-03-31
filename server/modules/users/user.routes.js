@@ -35,13 +35,6 @@ router.post('/me/avatar', upload.single('avatar'), validateAvatarFile, userContr
 router.get('/instructors', userController.listInstructors);
 
 // --- Instructor-only user management routes ---
-router.post(
-  '/import-students',
-  authorize(ROLES.INSTRUCTOR),
-  upload.single('file'),
-  userController.importStudents
-);
-
 router.get(
   '/',
   authorize(ROLES.INSTRUCTOR),

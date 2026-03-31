@@ -175,19 +175,7 @@ const projectSchema = new mongoose.Schema(
       maxlength: [300, 'Project title must not exceed 300 characters'],
     },
     titleProposals: {
-      type: [
-        new mongoose.Schema({
-          title: { type: String, required: true },
-          comments: [
-            {
-              user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-              name: String,
-              text: String,
-              createdAt: { type: Date, default: Date.now }
-            }
-          ]
-        }, { _id: true })
-      ],
+      type: [String],
       validate: {
         validator: (arr) => Array.isArray(arr) && arr.length >= 5 && arr.length <= 10,
         message: 'A project must include between 5 and 10 title proposals',

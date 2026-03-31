@@ -98,10 +98,3 @@ export function useChangeRole(options = {}) {
 export function useDeleteUser(options = {}) {
   return useUserMutation((id) => userService.deleteUser(id), options);
 }
-
-/**
- * Import students via CSV (Instructor-only).
- */
-export function useImportStudents(options = {}) {
-  return useUserMutation((formData) => userService.importStudents(formData), options);
-}

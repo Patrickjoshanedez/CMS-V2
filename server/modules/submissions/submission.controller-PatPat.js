@@ -1,0 +1,351 @@
+/**
+ * SubmissionController — Thin handlers delegating to SubmissionService.
+ *
+ * Each handler:
+ *  1. Extracts data from req (params, body, user, file)
+ *  2. Delegates to the service layer
+ *  3. Returns a consistent JSON response
+ *
+ * All handlers are wrapped in catchAsync for automatic error forwarding.
+ */
+import submissionService from './submission.service.js';
+import catchAsync from '../../utils/catchAsync.js';
+import { HTTP_STATUS } from '@cms/shared';
+
+/* ═══════════════════ Upload ═══════════════════ */
+
+/** POST /api/submissions/:projectId/chapters — Upload a chapter draft */
+export const uploadChapter = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadChapter(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Chapter uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/final-academic — Upload full academic version (Capstone 4) */
+export const uploadFinalAcademic = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadFinalAcademic(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Full academic version uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/final-journal — Upload journal/publishable version (Capstone 4) */
+export const uploadFinalJournal = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadFinalJournal(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Journal version uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Read ═══════════════════ */
+
+/** GET /api/submissions/:submissionId — Get a single submission */
+export const getSubmission = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.getSubmission(req.params.submissionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { submission },
+  });
+});
+
+/** GET /api/submissions/project/:projectId — List submissions for a project */
+export const getSubmissionsByProject = catchAsync(async (req, res) => {
+  const { submissions, pagination } = await submissionService.getSubmissionsByProject(
+    req.params.projectId,
+    req.query,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { submissions, pagination },
+  });
+});
+
+/** GET /api/submissions/project/:projectId/chapters/:chapter — Chapter version history */
+export const getChapterHistory = catchAsync(async (req, res) => {
+  const { submissions } = await submissionService.getChapterHistory(
+    req.params.projectId,
+    Number(req.params.chapter),
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { submissions },
+  });
+});
+
+/** GET /api/submissions/project/:projectId/chapters/:chapter/latest — Latest version of a chapter */
+export const getLatestChapterSubmission = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.getLatestChapterSubmission(
+    req.params.projectId,
+    Number(req.params.chapter),
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Signed URL ═══════════════════ */
+
+/** GET /api/submissions/:submissionId/view — Get pre-signed URL for document viewing */
+export const getViewUrl = catchAsync(async (req, res) => {
+  const { url, expiresIn, source } = await submissionService.getViewUrl(
+    req.params.submissionId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { url, expiresIn, source },
+  });
+});
+
+/** GET /api/submissions/:submissionId/google-comments — Get Google Docs comments for synced doc */
+export const getGoogleDocComments = catchAsync(async (req, res) => {
+  const commentsData = await submissionService.getGoogleDocComments(
+    req.params.submissionId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: commentsData,
+  });
+});
+
+/* ═══════════════════ Plagiarism ═══════════════════ */
+
+/** GET /api/submissions/:submissionId/plagiarism — Get plagiarism check status */
+export const getPlagiarismStatus = catchAsync(async (req, res) => {
+  const result = await submissionService.getPlagiarismStatus(req.params.submissionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
+  });
+});
+
+/**
+ * GET /api/submissions/:submissionId/plagiarism/report
+ * Returns the full PlagiarismReport (match list with character spans and snippets).
+ * Only accessible once the plagiarism check has completed.
+ */
+export const getPlagiarismReport = catchAsync(async (req, res) => {
+  const report = await submissionService.getPlagiarismReport(req.params.submissionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: report,
+  });
+});
+
+/* ═══════════════════ Review ═══════════════════ */
+
+/** POST /api/submissions/:submissionId/review — Review a submission (faculty) */
+export const reviewSubmission = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.reviewSubmission(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Submission reviewed successfully.',
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Unlock ═══════════════════ */
+
+/** POST /api/submissions/:submissionId/unlock — Unlock a locked submission (adviser) */
+export const unlockSubmission = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.unlockSubmission(
+    req.params.submissionId,
+    req.user._id,
+    req.body.reason,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Submission unlocked.',
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Annotations ═══════════════════ */
+
+/** POST /api/submissions/:submissionId/annotations — Add an annotation */
+export const addAnnotation = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.addAnnotation(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Annotation added.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:submissionId/annotations/:annotationId/replies — Add threaded reply */
+export const addAnnotationReply = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.addAnnotationReply(
+    req.params.submissionId,
+    req.params.annotationId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Reply added.',
+    data: { submission },
+  });
+});
+
+/** DELETE /api/submissions/:submissionId/annotations/:annotationId — Remove an annotation */
+export const removeAnnotation = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.removeAnnotation(
+    req.params.submissionId,
+    req.params.annotationId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Annotation removed.',
+    data: { submission },
+  });
+});
+
+/**
+ * POST /api/submissions/:submissionId/annotations/:annotationId/resolve
+ * Mark an annotation as resolved (adviser/instructor).
+ */
+export const markAnnotationResolved = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.markAnnotationResolved(
+    req.params.submissionId,
+    req.params.annotationId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Annotation marked as resolved.',
+    data: { submission },
+  });
+});
+
+/* ═══════════════════ Feedback & Versions ═══════════════════ */
+
+/**
+ * GET /api/submissions/:submissionId/feedback
+ * Get submission feedback context: annotations, review notes, timeline, deadline.
+ */
+export const getSubmissionFeedback = catchAsync(async (req, res) => {
+  const { feedback } = await submissionService.getSubmissionFeedback(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Feedback retrieved.',
+    data: { feedback },
+  });
+});
+
+/** GET /api/submissions/:submissionId/review-workspace — Get split-view review data */
+export const getSubmissionReviewWorkspace = catchAsync(async (req, res) => {
+  const { workspace } = await submissionService.getSubmissionReviewWorkspace(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { workspace },
+  });
+});
+
+/** POST /api/submissions/:submissionId/request-revision-round */
+export const requestRevisionRound = catchAsync(async (req, res) => {
+  const { submission, nextRound } = await submissionService.requestRevisionRound(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Revision round requested. Next round is now open for student upload.',
+    data: { submission, nextRound },
+  });
+});
+
+/** POST /api/submissions/:submissionId/accept */
+export const markSubmissionAccepted = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.markSubmissionAccepted(
+    req.params.submissionId,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Submission marked as accepted and closed.',
+    data: { submission },
+  });
+});
+
+/**
+ * GET /api/submissions/:submissionId/versions
+ * Get all versions (upload history) for a submission.
+ */
+export const getSubmissionVersions = catchAsync(async (req, res) => {
+  const { versions } = await submissionService.getSubmissionVersions(
+    req.params.submissionId,
+    req.user._id,
+    req.user.role,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Versions retrieved.',
+    data: { versions },
+  });
+});

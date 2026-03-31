@@ -1,7 +1,6 @@
 ---
 name: sre-engineer
-version: 1.1.0
-version: 1.1.0
+version: 1.2.0
 schema-version: 1
 description: Site Reliability Engineering operations for incident response, SLO/SLA design, production triage, observability, and reliability hardening.
 ---

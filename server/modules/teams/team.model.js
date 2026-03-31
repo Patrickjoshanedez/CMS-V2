@@ -46,6 +46,10 @@ const teamSchema = new mongoose.Schema(
         },
       },
     ],
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
     academicYear: {
       type: String,
       required: [true, 'Academic year is required'],

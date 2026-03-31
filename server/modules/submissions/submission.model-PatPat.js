@@ -1,0 +1,456 @@
+/**
+ * Submission model — tracks individual chapter / document uploads per capstone project.
+ *
+ * Each upload creates a new Submission document. Re-uploads for the same chapter
+ * increment the version number. Previous versions are retained for audit purposes.
+ * The latest version for a given chapter is the one with the highest version number.
+ *
+ * Storage: File binaries live in S3; final submissions may also be mirrored to Google Drive
+ * for institutional retrieval workflows.
+ */
+import mongoose from 'mongoose';
+import {
+  SUBMISSION_STATUS_VALUES,
+  SUBMISSION_STATUSES,
+  PLAGIARISM_STATUS_VALUES,
+} from '@cms/shared';
+
+/**
+ * Embedded schema for matched sources found during plagiarism checking.
+ */
+const matchedSourceSchema = new mongoose.Schema(
+  {
+    submissionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Submission',
+      default: null,
+    },
+    projectTitle: {
+      type: String,
+      trim: true,
+      default: 'Unknown',
+    },
+    chapter: {
+      type: Number,
+      default: null,
+    },
+    matchPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      required: true,
+    },
+    /** Character-level spans in the submitted text that matched this source. */
+    spans: {
+      type: [
+        {
+          start: { type: Number, required: true },
+          end: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+    /** Short excerpt from the source document for display in the report viewer. */
+    sourceSnippet: {
+      type: String,
+      default: '',
+      maxlength: 600,
+    },
+    /** Winnowing Jaccard similarity for this candidate. */
+    winnowScore: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+    /** Semantic cosine similarity for this candidate. */
+    semanticScore: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+/**
+ * Embedded schema for the plagiarism/originality check result.
+ * Populated asynchronously by the plagiarism job worker.
+ */
+const plagiarismResultSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: {
+        values: PLAGIARISM_STATUS_VALUES,
+        message: 'Invalid plagiarism status',
+      },
+      default: null,
+    },
+    originalityScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    matchedSources: {
+      type: [matchedSourceSchema],
+      default: [],
+    },
+    processedAt: {
+      type: Date,
+      default: null,
+    },
+    jobId: {
+      type: String,
+      default: null,
+    },
+    error: {
+      type: String,
+      default: null,
+    },
+    /**
+     * Full PlagiarismReport JSON from the Python microservice.
+     * Stored as Mixed to preserve the complete matches array with spans,
+     * snippets, and per-match scores without embedding a deep sub-schema.
+     */
+    fullReport: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+/**
+ * Embedded schema for adviser annotations (highlight & comment tool).
+ * Each annotation records a comment, page, and optional highlight coordinates.
+ */
+const annotationSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    page: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    lineStart: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    lineEnd: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    content: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000,
+    },
+    selectedText: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: '',
+    },
+    highlightCoords: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    resolved: {
+      type: Boolean,
+      default: false,
+    },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    replies: {
+      type: [
+        {
+          userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+          },
+          content: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 2000,
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
+  },
+  { _id: true },
+);
+
+const submissionSchema = new mongoose.Schema(
+  {
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
+      index: true,
+    },
+
+    /**
+     * Submission type:
+     *  - 'chapter'         — Individual chapter uploads (Ch. 1-5)
+     *  - 'proposal'        — Compiled proposal document (Ch. 1-3 unified)
+     *  - 'final_academic'  — Full academic version (Capstone 4, restricted access)
+     *  - 'final_journal'   — Journal/publishable version (Capstone 4, public archive)
+     */
+    type: {
+      type: String,
+      enum: ['chapter', 'proposal', 'final_academic', 'final_journal'],
+      default: 'chapter',
+    },
+    chapter: {
+      type: Number,
+      min: [1, 'Chapter must be between 1 and 5'],
+      max: [5, 'Chapter must be between 1 and 5'],
+      default: null, // null for proposal-type submissions
+    },
+    version: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    revisionRound: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // --- File metadata (binary lives in S3) ---
+    fileName: {
+      type: String,
+      required: [true, 'File name is required'],
+      trim: true,
+      maxlength: 255,
+    },
+    fileType: {
+      type: String,
+      required: [true, 'File MIME type is required'],
+      trim: true,
+      maxlength: 100,
+    },
+    fileSize: {
+      type: Number,
+      required: [true, 'File size is required'],
+      min: 1,
+    },
+    storageKey: {
+      type: String,
+      required: [true, 'Storage key is required'],
+      trim: true,
+    },
+
+    // --- Optional Google Drive mirror metadata (used for final submissions) ---
+    driveFileId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    driveWebViewLink: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    driveWebContentLink: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    userDriveFolderId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    syncedGoogleDocId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    syncedGoogleDocUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    googleDocSyncStatus: {
+      type: String,
+      enum: ['not_requested', 'synced', 'not_supported', 'failed'],
+      default: 'not_requested',
+    },
+    googleDocSyncErrorCode: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 120,
+    },
+    googleDocSyncErrorMessage: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 500,
+    },
+    googleDocSyncedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // --- Workflow ---
+    status: {
+      type: String,
+      enum: {
+        values: SUBMISSION_STATUS_VALUES,
+        message: 'Invalid submission status',
+      },
+      default: SUBMISSION_STATUSES.PENDING,
+    },
+    originalityScore: {
+      type: Number,
+      default: null, // Populated asynchronously by the plagiarism job
+      min: 0,
+      max: 100,
+    },
+
+    // --- Plagiarism / originality check result (async) ---
+    plagiarismResult: {
+      type: plagiarismResultSchema,
+      default: () => ({}),
+    },
+
+    // --- Extracted text (cached for corpus building) ---
+    extractedText: {
+      type: String,
+      default: null,
+      select: false, // Excluded from default queries to save bandwidth
+    },
+
+    // --- People ---
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Submitter is required'],
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    // --- Late submission ---
+    isLate: {
+      type: Boolean,
+      default: false,
+    },
+    remarks: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Remarks must not exceed 1000 characters'],
+      default: null,
+    },
+    prototypeLink: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    // --- Review feedback ---
+    reviewNote: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Review note must not exceed 2000 characters'],
+      default: null,
+    },
+
+    // --- Adviser annotations (highlight & comment) ---
+    annotations: {
+      type: [annotationSchema],
+      default: [],
+    },
+
+    // --- Review timeline (Phase 1: Student Feedback Enhancement) ---
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+    revisionDeadline: {
+      type: Date,
+      default: null,
+    },
+    revisionExpectedDays: {
+      type: Number,
+      default: 5, // Default: students have 5 days to revise after feedback
+    },
+    reviewClosed: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
+);
+
+// --- Indexes ---
+// Fast lookups: all submissions for a project/chapter combo
+submissionSchema.index({ projectId: 1, chapter: 1, version: -1 });
+// Find the latest version quickly
+submissionSchema.index({ projectId: 1, chapter: 1, status: 1 });
+// Faculty lookups: submissions awaiting review
+submissionSchema.index({ status: 1, createdAt: -1 });
+// Submitter history
+submissionSchema.index({ submittedBy: 1, createdAt: -1 });
+// Plagiarism status lookups
+submissionSchema.index({ 'plagiarismResult.status': 1 });
+// Ensure unique version per project-chapter combo (chapter submissions)
+submissionSchema.index(
+  { projectId: 1, chapter: 1, version: 1 },
+  { unique: true, partialFilterExpression: { type: 'chapter' } },
+);
+// Ensure unique version per project+type for proposal, final_academic, and final_journal submissions
+// (single index avoids Mongoose duplicate-key-pattern warnings)
+submissionSchema.index(
+  { projectId: 1, type: 1, version: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      type: { $in: ['proposal', 'final_academic', 'final_journal'] },
+    },
+  },
+);
+// Quick lookup: proposal submissions for a project
+submissionSchema.index({ projectId: 1, type: 1 });
+// Fast lookup for revisions due soon
+submissionSchema.index({ revisionDeadline: 1, status: 1 });
+// Find submissions awaiting revision response
+submissionSchema.index({ status: 1, revisionDeadline: 1, reviewedAt: 1 });
+
+const Submission = mongoose.model('Submission', submissionSchema);
+
+export default Submission;

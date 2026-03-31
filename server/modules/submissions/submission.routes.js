@@ -24,6 +24,7 @@ import {
   projectChapterParamSchema,
   submissionAnnotationParamSchema,
   uploadChapterSchema,
+  compileProposalSchema,
   finalPaperSchema,
   reviewSubmissionSchema,
   addAnnotationSchema,
@@ -63,6 +64,27 @@ router.post(
     getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
   }),
   submissionController.uploadChapter,
+);
+
+/**
+ * POST /:projectId/proposal
+ * Upload the compiled proposal document (Chapters 1-3 unified).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ * Requires all chapters 1-3 to be locked (approved).
+ */
+router.post(
+  '/:projectId/proposal',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(compileProposalSchema),
+  auditLog('submission.proposal_compiled', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Compiled proposal for project ${req.params.projectId}`,
+  }),
+  submissionController.compileProposal,
 );
 
 /**

@@ -1,0 +1,137 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Plagiarism Engine — Docker Compose
+#
+# Services:
+#   redis       — Celery broker + result backend
+#   worker      — Celery worker process (runs the engine tasks)
+#   api         — FastAPI HTTP service (dispatches tasks, polls results)
+#
+# Usage (from the plagiarism_engine/ directory):
+#   docker compose up --build
+#
+# Or from the CMS V2 root (together with the main stack):
+#   docker compose -f docker-compose.yml -f plagiarism_engine/docker-compose.yml up
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  plagiarism_redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"         # Expose on 6380 to avoid collision with CMS redis on 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - plagiarism_net
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
+  plagiarism_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+    restart: unless-stopped
+    command: >
+      celery -A plagiarism_engine.tasks.celery_app worker
+      --loglevel=info
+      --concurrency=${PLAGIARISM_WORKER_CONCURRENCY:-2}
+      --max-tasks-per-child=${PLAGIARISM_MAX_TASKS_PER_CHILD:-100}
+      --prefetch-multiplier=${PLAGIARISM_PREFETCH_MULTIPLIER:-1}
+      --queues=plagiarism
+    volumes:
+      - chroma_data:/app/chroma_store
+      - model_cache:/root/.cache/torch/sentence_transformers
+    cpus: ${PLAGIARISM_WORKER_CPUS:-2.0}
+    mem_limit: ${PLAGIARISM_WORKER_MEMORY_LIMIT:-3g}
+    gpus: ${PLAGIARISM_GPU_REQUEST:-all}
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://plagiarism_redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://plagiarism_redis:6379/1}
+      - CHROMA_PERSIST_DIR=/app/chroma_store
+      - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-24}
+      - OMP_NUM_THREADS=${PLAGIARISM_OMP_NUM_THREADS:-2}
+      - MKL_NUM_THREADS=${PLAGIARISM_MKL_NUM_THREADS:-2}
+      - TORCH_NUM_THREADS=${PLAGIARISM_TORCH_NUM_THREADS:-2}
+    depends_on:
+      plagiarism_redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "plagiarism_engine.tasks.celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    networks:
+      - plagiarism_net
+
+  # ── FastAPI API ─────────────────────────────────────────────────────────────
+  plagiarism_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+    restart: unless-stopped
+    command: >
+      uvicorn plagiarism_engine.main:app
+      --host 0.0.0.0
+      --port 8001
+      --workers ${PLAGIARISM_API_WORKERS:-1}
+      --limit-concurrency ${PLAGIARISM_API_LIMIT_CONCURRENCY:-32}
+      --log-level info
+    ports:
+      - "8001:8001"
+    volumes:
+      - chroma_data:/app/chroma_store
+      - model_cache:/root/.cache/torch/sentence_transformers
+    cpus: ${PLAGIARISM_API_CPUS:-1.5}
+    mem_limit: ${PLAGIARISM_API_MEMORY_LIMIT:-2g}
+    gpus: ${PLAGIARISM_GPU_REQUEST:-all}
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://plagiarism_redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://plagiarism_redis:6379/1}
+      - CHROMA_PERSIST_DIR=/app/chroma_store
+      - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-24}
+      - OMP_NUM_THREADS=${PLAGIARISM_OMP_NUM_THREADS:-2}
+      - MKL_NUM_THREADS=${PLAGIARISM_MKL_NUM_THREADS:-2}
+      - TORCH_NUM_THREADS=${PLAGIARISM_TORCH_NUM_THREADS:-2}
+    depends_on:
+      plagiarism_redis:
+        condition: service_healthy
+      plagiarism_worker:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - plagiarism_net
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+volumes:
+  chroma_data:
+    driver: local
+  model_cache:
+    driver: local
+
+networks:
+  plagiarism_net:
+    driver: bridge

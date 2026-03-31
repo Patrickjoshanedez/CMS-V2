@@ -6,67 +6,38 @@ import { Toaster } from 'sonner';
 // Lazy-loaded page imports
 import { lazy, Suspense, useEffect, useRef } from 'react';
 
-const isChunkLoadError = (error) => {
-  const message = String(error?.message || '').toLowerCase();
-  return (
-    message.includes('failed to fetch dynamically imported module') ||
-    message.includes('loading chunk') ||
-    message.includes('chunkloaderror') ||
-    message.includes('mime type')
-  );
-};
-
-const lazyPage = (importer) =>
-  lazy(() =>
-    importer().catch((error) => {
-      if (typeof window !== 'undefined' && isChunkLoadError(error)) {
-        const retryKey = `cms:chunk-reload:${window.location.pathname}`;
-        const hasRetried = window.sessionStorage.getItem(retryKey) === '1';
-
-        if (!hasRetried) {
-          window.sessionStorage.setItem(retryKey, '1');
-          window.location.reload();
-          return new Promise(() => {});
-        }
-
-        window.sessionStorage.removeItem(retryKey);
-      }
-
-      throw error;
-    }),
-  );
-
-const LoginPage = lazyPage(() => import('./pages/auth/LoginPage'));
-const RegisterPage = lazyPage(() => import('./pages/auth/RegisterPage'));
-const VerifyOtpPage = lazyPage(() => import('./pages/auth/VerifyOtpPage'));
-const ForgotPasswordPage = lazyPage(() => import('./pages/auth/ForgotPasswordPage'));
-const ResetPasswordPage = lazyPage(() => import('./pages/auth/ResetPasswordPage'));
-const DashboardPage = lazyPage(() => import('./pages/dashboard/DashboardPage'));
-const TeamsPage = lazyPage(() => import('./pages/teams/TeamsPage'));
-const UsersPage = lazyPage(() => import('./pages/users/UsersPage'));
-const ProfilePage = lazyPage(() => import('./pages/profile/ProfilePage'));
-const SettingsPage = lazyPage(() => import('./pages/settings/SettingsPage'));
-const NotificationsPage = lazyPage(() => import('./pages/notifications/NotificationsPage'));
-const CreateProjectPage = lazyPage(() => import('./pages/projects/CreateProjectPage'));
-const MyProjectPage = lazyPage(() => import('./pages/projects/MyProjectPage'));
-const ProjectsPage = lazyPage(() => import('./pages/projects/ProjectsPage'));
-const ProjectDetailPage = lazyPage(() => import('./pages/projects/ProjectDetailPage'));
-const ChapterUploadPage = lazyPage(() => import('./pages/submissions/ChapterUploadPage'));
-const ProjectSubmissionsPage = lazyPage(() => import('./pages/submissions/ProjectSubmissionsPage'));
-const SubmissionDetailPage = lazyPage(() => import('./pages/submissions/SubmissionDetailPage'));
-const SubmissionReviewPage = lazyPage(() => import('./pages/submissions/SubmissionReviewPage'));
-const PlagiarismReportPage = lazyPage(() => import('./pages/submissions/PlagiarismReportPage'));
-const ArchiveSearchPage = lazyPage(() => import('./pages/archive/ArchiveSearchPage'));
-const CertificatePage = lazyPage(() => import('./pages/projects/CertificatePage'));
-const ReportsPage = lazyPage(() => import('./pages/reports/ReportsPage'));
-const BulkUploadPage = lazyPage(() => import('./pages/reports/BulkUploadPage'));
-const AuditLogPage = lazyPage(() => import('./pages/admin/AuditLogPage'));
-const TemplateManagementPage = lazyPage(() => import('./pages/documents/TemplateManagementPage'));
-const DocumentEditorPage = lazyPage(() => import('./pages/documents/DocumentEditorPage'));
-const TeamReviewWorkflowPage = lazyPage(() => import('./pages/adviser/TeamReviewWorkflowPage'));
-const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'));
-const ForbiddenPage = lazyPage(() => import('./pages/ForbiddenPage'));
-const LandingPage = lazyPage(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const VerifyOtpPage = lazy(() => import('./pages/auth/VerifyOtpPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const TeamsPage = lazy(() => import('./pages/teams/TeamsPage'));
+const UsersPage = lazy(() => import('./pages/users/UsersPage'));
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
+const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
+const CreateProjectPage = lazy(() => import('./pages/projects/CreateProjectPage'));
+const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
+const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
+const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPage'));
+const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
+const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
+const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
+const SubmissionReviewPage = lazy(() => import('./pages/submissions/SubmissionReviewPage'));
+const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));
+const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
+const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
+const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
+const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
+const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
+const TemplateManagementPage = lazy(() => import('./pages/documents/TemplateManagementPage'));
+const DocumentEditorPage = lazy(() => import('./pages/documents/DocumentEditorPage'));
+const TeamReviewWorkflowPage = lazy(() => import('./pages/adviser/TeamReviewWorkflowPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
 /**
  * App — Root component with routing and theme management.
@@ -141,6 +112,7 @@ const PROTECTED_ROUTES = [
   // Submissions
   { path: '/project/submissions', Component: ProjectSubmissionsPage },
   { path: '/project/submissions/upload', Component: ChapterUploadPage },
+  { path: '/project/proposal', Component: ProposalCompilationPage },
   { path: '/project/submissions/:submissionId', Component: SubmissionDetailPage },
   { path: '/project/submissions/:submissionId/review', Component: SubmissionReviewPage },
   { path: '/project/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },

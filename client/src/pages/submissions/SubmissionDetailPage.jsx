@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
-import DocumentPreview from '@/components/documents/DocumentPreview';
 import { useAuthStore } from '@/stores/authStore';
 import {
   useSubmission,
@@ -134,21 +133,6 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           </div>
         )}
 
-        {submission.prototypeLink && (
-          <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-            <p className="text-sm font-medium text-muted-foreground">Prototype or Demo Link</p>
-            <a
-              href={submission.prototypeLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Open prototype link
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
-        )}
-
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {documentUrl && (
             <Button asChild variant="outline" className="sm:w-auto">
@@ -176,8 +160,8 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
         </div>
 
         {documentUrl && (
-          <p className="text-xs text-muted-foreground mt-4">
-            Use the embedded preview or download the file to read its contents and comments natively.
+          <p className="text-xs text-muted-foreground">
+            Open or download this file to read attached document comments in your PDF/Docx reader.
           </p>
         )}
       </CardContent>
@@ -409,7 +393,8 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
             <span>File Comments</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Google Docs comments are disabled. Open/download the submission file to read attached comments.
+            Google Docs comments are disabled. Open/download the submission file to read attached
+            comments.
           </p>
         </div>
 
@@ -630,17 +615,6 @@ export default function SubmissionDetailPage() {
 
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />
-
-        {/* File Preview */}
-        {viewUrl?.url && (
-          <DocumentPreview
-            fileUrl={viewUrl.url}
-            fileName={submission.fileName}
-            fileType={submission.fileType}
-            className="h-[600px] sm:h-[700px]"
-          />
-        )}
-
         {/* Faculty: plagiarism checker */}
         {isFaculty && (
           <PlagiarismChecker
@@ -662,11 +636,7 @@ export default function SubmissionDetailPage() {
         )}
 
         {/* Annotations */}
-        <AnnotationsPanel
-          submission={submission}
-          isFaculty={isFaculty}
-          userId={user?._id}
-        />
+        <AnnotationsPanel submission={submission} isFaculty={isFaculty} userId={user?._id} />
       </div>
     </DashboardLayout>
   );

@@ -1,7 +1,6 @@
 ---
 name: aif-loop
-version: 1.1.0
-version: 1.1.0
+version: 1.2.0
 schema-version: 1
 description: Analyze-Implement-Feedback loop skill for iterative delivery with measurable checkpoints and evidence-based refinement.
 ---

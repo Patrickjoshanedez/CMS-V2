@@ -1,0 +1,337 @@
+/**
+ * Submission routes — /api/submissions
+ *
+ * All routes require authentication.
+ * File uploads use multer (memory storage) + magic-byte validation.
+ *
+ * Route groups:
+ *  - Student: upload chapters, view own submissions
+ *  - Faculty: review, annotate, unlock
+ *  - Shared: get submission, list by project, chapter history, view URL
+ */
+import { Router } from 'express';
+import * as submissionController from './submission.controller.js';
+import authenticate from '../../middleware/authenticate.js';
+import authorize from '../../middleware/authorize.js';
+import validate from '../../middleware/validate.js';
+import upload from '../../middleware/upload.js';
+import validateFile from '../../middleware/fileValidation.js';
+import auditLog from '../../middleware/auditLog.js';
+import { ROLES } from '@cms/shared';
+import {
+  projectIdParamSchema,
+  submissionIdParamSchema,
+  projectChapterParamSchema,
+  submissionAnnotationParamSchema,
+  uploadChapterSchema,
+  finalPaperSchema,
+  reviewSubmissionSchema,
+  addAnnotationSchema,
+  addAnnotationReplySchema,
+  requestRevisionRoundSchema,
+  markAcceptedSchema,
+  unlockRequestSchema,
+  listSubmissionsQuerySchema,
+} from './submission.validation.js';
+
+const router = Router();
+
+/**
+ * All submission routes require authentication.
+ */
+router.use(authenticate);
+
+/* ────── Student routes ────── */
+
+/**
+ * POST /:projectId/chapters
+ * Upload a chapter document for a project.
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ */
+router.post(
+  '/:projectId/chapters',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(uploadChapterSchema),
+  auditLog('submission.chapter_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) =>
+      `Uploaded chapter ${req.body.chapter} for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
+  }),
+  submissionController.uploadChapter,
+);
+
+/**
+ * POST /:projectId/final-academic
+ * Upload the full academic version (Capstone 4 — restricted to faculty view).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ */
+router.post(
+  '/:projectId/final-academic',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.final_academic_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded final academic paper for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadFinalAcademic,
+);
+
+/**
+ * POST /:projectId/final-journal
+ * Upload the condensed journal / publishable version (Capstone 4 — public archive).
+ * Middleware chain: authenticate → authorize(student) → validate(params) →
+ *   multer(single file) → validateFile(magic bytes) → validate(body) → controller
+ */
+router.post(
+  '/:projectId/final-journal',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.final_journal_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded final journal paper for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadFinalJournal,
+);
+
+/* ────── Faculty routes ────── */
+
+/**
+ * POST /:submissionId/review
+ * Review a submission (approve / request revisions / reject).
+ * Only advisers and instructors can review.
+ */
+router.post(
+  '/:submissionId/review',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(reviewSubmissionSchema),
+  auditLog('submission.reviewed', 'Submission', {
+    getDescription: (req) =>
+      `Reviewed submission ${req.params.submissionId} — ${req.body.decision}`,
+    getMetadata: (req) => ({ decision: req.body.decision, feedback: req.body.feedback }),
+  }),
+  submissionController.reviewSubmission,
+);
+
+/**
+ * POST /:submissionId/request-revision-round
+ * Marks the active round as revision requested and creates the next pending student round.
+ */
+router.post(
+  '/:submissionId/request-revision-round',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(requestRevisionRoundSchema),
+  submissionController.requestRevisionRound,
+);
+
+/**
+ * POST /:submissionId/accept
+ * Locks and marks the review thread accepted/finalized.
+ */
+router.post(
+  '/:submissionId/accept',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(markAcceptedSchema),
+  submissionController.markSubmissionAccepted,
+);
+
+/**
+ * POST /:submissionId/unlock
+ * Unlock a locked submission so the student can upload a new version.
+ * Only advisers and instructors can unlock.
+ */
+router.post(
+  '/:submissionId/unlock',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(unlockRequestSchema),
+  auditLog('submission.unlocked', 'Submission', {
+    getDescription: (req) => `Unlocked submission ${req.params.submissionId}`,
+    getMetadata: (req) => ({ reason: req.body.reason }),
+  }),
+  submissionController.unlockSubmission,
+);
+
+/**
+ * POST /:submissionId/annotations
+ * Add a highlight & comment annotation to a submission.
+ * Only advisers and instructors can annotate.
+ */
+router.post(
+  '/:submissionId/annotations',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(addAnnotationSchema),
+  submissionController.addAnnotation,
+);
+
+/**
+ * POST /:submissionId/annotations/:annotationId/replies
+ * Add a threaded reply to an annotation.
+ */
+router.post(
+  '/:submissionId/annotations/:annotationId/replies',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionAnnotationParamSchema, 'params'),
+  validate(addAnnotationReplySchema),
+  submissionController.addAnnotationReply,
+);
+
+/**
+ * DELETE /:submissionId/annotations/:annotationId
+ * Remove an annotation. Only the annotation author or an instructor can remove.
+ */
+router.delete(
+  '/:submissionId/annotations/:annotationId',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionAnnotationParamSchema, 'params'),
+  submissionController.removeAnnotation,
+);
+
+/**
+ * POST /:submissionId/annotations/:annotationId/resolve
+ * Mark an annotation as resolved/addressed. Only adviser and instructor.
+ */
+router.post(
+  '/:submissionId/annotations/:annotationId/resolve',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionAnnotationParamSchema, 'params'),
+  submissionController.markAnnotationResolved,
+);
+
+/* ────── Feedback & version routes (any authenticated role) ────── */
+
+/**
+ * GET /:submissionId/feedback
+ * Get student feedback context: annotations, review notes, review timeline, revision deadline.
+ * Accessible by the submitting student and all faculty.
+ */
+router.get(
+  '/:submissionId/feedback',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionFeedback,
+);
+
+/**
+ * GET /:submissionId/review-workspace
+ * Returns review thread metadata and round timeline used by split-view review page.
+ */
+router.get(
+  '/:submissionId/review-workspace',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionReviewWorkspace,
+);
+
+/**
+ * GET /:submissionId/versions
+ * Get all versions of a submission (upload history).
+ * Accessible by the submitting student and all faculty.
+ */
+router.get(
+  '/:submissionId/versions',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionVersions,
+);
+
+/* ────── Shared routes (any authenticated role) ────── */
+
+/**
+ * GET /:submissionId
+ * Get a single submission by ID with populated references.
+ */
+router.get(
+  '/:submissionId',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmission,
+);
+
+/**
+ * GET /:submissionId/view
+ * Get a pre-signed URL to view the document (5-min expiry).
+ */
+router.get(
+  '/:submissionId/view',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getViewUrl,
+);
+
+/**
+ * GET /:submissionId/google-comments
+ * Get Google Docs comments/replies for the submission's synced Google Doc.
+ */
+router.get(
+  '/:submissionId/google-comments',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getGoogleDocComments,
+);
+
+/**
+ * GET /:submissionId/plagiarism/report
+ * Return the full PlagiarismReport with character-level span data for the
+ * highlight viewer.  Must be registered BEFORE /:submissionId/plagiarism to
+ * avoid Express matching "report" as a wildcard sub-param.
+ * Accessible by the submitting student and all faculty roles.
+ */
+router.get(
+  '/:submissionId/plagiarism/report',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getPlagiarismReport,
+);
+
+/**
+ * GET /:submissionId/plagiarism
+ * Get the plagiarism / originality check status and results.
+ * Any authenticated user can check (authorization on data handled by the service).
+ */
+router.get(
+  '/:submissionId/plagiarism',
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getPlagiarismStatus,
+);
+
+/**
+ * GET /project/:projectId
+ * List all submissions for a project with optional filters and pagination.
+ */
+router.get(
+  '/project/:projectId',
+  validate(projectIdParamSchema, 'params'),
+  validate(listSubmissionsQuerySchema, 'query'),
+  submissionController.getSubmissionsByProject,
+);
+
+/**
+ * GET /project/:projectId/chapters/:chapter
+ * Get the full version history for a specific chapter.
+ */
+router.get(
+  '/project/:projectId/chapters/:chapter',
+  validate(projectChapterParamSchema, 'params'),
+  submissionController.getChapterHistory,
+);
+
+/**
+ * GET /project/:projectId/chapters/:chapter/latest
+ * Get only the latest version of a specific chapter.
+ */
+router.get(
+  '/project/:projectId/chapters/:chapter/latest',
+  validate(projectChapterParamSchema, 'params'),
+  submissionController.getLatestChapterSubmission,
+);
+
+export default router;

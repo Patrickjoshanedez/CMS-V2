@@ -1,7 +1,6 @@
 ---
 name: continual-learning
-version: 1.1.0
-version: 1.1.0
+version: 1.2.0
 schema-version: 1
 description: Continual learning skill for turning incidents and outcomes into durable process improvements, runbooks, and prevention rules.
 ---

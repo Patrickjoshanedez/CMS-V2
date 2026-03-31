@@ -338,8 +338,22 @@ class TeamService {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }
 
+    // Allow "orphaned" students to join new teams — if user already has a team, remove them first
     if (user.teamId) {
-      throw new AppError('You are already part of a team. Please leave your current team before joining a new one.', 400, 'ALREADY_IN_TEAM');
+      const previousTeam = await Team.findById(user.teamId);
+      if (previousTeam) {
+        previousTeam.members = previousTeam.members.filter(
+          (memberId) => memberId.toString() !== userId.toString(),
+        );
+        // If the user was the leader and there are remaining members, transfer leadership
+        if (
+          previousTeam.leaderId.toString() === userId.toString() &&
+          previousTeam.members.length > 0
+        ) {
+          previousTeam.leaderId = previousTeam.members[0];
+        }
+        await previousTeam.save();
+      }
     }
 
     const team = await Team.findById(invite.teamId);
@@ -503,7 +517,11 @@ class TeamService {
     }
 
     if (team.leaderId?._id?.toString() !== leaderId.toString()) {
-      throw new AppError('Only the team leader can update the team document link.', 403, 'FORBIDDEN');
+      throw new AppError(
+        'Only the team leader can update the team document link.',
+        403,
+        'FORBIDDEN',
+      );
     }
 
     const normalizedLink = typeof googleDocUrl === 'string' ? googleDocUrl.trim() : '';

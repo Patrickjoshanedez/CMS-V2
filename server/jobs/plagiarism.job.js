@@ -17,7 +17,7 @@
  */
 import { Worker } from 'bullmq';
 import { getRedisConnectionOpts, isRedisAvailable } from '../config/redis.js';
-import { QUEUE_NAMES, routeToPlagiarismDlq } from './queue.js';
+import { QUEUE_NAMES } from './queue.js';
 import { extractText } from '../utils/extractText.js';
 import { checkOriginality } from '../services/plagiarism.service.js';
 import storageService from '../services/storage.service.js';
@@ -26,15 +26,7 @@ import Project from '../modules/projects/project.model.js';
 import Notification from '../modules/notifications/notification.model.js';
 import PlagiarismResult from '../modules/plagiarism/plagiarism.model.js';
 import { emitToUser } from '../services/socket.service.js';
-import panelistTriageService from '../services/panelistTriage.service.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
-
-/**
- * Minimum originality score (%) required to proceed with panelist triage.
- * Submissions scoring below this threshold fail the plagiarism gate and
- * do not enter the panelist review pipeline.
- */
-const ORIGINALITY_THRESHOLD_FOR_TRIAGE = 50;
 
 /** @type {Worker|null} */
 let plagiarismWorker = null;
@@ -212,17 +204,6 @@ async function processJob(job) {
       },
     });
     emitToUser(submission.submittedBy._id || submission.submittedBy, 'notification:new', plagNotif);
-
-    // Trigger agentic triage pipeline for the panelist workflow when originality
-    // check passes (score >= ORIGINALITY_THRESHOLD_FOR_TRIAGE). Triage runs asynchronously and
-    // does not block the plagiarism job's completion.
-    if (result.originalityScore >= ORIGINALITY_THRESHOLD_FOR_TRIAGE) {
-      panelistTriageService.runTriagePipeline(submissionId, projectId).catch((triageErr) => {
-        console.error(
-          `[Plagiarism Worker] Panelist triage pipeline error for ${submissionId}: ${triageErr.message}`,
-        );
-      });
-    }
   }
 
   console.log(
@@ -234,10 +215,6 @@ async function processJob(job) {
 
 /**
  * Handle job failure after all retries are exhausted.
- *
- * Updates the Submission and PlagiarismResult documents to FAILED state and
- * routes the job to the Dead-Letter Queue for administrative inspection and
- * manual retry via Bull Board.
  *
  * @param {Object} job
  * @param {Error} err
@@ -268,15 +245,6 @@ async function handleFailedJob(job, err) {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
-
-    // Route to Dead-Letter Queue for administrative inspection
-    const dlqJobId = await routeToPlagiarismDlq(job, err);
-    if (dlqJobId) {
-      console.warn(
-        `[Plagiarism Worker] Job ${job.id} routed to DLQ as ${dlqJobId} — ` +
-          'inspect via /admin/queues to retry or dismiss.',
-      );
-    }
   } catch (updateErr) {
     console.error(`[Plagiarism Worker] Failed to update submission status: ${updateErr.message}`);
   }

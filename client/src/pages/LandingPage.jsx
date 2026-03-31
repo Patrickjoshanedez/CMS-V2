@@ -261,7 +261,7 @@ const FEATURES = [
     icon: BookOpen,
     title: 'Documentation Hub',
     description:
-      'Centralized storage for comprehensive capstone manuscripts — submit chapters, track revisions by round, and manage feedback with inline comments.',
+      'Centralized storage for comprehensive capstone manuscripts — submit chapters individually, compile proposals, and track revisions with inline comments.',
   },
 ];
 
@@ -635,8 +635,8 @@ function HeroSection({ heroRef }) {
         </h1>
 
         <p className="landing-subtitle mt-6 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
-          A comprehensive archiving and management system for your capstone journey — from
-          proposal to final defense. Submit, review, and track your progress in one place.
+          A comprehensive archiving and management system for your capstone journey — from proposal
+          to final defense. Submit, review, and track your progress in one place.
         </p>
 
         <div className="landing-buttons mt-10 flex flex-wrap gap-4">

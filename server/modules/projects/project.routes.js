@@ -16,7 +16,6 @@ import {
   submitTitleSchema,
   approveTitleSchema,
   rejectTitleSchema,
-  addTitleCommentSchema,
   requestTitleModificationSchema,
   resolveTitleModificationSchema,
   assignAdviserSchema,
@@ -158,17 +157,6 @@ router.delete(
 );
 
 /* ────── Instructor routes ────── */
-
-// Comment on a title proposal
-router.post(
-  '/:id/title-proposals/:proposalId/comments',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
-  validate(addTitleCommentSchema),
-  auditLog('project.title_proposal_commented', 'Project', {
-    getDescription: (req) => `Added comment to title proposal in project ${req.params.id}`,
-  }),
-  projectController.addTitleComment,
-);
 
 // Approve a submitted title
 router.post(

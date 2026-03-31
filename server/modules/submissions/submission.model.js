@@ -372,11 +372,6 @@ const submissionSchema = new mongoose.Schema(
       maxlength: [1000, 'Remarks must not exceed 1000 characters'],
       default: null,
     },
-    prototypeLink: {
-      type: String,
-      trim: true,
-      default: null,
-    },
 
     // --- Review feedback ---
     reviewNote: {

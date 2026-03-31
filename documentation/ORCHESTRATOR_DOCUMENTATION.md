@@ -54,12 +54,11 @@ The system is built upon a hierarchy of strictly bounded personas. No single age
 The Orchestrator derives its determinism from a series of Python script hooks triggered at specific agent lifecycle events (defined in `.github/hooks/orchestrator-automation.json`). 
 
 ### Current Hook Registry Version
-- `orchestrator-automation.json` version: `1.1.0`
+- `orchestrator-automation.json` version: `1.2.0`
 - schemaVersion: `1`
 
 ### `PostTaskCompletion` Hooks
-Fired after task completion to enforce knowledge-retention checks:
-- **`post_task_continual_learning.py`**: Verifies that the `continual-learning` skill exists and is acknowledged in `.github/copilot-instructions.md`.
+Fired after task completion for lifecycle-level quality checks.
 
 ### `SubagentStart` Hooks
 Fired when a new agent is invoked, injecting strict boundary policies:
@@ -77,6 +76,7 @@ Fired right before a tool is executed to prevent runaway context and enforce rul
 Fired after a tool is executed to enforce completion quality requirements:
 - **`continual_learning_checkpoint.py`**: Validates `task_complete` events and requires continual-learning checkpoint language in summaries. The validator accepts summaries that include at least one of these keywords: `lesson`, `learned`, `prevention`, `retrospective`, `runbook`, `checklist`.
 - **Location:** Rule file is `.github/hooks/orchestrator-automation.json`; script file is `.github/hooks/scripts/continual_learning_checkpoint.py`.
+- **Trigger Rule:** `PostToolUse` handler with `when.tool = task_complete` and `failMode = warn`.
 
 ---
 

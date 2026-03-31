@@ -13,7 +13,6 @@ import Project from '../projects/project.model.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
 import Notification from '../notifications/notification.model.js';
-import { WorkloadOptimizationContext } from '../optimization/WorkloadOptimizationContext.js';
 import {
   ROLES,
   TITLE_STATUSES,
@@ -662,25 +661,51 @@ class DashboardService {
 
   /**
    * Phase 4: Suggest balancing actions for adviser workload.
-   *
-   * Delegates to the Strategy Design Pattern via WorkloadOptimizationContext.
-   * The active strategy is resolved from the provided `mode` parameter, which
-   * maps to the current academic phase. If no mode is specified, the default
-   * mid-semester balancing strategy is applied.
-   *
-   * @param {string} [_instructorId] - Authenticated instructor ID (reserved for future scoping).
-   * @param {string} [mode='mid_semester'] - Optimization mode key. One of:
-   *   - 'mid_semester': Aggressive rebalancing for mid-semester phase.
-   *   - 'end_semester': Conservative audit mode with transfer restrictions.
-   * @returns {Promise<Object>} Optimization result with strategy metadata.
+   * @returns {Promise<Object>}
    */
-  async optimizeInstructorWorkload(_instructorId, mode = 'mid_semester') {
+  async optimizeInstructorWorkload() {
     const workload = await this.getInstructorWorkload();
+    const advisers = workload.advisers;
 
-    const context = new WorkloadOptimizationContext();
-    context.resolveStrategy(mode);
+    if (advisers.length < 2) {
+      return {
+        suggested: false,
+        reason: 'At least two advisers are needed for balancing suggestions.',
+        suggestions: [],
+      };
+    }
 
-    return context.executeOptimization(workload);
+    const heaviest = advisers[0];
+    const lightest = advisers[advisers.length - 1];
+    const scoreGap = heaviest.workloadScore - lightest.workloadScore;
+
+    if (scoreGap < 4) {
+      return {
+        suggested: false,
+        reason: 'Workload distribution is already balanced.',
+        suggestions: [],
+      };
+    }
+
+    return {
+      suggested: true,
+      reason: 'Detected significant workload imbalance.',
+      suggestions: [
+        {
+          fromAdviserId: heaviest.adviserId,
+          fromAdviserName: heaviest.adviserName,
+          toAdviserId: lightest.adviserId,
+          toAdviserName: lightest.adviserName,
+          action: 'Reassign 1-2 pending projects from heavy to light adviser.',
+          estimatedScoreGapReduction: Number((scoreGap * 0.4).toFixed(2)),
+        },
+      ],
+      snapshot: {
+        heaviest,
+        lightest,
+        scoreGap: Number(scoreGap.toFixed(2)),
+      },
+    };
   }
 
   /**

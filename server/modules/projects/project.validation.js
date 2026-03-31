@@ -6,19 +6,6 @@ import { TITLE_STATUS_VALUES, PROJECT_STATUS_VALUES, CAPSTONE_TITLE_VALUES } fro
 const academicYearPattern = /^\d{4}-\d{4}$/;
 const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 const objectId = z.string().regex(objectIdPattern, 'Invalid ObjectId');
-const titleProposalStringSchema = z
-  .string()
-  .trim()
-  .min(10, 'Each proposed title must be at least 10 characters')
-  .max(300, 'Each proposed title must not exceed 300 characters');
-const titleProposalObjectSchema = z.object({
-  title: titleProposalStringSchema,
-  comments: z.array(z.unknown()).optional(),
-});
-const titleProposalsSchema = z
-  .array(z.union([titleProposalStringSchema, titleProposalObjectSchema]))
-  .min(5, 'At least 5 title proposals are required')
-  .max(10, 'At most 10 title proposals are allowed');
 
 /* ───── Create project ───── */
 
@@ -42,7 +29,16 @@ export const createProjectSchema = z.object({
     .trim()
     .min(10, 'Title must be at least 10 characters')
     .max(300, 'Title must not exceed 300 characters'),
-  titleProposals: titleProposalsSchema,
+  titleProposals: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(10, 'Each proposed title must be at least 10 characters')
+        .max(300, 'Each proposed title must not exceed 300 characters'),
+    )
+    .min(5, 'At least 5 title proposals are required')
+    .max(10, 'At most 10 title proposals are allowed'),
   abstract: z
     .string()
     .trim()
@@ -76,7 +72,6 @@ export const updateTitleSchema = z.object({
     .trim()
     .min(10, 'Title must be at least 10 characters')
     .max(300, 'Title must not exceed 300 characters'),
-  titleProposals: titleProposalsSchema.optional(),
   abstract: z.string().trim().max(500, 'Abstract must not exceed 500 characters').optional(),
   keywords: z
     .array(z.string().trim().min(1))
@@ -100,16 +95,6 @@ export const rejectTitleSchema = z.object({
     .trim()
     .min(5, 'Rejection reason must be at least 5 characters')
     .max(1000, 'Rejection reason must not exceed 1000 characters'),
-});
-
-/* ───── Add comment to a title proposal ───── */
-
-export const addTitleCommentSchema = z.object({
-  text: z
-    .string()
-    .trim()
-    .min(1, 'Comment must not be empty')
-    .max(1000, 'Comment must not exceed 1000 characters'),
 });
 
 /* ───── Request title modification (student action) ───── */
@@ -194,7 +179,6 @@ export const listProjectsQuerySchema = z.object({
   projectStatus: z.enum(PROJECT_STATUS_VALUES).optional(),
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
-  sectionId: z.string().regex(objectIdPattern).optional(),
 });
 
 /* ───── Advance capstone phase (instructor action) ───── */
