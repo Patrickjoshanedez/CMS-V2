@@ -357,9 +357,9 @@ export default function SubmissionReviewPage() {
                           </div>
                         </div>
                       ) : isSubmissionFileUnavailable ? (
-                        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+                        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-sm text-amber-900">
+                            <p className="text-sm text-warning">
                               Submission file is unavailable. Ask the student to upload a new
                               revision.
                             </p>
@@ -370,9 +370,9 @@ export default function SubmissionReviewPage() {
                           </div>
                         </div>
                       ) : viewUrlQuery.isError ? (
-                        <div className="rounded-lg border border-red-300 bg-red-50 p-4">
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-sm text-red-800">
+                            <p className="text-sm text-destructive">
                               Unable to load secure document URL right now. Please try again.
                             </p>
                             <Button variant="outline" onClick={() => viewUrlQuery.refetch()}>

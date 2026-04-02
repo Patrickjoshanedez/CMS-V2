@@ -1,0 +1,21 @@
+{
+  "pendingFailures": [],
+  "observedTestActivity": false,
+  "updatedAt": "2026-04-02T06:04:40+00:00",
+  "integrityAnomaly": null,
+  "publicExposureGate": {
+    "pending": true,
+    "pendingContext": {
+      "commandLabel": "docker compose -f docker-compose.prod.yml up",
+      "commandLabelNormalized": "docker compose -f docker-compose.prod.yml up",
+      "detectedAt": "2026-04-02T06:04:40+00:00",
+      "expiresAt": "2026-04-02T12:04:40+00:00"
+    },
+    "passed": false,
+    "lastVerifiedAt": null,
+    "lastAttemptedCommand": "docker compose -f docker-compose.prod.yml up",
+    "lastBlockedAt": "2026-04-02T06:04:40+00:00",
+    "evidenceMap": {},
+    "updatedAt": "2026-04-02T06:04:40+00:00"
+  }
+}

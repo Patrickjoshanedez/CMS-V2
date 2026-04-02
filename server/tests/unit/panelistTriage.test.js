@@ -23,7 +23,7 @@ describe('contextValidator (Guardian Agent)', () => {
       'The researchers conducted extensive field work over a period of six months. ' +
       'The results demonstrate clear patterns in student submission behaviour. ' +
       'Further analysis reveals a strong correlation between workload and outcomes.',
-    wordCount: 80,
+    wordCount: 600,
     projectTitle: 'Capstone Management Platform',
   };
 

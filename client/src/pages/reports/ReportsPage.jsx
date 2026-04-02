@@ -9,15 +9,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useProjectReports } from '@/hooks/useProjects';
 import { ROLES } from '@cms/shared';
-import {
-  Loader2,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  BarChart3,
-  Search,
-  Upload,
-} from 'lucide-react';
+import { Loader2, FileText, ChevronDown, ChevronUp, BarChart3, Search, Upload } from 'lucide-react';
 
 /**
  * ReportsPage — Instructor-only reporting dashboard.
@@ -67,15 +59,19 @@ export default function ReportsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Capstone Reports</h1>
-            <p className="text-muted-foreground">Generate and view reports by author, title, or year.</p>
+            <p className="text-muted-foreground">
+              Generate and view reports by author, title, or year.
+            </p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/reports/bulk-upload')}>
-            <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
-          </Button>
+          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <Button variant="outline" onClick={() => navigate('/archive/upload/capstone')}>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Archived Capstone
+            </Button>
+          </div>
         </div>
 
         {/* Filter Bar */}
@@ -111,7 +107,11 @@ export default function ReportsPage() {
               </div>
               <div className="flex items-end">
                 <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="mr-2 h-4 w-4" />
+                  )}
                   Generate Report
                 </Button>
               </div>
@@ -185,14 +185,19 @@ export default function ReportsPage() {
                       {group.projects?.length > 0 ? (
                         <ul className="divide-y">
                           {group.projects.map((p) => (
-                            <li key={p._id} className="flex items-center justify-between py-2 text-sm">
+                            <li
+                              key={p._id}
+                              className="flex items-center justify-between py-2 text-sm"
+                            >
                               <span className="font-medium">{p.title}</span>
                               <span className="text-muted-foreground">{p.team?.name || '—'}</span>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No project details available.</p>
+                        <p className="text-sm text-muted-foreground">
+                          No project details available.
+                        </p>
                       )}
                     </CardContent>
                   )}

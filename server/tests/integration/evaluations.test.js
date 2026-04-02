@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createAuthenticatedUserWithRole, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
+import {
+  createAuthenticatedUserWithRole,
+  createCourseAndSection,
+  createValidProjectPayload,
+} from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
@@ -30,8 +34,8 @@ async function createProjectWithPanelist(studentId, adviserId, panelistId) {
   payload.keywords = ['test'];
   payload.titleStatus = TITLE_STATUSES.APPROVED;
   payload.projectStatus = PROJECT_STATUSES.ACTIVE;
-  if(adviserId) payload.adviserId = adviserId;
-  if(panelistId) payload.panelistIds = [panelistId];
+  if (adviserId) payload.adviserId = adviserId;
+  if (panelistId) payload.panelistIds = [panelistId];
 
   const project = await Project.create(payload);
   return { team, project };
@@ -63,9 +67,13 @@ describe('Evaluations API — /api/evaluations', () => {
   beforeEach(async () => {
     // Create four users with unique emails
     const s = await createAuthenticatedUserWithRole('student', { email: 'eval-student@test.com' });
-    const i = await createAuthenticatedUserWithRole('instructor', { email: 'eval-instructor@test.com' });
+    const i = await createAuthenticatedUserWithRole('instructor', {
+      email: 'eval-instructor@test.com',
+    });
     const a = await createAuthenticatedUserWithRole('adviser', { email: 'eval-adviser@test.com' });
-    const p = await createAuthenticatedUserWithRole('panelist', { email: 'eval-panelist@test.com' });
+    const p = await createAuthenticatedUserWithRole('panelist', {
+      email: 'eval-panelist@test.com',
+    });
 
     studentAgent = s.agent;
     student = s.user;
@@ -88,8 +96,9 @@ describe('Evaluations API — /api/evaluations', () => {
 
   describe('GET /:projectId/:defenseType — Get or create evaluation', () => {
     it('should create a draft evaluation with default criteria for assigned panelist', async () => {
-      const res = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -108,10 +117,12 @@ describe('Evaluations API — /api/evaluations', () => {
     });
 
     it('should return existing evaluation on subsequent call', async () => {
-      const res1 = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
-      const res2 = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res1 = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
+      const res2 = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);
@@ -120,26 +131,27 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject non-assigned panelist', async () => {
       // Create a second panelist who is NOT in the project's panelistIds
-      const p2 = await createAuthenticatedUserWithRole('panelist', { email: 'eval-panelist2@test.com' });
+      const p2 = await createAuthenticatedUserWithRole('panelist', {
+        email: 'eval-panelist2@test.com',
+      });
 
-      const res = await p2.agent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await p2.agent.get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
     });
 
     it('should reject non-panelist role (student)', async () => {
-      const res = await studentAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await studentAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
     });
 
     it('should reject invalid defense type', async () => {
-      const res = await panelistAgent
-        .get(`/api/evaluations/${project._id}/invalid`);
+      const res = await panelistAgent.get(`/api/evaluations/${project._id}/invalid`);
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -151,18 +163,17 @@ describe('Evaluations API — /api/evaluations', () => {
   describe('PATCH /:evaluationId — Update draft evaluation', () => {
     it('should update criteria scores and overall comment', async () => {
       // First create the draft
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       const scoredCriteria = buildScoredCriteria();
 
-      const res = await panelistAgent
-        .patch(`/api/evaluations/${evaluationId}`)
-        .send({
-          criteria: scoredCriteria,
-          overallComment: 'Good work overall.',
-        });
+      const res = await panelistAgent.patch(`/api/evaluations/${evaluationId}`).send({
+        criteria: scoredCriteria,
+        overallComment: 'Good work overall.',
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -170,13 +181,14 @@ describe('Evaluations API — /api/evaluations', () => {
       const updated = res.body.data.evaluation;
       expect(updated.overallComment).toBe('Good work overall.');
       expect(updated.criteria[0].score).toBe(18);
-      expect(updated.criteria).toHaveLength(4);
+      expect(updated.criteria).toHaveLength(6);
     });
 
     it('should reject update to non-draft evaluation', async () => {
       // Create draft
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       // Directly set status to submitted in DB
@@ -184,12 +196,10 @@ describe('Evaluations API — /api/evaluations', () => {
         status: EVALUATION_STATUSES.SUBMITTED,
       });
 
-      const res = await panelistAgent
-        .patch(`/api/evaluations/${evaluationId}`)
-        .send({
-          criteria: buildScoredCriteria(),
-          overallComment: 'Trying to edit submitted.',
-        });
+      const res = await panelistAgent.patch(`/api/evaluations/${evaluationId}`).send({
+        criteria: buildScoredCriteria(),
+        overallComment: 'Trying to edit submitted.',
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -197,19 +207,20 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject update by different panelist', async () => {
       // Create draft by the assigned panelist
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       // Create a second panelist (not assigned to this project)
-      const p2 = await createAuthenticatedUserWithRole('panelist', { email: 'eval-panelist3@test.com' });
+      const p2 = await createAuthenticatedUserWithRole('panelist', {
+        email: 'eval-panelist3@test.com',
+      });
 
-      const res = await p2.agent
-        .patch(`/api/evaluations/${evaluationId}`)
-        .send({
-          criteria: buildScoredCriteria(),
-          overallComment: 'Unauthorized edit.',
-        });
+      const res = await p2.agent.patch(`/api/evaluations/${evaluationId}`).send({
+        criteria: buildScoredCriteria(),
+        overallComment: 'Unauthorized edit.',
+      });
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
@@ -217,16 +228,15 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject update by student', async () => {
       // Create draft
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
-      const res = await studentAgent
-        .patch(`/api/evaluations/${evaluationId}`)
-        .send({
-          criteria: buildScoredCriteria(),
-          overallComment: 'Student trying to edit.',
-        });
+      const res = await studentAgent.patch(`/api/evaluations/${evaluationId}`).send({
+        criteria: buildScoredCriteria(),
+        overallComment: 'Student trying to edit.',
+      });
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
@@ -238,8 +248,9 @@ describe('Evaluations API — /api/evaluations', () => {
   describe('POST /:evaluationId/submit — Submit evaluation', () => {
     it('should submit evaluation with all criteria scored', async () => {
       // Create + score
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       await panelistAgent
@@ -247,8 +258,7 @@ describe('Evaluations API — /api/evaluations', () => {
         .send({ criteria: buildScoredCriteria(), overallComment: 'Well done.' });
 
       // Submit
-      const res = await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      const res = await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -265,12 +275,12 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject submission with unscored criteria', async () => {
       // Create draft without scoring
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
-      const res = await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      const res = await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -279,8 +289,9 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject submission when score exceeds maxScore', async () => {
       // Create draft
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       // Build criteria with one invalid score (25 > maxScore 20)
@@ -297,8 +308,7 @@ describe('Evaluations API — /api/evaluations', () => {
         .patch(`/api/evaluations/${evaluationId}`)
         .send({ criteria: invalidCriteria });
 
-      const res = await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      const res = await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -307,20 +317,19 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject double submission', async () => {
       // Create + score + submit
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${evaluationId}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'First submit.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       // Try to submit again
-      const res = await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      const res = await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -329,16 +338,16 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should create notification for adviser on submission', async () => {
       // Create + score + submit
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${evaluationId}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'Notify adviser.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       // Check that a notification was created for the adviser
       const notification = await Notification.findOne({
@@ -358,20 +367,21 @@ describe('Evaluations API — /api/evaluations', () => {
   describe('POST /:projectId/:defenseType/release — Release evaluations', () => {
     it('should release all submitted evaluations (instructor)', async () => {
       // Create + score + submit an evaluation
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${evaluationId}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'Ready to release.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       // Instructor releases
-      const res = await instructorAgent
-        .post(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`);
+      const res = await instructorAgent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -384,16 +394,18 @@ describe('Evaluations API — /api/evaluations', () => {
     });
 
     it('should reject release by non-instructor', async () => {
-      const res = await panelistAgent
-        .post(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`);
+      const res = await panelistAgent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+      );
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
     });
 
     it('should return 0 releasedCount if none submitted', async () => {
-      const res = await instructorAgent
-        .post(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`);
+      const res = await instructorAgent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -406,20 +418,21 @@ describe('Evaluations API — /api/evaluations', () => {
   describe('GET /project/:projectId/:defenseType — List evaluations', () => {
     /** Helper: create, score, submit, and optionally release an evaluation */
     async function createAndSubmitEvaluation({ release = false } = {}) {
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${evaluationId}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'Complete.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${evaluationId}/submit`);
+      await panelistAgent.post(`/api/evaluations/${evaluationId}/submit`);
 
       if (release) {
-        await instructorAgent
-          .post(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`);
+        await instructorAgent.post(
+          `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+        );
       }
 
       return evaluationId;
@@ -428,8 +441,9 @@ describe('Evaluations API — /api/evaluations', () => {
     it('should show all evaluations to instructor', async () => {
       await createAndSubmitEvaluation({ release: true });
 
-      const res = await instructorAgent
-        .get(`/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await instructorAgent.get(
+        `/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -442,32 +456,34 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should show only released evaluations to student', async () => {
       // Create one submitted-but-not-released eval via a second panelist
-      const p2 = await createAuthenticatedUserWithRole('panelist', { email: 'eval-panelist4@test.com' });
+      const p2 = await createAuthenticatedUserWithRole('panelist', {
+        email: 'eval-panelist4@test.com',
+      });
       await Project.findByIdAndUpdate(project._id, { $push: { panelistIds: p2.user._id } });
 
       // Panelist 1: submit + release
-      const createRes1 = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes1 = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evalId1 = createRes1.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${evalId1}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'P1 done.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${evalId1}/submit`);
+      await panelistAgent.post(`/api/evaluations/${evalId1}/submit`);
 
       // Panelist 2: submitted only (not released)
-      const createRes2 = await p2.agent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes2 = await p2.agent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evalId2 = createRes2.body.data.evaluation._id;
 
       await p2.agent
         .patch(`/api/evaluations/${evalId2}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'P2 done.' });
 
-      await p2.agent
-        .post(`/api/evaluations/${evalId2}/submit`);
+      await p2.agent.post(`/api/evaluations/${evalId2}/submit`);
 
       // Release only panelist 1's eval (release all submitted → both become released)
       // Actually releaseEvaluations releases ALL submitted, so we need a different approach:
@@ -480,36 +496,36 @@ describe('Evaluations API — /api/evaluations', () => {
       await Evaluation.deleteMany({});
 
       // P1 submits
-      const r1 = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const r1 = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const eid1 = r1.body.data.evaluation._id;
 
       await panelistAgent
         .patch(`/api/evaluations/${eid1}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'P1.' });
 
-      await panelistAgent
-        .post(`/api/evaluations/${eid1}/submit`);
+      await panelistAgent.post(`/api/evaluations/${eid1}/submit`);
 
       // Instructor releases (only P1 is submitted at this point)
-      await instructorAgent
-        .post(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`);
+      await instructorAgent.post(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}/release`,
+      );
 
       // P2 submits AFTER release — this one stays as 'submitted'
-      const r2 = await p2.agent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const r2 = await p2.agent.get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
       const eid2 = r2.body.data.evaluation._id;
 
       await p2.agent
         .patch(`/api/evaluations/${eid2}`)
         .send({ criteria: buildScoredCriteria(), overallComment: 'P2.' });
 
-      await p2.agent
-        .post(`/api/evaluations/${eid2}/submit`);
+      await p2.agent.post(`/api/evaluations/${eid2}/submit`);
 
       // Student should only see the released eval (P1), not the submitted one (P2)
-      const res = await studentAgent
-        .get(`/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await studentAgent.get(
+        `/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -520,8 +536,9 @@ describe('Evaluations API — /api/evaluations', () => {
     it('should include summary statistics', async () => {
       await createAndSubmitEvaluation({ release: true });
 
-      const res = await instructorAgent
-        .get(`/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const res = await instructorAgent.get(
+        `/api/evaluations/project/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -540,12 +557,12 @@ describe('Evaluations API — /api/evaluations', () => {
   describe('GET /detail/:evaluationId — Get single evaluation', () => {
     it('should return evaluation details for adviser', async () => {
       // Create an evaluation
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
-      const res = await adviserAgent
-        .get(`/api/evaluations/detail/${evaluationId}`);
+      const res = await adviserAgent.get(`/api/evaluations/detail/${evaluationId}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -560,12 +577,12 @@ describe('Evaluations API — /api/evaluations', () => {
 
     it('should reject student access', async () => {
       // Create an evaluation
-      const createRes = await panelistAgent
-        .get(`/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`);
+      const createRes = await panelistAgent.get(
+        `/api/evaluations/${project._id}/${DEFENSE_TYPES.PROPOSAL}`,
+      );
       const evaluationId = createRes.body.data.evaluation._id;
 
-      const res = await studentAgent
-        .get(`/api/evaluations/detail/${evaluationId}`);
+      const res = await studentAgent.get(`/api/evaluations/detail/${evaluationId}`);
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);

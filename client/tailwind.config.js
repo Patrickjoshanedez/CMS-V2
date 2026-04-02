@@ -38,6 +38,24 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
+        },
+        brand: {
+          orange: 'hsl(var(--brand-orange))',
+          pink: 'hsl(var(--brand-pink))',
+          purple: 'hsl(var(--brand-purple))',
+          'deep-purple': 'hsl(var(--brand-deep-purple))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

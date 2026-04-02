@@ -6,12 +6,22 @@
 
 $ErrorActionPreference = 'Continue'
 $ROOT = $PSScriptRoot
+$composeArgs = @('-f', 'docker-compose.yml')
 
 function Msg($text, $color = 'White') { Write-Host $text -ForegroundColor $color }
 function Step($text) { Msg "[STEP] $text" 'Yellow' }
 function Ok($text) { Msg "[OK]   $text" 'Green' }
 function Warn($text) { Msg "[WARN] $text" 'DarkYellow' }
 function Err($text) { Msg "[ERR]  $text" 'Red' }
+
+function Invoke-Compose {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Args
+    )
+
+    & docker compose @composeArgs @Args
+}
 
 function Assert-Docker {
     Step 'Checking Docker...'
@@ -92,23 +102,23 @@ Assert-Docker
 Normalize-InitScript
 
 if ($Reset) {
-    Step 'Reset requested: docker-compose down -v --remove-orphans'
-    docker-compose down -v --remove-orphans
+    Step 'Reset requested: docker compose -f docker-compose.yml down -v --remove-orphans'
+    Invoke-Compose -Args @('down', '-v', '--remove-orphans')
 }
 
 if ($Build) {
     Step 'Starting services with build...'
-    docker-compose up -d --build
+    Invoke-Compose -Args @('up', '-d', '--build')
 } else {
     Step 'Starting services...'
-    docker-compose up -d
+    Invoke-Compose -Args @('up', '-d')
 }
 
 if ($LASTEXITCODE -ne 0) {
-    Err 'docker-compose up failed. Attempting one automatic retry after down...'
-    docker-compose down --remove-orphans
+    Err 'docker compose up failed. Attempting one automatic retry after down...'
+    Invoke-Compose -Args @('down', '--remove-orphans')
     Start-Sleep -Seconds 2
-    if ($Build) { docker-compose up -d --build } else { docker-compose up -d }
+    if ($Build) { Invoke-Compose -Args @('up', '-d', '--build') } else { Invoke-Compose -Args @('up', '-d') }
     if ($LASTEXITCODE -ne 0) {
         Err 'Second startup attempt failed.'
         exit 1
@@ -149,11 +159,11 @@ if ($ok) {
     Msg 'Plagiarism: http://localhost:8001/health' 'Cyan'
 } else {
     Err 'One or more checks failed. See logs above.'
-    Msg 'Run: docker-compose logs -f [service]' 'DarkYellow'
+    Msg 'Run: docker compose -f docker-compose.yml logs -f [service]' 'DarkYellow'
     exit 1
 }
 
 if ($Logs) {
     Step 'Streaming logs (Ctrl+C to stop)...'
-    docker-compose logs -f
+    Invoke-Compose -Args @('logs', '-f')
 }

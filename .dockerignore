@@ -5,9 +5,15 @@ node_modules
 **/dist
 **/coverage
 **/.env
+**/.env.prod
+**/.env.prod.*
+.env.prod
+.env.prod.*
 **/.DS_Store
 cookies.txt
 server/test-*.json
 server/test-*.txt
 server/sprint*-output.txt
 server/sprint*-results.json
+/*.txt
+/*.log

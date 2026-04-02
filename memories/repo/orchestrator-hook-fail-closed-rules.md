@@ -1,0 +1,10 @@
+- Hook payload parsing for completion checkpoints must be fail-closed: block on empty stdin, invalid JSON, or non-object root payloads.
+- Keep tool extraction separate from lifecycle-event extraction; do not treat eventName as tool.
+- Completion detection should check: task_complete tool token, PostTaskCompletion lifecycle token, argument recursion, and final full-payload token scan.
+- State integrity must fail closed on missing/null/invalid `pendingFailures`, invalid `observedTestActivity`, and invalid `updatedAt`.
+- If state integrity anomaly is present, block completion with remediation guidance referencing `.github/hooks/state/test_fix_state.json`.
+- If a requested sub-agent alias (for example, `reviewer`) is unavailable, immediately retry `runSubagent` without `agentName` using an explicit review-gate prompt and continue pipeline execution.
+- Public exposure pending state must enforce the completion-summary contract unconditionally while pending is active; TTL/expiry logic controls release, not summary content.
+- Public exposure production-compose detection must be strict: require explicit `docker-compose.prod.yml` command reference and do not infer production from `--profile prod` or env-file hints alone.
+- For multiple `--env-file` flags, resolve `NGROK_AUTHTOKEN` with last-write-wins semantics in command order.
+- `NGROK_AUTHTOKEN` validation must inspect both process environment and compose env-file context, and must never log token values.

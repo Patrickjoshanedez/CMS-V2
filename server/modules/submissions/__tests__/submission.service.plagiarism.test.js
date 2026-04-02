@@ -6,7 +6,7 @@
  *
  * Run with: npm test -- submission.service.plagiarism.test.js
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import mongoose from 'mongoose';
 import Submission from '../submission.model.js';
 import PlagiarismResult from '../../plagiarism/plagiarism.model.js';
@@ -14,6 +14,7 @@ import Project from '../../projects/project.model.js';
 import User from '../../users/user.model.js';
 import Notification from '../../notifications/notification.model.js';
 import submissionService from '../submission.service.js';
+import agentRuntimeConfigService from '../../../services/agentRuntimeConfig.service.js';
 import { AppError } from '../../../utils/AppError.js';
 import {
   SUBMISSION_STATUSES,
@@ -25,8 +26,15 @@ import {
 
 describe('Submission Review with Plagiarism Check Integration', () => {
   let studentUser, adviserUser, project, submission;
+  const envKeysUnderTest = [
+    'PLAGIARISM_REJECT_THRESHOLD',
+    'AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD',
+  ];
+  let envSnapshot = {};
 
   beforeEach(async () => {
+    envSnapshot = Object.fromEntries(envKeysUnderTest.map((key) => [key, process.env[key]]));
+
     // Clear relevant collections
     await Promise.all([
       Submission.deleteMany({}),
@@ -59,6 +67,13 @@ describe('Submission Review with Plagiarism Check Integration', () => {
 
     project = await Project.create({
       title: 'Test Capstone Project',
+      titleProposals: [
+        'Test Capstone Project',
+        'Test Capstone Project Variant 1',
+        'Test Capstone Project Variant 2',
+        'Test Capstone Project Variant 3',
+        'Test Capstone Project Variant 4',
+      ],
       teamId: new mongoose.Types.ObjectId(),
       academicYear: '2025-2026',
       courseId: new mongoose.Types.ObjectId(),
@@ -88,6 +103,18 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       status: SUBMISSION_STATUSES.UNDER_REVIEW,
       submittedBy: studentUser._id,
     });
+  });
+
+  afterEach(() => {
+    for (const key of envKeysUnderTest) {
+      if (envSnapshot[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = envSnapshot[key];
+      }
+    }
+
+    vi.restoreAllMocks();
   });
 
   describe('Plagiarism Check Enforcement', () => {
@@ -225,8 +252,18 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       // Set custom threshold to 70%
       process.env.PLAGIARISM_REJECT_THRESHOLD = '70';
 
-      const dynamicThresholdEnabled =
-        process.env.AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD === 'true';
+      // Force deterministic fallback-to-env behavior when dynamic profiles are enabled.
+      vi.spyOn(agentRuntimeConfigService, 'getActiveProfile').mockResolvedValue({
+        profile: {
+          settings: {
+            thresholds: {
+              plagiarism: {
+                rejectPercent: null,
+              },
+            },
+          },
+        },
+      });
 
       // Create plagiarism result with 65% similarity (below new threshold)
       await PlagiarismResult.create({
@@ -238,19 +275,11 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         completedAt: new Date(),
       });
 
-      if (dynamicThresholdEnabled) {
-        await expect(
-          submissionService.reviewSubmission(submission._id, adviserUser._id, {
-            status: SUBMISSION_STATUSES.APPROVED,
-          }),
-        ).rejects.toThrow('exceeds threshold (50%)');
-      } else {
-        const result = await submissionService.reviewSubmission(submission._id, adviserUser._id, {
-          status: SUBMISSION_STATUSES.APPROVED,
-        });
+      const result = await submissionService.reviewSubmission(submission._id, adviserUser._id, {
+        status: SUBMISSION_STATUSES.APPROVED,
+      });
 
-        expect(result.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
-      }
+      expect(result.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
 
       // Now test with 75% (above threshold)
       const submission2 = await Submission.create({
@@ -279,11 +308,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
         submissionService.reviewSubmission(submission2._id, adviserUser._id, {
           status: SUBMISSION_STATUSES.APPROVED,
         }),
-      ).rejects.toThrow(
-        dynamicThresholdEnabled
-          ? 'Plagiarism score (75.0%) exceeds threshold (50%)'
-          : 'Plagiarism score (75.0%) exceeds threshold (70%)',
-      );
+      ).rejects.toThrow('Plagiarism score (75.0%) exceeds threshold (70%)');
     });
   });
 

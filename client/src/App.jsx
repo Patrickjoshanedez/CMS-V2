@@ -28,9 +28,15 @@ const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDe
 const SubmissionReviewPage = lazy(() => import('./pages/submissions/SubmissionReviewPage'));
 const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));
 const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
+const ExistingCapstoneUploadPage = lazy(() => import('./pages/archive/ExistingCapstoneUploadPage'));
+const AcademicPaperArchiveUploadPage = lazy(
+  () => import('./pages/archive/AcademicPaperArchiveUploadPage'),
+);
+const AcademicJournalArchiveUploadPage = lazy(
+  () => import('./pages/archive/AcademicJournalArchiveUploadPage'),
+);
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
-const BulkUploadPage = lazy(() => import('./pages/reports/BulkUploadPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
 const TemplateManagementPage = lazy(() => import('./pages/documents/TemplateManagementPage'));
 const DocumentEditorPage = lazy(() => import('./pages/documents/DocumentEditorPage'));
@@ -99,9 +105,12 @@ const PROTECTED_ROUTES = [
   { path: '/projects/:id', Component: ProjectDetailPage },
   // Archive & Reports
   { path: '/archive', Component: ArchiveSearchPage },
+  { path: '/archive/upload/capstone', Component: ExistingCapstoneUploadPage },
+  { path: '/archive/upload/academic-paper', Component: AcademicPaperArchiveUploadPage },
+  { path: '/archive/upload/academic-journal', Component: AcademicJournalArchiveUploadPage },
   { path: '/projects/:projectId/certificate', Component: CertificatePage },
   { path: '/reports', Component: ReportsPage },
-  { path: '/reports/bulk-upload', Component: BulkUploadPage },
+  { path: '/reports/bulk-upload', Component: ExistingCapstoneUploadPage },
   // Admin
   { path: '/admin/audit-log', Component: AuditLogPage },
   // Documents

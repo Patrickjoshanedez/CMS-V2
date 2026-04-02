@@ -151,7 +151,7 @@ export default function VerifyOtpPage() {
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="h-14 w-14 rounded-lg border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-[#673ab7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#673ab7]/30"
+            className="h-14 w-14 rounded-lg border-2 border-input bg-background text-center text-lg font-semibold text-foreground shadow-sm transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             disabled={loading}
             autoComplete="one-time-code"
           />
@@ -174,7 +174,7 @@ export default function VerifyOtpPage() {
             type="button"
             onClick={handleResend}
             disabled={resendCooldown > 0 || loading}
-            className="font-medium text-[#673ab7] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
           >
             {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend'}
           </button>

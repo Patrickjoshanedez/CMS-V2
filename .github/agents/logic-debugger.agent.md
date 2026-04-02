@@ -1,7 +1,7 @@
 ---
 description: "Advanced Logic & Execution Debugging Validator. Use to securely execute, test, trace, and debug complex code (Laravel/PHP, Python, JS, etc.) when the Coder Agent struggles. Enforces root-cause analysis, Historic Lesson Learning (HLLM), and strict architectural sustainability."
 name: "logic-debugger"
-tools: [read, edit, search, execute, web]
+tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, context7/get-library-docs, context7/resolve-library-id, vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
 ---
 
 # 🕵️ Universal Logic & Execution Debugging Validator

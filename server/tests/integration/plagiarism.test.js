@@ -12,6 +12,7 @@
  * S3 and queue operations are mocked to avoid external dependencies.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import mongoose from 'mongoose';
 import { createAuthenticatedUserWithRole, createAgent } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
@@ -73,20 +74,24 @@ async function createProjectSetup(studentId, adviserId = null) {
 
   const project = await Project.create({
     teamId: team._id,
+    courseId: new mongoose.Types.ObjectId(),
+    sectionId: new mongoose.Types.ObjectId(),
     title: 'Plagiarism Test Project',
-    titleProposals: [
-      { title: 'Proposal 1', comments: [] },
-      { title: 'Proposal 2', comments: [] },
-      { title: 'Proposal 3', comments: [] },
-      { title: 'Proposal 4', comments: [] },
-      { title: 'Proposal 5', comments: [] },
-    ],
+    titleProposals: ['Proposal 1', 'Proposal 2', 'Proposal 3', 'Proposal 4', 'Proposal 5'],
     abstract: 'Testing plagiarism checker integration.',
     keywords: ['plagiarism', 'test'],
     academicYear: '2024-2025',
     titleStatus: TITLE_STATUSES.APPROVED,
     projectStatus: PROJECT_STATUSES.ACTIVE,
     adviserId: adviserId || undefined,
+    memberRoleAssignments: [
+      {
+        userId: studentId,
+        professionalTitle: 'Lead Developer',
+        traditionalRole: 'Programmer',
+        responsibilities: 'Core plagiarism integration testing',
+      },
+    ],
     deadlines: {
       chapter1: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       chapter2: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -492,12 +497,29 @@ describe('Plagiarism Job — runPlagiarismCheckSync()', () => {
 
     const otherProject = await Project.create({
       teamId: otherTeam._id,
+      courseId: new mongoose.Types.ObjectId(),
+      sectionId: new mongoose.Types.ObjectId(),
       title: 'Other Capstone Project',
+      titleProposals: [
+        'Other Proposal 1',
+        'Other Proposal 2',
+        'Other Proposal 3',
+        'Other Proposal 4',
+        'Other Proposal 5',
+      ],
       abstract: 'Another project.',
       keywords: ['other'],
       academicYear: '2024-2025',
       titleStatus: TITLE_STATUSES.APPROVED,
       projectStatus: PROJECT_STATUSES.ACTIVE,
+      memberRoleAssignments: [
+        {
+          userId: otherStudent._id,
+          professionalTitle: 'Lead Developer',
+          traditionalRole: 'Programmer',
+          responsibilities: 'Corpus document authoring',
+        },
+      ],
     });
 
     // Create a submission in the OTHER project with stored extractedText

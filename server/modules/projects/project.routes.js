@@ -3,9 +3,12 @@ import * as projectController from './project.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
-import upload, { prototypeUpload } from '../../middleware/upload.js';
+import upload, { prototypeUpload, archiveDualUpload } from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
-import { validatePrototypeFile } from '../../middleware/fileValidation.js';
+import {
+  validatePrototypeFile,
+  validateDualArchiveFiles,
+} from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
 import checkTitleLock from '../../middleware/checkTitleLock.js';
 import { ROLES } from '@cms/shared';
@@ -76,15 +79,18 @@ router.get(
   projectController.generateReport,
 );
 
-// Bulk-upload legacy document (Instructor only)
+// Bulk-upload archived capstone bundle (Instructor only)
 router.post(
   '/archive/bulk',
   authorize(ROLES.INSTRUCTOR),
-  upload.single('file'),
-  validateFile,
+  archiveDualUpload.fields([
+    { name: 'academicPaperFile', maxCount: 1 },
+    { name: 'academicJournalFile', maxCount: 1 },
+  ]),
+  validateDualArchiveFiles,
   validate(bulkUploadSchema),
   auditLog('project.bulk_uploaded', 'Project', {
-    getDescription: (req) => `Bulk-uploaded archive: "${req.body.title}"`,
+    getDescription: (req) => `Bulk-uploaded archived capstone bundle: "${req.body.title}"`,
     getMetadata: (req) => ({ title: req.body.title, academicYear: req.body.academicYear }),
   }),
   projectController.bulkUploadArchive,

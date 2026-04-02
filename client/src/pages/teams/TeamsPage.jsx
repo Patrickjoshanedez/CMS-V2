@@ -328,8 +328,8 @@ function InviteMemberForm({ teamId }) {
   return (
     <div className="space-y-2">
       {lastInviteCode && (
-        <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/30">
-          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+        <div className="flex items-center justify-between rounded-md border border-success/30 bg-success/10 px-3 py-2">
+          <p className="text-xs text-success">
             Team invite code:{' '}
             <span className="font-semibold tracking-widest">{lastInviteCode}</span>
           </p>
@@ -542,7 +542,9 @@ function StudentTeamDetail({ team, userId }) {
                 </a>
               </Button>
             ) : (
-              <p className="text-xs text-muted-foreground">No team Google Docs link attached yet.</p>
+              <p className="text-xs text-muted-foreground">
+                No team Google Docs link attached yet.
+              </p>
             )}
           </div>
 
@@ -1023,11 +1025,9 @@ function StudentTeamView({ user }) {
     if (showCreateForm) {
       if (!isProfileComplete) {
         return (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 dark:border-amber-800 dark:bg-amber-950/30">
-            <p className="font-semibold text-amber-800 dark:text-amber-200">
-              Complete your profile first
-            </p>
-            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-6">
+            <p className="font-semibold text-warning">Complete your profile first</p>
+            <p className="mt-1 text-sm text-warning/80">
               You need to set your section and instructor before creating a team.
             </p>
             <div className="mt-4 flex gap-2">

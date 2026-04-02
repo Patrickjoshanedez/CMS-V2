@@ -338,17 +338,16 @@ export const generateReport = catchAsync(async (req, res) => {
   });
 });
 
-/** POST /api/projects/bulk-upload — Bulk upload a legacy document (Instructor) */
+/** POST /api/projects/archive/bulk — Bulk upload an archived capstone bundle (Instructor) */
 export const bulkUploadArchive = catchAsync(async (req, res) => {
-  const { project, submission } = await projectService.bulkUploadArchive(
-    req.user._id,
-    req.body,
-    req.file,
-  );
+  const { project, submissions } = await projectService.bulkUploadArchive(req.user._id, req.body, {
+    academicPaperFile: req.files?.academicPaperFile?.[0] || null,
+    academicJournalFile: req.files?.academicJournalFile?.[0] || null,
+  });
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
-    message: 'Document bulk-uploaded and archived.',
-    data: { project, submission },
+    message: 'Archived capstone bundle uploaded successfully.',
+    data: { project, submissions },
   });
 });

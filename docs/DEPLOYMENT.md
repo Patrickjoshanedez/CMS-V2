@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> Last updated: 2025-07-12
+> Last updated: 2026-04-02
 
 Guide for running the Capstone Management System (CMS) locally and preparing for production deployment.
 
@@ -15,6 +15,7 @@ Guide for running the Capstone Management System (CMS) locally and preparing for
 - [Running Tests](#running-tests)
 - [Building for Production](#building-for-production)
 - [Production Deployment](#production-deployment)
+- [Public Internet Exposure Gate (Docker + ngrok)](#public-internet-exposure-gate-docker--ngrok)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -233,6 +234,37 @@ The server runs Node.js directly — no build step is required. Ensure `NODE_ENV
 - [ ] SMTP credentials are for a production mail service
 - [ ] Rate limiting is active (not in test mode)
 - [ ] `npm audit` shows zero critical vulnerabilities
+
+## Public Internet Exposure Gate (Docker + ngrok)
+
+Public exposure is fail-closed by policy. Do not run public Docker/ngrok exposure commands until all checks below pass with explicit evidence.
+
+1. Public exposure uses production compose only (`docker-compose.prod.yml`).
+2. Secret hygiene verified: no tracked plaintext production secrets and no secret env values baked into image context.
+3. Placeholder/default secrets are blocked.
+4. Effective rate limiting is active globally and on auth routes.
+5. ngrok ingress auth policy is active (OAuth/basic auth) with explicit domain policy.
+6. CORS uses exact public origins; wildcard/ambiguous values are forbidden.
+7. Proxy/cookie compatibility is verified (`trust proxy` + secure/`SameSite` settings).
+8. LocalStack/test object storage is not used in public production profile.
+9. Least-privilege container runtime controls are applied where feasible.
+10. Verification summary includes explicit evidence mapping for checks 1-10 and completeness statement for check 10.
+
+Required verification summary format:
+
+```text
+Public Internet Exposure Gate: PASS
+GATE-1: <evidence>
+GATE-2: <evidence>
+GATE-3: <evidence>
+GATE-4: <evidence>
+GATE-5: <evidence>
+GATE-6: <evidence>
+GATE-7: <evidence>
+GATE-8: <evidence>
+GATE-9: <evidence>
+GATE-10: <evidence mapping completeness statement>
+```
 
 ---
 

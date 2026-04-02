@@ -28,6 +28,7 @@
     "eslint-plugin-tailwindcss": "^3.18.2",
     "husky": "^9.1.0",
     "lint-staged": "^15.2.0",
+    "playwright": "^1.59.0",
     "prettier": "^3.4.0"
   },
   "lint-staged": {
@@ -43,6 +44,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer"
+    "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer",
+    "mongoose": "^9.3.3"
   }
 }

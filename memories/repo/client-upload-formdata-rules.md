@@ -1,0 +1,6 @@
+- Do not set a global Axios `Content-Type: application/json` default in `client/src/services/api.js`; it breaks multipart `FormData` uploads (avatar endpoint receives `NO_FILE`).
+- Let the browser set multipart boundaries automatically for `FormData` requests, and only set JSON headers per-request when sending JSON payloads.
+- Keep `/api` and `/socket.io` Vite proxy targets aligned to the same backend origin to avoid mixed-success states (HTTP works, Socket.IO fails).
+- After changing `client/vite.config.js` proxy settings, fully restart Vite dev server; proxy config is loaded at startup and hot reload is not enough.
+- Resolve Vite proxy env with `loadEnv(mode, process.cwd(), '')` in config callbacks to avoid stale/missing `process.env` values across modes.
+- Map `BACKEND_UNAVAILABLE` (proxy 503) to the user-facing network-unreachable auth message and clear stale auth errors on session bootstrap/login mount to avoid false persistent connection banners.

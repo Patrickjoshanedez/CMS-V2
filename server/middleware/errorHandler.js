@@ -15,6 +15,31 @@ const errorHandler = (err, req, res, _next) => {
   let message = err.message || 'Internal Server Error';
   let code = err.code || 'INTERNAL_ERROR';
 
+  // --- Multer upload errors ---
+  if (err.name === 'MulterError') {
+    err.isOperational = true;
+
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      statusCode = 413;
+      code = 'FILE_TOO_LARGE';
+      message = 'File size exceeds the allowed upload limit.';
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      statusCode = 400;
+      code = 'FILE_COUNT_EXCEEDED';
+      message = 'Too many files were uploaded in a single request.';
+    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      statusCode = 400;
+      code = 'UNEXPECTED_FILE_FIELD';
+      message = err.field
+        ? `Unexpected file field "${err.field}" was provided.`
+        : 'Unexpected file field was provided.';
+    } else {
+      statusCode = 400;
+      code = 'INVALID_FILE_UPLOAD';
+      message = 'Invalid file upload request.';
+    }
+  }
+
   // --- Mongoose-specific errors ---
 
   // Validation error (schema validation failures)

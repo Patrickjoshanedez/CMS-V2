@@ -11,13 +11,22 @@ import env from '../config/env.js';
 
 const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: maxBytes,
-    files: 1, // Only one file per request
-  },
-});
+const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
+  multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: fileSizeLimitBytes,
+      files: maxFiles,
+    },
+  });
+
+const upload = createMemoryUpload(maxBytes, 1);
+
+/**
+ * Multer instance for archive bundle uploads requiring two files:
+ * one academic paper and one journal paper.
+ */
+const archiveDualUpload = createMemoryUpload(maxBytes, 2);
 
 /**
  * Larger multer instance for prototype media uploads (images/videos).
@@ -33,5 +42,5 @@ const prototypeUpload = multer({
   },
 });
 
-export { prototypeUpload };
+export { prototypeUpload, archiveDualUpload };
 export default upload;

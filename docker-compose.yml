@@ -237,6 +237,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: cms-v2-client-dev
     container_name: cms-client
     restart: unless-stopped
     depends_on:

@@ -116,6 +116,8 @@ This starts both the Express server (port 5000) and the Vite dev server (port 51
 
 This repository now includes a Docker development stack for the full workspace (npm workspaces supported).
 
+Operational rule: this repo contains both `compose.yaml` and `docker-compose.yml`. For the full CMS runtime, always run Docker Compose with `-f docker-compose.yml` explicitly.
+
 ### Services
 
 - `client` (Vite React app) → <http://localhost:5173>
@@ -126,19 +128,19 @@ This repository now includes a Docker development stack for the full workspace (
 ### Start
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml up --build
 ```
 
 ### Stop
 
 ```bash
-docker compose down
+docker compose -f docker-compose.yml down
 ```
 
 To also remove database/cache volumes:
 
 ```bash
-docker compose down -v
+docker compose -f docker-compose.yml down -v
 ```
 
 ## Docker (Production-like)

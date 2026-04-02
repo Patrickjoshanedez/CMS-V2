@@ -20,7 +20,21 @@
 
 ## Agent Guidelines / Workflow
 - When executing complex tasks, check for existing automated tasks in `.vscode/tasks.json` (such as `npm run test` bounds) before running manual terminal commands.
-- Recursively read task outputs and fix test failures autonomously when asked to solve bugs.
+- Whenever tests are run during implementation or verification, autonomous fixing of test failures is the default behavior.
+- Only skip code-fixing when the user explicitly instructs diagnostics-only execution with no code changes.
+
+## Public Internet Exposure Gate (Docker + ngrok, Fail Closed)
+- Hard stop policy: do not run, suggest, or approve Docker/ngrok commands that expose services publicly unless all gate checks below are evidenced as passing.
+- Public exposure must use production compose only.
+- Secret hygiene is mandatory: no tracked plaintext production secrets and no secret env values baked into image build context.
+- Placeholder/default secrets are forbidden.
+- Effective rate limiting must be active globally and on authentication routes.
+- ngrok ingress must enforce auth policy (OAuth/basic auth) plus explicit domain policy.
+- CORS must use exact public origins (no wildcard or ambiguous origins).
+- Proxy/cookie security compatibility is required (`trust proxy` + secure/samesite cookie settings).
+- LocalStack/test object storage is forbidden in public production profile.
+- Container runtime least-privilege controls must be applied where feasible.
+- Verification summary must include explicit evidence mapping for all gate checks; if any evidence is missing, placeholder/default-like, or off-topic, fail closed.
 
 ## Semantic Search Policy (grepai)
 - Treat `grepai` as the default tool for intent-based code exploration and semantic understanding.

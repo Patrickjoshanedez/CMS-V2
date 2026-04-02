@@ -338,10 +338,10 @@ export function useUploadCertificate(options = {}) {
   }, options);
 }
 
-/** Bulk upload legacy archive document (instructor) */
+/** Bulk upload archived capstone bundle (instructor) */
 export function useBulkUploadArchive(options = {}) {
-  return useProjectMutation(async (formData) => {
-    const res = await projectService.bulkUploadArchive(formData);
+  return useProjectMutation(async (payload) => {
+    const res = await projectService.bulkUploadArchive(payload);
     return res.data;
   }, options);
 }

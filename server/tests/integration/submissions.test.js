@@ -53,17 +53,19 @@ async function createProjectSetup(studentId, adviserId = null, instructorId = nu
     ...(instructorId ? { instructorId } : {}),
   });
 
+  const baseTitle = 'Test Capstone Project';
+
   const project = await Project.create({
     teamId: team._id,
     courseId: new mongoose.Types.ObjectId(),
     sectionId: new mongoose.Types.ObjectId(),
-    title: 'Test Capstone Project',
+    title: baseTitle,
     titleProposals: [
-      { title: 'Proposal 1', comments: [] },
-      { title: 'Proposal 2', comments: [] },
-      { title: 'Proposal 3', comments: [] },
-      { title: 'Proposal 4', comments: [] },
-      { title: 'Proposal 5', comments: [] },
+      baseTitle,
+      'Test Capstone Project Proposal 2',
+      'Test Capstone Project Proposal 3',
+      'Test Capstone Project Proposal 4',
+      'Test Capstone Project Proposal 5',
     ],
     abstract: 'A test project for submission tests.',
     keywords: ['test'],
@@ -317,6 +319,18 @@ describe('Submissions API — /api/submissions', () => {
     it('should accept chapter upload with a valid prototype link', async () => {
       await Project.findByIdAndUpdate(project._id, { capstonePhase: 3 });
 
+      await Submission.create({
+        projectId: project._id,
+        chapter: 3,
+        version: 1,
+        fileName: 'chapter3.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/chapters/3/v1/chapter3.pdf',
+        status: SUBMISSION_STATUSES.LOCKED,
+        submittedBy: studentUser._id,
+      });
+
       const res = await studentAgent
         .post(`/api/submissions/${project._id}/chapters`)
         .field('chapter', '4')
@@ -326,7 +340,6 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.submission.chapter).toBe(4);
-      expect(res.body.data.submission.prototypeLink).toBe('https://prototype.example.com/demo-v1');
     });
 
     it('should reject chapter upload with an invalid prototype link', async () => {

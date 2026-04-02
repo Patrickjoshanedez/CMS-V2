@@ -127,6 +127,13 @@ function WaveShape() {
         preserveAspectRatio="none"
       >
         <defs>
+          {/* SVG gradient stops - must use hex values (Tailwind classes not supported in SVG)
+              Brand color mapping:
+              - #ff5722 = brand-orange
+              - #e91e63 = brand-pink
+              - #9c27b0 = brand-purple
+              - #673ab7 = brand-deep-purple
+          */}
           <linearGradient id="waveGradient" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#ff5722" />
             <stop offset="35%" stopColor="#e91e63" />
@@ -225,8 +232,8 @@ function SpotlightCard({ icon: Icon, title, description }) {
   return (
     <div ref={cardRef} onMouseMove={handleMouseMove} className="spotlight-card rounded-2xl p-8">
       <div className="relative z-10">
-        <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff5722]/20 to-[#673ab7]/20">
-          <Icon className="h-6 w-6 text-[#e91e63]" />
+        <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-deep-purple/20">
+          <Icon className="h-6 w-6 text-brand-pink" />
         </div>
         <h3 className="text-lg font-bold text-foreground mb-2">{title}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
@@ -272,19 +279,21 @@ function FeaturesSection({ sectionRef }) {
       ref={sectionRef}
       className="landing-section relative py-24 px-6 md:px-12 lg:px-20"
     >
-      {/* Subtle gradient backdrop */}
+      {/* Subtle gradient backdrop - inline style required for radial-gradient
+          #e91e63 = brand-pink (hsl(var(--brand-pink))) */}
       <div className="absolute inset-0 -z-10 opacity-[0.03]">
         <div
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #e91e63, transparent)',
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% 40%, hsl(var(--brand-pink)), transparent)',
           }}
         />
       </div>
 
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-[#ff5722]/10 to-[#673ab7]/10 text-[#e91e63] mb-4">
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-brand-orange/10 to-brand-deep-purple/10 text-brand-pink mb-4">
             Features
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground">
@@ -318,7 +327,7 @@ function AboutSection({ sectionRef }) {
     >
       <div className="mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-[#ff5722]/10 to-[#673ab7]/10 text-[#e91e63] mb-4">
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-brand-orange/10 to-brand-deep-purple/10 text-brand-pink mb-4">
             About
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground">What is CMS?</h2>
@@ -333,8 +342,8 @@ function AboutSection({ sectionRef }) {
           {/* Card 1 — Large: System Overview (spans 2 cols + 2 rows) */}
           <div className="bento-card sm:col-span-2 lg:row-span-2 rounded-2xl border border-border bg-card p-8 flex flex-col justify-between">
             <div>
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff5722]/20 to-[#673ab7]/20">
-                <Layers className="h-5 w-5 text-[#e91e63]" />
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-deep-purple/20">
+                <Layers className="h-5 w-5 text-brand-pink" />
               </div>
               <h3 className="text-xl font-bold text-foreground mb-3">
                 End-to-End Capstone Workflow
@@ -352,7 +361,7 @@ function AboutSection({ sectionRef }) {
               </p>
             </div>
             <div className="mt-8 flex items-center gap-3">
-              <div className="h-2 flex-1 rounded-full bg-gradient-to-r from-[#ff5722] to-[#673ab7] opacity-40" />
+              <div className="h-2 flex-1 rounded-full bg-gradient-to-r from-brand-orange to-brand-deep-purple opacity-40" />
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 Full Lifecycle
               </span>
@@ -361,8 +370,8 @@ function AboutSection({ sectionRef }) {
 
           {/* Card 2 — Medium: Tech Stack (spans 2 cols) */}
           <div className="bento-card sm:col-span-2 rounded-2xl border border-border bg-card p-7">
-            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff5722]/20 to-[#673ab7]/20">
-              <Cpu className="h-5 w-5 text-[#e91e63]" />
+            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-deep-purple/20">
+              <Cpu className="h-5 w-5 text-brand-pink" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-4">Tech Stack</h3>
             <div className="flex flex-wrap gap-2">
@@ -388,21 +397,21 @@ function AboutSection({ sectionRef }) {
 
           {/* Card 3 — Small: User Roles */}
           <div className="bento-card rounded-2xl border border-border bg-card p-7">
-            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff5722]/20 to-[#673ab7]/20">
-              <Users className="h-5 w-5 text-[#e91e63]" />
+            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-deep-purple/20">
+              <Users className="h-5 w-5 text-brand-pink" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">User Roles</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff5722] shrink-0" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-orange shrink-0" />
                 Students & Team Leaders
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#e91e63] shrink-0" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-pink shrink-0" />
                 Advisers & Panelists
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#673ab7] shrink-0" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-deep-purple shrink-0" />
                 Instructors (Admin)
               </li>
             </ul>
@@ -410,17 +419,17 @@ function AboutSection({ sectionRef }) {
 
           {/* Card 4 — Small: Key Capabilities */}
           <div className="bento-card rounded-2xl border border-border bg-card p-7">
-            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff5722]/20 to-[#673ab7]/20">
-              <ClipboardCheck className="h-5 w-5 text-[#e91e63]" />
+            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange/20 to-brand-deep-purple/20">
+              <ClipboardCheck className="h-5 w-5 text-brand-pink" />
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">Key Capabilities</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#ff5722] shrink-0" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-orange shrink-0" />
                 Plagiarism detection & originality scoring
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#673ab7] shrink-0" />
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-brand-deep-purple shrink-0" />
                 Searchable research archive with filters
               </li>
             </ul>
@@ -483,7 +492,7 @@ function FAQSection({ sectionRef }) {
     >
       <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-[#ff5722]/10 to-[#673ab7]/10 text-[#e91e63] mb-4">
+          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-gradient-to-r from-brand-orange/10 to-brand-deep-purple/10 text-brand-pink mb-4">
             FAQ
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground">
@@ -502,7 +511,7 @@ function FAQSection({ sectionRef }) {
               setOpenIndex(null);
             }}
             placeholder="Search questions…"
-            className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#e91e63]/40 transition-all"
+            className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-pink/40 transition-all"
           />
         </div>
 
@@ -628,7 +637,7 @@ function HeroSection({ heroRef }) {
       <main className="relative z-10 flex flex-col justify-center px-6 md:px-12 lg:px-20 pt-12 md:pt-24 lg:pt-32 pb-20 max-w-2xl">
         <h1 className="landing-title text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight text-foreground">
           Manage your{' '}
-          <span className="bg-gradient-to-r from-[#ff5722] to-[#673ab7] bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-brand-orange to-brand-deep-purple bg-clip-text text-transparent">
             capstone
           </span>{' '}
           projects with confidence.
@@ -640,11 +649,18 @@ function HeroSection({ heroRef }) {
         </p>
 
         <div className="landing-buttons mt-10 flex flex-wrap gap-4">
+          {/* Get Started button - inline style required for complex gradient animation
+              Brand color mapping:
+              - #ff5722 = brand-orange (hsl(var(--brand-orange)))
+              - #e91e63 = brand-pink (hsl(var(--brand-pink)))
+              - #673ab7 = brand-deep-purple (hsl(var(--brand-deep-purple)))
+          */}
           <Link
             to="/register"
             className="landing-btn-gradient inline-flex items-center justify-center rounded-lg px-7 py-3 text-sm font-semibold uppercase tracking-wider text-white shadow-lg transition-all duration-300"
             style={{
-              background: 'linear-gradient(135deg, #ff5722, #e91e63, #673ab7)',
+              background:
+                'linear-gradient(135deg, hsl(var(--brand-orange)), hsl(var(--brand-pink)), hsl(var(--brand-deep-purple)))',
               backgroundSize: '200% 200%',
             }}
           >

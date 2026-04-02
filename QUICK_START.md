@@ -23,8 +23,10 @@ Your CMS now includes an **integrated plagiarism detection system** that runs al
 
 ### Linux/Mac:
 ```bash
-docker-compose up --build -d
+docker compose -f docker-compose.yml up --build -d
 ```
+
+Important compose precedence rule: this repository includes both `compose.yaml` and `docker-compose.yml`. For the full CMS runtime, always use `docker compose -f docker-compose.yml ...`.
 
 **That's it!** All services will start automatically:
 - ✅ MongoDB
@@ -53,7 +55,7 @@ docker-compose up --build -d
 
 ### 1. Check all containers are running:
 ```powershell
-docker-compose ps
+docker compose -f docker-compose.yml ps
 ```
 
 **Expected output:**
@@ -119,7 +121,7 @@ For tunnel/dev URLs, add the exact HTTPS origin currently in use (for example yo
 
 **Be patient!** Check logs if needed:
 ```powershell
-docker-compose logs -f plagiarism_api
+docker compose -f docker-compose.yml logs -f plagiarism_api
 ```
 
 ---
@@ -129,33 +131,33 @@ docker-compose logs -f plagiarism_api
 ### View Logs:
 ```powershell
 # All services
-docker-compose logs -f
+docker compose -f docker-compose.yml logs -f
 
 # Specific service
-docker-compose logs -f server
-docker-compose logs -f plagiarism_api
-docker-compose logs -f plagiarism_worker
+docker compose -f docker-compose.yml logs -f server
+docker compose -f docker-compose.yml logs -f plagiarism_api
+docker compose -f docker-compose.yml logs -f plagiarism_worker
 ```
 
 ### Stop All Services:
 ```powershell
-docker-compose down
+docker compose -f docker-compose.yml down
 ```
 
 ### Stop and Remove Volumes (fresh start):
 ```powershell
-docker-compose down -v
+docker compose -f docker-compose.yml down -v
 ```
 
 ### Restart a Specific Service:
 ```powershell
-docker-compose restart server
-docker-compose restart plagiarism_api
+docker compose -f docker-compose.yml restart server
+docker compose -f docker-compose.yml restart plagiarism_api
 ```
 
 ### Rebuild After Code Changes:
 ```powershell
-docker-compose up --build -d
+docker compose -f docker-compose.yml up --build -d
 ```
 
 ---
@@ -194,7 +196,7 @@ docker-compose up --build -d
 
 ✅ **Backend API** — Plagiarism routes mounted at `/api/submissions/:id/plagiarism/*`
 
-✅ **Environment Variables** — All plagiarism settings configured in docker-compose
+✅ **Environment Variables** — All plagiarism settings configured in docker-compose.yml
 
 ✅ **Docker Networking** — All containers on the same network (`cms_network`)
 
@@ -259,21 +261,21 @@ curl http://localhost:8001/result/abc-123-def
 
 ### Issue: Plagiarism API returns 503
 **Solution:**
-- Check if worker is running: `docker-compose logs plagiarism_worker`
-- Check if Redis is accessible: `docker-compose logs plagiarism_redis`
-- Restart service: `docker-compose restart plagiarism_api`
+- Check if worker is running: `docker compose -f docker-compose.yml logs plagiarism_worker`
+- Check if Redis is accessible: `docker compose -f docker-compose.yml logs plagiarism_redis`
+- Restart service: `docker compose -f docker-compose.yml restart plagiarism_api`
 
 ### Issue: ML model download fails
 **Solution:**
 - Check internet connection
-- Restart worker: `docker-compose restart plagiarism_worker`
-- Check logs: `docker-compose logs -f plagiarism_worker`
+- Restart worker: `docker compose -f docker-compose.yml restart plagiarism_worker`
+- Check logs: `docker compose -f docker-compose.yml logs -f plagiarism_worker`
 
 ### Issue: Container fails to start
 **Solution:**
-- Check logs: `docker-compose logs <service_name>`
-- Rebuild: `docker-compose up --build -d`
-- Fresh start: `docker-compose down -v && docker-compose up --build -d`
+- Check logs: `docker compose -f docker-compose.yml logs <service_name>`
+- Rebuild: `docker compose -f docker-compose.yml up --build -d`
+- Fresh start: `docker compose -f docker-compose.yml down -v && docker compose -f docker-compose.yml up --build -d`
 
 ### Issue: Port already in use
 **Solution:**

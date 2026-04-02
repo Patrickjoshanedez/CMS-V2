@@ -4,6 +4,7 @@
 # Skips: plagiarism_redis, plagiarism_worker, plagiarism_api
 
 $ErrorActionPreference = 'Stop'
+$composeArgs = @('-f', 'docker-compose.yml')
 
 Write-Host 'Refreshing CMS stack (excluding plagiarism checker)...' -ForegroundColor Cyan
 
@@ -15,11 +16,11 @@ function Invoke-Compose {
 
     docker compose version *> $null
     if ($LASTEXITCODE -eq 0) {
-        & docker compose @Args
+        & docker compose @composeArgs @Args
         return
     }
 
-    & docker-compose @Args
+    & docker-compose @composeArgs @Args
 }
 
 Write-Host 'Checking Docker daemon...' -ForegroundColor Yellow
@@ -55,4 +56,4 @@ Write-Host '  Health:    http://localhost:5000/api/health'
 Write-Host ''
 Write-Host 'Notes:' -ForegroundColor Cyan
 Write-Host '  - Plagiarism services are intentionally excluded.'
-Write-Host '  - Start them separately with: docker compose up -d plagiarism_redis plagiarism_worker plagiarism_api'
+Write-Host '  - Start them separately with: docker compose -f docker-compose.yml up -d plagiarism_redis plagiarism_worker plagiarism_api'

@@ -69,6 +69,10 @@ srv_logs.txt
 update_logs.txt
 vitest_output*.txt
 
+# Root-level generated text artifacts
+/*.txt
+manifest*.txt
+
 # Local OAuth helper artifacts (must never be committed)
 scripts/credentials.json
 scripts/token.json

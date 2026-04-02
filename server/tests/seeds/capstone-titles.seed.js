@@ -11,6 +11,7 @@
 import Project from '../../modules/projects/project.model.js';
 import Team from '../../modules/teams/team.model.js';
 import User from '../../modules/users/user.model.js';
+import mongoose from 'mongoose';
 import { TITLE_STATUSES } from '@cms/shared';
 
 /* ------------------------------------------------------------------ */
@@ -145,12 +146,31 @@ export async function seedCapstoneProjects(options = {}) {
 
     await User.findByIdAndUpdate(user._id, { teamId: team._id });
 
+    const titleProposals = [
+      seed.title,
+      `${seed.title} - Variant 1`,
+      `${seed.title} - Variant 2`,
+      `${seed.title} - Variant 3`,
+      `${seed.title} - Variant 4`,
+    ];
+
     // Create the project
     const project = await Project.create({
       title: seed.title,
+      titleProposals,
       abstract: seed.abstract,
       keywords: seed.keywords,
       academicYear: seed.academicYear,
+      courseId: new mongoose.Types.ObjectId(),
+      sectionId: new mongoose.Types.ObjectId(),
+      memberRoleAssignments: [
+        {
+          userId: user._id,
+          professionalTitle: 'Lead Developer',
+          traditionalRole: 'Programmer',
+          responsibilities: 'System Logic, Database, and Deployment.',
+        },
+      ],
       titleStatus: options.overrideStatus || seed.titleStatus,
       projectStatus: 'active',
       teamId: team._id,
@@ -168,7 +188,6 @@ export async function seedCapstoneProjects(options = {}) {
 /* ------------------------------------------------------------------ */
 const isMain = process.argv[1]?.includes('capstone-titles.seed');
 if (isMain) {
-  const mongoose = await import('mongoose');
   const { default: dbConfig } = await import('../../config/db.js');
 
   await dbConfig();
@@ -178,6 +197,6 @@ if (isMain) {
   console.log(`✓ Seeded ${projects.length} capstone projects.`);
   projects.forEach((p) => console.log(`  • [${p.titleStatus}] ${p.title}`));
 
-  await mongoose.default.disconnect();
+  await mongoose.disconnect();
   console.log('Done.');
 }

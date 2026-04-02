@@ -1,4 +1,0 @@
-C:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\orchestrator\__init__.py
-C:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\orchestrator\dispatcher.py
-C:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\orchestrator\state\__init__.py
-C:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2\orchestrator\state\db_manager.py

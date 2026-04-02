@@ -33,6 +33,10 @@ const extractErrorMessage = (error, fallbackMessage, codeMessages = {}) => {
   const apiCode = apiError?.code;
   const apiMessage = apiError?.message;
 
+  if (apiCode === 'BACKEND_UNAVAILABLE') {
+    return NETWORK_ERROR_MESSAGE;
+  }
+
   if (apiCode && codeMessages[apiCode]) {
     return codeMessages[apiCode];
   }
@@ -191,9 +195,10 @@ export const useAuthStore = create((set, _get) => ({
         user: response.data.data.user,
         isAuthenticated: true,
         sessionLoading: false,
+        error: null,
       });
     } catch {
-      set({ user: null, isAuthenticated: false, sessionLoading: false });
+      set({ user: null, isAuthenticated: false, sessionLoading: false, error: null });
     }
   },
 

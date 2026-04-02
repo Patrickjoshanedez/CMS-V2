@@ -286,7 +286,7 @@ export default function PlagiarismReportPage() {
           className="w-80 flex-shrink-0 flex flex-col bg-gray-50 overflow-hidden"
           aria-label="Detected plagiarism sources"
         >
-          <div className="px-4 py-3 border-b border-gray-200 bg-white">
+          <div className="px-4 py-3 border-b border-border bg-background">
             <h2 className="text-sm font-semibold text-gray-700">Detected Sources</h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Click a source to scroll to its match in the text.
@@ -315,7 +315,7 @@ export default function PlagiarismReportPage() {
           </div>
 
           {/* Info footer */}
-          <div className="px-3 py-2 border-t border-gray-200 bg-white">
+          <div className="px-3 py-2 border-t border-border bg-background">
             <p className="flex items-start gap-1.5 text-xs text-gray-400">
               <Info size={12} className="flex-shrink-0 mt-0.5" />
               Scores combine lexical fingerprinting (70%) and semantic similarity (30%).

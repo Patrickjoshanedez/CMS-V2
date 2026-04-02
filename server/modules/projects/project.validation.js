@@ -264,7 +264,7 @@ export const reportQuerySchema = z.object({
     .optional(),
 });
 
-/** Bulk-upload legacy document (Instructor only). */
+/** Bulk-upload archived capstone bundle metadata (Instructor only). */
 export const bulkUploadSchema = z.object({
   title: z.string().trim().min(10, 'Title must be at least 10 characters').max(300),
   abstract: z.string().trim().max(500).optional().default(''),

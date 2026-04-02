@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,6 +41,10 @@ export default function LoginPage() {
   const recaptchaRef = useRef(null);
   const { theme } = useTheme();
 
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
+
   const {
     control,
     handleSubmit,
@@ -76,22 +80,25 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = useCallback(async (credentialResponse) => {
-    if (!credentialResponse?.credential) {
-      setGoogleError('Google sign-in did not return a credential. Please try again.');
-      return;
-    }
+  const handleGoogleSuccess = useCallback(
+    async (credentialResponse) => {
+      if (!credentialResponse?.credential) {
+        setGoogleError('Google sign-in did not return a credential. Please try again.');
+        return;
+      }
 
-    try {
-      setGoogleError('');
-      clearError();
-      await googleLogin(credentialResponse.credential);
-      navigate('/dashboard', { replace: true });
-    } catch (error) {
-      const apiMessage = error?.response?.data?.error?.message;
-      setGoogleError(apiMessage || getGoogleOriginMismatchMessage());
-    }
-  }, [clearError, googleLogin, navigate]);
+      try {
+        setGoogleError('');
+        clearError();
+        await googleLogin(credentialResponse.credential);
+        navigate('/dashboard', { replace: true });
+      } catch (error) {
+        const apiMessage = error?.response?.data?.error?.message;
+        setGoogleError(apiMessage || getGoogleOriginMismatchMessage());
+      }
+    },
+    [clearError, googleLogin, navigate],
+  );
 
   const handleGoogleError = useCallback(() => {
     setGoogleError(getGoogleOriginMismatchMessage());
@@ -168,13 +175,13 @@ export default function LoginPage() {
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-input text-[#673ab7] focus:ring-[#673ab7]/40"
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary/40"
             />
             <span className="text-sm text-muted-foreground">Remember me</span>
           </label>
           <Link
             to="/forgot-password"
-            className="text-sm font-medium text-[#673ab7] hover:text-[#9c27b0] transition-colors"
+            className="text-sm font-medium text-primary hover:text-brand-purple transition-colors"
           >
             Forgot password?
           </Link>
@@ -215,9 +222,7 @@ export default function LoginPage() {
 
       {/* Google Sign-In */}
       {isGoogleLoginConfigured ? (
-        <div className="auth-item flex justify-center">
-          {googleLoginButton}
-        </div>
+        <div className="auth-item flex justify-center">{googleLoginButton}</div>
       ) : (
         <div className="auth-item">
           <p className="text-sm text-destructive text-center">
@@ -239,7 +244,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link
             to="/register"
-            className="font-semibold text-[#673ab7] hover:text-[#9c27b0] transition-colors"
+            className="font-semibold text-primary hover:text-brand-purple transition-colors"
           >
             Create account
           </Link>

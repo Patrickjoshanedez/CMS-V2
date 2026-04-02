@@ -28,6 +28,57 @@ const EXTENSION_FALLBACK_TYPES = {
   '.txt': 'text/plain',
 };
 
+const DOCUMENT_ALLOWLIST = { ...ALLOWED_MIME_TYPES, 'text/plain': 'TXT' };
+
+const detectDocumentMime = async (buffer, originalname) => {
+  // file-type is ESM-only since v17; dynamic import for compatibility
+  const { fileTypeFromBuffer } = await import('file-type');
+  const typeResult = await fileTypeFromBuffer(buffer);
+
+  if (typeResult) {
+    return typeResult.mime;
+  }
+
+  // Fallback for types without magic bytes (e.g. .txt)
+  const ext = '.' + originalname.split('.').pop().toLowerCase();
+  return EXTENSION_FALLBACK_TYPES[ext] || null;
+};
+
+const assertValidDocumentFile = async (file, fieldLabel = 'File') => {
+  const { buffer, originalname, size } = file;
+
+  // --- Size check ---
+  const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+  if (size > maxBytes) {
+    throw new AppError(
+      `${fieldLabel} size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the ${env.MAX_UPLOAD_SIZE_MB}MB limit.`,
+      413,
+      'FILE_TOO_LARGE',
+    );
+  }
+
+  // --- Magic-byte MIME detection ---
+  const detectedMime = await detectDocumentMime(buffer, originalname);
+  if (!detectedMime) {
+    throw new AppError(
+      `${fieldLabel} type could not be determined. Please upload a PDF or DOCX file.`,
+      400,
+      'UNRECOGNIZED_FILE_TYPE',
+    );
+  }
+
+  // --- Allowlist check ---
+  if (!DOCUMENT_ALLOWLIST[detectedMime]) {
+    throw new AppError(
+      `${fieldLabel} type "${detectedMime}" is not allowed. Accepted types: PDF, DOCX, TXT.`,
+      400,
+      'INVALID_FILE_TYPE',
+    );
+  }
+
+  return detectedMime;
+};
+
 /**
  * Validate the uploaded file's real MIME type via magic bytes,
  * enforce size limits, and reject files that don't match the allowlist.
@@ -42,60 +93,8 @@ const validateFile = async (req, _res, next) => {
       return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
     }
 
-    const { buffer, originalname, size } = req.file;
-
-    // --- Size check ---
-    const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-    if (size > maxBytes) {
-      return next(
-        new AppError(
-          `File size (${(size / 1024 / 1024).toFixed(1)}MB) exceeds the ${env.MAX_UPLOAD_SIZE_MB}MB limit.`,
-          413,
-          'FILE_TOO_LARGE',
-        ),
-      );
-    }
-
-    // --- Magic-byte MIME detection ---
-    // file-type is ESM-only since v17; dynamic import for compatibility
-    const { fileTypeFromBuffer } = await import('file-type');
-    const typeResult = await fileTypeFromBuffer(buffer);
-
-    let detectedMime;
-
-    if (typeResult) {
-      detectedMime = typeResult.mime;
-    } else {
-      // Fallback for types without magic bytes (e.g. .txt)
-      const ext = '.' + originalname.split('.').pop().toLowerCase();
-      detectedMime = EXTENSION_FALLBACK_TYPES[ext] || null;
-    }
-
-    if (!detectedMime) {
-      return next(
-        new AppError(
-          'Unable to determine the file type. Please upload a PDF or DOCX file.',
-          400,
-          'UNRECOGNIZED_FILE_TYPE',
-        ),
-      );
-    }
-
-    // --- Allowlist check ---
-    // Also allow text/plain for .txt fallback
-    const allAllowed = { ...ALLOWED_MIME_TYPES, 'text/plain': 'TXT' };
-    if (!allAllowed[detectedMime]) {
-      return next(
-        new AppError(
-          `File type "${detectedMime}" is not allowed. Accepted types: PDF, DOCX, TXT.`,
-          400,
-          'INVALID_FILE_TYPE',
-        ),
-      );
-    }
-
     // Attach validated MIME type to the request for downstream use
-    req.file.validatedMime = detectedMime;
+    req.file.validatedMime = await assertValidDocumentFile(req.file, 'File');
 
     next();
   } catch (error) {
@@ -103,7 +102,46 @@ const validateFile = async (req, _res, next) => {
   }
 };
 
-export { ALLOWED_MIME_TYPES, EXTENSION_FALLBACK_TYPES };
+/**
+ * Validate the dual-file archive bundle payload.
+ * Requires exactly one file for each field:
+ * - academicPaperFile
+ * - academicJournalFile
+ */
+const validateDualArchiveFiles = async (req, _res, next) => {
+  try {
+    const academicPaperFiles = req.files?.academicPaperFile || [];
+    const academicJournalFiles = req.files?.academicJournalFile || [];
+
+    if (academicPaperFiles.length !== 1 || academicJournalFiles.length !== 1) {
+      return next(
+        new AppError(
+          'Exactly one Academic Paper file and one Academic Journal file are required.',
+          400,
+          'DUAL_ARCHIVE_FILES_REQUIRED',
+        ),
+      );
+    }
+
+    const academicPaperFile = academicPaperFiles[0];
+    const academicJournalFile = academicJournalFiles[0];
+
+    academicPaperFile.validatedMime = await assertValidDocumentFile(
+      academicPaperFile,
+      'Academic Paper',
+    );
+    academicJournalFile.validatedMime = await assertValidDocumentFile(
+      academicJournalFile,
+      'Academic Journal',
+    );
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { ALLOWED_MIME_TYPES, EXTENSION_FALLBACK_TYPES, validateDualArchiveFiles };
 export default validateFile;
 
 /**

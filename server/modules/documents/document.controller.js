@@ -1,6 +1,8 @@
 import documentService from './document.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
+import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
+import AppError from '../../utils/AppError.js';
 
 /** POST /api/documents/projects/:projectId/manuscripts */
 export const uploadManuscript = catchAsync(async (req, res) => {
@@ -19,7 +21,10 @@ export const uploadManuscript = catchAsync(async (req, res) => {
 
 /** GET /api/documents/projects/:projectId/manuscripts */
 export const listProjectManuscripts = catchAsync(async (req, res) => {
-  const { manuscripts } = await documentService.listProjectManuscripts(req.user._id, req.params.projectId);
+  const { manuscripts } = await documentService.listProjectManuscripts(
+    req.user._id,
+    req.params.projectId,
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -101,5 +106,31 @@ export const getArchivedComments = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     data: result,
+  });
+});
+
+/**
+ * POST /api/documents/extract-pdf-metadata
+ * Extracts title and abstract from an uploaded PDF file.
+ * Expects multipart/form-data with a single 'file' field.
+ */
+export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('No PDF file provided.', 400, 'MISSING_FILE');
+  }
+
+  if (req.file.mimetype !== 'application/pdf') {
+    throw new AppError('Only PDF files are supported.', 400, 'INVALID_FILE_TYPE');
+  }
+
+  const { title, abstract, confidence } = await extractPdfMetadata(req.file.buffer);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: {
+      title,
+      abstract,
+      confidence,
+    },
   });
 });

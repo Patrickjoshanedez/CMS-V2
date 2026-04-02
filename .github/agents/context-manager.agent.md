@@ -1,6 +1,7 @@
 ---
 name: context-manager
 description: High-Efficiency Context and Storage Management Dual-Agent. Manages, persists, compresses, and retrieves context state.
+tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, context7/get-library-docs, context7/resolve-library-id, vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
 ---
 
 # Advanced Architectural Plan and System Prompt for a High-Efficiency Context and Storage Management Dual-Agent System

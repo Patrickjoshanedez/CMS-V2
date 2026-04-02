@@ -11,6 +11,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createAuthenticatedUserWithRole,
+  createCourseAndSection,
+  createValidProjectPayload,
 } from '../helpers.js';
 import { seedCapstoneProjects, CAPSTONE_TITLES } from '../seeds/capstone-titles.seed.js';
 import Team from '../../modules/teams/team.model.js';
@@ -40,8 +42,22 @@ async function createLockedTeam(leaderId) {
 
 describe('Title Similarity & Lock — /api/projects', () => {
   let studentAgent, studentUser;
+  let instructorUser;
   let instructorAgent;
   let team;
+  let course;
+  let section;
+
+  function buildProjectRequestPayload(title) {
+    const payload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
+    payload.title = title;
+    payload.titleProposals = [
+      title,
+      ...payload.titleProposals.filter((proposal) => proposal !== title),
+    ].slice(0, 6);
+    delete payload.teamId;
+    return payload;
+  }
 
   beforeEach(async () => {
     // Seed existing corpus of capstone titles (12 projects)
@@ -55,15 +71,22 @@ describe('Title Similarity & Lock — /api/projects', () => {
     }));
 
     // Create an instructor for approval flow
-    ({ agent: instructorAgent } = await createAuthenticatedUserWithRole('instructor', {
-      email: 'title-test-instructor@test.com',
-      firstName: 'Title',
-      lastName: 'Instructor',
-    }));
+    ({ agent: instructorAgent, user: instructorUser } = await createAuthenticatedUserWithRole(
+      'instructor',
+      {
+        email: 'title-test-instructor@test.com',
+        firstName: 'Title',
+        lastName: 'Instructor',
+      },
+    ));
 
     // Create and link team
     team = await createLockedTeam(studentUser._id);
     studentUser = await User.findById(studentUser._id);
+
+    const courseSection = await createCourseAndSection(instructorUser._id);
+    course = courseSection.course;
+    section = courseSection.section;
   });
 
   /* ─────────────────────────────────────────────────────────────── */
@@ -77,12 +100,10 @@ describe('Title Similarity & Lock — /api/projects', () => {
       // We submit a closely-worded variant that should score ≥ 0.70
       const nearDuplicate = 'Capstone Management System with Plagiarism Checker';
 
-      const res = await studentAgent
-        .post('/api/projects/title-check')
-        .send({
-          title: nearDuplicate,
-          keywords: ['capstone', 'management', 'plagiarism'],
-        });
+      const res = await studentAgent.post('/api/projects/title-check').send({
+        title: nearDuplicate,
+        keywords: ['capstone', 'management', 'plagiarism'],
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -96,7 +117,7 @@ describe('Title Similarity & Lock — /api/projects', () => {
       const topMatch = similarProjects[0];
       expect(topMatch).toHaveProperty('title');
       expect(topMatch).toHaveProperty('score');
-      expect(topMatch.score).toBeGreaterThanOrEqual(0.70);
+      expect(topMatch.score).toBeGreaterThanOrEqual(0.7);
       expect(topMatch.title).toContain('Capstone Management System');
     });
   });
@@ -109,12 +130,10 @@ describe('Title Similarity & Lock — /api/projects', () => {
     it('should return empty similar list for a completely unique title', async () => {
       const uniqueTitle = 'Underwater Acoustic Sensor Network for Coral Reef Monitoring';
 
-      const res = await studentAgent
-        .post('/api/projects/title-check')
-        .send({
-          title: uniqueTitle,
-          keywords: ['underwater', 'acoustic', 'coral reef', 'sensor network'],
-        });
+      const res = await studentAgent.post('/api/projects/title-check').send({
+        title: uniqueTitle,
+        keywords: ['underwater', 'acoustic', 'coral reef', 'sensor network'],
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -129,20 +148,15 @@ describe('Title Similarity & Lock — /api/projects', () => {
   describe('PATCH /:id/title — CheckLock middleware', () => {
     it('should return 403 when title is approved (locked)', async () => {
       // Create a project and fast-forward to APPROVED status
-      const createRes = await studentAgent.post('/api/projects').send({
-        title: 'Unique Capstone Title for Lock Testing Scenario',
-        abstract: 'Testing the title lock feature of the CMS.',
-        keywords: ['lock', 'testing'],
-        academicYear: '2024-2025',
-      });
+      const createRes = await studentAgent
+        .post('/api/projects')
+        .send(buildProjectRequestPayload('Unique Capstone Title for Lock Testing Scenario'));
 
       expect(createRes.status).toBe(201);
       const projectId = createRes.body.data.project._id;
 
       // Submit the title (DRAFT → SUBMITTED)
-      const submitRes = await studentAgent
-        .post(`/api/projects/${projectId}/title/submit`)
-        .send({});
+      const submitRes = await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
       expect(submitRes.status).toBe(200);
 
       // Approve the title via instructor (SUBMITTED → APPROVED)
@@ -166,18 +180,13 @@ describe('Title Similarity & Lock — /api/projects', () => {
 
     it('should return 403 on revise when title is approved', async () => {
       // Create + submit + approve
-      const createRes = await studentAgent.post('/api/projects').send({
-        title: 'Another Capstone Title for Revise Lock Test',
-        abstract: 'Testing the revise lock scenario.',
-        keywords: ['revise', 'lock'],
-        academicYear: '2024-2025',
-      });
+      const createRes = await studentAgent
+        .post('/api/projects')
+        .send(buildProjectRequestPayload('Another Capstone Title for Revise Lock Test'));
       const projectId = createRes.body.data.project._id;
 
       await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
-      await instructorAgent
-        .post(`/api/projects/${projectId}/title/approve`)
-        .send({});
+      await instructorAgent.post(`/api/projects/${projectId}/title/approve`).send({});
 
       // Attempt revise — should also be blocked
       const reviseRes = await studentAgent

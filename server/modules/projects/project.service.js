@@ -1312,7 +1312,7 @@ class ProjectService {
     }
 
     const storageKey = storageService.buildCertificateKey(projectId, file.originalname);
-    await storageService.uploadFile(storageKey, file.buffer, file.mimetype);
+    await storageService.uploadFile(file.buffer, storageKey, file.mimetype);
 
     project.certificateStorageKey = storageKey;
     await project.save();
@@ -1397,55 +1397,164 @@ class ProjectService {
   /* ═══════════════════ Bulk Upload (Instructor) ═══════════════════ */
 
   /**
-   * Bulk-upload a legacy document to the archive, bypassing the standard
-   * submission workflow. Creates a minimal project record and an associated
-   * final_journal submission so it appears in archive searches.
+   * Bulk-upload an archived capstone bundle in one request.
+   * Creates one archived project record linked to exactly two final submissions:
+   * - final_academic (academic paper)
+   * - final_journal (journal paper)
    *
    * @param {string} instructorId - The instructor performing the bulk upload
    * @param {Object} data - { title, abstract?, keywords?, academicYear }
-   * @param {Object} file - Multer file object (the PDF to archive)
-   * @returns {Object} { project, submission }
+   * @param {Object} files - { academicPaperFile, academicJournalFile }
+   * @returns {Object} { project, submissions }
    */
-  async bulkUploadArchive(instructorId, data, file) {
-    if (!file) {
-      throw new AppError('A file is required for bulk upload.', 400, 'FILE_REQUIRED');
+  async bulkUploadArchive(instructorId, data, files) {
+    const academicPaperFile = files?.academicPaperFile;
+    const academicJournalFile = files?.academicJournalFile;
+
+    if (!academicPaperFile || !academicJournalFile) {
+      throw new AppError(
+        'Exactly one Academic Paper file and one Academic Journal file are required.',
+        400,
+        'DUAL_ARCHIVE_FILES_REQUIRED',
+      );
     }
 
-    // Create a minimal archived project record
-    const project = await Project.create({
-      teamId: new mongoose.Types.ObjectId(), // Placeholder — no real team
-      title: data.title,
-      abstract: data.abstract || '',
-      keywords: data.keywords || [],
-      academicYear: data.academicYear,
-      capstonePhase: 4,
-      titleStatus: 'approved',
-      projectStatus: PROJECT_STATUSES.ARCHIVED,
-      isArchived: true,
-      archivedAt: new Date(),
-      completionNotes: 'Bulk-uploaded legacy document.',
-    });
+    const [defaultProfessionalTitle] = Object.keys(CAPSTONE_TITLE_MAPPING);
+    const defaultRoleMapping = CAPSTONE_TITLE_MAPPING[defaultProfessionalTitle];
 
-    // Upload file to S3 under the bulk-archive path
-    const storageKey = storageService.buildBulkArchiveKey(data.academicYear, file.originalname);
-    await storageService.uploadFile(storageKey, file.buffer, file.mimetype);
+    if (!defaultProfessionalTitle || !defaultRoleMapping) {
+      throw new AppError(
+        'Unable to initialize bulk archive role mappings.',
+        500,
+        'BULK_ARCHIVE_MAPPING_MISSING',
+      );
+    }
 
-    // Create a journal submission record so archive search picks it up
-    const submission = await Submission.create({
-      projectId: project._id,
-      submittedBy: new mongoose.Types.ObjectId(instructorId),
-      type: 'final_journal',
-      chapter: null,
-      version: 1,
-      fileName: file.originalname,
-      fileType: file.mimetype,
-      fileSize: file.size,
-      mimeType: file.mimetype,
-      storageKey,
-      status: 'approved',
-    });
+    const normalizedTitle = data.title.trim();
+    const normalizedKeywords = Array.isArray(data.keywords) ? data.keywords : [];
 
-    return { project, submission };
+    let archiveTeam;
+    let project;
+    const uploadedKeys = [];
+
+    try {
+      const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
+
+      // Create an internal placeholder team to satisfy project schema invariants.
+      archiveTeam = await Team.create({
+        name: `Archive ${Date.now()}`,
+        leaderId: instructorObjectId,
+        members: [instructorObjectId],
+        isLocked: true,
+        academicYear: data.academicYear,
+      });
+
+      project = await Project.create({
+        teamId: archiveTeam._id,
+        title: normalizedTitle,
+        titleProposals: [
+          normalizedTitle,
+          normalizedTitle,
+          normalizedTitle,
+          normalizedTitle,
+          normalizedTitle,
+        ],
+        abstract: data.abstract || '',
+        keywords: normalizedKeywords,
+        academicYear: data.academicYear,
+        courseId: new mongoose.Types.ObjectId(),
+        sectionId: new mongoose.Types.ObjectId(),
+        memberRoleAssignments: [
+          {
+            userId: instructorObjectId,
+            professionalTitle: defaultProfessionalTitle,
+            traditionalRole: defaultRoleMapping.traditionalRole,
+            responsibilities: defaultRoleMapping.responsibilities,
+          },
+        ],
+        capstonePhase: 4,
+        titleStatus: TITLE_STATUSES.APPROVED,
+        projectStatus: PROJECT_STATUSES.ARCHIVED,
+        isArchived: true,
+        archivedAt: new Date(),
+        completionNotes: 'Bulk-uploaded archived capstone bundle.',
+      });
+
+      const finalAcademicStorageKey = storageService.buildFinalAcademicKey(
+        project._id,
+        1,
+        academicPaperFile.originalname,
+      );
+      const finalJournalStorageKey = storageService.buildFinalJournalKey(
+        project._id,
+        1,
+        academicJournalFile.originalname,
+      );
+
+      await storageService.uploadFile(
+        academicPaperFile.buffer,
+        finalAcademicStorageKey,
+        academicPaperFile.validatedMime || academicPaperFile.mimetype,
+      );
+      uploadedKeys.push(finalAcademicStorageKey);
+
+      await storageService.uploadFile(
+        academicJournalFile.buffer,
+        finalJournalStorageKey,
+        academicJournalFile.validatedMime || academicJournalFile.mimetype,
+      );
+      uploadedKeys.push(finalJournalStorageKey);
+
+      const [finalAcademicSubmission, finalJournalSubmission] = await Submission.create([
+        {
+          projectId: project._id,
+          submittedBy: instructorObjectId,
+          type: 'final_academic',
+          chapter: null,
+          version: 1,
+          fileName: academicPaperFile.originalname,
+          fileType: academicPaperFile.validatedMime || academicPaperFile.mimetype,
+          fileSize: academicPaperFile.size,
+          storageKey: finalAcademicStorageKey,
+          status: 'approved',
+        },
+        {
+          projectId: project._id,
+          submittedBy: instructorObjectId,
+          type: 'final_journal',
+          chapter: null,
+          version: 1,
+          fileName: academicJournalFile.originalname,
+          fileType: academicJournalFile.validatedMime || academicJournalFile.mimetype,
+          fileSize: academicJournalFile.size,
+          storageKey: finalJournalStorageKey,
+          status: 'approved',
+        },
+      ]);
+
+      return {
+        project,
+        submissions: {
+          finalAcademic: finalAcademicSubmission,
+          finalJournal: finalJournalSubmission,
+        },
+      };
+    } catch (error) {
+      await Promise.all(
+        uploadedKeys.map((key) => storageService.deleteFile(key).catch(() => null)),
+      );
+
+      if (project?._id) {
+        await Submission.deleteMany({ projectId: project._id });
+        await Project.deleteOne({ _id: project._id });
+      }
+
+      if (archiveTeam?._id) {
+        await Team.deleteOne({ _id: archiveTeam._id });
+      }
+
+      throw error;
+    }
   }
 
   /* ═══════════════════ Helpers ═══════════════════ */

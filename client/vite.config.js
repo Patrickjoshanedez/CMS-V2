@@ -1,10 +1,12 @@
-import { defineConfig } from 'vite';
+import { createLogger, defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import http from 'http';
 
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:5000';
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
+const backendDefaultProxyTarget = 'http://localhost:5000';
+const customViteLogger = createLogger();
+const originalViteErrorLogger = customViteLogger.error.bind(customViteLogger);
 const allowedHosts = [
   'localhost',
   '127.0.0.1',
@@ -12,13 +14,64 @@ const allowedHosts = [
   '.ngrok-free.dev',
 ];
 
-const createProxyErrorHandler = (label) => (err, req, res) => {
-  // Suppress "ECONNREFUSED" console noise when backend is simply not running or unreachable
-  if (err.code !== 'ECONNREFUSED') {
+const normalizeProxyTarget = (target) => {
+  if (typeof target !== 'string') {
+    return '';
+  }
+
+  return target
+    .trim()
+    .replace(/\/api\/?$/i, '')
+    .replace(/\/+$/, '');
+};
+
+const hasNestedErrorCode = (err, expectedCode) => {
+  if (!err || typeof err !== 'object') {
+    return false;
+  }
+
+  if (err.code === expectedCode) {
+    return true;
+  }
+
+  if (
+    Array.isArray(err.errors) &&
+    err.errors.some((nestedErr) => hasNestedErrorCode(nestedErr, expectedCode))
+  ) {
+    return true;
+  }
+
+  return hasNestedErrorCode(err.cause, expectedCode);
+};
+
+const shouldSuppressViteProxyError = (msg, error) => {
+  if (typeof msg !== 'string' || !msg.includes('http proxy error:')) {
+    return false;
+  }
+
+  return hasNestedErrorCode(error, 'ECONNREFUSED') || msg.includes('ECONNREFUSED');
+};
+
+customViteLogger.error = (msg, options) => {
+  if (shouldSuppressViteProxyError(msg, options?.error)) {
+    return;
+  }
+
+  originalViteErrorLogger(msg, options);
+};
+
+const createProxyErrorHandler = (label, apiProxyTarget) => (err, req, res) => {
+  // Suppress expected backend-down ECONNREFUSED noise, including AggregateError wrappers.
+  if (!hasNestedErrorCode(err, 'ECONNREFUSED')) {
     console.warn(`[vite] ${label} proxy error:`, err.message, 'target=', apiProxyTarget);
   }
 
-  if (!res || res.headersSent) {
+  if (
+    !res ||
+    typeof res.writeHead !== 'function' ||
+    typeof res.end !== 'function' ||
+    res.headersSent
+  ) {
     return;
   }
 
@@ -35,44 +88,53 @@ const createProxyErrorHandler = (label) => (err, req, res) => {
 };
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  server: {
-    port: 5173,
-    allowedHosts,
-    proxy: {
-      '/api': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        agent: nonKeepAliveHttpAgent,
-        timeout: 15000,
-        proxyTimeout: 15000,
-        configure: (proxy) => {
-          proxy.on('error', createProxyErrorHandler('api'));
-        },
-      },
-      '/socket.io': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        ws: true,
-        agent: nonKeepAliveHttpAgent,
-        timeout: 15000,
-        proxyTimeout: 15000,
-        configure: (proxy) => {
-          proxy.on('error', createProxyErrorHandler('ws'));
-        },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiProxyTarget =
+    normalizeProxyTarget(env.VITE_API_PROXY_TARGET) ||
+    normalizeProxyTarget(env.VITE_API_URL) ||
+    backendDefaultProxyTarget;
+
+  return {
+    customLogger: customViteLogger,
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
     },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.js',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-  },
+    server: {
+      port: 5173,
+      allowedHosts,
+      proxy: {
+        '/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          agent: nonKeepAliveHttpAgent,
+          timeout: 15000,
+          proxyTimeout: 15000,
+          configure: (proxy) => {
+            proxy.on('error', createProxyErrorHandler('api', apiProxyTarget));
+          },
+        },
+        '/socket.io': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          ws: true,
+          agent: nonKeepAliveHttpAgent,
+          timeout: 15000,
+          proxyTimeout: 15000,
+          configure: (proxy) => {
+            proxy.on('error', createProxyErrorHandler('ws', apiProxyTarget));
+          },
+        },
+      },
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/setupTests.js',
+      include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    },
+  };
 });

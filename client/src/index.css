@@ -31,6 +31,20 @@ input::-webkit-credentials-auto-fill-button {
     --input: 214.3 31.8% 78%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+
+    /* Semantic status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Brand gradient colors (for consistent theming) */
+    --brand-orange: 14 100% 57%;
+    --brand-pink: 340 82% 52%;
+    --brand-purple: 262 52% 47%;
+    --brand-deep-purple: 262 47% 44%;
   }
 
   .dark {
@@ -54,6 +68,20 @@ input::-webkit-credentials-auto-fill-button {
     --input: 217.2 32.6% 30%;
     --ring: 224.3 76.3% 48%;
     --radius: 0.5rem;
+
+    /* Semantic status colors (dark mode) */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Brand gradient colors (dark mode) */
+    --brand-orange: 14 100% 60%;
+    --brand-pink: 340 82% 55%;
+    --brand-purple: 262 52% 55%;
+    --brand-deep-purple: 262 47% 52%;
   }
 }
 

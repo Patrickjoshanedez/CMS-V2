@@ -44,6 +44,7 @@ const navItems = {
     { label: 'Teams', icon: UsersRound, path: '/teams' },
     { label: 'Projects', icon: FileText, path: '/projects' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },
+    { label: 'Upload Archived Capstone', icon: Upload, path: '/archive/upload/capstone' },
     { label: 'Activity Log', icon: ScrollText, path: '/admin/audit-log' },
   ],
   // Adviser-specific

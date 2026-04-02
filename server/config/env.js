@@ -4,6 +4,7 @@ dotenv.config();
 
 const currentNodeEnv = process.env.NODE_ENV || 'development';
 const isDevelopmentEnv = currentNodeEnv === 'development';
+const isProductionEnv = currentNodeEnv === 'production';
 
 const parseBoolean = (value, defaultValue = false) => {
   if (typeof value !== 'string') {
@@ -53,6 +54,118 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
   return defaultValue;
 };
 
+const PRODUCTION_REQUIRED_SECRET_VARS = [
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET',
+  'REDIS_PASSWORD',
+];
+const PRODUCTION_OPTIONAL_SECRET_VARS = ['NGROK_AUTHTOKEN'];
+const DEFAULT_LIKE_SECRET_VALUES = new Set([
+  'changeme',
+  'default',
+  'dummy',
+  'example',
+  'exampletoken',
+  'ngroktoken',
+  'placeholder',
+  'replace',
+  'replacewithrealvalue',
+  'test',
+  'token',
+  'yourngroktoken',
+  'secret',
+  'password',
+  'none',
+  'null',
+  'undefined',
+]);
+
+const normalizeSecretToken = (value = '') =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+
+const isDefaultLikeSecret = (rawValue) => {
+  if (typeof rawValue !== 'string') {
+    return true;
+  }
+
+  const normalized = normalizeSecretToken(rawValue);
+  if (!normalized) {
+    return true;
+  }
+
+  if (DEFAULT_LIKE_SECRET_VALUES.has(normalized)) {
+    return true;
+  }
+
+  if (normalized.length < 8) {
+    return true;
+  }
+
+  if (/^([a-z0-9])\1{7,}$/.test(normalized)) {
+    return true;
+  }
+
+  if (/^test\d*$/.test(normalized)) {
+    return true;
+  }
+
+  if (normalized.startsWith('your') && /(secret|token|password|key)$/.test(normalized)) {
+    return true;
+  }
+
+  return false;
+};
+
+const validateProductionSecret = (varName, { required = true } = {}) => {
+  const rawValue = process.env[varName];
+
+  if (typeof rawValue !== 'string' || rawValue.trim().length === 0) {
+    if (required) {
+      throw new Error(`Missing required production secret environment variable: ${varName}`);
+    }
+    return;
+  }
+
+  if (isDefaultLikeSecret(rawValue)) {
+    throw new Error(`Insecure default-like production secret is not allowed for: ${varName}`);
+  }
+};
+
+const isLocalhostOrigin = (origin) => {
+  try {
+    const parsed = new URL(origin);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+};
+
+const validateProductionCorsOrigins = (origins) => {
+  if (origins.length === 0) {
+    throw new Error('In production, at least one explicit CORS origin must be configured.');
+  }
+
+  for (const origin of origins) {
+    if (origin === '*' || origin.includes('*')) {
+      throw new Error(`Wildcard CORS origin is not allowed in production: ${origin}`);
+    }
+
+    try {
+      new URL(origin);
+    } catch {
+      throw new Error(`Invalid CORS origin in production: ${origin}`);
+    }
+
+    if (isLocalhostOrigin(origin)) {
+      throw new Error(`Localhost CORS origin is not allowed in production: ${origin}`);
+    }
+  }
+};
+
 /**
  * Build list of allowed CORS origins.
  * Includes CLIENT_URL, comma-separated CORS_ALLOWED_ORIGINS, and optional ngrok support.
@@ -65,9 +178,13 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
 const buildAllowedOrigins = () => {
   const origins = new Set();
 
-  // Always include CLIENT_URL
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-  origins.add(clientUrl);
+  // Always include CLIENT_URL in development; require explicit value in production.
+  const clientUrl = (
+    process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : '')
+  ).trim();
+  if (clientUrl) {
+    origins.add(clientUrl);
+  }
 
   // Parse comma-separated CORS_ALLOWED_ORIGINS if present
   if (process.env.CORS_ALLOWED_ORIGINS) {
@@ -77,7 +194,13 @@ const buildAllowedOrigins = () => {
     additional.forEach((origin) => origins.add(origin));
   }
 
-  return Array.from(origins);
+  const allowedOrigins = Array.from(origins);
+
+  if (isProductionEnv) {
+    validateProductionCorsOrigins(allowedOrigins);
+  }
+
+  return allowedOrigins;
 };
 
 /**
@@ -93,12 +216,24 @@ for (const varName of requiredVars) {
   }
 }
 
+if (isProductionEnv) {
+  for (const varName of PRODUCTION_REQUIRED_SECRET_VARS) {
+    validateProductionSecret(varName);
+  }
+
+  for (const varName of PRODUCTION_OPTIONAL_SECRET_VARS) {
+    validateProductionSecret(varName, { required: false });
+  }
+}
+
 const env = Object.freeze({
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT, 10) || 5000,
 
   // Database
   MONGODB_URI: process.env.MONGODB_URI,
+  MONGODB_DEV_FALLBACK_URI:
+    process.env.MONGODB_DEV_FALLBACK_URI || 'mongodb://127.0.0.1:27017/cms_v2',
 
   // JWT
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
@@ -117,7 +252,7 @@ const env = Object.freeze({
   EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@cms-buksu.edu.ph',
 
   // Client
-  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  CLIENT_URL: process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : ''),
   CORS_ALLOWED_ORIGINS: buildAllowedOrigins(),
   ALLOW_NGROK_ORIGINS: parseBoolean(process.env.ALLOW_NGROK_ORIGINS, false),
 
@@ -132,9 +267,7 @@ const env = Object.freeze({
   S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || (isDevelopmentEnv ? 'test' : ''),
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || (isDevelopmentEnv ? 'test' : ''),
   S3_ENDPOINT: process.env.S3_ENDPOINT || (isDevelopmentEnv ? 'http://localhost:4566' : ''),
-  S3_FORCE_PATH_STYLE:
-    process.env.S3_FORCE_PATH_STYLE === 'true' ||
-    isDevelopmentEnv,
+  S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === 'true' || isDevelopmentEnv,
 
   // Redis (BullMQ)
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
@@ -197,7 +330,7 @@ const env = Object.freeze({
 
   // Helpers
   isDevelopment: isDevelopmentEnv,
-  isProduction: currentNodeEnv === 'production',
+  isProduction: isProductionEnv,
 });
 
 export default env;

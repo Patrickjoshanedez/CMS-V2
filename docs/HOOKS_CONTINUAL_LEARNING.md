@@ -19,11 +19,11 @@ This hook enforces a post-task continual-learning checkpoint so learned practice
 ## Behavior
 On `PostToolUse` for `task_complete`, the hook script reads JSON payload from `stdin` and outputs JSON with:
 - `allow`: `true` or `false`
-- `status`: `ok` or `warn`
+- `status`: `ok` or `error`
 - `tool`
 - `message`
 
-The registry is configured in warn mode (`failMode: warn`) to avoid blocking normal execution while still surfacing drift.
+The registry is configured in error mode (`failMode: error`) to fail closed when validation requirements are not met.
 
 For `task_complete`, summaries should include at least one checkpoint term:
 - `lesson`

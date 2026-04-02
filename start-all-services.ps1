@@ -8,7 +8,7 @@
 #   .\start-all-services.ps1
 #
 # To stop all services:
-#   docker-compose down
+#   docker compose -f docker-compose.yml down
 # ─────────────────────────────────────────────────────────────────────────────
 
 Write-Host "🚀 Starting CMS V2 with integrated Plagiarism Engine..." -ForegroundColor Cyan
@@ -40,9 +40,20 @@ if (-Not (Test-Path "plagiarism_engine\.env")) {
 
 Write-Host ""
 
+$composeArgs = @('-f', 'docker-compose.yml')
+
+function Invoke-Compose {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Args
+    )
+
+    & docker compose @composeArgs @Args
+}
+
 # Stop any existing containers
 Write-Host "🛑 Stopping any existing containers..." -ForegroundColor Yellow
-docker-compose down 2>&1 | Out-Null
+Invoke-Compose -Args @('down') 2>&1 | Out-Null
 Write-Host "✅ Existing containers stopped" -ForegroundColor Green
 Write-Host ""
 
@@ -51,7 +62,7 @@ Write-Host "🔨 Building and starting all services..." -ForegroundColor Cyan
 Write-Host "   This may take a few minutes on first run (downloading images and dependencies)..." -ForegroundColor Gray
 Write-Host ""
 
-docker-compose up --build -d
+Invoke-Compose -Args @('up', '--build', '-d')
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
@@ -65,7 +76,7 @@ if ($LASTEXITCODE -eq 0) {
     # Wait a moment for services to initialize
     Start-Sleep -Seconds 5
     
-    docker-compose ps
+    Invoke-Compose -Args @('ps')
     
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
@@ -101,7 +112,7 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Plagiarism Engine API is responding" -ForegroundColor Green
     } catch {
         Write-Host "⚠️  Plagiarism Engine not ready yet (may be downloading ML models on first run)" -ForegroundColor Yellow
-        Write-Host "   This is normal. Check logs: docker-compose logs plagiarism_api" -ForegroundColor Gray
+        Write-Host "   This is normal. Check logs: docker compose -f docker-compose.yml logs plagiarism_api" -ForegroundColor Gray
     }
     
     Write-Host ""
@@ -109,12 +120,12 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "📝 Useful Commands:" -ForegroundColor Cyan
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "   View logs (all):          docker-compose logs -f" -ForegroundColor White
-    Write-Host "   View logs (CMS server):   docker-compose logs -f server" -ForegroundColor White
-    Write-Host "   View logs (Plagiarism):   docker-compose logs -f plagiarism_api" -ForegroundColor White
-    Write-Host "   Stop all services:        docker-compose down" -ForegroundColor White
-    Write-Host "   Restart a service:        docker-compose restart SERVICE_NAME" -ForegroundColor White
-    Write-Host "   View running containers:  docker-compose ps" -ForegroundColor White
+    Write-Host "   View logs (all):          docker compose -f docker-compose.yml logs -f" -ForegroundColor White
+    Write-Host "   View logs (CMS server):   docker compose -f docker-compose.yml logs -f server" -ForegroundColor White
+    Write-Host "   View logs (Plagiarism):   docker compose -f docker-compose.yml logs -f plagiarism_api" -ForegroundColor White
+    Write-Host "   Stop all services:        docker compose -f docker-compose.yml down" -ForegroundColor White
+    Write-Host "   Restart a service:        docker compose -f docker-compose.yml restart SERVICE_NAME" -ForegroundColor White
+    Write-Host "   View running containers:  docker compose -f docker-compose.yml ps" -ForegroundColor White
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host "🎉 Setup complete! Your CMS is ready to use." -ForegroundColor Green
@@ -124,7 +135,7 @@ if ($LASTEXITCODE -eq 0) {
 } else {
     Write-Host ""
     Write-Host "❌ Failed to start services. Check the logs:" -ForegroundColor Red
-    Write-Host "   docker-compose logs" -ForegroundColor Yellow
+    Write-Host "   docker compose -f docker-compose.yml logs" -ForegroundColor Yellow
     Write-Host ""
     exit 1
 }

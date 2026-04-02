@@ -6,10 +6,30 @@
  * and project rejection. RBAC is also tested.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createAuthenticatedUserWithRole, request, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
+import { vi } from 'vitest';
+import {
+  createAuthenticatedUserWithRole,
+  request,
+  createCourseAndSection,
+  createValidProjectPayload,
+} from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
+import Submission from '../../modules/submissions/submission.model.js';
+import googleDriveReviewService from '../../services/google-drive-review.service.js';
+import storageService from '../../services/storage.service.js';
+import env from '../../config/env.js';
+
+vi.spyOn(googleDriveReviewService, 'createProjectFolder').mockResolvedValue({
+  folderId: 'mock-drive-folder-id',
+  folderUrl: 'https://drive.google.com/drive/folders/mock-drive-folder-id',
+});
+vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
+vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
+  'https://mock-s3.example.com/signed-url',
+);
+vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
 
 /* ------------------------------------------------------------------ */
 /*  Factory helpers (specific to project tests)                       */
@@ -30,6 +50,10 @@ async function createLockedTeam(leaderId) {
   // Link user to team
   await User.findByIdAndUpdate(leaderId, { teamId: team._id });
   return team;
+}
+
+function createPdfBuffer() {
+  return Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF');
 }
 
 /* ================================================================== */
@@ -81,7 +105,9 @@ describe('Projects API — /api/projects', () => {
     const courseSec = await createCourseAndSection(instructorUser._id);
     course = courseSec.course;
     section = courseSec.section;
-    validProjectPayload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
+    validProjectPayload = createValidProjectPayload(team._id, course._id, section._id, [
+      studentUser._id,
+    ]);
     delete validProjectPayload.teamId; // not needed in body, inferred by service
   });
 
@@ -105,9 +131,18 @@ describe('Projects API — /api/projects', () => {
 
     it('should reject duplicate project for same team', async () => {
       await studentAgent.post('/api/projects').send(validProjectPayload);
-      const res = await studentAgent
-        .post('/api/projects')
-        .send({ ...validProjectPayload, title: 'Completely Different Title For Testing' });
+      const duplicatePayload = {
+        ...validProjectPayload,
+        title: 'Completely Different Title For Testing',
+      };
+      duplicatePayload.titleProposals = [
+        duplicatePayload.title,
+        ...duplicatePayload.titleProposals.filter(
+          (proposal) => proposal !== duplicatePayload.title,
+        ),
+      ].slice(0, 10);
+
+      const res = await studentAgent.post('/api/projects').send(duplicatePayload);
 
       expect(res.status).toBe(409);
     });
@@ -127,7 +162,9 @@ describe('Projects API — /api/projects', () => {
       });
       await User.findByIdAndUpdate(student2._id, { teamId: team2._id });
 
-      const similarProjectPayload = createValidProjectPayload(team2._id, course._id, section._id, [student2._id]);
+      const similarProjectPayload = createValidProjectPayload(team2._id, course._id, section._id, [
+        student2._id,
+      ]);
       similarProjectPayload.title = 'Capstone Management System with Plagiarism Detection';
 
       await Project.create(similarProjectPayload);
@@ -324,6 +361,7 @@ describe('Projects API — /api/projects', () => {
         .send({ panelistId: panelists[2]._id.toString() });
 
       expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('MAX_PANELISTS_REACHED');
     });
 
     it('should allow instructor to remove a panelist', async () => {
@@ -550,6 +588,7 @@ describe('Projects API — /api/projects', () => {
         });
 
         expect(res.status).toBe(400);
+        expect(res.body.error.code).toBe('VALIDATION_ERROR');
       });
 
       it('should reject link with title too short', async () => {
@@ -559,6 +598,7 @@ describe('Projects API — /api/projects', () => {
         });
 
         expect(res.status).toBe(400);
+        expect(res.body.error.code).toBe('VALIDATION_ERROR');
       });
 
       it('should NOT allow link prototype during phase 1', async () => {
@@ -574,12 +614,10 @@ describe('Projects API — /api/projects', () => {
       });
 
       it('should NOT allow instructor to add a link prototype', async () => {
-        const res = await instructorAgent
-          .post(`/api/projects/${projectId}/prototypes/link`)
-          .send({
-            title: 'Faculty Link',
-            url: 'https://example.com',
-          });
+        const res = await instructorAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Faculty Link',
+          url: 'https://example.com',
+        });
 
         expect(res.status).toBe(403);
       });
@@ -624,18 +662,14 @@ describe('Projects API — /api/projects', () => {
     describe('DELETE /:id/prototypes/:prototypeId — remove prototype', () => {
       it('should remove a link prototype successfully', async () => {
         // Add a prototype first
-        const addRes = await studentAgent
-          .post(`/api/projects/${projectId}/prototypes/link`)
-          .send({
-            title: 'To Be Removed',
-            url: 'https://example.com',
-          });
+        const addRes = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'To Be Removed',
+          url: 'https://example.com',
+        });
 
         const protoId = addRes.body.data.project.prototypes[0]._id;
 
-        const res = await studentAgent.delete(
-          `/api/projects/${projectId}/prototypes/${protoId}`,
-        );
+        const res = await studentAgent.delete(`/api/projects/${projectId}/prototypes/${protoId}`);
 
         expect(res.status).toBe(200);
         expect(res.body.data.project.prototypes).toHaveLength(0);
@@ -644,20 +678,16 @@ describe('Projects API — /api/projects', () => {
       it('should return 404 for non-existent prototype ID', async () => {
         const fakeId = '663b1f1f1f1f1f1f1f1f1f1f';
 
-        const res = await studentAgent.delete(
-          `/api/projects/${projectId}/prototypes/${fakeId}`,
-        );
+        const res = await studentAgent.delete(`/api/projects/${projectId}/prototypes/${fakeId}`);
 
         expect(res.status).toBe(404);
       });
 
       it('should NOT allow instructor to remove a prototype', async () => {
-        const addRes = await studentAgent
-          .post(`/api/projects/${projectId}/prototypes/link`)
-          .send({
-            title: 'Instructor Cannot Remove',
-            url: 'https://example.com',
-          });
+        const addRes = await studentAgent.post(`/api/projects/${projectId}/prototypes/link`).send({
+          title: 'Instructor Cannot Remove',
+          url: 'https://example.com',
+        });
 
         const protoId = addRes.body.data.project.prototypes[0]._id;
 
@@ -667,6 +697,166 @@ describe('Projects API — /api/projects', () => {
 
         expect(res.status).toBe(403);
       });
+    });
+  });
+
+  /* ────────── Archive Bulk Upload ────────── */
+  describe('POST /archive/bulk — archived capstone bundle upload', () => {
+    const endpoint = '/api/projects/archive/bulk';
+    const basePayload = {
+      title: 'Archived Capstone Bundle for CMS Validation',
+      abstract: 'Legacy project brought into the archive with both final papers.',
+      keywords: 'archive,bulk-upload,legacy',
+      academicYear: '2024-2025',
+    };
+
+    it('should create one archived project with linked final academic and final journal submissions', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper.pdf')
+        .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.project.isArchived).toBe(true);
+      expect(res.body.data.project.projectStatus).toBe('archived');
+      expect(res.body.data.submissions.finalAcademic.type).toBe('final_academic');
+      expect(res.body.data.submissions.finalJournal.type).toBe('final_journal');
+
+      const projectId = res.body.data.project._id;
+      const linkedSubmissions = await Submission.find({ projectId }).sort({ type: 1 });
+
+      expect(linkedSubmissions).toHaveLength(2);
+      expect(linkedSubmissions.map((entry) => entry.type)).toEqual([
+        'final_academic',
+        'final_journal',
+      ]);
+      expect(linkedSubmissions.every((entry) => entry.version === 1)).toBe(true);
+      expect(storageService.uploadFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should reject the request when academic paper file is missing', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('DUAL_ARCHIVE_FILES_REQUIRED');
+    });
+
+    it('should reject the request when academic journal file is missing', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('DUAL_ARCHIVE_FILES_REQUIRED');
+    });
+
+    it('should reject duplicate files in the same archive field', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper-1.pdf')
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper-2.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('UNEXPECTED_FILE_FIELD');
+    });
+
+    it('should reject unexpected archive file field names', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper.pdf')
+        .attach('unexpectedArchiveFile', createPdfBuffer(), 'unexpected.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('UNEXPECTED_FILE_FIELD');
+    });
+
+    it('should reject non-instructor users', async () => {
+      const res = await studentAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', createPdfBuffer(), 'academic-paper.pdf')
+        .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should map LIMIT_FILE_SIZE to FILE_TOO_LARGE when an archive file exceeds max size', async () => {
+      const oversizedPdf = Buffer.concat([
+        Buffer.from('%PDF-1.4\n'),
+        Buffer.alloc(env.MAX_UPLOAD_SIZE_MB * 1024 * 1024 + 1, 'a'),
+      ]);
+
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear)
+        .attach('academicPaperFile', oversizedPdf, 'oversized-academic-paper.pdf')
+        .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
+
+      expect(res.status).toBe(413);
+      expect(res.body.error.code).toBe('FILE_TOO_LARGE');
+    });
+  });
+
+  /* ────────── Certificate Upload ────────── */
+  describe('POST /:id/certificate — upload completion certificate', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
+      projectId = createRes.body.data.project._id;
+    });
+
+    it('should call storageService.uploadFile with buffer-first signature', async () => {
+      storageService.uploadFile.mockClear();
+
+      await Project.findByIdAndUpdate(projectId, {
+        isArchived: true,
+        projectStatus: 'archived',
+      });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${projectId}/certificate`)
+        .attach('file', createPdfBuffer(), 'completion-certificate.pdf');
+
+      expect(res.status).toBe(201);
+      expect(storageService.uploadFile).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        expect.stringMatching(/\/certificate(s)?\//),
+        'application/pdf',
+      );
+
+      const [firstArg] = storageService.uploadFile.mock.calls.at(-1);
+      expect(Buffer.isBuffer(firstArg)).toBe(true);
     });
   });
 });

@@ -24,17 +24,17 @@ export const authService = {
 export const userService = {
   getMe: (config = {}) => api.get('/users/me', config),
   updateMe: (updatePayload) => api.patch('/users/me', updatePayload),
-  uploadAvatar: (avatarFormData) =>
-    api.post('/users/me/avatar', avatarFormData),
+  uploadAvatar: (avatarFormData) => api.post('/users/me/avatar', avatarFormData),
   listUsers: (queryParams) => api.get('/users', { params: queryParams }),
   listInstructors: () => api.get('/users/instructors'),
   createUser: (data) => api.post('/users', data),
   updateUser: (id, data) => api.patch(`/users/${id}`, data),
   changeRole: (id, data) => api.patch(`/users/${id}/role`, data),
   deleteUser: (id) => api.delete(`/users/${id}`),
-  importStudents: (formData) => api.post('/users/import-students', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  importStudents: (formData) =>
+    api.post('/users/import-students', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 /**
@@ -86,7 +86,8 @@ export const projectService = {
   // Instructor routes
   approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
   rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),
-  addTitleComment: (projectId, proposalId, data) => api.post(`/projects/${projectId}/title-proposals/${proposalId}/comments`, data),
+  addTitleComment: (projectId, proposalId, data) =>
+    api.post(`/projects/${projectId}/title-proposals/${proposalId}/comments`, data),
   resolveTitleModification: (id, data) =>
     api.post(`/projects/${id}/title/modification/resolve`, data),
   assignAdviser: (id, data) => api.post(`/projects/${id}/adviser`, data),
@@ -119,11 +120,23 @@ export const projectService = {
     }),
   getCertificateUrl: (id) => api.get(`/projects/${id}/certificate`),
   generateReport: (params) => api.get('/projects/reports', { params }),
-  bulkUploadArchive: (formData) =>
-    api.post('/projects/archive/bulk', formData, {
+  bulkUploadArchive: (payload) => {
+    const formData = payload instanceof FormData ? payload : new FormData();
+
+    if (!(payload instanceof FormData)) {
+      formData.append('title', payload.title);
+      if (payload.abstract) formData.append('abstract', payload.abstract);
+      if (payload.keywords) formData.append('keywords', payload.keywords);
+      formData.append('academicYear', payload.academicYear);
+      formData.append('academicPaperFile', payload.academicPaperFile);
+      formData.append('academicJournalFile', payload.academicJournalFile);
+    }
+
+    return api.post('/projects/archive/bulk', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
-    }),
+    });
+  },
 
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
@@ -150,4 +163,22 @@ export const academicService = {
   listAcademicYears: () => api.get('/academics/academic-years'),
   createAcademicYear: (data) => api.post('/academics/academic-years', data),
   getHierarchy: (params) => api.get('/academics/hierarchy', { params }),
+};
+
+/**
+ * Document API service — document-related operations.
+ */
+export const documentService = {
+  /**
+   * Extract title and abstract metadata from a PDF file.
+   * @param {File} file - The PDF file to extract metadata from
+   * @returns {Promise<{title: string, abstract: string, confidence: {title: number, abstract: number}}>}
+   */
+  extractPdfMetadata: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/documents/extract-pdf-metadata', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };

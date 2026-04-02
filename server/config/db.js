@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import fs from 'node:fs';
 import env from './env.js';
 
+const SRV_DNS_FAILURE_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']);
+
 const buildConnectionCandidates = (mongoUri) => {
   const candidates = [mongoUri];
 
@@ -30,13 +32,23 @@ const buildConnectionCandidates = (mongoUri) => {
   return [...new Set(candidates)];
 };
 
-/**
- * Connect to MongoDB with retry logic.
- * Logs connection events for observability.
- */
-const connectDB = async () => {
-  const candidates = buildConnectionCandidates(env.MONGODB_URI);
+const isSrvUri = (uri) => typeof uri === 'string' && uri.startsWith('mongodb+srv://');
 
+const isSrvDnsLookupFailure = (error) => {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  const errorCodes = [error?.code, error?.cause?.code]
+    .filter((code) => typeof code === 'string')
+    .map((code) => code.toUpperCase());
+
+  const hasSrvLookupSignal = message.includes('querysrv') || message.includes('_mongodb._tcp');
+  const hasSrvFailureCode =
+    errorCodes.some((code) => SRV_DNS_FAILURE_CODES.has(code)) ||
+    /econnrefused|enotfound|eai_again/i.test(message);
+
+  return hasSrvLookupSignal && hasSrvFailureCode;
+};
+
+const tryConnectCandidates = async (candidates) => {
   let lastError = null;
 
   for (const uri of candidates) {
@@ -46,10 +58,38 @@ const connectDB = async () => {
       });
 
       console.warn(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
-      lastError = null;
-      break;
+      return null;
     } catch (error) {
       lastError = error;
+    }
+  }
+
+  return lastError;
+};
+
+/**
+ * Connect to MongoDB with retry logic.
+ * Logs connection events for observability.
+ */
+const connectDB = async () => {
+  const primaryCandidates = buildConnectionCandidates(env.MONGODB_URI);
+  let lastError = await tryConnectCandidates(primaryCandidates);
+
+  if (
+    lastError &&
+    env.isDevelopment &&
+    isSrvUri(env.MONGODB_URI) &&
+    isSrvDnsLookupFailure(lastError)
+  ) {
+    const fallbackCandidates = buildConnectionCandidates(env.MONGODB_DEV_FALLBACK_URI).filter(
+      (uri) => !primaryCandidates.includes(uri),
+    );
+
+    if (fallbackCandidates.length > 0) {
+      console.warn(
+        '[db] Atlas SRV DNS lookup failed in development. Trying local MongoDB fallback URI.',
+      );
+      lastError = await tryConnectCandidates(fallbackCandidates);
     }
   }
 

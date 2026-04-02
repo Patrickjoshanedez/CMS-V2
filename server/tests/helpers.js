@@ -144,17 +144,19 @@ export async function createCourseAndSection(userId) {
 
 export function createValidProjectPayload(teamId, courseId, sectionId, members = []) {
   const leaderId = members[0] || new mongoose.Types.ObjectId();
+  const title = 'Capstone Management System with Plagiarism Checker';
   return {
     teamId,
     courseId,
     sectionId,
-    title: 'Capstone Management System with Plagiarism Checker',
+    title,
     titleProposals: [
+      title,
       'Capstone Management System with Plagiarism Checker 1',
       'Capstone Management System with Plagiarism Checker 2',
       'Capstone Management System with Plagiarism Checker 3',
       'Capstone Management System with Plagiarism Checker 4',
-      'Capstone Management System with Plagiarism Checker 5'
+      'Capstone Management System with Plagiarism Checker 5',
     ],
     abstract: 'A web-based system for managing capstone projects.',
     keywords: ['capstone', 'plagiarism', 'management'],
@@ -163,7 +165,7 @@ export function createValidProjectPayload(teamId, courseId, sectionId, members =
       userId: mId,
       professionalTitle: i === 0 ? 'Lead Developer' : 'Technical Lead / Analyst',
       traditionalRole: i === 0 ? 'Programmer' : 'Documentor',
-      responsibilities: i === 0 ? 'System Logic' : 'Research'
-    }))
+      responsibilities: i === 0 ? 'System Logic' : 'Research',
+    })),
   };
 }

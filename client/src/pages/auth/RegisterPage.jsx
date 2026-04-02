@@ -63,19 +63,22 @@ function getPasswordStrength(password) {
   if (/[^a-zA-Z0-9]/.test(password)) score++;
 
   const levels = [
-    { label: '', color: '' },
-    { label: 'Weak', color: '#ff5722' },
-    { label: 'Fair', color: '#ff9800' },
-    { label: 'Good', color: '#e91e63' },
-    { label: 'Strong', color: '#9c27b0' },
-    { label: 'Very strong', color: '#673ab7' },
+    { label: '', color: '', className: '' },
+    { label: 'Weak', color: 'hsl(var(--destructive))', className: 'text-destructive' },
+    { label: 'Fair', color: 'hsl(var(--warning))', className: 'text-warning' },
+    { label: 'Good', color: 'hsl(var(--brand-pink))', className: 'text-brand-pink' },
+    { label: 'Strong', color: 'hsl(var(--brand-purple))', className: 'text-brand-purple' },
+    { label: 'Very strong', color: 'hsl(var(--primary))', className: 'text-primary' },
   ];
 
   return { score, ...levels[score] };
 }
 
 function PasswordStrengthMeter({ password }) {
-  const { score, label, color } = useMemo(() => getPasswordStrength(password), [password]);
+  const { score, label, color, className } = useMemo(
+    () => getPasswordStrength(password),
+    [password],
+  );
 
   if (!password) return null;
 
@@ -91,9 +94,7 @@ function PasswordStrengthMeter({ password }) {
           }}
         />
       </div>
-      <p className="text-xs font-medium" style={{ color }}>
-        {label}
-      </p>
+      <p className={`text-xs font-medium ${className}`}>{label}</p>
     </div>
   );
 }
@@ -384,7 +385,7 @@ export default function RegisterPage() {
           Already have an account?{' '}
           <Link
             to="/login"
-            className="font-semibold text-[#673ab7] hover:text-[#9c27b0] transition-colors"
+            className="font-semibold text-primary hover:text-brand-purple transition-colors"
           >
             Sign in
           </Link>

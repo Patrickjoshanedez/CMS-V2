@@ -1,4 +1,0 @@
-documentation/ORCHESTRATOR_DOCUMENTATION.md
-documentation/Orchestrator Framework_ Gaps & Vision.md
-documentation/Orchestrator_v2_Implementation_Plan.md
-docs/HOOKS_CONTINUAL_LEARNING.md

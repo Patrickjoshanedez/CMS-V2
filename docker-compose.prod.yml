@@ -13,31 +13,9 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-replace_with_strong_redis_password}
+      --requirepass ${REDIS_PASSWORD?REDIS_PASSWORD is required}
     volumes:
       - redis_prod_data:/data
-
-  localstack:
-    image: localstack/localstack:latest
-    container_name: cms-localstack-prod
-    restart: unless-stopped
-    environment:
-      SERVICES: s3
-      DEBUG: ${LOCALSTACK_DEBUG:-0}
-      PERSISTENCE: 1
-      DATA_DIR: /var/lib/localstack/data
-      DEFAULT_REGION: ${S3_REGION:-us-east-1}
-      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
-      LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT: ${LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT:-1}
-    volumes:
-      - localstack_prod_data:/var/lib/localstack
-      - ./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:4566/_localstack/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 8
-      start_period: 20s
 
   server:
     build:
@@ -48,7 +26,6 @@ services:
     depends_on:
       - mongodb
       - redis
-      - localstack
       - plagiarism_api
     env_file:
       - .env.prod
@@ -58,10 +35,10 @@ services:
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/cms_v2}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-replace_with_strong_redis_password}
-      CLIENT_URL: ${CLIENT_URL:-https://cms.example.com}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change_me_access_secret}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh_secret}
+      REDIS_PASSWORD: ${REDIS_PASSWORD?REDIS_PASSWORD is required}
+      CLIENT_URL: ${CLIENT_URL?CLIENT_URL is required}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET?JWT_REFRESH_SECRET is required}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       OTP_EXPIRES_MINUTES: ${OTP_EXPIRES_MINUTES:-10}
@@ -94,6 +71,10 @@ services:
       GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
       GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID: ${GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID:-}
       GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: ${GOOGLE_DRIVE_TEMPLATE_FOLDER_ID:-}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     logging:
       driver: json-file
       options:
@@ -121,6 +102,15 @@ services:
       - server
     ports:
       - "8080:80"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
     logging:
       driver: json-file
       options:
@@ -140,12 +130,20 @@ services:
     container_name: cms-ngrok-prod
     restart: unless-stopped
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-      NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN?NGROK_AUTHTOKEN is required}
+      NGROK_DOMAIN: ${NGROK_DOMAIN?NGROK_DOMAIN is required}
+      NGROK_BASIC_AUTH: ${NGROK_BASIC_AUTH?NGROK_BASIC_AUTH is required}
     command: >
-      sh -c 'if [ -n "$$NGROK_DOMAIN" ]; then ngrok http --domain=$$NGROK_DOMAIN client:80; else ngrok http client:80; fi'
+      sh -c 'ngrok http --domain=$$NGROK_DOMAIN --basic-auth=$$NGROK_BASIC_AUTH client:80'
     depends_on:
       - client
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
 
   # === Plagiarism Detection Services (Production Configuration) ===
 
@@ -255,5 +253,4 @@ services:
 volumes:
   mongodb_prod_data:
   redis_prod_data:
-  localstack_prod_data:
   chromadb_prod_data:
