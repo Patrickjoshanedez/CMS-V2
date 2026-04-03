@@ -9,12 +9,34 @@
  */
 
 import fs from 'fs/promises';
-import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { AppError } from './AppError.js';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+async function parsePdf(dataBuffer) {
+  const pdfModule = await import('pdf-parse');
+
+  if (typeof pdfModule.default === 'function') {
+    return pdfModule.default(dataBuffer);
+  }
+
+  if (typeof pdfModule.PDFParse === 'function') {
+    const parser = new pdfModule.PDFParse({ data: dataBuffer });
+    try {
+      const parsed = await parser.getText();
+      return {
+        text: parsed?.text || '',
+        numpages: parsed?.numpages,
+      };
+    } finally {
+      await parser.destroy();
+    }
+  }
+
+  throw new AppError('Unsupported pdf-parse module shape.', 500, 'PDF_PARSE_UNSUPPORTED');
+}
 
 /**
  * Extracts text from a file based on its MIME type.
@@ -65,7 +87,7 @@ export async function extractTextFromFile(filePath, mimeType) {
  */
 async function extractFromPDF(filePath) {
   const dataBuffer = await fs.readFile(filePath);
-  const data = await pdfParse(dataBuffer);
+  const data = await parsePdf(dataBuffer);
 
   if (!data.text || data.text.trim().length === 0) {
     throw new AppError(

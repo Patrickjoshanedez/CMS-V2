@@ -10,10 +10,12 @@ services:
     image: redis:7-alpine
     container_name: cms-redis-prod
     restart: unless-stopped
-    command: >
-      redis-server
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD?REDIS_PASSWORD is required}
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD must be non-empty}
     volumes:
       - redis_prod_data:/data
 
@@ -94,8 +96,11 @@ services:
       context: .
       dockerfile: Dockerfile.client.prod
       args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_GOOGLE_ALLOWED_ORIGINS: ${VITE_GOOGLE_ALLOWED_ORIGINS:-}
+        VITE_RECAPTCHA_ENABLED: ${VITE_RECAPTCHA_ENABLED:-false}
     container_name: cms-client-prod
     restart: unless-stopped
     depends_on:
@@ -106,6 +111,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     read_only: true
     tmpfs:
       - /tmp
@@ -126,15 +135,31 @@ services:
           memory: 128M
 
   ngrok:
-    image: ngrok/ngrok:latest
+    image: ngrok/ngrok:3.37.3-alpine
     container_name: cms-ngrok-prod
     restart: unless-stopped
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN?NGROK_AUTHTOKEN is required}
-      NGROK_DOMAIN: ${NGROK_DOMAIN?NGROK_DOMAIN is required}
-      NGROK_BASIC_AUTH: ${NGROK_BASIC_AUTH?NGROK_BASIC_AUTH is required}
-    command: >
-      sh -c 'ngrok http --domain=$$NGROK_DOMAIN --basic-auth=$$NGROK_BASIC_AUTH client:80'
+    profiles:
+      - public-exposure
+    env_file:
+      - .env.prod
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        test -n "$${NGROK_AUTHTOKEN}" && test -n "$${NGROK_DOMAIN}" && test -n "$${NGROK_BASIC_AUTH}" || { echo "missing ngrok vars"; exit 1; }
+        policy_file=/tmp/ngrok-policy.yml
+        cat > "$${policy_file}" <<EOF
+        on_http_request:
+          - actions:
+              - type: "basic-auth"
+                config:
+                  realm: "cms-v2"
+                  credentials:
+                    - "$${NGROK_BASIC_AUTH}"
+                  enforce: true
+        EOF
+        exec ngrok http client:80 --url=https://$${NGROK_DOMAIN} --traffic-policy-file="$${policy_file}"
+    command: []
     depends_on:
       - client
     security_opt:
@@ -142,6 +167,8 @@ services:
     cap_drop:
       - ALL
     read_only: true
+    volumes:
+      - ngrok_prod_data:/var/lib/ngrok
     tmpfs:
       - /tmp
 
@@ -165,8 +192,8 @@ services:
       - CHROMA_PORT=8000
       - ANONYMIZED_TELEMETRY=FALSE
       - LOG_LEVEL=WARNING
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
       - LOG_JSON=true
       - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
       - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-16}
@@ -214,8 +241,8 @@ services:
       - CHROMA_PORT=8000
       - ANONYMIZED_TELEMETRY=FALSE
       - LOG_LEVEL=WARNING
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD_URLENC}@redis:6379/1
       - EMBEDDING_DEVICE=${PLAGIARISM_EMBEDDING_DEVICE:-auto}
       - EMBEDDING_BATCH_SIZE=${PLAGIARISM_EMBEDDING_BATCH_SIZE:-16}
       - OMP_NUM_THREADS=${PLAGIARISM_OMP_NUM_THREADS:-2}
@@ -254,3 +281,4 @@ volumes:
   mongodb_prod_data:
   redis_prod_data:
   chromadb_prod_data:
+  ngrok_prod_data:

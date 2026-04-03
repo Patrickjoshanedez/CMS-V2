@@ -97,6 +97,16 @@ export const rejectTitleSchema = z.object({
     .max(1000, 'Rejection reason must not exceed 1000 characters'),
 });
 
+/* ───── Add comment to a title proposal ───── */
+
+export const addTitleCommentSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(1, 'Comment must not be empty')
+    .max(1000, 'Comment must not exceed 1000 characters'),
+});
+
 /* ───── Request title modification (student action) ───── */
 
 export const requestTitleModificationSchema = z.object({

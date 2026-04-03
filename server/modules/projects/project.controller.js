@@ -29,7 +29,7 @@ export const getMyProject = catchAsync(async (req, res) => {
 
 /** GET /api/projects/:id — Get single project */
 export const getProject = catchAsync(async (req, res) => {
-  const { project } = await projectService.getProject(req.params.id);
+  const { project } = await projectService.getProject(req.params.id, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -91,6 +91,22 @@ export const rejectTitle = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Title sent back for revision.',
+    data: { project },
+  });
+});
+
+/** POST /api/projects/:id/title-proposals/:proposalId/comments — Add a comment to a title proposal */
+export const addTitleComment = catchAsync(async (req, res) => {
+  const { project } = await projectService.addTitleComment({
+    projectId: req.params.id,
+    proposalId: req.params.proposalId,
+    user: req.user,
+    text: req.body.text,
+  });
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Comment added successfully.',
     data: { project },
   });
 });

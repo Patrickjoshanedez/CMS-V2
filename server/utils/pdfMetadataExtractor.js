@@ -6,10 +6,33 @@
  */
 
 import fs from 'fs/promises';
-import pdfParse from 'pdf-parse';
 import pino from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+async function parsePdf(pdfBuffer) {
+  const pdfModule = await import('pdf-parse');
+
+  if (typeof pdfModule.default === 'function') {
+    return pdfModule.default(pdfBuffer);
+  }
+
+  if (typeof pdfModule.PDFParse === 'function') {
+    const parser = new pdfModule.PDFParse({ data: pdfBuffer });
+    try {
+      const parsed = await parser.getText();
+      return {
+        text: parsed?.text || '',
+        numpages: parsed?.numpages,
+        info: parsed?.info,
+      };
+    } finally {
+      await parser.destroy();
+    }
+  }
+
+  throw new Error('Unsupported pdf-parse module shape');
+}
 
 /**
  * Extracts title and abstract from a PDF file.
@@ -18,7 +41,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
  * @returns {Promise<{title: string, abstract: string, confidence: {title: number, abstract: number}}>}
  */
 export async function extractPdfMetadata(pdfBuffer) {
-  const data = await pdfParse(pdfBuffer);
+  const data = await parsePdf(pdfBuffer);
   const text = data.text;
 
   if (!text || text.trim().length === 0) {

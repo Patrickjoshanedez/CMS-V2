@@ -104,7 +104,9 @@ function PasswordStrengthMeter({ password }) {
  * password strength meter, gradient button, and stagger animations.
  */
 export default function RegisterPage() {
-  const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
+  const recaptchaSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim();
+  const isRecaptchaEnabled =
+    import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false' && Boolean(recaptchaSiteKey);
   const googleAuth = getGoogleAuthRuntimeConfig();
   const isGoogleLoginConfigured = googleAuth.isEnabled;
   const navigate = useNavigate();
@@ -321,7 +323,7 @@ export default function RegisterPage() {
             <div className="auth-item mb-4 flex justify-center">
               <ReCAPTCHA
                 ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                sitekey={recaptchaSiteKey}
                 theme={theme === 'dark' ? 'dark' : 'light'}
               />
             </div>

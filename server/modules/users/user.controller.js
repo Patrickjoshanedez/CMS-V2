@@ -52,6 +52,24 @@ export const updateMe = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/users/import-students - Import students from CSV (Instructor only) */
+export const importStudents = catchAsync(async (req, res) => {
+  if (!req.file || !req.body.sectionId) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: 'CSV file and sectionId are required.',
+    });
+  }
+
+  const result = await userService.importStudents(req.file.buffer, req.body.sectionId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Students imported successfully.',
+    data: result,
+  });
+});
+
 /** GET /api/users — List all users (Instructor only) */
 export const listUsers = catchAsync(async (req, res) => {
   const { users, pagination } = await userService.listUsers(req.query);

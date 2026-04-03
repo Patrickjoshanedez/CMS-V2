@@ -19,6 +19,7 @@ import {
   submitTitleSchema,
   approveTitleSchema,
   rejectTitleSchema,
+  addTitleCommentSchema,
   requestTitleModificationSchema,
   resolveTitleModificationSchema,
   assignAdviserSchema,
@@ -164,6 +165,17 @@ router.delete(
 
 /* ────── Instructor routes ────── */
 
+// Comment on a title proposal
+router.post(
+  '/:id/title-proposals/:proposalId/comments',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
+  validate(addTitleCommentSchema),
+  auditLog('project.title_proposal_commented', 'Project', {
+    getDescription: (req) => `Added comment to title proposal in project ${req.params.id}`,
+  }),
+  projectController.addTitleComment,
+);
+
 // Approve a submitted title
 router.post(
   '/:id/title/approve',
@@ -194,7 +206,7 @@ router.post(
   validate(resolveTitleModificationSchema),
   auditLog('project.title_modification_resolved', 'Project', {
     getDescription: (req) => `Resolved title modification for project ${req.params.id}`,
-    getMetadata: (req) => ({ decision: req.body.decision }),
+    getMetadata: (req) => ({ action: req.body.action }),
   }),
   projectController.resolveTitleModification,
 );
@@ -294,7 +306,11 @@ router.post('/:id/panelists/select', authorize(ROLES.PANELIST), projectControlle
 /* ────── Faculty shared routes ────── */
 
 // Get a single project (any authenticated faculty or the owning team)
-router.get('/:id', projectController.getProject);
+router.get(
+  '/:id',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  projectController.getProject,
+);
 
 // List prototypes for a project (any authenticated user)
 router.get('/:id/prototypes', projectController.getPrototypes);

@@ -1,7 +1,50 @@
+import crypto from 'crypto';
 import User from './user.model.js';
 import AppError from '../../utils/AppError.js';
+import Section from '../academics/section.model.js';
 import { ROLES } from '@cms/shared';
 import storageService from '../../services/storage.service.js';
+
+const IMPORT_PASSWORD_CHARS = {
+  upper: 'ABCDEFGHJKLMNPQRSTUVWXYZ',
+  lower: 'abcdefghijkmnopqrstuvwxyz',
+  number: '23456789',
+  symbol: '!@#$%^&*()-_=+',
+};
+
+const IMPORT_PASSWORD_POOL =
+  IMPORT_PASSWORD_CHARS.upper +
+  IMPORT_PASSWORD_CHARS.lower +
+  IMPORT_PASSWORD_CHARS.number +
+  IMPORT_PASSWORD_CHARS.symbol;
+
+function pickRandomChar(chars) {
+  return chars[crypto.randomInt(chars.length)];
+}
+
+function shuffleChars(chars) {
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
+
+function generateImportPassword(length = 16) {
+  const size = Math.max(length, 12);
+  const chars = [
+    pickRandomChar(IMPORT_PASSWORD_CHARS.upper),
+    pickRandomChar(IMPORT_PASSWORD_CHARS.lower),
+    pickRandomChar(IMPORT_PASSWORD_CHARS.number),
+    pickRandomChar(IMPORT_PASSWORD_CHARS.symbol),
+  ];
+
+  while (chars.length < size) {
+    chars.push(pickRandomChar(IMPORT_PASSWORD_POOL));
+  }
+
+  return shuffleChars(chars);
+}
 
 /**
  * UserService — Business logic for user management (CRUD).
@@ -203,6 +246,87 @@ class UserService {
     }
 
     return { user };
+  }
+
+  /**
+   * Import students from a CSV buffer.
+   * @param {Buffer} buffer
+   * @param {string} sectionId
+   */
+  async importStudents(buffer, sectionId) {
+    const csvString = buffer.toString('utf8');
+    const lines = csvString.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length === 0) throw new AppError('CSV is empty', 400);
+
+    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+    const firstNameIdx = headers.indexOf('firstname');
+    const lastNameIdx = headers.indexOf('lastname');
+    const emailIdx = headers.indexOf('email');
+    const schoolIdIdx = headers.indexOf('schoolid');
+
+    if (firstNameIdx === -1 || lastNameIdx === -1 || emailIdx === -1) {
+      throw new AppError('CSV must contain firstName, lastName, and email columns.', 400);
+    }
+
+    const section = await Section.findById(sectionId).select('_id');
+    if (!section) {
+      throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
+    }
+
+    let created = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',').map((p) => p.trim());
+      if (parts.length < headers.length) continue;
+
+      const firstName = parts[firstNameIdx];
+      const lastName = parts[lastNameIdx];
+      const email = parts[emailIdx];
+      const schoolId = schoolIdIdx !== -1 ? parts[schoolIdIdx] : undefined;
+
+      if (!email || !firstName || !lastName) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const existing = await User.findOne({ email });
+        if (existing) {
+          if (existing.role !== ROLES.STUDENT) {
+            errors.push(
+              `Row ${i + 1}: Existing account "${email}" is not a student and was not updated.`,
+            );
+            skipped++;
+            continue;
+          }
+
+          if (!existing.sectionId || existing.sectionId.toString() !== section._id.toString()) {
+            existing.sectionId = section._id;
+            await existing.save();
+          }
+          skipped++;
+        } else {
+          await User.create({
+            firstName,
+            lastName,
+            email,
+            schoolId,
+            password: generateImportPassword(),
+            role: ROLES.STUDENT,
+            sectionId: section._id,
+            isVerified: true,
+          });
+          created++;
+        }
+      } catch (err) {
+        errors.push(`Row ${i + 1}: ${err.message}`);
+        skipped++;
+      }
+    }
+
+    return { created, skipped, errors };
   }
 
   /**

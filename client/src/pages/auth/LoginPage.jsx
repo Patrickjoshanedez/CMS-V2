@@ -30,7 +30,9 @@ const getGoogleOriginMismatchMessage = () => {
  * gradient submit button, and stagger entry animation.
  */
 export default function LoginPage() {
-  const isRecaptchaEnabled = import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false';
+  const recaptchaSiteKey = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim();
+  const isRecaptchaEnabled =
+    import.meta.env.VITE_RECAPTCHA_ENABLED !== 'false' && Boolean(recaptchaSiteKey);
   const googleAuth = getGoogleAuthRuntimeConfig();
   const isGoogleLoginConfigured = googleAuth.isEnabled;
   const navigate = useNavigate();
@@ -193,7 +195,7 @@ export default function LoginPage() {
             <div className="auth-item mb-4 flex justify-center">
               <ReCAPTCHA
                 ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                sitekey={recaptchaSiteKey}
                 theme={theme === 'dark' ? 'dark' : 'light'}
               />
             </div>

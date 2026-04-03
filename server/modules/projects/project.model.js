@@ -159,6 +159,53 @@ const memberRoleAssignmentSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const titleProposalCommentSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    name: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [1000, 'Comment must not exceed 1000 characters'],
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false },
+);
+
+const titleProposalCommentThreadSchema = new mongoose.Schema(
+  {
+    proposalIndex: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    proposalTitle: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [300, 'Title proposal must not exceed 300 characters'],
+    },
+    comments: {
+      type: [titleProposalCommentSchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     teamId: {
@@ -181,6 +228,10 @@ const projectSchema = new mongoose.Schema(
         message: 'A project must include between 5 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],
+      default: [],
+    },
+    titleProposalComments: {
+      type: [titleProposalCommentThreadSchema],
       default: [],
     },
     abstract: {

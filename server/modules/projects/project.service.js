@@ -241,9 +241,10 @@ class ProjectService {
   /**
    * Get a single project by ID with populated references.
    * @param {string} projectId
+   * @param {Object} requester - Authenticated user context
    * @returns {Object} { project }
    */
-  async getProject(projectId) {
+  async getProject(projectId, requester) {
     const project = await Project.findById(projectId)
       .populate('teamId', 'name leaderId members academicYear courseId sectionId')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
@@ -251,6 +252,20 @@ class ProjectService {
 
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(requester?.role);
+    if (!isFaculty) {
+      if (requester?.role !== ROLES.STUDENT) {
+        throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
+      }
+
+      const isTeamMember = project.teamId?.members?.some(
+        (memberId) => memberId.toString() === requester._id.toString(),
+      );
+      if (!isTeamMember) {
+        throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
+      }
     }
 
     return { project };
@@ -566,6 +581,100 @@ class ProjectService {
       message: `Your project title "${project.title}" requires revisions. Reason: ${data.reason}`,
       metadata: { projectId: project._id, rejectedBy: instructorId },
     });
+
+    return { project };
+  }
+
+  /**
+   * Add a comment to a specific title proposal.
+   * Supports proposal lookup by proposal subdocument ID (legacy shape)
+   * and by numeric array index (current string-array shape).
+   *
+   * @param {Object} payload
+   * @param {string} payload.projectId
+   * @param {string} payload.proposalId
+   * @param {Object} payload.user
+   * @param {string} payload.text
+   * @returns {Object} { project }
+   */
+  async addTitleComment({ projectId, proposalId, user, text }) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+    if (proposals.length === 0) {
+      throw new AppError(
+        'No title proposals found for this project.',
+        404,
+        'TITLE_PROPOSAL_NOT_FOUND',
+      );
+    }
+
+    let proposalIndex = proposals.findIndex((proposal) => {
+      if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) return false;
+      return proposal._id?.toString?.() === proposalId;
+    });
+
+    if (proposalIndex === -1 && /^\d+$/.test(proposalId)) {
+      const parsedIndex = Number.parseInt(proposalId, 10);
+      if (parsedIndex >= 0 && parsedIndex < proposals.length) {
+        proposalIndex = parsedIndex;
+      }
+    }
+
+    if (proposalIndex === -1) {
+      throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
+    }
+
+    const proposal = proposals[proposalIndex];
+    const proposalTitle =
+      typeof proposal === 'string'
+        ? proposal.trim()
+        : typeof proposal?.title === 'string'
+          ? proposal.title.trim()
+          : '';
+
+    if (!proposalTitle) {
+      throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
+    }
+
+    const normalizedText = typeof text === 'string' ? text.trim() : '';
+    if (!normalizedText) {
+      throw new AppError('Comment must not be empty.', 400, 'INVALID_COMMENT_TEXT');
+    }
+
+    if (!Array.isArray(project.titleProposalComments)) {
+      project.titleProposalComments = [];
+    }
+
+    let thread = project.titleProposalComments.find(
+      (entry) => Number(entry.proposalIndex) === proposalIndex,
+    );
+
+    if (!thread) {
+      project.titleProposalComments.push({
+        proposalIndex,
+        proposalTitle,
+        comments: [],
+      });
+      thread = project.titleProposalComments[project.titleProposalComments.length - 1];
+    }
+
+    const displayName =
+      user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Unknown user';
+
+    thread.proposalTitle = proposalTitle;
+    thread.comments.push({
+      user: user?.id || user?._id,
+      name: displayName,
+      text: normalizedText,
+      createdAt: new Date(),
+    });
+
+    if (typeof project.markModified === 'function') {
+      project.markModified('titleProposalComments');
+    }
+
+    await project.save();
 
     return { project };
   }
