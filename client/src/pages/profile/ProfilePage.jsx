@@ -43,7 +43,11 @@ export default function ProfilePage() {
 
   const { data: sections = [], isLoading: sectionsLoading } = useSections(
     {},
-    { enabled: isStudent },
+    {
+      enabled: isStudent,
+      staleTime: 0,
+      refetchOnMount: 'always',
+    },
   );
   const { data: instructors = [], isLoading: instructorsLoading } = useInstructors({
     enabled: isStudent,

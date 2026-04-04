@@ -494,12 +494,25 @@ class SubmissionService {
 
     // --- Upload to S3 ---
     const storageKey = storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      chapter: String(chapter),
-      version: String(nextVersion),
-      uploadedBy: userId,
-    });
+    try {
+      await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+        projectId,
+        chapter: String(chapter),
+        version: String(nextVersion),
+        uploadedBy: userId,
+      });
+    } catch (error) {
+      if (error.isOperational) {
+        logger.error('[SubmissionService] Chapter upload failed:', error.code, error.message);
+        throw error;
+      }
+      logger.error('[SubmissionService] Unexpected chapter upload error:', error);
+      throw new AppError(
+        'Failed to upload chapter document. Please try again later.',
+        500,
+        'CHAPTER_UPLOAD_ERROR',
+      );
+    }
 
     const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
       user,
@@ -644,12 +657,25 @@ class SubmissionService {
 
     // --- Upload to S3 ---
     const storageKey = storageService.buildProposalKey(projectId, nextVersion, file.originalname);
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      type: 'proposal',
-      version: String(nextVersion),
-      uploadedBy: userId,
-    });
+    try {
+      await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+        projectId,
+        type: 'proposal',
+        version: String(nextVersion),
+        uploadedBy: userId,
+      });
+    } catch (error) {
+      if (error.isOperational) {
+        logger.error('[SubmissionService] Proposal upload failed:', error.code, error.message);
+        throw error;
+      }
+      logger.error('[SubmissionService] Unexpected proposal upload error:', error);
+      throw new AppError(
+        'Failed to upload proposal document. Please try again later.',
+        500,
+        'PROPOSAL_UPLOAD_ERROR',
+      );
+    }
 
     const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
       user,
@@ -777,12 +803,29 @@ class SubmissionService {
 
     // --- Upload to S3 ---
     const storageKey = buildStorageKey(projectId, nextVersion, file.originalname);
-    await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-      projectId,
-      type,
-      version: String(nextVersion),
-      uploadedBy: userId,
-    });
+    try {
+      await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+        projectId,
+        type,
+        version: String(nextVersion),
+        uploadedBy: userId,
+      });
+    } catch (error) {
+      if (error.isOperational) {
+        logger.error(
+          `[SubmissionService] Final paper (${type}) upload failed:`,
+          error.code,
+          error.message,
+        );
+        throw error;
+      }
+      logger.error(`[SubmissionService] Unexpected final paper (${type}) upload error:`, error);
+      throw new AppError(
+        'Failed to upload final paper. Please try again later.',
+        500,
+        'FINAL_PAPER_UPLOAD_ERROR',
+      );
+    }
 
     // --- Legacy Drive archive mirror (best-effort) ---
     await this._mirrorFinalToDrive({

@@ -231,7 +231,24 @@ class UserService {
    */
   async uploadAvatar(userId, buffer, mimeType) {
     const key = storageService.buildAvatarKey(userId);
-    await storageService.uploadFile(buffer, key, mimeType, { userId: userId.toString() });
+
+    try {
+      await storageService.uploadFile(buffer, key, mimeType, { userId: userId.toString() });
+    } catch (error) {
+      // If it's already an AppError from StorageService, enhance message for avatar context
+      if (error.isOperational) {
+        console.error('[UserService] Avatar upload failed:', error.code, error.message);
+        // Re-throw storage errors as-is; they already have good messages
+        throw error;
+      }
+      // Unexpected error
+      console.error('[UserService] Unexpected avatar upload error:', error);
+      throw new AppError(
+        'Failed to upload profile picture. Please try again later.',
+        500,
+        'AVATAR_UPLOAD_ERROR',
+      );
+    }
 
     const userDoc = await User.findByIdAndUpdate(userId, { profilePicture: key }, { new: true });
     if (!userDoc) {
@@ -242,6 +259,7 @@ class UserService {
     try {
       user.avatarUrl = await storageService.getSignedUrl(key, 7200);
     } catch {
+      // Avatar URL generation failed, but upload succeeded - return null URL
       user.avatarUrl = null;
     }
 

@@ -1205,11 +1205,26 @@ class ProjectService {
         file.originalname,
       );
 
-      await storageService.uploadFile(file.buffer, key, mime, {
-        projectId: project._id.toString(),
-        prototypeId: proto._id.toString(),
-        uploadedBy: userId.toString(),
-      });
+      try {
+        await storageService.uploadFile(file.buffer, key, mime, {
+          projectId: project._id.toString(),
+          prototypeId: proto._id.toString(),
+          uploadedBy: userId.toString(),
+        });
+      } catch (error) {
+        // Remove the prototype from array since upload failed
+        project.prototypes.pull(proto._id);
+        if (error.isOperational) {
+          console.error('[ProjectService] Prototype upload failed:', error.code, error.message);
+          throw error;
+        }
+        console.error('[ProjectService] Unexpected prototype upload error:', error);
+        throw new AppError(
+          'Failed to upload prototype file. Please try again later.',
+          500,
+          'PROTOTYPE_UPLOAD_ERROR',
+        );
+      }
 
       proto.storageKey = key;
       proto.fileName = file.originalname;
@@ -1421,7 +1436,20 @@ class ProjectService {
     }
 
     const storageKey = storageService.buildCertificateKey(projectId, file.originalname);
-    await storageService.uploadFile(file.buffer, storageKey, file.mimetype);
+    try {
+      await storageService.uploadFile(file.buffer, storageKey, file.mimetype);
+    } catch (error) {
+      if (error.isOperational) {
+        console.error('[ProjectService] Certificate upload failed:', error.code, error.message);
+        throw error;
+      }
+      console.error('[ProjectService] Unexpected certificate upload error:', error);
+      throw new AppError(
+        'Failed to upload certificate. Please try again later.',
+        500,
+        'CERTIFICATE_UPLOAD_ERROR',
+      );
+    }
 
     project.certificateStorageKey = storageKey;
     await project.save();
@@ -1453,8 +1481,25 @@ class ProjectService {
       );
     }
 
-    const url = await storageService.getSignedUrl(project.certificateStorageKey, 3600);
-    return { url };
+    try {
+      const url = await storageService.getSignedUrl(project.certificateStorageKey, 3600);
+      return { url };
+    } catch (error) {
+      if (error.isOperational) {
+        console.error(
+          '[ProjectService] Certificate URL generation failed:',
+          error.code,
+          error.message,
+        );
+        throw error;
+      }
+      console.error('[ProjectService] Unexpected certificate URL error:', error);
+      throw new AppError(
+        'Failed to retrieve certificate. Please try again later.',
+        500,
+        'CERTIFICATE_URL_ERROR',
+      );
+    }
   }
 
   /**
@@ -1600,19 +1645,34 @@ class ProjectService {
         academicJournalFile.originalname,
       );
 
-      await storageService.uploadFile(
-        academicPaperFile.buffer,
-        finalAcademicStorageKey,
-        academicPaperFile.validatedMime || academicPaperFile.mimetype,
-      );
-      uploadedKeys.push(finalAcademicStorageKey);
+      try {
+        await storageService.uploadFile(
+          academicPaperFile.buffer,
+          finalAcademicStorageKey,
+          academicPaperFile.validatedMime || academicPaperFile.mimetype,
+        );
+        uploadedKeys.push(finalAcademicStorageKey);
 
-      await storageService.uploadFile(
-        academicJournalFile.buffer,
-        finalJournalStorageKey,
-        academicJournalFile.validatedMime || academicJournalFile.mimetype,
-      );
-      uploadedKeys.push(finalJournalStorageKey);
+        await storageService.uploadFile(
+          academicJournalFile.buffer,
+          finalJournalStorageKey,
+          academicJournalFile.validatedMime || academicJournalFile.mimetype,
+        );
+        uploadedKeys.push(finalJournalStorageKey);
+      } catch (error) {
+        // Clean up the project record if upload failed
+        await Project.findByIdAndDelete(project._id);
+        if (error.isOperational) {
+          console.error('[ProjectService] Bulk archive upload failed:', error.code, error.message);
+          throw error;
+        }
+        console.error('[ProjectService] Unexpected bulk archive upload error:', error);
+        throw new AppError(
+          'Failed to upload archive documents. Please try again later.',
+          500,
+          'BULK_ARCHIVE_UPLOAD_ERROR',
+        );
+      }
 
       const [finalAcademicSubmission, finalJournalSubmission] = await Submission.create([
         {

@@ -10,14 +10,162 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  ListBucketsCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client from '../config/storage.js';
 import env from '../config/env.js';
+import AppError from '../utils/AppError.js';
 
 class StorageService {
   constructor() {
     this.bucket = env.S3_BUCKET;
+    this.isConfigured = this._checkConfiguration();
+  }
+
+  /**
+   * Check if S3 credentials and bucket are configured.
+   * @returns {boolean}
+   */
+  _checkConfiguration() {
+    const hasCredentials = !!(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY);
+    const hasBucket = !!this.bucket;
+    return hasCredentials && hasBucket;
+  }
+
+  /**
+   * Validate that storage is configured before performing operations.
+   * Throws AppError with helpful message if not configured.
+   */
+  _validateConfiguration() {
+    if (!this.bucket) {
+      console.error('[StorageService] S3_BUCKET not configured');
+      throw new AppError(
+        'Storage bucket is not configured. Please contact support.',
+        503,
+        'STORAGE_BUCKET_NOT_CONFIGURED',
+      );
+    }
+
+    if (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
+      console.error('[StorageService] S3 credentials not configured');
+      throw new AppError(
+        'Storage credentials are not configured. Please contact support.',
+        503,
+        'STORAGE_CREDENTIALS_NOT_CONFIGURED',
+      );
+    }
+  }
+
+  /**
+   * Map S3 SDK errors to user-friendly AppError instances.
+   * Logs detailed error for debugging while returning safe message to users.
+   *
+   * @param {Error} error - Original S3 SDK error
+   * @param {string} operation - Name of the operation that failed (for logging)
+   * @returns {AppError} User-friendly error
+   */
+  _handleS3Error(error, operation) {
+    console.error(`[StorageService] ${operation} failed:`, {
+      name: error.name,
+      code: error.code || error.Code,
+      message: error.message,
+      $metadata: error.$metadata,
+    });
+
+    // Credentials errors
+    if (
+      error.name === 'CredentialsProviderError' ||
+      error.code === 'CredentialsProviderError' ||
+      error.name === 'InvalidAccessKeyId' ||
+      error.code === 'InvalidAccessKeyId' ||
+      error.name === 'SignatureDoesNotMatch' ||
+      error.code === 'SignatureDoesNotMatch'
+    ) {
+      return new AppError(
+        'Storage authentication failed. Please contact support.',
+        503,
+        'STORAGE_CREDENTIALS_ERROR',
+      );
+    }
+
+    // Bucket errors
+    if (error.name === 'NoSuchBucket' || error.code === 'NoSuchBucket') {
+      return new AppError(
+        'Storage bucket not found. Please contact support.',
+        503,
+        'STORAGE_BUCKET_NOT_FOUND',
+      );
+    }
+
+    // Object not found
+    if (error.name === 'NoSuchKey' || error.code === 'NoSuchKey' || error.name === 'NotFound') {
+      return new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
+    }
+
+    // Access denied
+    if (error.name === 'AccessDenied' || error.code === 'AccessDenied') {
+      return new AppError(
+        'Storage access denied. Please contact support.',
+        503,
+        'STORAGE_ACCESS_DENIED',
+      );
+    }
+
+    // Network/connection errors
+    if (
+      error.name === 'NetworkingError' ||
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'ETIMEDOUT' ||
+      error.name === 'TimeoutError'
+    ) {
+      return new AppError(
+        'Storage service is temporarily unavailable. Please try again later.',
+        503,
+        'STORAGE_CONNECTION_ERROR',
+      );
+    }
+
+    // Request too large
+    if (error.name === 'EntityTooLarge' || error.code === 'EntityTooLarge') {
+      return new AppError('File is too large to upload.', 413, 'STORAGE_FILE_TOO_LARGE');
+    }
+
+    // Generic fallback
+    return new AppError(
+      'Failed to process file. Please try again later.',
+      500,
+      'STORAGE_OPERATION_ERROR',
+    );
+  }
+
+  /**
+   * Health check to verify S3 connectivity.
+   * Can be used by health endpoints or startup checks.
+   *
+   * @returns {Promise<{ healthy: boolean, message: string }>}
+   */
+  async healthCheck() {
+    if (!this.isConfigured) {
+      return {
+        healthy: false,
+        message: 'Storage not configured: missing credentials or bucket',
+      };
+    }
+
+    try {
+      // Simple connectivity test - list buckets
+      const command = new ListBucketsCommand({});
+      await s3Client.send(command);
+      return { healthy: true, message: 'S3 connection successful' };
+    } catch (error) {
+      console.error('[StorageService] Health check failed:', error.message);
+      return {
+        healthy: false,
+        message: `S3 connection failed: ${error.name}`,
+      };
+    }
   }
 
   /**
@@ -138,19 +286,30 @@ class StorageService {
    * @param {string} contentType - MIME type (e.g. 'application/pdf')
    * @param {Object} [metadata={}] - Optional metadata tags
    * @returns {Promise<{ key: string, bucket: string }>}
+   * @throws {AppError} If storage is not configured or upload fails
    */
   async uploadFile(buffer, key, contentType, metadata = {}) {
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      Metadata: metadata,
-    });
+    this._validateConfiguration();
 
-    await s3Client.send(command);
+    try {
+      const command = new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        Metadata: metadata,
+      });
 
-    return { key, bucket: this.bucket };
+      await s3Client.send(command);
+
+      return { key, bucket: this.bucket };
+    } catch (error) {
+      // If already an AppError (from validation), re-throw
+      if (error.isOperational) {
+        throw error;
+      }
+      throw this._handleS3Error(error, 'uploadFile');
+    }
   }
 
   /**
@@ -160,23 +319,33 @@ class StorageService {
    * @param {string} key - S3 object key
    * @param {number} [expiresInSeconds=300] - URL lifetime in seconds
    * @returns {Promise<string>} Pre-signed URL
+   * @throws {AppError} If storage is not configured or file not found
    */
   async getSignedUrl(key, expiresInSeconds = 300) {
-    const command = new HeadObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
+    this._validateConfiguration();
 
-    // Verify the object exists before generating the URL
-    await s3Client.send(command);
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
 
-    // Use GetObjectCommand for the actual download URL
-    const getCommand = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
+      // Verify the object exists before generating the URL
+      await s3Client.send(command);
 
-    return getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
+      // Use GetObjectCommand for the actual download URL
+      const getCommand = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+
+      return getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+      throw this._handleS3Error(error, 'getSignedUrl');
+    }
   }
 
   /**
@@ -186,21 +355,31 @@ class StorageService {
    *
    * @param {string} key - S3 object key
    * @returns {Promise<Buffer>} File content as a Buffer
+   * @throws {AppError} If storage is not configured or file not found
    */
   async downloadFile(key) {
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
+    this._validateConfiguration();
 
-    const response = await s3Client.send(command);
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
 
-    // Convert the readable stream to a Buffer
-    const chunks = [];
-    for await (const chunk of response.Body) {
-      chunks.push(chunk);
+      const response = await s3Client.send(command);
+
+      // Convert the readable stream to a Buffer
+      const chunks = [];
+      for await (const chunk of response.Body) {
+        chunks.push(chunk);
+      }
+      return Buffer.concat(chunks);
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+      throw this._handleS3Error(error, 'downloadFile');
     }
-    return Buffer.concat(chunks);
   }
 
   /**
@@ -208,14 +387,24 @@ class StorageService {
    *
    * @param {string} key - S3 object key
    * @returns {Promise<void>}
+   * @throws {AppError} If storage is not configured or deletion fails
    */
   async deleteFile(key) {
-    const command = new DeleteObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    });
+    this._validateConfiguration();
 
-    await s3Client.send(command);
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+
+      await s3Client.send(command);
+    } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
+      throw this._handleS3Error(error, 'deleteFile');
+    }
   }
 }
 
