@@ -119,6 +119,74 @@ const isDefaultLikeSecret = (rawValue) => {
   return false;
 };
 
+const S3_PLACEHOLDER_VALUES = new Set([
+  'changeme',
+  'default',
+  'dummy',
+  'example',
+  'localstack',
+  'placeholder',
+  'replace',
+  'test',
+]);
+
+const normalizeCredentialToken = (value = '') =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+
+const isPlaceholderS3Credential = (rawValue) => {
+  if (typeof rawValue !== 'string') {
+    return false;
+  }
+
+  const normalized = normalizeCredentialToken(rawValue);
+  if (!normalized) {
+    return false;
+  }
+
+  if (S3_PLACEHOLDER_VALUES.has(normalized)) {
+    return true;
+  }
+
+  if (/^(test|example|replace)[a-z0-9]*$/.test(normalized)) {
+    return true;
+  }
+
+  if (normalized.includes('localstack')) {
+    return true;
+  }
+
+  return false;
+};
+
+const validateProductionS3Credentials = () => {
+  const rawAccessKey = process.env.S3_ACCESS_KEY_ID;
+  const rawSecretKey = process.env.S3_SECRET_ACCESS_KEY;
+
+  const hasAccessKey = typeof rawAccessKey === 'string' && rawAccessKey.trim().length > 0;
+  const hasSecretKey = typeof rawSecretKey === 'string' && rawSecretKey.trim().length > 0;
+
+  if (hasAccessKey !== hasSecretKey) {
+    throw new Error(
+      'In production, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must both be set or both be empty.',
+    );
+  }
+
+  if (!hasAccessKey) {
+    return;
+  }
+
+  if (isPlaceholderS3Credential(rawAccessKey)) {
+    throw new Error('In production, S3_ACCESS_KEY_ID cannot use placeholder/test values.');
+  }
+
+  if (isPlaceholderS3Credential(rawSecretKey)) {
+    throw new Error('In production, S3_SECRET_ACCESS_KEY cannot use placeholder/test values.');
+  }
+};
+
 const validateProductionSecret = (varName, { required = true } = {}) => {
   const rawValue = process.env[varName];
 
@@ -134,11 +202,100 @@ const validateProductionSecret = (varName, { required = true } = {}) => {
   }
 };
 
+const normalizeHostname = (hostname = '') =>
+  hostname.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '').replace(/\.$/, '');
+
+const isIpv4LoopbackHost = (hostname = '') => {
+  const octets = hostname.split('.');
+  if (octets.length !== 4) {
+    return false;
+  }
+
+  const parsedOctets = octets.map((octet) => Number.parseInt(octet, 10));
+  if (
+    parsedOctets.some(
+      (value, index) =>
+        !/^\d+$/.test(octets[index]) || Number.isNaN(value) || value < 0 || value > 255,
+    )
+  ) {
+    return false;
+  }
+
+  return parsedOctets[0] === 127;
+};
+
+const isIpv6MappedLoopbackHost = (hostname = '') => {
+  const markerIndex = hostname.lastIndexOf(':ffff:');
+  if (markerIndex === -1) {
+    return false;
+  }
+
+  const prefix = hostname.slice(0, markerIndex);
+  const compactPrefix = prefix.replace(/:/g, '');
+  if (compactPrefix.length > 0 && /[^0]/.test(compactPrefix)) {
+    return false;
+  }
+
+  const mappedPart = hostname.slice(markerIndex + ':ffff:'.length);
+  if (isIpv4LoopbackHost(mappedPart)) {
+    return true;
+  }
+
+  const mappedHexWords = mappedPart.split(':');
+  if (mappedHexWords.length !== 2) {
+    return false;
+  }
+
+  if (!mappedHexWords.every((word) => /^[0-9a-f]{1,4}$/.test(word))) {
+    return false;
+  }
+
+  const upperWord = Number.parseInt(mappedHexWords[0], 16);
+  return ((upperWord >> 8) & 0xff) === 127;
+};
+
+const isIpv6LoopbackHost = (hostname = '') => {
+  if (hostname === '::1' || hostname === '0:0:0:0:0:0:0:1') {
+    return true;
+  }
+
+  return isIpv6MappedLoopbackHost(hostname);
+};
+
+const isLoopbackHost = (hostname = '') => {
+  const normalized = normalizeHostname(hostname);
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized === 'localhost' || isIpv4LoopbackHost(normalized) || isIpv6LoopbackHost(normalized)
+  );
+};
+
+const isForbiddenProductionS3Endpoint = (endpointValue) => {
+  if (typeof endpointValue !== 'string' || endpointValue.trim().length === 0) {
+    return false;
+  }
+
+  const rawEndpoint = endpointValue.trim();
+  const endpointToParse = rawEndpoint.includes('://') ? rawEndpoint : `http://${rawEndpoint}`;
+
+  try {
+    const parsed = new URL(endpointToParse);
+    const hostname = parsed.hostname.toLowerCase();
+
+    return isLoopbackHost(hostname) || hostname.includes('localstack');
+  } catch {
+    return rawEndpoint.toLowerCase().includes('localstack');
+  }
+};
+
 const isLocalhostOrigin = (origin) => {
   try {
     const parsed = new URL(origin);
     const hostname = parsed.hostname.toLowerCase();
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    return isLoopbackHost(hostname);
   } catch {
     return false;
   }
@@ -223,6 +380,14 @@ if (isProductionEnv) {
 
   for (const varName of PRODUCTION_OPTIONAL_SECRET_VARS) {
     validateProductionSecret(varName, { required: false });
+  }
+
+  validateProductionS3Credentials();
+
+  if (isForbiddenProductionS3Endpoint(process.env.S3_ENDPOINT)) {
+    throw new Error(
+      'In production, S3_ENDPOINT cannot target localhost, loopback addresses, or LocalStack hosts.',
+    );
   }
 }
 

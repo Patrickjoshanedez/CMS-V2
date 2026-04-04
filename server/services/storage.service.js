@@ -24,13 +24,43 @@ class StorageService {
   }
 
   /**
-   * Check if S3 credentials and bucket are configured.
+   * Resolve current static-credential/provider-chain configuration.
+   *
+   * @returns {{
+   *   hasStaticCredentials: boolean,
+   *   hasPartialStaticCredentials: boolean,
+   *   usesProviderChain: boolean
+   * }}
+   */
+  _getCredentialConfiguration() {
+    const accessKey = typeof env.S3_ACCESS_KEY_ID === 'string' ? env.S3_ACCESS_KEY_ID.trim() : '';
+    const secretKey =
+      typeof env.S3_SECRET_ACCESS_KEY === 'string' ? env.S3_SECRET_ACCESS_KEY.trim() : '';
+
+    const hasAccessKey = accessKey.length > 0;
+    const hasSecretKey = secretKey.length > 0;
+
+    return {
+      hasStaticCredentials: hasAccessKey && hasSecretKey,
+      hasPartialStaticCredentials: hasAccessKey !== hasSecretKey,
+      usesProviderChain: !hasAccessKey && !hasSecretKey,
+    };
+  }
+
+  /**
+   * Check if bucket and credential mode are configured.
    * @returns {boolean}
    */
   _checkConfiguration() {
-    const hasCredentials = !!(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY);
     const hasBucket = !!this.bucket;
-    return hasCredentials && hasBucket;
+    const { hasStaticCredentials, hasPartialStaticCredentials, usesProviderChain } =
+      this._getCredentialConfiguration();
+
+    if (hasPartialStaticCredentials) {
+      return false;
+    }
+
+    return hasBucket && (hasStaticCredentials || usesProviderChain);
   }
 
   /**
@@ -47,10 +77,12 @@ class StorageService {
       );
     }
 
-    if (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
-      console.error('[StorageService] S3 credentials not configured');
+    const { hasPartialStaticCredentials } = this._getCredentialConfiguration();
+
+    if (hasPartialStaticCredentials) {
+      console.error('[StorageService] S3 static credentials are partially configured');
       throw new AppError(
-        'Storage credentials are not configured. Please contact support.',
+        'Storage credentials are misconfigured. S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must both be set or both be blank.',
         503,
         'STORAGE_CREDENTIALS_NOT_CONFIGURED',
       );
@@ -219,10 +251,20 @@ class StorageService {
    * @returns {Promise<{ healthy: boolean, message: string }>}
    */
   async healthCheck() {
+    const { hasStaticCredentials, hasPartialStaticCredentials, usesProviderChain } =
+      this._getCredentialConfiguration();
+    const credentialMode = hasPartialStaticCredentials
+      ? 'invalid-static-pair'
+      : hasStaticCredentials
+        ? 'static'
+        : 'provider-chain';
+
     if (!this.isConfigured) {
       return {
         healthy: false,
-        message: 'Storage not configured: missing credentials or bucket',
+        message: 'Storage not configured: missing bucket or invalid static credential pair',
+        bucketConfigured: !!this.bucket,
+        credentialMode,
       };
     }
 
@@ -230,12 +272,13 @@ class StorageService {
       // Simple connectivity test - list buckets
       const command = new ListBucketsCommand({});
       await s3Client.send(command);
-      return { healthy: true, message: 'S3 connection successful' };
+      return { healthy: true, message: 'S3 connection successful', credentialMode };
     } catch (error) {
       console.error('[StorageService] Health check failed:', error.message);
       return {
         healthy: false,
         message: `S3 connection failed: ${error.name}`,
+        credentialMode,
       };
     }
   }

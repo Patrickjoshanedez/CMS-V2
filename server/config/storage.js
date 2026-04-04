@@ -11,16 +11,25 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import env from './env.js';
 
+const hasStaticS3Credentials =
+  typeof env.S3_ACCESS_KEY_ID === 'string' &&
+  env.S3_ACCESS_KEY_ID.trim().length > 0 &&
+  typeof env.S3_SECRET_ACCESS_KEY === 'string' &&
+  env.S3_SECRET_ACCESS_KEY.trim().length > 0;
+
 /** @type {import('@aws-sdk/client-s3').S3ClientConfig} */
 const s3Config = {
   region: env.S3_REGION,
-  credentials: {
-    accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-  },
   // forcePathStyle ensures compatibility with LocalStack (localhost:4566/bucket)
   forcePathStyle: env.S3_FORCE_PATH_STYLE,
 };
+
+if (hasStaticS3Credentials) {
+  s3Config.credentials = {
+    accessKeyId: env.S3_ACCESS_KEY_ID.trim(),
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY.trim(),
+  };
+}
 
 // Point at LocalStack (or any S3-compatible endpoint) when configured
 if (env.S3_ENDPOINT) {

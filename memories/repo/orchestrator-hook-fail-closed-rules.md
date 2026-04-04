@@ -8,3 +8,7 @@
 - Public exposure production-compose detection must be strict: require explicit `docker-compose.prod.yml` command reference and do not infer production from `--profile prod` or env-file hints alone.
 - For multiple `--env-file` flags, resolve `NGROK_AUTHTOKEN` with last-write-wins semantics in command order.
 - `NGROK_AUTHTOKEN` validation must inspect both process environment and compose env-file context, and must never log token values.
+- Production S3 endpoint validation must fail closed for localhost/localstack/loopback targets (for example: `localhost`, `127.0.0.1`, `::1`, `localstack`, `host.docker.internal`).
+- Production static S3 credential mode must reject placeholder/test/default access key and secret values.
+- Provider-chain credential mode must align with service-layer validation: when both static keys are blank, do not require static credentials.
+- LocalStack remediation workflow should be explicit and reproducible: stop production compose profile, start dev LocalStack service, verify `/_localstack/health`, then verify `awslocal s3 ls`.
