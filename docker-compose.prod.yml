@@ -146,19 +146,8 @@ services:
       - /bin/sh
       - -c
       - |
-        test -n "$${NGROK_AUTHTOKEN}" && test -n "$${NGROK_DOMAIN}" && test -n "$${NGROK_BASIC_AUTH}" || { echo "missing ngrok vars"; exit 1; }
-        policy_file=/tmp/ngrok-policy.yml
-        cat > "$${policy_file}" <<EOF
-        on_http_request:
-          - actions:
-              - type: "basic-auth"
-                config:
-                  realm: "cms-v2"
-                  credentials:
-                    - "$${NGROK_BASIC_AUTH}"
-                  enforce: true
-        EOF
-        exec ngrok http client:80 --url=https://$${NGROK_DOMAIN} --traffic-policy-file="$${policy_file}"
+        test -n "$${NGROK_AUTHTOKEN}" && test -n "$${NGROK_DOMAIN}" || { echo "missing ngrok vars"; exit 1; }
+        exec ngrok http client:80 --url=https://$${NGROK_DOMAIN}
     command: []
     depends_on:
       - client

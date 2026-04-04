@@ -12,6 +12,38 @@ import { useSections } from '@/hooks/useAcademics';
 import { useInstructors } from '@/hooks/useUsers';
 import { ROLES } from '@cms/shared';
 
+const shouldRetryAcademicLookup = (failureCount, error) => {
+  const status = error?.response?.status;
+
+  // 401/403 need user action (re-auth/permissions), not blind retries.
+  if (status === 401 || status === 403) {
+    return false;
+  }
+
+  return failureCount < 2;
+};
+
+const getAcademicLookupErrorMessage = (error, fallbackMessage) => {
+  const apiMessage = error?.response?.data?.error?.message;
+  if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
+    return apiMessage;
+  }
+
+  if (error?.response?.status === 401) {
+    return 'Your session expired. Please sign in again.';
+  }
+
+  if (error?.response?.status === 403) {
+    return 'You do not have permission to load this academic data.';
+  }
+
+  if (error?.code === 'ERR_NETWORK') {
+    return 'Cannot reach the server. Check your connection and try again.';
+  }
+
+  return fallbackMessage;
+};
+
 /**
  * ProfilePage — user profile view and edit.
  * Displays name, email, role, and profile picture.
@@ -41,16 +73,38 @@ export default function ProfilePage() {
   const [academicSaveError, setAcademicSaveError] = useState('');
   const [academicSaveSuccess, setAcademicSaveSuccess] = useState(false);
 
-  const { data: sections = [], isLoading: sectionsLoading } = useSections(
+  const {
+    data: sections = [],
+    isLoading: sectionsLoading,
+    isFetching: sectionsFetching,
+    isError: sectionsError,
+    error: sectionsQueryError,
+    refetch: refetchSections,
+  } = useSections(
     {},
     {
       enabled: isStudent,
       staleTime: 0,
       refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: true,
+      retry: shouldRetryAcademicLookup,
     },
   );
-  const { data: instructors = [], isLoading: instructorsLoading } = useInstructors({
+  const {
+    data: instructors = [],
+    isLoading: instructorsLoading,
+    isFetching: instructorsFetching,
+    isError: instructorsError,
+    error: instructorsQueryError,
+    refetch: refetchInstructors,
+  } = useInstructors({
     enabled: isStudent,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true,
+    retry: shouldRetryAcademicLookup,
   });
 
   useEffect(() => {
@@ -372,7 +426,9 @@ export default function ProfilePage() {
                   onChange={(e) => setSectionId(e.target.value)}
                   disabled={sectionsLoading || isSavingAcademic}
                 >
-                  <option value="">{sectionsLoading ? 'Loading...' : 'Select your section'}</option>
+                  <option value="">
+                    {sectionsLoading || sectionsFetching ? 'Loading...' : 'Select your section'}
+                  </option>
                   {sections.map((s) => (
                     <option key={s._id} value={s._id}>
                       {s.courseId?.code ? `[${s.courseId.code}] ` : ''}
@@ -381,6 +437,37 @@ export default function ProfilePage() {
                     </option>
                   ))}
                 </select>
+                {sectionsError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertDescription className="flex items-center justify-between gap-3">
+                      <span>
+                        {getAcademicLookupErrorMessage(
+                          sectionsQueryError,
+                          'Failed to load sections.',
+                        )}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchSections()}
+                        disabled={sectionsFetching || isSavingAcademic}
+                      >
+                        {sectionsFetching && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        Retry
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!sectionsError &&
+                  !sectionsLoading &&
+                  !sectionsFetching &&
+                  sections.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No active sections are available. Ask an instructor to create or activate a
+                      section.
+                    </p>
+                  )}
               </div>
 
               {/* Section Code (read-only, from section's own code) */}
@@ -402,7 +489,9 @@ export default function ProfilePage() {
                   disabled={instructorsLoading || isSavingAcademic}
                 >
                   <option value="">
-                    {instructorsLoading ? 'Loading...' : 'Select your instructor'}
+                    {instructorsLoading || instructorsFetching
+                      ? 'Loading...'
+                      : 'Select your instructor'}
                   </option>
                   {instructors.map((ins) => (
                     <option key={ins._id} value={ins._id}>
@@ -410,6 +499,39 @@ export default function ProfilePage() {
                     </option>
                   ))}
                 </select>
+                {instructorsError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertDescription className="flex items-center justify-between gap-3">
+                      <span>
+                        {getAcademicLookupErrorMessage(
+                          instructorsQueryError,
+                          'Failed to load instructors.',
+                        )}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchInstructors()}
+                        disabled={instructorsFetching || isSavingAcademic}
+                      >
+                        {instructorsFetching && (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        )}
+                        Retry
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!instructorsError &&
+                  !instructorsLoading &&
+                  !instructorsFetching &&
+                  instructors.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No active instructors are available. Ask your admin to activate at least one
+                      instructor account.
+                    </p>
+                  )}
               </div>
             </CardContent>
             <CardFooter className="flex-col items-start gap-3">
