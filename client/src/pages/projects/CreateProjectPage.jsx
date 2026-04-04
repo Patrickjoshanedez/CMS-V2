@@ -73,21 +73,27 @@ export default function CreateProjectPage() {
 
   const isSoloCapstoneFlow = !isTeamLoading && (!team?.members || team.members.length === 0);
 
-  const { data: sections = [], isLoading: isSectionsLoading } = useSections(
+  const {
+    data: sections = [],
+    isLoading: isSectionsLoading,
+    isError: isSectionsError,
+    refetch: refetchSections,
+  } = useSections(
     { academicYear: form.academicYear || undefined },
     { enabled: Boolean(form.academicYear) },
   );
 
-  const sectionOptions = useMemo(
-    () => sections.filter((section) => section.academicYear === form.academicYear),
-    [sections, form.academicYear],
-  );
+  // Sections are pre-filtered by academicYear via query params (line 77)
+  const sectionOptions = sections;
 
   useEffect(() => {
-    if (!form.sectionId || sectionOptions.some((section) => section._id === form.sectionId)) {
-      return;
+    // Clear sectionId when sections change AND current selection is no longer valid
+    if (form.sectionId && sectionOptions.length > 0) {
+      const isValid = sectionOptions.some((section) => section._id === form.sectionId);
+      if (!isValid) {
+        setForm((prev) => ({ ...prev, sectionId: '' }));
+      }
     }
-    setForm((prev) => ({ ...prev, sectionId: '' }));
   }, [form.sectionId, sectionOptions]);
 
   useEffect(() => {
@@ -158,8 +164,9 @@ export default function CreateProjectPage() {
     e.preventDefault();
 
     const members = teamMembers;
-    const normalizedTitleProposals = [...new Set(titleProposals.map((proposal) => proposal.trim()))]
-      .filter(Boolean);
+    const normalizedTitleProposals = [
+      ...new Set(titleProposals.map((proposal) => proposal.trim())),
+    ].filter(Boolean);
 
     if (normalizedTitleProposals.length < 5) {
       toast.error('Please provide at least 5 unique title proposals.');
@@ -414,6 +421,21 @@ export default function CreateProjectPage() {
               {/* Section */}
               <div className="space-y-2">
                 <Label htmlFor="sectionId">Section *</Label>
+                {isSectionsError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription className="flex items-center justify-between">
+                      <span>Failed to load sections.</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => refetchSections()}
+                        disabled={isSectionsLoading}
+                      >
+                        Retry
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
                 <select
                   id="sectionId"
                   name="sectionId"
@@ -421,9 +443,19 @@ export default function CreateProjectPage() {
                   onChange={handleChange}
                   required
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled={isSectionsLoading}
+                  disabled={isSectionsLoading || (isSectionsError && sectionOptions.length === 0)}
                 >
-                  <option value="">Select a section</option>
+                  <option value="">
+                    {isSectionsLoading
+                      ? 'Loading sections...'
+                      : isSectionsError
+                        ? 'Error loading sections'
+                        : !form.academicYear
+                          ? 'Please select an academic year first'
+                          : sectionOptions.length === 0
+                            ? 'No sections available for this academic year'
+                            : 'Select a section'}
+                  </option>
                   {sectionOptions.map((section) => (
                     <option key={section._id} value={section._id}>
                       {section.courseId?.code} - {section.name}

@@ -58,6 +58,69 @@ class StorageService {
   }
 
   /**
+   * Collect error names/codes/messages from nested causes.
+   * Handles wrapped SDK errors (e.g. AggregateError with inner ECONNREFUSED).
+   *
+   * @param {Error} error
+   * @returns {{ names: Set<string>, codes: Set<string>, messages: Set<string> }}
+   */
+  _collectErrorSignals(error) {
+    const queue = [error];
+    const visited = new Set();
+    const names = new Set();
+    const codes = new Set();
+    const messages = new Set();
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || typeof current !== 'object') {
+        continue;
+      }
+
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+
+      if (typeof current.name === 'string' && current.name) {
+        names.add(current.name);
+      }
+
+      const code = current.code || current.Code;
+      if (typeof code === 'string' && code) {
+        codes.add(code);
+      }
+
+      if (typeof current.message === 'string' && current.message) {
+        messages.add(current.message);
+      }
+
+      if (current.cause && typeof current.cause === 'object') {
+        queue.push(current.cause);
+      }
+
+      if (Array.isArray(current.errors)) {
+        queue.push(...current.errors);
+      }
+    }
+
+    return { names, codes, messages };
+  }
+
+  _hasSignal(signals, signalSet) {
+    return signals.some((signal) => signalSet.has(signal));
+  }
+
+  _hasMessagePattern(messages, pattern) {
+    for (const message of messages) {
+      if (pattern.test(message)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Map S3 SDK errors to user-friendly AppError instances.
    * Logs detailed error for debugging while returning safe message to users.
    *
@@ -66,21 +129,26 @@ class StorageService {
    * @returns {AppError} User-friendly error
    */
   _handleS3Error(error, operation) {
+    const { names, codes, messages } = this._collectErrorSignals(error);
+
     console.error(`[StorageService] ${operation} failed:`, {
-      name: error.name,
-      code: error.code || error.Code,
-      message: error.message,
+      names: Array.from(names),
+      codes: Array.from(codes),
+      messages: Array.from(messages),
       $metadata: error.$metadata,
     });
 
     // Credentials errors
     if (
-      error.name === 'CredentialsProviderError' ||
-      error.code === 'CredentialsProviderError' ||
-      error.name === 'InvalidAccessKeyId' ||
-      error.code === 'InvalidAccessKeyId' ||
-      error.name === 'SignatureDoesNotMatch' ||
-      error.code === 'SignatureDoesNotMatch'
+      this._hasSignal(
+        ['CredentialsProviderError', 'InvalidAccessKeyId', 'SignatureDoesNotMatch'],
+        names,
+      ) ||
+      this._hasSignal(
+        ['CredentialsProviderError', 'InvalidAccessKeyId', 'SignatureDoesNotMatch'],
+        codes,
+      ) ||
+      this._hasMessagePattern(messages, /credential|signature/i)
     ) {
       return new AppError(
         'Storage authentication failed. Please contact support.',
@@ -90,7 +158,7 @@ class StorageService {
     }
 
     // Bucket errors
-    if (error.name === 'NoSuchBucket' || error.code === 'NoSuchBucket') {
+    if (this._hasSignal(['NoSuchBucket'], names) || this._hasSignal(['NoSuchBucket'], codes)) {
       return new AppError(
         'Storage bucket not found. Please contact support.',
         503,
@@ -99,12 +167,15 @@ class StorageService {
     }
 
     // Object not found
-    if (error.name === 'NoSuchKey' || error.code === 'NoSuchKey' || error.name === 'NotFound') {
+    if (
+      this._hasSignal(['NoSuchKey', 'NotFound'], names) ||
+      this._hasSignal(['NoSuchKey', 'NotFound'], codes)
+    ) {
       return new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
     }
 
     // Access denied
-    if (error.name === 'AccessDenied' || error.code === 'AccessDenied') {
+    if (this._hasSignal(['AccessDenied'], names) || this._hasSignal(['AccessDenied'], codes)) {
       return new AppError(
         'Storage access denied. Please contact support.',
         503,
@@ -114,11 +185,12 @@ class StorageService {
 
     // Network/connection errors
     if (
-      error.name === 'NetworkingError' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'ETIMEDOUT' ||
-      error.name === 'TimeoutError'
+      this._hasSignal(['NetworkingError', 'TimeoutError', 'UnknownEndpoint'], names) ||
+      this._hasSignal(
+        ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN'],
+        codes,
+      ) ||
+      this._hasMessagePattern(messages, /fetch failed|socket|network|connect|timeout|timed out/i)
     ) {
       return new AppError(
         'Storage service is temporarily unavailable. Please try again later.',
@@ -128,7 +200,7 @@ class StorageService {
     }
 
     // Request too large
-    if (error.name === 'EntityTooLarge' || error.code === 'EntityTooLarge') {
+    if (this._hasSignal(['EntityTooLarge'], names) || this._hasSignal(['EntityTooLarge'], codes)) {
       return new AppError('File is too large to upload.', 413, 'STORAGE_FILE_TOO_LARGE');
     }
 

@@ -244,8 +244,8 @@ class UserService {
       // Unexpected error
       console.error('[UserService] Unexpected avatar upload error:', error);
       throw new AppError(
-        'Failed to upload profile picture. Please try again later.',
-        500,
+        'Profile picture upload is temporarily unavailable. Please try again later.',
+        503,
         'AVATAR_UPLOAD_ERROR',
       );
     }
