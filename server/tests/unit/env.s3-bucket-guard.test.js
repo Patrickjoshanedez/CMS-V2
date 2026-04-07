@@ -4,7 +4,7 @@ const originalEnv = { ...process.env };
 
 const BASE_PRODUCTION_ENV = Object.freeze({
   NODE_ENV: 'production',
-  MONGODB_URI: 'mongodb://example:27017/cms_v2',
+  MONGODB_URI: 'mongodb://mongodb:27017/cms_v2',
   JWT_ACCESS_SECRET: 'ProdAccessSecret123!',
   JWT_REFRESH_SECRET: 'ProdRefreshSecret123!',
   REDIS_PASSWORD: 'ProdRedisPassword123!',

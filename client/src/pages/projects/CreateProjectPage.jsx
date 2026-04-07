@@ -10,10 +10,9 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
-import { useAuthStore } from '@/stores/authStore';
 import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CAPSTONE_TITLES, CAPSTONE_TITLE_VALUES } from '@cms/shared';
+import { CAPSTONE_TITLE_VALUES } from '@cms/shared';
 
 /**
  * CreateProjectPage — Students create a new capstone project.
@@ -25,7 +24,6 @@ import { CAPSTONE_TITLES, CAPSTONE_TITLE_VALUES } from '@cms/shared';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
-const SOLO_PROFESSIONAL_TITLE = CAPSTONE_TITLES.UI_UX_DESIGNER_RESEARCHER;
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
@@ -42,7 +40,6 @@ export default function CreateProjectPage() {
   });
 
   const { data: team, isLoading: isTeamLoading } = useMyTeam();
-  const user = useAuthStore((state) => state.user);
   const { data: academicYears = [] } = useAcademicYears();
 
   const [form, setForm] = useState({
@@ -57,21 +54,17 @@ export default function CreateProjectPage() {
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
-  const [soloCapstoneConfirmed, setSoloCapstoneConfirmed] = useState(false);
 
   const teamMembers = useMemo(() => {
     if (team?.members?.length > 0) {
       return team.members;
     }
 
-    if (user?._id) {
-      return [user];
-    }
-
     return [];
-  }, [team?.members, user]);
+  }, [team?.members]);
 
-  const isSoloCapstoneFlow = !isTeamLoading && (!team?.members || team.members.length === 0);
+  const hasFinalizedTeam = Boolean(team?.members?.length > 0 && team?.isLocked);
+  const needsTeamFinalization = !isTeamLoading && !hasFinalizedTeam;
 
   const {
     data: sections = [],
@@ -80,11 +73,24 @@ export default function CreateProjectPage() {
     refetch: refetchSections,
   } = useSections(
     { academicYear: form.academicYear || undefined },
-    { enabled: Boolean(form.academicYear) },
+    { enabled: Boolean(form.academicYear), refetchOnMount: 'always' },
   );
 
   // Sections are pre-filtered by academicYear via query params (line 77)
   const sectionOptions = sections;
+
+  useEffect(() => {
+    if (academicYears.length === 0) {
+      return;
+    }
+
+    if (!academicYears.includes(form.academicYear)) {
+      setForm((prev) => ({
+        ...prev,
+        academicYear: academicYears[0],
+      }));
+    }
+  }, [academicYears, form.academicYear]);
 
   useEffect(() => {
     // Clear sectionId when sections change AND current selection is no longer valid
@@ -95,6 +101,13 @@ export default function CreateProjectPage() {
       }
     }
   }, [form.sectionId, sectionOptions]);
+
+  // Refetch sections when academic year changes to ensure newly created sections are shown
+  useEffect(() => {
+    if (form.academicYear) {
+      refetchSections();
+    }
+  }, [form.academicYear, refetchSections]);
 
   useEffect(() => {
     const members = teamMembers;
@@ -180,12 +193,12 @@ export default function CreateProjectPage() {
     }
 
     if (members.length === 0) {
-      toast.error('Add or load team/member information before creating a project.');
+      toast.error('Finalize your team before creating a proposal.');
       return;
     }
 
-    if (isSoloCapstoneFlow && !soloCapstoneConfirmed) {
-      toast.error('Confirm the solo capstone acknowledgment before continuing.');
+    if (!hasFinalizedTeam) {
+      toast.error('Finalize and lock your team before creating a proposal.');
       return;
     }
 
@@ -208,8 +221,8 @@ export default function CreateProjectPage() {
       academicYear: form.academicYear,
       sectionId: form.sectionId,
       memberRoleAssignments: assignmentPayload,
-      allowSoloCapstone: isSoloCapstoneFlow,
-      soloCapstoneConfirmed: isSoloCapstoneFlow ? soloCapstoneConfirmed : false,
+      allowSoloCapstone: false,
+      soloCapstoneConfirmed: false,
     });
   };
 
@@ -217,20 +230,6 @@ export default function CreateProjectPage() {
     setMemberRoleAssignments((prev) => ({
       ...prev,
       [memberId]: professionalTitle,
-    }));
-  };
-
-  const handleSoloCapstoneToggle = (checked) => {
-    setSoloCapstoneConfirmed(checked);
-
-    if (!isSoloCapstoneFlow || teamMembers.length === 0) {
-      return;
-    }
-
-    const soloMemberId = teamMembers[0]._id;
-    setMemberRoleAssignments((prev) => ({
-      ...prev,
-      [soloMemberId]: checked ? SOLO_PROFESSIONAL_TITLE : '',
     }));
   };
 
@@ -291,6 +290,16 @@ export default function CreateProjectPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {needsTeamFinalization && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Finalize and lock your team first. Proposal submission is only available after
+                    your team has been completed.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Title Proposals */}
               <div className="space-y-2">
                 <Label>Title Proposals * (minimum 5)</Label>
@@ -468,9 +477,8 @@ export default function CreateProjectPage() {
               <div className="space-y-2 rounded-md border p-4">
                 <Label className="text-sm font-semibold">Member Role Assignment *</Label>
                 <p className="text-xs text-muted-foreground">
-                  {isSoloCapstoneFlow
-                    ? 'Solo capstone mode is available. Assign your professional capstone title and confirm acknowledgment.'
-                    : 'Assign one professional capstone title to each team member, including yourself.'}
+                  Assign one professional capstone title to each team member after your team is
+                  finalized and locked.
                 </p>
 
                 {isTeamLoading && (
@@ -478,39 +486,6 @@ export default function CreateProjectPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading team members...
                   </div>
-                )}
-
-                {!isTeamLoading && isSoloCapstoneFlow && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="space-y-2">
-                        <p className="font-medium">
-                          Your client approved solo capstone, but confirmation is required.
-                        </p>
-                        <ul className="list-disc space-y-1 pl-5 text-xs">
-                          <li>Set weekly milestones and include adviser checkpoints.</li>
-                          <li>Keep a revision journal to track scope, risks, and decisions.</li>
-                          <li>Start with a narrow MVP to avoid overload in later chapters.</li>
-                        </ul>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {!isTeamLoading && isSoloCapstoneFlow && (
-                  <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={soloCapstoneConfirmed}
-                      onChange={(e) => handleSoloCapstoneToggle(e.target.checked)}
-                      className="mt-0.5 h-4 w-4"
-                    />
-                    <span>
-                      I confirm I will proceed as a solo capstone student and accept adviser-guided
-                      checkpoints for this project.
-                    </span>
-                  </label>
                 )}
 
                 {!isTeamLoading && teamMembers.length > 0 && (
@@ -528,7 +503,7 @@ export default function CreateProjectPage() {
                           value={memberRoleAssignments[member._id] || ''}
                           onChange={(e) => handleMemberRoleChange(member._id, e.target.value)}
                           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                          disabled={isSoloCapstoneFlow}
+                          disabled={!hasFinalizedTeam}
                           required
                         >
                           <option value="">Select professional capstone title</option>
@@ -538,15 +513,18 @@ export default function CreateProjectPage() {
                             </option>
                           ))}
                         </select>
-                        {isSoloCapstoneFlow && (
-                          <p className="text-xs text-muted-foreground">
-                            Solo capstone uses the professional title that maps to the traditional
-                            role &quot;All-Around&quot;.
-                          </p>
-                        )}
                       </div>
                     ))}
                   </div>
+                )}
+
+                {!isTeamLoading && !teamMembers.length && (
+                  <Alert>
+                    <AlertDescription>
+                      No finalized team members are available yet. Create and lock your team first
+                      to continue.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
 
@@ -555,7 +533,7 @@ export default function CreateProjectPage() {
                 <Button type="button" variant="outline" onClick={() => navigate(-1)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createProject.isPending}>
+                <Button type="submit" disabled={createProject.isPending || needsTeamFinalization}>
                   {createProject.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Project
                 </Button>

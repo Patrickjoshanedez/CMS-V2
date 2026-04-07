@@ -68,6 +68,14 @@ class SubmissionService {
       throw new AppError('You are not a member of this project team.', 403, 'NOT_TEAM_MEMBER');
     }
 
+    if (!project.teamId?.isLocked) {
+      throw new AppError(
+        'Your team must be finalized before submitting documents.',
+        400,
+        'TEAM_NOT_FINALIZED',
+      );
+    }
+
     return { user, project };
   }
 
@@ -253,7 +261,14 @@ class SubmissionService {
    * @param {'final_academic'|'final_journal'} params.type
    * @returns {Promise<{ driveFileId: string|null, driveWebViewLink: string|null, driveWebContentLink: string|null }>}
    */
-  async _mirrorFinalToDrive({ buffer, fileName, mimeType, projectId, version, type }) {
+  async _mirrorFinalToDrive({
+    buffer: _buffer,
+    fileName: _fileName,
+    mimeType: _mimeType,
+    projectId: _projectId,
+    version: _version,
+    type: _type,
+  }) {
     // Google Drive mirror intentionally disabled.
     // Keep backward-compatible payload shape for existing consumers.
     return {
@@ -984,11 +999,29 @@ class SubmissionService {
 
   /**
    * Get all submissions for a project with optional filters and pagination.
+   * Authorization: instructor, assigned adviser, assigned panelist, or project team student.
+   *
    * @param {string} projectId
    * @param {Object} query - { chapter?, status?, page, limit }
+   * @param {string} requesterId - The authenticated user's ID
    * @returns {Object} { submissions, pagination }
    */
-  async getSubmissionsByProject(projectId, query = {}) {
+  async getSubmissionsByProject(projectId, query = {}, requesterId) {
+    // Fetch project with team members for authorization check
+    const project = await Project.findById(projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    // Fetch user for authorization check
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Verify the user has permission to view this project's submissions
+    this._assertCanViewSubmission(user, project);
+
     const { chapter, status, page = 1, limit = 10 } = query;
 
     const filter = { projectId };
@@ -1019,12 +1052,30 @@ class SubmissionService {
 
   /**
    * Get the version history for a specific chapter of a project.
+   * Authorization: instructor, assigned adviser, assigned panelist, or project team student.
    * Returns all versions in descending order.
+   *
    * @param {string} projectId
    * @param {number} chapter
+   * @param {string} requesterId - The authenticated user's ID
    * @returns {Object} { submissions }
    */
-  async getChapterHistory(projectId, chapter) {
+  async getChapterHistory(projectId, chapter, requesterId) {
+    // Fetch project with team members for authorization check
+    const project = await Project.findById(projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    // Fetch user for authorization check
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Verify the user has permission to view this project's submissions
+    this._assertCanViewSubmission(user, project);
+
     const submissions = await Submission.find({ projectId, chapter })
       .sort({ version: -1 })
       .populate('submittedBy', 'firstName middleName lastName email')
@@ -1035,11 +1086,29 @@ class SubmissionService {
 
   /**
    * Get the latest submission for a specific chapter.
+   * Authorization: instructor, assigned adviser, assigned panelist, or project team student.
+   *
    * @param {string} projectId
    * @param {number} chapter
+   * @param {string} requesterId - The authenticated user's ID
    * @returns {Object} { submission } (null if no submissions exist)
    */
-  async getLatestChapterSubmission(projectId, chapter) {
+  async getLatestChapterSubmission(projectId, chapter, requesterId) {
+    // Fetch project with team members for authorization check
+    const project = await Project.findById(projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    // Fetch user for authorization check
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    // Verify the user has permission to view this project's submissions
+    this._assertCanViewSubmission(user, project);
+
     const submission = await Submission.findOne({ projectId, chapter })
       .sort({ version: -1 })
       .populate('submittedBy', 'firstName middleName lastName email')
@@ -1671,7 +1740,7 @@ class SubmissionService {
    * @param {string} userRole
    * @returns {Object} { workspace }
    */
-  async getSubmissionReviewWorkspace(submissionId, userId, userRole) {
+  async getSubmissionReviewWorkspace(submissionId, userId, _userRole) {
     const { submission } = await this.getSubmission(submissionId);
 
     const project = await Project.findById(submission.projectId).populate('teamId', 'name members');

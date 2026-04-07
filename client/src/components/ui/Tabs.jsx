@@ -63,10 +63,27 @@ export function TabsList({ children, className }) {
  * Individual tab trigger button.
  * @param {string} value - Tab identifier
  * @param {boolean} locked - When true, tab is disabled with a lock icon
+ * @param {function} onLockedClick - Called when a locked tab is clicked (for showing toast/explanation)
+ * @param {string} lockedReason - Reason why the tab is locked (for accessibility)
  */
-export function TabsTrigger({ children, value, locked = false, className }) {
+export function TabsTrigger({
+  children,
+  value,
+  locked = false,
+  onLockedClick,
+  lockedReason,
+  className,
+}) {
   const { active, setActive } = useTabsContext();
   const isActive = active === value;
+
+  const handleClick = () => {
+    if (locked) {
+      onLockedClick?.();
+    } else {
+      setActive(value);
+    }
+  };
 
   return (
     <button
@@ -74,8 +91,8 @@ export function TabsTrigger({ children, value, locked = false, className }) {
       role="tab"
       aria-selected={isActive}
       aria-disabled={locked}
-      disabled={locked}
-      onClick={() => !locked && setActive(value)}
+      title={locked ? lockedReason : undefined}
+      onClick={handleClick}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-all',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

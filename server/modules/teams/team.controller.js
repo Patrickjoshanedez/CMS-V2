@@ -104,6 +104,17 @@ export const updateGoogleDocLink = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/lock — Finalize a team (Leader only) */
+export const lockTeam = catchAsync(async (req, res) => {
+  const { team } = await teamService.lockTeam(req.params.id, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team finalized successfully.',
+    data: { team },
+  });
+});
+
 /** GET /api/teams — List all teams (Instructor/Adviser) */
 export const listTeams = catchAsync(async (req, res) => {
   const { teams, pagination } = await teamService.listTeams(req.query);

@@ -92,3 +92,34 @@ docker logs -f cms-ngrok-prod
 
 ## Google Login Note
 If Google login is enabled, add your ngrok URL to Google Cloud Console as an **Authorized JavaScript origin** for your OAuth client.
+
+## LocalStack S3 Tunnel (Testing Only)
+
+Use this mode when mobile apps or external webhooks must access LocalStack-backed S3 presigned URLs.
+
+Requirements:
+- Start the optional LocalStack testing profile in production compose.
+- Use path-style addressing (`S3_FORCE_PATH_STYLE=true`).
+- Set `S3_PUBLIC_URL` to the ngrok URL used for the LocalStack tunnel.
+
+Suggested `.env.prod` values for this mode:
+
+```env
+S3_ENDPOINT=http://localstack:4566
+S3_ACCESS_KEY_ID=test
+S3_SECRET_ACCESS_KEY=test
+S3_FORCE_PATH_STYLE=true
+S3_PUBLIC_URL=https://your-ngrok-domain.ngrok-free.app
+NGROK_LOCALSTACK_DOMAIN=your-ngrok-domain.ngrok-free.app
+```
+
+Run:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile localstack-testing up -d
+```
+
+Notes:
+- `localstack-ngrok` forwards to `localstack:4566` on the same compose network.
+- If `NGROK_LOCALSTACK_DOMAIN` is set, ngrok runs with `--domain` for a stable URL.
+- `S3_PUBLIC_URL` with `S3_FORCE_PATH_STYLE=false` is rejected by the server to prevent invalid presigned URLs.

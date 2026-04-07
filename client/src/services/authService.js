@@ -52,6 +52,7 @@ export const teamService = {
   assignMemberRole: (teamId, memberId, data) =>
     api.patch(`/teams/${teamId}/members/${memberId}/role`, data),
   updateGoogleDocLink: (teamId, data) => api.patch(`/teams/${teamId}/google-doc-link`, data),
+  lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
   listTeams: (params) => api.get('/teams', { params }),
 };
 

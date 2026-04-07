@@ -56,6 +56,9 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
   return defaultValue;
 };
 
+const isProductionLocalstackTestingEnabled = () =>
+  parseBoolean(process.env.ALLOW_PRODUCTION_LOCALSTACK_TESTING, false);
+
 const DEFAULT_S3_BUCKET = STORAGE_BUCKETS.PRIMARY_UPLOADS;
 
 const resolveS3Bucket = () => {
@@ -188,6 +191,10 @@ const validateProductionS3Credentials = () => {
     return;
   }
 
+  if (isProductionLocalstackTestingEnabled()) {
+    return;
+  }
+
   if (isPlaceholderS3Credential(rawAccessKey)) {
     throw new Error('In production, S3_ACCESS_KEY_ID cannot use placeholder/test values.');
   }
@@ -225,6 +232,76 @@ const validateProductionSecret = (varName, { required = true } = {}) => {
 
 const normalizeHostname = (hostname = '') =>
   hostname.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '').replace(/\.$/, '');
+
+const DEFAULT_LIKE_MONGO_HOST_VALUES = new Set([
+  'example',
+  'example.com',
+  'placeholder',
+  'replace',
+  'test',
+]);
+
+const isPlaceholderMongoHost = (hostname = '') => {
+  const normalized = normalizeHostname(hostname);
+
+  if (!normalized) {
+    return true;
+  }
+
+  if (DEFAULT_LIKE_MONGO_HOST_VALUES.has(normalized)) {
+    return true;
+  }
+
+  if (
+    normalized.includes('example') ||
+    normalized.includes('placeholder') ||
+    normalized.includes('replace')
+  ) {
+    return true;
+  }
+
+  if (/^test\d*$/.test(normalized)) {
+    return true;
+  }
+
+  return false;
+};
+
+const resolveMongoUri = () => {
+  const rawMongoUri =
+    typeof process.env.MONGODB_URI === 'string' ? process.env.MONGODB_URI.trim() : '';
+  const fallbackMongoUri =
+    process.env.MONGODB_DEV_FALLBACK_URI || 'mongodb://127.0.0.1:27017/cms_v2';
+
+  if (!rawMongoUri) {
+    if (isDevelopmentEnv) {
+      return fallbackMongoUri;
+    }
+
+    throw new Error('Missing required environment variable: MONGODB_URI');
+  }
+
+  try {
+    const parsedMongoUri = new URL(rawMongoUri);
+    if (isPlaceholderMongoHost(parsedMongoUri.hostname)) {
+      if (isDevelopmentEnv) {
+        return fallbackMongoUri;
+      }
+
+      throw new Error(
+        `In production, MONGODB_URI cannot use placeholder host values like "${parsedMongoUri.hostname}".`,
+      );
+    }
+
+    return rawMongoUri;
+  } catch (error) {
+    if (isDevelopmentEnv) {
+      return fallbackMongoUri;
+    }
+
+    throw new Error(`Invalid MONGODB_URI: ${error.message}`);
+  }
+};
 
 const isIpv4LoopbackHost = (hostname = '') => {
   const octets = hostname.split('.');
@@ -384,6 +461,39 @@ const isForbiddenProductionS3Endpoint = (endpointValue) => {
   }
 };
 
+const isLocalstackOrLoopbackEndpoint = (endpointValue) => {
+  if (typeof endpointValue !== 'string' || endpointValue.trim().length === 0) {
+    return false;
+  }
+
+  const rawEndpoint = endpointValue.trim();
+  const endpointToParse = rawEndpoint.includes('://') ? rawEndpoint : `http://${rawEndpoint}`;
+
+  try {
+    const parsed = new URL(endpointToParse);
+    const hostname = parsed.hostname.toLowerCase();
+    return isLoopbackHost(hostname) || hostname.includes('localstack');
+  } catch {
+    return rawEndpoint.toLowerCase().includes('localstack');
+  }
+};
+
+const validateProductionLocalstackTestingGuardrails = () => {
+  if (!isProductionLocalstackTestingEnabled()) {
+    return;
+  }
+
+  if (!isLocalstackOrLoopbackEndpoint(process.env.S3_ENDPOINT)) {
+    throw new Error(
+      'ALLOW_PRODUCTION_LOCALSTACK_TESTING=true requires S3_ENDPOINT to target LocalStack or loopback.',
+    );
+  }
+
+  if (process.env.S3_FORCE_PATH_STYLE !== 'true') {
+    throw new Error('ALLOW_PRODUCTION_LOCALSTACK_TESTING=true requires S3_FORCE_PATH_STYLE=true.');
+  }
+};
+
 const isLocalhostOrigin = (origin) => {
   try {
     const parsed = new URL(origin);
@@ -458,7 +568,7 @@ const buildAllowedOrigins = () => {
  * All env vars are accessed here — never use process.env directly in modules.
  * Throws on startup if critical vars are missing.
  */
-const requiredVars = ['MONGODB_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+const requiredVars = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
 
 for (const varName of requiredVars) {
   if (!process.env[varName]) {
@@ -475,10 +585,14 @@ if (isProductionEnv) {
     validateProductionSecret(varName, { required: false });
   }
 
+  validateProductionLocalstackTestingGuardrails();
   validateProductionS3Credentials();
   validateProductionS3Bucket();
 
-  if (isForbiddenProductionS3Endpoint(process.env.S3_ENDPOINT)) {
+  if (
+    !isProductionLocalstackTestingEnabled() &&
+    isForbiddenProductionS3Endpoint(process.env.S3_ENDPOINT)
+  ) {
     throw new Error(
       'In production, S3_ENDPOINT cannot target localhost, loopback addresses, or LocalStack hosts.',
     );
@@ -490,7 +604,7 @@ const env = Object.freeze({
   PORT: parseInt(process.env.PORT, 10) || 5000,
 
   // Database
-  MONGODB_URI: process.env.MONGODB_URI,
+  MONGODB_URI: resolveMongoUri(),
   MONGODB_DEV_FALLBACK_URI:
     process.env.MONGODB_DEV_FALLBACK_URI || 'mongodb://127.0.0.1:27017/cms_v2',
 
@@ -527,8 +641,14 @@ const env = Object.freeze({
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || (isDevelopmentEnv ? 'test' : ''),
   S3_ENDPOINT: resolveS3Endpoint(),
   S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === 'true' || isDevelopmentEnv,
+  // Public URL for presigned URLs (ngrok tunnel for external access)
+  S3_PUBLIC_URL: process.env.S3_PUBLIC_URL || '',
   ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE: parseBoolean(
     process.env.ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE,
+    false,
+  ),
+  ALLOW_PRODUCTION_LOCALSTACK_TESTING: parseBoolean(
+    process.env.ALLOW_PRODUCTION_LOCALSTACK_TESTING,
     false,
   ),
 

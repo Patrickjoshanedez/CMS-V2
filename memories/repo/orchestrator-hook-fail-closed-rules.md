@@ -21,3 +21,7 @@
 - Unknown lifecycle events may be fast-skipped only when completion intent is definitively false.
 - Add regression coverage for unknown lifecycle + task_complete token payloads to prevent bypass reintroduction.
 - For syntax verification in tracked hook directories, prefer methods that avoid bytecode churn when possible.
+- On hot paths, default command extraction to structured fields only (`include_inferred=false`) to reduce terminal progression latency.
+- Use inferred text parsing only as a bounded fallback for execution-relevant cases (`PreToolUse`, explicit `exit_code`, or execution-like tools).
+- For public-exposure policy gates, ensure text-only command payloads still run fail-closed checks through bounded inferred fallback.
+- Keep synthetic regression checks for: (A) `PreToolUse` text-only `ngrok` command blocks, (B) unknown `PostToolUse` + `exit_code` + text-only test command records pending failure.

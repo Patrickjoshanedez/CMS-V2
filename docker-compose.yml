@@ -50,7 +50,7 @@ services:
     container_name: cms-localstack
     restart: unless-stopped
     ports:
-      - "4566:4566"
+      - "127.0.0.1:4566:4566"
     environment:
       SERVICES: s3
       DEBUG: 1
@@ -67,6 +67,33 @@ services:
       timeout: 5s
       retries: 8
       start_period: 15s
+    networks:
+      - cms_network
+
+  # LocalStack S3 ngrok tunnel for external access (mobile apps, webhooks)
+  # Start with: docker compose --profile localstack-public up -d
+  localstack-ngrok:
+    image: ngrok/ngrok:latest
+    container_name: cms-localstack-ngrok
+    restart: unless-stopped
+    profiles:
+      - localstack-public
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_LOCALSTACK_DOMAIN: ${NGROK_LOCALSTACK_DOMAIN:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        test -n "$${NGROK_AUTHTOKEN}" || { echo "missing NGROK_AUTHTOKEN"; exit 1; }
+        if test -n "$${NGROK_LOCALSTACK_DOMAIN}"; then
+          exec ngrok http --domain="$${NGROK_LOCALSTACK_DOMAIN}" localstack:4566 --log=stdout
+        fi
+        exec ngrok http localstack:4566 --log=stdout
+    depends_on:
+      localstack:
+        condition: service_healthy
     networks:
       - cms_network
 
@@ -207,6 +234,8 @@ services:
       S3_ACCESS_KEY_ID: test
       S3_SECRET_ACCESS_KEY: test
       S3_FORCE_PATH_STYLE: "true"
+      # Public URL for presigned URLs (ngrok tunnel) — set via .env or leave empty
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
       # -- Plagiarism Engine -------------------------------------------------
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
       PLAGIARISM_ENGINE_TIMEOUT: "120000"

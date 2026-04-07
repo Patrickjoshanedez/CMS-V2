@@ -26,6 +26,7 @@ import {
   useReviseAndResubmit,
   useRequestTitleModification,
 } from '@/hooks/useProjects';
+import { useMyTeam } from '@/hooks/useTeams';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import {
   TITLE_STATUSES,
@@ -52,6 +53,8 @@ import {
   Clock,
   ArrowRight,
   BookOpen,
+  Lock,
+  Info,
 } from 'lucide-react';
 
 /**
@@ -68,19 +71,39 @@ import {
 
 /* ────────── Sub-components ────────── */
 
-function EmptyProjectState() {
+function EmptyProjectState({ team }) {
   const navigate = useNavigate();
+  const hasLockedTeam = Boolean(team?.members?.length > 0 && team?.isLocked);
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-      <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-      <h3 className="text-lg font-semibold">No project yet</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Create a new project to start your capstone journey.
-      </p>
-      <Button className="mt-6" onClick={() => navigate('/project/create')}>
-        <Plus className="mr-2 h-4 w-4" />
-        Create Project
-      </Button>
+    <div className="space-y-4">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+        <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+        <h3 className="text-lg font-semibold">No project yet</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Create a new project to start your capstone journey.
+        </p>
+
+        {!hasLockedTeam ? (
+          <div className="mt-6 space-y-4 max-w-md">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Finalize and lock your team first before creating a project.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={() => navigate('/team')}>
+              <Users className="mr-2 h-4 w-4" />
+              Go to My Team
+            </Button>
+          </div>
+        ) : (
+          <Button className="mt-6" onClick={() => navigate('/project/create')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Project
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -540,6 +563,166 @@ function PanelistsPendingCard() {
   );
 }
 
+/**
+ * TitlePendingCard — shows workflow status when title is not yet approved.
+ * Displays different messages based on title status:
+ * - DRAFT: "Submit your title for review"
+ * - SUBMITTED: "Your title is under review. Please wait for approval."
+ * - REVISION_REQUIRED: "Your title needs revision. Please address the feedback."
+ */
+function TitlePendingCard({ titleStatus }) {
+  const configs = {
+    [TITLE_STATUSES.DRAFT]: {
+      icon: Edit3,
+      title: 'Submit Your Title for Review',
+      description:
+        'Your project title is currently in draft. Edit your title details and submit it for instructor approval to unlock the chapter submission workflow.',
+      bgClass: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30',
+      iconClass: 'text-blue-600 dark:text-blue-400',
+      textClass: 'text-blue-800 dark:text-blue-200',
+      descClass: 'text-blue-700 dark:text-blue-300',
+    },
+    [TITLE_STATUSES.SUBMITTED]: {
+      icon: Clock,
+      title: 'Title Under Review',
+      description:
+        "Your title has been submitted and is awaiting instructor approval. You'll be notified once a decision is made. Chapter submissions will unlock after approval.",
+      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
+      iconClass: 'text-amber-600 dark:text-amber-400',
+      textClass: 'text-amber-800 dark:text-amber-200',
+      descClass: 'text-amber-700 dark:text-amber-300',
+    },
+    [TITLE_STATUSES.REVISION_REQUIRED]: {
+      icon: AlertTriangle,
+      title: 'Title Revision Required',
+      description:
+        'The instructor has requested changes to your title. Please address the feedback and resubmit your revised title below.',
+      bgClass: 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30',
+      iconClass: 'text-orange-600 dark:text-orange-400',
+      textClass: 'text-orange-800 dark:text-orange-200',
+      descClass: 'text-orange-700 dark:text-orange-300',
+    },
+    [TITLE_STATUSES.PENDING_MODIFICATION]: {
+      icon: Clock,
+      title: 'Modification Request Pending',
+      description:
+        'Your title modification request is being reviewed by the instructor. Please wait for approval.',
+      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
+      iconClass: 'text-amber-600 dark:text-amber-400',
+      textClass: 'text-amber-800 dark:text-amber-200',
+      descClass: 'text-amber-700 dark:text-amber-300',
+    },
+  };
+
+  const config = configs[titleStatus];
+  if (!config) return null;
+
+  const IconComponent = config.icon;
+
+  return (
+    <Card className={config.bgClass}>
+      <CardContent className="flex items-start gap-3 pt-6">
+        <IconComponent className={`mt-0.5 h-5 w-5 shrink-0 ${config.iconClass}`} />
+        <div className="space-y-2">
+          <p className={`text-sm font-semibold ${config.textClass}`}>{config.title}</p>
+          <p className={`text-sm ${config.descClass}`}>{config.description}</p>
+          {titleStatus !== TITLE_STATUSES.APPROVED && (
+            <div className="mt-3 flex items-center gap-2 rounded-md bg-white/60 dark:bg-black/20 px-3 py-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Chapter submissions are locked until your title is approved and panelists are
+                assigned.
+              </span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * WorkflowPrerequisiteBanner — prominent banner explaining the workflow
+ * when the title is not yet approved.
+ */
+function WorkflowPrerequisiteBanner({ titleStatus, hasPanelists }) {
+  // Only show when title is not approved or when approved but no panelists
+  if (titleStatus === TITLE_STATUSES.APPROVED && hasPanelists) return null;
+
+  const getStep = () => {
+    if (titleStatus === TITLE_STATUSES.DRAFT) return 1;
+    if (titleStatus === TITLE_STATUSES.SUBMITTED) return 2;
+    if (titleStatus === TITLE_STATUSES.REVISION_REQUIRED) return 1;
+    if (titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists) return 3;
+    return 1;
+  };
+
+  const currentStep = getStep();
+
+  const steps = [
+    {
+      num: 1,
+      label: 'Submit Title',
+      completed:
+        titleStatus !== TITLE_STATUSES.DRAFT && titleStatus !== TITLE_STATUSES.REVISION_REQUIRED,
+    },
+    { num: 2, label: 'Get Approved', completed: titleStatus === TITLE_STATUSES.APPROVED },
+    {
+      num: 3,
+      label: 'Panelists Assigned',
+      completed: titleStatus === TITLE_STATUSES.APPROVED && hasPanelists,
+    },
+  ];
+
+  return (
+    <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Info className="h-5 w-5 text-primary" />
+          <h4 className="font-semibold text-primary">Complete These Steps to Unlock Chapters</h4>
+        </div>
+        <div className="flex items-center justify-between">
+          {steps.map((step, idx) => (
+            <div key={step.num} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                    step.completed
+                      ? 'bg-green-500 text-white'
+                      : currentStep === step.num
+                        ? 'bg-primary text-white'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {step.completed ? <CheckCircle2 className="h-4 w-4" /> : step.num}
+                </div>
+                <span
+                  className={`mt-2 text-xs font-medium ${
+                    step.completed
+                      ? 'text-green-600 dark:text-green-400'
+                      : currentStep === step.num
+                        ? 'text-primary'
+                        : 'text-muted-foreground'
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
+              {idx < steps.length - 1 && (
+                <div
+                  className={`mx-4 h-0.5 w-16 sm:w-24 ${
+                    step.completed ? 'bg-green-500' : 'bg-muted'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Actions section selector ────────── */
 
 function TitleActionsSection({ project }) {
@@ -744,6 +927,7 @@ function NextStepCard({ project, submissions }) {
 export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
   const { data: project, isLoading, error } = useMyProject();
+  const { data: team, isLoading: isTeamLoading } = useMyTeam();
 
   const { data: submissions } = useProjectSubmissions(
     project?._id,
@@ -764,10 +948,43 @@ export default function MyProjectPage() {
 
   // Derived unlock conditions
   const hasPanelists = project?.panelistIds?.length > 0;
-  const capstone1Unlocked = project?.titleStatus === TITLE_STATUSES.APPROVED && hasPanelists;
+  const titleStatus = project?.titleStatus;
+  const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
+  const capstone1Unlocked = titleApproved && hasPanelists;
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
   const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+
+  // Get the reason why a tab is locked
+  const getLockedReason = (tabName) => {
+    if (tabName === 'capstone_1') {
+      if (!titleApproved) {
+        return 'Your title must be approved before you can access Capstone 1.';
+      }
+      if (!hasPanelists) {
+        return 'Waiting for instructor to assign panelists before you can proceed.';
+      }
+    }
+    if (tabName === 'capstone_2') {
+      return 'Complete Capstone 1 to unlock Capstone 2.';
+    }
+    if (tabName === 'capstone_3') {
+      return 'Complete Capstone 2 to unlock Capstone 3.';
+    }
+    if (tabName === 'final') {
+      return 'Complete Capstone 3 to unlock Final Defense.';
+    }
+    return 'This tab is currently locked.';
+  };
+
+  // Handle clicks on locked tabs
+  const handleLockedTabClick = (tabName) => {
+    const reason = getLockedReason(tabName);
+    toast.info(reason, {
+      icon: <Lock className="h-4 w-4" />,
+      description: 'Complete the required prerequisites to unlock this section.',
+    });
+  };
 
   // Auto-advance to the highest unlocked tab on first load
   const getDefaultTab = () => {
@@ -795,7 +1012,9 @@ export default function MyProjectPage() {
           </div>
         )}
 
-        {error && !isLoading && error.response?.status === 404 && <EmptyProjectState />}
+        {error && !isLoading && error.response?.status === 404 && (
+          <EmptyProjectState team={isTeamLoading ? null : team} />
+        )}
 
         {error && !isLoading && error.response?.status !== 404 && (
           <Alert variant="destructive">
@@ -806,11 +1025,11 @@ export default function MyProjectPage() {
           </Alert>
         )}
 
-        {project && !isLoading && project.projectStatus === PROJECT_STATUSES.REJECTED && (
+        {project && !isLoading && !error && project.projectStatus === PROJECT_STATUSES.REJECTED && (
           <RejectedProjectState project={project} />
         )}
 
-        {project && !isLoading && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+        {project && !isLoading && !error && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
           <>
             {/* Phase stepper — always visible above tabs */}
             <WorkflowPhaseTracker project={project} />
@@ -819,16 +1038,36 @@ export default function MyProjectPage() {
             <Tabs defaultValue={getDefaultTab()}>
               <TabsList>
                 <TabsTrigger value="proposal">Proposal</TabsTrigger>
-                <TabsTrigger value="capstone_1" locked={!capstone1Unlocked}>
+                <TabsTrigger
+                  value="capstone_1"
+                  locked={!capstone1Unlocked}
+                  lockedReason={getLockedReason('capstone_1')}
+                  onLockedClick={() => handleLockedTabClick('capstone_1')}
+                >
                   Capstone 1
                 </TabsTrigger>
-                <TabsTrigger value="capstone_2" locked={!capstone2Unlocked}>
+                <TabsTrigger
+                  value="capstone_2"
+                  locked={!capstone2Unlocked}
+                  lockedReason={getLockedReason('capstone_2')}
+                  onLockedClick={() => handleLockedTabClick('capstone_2')}
+                >
                   Capstone 2
                 </TabsTrigger>
-                <TabsTrigger value="capstone_3" locked={!capstone3Unlocked}>
+                <TabsTrigger
+                  value="capstone_3"
+                  locked={!capstone3Unlocked}
+                  lockedReason={getLockedReason('capstone_3')}
+                  onLockedClick={() => handleLockedTabClick('capstone_3')}
+                >
                   Capstone 3
                 </TabsTrigger>
-                <TabsTrigger value="final" locked={!finalUnlocked}>
+                <TabsTrigger
+                  value="final"
+                  locked={!finalUnlocked}
+                  lockedReason={getLockedReason('final')}
+                  onLockedClick={() => handleLockedTabClick('final')}
+                >
                   Final Defense
                 </TabsTrigger>
               </TabsList>
@@ -836,11 +1075,25 @@ export default function MyProjectPage() {
               {/* ── Proposal Tab ── */}
               <TabsContent value="proposal">
                 {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+
+                {/* Show workflow prerequisite banner when title not yet approved or no panelists */}
+                {(!titleApproved || !hasPanelists) && (
+                  <WorkflowPrerequisiteBanner
+                    titleStatus={titleStatus}
+                    hasPanelists={hasPanelists}
+                  />
+                )}
+
+                {/* Show TitlePendingCard for non-approved title states (placed above ProjectInfoCard) */}
+                {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (
+                  <TitlePendingCard titleStatus={titleStatus} />
+                )}
+
                 <ProjectInfoCard project={project} />
                 <TitleActionsSection project={project} />
-                {project.titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists && (
-                  <PanelistsPendingCard />
-                )}
+
+                {/* Show PanelistsPendingCard when title approved but no panelists */}
+                {titleApproved && !hasPanelists && <PanelistsPendingCard />}
               </TabsContent>
 
               {/* ── Capstone 1 Tab ── */}
@@ -850,7 +1103,7 @@ export default function MyProjectPage() {
                   project={project}
                   submissions={submissions}
                   chapters={[1, 2, 3]}
-                  showUploadButton={project.titleStatus === TITLE_STATUSES.APPROVED}
+                  showUploadButton={titleApproved}
                 />
                 {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
                 <EvaluationPanel projectId={project._id} defenseType="proposal" />
@@ -869,7 +1122,7 @@ export default function MyProjectPage() {
                   project={project}
                   submissions={submissions}
                   chapters={[4, 5]}
-                  showUploadButton={project.titleStatus === TITLE_STATUSES.APPROVED}
+                  showUploadButton={titleApproved}
                 />
                 <EvaluationPanel projectId={project._id} defenseType="paper" />
               </TabsContent>

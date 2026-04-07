@@ -122,6 +122,44 @@ class TeamService {
   }
 
   /**
+   * Finalize a team by locking it against further membership changes.
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @returns {Object} { team }
+   */
+  async lockTeam(teamId, leaderId) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId.toString() !== leaderId.toString()) {
+      throw new AppError('Only the team leader can finalize the team.', 403, 'FORBIDDEN');
+    }
+
+    if (team.isLocked) {
+      throw new AppError('This team is already finalized.', 409, 'TEAM_ALREADY_LOCKED');
+    }
+
+    if (!team.members || team.members.length === 0) {
+      throw new AppError(
+        'A team must have at least one member before it can be finalized.',
+        400,
+        'TEAM_EMPTY',
+      );
+    }
+
+    team.isLocked = true;
+    await team.save();
+
+    const populatedTeam = await Team.findById(team._id)
+      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate('members', 'firstName middleName lastName email profilePicture role');
+
+    return { team: populatedTeam };
+  }
+
+  /**
    * Get the authenticated student's team with populated members.
    * @param {string} userId
    * @returns {Object} { team }
@@ -144,7 +182,17 @@ class TeamService {
       .populate('members', 'firstName middleName lastName email profilePicture role');
 
     if (!team) {
+      user.teamId = null;
+      await user.save({ validateBeforeSave: false });
       throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    const isMember = team.members?.some((member) => member?._id?.toString() === userId.toString());
+    if (!isMember) {
+      // Fail closed: stale or corrupted user.teamId must not grant access.
+      user.teamId = null;
+      await user.save({ validateBeforeSave: false });
+      throw new AppError('You are not a member of any team.', 404, 'NO_TEAM');
     }
 
     const currentProject = await Project.findOne({ teamId: team._id })

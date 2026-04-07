@@ -164,3 +164,14 @@ export function useUpdateGoogleDocLink(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Finalize a team by locking it.
+ * @param {Object} params — { teamId: string }
+ */
+export function useLockTeam(options = {}) {
+  return useTeamMutation(async ({ teamId }) => {
+    const res = await teamService.lockTeam(teamId);
+    return res.data;
+  }, options);
+}

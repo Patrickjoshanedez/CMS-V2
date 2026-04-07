@@ -127,12 +127,15 @@ export default function ProjectSubmissionsPage() {
 
   const [chapterFilter, setChapterFilter] = useState('');
 
+  // Non-students (advisers, instructors, panelists) should access submissions
+  // through the Projects page, not this student-specific route.
+  // We check this early and return before calling useMyProject() which would fail for them.
   const {
     data: project,
     isLoading: projectLoading,
     error: projectError,
     refetch: refetchProject,
-  } = useMyProject();
+  } = useMyProject({ enabled: isStudent });
 
   const filters = {};
   if (chapterFilter) filters.chapter = chapterFilter;
@@ -158,6 +161,26 @@ export default function ProjectSubmissionsPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  /* ────── Non-Student Redirect ────── */
+  // Advisers, instructors, and panelists should view submissions via the Projects page
+  if (!isStudent) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+          <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">Access Submissions via Projects</h3>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            As a faculty member, you can view submissions by selecting a project from the Projects
+            page.
+          </p>
+          <Button className="mt-6" onClick={() => navigate('/projects')}>
+            Go to Projects
+          </Button>
         </div>
       </DashboardLayout>
     );

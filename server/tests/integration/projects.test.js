@@ -9,7 +9,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { vi } from 'vitest';
 import {
   createAuthenticatedUserWithRole,
-  request,
   createCourseAndSection,
   createValidProjectPayload,
 } from '../helpers.js';
@@ -71,7 +70,7 @@ describe('Projects API — /api/projects', () => {
   // Agents with persistent auth cookies
   let studentAgent, studentUser;
   let instructorAgent, instructorUser;
-  let adviserAgent, adviserUser;
+  let adviserUser;
   let panelistAgent, panelistUser;
   let team;
   let course;
@@ -91,7 +90,7 @@ describe('Projects API — /api/projects', () => {
         name: 'Instructor One',
       },
     ));
-    ({ agent: adviserAgent, user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
+    ({ user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
       email: 'adviser1@test.com',
       name: 'Adviser One',
     }));
@@ -128,6 +127,15 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.title).toBe(validProjectPayload.title);
       expect(res.body.data.project.titleStatus).toBe('draft');
       expect(res.body.data.project.projectStatus).toBe('active');
+    });
+
+    it('should reject project creation when team is not finalized (unlocked)', async () => {
+      await Team.findByIdAndUpdate(team._id, { isLocked: false });
+
+      const res = await studentAgent.post('/api/projects').send(validProjectPayload);
+
+      expect(res.status).toBe(400);
+      expect(res.body?.error?.code).toBe('TEAM_NOT_FINALIZED');
     });
 
     it('should reject creation from instructor role', async () => {

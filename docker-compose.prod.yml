@@ -55,6 +55,7 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
       ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE: ${ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE:-false}
 
       # === Plagiarism Detection (Production Thresholds) ===
@@ -305,8 +306,76 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  # === Optional LocalStack for Production-Like Testing ===
+  # Use this when you need to test with S3 locally but exposed publicly via ngrok.
+  # Start with: docker compose -f docker-compose.prod.yml --profile localstack-testing up -d
+
+  localstack:
+    image: localstack/localstack:2.0.2
+    container_name: cms-localstack-prod
+    restart: unless-stopped
+    profiles:
+      - localstack-testing
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      SERVICES: s3
+      DEBUG: 0
+      DATA_DIR: /var/lib/localstack/data
+      DEFAULT_REGION: ${S3_REGION:-us-east-1}
+    volumes:
+      - localstack_prod_data:/var/lib/localstack
+      - ./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
+    healthcheck:
+      test: [ "CMD", "curl", "-s", "-f", "http://localhost:4566/_localstack/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # LocalStack S3 ngrok tunnel for external access (mobile apps, webhooks)
+  # Provides a public URL for S3 presigned URLs to work from external devices.
+  # Get the URL from: docker logs cms-localstack-ngrok-prod
+  localstack-ngrok:
+    image: ngrok/ngrok:latest
+    container_name: cms-localstack-ngrok-prod
+    restart: unless-stopped
+    profiles:
+      - localstack-testing
+    env_file:
+      - .env.prod
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        test -n "$${NGROK_AUTHTOKEN}" || { echo "missing NGROK_AUTHTOKEN"; exit 1; }
+        if test -n "$${NGROK_LOCALSTACK_DOMAIN}"; then
+          exec ngrok http --domain="$${NGROK_LOCALSTACK_DOMAIN}" localstack:4566 --log=stdout
+        fi
+        exec ngrok http localstack:4566 --log=stdout
+    depends_on:
+      localstack:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
 volumes:
   mongodb_prod_data:
   redis_prod_data:
   chromadb_prod_data:
   ngrok_prod_data:
+  localstack_prod_data:

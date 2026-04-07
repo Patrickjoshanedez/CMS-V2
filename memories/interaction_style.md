@@ -25,3 +25,7 @@
 - Treat each user request as an absolute completion target, not a best-effort attempt.
 - Do not stop on first failure. Try at least one additional viable approach before declaring a blocker.
 - If still blocked, report the exact failed attempts, evidence, and the shortest path to unblock.
+
+## User Workflow Preference
+
+- For Docker updates limited to app code, rebuild/recreate only changed services (default: `server` and `client`) and avoid rebuilding `plagiarism_api`/`plagiarism_worker` unless explicitly requested or required by dependency-impact evidence.

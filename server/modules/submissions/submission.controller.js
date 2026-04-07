@@ -95,6 +95,7 @@ export const getSubmissionsByProject = catchAsync(async (req, res) => {
   const { submissions, pagination } = await submissionService.getSubmissionsByProject(
     req.params.projectId,
     req.query,
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -108,6 +109,7 @@ export const getChapterHistory = catchAsync(async (req, res) => {
   const { submissions } = await submissionService.getChapterHistory(
     req.params.projectId,
     Number(req.params.chapter),
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({
@@ -121,6 +123,7 @@ export const getLatestChapterSubmission = catchAsync(async (req, res) => {
   const { submission } = await submissionService.getLatestChapterSubmission(
     req.params.projectId,
     Number(req.params.chapter),
+    req.user.id,
   );
 
   res.status(HTTP_STATUS.OK).json({

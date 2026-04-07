@@ -252,8 +252,11 @@ class StorageService {
    * @returns {Promise<{ healthy: boolean, message: string }>}
    */
   async healthCheck() {
-    const { hasStaticCredentials, hasPartialStaticCredentials, usesProviderChain } =
-      this._getCredentialConfiguration();
+    const {
+      hasStaticCredentials,
+      hasPartialStaticCredentials,
+      usesProviderChain: _usesProviderChain,
+    } = this._getCredentialConfiguration();
     const credentialMode = hasPartialStaticCredentials
       ? 'invalid-static-pair'
       : hasStaticCredentials
@@ -432,6 +435,9 @@ class StorageService {
    * Generate a temporary pre-signed URL for viewing/downloading a file.
    * URL expires after the specified duration (default 5 minutes).
    *
+   * If S3_PUBLIC_URL is configured (e.g., ngrok tunnel), the presigned URL
+   * endpoint is replaced with the public URL so external clients can access it.
+   *
    * @param {string} key - S3 object key
    * @param {number} [expiresInSeconds=300] - URL lifetime in seconds
    * @returns {Promise<string>} Pre-signed URL
@@ -455,7 +461,31 @@ class StorageService {
         Key: key,
       });
 
-      return getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
+      const publicUrl = env.S3_PUBLIC_URL?.trim();
+      if (publicUrl && !env.S3_FORCE_PATH_STYLE) {
+        throw new AppError(
+          'Storage is misconfigured for public S3 access. Set S3_FORCE_PATH_STYLE=true when S3_PUBLIC_URL is used.',
+          503,
+          'STORAGE_PATH_STYLE_REQUIRED',
+        );
+      }
+
+      let signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: expiresInSeconds });
+
+      // Replace internal endpoint with public URL if configured (for ngrok/external access)
+      if (publicUrl && env.S3_ENDPOINT) {
+        // Replace the internal endpoint (e.g., http://localstack:4566) with the public URL
+        // Handle both Docker internal URLs and localhost URLs
+        const internalEndpoint = env.S3_ENDPOINT.trim();
+        if (signedUrl.startsWith(internalEndpoint)) {
+          signedUrl = signedUrl.replace(internalEndpoint, publicUrl);
+        } else if (signedUrl.includes('localstack:')) {
+          // Handle Docker internal hostname when S3_ENDPOINT uses localhost
+          signedUrl = signedUrl.replace(/http:\/\/localstack:\d+/, publicUrl);
+        }
+      }
+
+      return signedUrl;
     } catch (error) {
       if (error.isOperational) {
         throw error;

@@ -50,7 +50,7 @@ export const listAcademicYears = catchAsync(async (_req, res) => {
 });
 
 export const createAcademicYear = catchAsync(async (req, res) => {
-  const { academicYear } = await academicService.createAcademicYear(req.user._id, req.body.year);
+  const { academicYear } = await academicService.createAcademicYear(req.user._id, req.body);
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,

@@ -30,6 +30,7 @@ import {
   useAcceptInvite,
   useAssignMemberRole,
   useUpdateGoogleDocLink,
+  useLockTeam,
 } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -462,6 +463,12 @@ function StudentTeamDetail({ team, userId }) {
       toast.error(err?.response?.data?.error?.message || 'Failed to update team Google Docs link.'),
   });
 
+  const lockTeam = useLockTeam({
+    onSuccess: () => toast.success('Team finalized successfully.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
+  });
+
   useEffect(() => {
     setGoogleDocUrlInput(team.googleDocUrl || '');
   }, [team.googleDocUrl]);
@@ -488,6 +495,15 @@ function StudentTeamDetail({ team, userId }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!team.isLocked && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Finalize and lock your team before creating a proposal.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Members List */}
           <div>
             <p className="mb-2 text-sm font-medium text-muted-foreground">Team Document</p>
@@ -657,6 +673,27 @@ function StudentTeamDetail({ team, userId }) {
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />
             </div>
+          )}
+
+          {isLeader && !team.isLocked && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={() => lockTeam.mutate({ teamId: team._id })}
+                disabled={lockTeam.isPending}
+              >
+                {lockTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Finalize Team
+              </Button>
+            </div>
+          )}
+
+          {team.isLocked && (
+            <Alert>
+              <AlertDescription>
+                This team is finalized and locked. Proposal submission is now available.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
@@ -928,6 +965,24 @@ function FacultyTeamsView() {
           Search
         </Button>
       </form>
+
+      <div className="space-y-2">
+        <Label htmlFor="teamQuickSelect">Quick Team Select</Label>
+        <select
+          id="teamQuickSelect"
+          value={selectedTeamId || ''}
+          onChange={(e) => setSelectedTeamId(e.target.value || null)}
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">Select a team to view details</option>
+          {teams.map((team) => (
+            <option key={team._id} value={team._id}>
+              {team.name || 'Untitled Team'}
+              {team.academicYear ? ` • ${team.academicYear}` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Team grid */}
       {teams.length === 0 ? (

@@ -59,6 +59,8 @@ router.patch(
   teamController.updateGoogleDocLink,
 );
 
+router.patch('/:id/lock', authorize(ROLES.STUDENT), teamController.lockTeam);
+
 // --- Instructor/Adviser listing route ---
 router.get(
   '/',

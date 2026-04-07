@@ -81,6 +81,14 @@ class ProjectService {
 
     if (!team) throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
 
+    if (!team.isLocked) {
+      throw new AppError(
+        'Your team must be finalized before creating a project.',
+        400,
+        'TEAM_NOT_FINALIZED',
+      );
+    }
+
     if (team.leaderId.toString() !== userId.toString()) {
       throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
     }

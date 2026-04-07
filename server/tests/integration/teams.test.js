@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { request, createAuthenticatedUserWithRole } from '../helpers.js';
+import User from '../../modules/users/user.model.js';
+import Team from '../../modules/teams/team.model.js';
 
 /**
  * Team flow integration tests — covers team creation, invites,
@@ -103,6 +105,38 @@ describe('Teams API — /api/teams', () => {
     it('should reject unauthenticated request', async () => {
       const res = await request.get('/api/teams/me');
       expect(res.status).toBe(401);
+    });
+
+    it('should deny access when user.teamId is stale but user is not in team members', async () => {
+      const { agent: ownerAgent, user: owner } = await createAuthenticatedUserWithRole('student', {
+        email: 'team-owner@example.com',
+      });
+
+      const createdTeam = await ownerAgent.post('/api/teams').send({
+        name: 'Owner Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = createdTeam.body.data.team._id;
+
+      const { agent: outsiderAgent, user: outsider } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'outsider@example.com',
+        },
+      );
+
+      await User.findByIdAndUpdate(outsider._id, { teamId });
+
+      const res = await outsiderAgent.get('/api/teams/me');
+      expect(res.status).toBe(404);
+      expect(res.body?.error?.code).toBe('NO_TEAM');
+
+      const refreshedOutsider = await User.findById(outsider._id).select('teamId');
+      expect(refreshedOutsider.teamId).toBeNull();
+
+      const refreshedTeam = await Team.findById(teamId).select('members');
+      expect(refreshedTeam.members.map((m) => m.toString())).toContain(owner._id.toString());
+      expect(refreshedTeam.members.map((m) => m.toString())).not.toContain(outsider._id.toString());
     });
   });
 

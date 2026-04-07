@@ -66,6 +66,7 @@ export function useMyProject(options = {}) {
       return data.data.project;
     },
     staleTime: 2 * 60 * 1000, // 2 min
+    refetchOnMount: 'always', // Always refetch on mount to prevent stale cache issues
     ...options,
   });
 }

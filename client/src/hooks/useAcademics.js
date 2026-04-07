@@ -50,7 +50,7 @@ export function useSections(filters = {}, options = {}) {
       const { data } = await academicService.listSections(filters);
       return data.data.sections;
     },
-    staleTime: 3 * 60 * 1000,
+    staleTime: 30 * 1000,
     ...options,
   });
 }
