@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { useAuthStore } from '../stores/authStore';
 import { notificationKeys } from './useNotifications';
+import { projectKeys } from './useProjects';
 
 /**
  * Connects to Socket.IO when authenticated, listens for real-time notifications.
@@ -46,6 +47,15 @@ export function useSocket() {
       // Invalidate notification queries so the list + badge update immediately
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
+
+      if (
+        notification.type === 'panelist_assigned' ||
+        notification.type === 'panelist_removed' ||
+        notification.type === 'title_modification_requested' ||
+        notification.type === 'title_modification_resolved'
+      ) {
+        queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      }
     };
 
     /** Handle connection errors (auth failure, server down, etc.) */

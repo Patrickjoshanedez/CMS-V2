@@ -217,7 +217,7 @@ export const selectAsPanelist = catchAsync(async (req, res) => {
 
 /** PATCH /api/projects/:id/deadlines — Set deadlines */
 export const setDeadlines = catchAsync(async (req, res) => {
-  const { project } = await projectService.setDeadlines(req.params.id, req.body);
+  const { project } = await projectService.setDeadlines(req.params.id, req.body, req.user);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

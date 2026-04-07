@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -926,6 +926,7 @@ function NextStepCard({ project, submissions }) {
 
 export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: project, isLoading, error } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam();
 
@@ -954,6 +955,21 @@ export default function MyProjectPage() {
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
   const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+
+  const workflowTabs = ['proposal', 'capstone_1', 'capstone_2', 'capstone_3', 'final'];
+
+  function getDefaultTab() {
+    if (!project) return 'proposal';
+    if (finalUnlocked) return 'final';
+    if (capstone3Unlocked) return 'capstone_3';
+    if (capstone2Unlocked) return 'capstone_2';
+    if (capstone1Unlocked) return 'capstone_1';
+    return 'proposal';
+  }
+
+  const defaultTab = getDefaultTab();
+  const requestedTab = searchParams.get('tab');
+  const activeTab = workflowTabs.includes(requestedTab) ? requestedTab : defaultTab;
 
   // Get the reason why a tab is locked
   const getLockedReason = (tabName) => {
@@ -986,14 +1002,10 @@ export default function MyProjectPage() {
     });
   };
 
-  // Auto-advance to the highest unlocked tab on first load
-  const getDefaultTab = () => {
-    if (!project) return 'proposal';
-    if (finalUnlocked) return 'final';
-    if (capstone3Unlocked) return 'capstone_3';
-    if (capstone2Unlocked) return 'capstone_2';
-    if (capstone1Unlocked) return 'capstone_1';
-    return 'proposal';
+  const handleTabChange = (tabName) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', tabName);
+    setSearchParams(nextParams, { replace: true });
   };
 
   return (
@@ -1035,7 +1047,7 @@ export default function MyProjectPage() {
             <WorkflowPhaseTracker project={project} />
 
             {/* Tabbed workflow */}
-            <Tabs defaultValue={getDefaultTab()}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList>
                 <TabsTrigger value="proposal">Proposal</TabsTrigger>
                 <TabsTrigger

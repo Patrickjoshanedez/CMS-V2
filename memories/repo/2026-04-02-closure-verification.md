@@ -40,3 +40,9 @@
 
 - On Windows in this repo, run compose commands with command-scope `PATH` prepended with `C:\Program Files\Docker\Docker\resources\bin` so both `docker` and `docker-credential-desktop` resolve.
 - For CMS rebuild verification, explicitly select compose file: `docker compose -f docker-compose.yml build`.
+
+## Durable Lessons (2026-04-08 Frontend Workflow Fixes)
+
+- When refactoring approval/modification handlers, preserve the exact API payload keys (`action` vs `decision`) and verify the server schema before accepting the change.
+- Before merging subagent edits, trim unrelated helper/test churn so the final diff stays focused on the requested workflow fix.
+- For deadline date UX in this repo, prefer enhancing native date inputs first with an explicit calendar trigger (`showPicker`) plus `focus()`/`click()` fallback before introducing new calendar dependencies.

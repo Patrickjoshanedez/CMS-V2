@@ -104,7 +104,6 @@ export function useProjects(filters = {}, options = {}) {
 
 /* ────────── Mutation Hooks ────────── */
 
-/** Invalidate all project-related queries after a mutation */
 function useProjectMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
   const { onSuccess, onError, ...restOptions } = options;

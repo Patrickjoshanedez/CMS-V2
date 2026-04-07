@@ -19,6 +19,7 @@ import {
   PROTOTYPE_TYPES,
   PLAGIARISM_STATUSES,
   CAPSTONE_TITLE_MAPPING,
+  SDG_TAG_SUGGESTIONS,
 } from '@cms/shared';
 
 /**
@@ -96,6 +97,16 @@ class ProjectService {
     const normalizedTitleProposals = [
       ...new Set((data.titleProposals || []).map((proposal) => proposal.trim())),
     ];
+    const normalizedSdgTags = [...new Set((data.sdgTags || []).map((tag) => tag.trim()))];
+
+    if (normalizedSdgTags.length === 0) {
+      throw new AppError('At least one SDG tag is required.', 400, 'SDG_TAGS_REQUIRED');
+    }
+
+    const hasInvalidSdgTag = normalizedSdgTags.some((tag) => !SDG_TAG_SUGGESTIONS.includes(tag));
+    if (hasInvalidSdgTag) {
+      throw new AppError('One or more SDG tags are invalid.', 400, 'INVALID_SDG_TAG');
+    }
 
     if (normalizedTitleProposals.length < 5) {
       throw new AppError(
@@ -197,6 +208,7 @@ class ProjectService {
       titleProposals: normalizedTitleProposals,
       abstract: data.abstract || '',
       keywords: data.keywords || [],
+      sdgTags: normalizedSdgTags,
       academicYear: data.academicYear,
       courseId: section.courseId._id,
       sectionId: section._id,
@@ -937,6 +949,7 @@ class ProjectService {
    */
   async removePanelist(projectId, instructorId, data) {
     const project = await this._getProjectOrFail(projectId);
+    const panelist = await User.findById(data.panelistId);
 
     const idx = project.panelistIds.findIndex((id) => id.toString() === data.panelistId);
     if (idx === -1) {
@@ -949,6 +962,17 @@ class ProjectService {
 
     project.panelistIds.splice(idx, 1);
     await project.save();
+
+    if (panelist) {
+      const removedPanelistNotif = await Notification.create({
+        userId: data.panelistId,
+        type: 'panelist_removed',
+        title: 'Panelist Removed',
+        message: `You have been removed as a panelist for the project "${project.title}".`,
+        metadata: { projectId: project._id, removedBy: instructorId },
+      });
+      emitToUser(data.panelistId, 'notification:new', removedPanelistNotif);
+    }
 
     return { project };
   }
@@ -1005,10 +1029,24 @@ class ProjectService {
    * Set or update chapter/proposal deadlines for a project.
    * @param {string} projectId
    * @param {Object} data - { chapter1?, chapter2?, chapter3?, proposal? }
+   * @param {Object} requester - Authenticated requester context.
    * @returns {Object} { project }
    */
-  async setDeadlines(projectId, data) {
+  async setDeadlines(projectId, data, requester) {
     const project = await this._getProjectOrFail(projectId);
+    const applyToSection = data.applyToSection === true;
+
+    if (applyToSection && requester?.role !== ROLES.INSTRUCTOR) {
+      throw new AppError(
+        'Only instructors can apply deadlines to an entire section.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    const targetProjects = applyToSection
+      ? await Project.find({ sectionId: data.sectionId || project.sectionId })
+      : [project];
 
     const dateFields = [
       'chapter1',
@@ -1019,28 +1057,37 @@ class ProjectService {
       'chapter5',
       'defense',
     ];
-    dateFields.forEach((key) => {
-      if (data[key] !== undefined) project.deadlines[key] = data[key];
-    });
 
-    // Sync TBA flags — fields marked TBA have their date cleared.
-    if (data.tba !== undefined) {
-      project.deadlines.tba = data.tba;
-      data.tba.forEach((key) => {
-        project.deadlines[key] = null;
+    let updatedProject = project;
+
+    for (const targetProject of targetProjects) {
+      dateFields.forEach((key) => {
+        if (data[key] !== undefined) targetProject.deadlines[key] = data[key];
       });
+
+      // Sync TBA flags — fields marked TBA have their date cleared.
+      if (data.tba !== undefined) {
+        targetProject.deadlines.tba = data.tba;
+        data.tba.forEach((key) => {
+          targetProject.deadlines[key] = null;
+        });
+      }
+
+      await targetProject.save();
+
+      await this._notifyTeamMembers(targetProject.teamId, {
+        type: 'system',
+        title: 'Deadlines Updated',
+        message: 'Your project deadlines have been updated. Please check the new schedule.',
+        metadata: { projectId: targetProject._id },
+      });
+
+      if (targetProject._id.toString() === projectId.toString()) {
+        updatedProject = targetProject;
+      }
     }
 
-    await project.save();
-
-    await this._notifyTeamMembers(project.teamId, {
-      type: 'system',
-      title: 'Deadlines Updated',
-      message: 'Your project deadlines have been updated. Please check the new schedule.',
-      metadata: { projectId: project._id },
-    });
-
-    return { project };
+    return { project: updatedProject };
   }
 
   /* ═══════════════ Project-Level Status ═══════════════ */

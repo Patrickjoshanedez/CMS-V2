@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ROLES } from '@cms/shared';
 import {
   useNotifications,
   useMarkAsRead,
@@ -81,12 +83,138 @@ const ICON_MAP = {
   default: Bell,
 };
 
-function NotificationItem({ notification, onMarkRead, onDelete }) {
+const PROJECT_NOTIFICATION_TYPES = new Set([
+  'project_created',
+  'title_submitted',
+  'title_approved',
+  'title_rejected',
+  'title_modification_requested',
+  'title_modification_resolved',
+  'adviser_assigned',
+  'panelist_assigned',
+  'panelist_selected',
+  'panelist_removed',
+  'deadlines_set',
+  'project_rejected',
+  'phase_advanced',
+  'prototype_added',
+  'evaluation_submitted',
+  'evaluation_released',
+  'certificate_uploaded',
+  'project_archived',
+]);
+
+const TITLE_NOTIFICATION_TYPES = new Set([
+  'title_submitted',
+  'title_approved',
+  'title_rejected',
+  'title_modification_requested',
+  'title_modification_resolved',
+  'project_created',
+  'project_rejected',
+]);
+
+const SUBMISSION_NOTIFICATION_TYPES = new Set([
+  'chapter_submitted',
+  'proposal_submitted',
+  'submission_approved',
+  'submission_revisions_required',
+  'submission_rejected',
+  'submission_locked',
+  'unlock_requested',
+  'unlock_resolved',
+  'annotation_added',
+  'plagiarism_complete',
+  'plagiarism_failed',
+]);
+
+const TAB_BY_DEFENSE = {
+  proposal: 'capstone_1',
+  midterm: 'capstone_2',
+  paper: 'capstone_3',
+  final: 'final',
+};
+
+function getNotificationTarget(notification, role) {
+  const metadata = notification?.metadata || {};
+  const projectId = metadata.projectId || metadata.project?._id || metadata.projectId;
+  const chapter = metadata.chapter;
+  const defenseType = metadata.defenseType;
+
+  if (role !== ROLES.STUDENT && projectId && PROJECT_NOTIFICATION_TYPES.has(notification.type)) {
+    return `/projects?projectId=${encodeURIComponent(projectId)}`;
+  }
+
+  if (
+    notification.type === 'team_invite' ||
+    notification.type === 'team_joined' ||
+    notification.type === 'team_locked'
+  ) {
+    return '/team';
+  }
+
+  if (SUBMISSION_NOTIFICATION_TYPES.has(notification.type)) {
+    if (notification.type === 'proposal_submitted') {
+      return '/project?tab=capstone_1';
+    }
+
+    if (notification.type === 'chapter_submitted' && chapter) {
+      return `/project/submissions?chapter=${encodeURIComponent(chapter)}`;
+    }
+
+    if (chapter) {
+      return `/project/submissions?chapter=${encodeURIComponent(chapter)}`;
+    }
+
+    return '/project/submissions';
+  }
+
+  if (TITLE_NOTIFICATION_TYPES.has(notification.type)) {
+    return '/project?tab=proposal';
+  }
+
+  if (notification.type === 'phase_advanced') {
+    return `/project?tab=${TAB_BY_DEFENSE[defenseType] || 'proposal'}`;
+  }
+
+  if (notification.type === 'project_created' || notification.type === 'project_rejected') {
+    return '/project?tab=proposal';
+  }
+
+  if (notification.type === 'certificate_uploaded' || notification.type === 'project_archived') {
+    return '/project?tab=final';
+  }
+
+  if (role !== ROLES.STUDENT && projectId) {
+    return `/projects?projectId=${encodeURIComponent(projectId)}`;
+  }
+
+  return '/project';
+}
+
+function NotificationItem({ notification, onOpen, onMarkRead, onDelete }) {
   const Icon = ICON_MAP[notification.type] || ICON_MAP.default;
+
+  const handleActionClick = (handler, id) => (event) => {
+    event.stopPropagation();
+    handler(id);
+  };
 
   return (
     <Card
-      className={cn('transition-colors', !notification.isRead && 'border-primary/30 bg-primary/5')}
+      role="link"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen?.();
+        }
+      }}
+      className={cn(
+        'cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        !notification.isRead && 'border-primary/30 bg-primary/5',
+      )}
     >
       <CardContent className="flex items-start gap-4 p-4">
         <div
@@ -118,7 +246,7 @@ function NotificationItem({ notification, onMarkRead, onDelete }) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onMarkRead(notification._id)}
+              onClick={handleActionClick(onMarkRead, notification._id)}
               aria-label="Mark as read"
             >
               <Check className="h-4 w-4" />
@@ -127,7 +255,7 @@ function NotificationItem({ notification, onMarkRead, onDelete }) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onDelete(notification._id)}
+            onClick={handleActionClick(onDelete, notification._id)}
             aria-label="Delete notification"
             className="text-muted-foreground hover:text-destructive"
           >
@@ -152,6 +280,7 @@ function EmptyNotifications() {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const { user, fetchUser } = useAuthStore();
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -197,6 +326,11 @@ export default function NotificationsPage() {
 
   const handleDelete = (id) => {
     deleteNotification.mutate(id);
+  };
+
+  const handleOpenNotification = (notification) => {
+    const target = getNotificationTarget(notification, user.role);
+    navigate(target);
   };
 
   const handleClearAll = () => {
@@ -267,6 +401,7 @@ export default function NotificationsPage() {
               <NotificationItem
                 key={notification._id}
                 notification={notification}
+                onOpen={() => handleOpenNotification(notification)}
                 onMarkRead={handleMarkRead}
                 onDelete={handleDelete}
               />

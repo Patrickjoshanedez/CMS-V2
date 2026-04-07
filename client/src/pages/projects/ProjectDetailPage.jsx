@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -149,19 +149,20 @@ function ProjectInfoPanel({ project }) {
         )}
 
         {/* Modification request */}
-        {project.titleModificationRequest?.proposedTitle && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-            <p className="mb-1 text-sm font-semibold text-amber-800 dark:text-amber-200">
-              Pending Title Modification Request
-            </p>
-            <p className="text-sm">
-              <strong>Proposed:</strong> {project.titleModificationRequest.proposedTitle}
-            </p>
-            <p className="text-sm">
-              <strong>Justification:</strong> {project.titleModificationRequest.justification}
-            </p>
-          </div>
-        )}
+        {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+          project.titleModificationRequest?.proposedTitle && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+              <p className="mb-1 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                Pending Title Modification Request
+              </p>
+              <p className="text-sm">
+                <strong>Proposed:</strong> {project.titleModificationRequest.proposedTitle}
+              </p>
+              <p className="text-sm">
+                <strong>Justification:</strong> {project.titleModificationRequest.justification}
+              </p>
+            </div>
+          )}
 
         {/* Deadlines — color-coded urgency display */}
         {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
@@ -252,10 +253,10 @@ function ModificationReviewCard({ project }) {
   const modReq = project.titleModificationRequest;
   if (!modReq?.proposedTitle) return null;
 
-  const handleResolve = (decision) => {
+  const handleResolve = (action) => {
     resolve.mutate({
       projectId: project._id,
-      decision,
+      action,
       reviewNote: reviewNote.trim() || undefined,
     });
   };
@@ -520,9 +521,10 @@ const DEADLINE_KEYS = [
  * date inputs. Future-phase fields default to "No Deadline" and can be
  * toggled to "TBA" (To Be Announced) by the instructor.
  */
-function DeadlinesCard({ project }) {
+function DeadlinesCard({ project, isInstructor }) {
   const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
   const existingTba = project.deadlines?.tba || [];
+  const dateInputRefs = useRef({});
 
   const [deadlines, setDeadlines] = useState(() => {
     const initial = {};
@@ -533,6 +535,7 @@ function DeadlinesCard({ project }) {
   });
 
   const [tbaFields, setTbaFields] = useState(() => new Set(existingTba));
+  const [applyToSection, setApplyToSection] = useState(false);
 
   const setDl = useSetDeadlines({
     onSuccess: () => toast.success('Deadlines saved!'),
@@ -542,6 +545,7 @@ function DeadlinesCard({ project }) {
 
   const handleSave = () => {
     const payload = { projectId: project._id, tba: [...tbaFields] };
+    if (isInstructor && applyToSection) payload.applyToSection = true;
     Object.entries(deadlines).forEach(([key, val]) => {
       if (val && !tbaFields.has(key)) payload[key] = val;
     });
@@ -562,6 +566,19 @@ function DeadlinesCard({ project }) {
     });
   };
 
+  const openDatePicker = (key) => {
+    const input = dateInputRefs.current[key];
+    if (!input) return;
+
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+
+    input.focus();
+    input.click();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -575,6 +592,16 @@ function DeadlinesCard({ project }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isInstructor && (
+          <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={applyToSection}
+              onChange={(e) => setApplyToSection(e.target.checked)}
+            />
+            Apply to all projects in this section
+          </label>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           {DEADLINE_KEYS.map((key) => {
             const reachable = currentPhase >= FIELD_MIN_PHASE[key];
@@ -589,12 +616,33 @@ function DeadlinesCard({ project }) {
 
                 {reachable && !isTba ? (
                   /* Current / past phase — editable date input */
-                  <Input
-                    id={`dl-${key}`}
-                    type="date"
-                    value={deadlines[key]}
-                    onChange={(e) => setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={(node) => {
+                        if (node) {
+                          dateInputRefs.current[key] = node;
+                        } else {
+                          delete dateInputRefs.current[key];
+                        }
+                      }}
+                      id={`dl-${key}`}
+                      type="date"
+                      className="flex-1"
+                      value={deadlines[key]}
+                      onChange={(e) => setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10"
+                      onClick={() => openDatePicker(key)}
+                      aria-label={`Open ${label} calendar`}
+                      title="Open calendar"
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : isTba ? (
                   /* Marked as TBA */
                   <div className="flex h-10 items-center gap-2">
@@ -823,7 +871,9 @@ export default function ProjectDetailPage() {
             {isInstructor && <ManagePanelistsCard project={project} />}
 
             {/* Deadlines — instructor or adviser */}
-            {(isInstructor || user?.role === ROLES.ADVISER) && <DeadlinesCard project={project} />}
+            {(isInstructor || user?.role === ROLES.ADVISER) && (
+              <DeadlinesCard project={project} isInstructor={isInstructor} />
+            )}
 
             {/* Advance phase — instructor only */}
             {isInstructor && project.projectStatus !== 'rejected' && (

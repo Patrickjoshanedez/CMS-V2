@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -23,6 +23,7 @@ import {
   Settings,
   Shield,
   BookOpen,
+  Calendar,
   RefreshCw,
 } from 'lucide-react';
 
@@ -69,6 +70,7 @@ function TargetIcon({ type }) {
 export default function AuditLogPage() {
   const { user } = useAuthStore();
   const [page, setPage] = useState(1);
+  const dateInputRefs = useRef({ startDate: null, endDate: null });
   const [filters, setFilters] = useState({
     action: '',
     targetType: '',
@@ -100,6 +102,19 @@ export default function AuditLogPage() {
     setFilters({ action: '', targetType: '', startDate: '', endDate: '' });
     setPage(1);
   }, []);
+
+  const openDatePicker = (field) => {
+    const input = dateInputRefs.current[field];
+    if (!input) return;
+
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+
+    input.focus();
+    input.click();
+  };
 
   // Gate: instructor only
   if (user?.role !== ROLES.INSTRUCTOR) {
@@ -181,24 +196,58 @@ export default function AuditLogPage() {
                 <Label htmlFor="startDate" className="text-xs">
                   From
                 </Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={filters.startDate}
-                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    ref={(node) => {
+                      dateInputRefs.current.startDate = node;
+                    }}
+                    id="startDate"
+                    type="date"
+                    className="flex-1"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => openDatePicker('startDate')}
+                    aria-label="Open from date calendar"
+                    title="Open calendar"
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="endDate" className="text-xs">
                   To
                 </Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={filters.endDate}
-                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    ref={(node) => {
+                      dateInputRefs.current.endDate = node;
+                    }}
+                    id="endDate"
+                    type="date"
+                    className="flex-1"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => openDatePicker('endDate')}
+                    aria-label="Open to date calendar"
+                    title="Open calendar"
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 

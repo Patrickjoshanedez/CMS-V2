@@ -14,6 +14,7 @@ import {
 } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
+import Notification from '../../modules/notifications/notification.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
@@ -70,6 +71,7 @@ describe('Projects API — /api/projects', () => {
   // Agents with persistent auth cookies
   let studentAgent, studentUser;
   let instructorAgent, instructorUser;
+  let adviserAgent;
   let adviserUser;
   let panelistAgent, panelistUser;
   let team;
@@ -90,7 +92,7 @@ describe('Projects API — /api/projects', () => {
         name: 'Instructor One',
       },
     ));
-    ({ user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
+    ({ agent: adviserAgent, user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
       email: 'adviser1@test.com',
       name: 'Adviser One',
     }));
@@ -390,6 +392,15 @@ describe('Projects API — /api/projects', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.project.panelistIds).not.toContain(panelistUser._id.toString());
+
+      const removalNotification = await Notification.findOne({
+        userId: panelistUser._id,
+        type: 'panelist_removed',
+        'metadata.projectId': projectId,
+      });
+
+      expect(removalNotification).not.toBeNull();
+      expect(removalNotification.message).toContain('removed as a panelist');
     });
 
     it('should prevent student from assigning adviser', async () => {
@@ -411,10 +422,66 @@ describe('Projects API — /api/projects', () => {
   /* ────────── Deadlines ────────── */
   describe('PATCH /:id/deadlines — set deadlines', () => {
     let projectId;
+    let sameSectionProjectId;
+    let otherSectionProjectId;
 
     beforeEach(async () => {
       const res = await studentAgent.post('/api/projects').send(validProjectPayload);
       projectId = res.body.data.project._id;
+
+      const { agent: student2Agent, user: student2User } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'student2-deadlines@test.com',
+          name: 'Student Two Deadlines',
+        },
+      );
+
+      const team2 = await Team.create({
+        name: 'Beta Team Deadlines',
+        leaderId: student2User._id,
+        members: [student2User._id],
+        isLocked: true,
+        academicYear: '2024-2025',
+      });
+      await User.findByIdAndUpdate(student2User._id, { teamId: team2._id });
+
+      const payload2 = createValidProjectPayload(team2._id, course._id, section._id, [
+        student2User._id,
+      ]);
+      delete payload2.teamId;
+
+      const res2 = await student2Agent.post('/api/projects').send(payload2);
+      sameSectionProjectId = res2.body.data.project._id;
+
+      const { course: otherCourse, section: otherSection } = await createCourseAndSection(
+        instructorUser._id,
+      );
+
+      const { agent: student3Agent, user: student3User } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'student3-deadlines@test.com',
+          name: 'Student Three Deadlines',
+        },
+      );
+
+      const team3 = await Team.create({
+        name: 'Gamma Team Deadlines',
+        leaderId: student3User._id,
+        members: [student3User._id],
+        isLocked: true,
+        academicYear: '2024-2025',
+      });
+      await User.findByIdAndUpdate(student3User._id, { teamId: team3._id });
+
+      const payload3 = createValidProjectPayload(team3._id, otherCourse._id, otherSection._id, [
+        student3User._id,
+      ]);
+      delete payload3.teamId;
+
+      const res3 = await student3Agent.post('/api/projects').send(payload3);
+      otherSectionProjectId = res3.body.data.project._id;
     });
 
     it('should allow instructor to set deadlines', async () => {
@@ -438,6 +505,69 @@ describe('Projects API — /api/projects', () => {
         .send({ chapter1: '2025-03-01T00:00:00.000Z' });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should allow instructor to apply deadlines to all projects in the same section', async () => {
+      const bulkPayload = {
+        chapter3: '2025-05-01T00:00:00.000Z',
+        tba: ['defense'],
+        applyToSection: true,
+      };
+
+      const res = await instructorAgent
+        .patch(`/api/projects/${projectId}/deadlines`)
+        .send(bulkPayload);
+
+      expect(res.status).toBe(200);
+
+      const updatedBase = await Project.findById(projectId);
+      const updatedSameSection = await Project.findById(sameSectionProjectId);
+
+      expect(updatedBase.deadlines.chapter3).toBeTruthy();
+      expect(updatedSameSection.deadlines.chapter3).toBeTruthy();
+      expect(updatedBase.deadlines.tba).toContain('defense');
+      expect(updatedSameSection.deadlines.tba).toContain('defense');
+      expect(updatedBase.deadlines.defense).toBeNull();
+      expect(updatedSameSection.deadlines.defense).toBeNull();
+    });
+
+    it('should not change projects in other sections during section-wide deadline update', async () => {
+      const originalOtherSection = await Project.findById(otherSectionProjectId);
+
+      const res = await instructorAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter2: '2025-04-15T00:00:00.000Z',
+        applyToSection: true,
+      });
+
+      expect(res.status).toBe(200);
+
+      const updatedOtherSection = await Project.findById(otherSectionProjectId);
+      expect(updatedOtherSection.deadlines.chapter2).toEqual(
+        originalOtherSection.deadlines.chapter2,
+      );
+    });
+
+    it('should prevent adviser from applying deadlines section-wide', async () => {
+      const res = await adviserAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter1: '2025-03-01T00:00:00.000Z',
+        applyToSection: true,
+      });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should still update only one project when applyToSection is not set', async () => {
+      const res = await instructorAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter1: '2025-03-20T00:00:00.000Z',
+      });
+
+      expect(res.status).toBe(200);
+
+      const updatedBase = await Project.findById(projectId);
+      const unchangedSameSection = await Project.findById(sameSectionProjectId);
+
+      expect(updatedBase.deadlines.chapter1).toBeTruthy();
+      expect(unchangedSameSection.deadlines.chapter1).toBeNull();
     });
   });
 

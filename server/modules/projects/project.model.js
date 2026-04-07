@@ -11,6 +11,7 @@ import {
   PROJECT_STATUSES,
   PROTOTYPE_TYPE_VALUES,
   CAPSTONE_TITLE_VALUES,
+  SDG_TAG_SUGGESTIONS,
 } from '@cms/shared';
 
 const titleModificationRequestSchema = new mongoose.Schema(
@@ -245,6 +246,18 @@ const projectSchema = new mongoose.Schema(
       validate: {
         validator: (arr) => arr.length <= 10,
         message: 'A project can have at most 10 keywords',
+      },
+      default: [],
+    },
+    sdgTags: {
+      type: [String],
+      enum: {
+        values: SDG_TAG_SUGGESTIONS,
+        message: 'Invalid SDG tag',
+      },
+      validate: {
+        validator: (arr) => arr.length <= 17,
+        message: 'A project can have at most 17 SDG tags',
       },
       default: [],
     },

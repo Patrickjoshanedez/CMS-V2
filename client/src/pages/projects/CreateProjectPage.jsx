@@ -12,7 +12,7 @@ import { useMyTeam } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CAPSTONE_TITLE_VALUES } from '@cms/shared';
+import { CAPSTONE_TITLE_VALUES, SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
 /**
  * CreateProjectPage — Students create a new capstone project.
@@ -53,6 +53,8 @@ export default function CreateProjectPage() {
   const [selectedTitleIndex, setSelectedTitleIndex] = useState(0);
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
+  const [sdgTagList, setSdgTagList] = useState([]);
+  const [selectedSdgTag, setSelectedSdgTag] = useState('');
   const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
 
   const teamMembers = useMemo(() => {
@@ -166,6 +168,22 @@ export default function CreateProjectPage() {
     setKeywordList((prev) => prev.filter((k) => k !== kw));
   };
 
+  const addSdgTag = () => {
+    if (!selectedSdgTag) {
+      return;
+    }
+
+    if (!sdgTagList.includes(selectedSdgTag)) {
+      setSdgTagList((prev) => [...prev, selectedSdgTag]);
+    }
+
+    setSelectedSdgTag('');
+  };
+
+  const removeSdgTag = (tag) => {
+    setSdgTagList((prev) => prev.filter((item) => item !== tag));
+  };
+
   const handleKeywordKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -213,11 +231,17 @@ export default function CreateProjectPage() {
       return;
     }
 
+    if (sdgTagList.length === 0) {
+      toast.error('Select at least one SDG tag.');
+      return;
+    }
+
     createProject.mutate({
       title: selectedTitle,
       titleProposals: normalizedTitleProposals,
       abstract: form.abstract || undefined,
       keywords: keywordList.length > 0 ? keywordList : undefined,
+      sdgTags: sdgTagList,
       academicYear: form.academicYear,
       sectionId: form.sectionId,
       memberRoleAssignments: assignmentPayload,
@@ -403,6 +427,48 @@ export default function CreateProjectPage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">{keywordList.length}/10 keywords</p>
+              </div>
+
+              {/* SDG Tags */}
+              <div className="space-y-2">
+                <Label htmlFor="sdgTagSelect">SDG Tags * (at least 1)</Label>
+                <div className="flex gap-2">
+                  <select
+                    id="sdgTagSelect"
+                    value={selectedSdgTag}
+                    onChange={(e) => setSelectedSdgTag(e.target.value)}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    <option value="">Select an SDG tag</option>
+                    {SDG_TAG_SUGGESTIONS.map((tag) => (
+                      <option key={tag} value={tag}>
+                        {tag}
+                      </option>
+                    ))}
+                  </select>
+                  <Button type="button" variant="outline" onClick={addSdgTag}>
+                    Add
+                  </Button>
+                </div>
+                {sdgTagList.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {sdgTagList.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeSdgTag(tag)}
+                          className="rounded-full p-0.5 hover:bg-primary/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Academic Year */}

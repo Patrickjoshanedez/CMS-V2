@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -122,10 +122,17 @@ function SubmissionRow({ submission }) {
  */
 export default function ProjectSubmissionsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === ROLES.STUDENT;
 
   const [chapterFilter, setChapterFilter] = useState('');
+
+  useEffect(() => {
+    const chapterParam = searchParams.get('chapter') || '';
+    const normalizedChapter = CHAPTER_LABELS[Number(chapterParam) - 1] ? chapterParam : '';
+    setChapterFilter(normalizedChapter);
+  }, [searchParams]);
 
   // Non-students (advisers, instructors, panelists) should access submissions
   // through the Projects page, not this student-specific route.

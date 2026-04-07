@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -29,10 +29,12 @@ const STATUS_FILTERS = [
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, fetchUser } = useAuthStore();
   const [search, setSearch] = useState('');
   const [titleStatus, setTitleStatus] = useState('');
   const [page, setPage] = useState(1);
+  const highlightedProjectRef = useRef(null);
 
   const filters = {
     ...(search && { search }),
@@ -42,6 +44,12 @@ export default function ProjectsPage() {
   };
 
   const { data, isLoading, error, refetch } = useProjects(filters);
+  const highlightedProjectId = searchParams.get('projectId') || '';
+
+  useEffect(() => {
+    if (!highlightedProjectId) return;
+    highlightedProjectRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightedProjectId, data?.projects]);
 
   if (!user) {
     fetchUser();
@@ -143,7 +151,12 @@ export default function ProjectsPage() {
             {projects.map((project) => (
               <Card
                 key={project._id}
-                className="cursor-pointer transition-shadow hover:shadow-md"
+                ref={project._id === highlightedProjectId ? highlightedProjectRef : undefined}
+                className={`cursor-pointer transition-shadow hover:shadow-md ${
+                  project._id === highlightedProjectId
+                    ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                    : ''
+                }`}
                 onClick={() => navigate(`/projects/${project._id}`)}
               >
                 <CardContent className="flex items-center justify-between py-4">

@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { TITLE_STATUS_VALUES, PROJECT_STATUS_VALUES, CAPSTONE_TITLE_VALUES } from '@cms/shared';
+import {
+  TITLE_STATUS_VALUES,
+  PROJECT_STATUS_VALUES,
+  CAPSTONE_TITLE_VALUES,
+  SDG_TAG_SUGGESTIONS,
+} from '@cms/shared';
 
 /* ───── Reusable field schemas ───── */
 
@@ -50,6 +55,10 @@ export const createProjectSchema = z.object({
     .max(10, 'A project can have at most 10 keywords')
     .optional()
     .default([]),
+  sdgTags: z
+    .array(z.enum(SDG_TAG_SUGGESTIONS))
+    .min(1, 'At least one SDG tag is required')
+    .max(17, 'A project can have at most 17 SDG tags'),
   academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
   sectionId: objectId,
   memberRoleAssignments: z
@@ -162,6 +171,8 @@ export const setDeadlinesSchema = z.object({
   chapter4: z.coerce.date().optional(),
   chapter5: z.coerce.date().optional(),
   defense: z.coerce.date().optional(),
+  applyToSection: z.boolean().optional(),
+  sectionId: objectId.optional(),
   tba: z
     .array(
       z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']),

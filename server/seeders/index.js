@@ -47,6 +47,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const DEFAULT_PASSWORD = 'Password123!';
 const CURRENT_YEAR = '2025-2026';
 const PREV_YEAR = '2024-2025';
+const REQUIRED_ARCHIVED_PROJECT_COUNT = 5;
 
 if (!MONGODB_URI) {
   console.error('❌ MONGODB_URI is not set in .env');
@@ -730,6 +731,18 @@ const archivedTeamDefs = [
   },
 ];
 
+if (archivedTeamDefs.length !== REQUIRED_ARCHIVED_PROJECT_COUNT) {
+  throw new Error(
+    `Seed invariant failed: expected exactly ${REQUIRED_ARCHIVED_PROJECT_COUNT} archived completed projects, found ${archivedTeamDefs.length}.`,
+  );
+}
+
+if (ARCHIVE_SCORES.length !== REQUIRED_ARCHIVED_PROJECT_COUNT) {
+  throw new Error(
+    `Seed invariant failed: ARCHIVE_SCORES must contain exactly ${REQUIRED_ARCHIVED_PROJECT_COUNT} entries, found ${ARCHIVE_SCORES.length}.`,
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────
@@ -1045,6 +1058,7 @@ async function seed() {
   // ── 5. Archived year: teams + projects + evaluations ──────────
   console.log(`\n📦 Creating archived teams (${PREV_YEAR})...`);
   let totalEvals = 0;
+  let archivedProjectCount = 0;
 
   // Base date for archived deadlines — completed ~10 months ago
   const archiveBase = new Date('2024-09-01');
@@ -1103,6 +1117,7 @@ async function seed() {
         defense: deadlineFrom(archiveBase, 98),
       },
     });
+    archivedProjectCount++;
 
     console.log(`   📋 "${pd.title.substring(0, 55)}..." [archived]`);
 
@@ -1192,7 +1207,13 @@ async function seed() {
   }
 
   const currentProjects = currentTeamDefs.filter((t) => t.project).length;
-  const archivedProjects = archivedTeamDefs.length;
+  const archivedProjects = archivedProjectCount;
+
+  if (archivedProjects !== REQUIRED_ARCHIVED_PROJECT_COUNT) {
+    throw new Error(
+      `Seed invariant failed: expected ${REQUIRED_ARCHIVED_PROJECT_COUNT} archived completed projects to be created, got ${archivedProjects}.`,
+    );
+  }
 
   console.log('\n' + '━'.repeat(60));
   console.log('✅ Seeding complete!');

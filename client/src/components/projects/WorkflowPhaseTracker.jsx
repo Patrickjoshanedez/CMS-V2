@@ -9,7 +9,7 @@ const PHASES = [
   {
     key: 'team',
     label: 'Team Formation',
-    isComplete: (project) => !!project?.team,
+    isComplete: (project) => Boolean(getTeamValue(project)),
   },
   {
     key: 'title',
@@ -20,19 +20,18 @@ const PHASES = [
     key: 'chapters',
     label: 'Chapters 1–3',
     isComplete: (project) =>
-      project?.status === PROJECT_STATUSES.PROPOSAL_SUBMITTED ||
-      project?.status === PROJECT_STATUSES.PROPOSAL_APPROVED,
+      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_SUBMITTED ||
+      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
   },
   {
     key: 'proposal',
     label: 'Full Proposal',
-    isComplete: (project) => project?.status === PROJECT_STATUSES.PROPOSAL_APPROVED,
+    isComplete: (project) => getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
   },
   {
     key: 'development',
     label: 'Development',
-    isComplete: (project) =>
-      project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4,
+    isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_4,
   },
   {
     key: 'defense',
@@ -40,6 +39,18 @@ const PHASES = [
     isComplete: () => false, // Capstone 4 final outcome — future sprints
   },
 ];
+
+function getTeamValue(project) {
+  return project?.teamId ?? project?.team ?? null;
+}
+
+function getProjectStatus(project) {
+  return project?.projectStatus ?? project?.status ?? null;
+}
+
+function getCapstonePhase(project) {
+  return Number(project?.capstonePhase ?? project?.phase ?? 0) || 0;
+}
 
 /**
  * Determine which phase index is currently active based on the first incomplete phase.
