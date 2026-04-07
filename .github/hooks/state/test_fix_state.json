@@ -1,21 +1,30 @@
 {
-  "pendingFailures": [],
-  "observedTestActivity": false,
-  "updatedAt": "2026-04-02T06:04:40+00:00",
+  "pendingFailures": [
+    {
+      "commandLabel": "npm run test -- tests/unit/agent-runtime-config.service.test.js",
+      "commandLabelNormalized": "npm run test -- tests/unit/agent-runtime-config.service.test.js",
+      "firstFailedAt": "2026-04-07T04:01:57+00:00",
+      "lastFailedAt": "2026-04-07T04:01:57+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    }
+  ],
+  "observedTestActivity": true,
+  "updatedAt": "2026-04-07T04:01:57+00:00",
   "integrityAnomaly": null,
   "publicExposureGate": {
     "pending": true,
     "pendingContext": {
-      "commandLabel": "docker compose -f docker-compose.prod.yml up",
-      "commandLabelNormalized": "docker compose -f docker-compose.prod.yml up",
-      "detectedAt": "2026-04-02T06:04:40+00:00",
-      "expiresAt": "2026-04-02T12:04:40+00:00"
+      "commandLabel": "ngrok http 3000",
+      "commandLabelNormalized": "ngrok http 3000",
+      "detectedAt": "2026-04-07T04:01:28+00:00",
+      "expiresAt": "2026-04-07T10:01:28+00:00"
     },
     "passed": false,
     "lastVerifiedAt": null,
-    "lastAttemptedCommand": "docker compose -f docker-compose.prod.yml up",
-    "lastBlockedAt": "2026-04-02T06:04:40+00:00",
+    "lastAttemptedCommand": "ngrok http 3000",
+    "lastBlockedAt": "2026-04-07T04:01:28+00:00",
     "evidenceMap": {},
-    "updatedAt": "2026-04-02T06:04:40+00:00"
+    "updatedAt": "2026-04-07T04:01:28+00:00"
   }
 }

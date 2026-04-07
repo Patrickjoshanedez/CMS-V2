@@ -53,6 +53,7 @@ server/sprint*-results.json
 server/s11.json
 
 # Local workspace artifacts (generated during manual runs)
+diagnostics/
 api_err.log
 build.log
 error.log
@@ -76,3 +77,6 @@ manifest*.txt
 # Local OAuth helper artifacts (must never be committed)
 scripts/credentials.json
 scripts/token.json
+
+# LocalStack cache artifacts (contains local test keys/certs)
+.localstack/cache/

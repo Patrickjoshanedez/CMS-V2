@@ -94,6 +94,10 @@ describe('Sprint 11 — Dual Version Upload (Final Papers)', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.submission.type).toBe('final_academic');
       expect(res.body.data.submission.version).toBe(1);
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/final-academic/v1/`)).toBe(
+        true,
+      );
     });
 
     it('should auto-increment version on re-upload', async () => {
@@ -118,6 +122,10 @@ describe('Sprint 11 — Dual Version Upload (Final Papers)', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.submission.version).toBe(2);
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/final-academic/v2/`)).toBe(
+        true,
+      );
     });
 
     it('should reject if not a student (403)', async () => {
@@ -313,6 +321,10 @@ describe('Sprint 11 — Dual Version Upload (Final Papers)', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.submission.type).toBe('final_journal');
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/final-journal/v1/`)).toBe(
+        true,
+      );
     });
 
     it('should auto-increment version independently from academic', async () => {
@@ -337,6 +349,10 @@ describe('Sprint 11 — Dual Version Upload (Final Papers)', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.submission.version).toBe(1);
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/final-journal/v1/`)).toBe(
+        true,
+      );
     });
 
     it('should reject if not a student (403)', async () => {

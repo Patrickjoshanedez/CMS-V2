@@ -33,6 +33,30 @@ describe('StorageService credential configuration', () => {
     vi.resetModules();
   });
 
+  it('wires uploadFile PutObject bucket from env at the command boundary', async () => {
+    const configuredBucket = 'cms-buksu-uploads-canary';
+    const { storageService, send } = await loadStorageServiceWithEnv({
+      S3_BUCKET: configuredBucket,
+    });
+
+    const fileBuffer = Buffer.from('sample-pdf-bytes');
+    const key = 'archives/projects/project123/chapters/1/v1/chapter1.pdf';
+
+    const result = await storageService.uploadFile(fileBuffer, key, 'application/pdf', {
+      projectId: 'project123',
+    });
+
+    expect(result).toEqual({ key, bucket: configuredBucket });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    const [command] = send.mock.calls[0];
+    expect(command.input.Bucket).toBe(configuredBucket);
+    expect(command.input.Key).toBe(key);
+    expect(command.input.Body).toBe(fileBuffer);
+    expect(command.input.ContentType).toBe('application/pdf');
+    expect(command.input.Metadata).toEqual({ projectId: 'project123' });
+  });
+
   it('allows production provider-chain mode when static keys are blank', async () => {
     const { storageService, send } = await loadStorageServiceWithEnv({
       NODE_ENV: 'production',

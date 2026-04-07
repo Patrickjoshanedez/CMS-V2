@@ -180,6 +180,8 @@ describe('Submissions API — /api/submissions', () => {
 
       // Verify S3 upload was called
       expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/chapters/1/v1/`)).toBe(true);
     });
 
     it('should auto-increment version on re-upload after adviser revision request', async () => {
@@ -352,6 +354,43 @@ describe('Submissions API — /api/submissions', () => {
         .attach('file', createPdfBuffer(), 'chapter5.pdf');
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  /* ────────── Proposal Upload ────────── */
+  describe('POST /:projectId/proposal — Upload compiled proposal', () => {
+    beforeEach(async () => {
+      for (const chapter of [1, 2, 3]) {
+        await Submission.create({
+          projectId: project._id,
+          chapter,
+          type: 'chapter',
+          version: 1,
+          fileName: `chapter${chapter}.pdf`,
+          fileType: 'application/pdf',
+          fileSize: 5000,
+          storageKey: `archives/projects/${project._id}/chapters/${chapter}/v1/chapter${chapter}.pdf`,
+          status: SUBMISSION_STATUSES.LOCKED,
+          submittedBy: studentUser._id,
+        });
+      }
+    });
+
+    it('should upload proposal using archives/projects proposal prefix', async () => {
+      storageService.uploadFile.mockClear();
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/proposal`)
+        .attach('file', createPdfBuffer(), 'compiled-proposal.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.submission.type).toBe('proposal');
+      expect(res.body.data.submission.version).toBe(1);
+      expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
+
+      const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+      expect(storageKey.startsWith(`archives/projects/${project._id}/proposal/v1/`)).toBe(true);
     });
   });
 

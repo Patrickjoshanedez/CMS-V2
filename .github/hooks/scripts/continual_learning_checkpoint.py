@@ -313,6 +313,11 @@ def _is_pre_tool_use_event(value: str) -> bool:
     return normalized == "pretooluse"
 
 
+def _is_post_tool_use_event(value: str) -> bool:
+    normalized = _normalize_token(value)
+    return normalized == "posttooluse"
+
+
 def _lifecycle_event_name(payload: dict[str, Any]) -> str:
     candidate_paths = (
         ("event",),
@@ -428,13 +433,20 @@ def _full_payload_completion_token_scan(payload: dict[str, Any]) -> bool:
     return _walk(payload)
 
 
-def _should_run_completion_gate(payload: dict[str, Any], tool: str) -> bool:
+def _should_run_completion_gate(
+    payload: dict[str, Any], tool: str, lifecycle_event_name: str = ""
+) -> bool:
     if _is_task_complete_token(tool):
         return True
 
-    lifecycle_event_name = _lifecycle_event_name(payload)
     if lifecycle_event_name and _is_post_task_completion_event(lifecycle_event_name):
         return True
+
+    if lifecycle_event_name and (
+        _is_pre_tool_use_event(lifecycle_event_name)
+        or _is_post_tool_use_event(lifecycle_event_name)
+    ):
+        return False
 
     if _arguments_indicate_completion(payload):
         return True
@@ -655,9 +667,12 @@ def _extract_command_candidates(
 
 
 def _extract_command_label(
-    payload: dict[str, Any], *, max_length: int = COMMAND_LABEL_MAX_LENGTH
+    payload: dict[str, Any],
+    *,
+    max_length: int = COMMAND_LABEL_MAX_LENGTH,
+    include_inferred: bool = True,
 ) -> str:
-    candidates = _extract_command_candidates(payload)
+    candidates = _extract_command_candidates(payload, include_inferred=include_inferred)
     if not candidates:
         return ""
 
@@ -838,12 +853,8 @@ def _command_detection_candidates(
             _append_unique_command_candidate(candidates, seen, extracted)
 
     normalized_command_label = _normalize_command_label(command_label)
-    should_append_command_label = payload is None or include_inferred
-    if (
-        not should_append_command_label
-        and normalized_command_label
-        and normalized_command_label in extracted_normalized
-    ):
+    should_append_command_label = bool(normalized_command_label)
+    if not should_append_command_label and (payload is None or include_inferred):
         should_append_command_label = True
 
     if should_append_command_label:
@@ -2117,15 +2128,52 @@ def _entry_index_for_label(
     return None
 
 
+def _resolve_tracking_command_label(
+    payload: dict[str, Any],
+    tool_lower: str,
+    command_label: str,
+    exit_code: int | None,
+) -> str:
+    if command_label:
+        return command_label
+
+    # Fast path: skip inferred blob scanning unless command detection is still needed.
+    extracted_label = _extract_command_label(payload, include_inferred=False)
+    if extracted_label:
+        return extracted_label
+
+    lifecycle_event_name = _lifecycle_event_name(payload)
+    # Policy-safe inferred fallback: only when command label is still empty and
+    # the event is likely execution-relevant (pre-tool intent, concrete exit code,
+    # or execution-shaped tool name).
+    should_fallback_to_inferred = (
+        _is_pre_tool_use_event(lifecycle_event_name)
+        or exit_code is not None
+        or any(token in tool_lower for token in EXECUTION_TOOL_TOKENS)
+    )
+    if should_fallback_to_inferred:
+        return _extract_command_label(payload, include_inferred=True)
+
+    return ""
+
+
 def _track_test_failure_state(
-    payload: dict[str, Any], tool_lower: str, state: dict[str, Any]
+    payload: dict[str, Any],
+    tool_lower: str,
+    state: dict[str, Any],
+    *,
+    command_label: str = "",
+    exit_code: int | None = None,
 ) -> str:
     now = _utc_now_iso()
     pending = _pending_failures(state)
 
-    command_label = _extract_command_label(payload)
+    if exit_code is None:
+        exit_code = _extract_exit_code(payload)
+    command_label = _resolve_tracking_command_label(
+        payload, tool_lower, command_label, exit_code
+    )
     normalized_label = _normalize_command_label(command_label) if command_label else ""
-    exit_code = _extract_exit_code(payload)
 
     is_execution = _is_execution_event(tool_lower, command_label, exit_code)
     is_edit = _is_edit_event(tool_lower)
@@ -2250,11 +2298,40 @@ def main() -> int:
 
     tool = _tool_name(payload)
     tool_lower = tool.lower()
-    summary = _summary_text(payload)
     lifecycle_event_name = _lifecycle_event_name(payload)
+    should_run_completion_gate = _should_run_completion_gate(
+        payload, tool, lifecycle_event_name
+    )
+    # Compute completion intent first so unknown lifecycle labels cannot bypass
+    # completion gating when task-complete tokens are present in payload data.
+    if (
+        lifecycle_event_name
+        and not should_run_completion_gate
+        and not (
+            _is_pre_tool_use_event(lifecycle_event_name)
+            or _is_post_tool_use_event(lifecycle_event_name)
+            or _is_post_task_completion_event(lifecycle_event_name)
+        )
+    ):
+        result: dict[str, Any] = {
+            "hook": "continual-learning-checkpoint",
+            "allow": True,
+            "status": "ok",
+            "message": "Hook skipped for irrelevant lifecycle event.",
+            "tool": tool,
+        }
+        print(json.dumps(result, ensure_ascii=True))
+        return 0
+
+    summary = _summary_text(payload)
     is_pre_tool_use = _is_pre_tool_use_event(lifecycle_event_name)
-    should_run_completion_gate = _should_run_completion_gate(payload, tool_lower)
-    command_label = _extract_command_label(payload)
+
+    command_label = ""
+    if is_pre_tool_use:
+        command_label = _extract_command_label(payload, include_inferred=False)
+        if not command_label:
+            command_label = _extract_command_label(payload, include_inferred=True)
+    exit_code = _extract_exit_code(payload)
 
     result: dict[str, Any] = {
         "hook": "continual-learning-checkpoint",
@@ -2321,7 +2398,13 @@ def main() -> int:
                 f"'{command_label}'."
             )
 
-        tracking_message = _track_test_failure_state(payload, tool_lower, state)
+        tracking_message = _track_test_failure_state(
+            payload,
+            tool_lower,
+            state,
+            command_label=command_label,
+            exit_code=exit_code,
+        )
         state_snapshot = _save_state_if_changed(state, state_snapshot)
 
         result["message"] = gate_message if gate_message else tracking_message

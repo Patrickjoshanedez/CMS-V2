@@ -10,6 +10,11 @@ export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evalu
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
 export { DOCUMENT_TYPES, DOCUMENT_TYPE_VALUES } from './constants/documentTypes.js';
 export {
+  STORAGE_BUCKETS,
+  STORAGE_ROOT_PREFIXES,
+  STORAGE_ARCHIVE_PREFIXES,
+} from './constants/storage.js';
+export {
   CAPSTONE_TITLES,
   CAPSTONE_TITLE_VALUES,
   CAPSTONE_TITLE_MAPPING,

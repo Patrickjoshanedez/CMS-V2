@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import dotenv from 'dotenv';
+import { STORAGE_BUCKETS } from '@cms/shared';
 
 dotenv.config();
 
@@ -52,6 +54,14 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
   }
 
   return defaultValue;
+};
+
+const DEFAULT_S3_BUCKET = STORAGE_BUCKETS.PRIMARY_UPLOADS;
+
+const resolveS3Bucket = () => {
+  const configuredBucket =
+    typeof process.env.S3_BUCKET === 'string' ? process.env.S3_BUCKET.trim() : '';
+  return configuredBucket || DEFAULT_S3_BUCKET;
 };
 
 const PRODUCTION_REQUIRED_SECRET_VARS = [
@@ -187,6 +197,17 @@ const validateProductionS3Credentials = () => {
   }
 };
 
+const validateProductionS3Bucket = () => {
+  const resolvedBucket = resolveS3Bucket();
+  const allowOverride = parseBoolean(process.env.ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE, false);
+
+  if (resolvedBucket !== DEFAULT_S3_BUCKET && !allowOverride) {
+    throw new Error(
+      `In production, S3_BUCKET must be "${DEFAULT_S3_BUCKET}" unless ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE=true is explicitly set.`,
+    );
+  }
+};
+
 const validateProductionSecret = (varName, { required = true } = {}) => {
   const rawValue = process.env[varName];
 
@@ -271,6 +292,78 @@ const isLoopbackHost = (hostname = '') => {
   return (
     normalized === 'localhost' || isIpv4LoopbackHost(normalized) || isIpv6LoopbackHost(normalized)
   );
+};
+
+const isRunningInDocker = () => {
+  try {
+    return fs.existsSync('/.dockerenv');
+  } catch {
+    return false;
+  }
+};
+
+const shouldUseDockerS3EndpointRewrite = () => {
+  if (parseBoolean(process.env.S3_DOCKER_MODE, false)) {
+    return true;
+  }
+
+  return isRunningInDocker();
+};
+
+const resolveEndpointPathname = (rawEndpoint, parsedEndpoint) => {
+  const protocolIndex = rawEndpoint.indexOf('://');
+  const authorityStart = protocolIndex === -1 ? 0 : protocolIndex + 3;
+  const slashIndex = rawEndpoint.indexOf('/', authorityStart);
+
+  if (slashIndex === -1 && parsedEndpoint.pathname === '/') {
+    return '';
+  }
+
+  return parsedEndpoint.pathname;
+};
+
+const formatResolvedEndpoint = (rawEndpoint, parsedEndpoint) => {
+  const authSegment =
+    parsedEndpoint.username.length > 0
+      ? `${parsedEndpoint.username}${
+          parsedEndpoint.password.length > 0 ? `:${parsedEndpoint.password}` : ''
+        }@`
+      : '';
+  const pathname = resolveEndpointPathname(rawEndpoint, parsedEndpoint);
+  const resolvedEndpoint = `${parsedEndpoint.protocol}//${authSegment}${parsedEndpoint.host}${pathname}${parsedEndpoint.search}${parsedEndpoint.hash}`;
+
+  if (rawEndpoint.includes('://')) {
+    return resolvedEndpoint;
+  }
+
+  return resolvedEndpoint.replace(/^[a-z][a-z\d+\-.]*:\/\//i, '');
+};
+
+const resolveS3Endpoint = () => {
+  const configuredEndpoint =
+    typeof process.env.S3_ENDPOINT === 'string' ? process.env.S3_ENDPOINT.trim() : '';
+  const baseEndpoint = configuredEndpoint || (isDevelopmentEnv ? 'http://localhost:4566' : '');
+
+  if (!baseEndpoint || !isDevelopmentEnv || !shouldUseDockerS3EndpointRewrite()) {
+    return baseEndpoint;
+  }
+
+  const endpointToParse = baseEndpoint.includes('://') ? baseEndpoint : `http://${baseEndpoint}`;
+
+  try {
+    const parsedEndpoint = new URL(endpointToParse);
+    if (!isLoopbackHost(parsedEndpoint.hostname)) {
+      return baseEndpoint;
+    }
+
+    const dockerLocalstackHost =
+      (process.env.S3_DOCKER_LOCALSTACK_HOST || 'localstack').trim() || 'localstack';
+    parsedEndpoint.hostname = dockerLocalstackHost;
+
+    return formatResolvedEndpoint(baseEndpoint, parsedEndpoint);
+  } catch {
+    return baseEndpoint;
+  }
 };
 
 const isForbiddenProductionS3Endpoint = (endpointValue) => {
@@ -383,6 +476,7 @@ if (isProductionEnv) {
   }
 
   validateProductionS3Credentials();
+  validateProductionS3Bucket();
 
   if (isForbiddenProductionS3Endpoint(process.env.S3_ENDPOINT)) {
     throw new Error(
@@ -427,12 +521,16 @@ const env = Object.freeze({
   COOKIE_SAME_SITE: parseCookieSameSite(process.env.COOKIE_SAME_SITE, 'strict'),
 
   // AWS S3 (Cloud Storage — LocalStack for dev, real AWS for prod)
-  S3_BUCKET: process.env.S3_BUCKET || 'cms-buksu-uploads',
+  S3_BUCKET: resolveS3Bucket(),
   S3_REGION: process.env.S3_REGION || 'us-east-1',
   S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || (isDevelopmentEnv ? 'test' : ''),
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || (isDevelopmentEnv ? 'test' : ''),
-  S3_ENDPOINT: process.env.S3_ENDPOINT || (isDevelopmentEnv ? 'http://localhost:4566' : ''),
+  S3_ENDPOINT: resolveS3Endpoint(),
   S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === 'true' || isDevelopmentEnv,
+  ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE: parseBoolean(
+    process.env.ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE,
+    false,
+  ),
 
   // Redis (BullMQ)
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',

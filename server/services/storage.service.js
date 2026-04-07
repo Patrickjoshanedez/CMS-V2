@@ -16,6 +16,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client from '../config/storage.js';
 import env from '../config/env.js';
 import AppError from '../utils/AppError.js';
+import { STORAGE_ARCHIVE_PREFIXES, STORAGE_ROOT_PREFIXES } from '@cms/shared';
 
 class StorageService {
   constructor() {
@@ -285,7 +286,7 @@ class StorageService {
 
   /**
    * Build an S3 object key for a chapter submission.
-   * Format: projects/{projectId}/chapters/{chapterNum}/v{version}/{fileName}
+   * Format: archives/projects/{projectId}/chapters/{chapterNum}/v{version}/{fileName}
    *
    * @param {string} projectId - MongoDB ObjectId of the project
    * @param {number} chapterNum - Chapter number (1–5)
@@ -296,12 +297,12 @@ class StorageService {
   buildKey(projectId, chapterNum, version, fileName) {
     // Sanitize file name — remove path separators and dangerous chars
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/chapters/${chapterNum}/v${version}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/chapters/${chapterNum}/v${version}/${safeName}`;
   }
 
   /**
    * Build a storage key for a compiled proposal document.
-   * Format: projects/{projectId}/proposal/v{version}/{fileName}
+   * Format: archives/projects/{projectId}/proposal/v{version}/{fileName}
    *
    * @param {string} projectId - MongoDB ObjectId of the project
    * @param {number} version - Version integer
@@ -310,12 +311,12 @@ class StorageService {
    */
   buildProposalKey(projectId, version, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/proposal/v${version}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/proposal/v${version}/${safeName}`;
   }
 
   /**
    * Build a storage key for a prototype media file (image or video).
-   * Format: projects/{projectId}/prototypes/{prototypeId}/{fileName}
+   * Format: archives/projects/{projectId}/prototypes/{prototypeId}/{fileName}
    *
    * @param {string} projectId - MongoDB ObjectId of the project
    * @param {string} prototypeId - MongoDB ObjectId of the prototype sub-document
@@ -324,12 +325,12 @@ class StorageService {
    */
   buildPrototypeKey(projectId, prototypeId, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/prototypes/${prototypeId}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/prototypes/${prototypeId}/${safeName}`;
   }
 
   /**
    * Build a storage key for a final academic paper.
-   * Format: projects/{projectId}/final-academic/v{version}/{fileName}
+   * Format: archives/projects/{projectId}/final-academic/v{version}/{fileName}
    *
    * @param {string} projectId
    * @param {number} version
@@ -338,12 +339,12 @@ class StorageService {
    */
   buildFinalAcademicKey(projectId, version, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/final-academic/v${version}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/final-academic/v${version}/${safeName}`;
   }
 
   /**
    * Build a storage key for a journal/publishable version.
-   * Format: projects/{projectId}/final-journal/v{version}/{fileName}
+   * Format: archives/projects/{projectId}/final-journal/v{version}/{fileName}
    *
    * @param {string} projectId
    * @param {number} version
@@ -352,12 +353,12 @@ class StorageService {
    */
   buildFinalJournalKey(projectId, version, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/final-journal/v${version}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/final-journal/v${version}/${safeName}`;
   }
 
   /**
    * Build a storage key for a completion certificate.
-   * Format: projects/{projectId}/certificates/{fileName}
+   * Format: archives/projects/{projectId}/certificates/{fileName}
    *
    * @param {string} projectId
    * @param {string} fileName
@@ -365,12 +366,12 @@ class StorageService {
    */
   buildCertificateKey(projectId, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `projects/${projectId}/certificates/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/certificates/${safeName}`;
   }
 
   /**
    * Build a storage key for a bulk-uploaded archive document.
-   * Format: archive/bulk/{academicYear}/{fileName}
+   * Format: archives/bulk/{academicYear}/{fileName}
    *
    * @param {string} academicYear
    * @param {string} fileName
@@ -378,7 +379,7 @@ class StorageService {
    */
   buildBulkArchiveKey(academicYear, fileName) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    return `archive/bulk/${academicYear}/${safeName}`;
+    return `${STORAGE_ARCHIVE_PREFIXES.BULK}/${academicYear}/${safeName}`;
   }
 
   /**
@@ -390,7 +391,7 @@ class StorageService {
    * @returns {string} S3 object key
    */
   buildAvatarKey(userId) {
-    return `avatars/${userId}/profile`;
+    return `${STORAGE_ROOT_PREFIXES.AVATARS}/${userId}/profile`;
   }
 
   /**

@@ -41,24 +41,48 @@ GATE-10: <evidence mapping completeness statement>
 Set the following keys in `.env.prod`:
 
 - `NGROK_AUTHTOKEN` (required)
-- `NGROK_DOMAIN` (optional, if you reserved a static domain)
+- `NGROK_DOMAIN` (required)
+- `NGROK_OAUTH_PROVIDER` (preferred for OAuth)
+- `NGROK_OAUTH_ALLOW_EMAILS` (conditionally required with OAuth, comma-separated)
+- `NGROK_OAUTH_ALLOW_DOMAINS` (conditionally required with OAuth, comma-separated)
+- `NGROK_BASIC_AUTH` (fallback only when OAuth provider is not set)
 - `CLIENT_URL` (set this to your public ngrok URL)
 - `CORS_ALLOWED_ORIGINS` (include your ngrok URL)
 
-Example:
+OAuth-first example (preferred):
 
 ```env
-CLIENT_URL=https://your-subdomain.ngrok-free.app
-CORS_ALLOWED_ORIGINS=https://your-subdomain.ngrok-free.app
+CLIENT_URL=https://your-subdomain.ngrok-free.dev
+CORS_ALLOWED_ORIGINS=https://your-subdomain.ngrok-free.dev
 NGROK_AUTHTOKEN=your_ngrok_token
-NGROK_DOMAIN=
+NGROK_DOMAIN=your-subdomain.ngrok-free.dev
+NGROK_OAUTH_PROVIDER=google
+NGROK_OAUTH_ALLOW_EMAILS=alice@example.com,bob@example.com
+NGROK_OAUTH_ALLOW_DOMAINS=example.com
 ```
 
-## 2) Start the ngrok service (production compose only)
+Basic auth fallback example:
+
+```env
+CLIENT_URL=https://your-subdomain.ngrok-free.dev
+CORS_ALLOWED_ORIGINS=https://your-subdomain.ngrok-free.dev
+NGROK_AUTHTOKEN=your_ngrok_token
+NGROK_DOMAIN=your-subdomain.ngrok-free.dev
+NGROK_BASIC_AUTH=your_username:your_strong_password
+```
+
+Fail-closed policy:
+- `NGROK_AUTHTOKEN` and `NGROK_DOMAIN` must always be set.
+- If `NGROK_OAUTH_PROVIDER` is set, at least one of `NGROK_OAUTH_ALLOW_EMAILS` or `NGROK_OAUTH_ALLOW_DOMAINS` must be set.
+- If `NGROK_OAUTH_PROVIDER` is not set, `NGROK_BASIC_AUTH` is required.
+
+## 2) Start the full production stack with public exposure profile
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d ngrok
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile public-exposure up -d --build
 ```
+
+Do not use ngrok-only/client-only starts or `--no-deps` in production. Always bring up the full production stack to keep `client` and `server` on the same compose network.
 
 ## 3) Check ngrok logs
 

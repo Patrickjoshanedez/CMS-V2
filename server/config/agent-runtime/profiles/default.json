@@ -10,7 +10,10 @@
       "behaviors": [
         "prioritize correctness",
         "apply grounding and verification",
-        "use tools over assumptions"
+        "use tools over assumptions",
+        "prefer least-destructive changes first",
+        "start broad, then narrow using evidence",
+        "require explicit evidence before destructive actions"
       ]
     },
     "explainability": {
@@ -53,6 +56,21 @@
         "run evaluator checks"
       ],
       "decisionMode": "WARN"
+    },
+    {
+      "name": "least-destructive-decision-ladder",
+      "when": [
+        "potentially destructive action",
+        "multi-file rewrite request",
+        "uncertain root cause"
+      ],
+      "action": [
+        "generate broad hypotheses",
+        "gather discriminating evidence",
+        "choose least-destructive viable action",
+        "require explicit proof before escalating to destructive action"
+      ],
+      "decisionMode": "BLOCK"
     }
   ],
   "browserVerification": {

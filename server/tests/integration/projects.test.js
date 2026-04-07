@@ -56,6 +56,13 @@ function createPdfBuffer() {
   return Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF');
 }
 
+function createPngBuffer() {
+  return Buffer.from(
+    '89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000a49444154789c6360000000020001e221bc330000000049454e44ae426082',
+    'hex',
+  );
+}
+
 /* ================================================================== */
 /*  Test Suites                                                       */
 /* ================================================================== */
@@ -623,6 +630,27 @@ describe('Projects API — /api/projects', () => {
       });
     });
 
+    describe('POST /:id/prototypes/media — upload prototype media', () => {
+      it('should upload media with an archives/projects prototype key prefix', async () => {
+        storageService.uploadFile.mockClear();
+
+        const res = await studentAgent
+          .post(`/api/projects/${projectId}/prototypes/media`)
+          .field('title', 'Prototype UI Screenshot')
+          .field('description', 'Capstone UI snapshot')
+          .attach('file', createPngBuffer(), 'prototype-ui.png');
+
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.project.prototypes).toHaveLength(1);
+        expect(res.body.data.project.prototypes[0].type).toBe('image');
+        expect(storageService.uploadFile).toHaveBeenCalledTimes(1);
+
+        const [, storageKey] = storageService.uploadFile.mock.calls.at(-1);
+        expect(storageKey.startsWith(`archives/projects/${projectId}/prototypes/`)).toBe(true);
+      });
+    });
+
     /* ── Get prototypes ── */
     describe('GET /:id/prototypes — list prototypes', () => {
       it('should return an empty array when no prototypes exist', async () => {
@@ -711,6 +739,8 @@ describe('Projects API — /api/projects', () => {
     };
 
     it('should create one archived project with linked final academic and final journal submissions', async () => {
+      storageService.uploadFile.mockClear();
+
       const res = await instructorAgent
         .post(endpoint)
         .field('title', basePayload.title)
@@ -736,7 +766,22 @@ describe('Projects API — /api/projects', () => {
         'final_journal',
       ]);
       expect(linkedSubmissions.every((entry) => entry.version === 1)).toBe(true);
-      expect(storageService.uploadFile).toHaveBeenCalledTimes(2);
+
+      const archiveUploadCalls = storageService.uploadFile.mock.calls.filter(
+        ([, key]) => typeof key === 'string' && key.startsWith(`archives/projects/${projectId}/`),
+      );
+
+      expect(archiveUploadCalls).toHaveLength(2);
+      expect(
+        archiveUploadCalls.some(([, key]) =>
+          key.startsWith(`archives/projects/${projectId}/final-academic/v1/`),
+        ),
+      ).toBe(true);
+      expect(
+        archiveUploadCalls.some(([, key]) =>
+          key.startsWith(`archives/projects/${projectId}/final-journal/v1/`),
+        ),
+      ).toBe(true);
     });
 
     it('should reject the request when academic paper file is missing', async () => {
@@ -851,12 +896,13 @@ describe('Projects API — /api/projects', () => {
       expect(res.status).toBe(201);
       expect(storageService.uploadFile).toHaveBeenCalledWith(
         expect.any(Buffer),
-        expect.stringMatching(/\/certificate(s)?\//),
+        expect.stringMatching(/\/certificates\//),
         'application/pdf',
       );
 
-      const [firstArg] = storageService.uploadFile.mock.calls.at(-1);
+      const [firstArg, storageKey] = storageService.uploadFile.mock.calls.at(-1);
       expect(Buffer.isBuffer(firstArg)).toBe(true);
+      expect(storageKey.startsWith(`archives/projects/${projectId}/certificates/`)).toBe(true);
     });
   });
 });

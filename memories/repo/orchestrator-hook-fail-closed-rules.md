@@ -8,7 +8,16 @@
 - Public exposure production-compose detection must be strict: require explicit `docker-compose.prod.yml` command reference and do not infer production from `--profile prod` or env-file hints alone.
 - For multiple `--env-file` flags, resolve `NGROK_AUTHTOKEN` with last-write-wins semantics in command order.
 - `NGROK_AUTHTOKEN` validation must inspect both process environment and compose env-file context, and must never log token values.
+- Production rebuild script invariant: always enable ngrok public-exposure profile, fail fast if NGROK_AUTHTOKEN/NGROK_DOMAIN/NGROK_BASIC_AUTH are missing, and assert ngrok container is running after startup.
 - Production S3 endpoint validation must fail closed for localhost/localstack/loopback targets (for example: `localhost`, `127.0.0.1`, `::1`, `localstack`, `host.docker.internal`).
 - Production static S3 credential mode must reject placeholder/test/default access key and secret values.
 - Provider-chain credential mode must align with service-layer validation: when both static keys are blank, do not require static credentials.
 - LocalStack remediation workflow should be explicit and reproducible: stop production compose profile, start dev LocalStack service, verify `/_localstack/health`, then verify `awslocal s3 ls`.
+- Keep env guard tests hermetic: isolate process.env per test and prevent ambient env leakage across cases.
+- When bucket-routing logic changes, add/retain a command-boundary PutObject bucket assertion.
+- Keep a cross-file sync guard test for shared bucket constant parity with production defaults in .env.prod.example and docker-compose.prod.yml.
+- Server-origin Node probes that import server env/config should execute with compose workdir set to /app/server so dotenv resolves correctly and avoids false missing-secret failures.
+- In continual-learning hook control flow, compute completion intent before lifecycle-event skip logic.
+- Unknown lifecycle events may be fast-skipped only when completion intent is definitively false.
+- Add regression coverage for unknown lifecycle + task_complete token payloads to prevent bypass reintroduction.
+- For syntax verification in tracked hook directories, prefer methods that avoid bytecode churn when possible.

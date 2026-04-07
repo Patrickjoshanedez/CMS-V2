@@ -12,7 +12,10 @@
         "prioritize correctness and safety",
         "apply verification only for high-risk changes",
         "use proven tools and patterns",
-        "minimize experimental features"
+        "minimize experimental features",
+        "prefer least-destructive changes first",
+        "start broad, then narrow using evidence",
+        "require explicit evidence before destructive actions"
       ]
     },
     "explainability": {
@@ -87,6 +90,25 @@
       ],
       "decisionMode": "BLOCK",
       "description": "Conservative library validation for production"
+    },
+    {
+      "name": "least-destructive-decision-ladder",
+      "enabled": true,
+      "when": [
+        "potentially destructive action",
+        "multi-file rewrite request",
+        "uncertain root cause",
+        "high-blast-radius operation"
+      ],
+      "action": [
+        "generate broad hypotheses",
+        "gather discriminating evidence",
+        "choose least-destructive viable action",
+        "require explicit proof before escalating to destructive action",
+        "block execution when destructive evidence is missing"
+      ],
+      "decisionMode": "BLOCK",
+      "description": "Production gate for least-destructive, evidence-first decision escalation"
     }
   ],
   "browserVerification": {

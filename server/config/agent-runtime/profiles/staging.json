@@ -12,7 +12,10 @@
         "prioritize correctness",
         "apply grounding and verification",
         "use tools over assumptions",
-        "enable comprehensive browser verification"
+        "enable comprehensive browser verification",
+        "prefer least-destructive changes first",
+        "start broad, then narrow using evidence",
+        "require explicit evidence before destructive actions"
       ]
     },
     "explainability": {
@@ -99,6 +102,25 @@
       ],
       "decisionMode": "WARN",
       "description": "Comprehensive library validation for staging"
+    },
+    {
+      "name": "least-destructive-decision-ladder",
+      "enabled": true,
+      "when": [
+        "potentially destructive action",
+        "multi-file rewrite request",
+        "uncertain root cause",
+        "high-blast-radius operation"
+      ],
+      "action": [
+        "generate broad hypotheses",
+        "gather discriminating evidence",
+        "choose least-destructive viable action",
+        "require explicit proof before escalating to destructive action",
+        "log escalation rationale"
+      ],
+      "decisionMode": "BLOCK",
+      "description": "Enforce broad-then-narrow and evidence-first escalation in staging"
     }
   ],
   "browserVerification": {
