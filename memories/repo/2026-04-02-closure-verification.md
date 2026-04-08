@@ -46,3 +46,17 @@
 - When refactoring approval/modification handlers, preserve the exact API payload keys (`action` vs `decision`) and verify the server schema before accepting the change.
 - Before merging subagent edits, trim unrelated helper/test churn so the final diff stays focused on the requested workflow fix.
 - For deadline date UX in this repo, prefer enhancing native date inputs first with an explicit calendar trigger (`showPicker`) plus `focus()`/`click()` fallback before introducing new calendar dependencies.
+
+## Durable Lessons (2026-04-08 Production Env Unit Tests)
+
+- Any unit test that dynamically imports `server/config/env.js` with `NODE_ENV=production` must stub all production guardrail env vars first (JWT secrets, REDIS_PASSWORD, non-local CLIENT_URL, and safe S3 credentials/endpoint), or the import will fail before test assertions run.
+
+## Durable Lessons (2026-04-08 Team Invite Notification Routing)
+
+- For team_invite notifications, preserve `inviteToken`/`inviteCode` metadata when building client routes; navigate to `/teams/invites/:token/accept` with URL-encoded token, and fall back to `/team` only when invite metadata is missing.
+
+## Durable Lessons (2026-04-08 Destructive Notification UX Safeguards)
+
+- Clear-all and other destructive notification actions must require explicit confirmation and a synchronous in-flight guard to block double-submit before re-render.
+- Dialog accessibility baseline must include semantic structure, deterministic focus entry and return, Escape-key close handling, and a working focus trap.
+- Add targeted regression tests for the confirm flow, keyboard guard behavior versus inner controls, and unread marker rendering.

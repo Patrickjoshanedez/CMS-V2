@@ -160,6 +160,7 @@ export function createValidProjectPayload(teamId, courseId, sectionId, members =
     ],
     abstract: 'A web-based system for managing capstone projects.',
     keywords: ['capstone', 'plagiarism', 'management'],
+    sdgTags: ['SDG 4: Quality Education'],
     academicYear: '2024-2025',
     memberRoleAssignments: members.map((mId, i) => ({
       userId: mId,

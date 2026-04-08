@@ -381,9 +381,12 @@ projectSchema.index({ adviserId: 1 });
 projectSchema.index({ panelistIds: 1 });
 projectSchema.index({ academicYear: 1, projectStatus: 1 });
 projectSchema.index({ courseId: 1, sectionId: 1, academicYear: 1 });
+projectSchema.index({ academicYear: 1, titleStatus: 1, projectStatus: 1, createdAt: -1 });
+projectSchema.index({ adviserId: 1, projectStatus: 1, createdAt: -1 });
 projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
 projectSchema.index({ isArchived: 1, academicYear: 1 });
+projectSchema.index({ isArchived: 1, academicYear: 1, archivedAt: -1 });
 
 const Project = mongoose.model('Project', projectSchema);
 

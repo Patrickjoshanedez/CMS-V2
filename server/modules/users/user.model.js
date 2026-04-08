@@ -131,6 +131,8 @@ userSchema.index({ role: 1 });
 userSchema.index({ teamId: 1 });
 userSchema.index({ email: 1, role: 1 });
 userSchema.index({ firstName: 1, lastName: 1 });
+userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
+userSchema.index({ role: 1, isActive: 1, firstName: 1, lastName: 1 });
 
 // --- Pre-save hook: hash password ---
 userSchema.pre('save', async function (next) {

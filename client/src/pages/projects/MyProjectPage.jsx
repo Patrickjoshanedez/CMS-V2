@@ -148,6 +148,9 @@ function RejectedProjectState({ project }) {
 }
 
 function ProjectInfoCard({ project }) {
+  const capstoneTypeOrPhase =
+    project.capstoneType || project.projectType || `Capstone ${project.capstonePhase}`;
+
   return (
     <Card>
       <CardHeader>
@@ -165,8 +168,46 @@ function ProjectInfoCard({ project }) {
         {/* Abstract */}
         {project.abstract && (
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Abstract</p>
+            <p className="text-sm font-medium text-muted-foreground">Overview</p>
             <p className="mt-1 text-sm">{project.abstract}</p>
+          </div>
+        )}
+
+        {/* SDG tags */}
+        {project.sdgTags?.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">SDG Tags</p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {project.sdgTags.map((tag, idx) => (
+                <Badge key={`${tag}-${idx}`} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Title proposals */}
+        {project.titleProposals?.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Title Proposals</p>
+            <div className="mt-2 space-y-2">
+              {project.titleProposals.map((proposal, idx) => {
+                const proposalTitle = typeof proposal === 'string' ? proposal : proposal?.title;
+
+                return (
+                  <div
+                    key={proposal?._id || `${idx}-${proposalTitle || 'proposal'}`}
+                    className="rounded-md border p-2.5 text-sm"
+                  >
+                    <span className="mr-2 text-xs font-medium uppercase text-muted-foreground">
+                      {idx + 1}.
+                    </span>
+                    {proposalTitle || 'Untitled proposal'}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -192,7 +233,7 @@ function ProjectInfoCard({ project }) {
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <FileText className="h-4 w-4" />
-            <span>Phase: Capstone {project.capstonePhase}</span>
+            <span>Capstone Type/Phase: {capstoneTypeOrPhase}</span>
           </div>
           {project.adviserId && (
             <div className="flex items-center gap-2 text-muted-foreground">

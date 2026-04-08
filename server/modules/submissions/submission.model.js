@@ -417,6 +417,7 @@ const submissionSchema = new mongoose.Schema(
 submissionSchema.index({ projectId: 1, chapter: 1, version: -1 });
 // Find the latest version quickly
 submissionSchema.index({ projectId: 1, chapter: 1, status: 1 });
+submissionSchema.index({ projectId: 1, status: 1, chapter: 1, version: -1 });
 // Faculty lookups: submissions awaiting review
 submissionSchema.index({ status: 1, createdAt: -1 });
 // Submitter history

@@ -84,6 +84,7 @@ teamSchema.index({ members: 1 });
 teamSchema.index({ academicYear: 1 });
 teamSchema.index({ courseId: 1, academicYear: 1 });
 teamSchema.index({ sectionId: 1 });
+teamSchema.index({ academicYear: 1, courseId: 1, sectionId: 1, createdAt: -1 });
 
 // --- Virtual: member count ---
 teamSchema.virtual('memberCount').get(function () {

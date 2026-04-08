@@ -6,6 +6,7 @@ import { generalLimiter } from './middleware/rateLimiter.js';
 import errorHandler from './middleware/errorHandler.js';
 import AppError from './utils/AppError.js';
 import env from './config/env.js';
+import authenticate from './middleware/authenticate.js';
 
 // --- Route imports ---
 import authRoutes from './modules/auth/auth.routes.js';
@@ -22,6 +23,7 @@ import documentRoutes from './modules/documents/document.routes.js';
 import plagiarismRoutes from './modules/plagiarism/plagiarism.routes.js';
 import academicRoutes from './modules/academics/academic.routes.js';
 import agentRuntimeRoutes from './modules/agent-runtime/agentRuntime.routes.js';
+import storageFileServerRouter from './middleware/storage-file-server.middleware.js';
 
 const app = express();
 
@@ -67,6 +69,11 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ---------- Static File Storage Server (Filesystem Mode) ----------
+// Keep route available in all environments so uploaded files can render,
+// while requiring auth to prevent anonymous access.
+app.use('/storage', authenticate, storageFileServerRouter);
 
 // ---------- API Routes ----------
 

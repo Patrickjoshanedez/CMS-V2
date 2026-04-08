@@ -11,6 +11,7 @@ import {
 } from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
 import checkTitleLock from '../../middleware/checkTitleLock.js';
+import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
   createProjectSchema,
@@ -84,6 +85,7 @@ router.get(
 router.post(
   '/archive/bulk',
   authorize(ROLES.INSTRUCTOR),
+  uploadLimiter,
   archiveDualUpload.fields([
     { name: 'academicPaperFile', maxCount: 1 },
     { name: 'academicJournalFile', maxCount: 1 },
@@ -150,6 +152,7 @@ router.post(
 router.post(
   '/:id/prototypes/media',
   authorize(ROLES.STUDENT),
+  uploadLimiter,
   prototypeUpload.single('file'),
   validatePrototypeFile,
   validate(addPrototypeMediaSchema),
@@ -290,6 +293,7 @@ router.post(
 router.post(
   '/:id/certificate',
   authorize(ROLES.INSTRUCTOR),
+  uploadLimiter,
   upload.single('file'),
   validateFile,
   projectController.uploadCertificate,

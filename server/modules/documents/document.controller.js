@@ -21,14 +21,15 @@ export const uploadManuscript = catchAsync(async (req, res) => {
 
 /** GET /api/documents/projects/:projectId/manuscripts */
 export const listProjectManuscripts = catchAsync(async (req, res) => {
-  const { manuscripts } = await documentService.listProjectManuscripts(
+  const { manuscripts, pagination } = await documentService.listProjectManuscripts(
     req.user._id,
     req.params.projectId,
+    req.query,
   );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    data: { manuscripts },
+    data: { manuscripts, pagination },
   });
 });
 
@@ -119,7 +120,8 @@ export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
     throw new AppError('No PDF file provided.', 400, 'MISSING_FILE');
   }
 
-  if (req.file.mimetype !== 'application/pdf') {
+  const effectiveMime = req.file.validatedMime || req.file.mimetype;
+  if (effectiveMime !== 'application/pdf') {
     throw new AppError('Only PDF files are supported.', 400, 'INVALID_FILE_TYPE');
   }
 

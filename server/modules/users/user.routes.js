@@ -4,8 +4,9 @@ import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import auditLog from '../../middleware/auditLog.js';
-import upload from '../../middleware/upload.js';
-import { validateAvatarFile } from '../../middleware/fileValidation.js';
+import upload, { avatarUpload } from '../../middleware/upload.js';
+import { validateAvatarFile, validateCsvImportFile } from '../../middleware/fileValidation.js';
+import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
   createUserSchema,
@@ -29,7 +30,13 @@ router.use(authenticate);
 // --- Self-service profile routes (any authenticated user) ---
 router.get('/me', userController.getMe);
 router.patch('/me', validate(updateProfileSchema), userController.updateMe);
-router.post('/me/avatar', upload.single('avatar'), validateAvatarFile, userController.uploadAvatar);
+router.post(
+  '/me/avatar',
+  uploadLimiter,
+  avatarUpload.single('avatar'),
+  validateAvatarFile,
+  userController.uploadAvatar,
+);
 
 // --- Instructor list (any authenticated user — used by students for profile setup) ---
 router.get('/instructors', userController.listInstructors);
@@ -38,7 +45,9 @@ router.get('/instructors', userController.listInstructors);
 router.post(
   '/import-students',
   authorize(ROLES.INSTRUCTOR),
+  uploadLimiter,
   upload.single('file'),
+  validateCsvImportFile,
   userController.importStudents,
 );
 

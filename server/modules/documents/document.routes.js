@@ -3,12 +3,15 @@ import * as documentController from './document.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
-import upload from '../../middleware/upload.js';
+import { pdfMetadataUpload } from '../../middleware/upload.js';
+import validateFile from '../../middleware/fileValidation.js';
+import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
   projectIdParamSchema,
   projectDocumentTypeParamSchema,
   uploadManuscriptSchema,
+  listProjectManuscriptsQuerySchema,
 } from './document.validation.js';
 
 const router = Router();
@@ -22,7 +25,9 @@ router.use(authenticate);
 router.post(
   '/extract-pdf-metadata',
   authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
-  upload.single('file'),
+  uploadLimiter,
+  pdfMetadataUpload.single('file'),
+  validateFile,
   documentController.extractPdfMetadataHandler,
 );
 
@@ -38,6 +43,7 @@ router.get(
   '/projects/:projectId/manuscripts',
   authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
   validate(projectIdParamSchema, 'params'),
+  validate(listProjectManuscriptsQuerySchema, 'query'),
   documentController.listProjectManuscripts,
 );
 

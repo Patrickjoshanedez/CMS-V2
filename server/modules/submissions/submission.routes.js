@@ -17,6 +17,7 @@ import validate from '../../middleware/validate.js';
 import upload from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
+import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
   projectIdParamSchema,
@@ -54,6 +55,7 @@ router.post(
   '/:projectId/chapters',
   authorize(ROLES.STUDENT),
   validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
   upload.single('file'),
   validateFile,
   validate(uploadChapterSchema),
@@ -77,6 +79,7 @@ router.post(
   '/:projectId/proposal',
   authorize(ROLES.STUDENT),
   validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
   upload.single('file'),
   validateFile,
   validate(compileProposalSchema),
@@ -97,6 +100,7 @@ router.post(
   '/:projectId/final-academic',
   authorize(ROLES.STUDENT),
   validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
   upload.single('file'),
   validateFile,
   validate(finalPaperSchema),
@@ -117,6 +121,7 @@ router.post(
   '/:projectId/final-journal',
   authorize(ROLES.STUDENT),
   validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
   upload.single('file'),
   validateFile,
   validate(finalPaperSchema),

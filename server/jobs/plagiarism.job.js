@@ -20,7 +20,7 @@ import { getRedisConnectionOpts, isRedisAvailable } from '../config/redis.js';
 import { QUEUE_NAMES } from './queue.js';
 import { extractText } from '../utils/extractText.js';
 import { checkOriginality } from '../services/plagiarism.service.js';
-import storageService from '../services/storage.service.js';
+import storageService from '../services/storage.index.js';
 import Submission from '../modules/submissions/submission.model.js';
 import Project from '../modules/projects/project.model.js';
 import Notification from '../modules/notifications/notification.model.js';

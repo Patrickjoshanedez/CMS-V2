@@ -59,6 +59,15 @@ const parseCookieSameSite = (value, defaultValue = 'strict') => {
 const isProductionLocalstackTestingEnabled = () =>
   parseBoolean(process.env.ALLOW_PRODUCTION_LOCALSTACK_TESTING, false);
 
+const isPublicExposureModeEnabled = () => parseBoolean(process.env.PUBLIC_EXPOSURE_MODE, false);
+
+const hasPublicExposureIndicators = () => {
+  const ngrokDomain =
+    typeof process.env.NGROK_DOMAIN === 'string' ? process.env.NGROK_DOMAIN.trim() : '';
+
+  return isPublicExposureModeEnabled() || ngrokDomain.length > 0;
+};
+
 const DEFAULT_S3_BUCKET = STORAGE_BUCKETS.PRIMARY_UPLOADS;
 
 const resolveS3Bucket = () => {
@@ -494,6 +503,18 @@ const validateProductionLocalstackTestingGuardrails = () => {
   }
 };
 
+const validateProductionPublicExposureLocalstackMutualExclusion = () => {
+  if (!isProductionLocalstackTestingEnabled()) {
+    return;
+  }
+
+  if (hasPublicExposureIndicators()) {
+    throw new Error(
+      'ALLOW_PRODUCTION_LOCALSTACK_TESTING=true is forbidden when public exposure indicators are set (PUBLIC_EXPOSURE_MODE=true or NGROK_DOMAIN configured).',
+    );
+  }
+};
+
 const isLocalhostOrigin = (origin) => {
   try {
     const parsed = new URL(origin);
@@ -585,6 +606,7 @@ if (isProductionEnv) {
     validateProductionSecret(varName, { required: false });
   }
 
+  validateProductionPublicExposureLocalstackMutualExclusion();
   validateProductionLocalstackTestingGuardrails();
   validateProductionS3Credentials();
   validateProductionS3Bucket();
@@ -651,6 +673,14 @@ const env = Object.freeze({
     process.env.ALLOW_PRODUCTION_LOCALSTACK_TESTING,
     false,
   ),
+
+  // Storage mode selector — 's3' or 'filesystem'
+  // filesystem: Perfect for development/capstone on your laptop, uses ./uploads
+  // s3: Uses AWS S3 or S3-compatible (LocalStack, MinIO)
+  STORAGE_MODE: (process.env.STORAGE_MODE || 's3').toLowerCase().trim(),
+  STORAGE_LOCAL_PATH: process.env.STORAGE_LOCAL_PATH || '',
+
+  PUBLIC_EXPOSURE_MODE: parseBoolean(process.env.PUBLIC_EXPOSURE_MODE, false),
 
   // Redis (BullMQ)
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',

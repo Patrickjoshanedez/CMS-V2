@@ -10,6 +10,7 @@ import multer from 'multer';
 import env from '../config/env.js';
 
 const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const pdfMetadataMaxBytes = Math.min(maxBytes, 10 * 1024 * 1024);
 
 const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
   multer({
@@ -17,10 +18,17 @@ const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
     limits: {
       fileSize: fileSizeLimitBytes,
       files: maxFiles,
+      fields: 10,
+      parts: maxFiles + 10,
+      fieldNameSize: 100,
+      fieldSize: 64 * 1024,
+      headerPairs: 200,
     },
   });
 
 const upload = createMemoryUpload(maxBytes, 1);
+const pdfMetadataUpload = createMemoryUpload(pdfMetadataMaxBytes, 1);
+const avatarUpload = createMemoryUpload(5 * 1024 * 1024, 1);
 
 /**
  * Multer instance for archive bundle uploads requiring two files:
@@ -39,8 +47,13 @@ const prototypeUpload = multer({
   limits: {
     fileSize: prototypeMaxBytes,
     files: 1,
+    fields: 10,
+    parts: 11,
+    fieldNameSize: 100,
+    fieldSize: 64 * 1024,
+    headerPairs: 200,
   },
 });
 
-export { prototypeUpload, archiveDualUpload };
+export { prototypeUpload, archiveDualUpload, pdfMetadataUpload, avatarUpload };
 export default upload;

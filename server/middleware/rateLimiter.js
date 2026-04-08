@@ -20,3 +20,6 @@ export const authLimiter = createLimiter(15 * 60 * 1000, 10, 200);
 
 /** OTP request limiter: 3 requests per 10 minutes per IP (50 in dev) */
 export const otpLimiter = createLimiter(10 * 60 * 1000, 3, 50);
+
+/** Upload limiter: 20 uploads per 15 minutes per IP (200 in dev) */
+export const uploadLimiter = createLimiter(15 * 60 * 1000, 20, 200);

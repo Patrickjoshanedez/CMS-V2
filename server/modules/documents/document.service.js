@@ -48,21 +48,36 @@ class DocumentService {
     return { manuscript };
   }
 
-  async listProjectManuscripts(userId, projectId) {
+  async listProjectManuscripts(userId, projectId, query = {}) {
     const user = await this._getUserOrFail(userId);
     const project = await this._getProjectOrFail(projectId);
     this._assertCanView(user, project);
 
-    const manuscripts = await Manuscript.find({ projectId })
-      .sort({ createdAt: -1 })
-      .populate('uploadedBy', 'firstName middleName lastName email')
-      .lean();
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [manuscripts, total] = await Promise.all([
+      Manuscript.find({ projectId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('uploadedBy', 'firstName middleName lastName email')
+        .lean(),
+      Manuscript.countDocuments({ projectId }),
+    ]);
 
     return {
       manuscripts: manuscripts.map((manuscript) => ({
         ...manuscript,
         openLink: this._resolveOpenLink(user, manuscript),
       })),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -143,7 +158,11 @@ class DocumentService {
 
     const studentPermissions = users.students
       .filter((user) => !!user.email)
-      .map((student) => ({ userId: student._id, email: student.email.toLowerCase(), role: 'writer' }));
+      .map((student) => ({
+        userId: student._id,
+        email: student.email.toLowerCase(),
+        role: 'writer',
+      }));
 
     const adviserPermissions = users.adviser?.email
       ? [{ userId: users.adviser._id, email: users.adviser.email.toLowerCase(), role: 'commenter' }]
@@ -151,7 +170,11 @@ class DocumentService {
 
     const panelistPermissions = users.panelists
       .filter((panelist) => !!panelist.email)
-      .map((panelist) => ({ userId: panelist._id, email: panelist.email.toLowerCase(), role: 'reader' }));
+      .map((panelist) => ({
+        userId: panelist._id,
+        email: panelist.email.toLowerCase(),
+        role: 'reader',
+      }));
 
     const grantedAt = new Date();
 
@@ -175,7 +198,9 @@ class DocumentService {
         ? User.findById(project.adviserId).select('email firstName middleName lastName')
         : null,
       project.panelistIds?.length
-        ? User.find({ _id: { $in: project.panelistIds } }).select('email firstName middleName lastName')
+        ? User.find({ _id: { $in: project.panelistIds } }).select(
+            'email firstName middleName lastName',
+          )
         : [],
     ]);
 
@@ -183,7 +208,8 @@ class DocumentService {
   }
 
   _resolveOpenLink(user, manuscript) {
-    const link = manuscript.externalDocUrl || manuscript.driveEditLink || manuscript.driveWebViewLink;
+    const link =
+      manuscript.externalDocUrl || manuscript.driveEditLink || manuscript.driveWebViewLink;
     if (!link) {
       return null;
     }
@@ -199,9 +225,7 @@ class DocumentService {
     if (!url) return null;
 
     if (url.includes('docs.google.com/document/d/')) {
-      return url
-        .replace('/edit?embedded=true', '/preview')
-        .replace('/edit', '/preview');
+      return url.replace('/edit?embedded=true', '/preview').replace('/edit', '/preview');
     }
 
     return url;
@@ -228,7 +252,12 @@ class DocumentService {
       (panelistId) => String(panelistId) === String(user._id),
     );
 
-    if (user.role === ROLES.INSTRUCTOR || teamIdMatches || isAssignedAdviser || isAssignedPanelist) {
+    if (
+      user.role === ROLES.INSTRUCTOR ||
+      teamIdMatches ||
+      isAssignedAdviser ||
+      isAssignedPanelist
+    ) {
       return;
     }
 
@@ -241,7 +270,8 @@ class DocumentService {
     }
 
     const isAssignedAdviser = project.adviserId && String(project.adviserId) === String(user._id);
-    const isStudentOwner = user.role === ROLES.STUDENT && String(user.teamId || '') === String(project.teamId);
+    const isStudentOwner =
+      user.role === ROLES.STUDENT && String(user.teamId || '') === String(project.teamId);
 
     if (isAssignedAdviser || isStudentOwner) {
       return;
@@ -260,7 +290,11 @@ class DocumentService {
       return;
     }
 
-    throw new AppError('Only the assigned adviser or an instructor can submit reviews.', 403, 'FORBIDDEN');
+    throw new AppError(
+      'Only the assigned adviser or an instructor can submit reviews.',
+      403,
+      'FORBIDDEN',
+    );
   }
 
   async _getUserOrFail(userId) {
@@ -287,12 +321,15 @@ class DocumentService {
       .populate('reviewSubmittedBy', 'firstName middleName lastName email');
 
     if (!manuscript) {
-      throw new AppError('Manuscript not found for this project and document type.', 404, 'MANUSCRIPT_NOT_FOUND');
+      throw new AppError(
+        'Manuscript not found for this project and document type.',
+        404,
+        'MANUSCRIPT_NOT_FOUND',
+      );
     }
 
     return manuscript;
   }
-
 }
 
 const documentService = new DocumentService();

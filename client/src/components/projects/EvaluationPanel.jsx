@@ -30,7 +30,8 @@ import {
 const STATUS_BADGE_CLASS = {
   [EVALUATION_STATUSES.DRAFT]: 'bg-muted text-muted-foreground',
   [EVALUATION_STATUSES.SUBMITTED]: 'bg-primary/10 text-primary',
-  [EVALUATION_STATUSES.RELEASED]: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  [EVALUATION_STATUSES.RELEASED]:
+    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
 };
 
 function StatusBadge({ status }) {
@@ -113,7 +114,8 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm('Are you sure you want to submit? You cannot edit after submission.')) return;
+    if (!window.confirm('Are you sure you want to submit? You cannot edit after submission.'))
+      return;
     try {
       await submitEvaluation.mutateAsync(evaluation._id);
       toast.success('Evaluation submitted successfully.');
@@ -130,8 +132,8 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
     (sum, c) => sum + (Number(c.score) || 0),
     0,
   );
-  const maxTotalScore = evaluation.maxTotalScore
-    ?? evaluation.criteria.reduce((sum, c) => sum + c.maxScore, 0);
+  const maxTotalScore =
+    evaluation.maxTotalScore ?? evaluation.criteria.reduce((sum, c) => sum + c.maxScore, 0);
 
   const activeCriteria = criteria ?? evaluation.criteria;
 
@@ -152,8 +154,12 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-2 text-left font-medium text-muted-foreground">Criterion</th>
-                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">Max</th>
-                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-28">Score</th>
+                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
+                  Max
+                </th>
+                <th className="px-4 py-2 text-center font-medium text-muted-foreground w-28">
+                  Score
+                </th>
                 <th className="px-4 py-2 text-left font-medium text-muted-foreground">Comment</th>
               </tr>
             </thead>
@@ -254,6 +260,16 @@ function PanelistSection({ evaluation }) {
   const [open, setOpen] = useState(false);
   const total = evaluation.criteria.reduce((s, c) => s + (Number(c.score) || 0), 0);
   const max = evaluation.criteria.reduce((s, c) => s + c.maxScore, 0);
+  const explicitName =
+    typeof evaluation.panelistName === 'string' ? evaluation.panelistName.trim() : '';
+  const derivedName = [evaluation.panelistId?.firstName, evaluation.panelistId?.lastName]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const emailName =
+    typeof evaluation.panelistId?.email === 'string' ? evaluation.panelistId.email.trim() : '';
+  const panelistName = explicitName || derivedName || emailName || 'Panelist';
 
   return (
     <div className="rounded-md border">
@@ -264,7 +280,7 @@ function PanelistSection({ evaluation }) {
       >
         <div className="flex items-center gap-3">
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <span className="font-medium">{evaluation.panelistName ?? 'Panelist'}</span>
+          <span className="font-medium">{panelistName || 'Panelist'}</span>
           <StatusBadge status={evaluation.status} />
         </div>
         <span className="text-sm font-semibold text-muted-foreground">
@@ -278,9 +294,15 @@ function PanelistSection({ evaluation }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">Criterion</th>
-                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">Max</th>
-                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">Score</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                    Criterion
+                  </th>
+                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
+                    Max
+                  </th>
+                  <th className="px-4 py-2 text-center font-medium text-muted-foreground w-24">
+                    Score
+                  </th>
                   <th className="px-4 py-2 text-left font-medium text-muted-foreground">Comment</th>
                 </tr>
               </thead>
@@ -327,6 +349,10 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     ? evaluations.filter((e) => e.status === EVALUATION_STATUSES.RELEASED)
     : evaluations;
 
+  const averageMaxScore = summary.averageMaxScore ?? summary.maxTotalScore;
+  const panelistCount =
+    summary.totalPanelists ?? summary.panelistCount ?? visibleEvaluations.length;
+
   if (isStudent && visibleEvaluations.length === 0) {
     return (
       <Card>
@@ -339,12 +365,8 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 
   const hasSubmittedUnreleased =
     isInstructor &&
-    evaluations.some(
-      (e) => e.status === EVALUATION_STATUSES.SUBMITTED,
-    ) &&
-    evaluations.some(
-      (e) => e.status !== EVALUATION_STATUSES.RELEASED,
-    );
+    evaluations.some((e) => e.status === EVALUATION_STATUSES.SUBMITTED) &&
+    evaluations.some((e) => e.status !== EVALUATION_STATUSES.RELEASED);
 
   const handleRelease = async () => {
     if (!window.confirm('Release all submitted evaluations to the team? This cannot be undone.'))
@@ -371,14 +393,16 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-md border p-4 text-center">
               <p className="text-2xl font-bold">
-                {summary.averageScore !== null && summary.averageScore !== undefined ? summary.averageScore.toFixed(1) : '—'}
+                {summary.averageScore !== null && summary.averageScore !== undefined
+                  ? summary.averageScore.toFixed(1)
+                  : '—'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Average Score{summary.maxTotalScore ? ` / ${summary.maxTotalScore}` : ''}
+                Average Score{averageMaxScore ? ` / ${averageMaxScore}` : ''}
               </p>
             </div>
             <div className="rounded-md border p-4 text-center">
-              <p className="text-2xl font-bold">{summary.panelistCount ?? 0}</p>
+              <p className="text-2xl font-bold">{panelistCount}</p>
               <p className="text-xs text-muted-foreground">Panelists</p>
             </div>
             <div className="rounded-md border p-4 text-center">
@@ -426,11 +450,5 @@ export default function EvaluationPanel({ projectId, defenseType }) {
     return <PanelistEvaluationForm projectId={projectId} defenseType={defenseType} />;
   }
 
-  return (
-    <EvaluationsSummary
-      projectId={projectId}
-      defenseType={defenseType}
-      role={user.role}
-    />
-  );
+  return <EvaluationsSummary projectId={projectId} defenseType={defenseType} role={user.role} />;
 }

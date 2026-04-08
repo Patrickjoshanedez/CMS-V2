@@ -396,10 +396,10 @@ describe('Projects API — /api/projects', () => {
       const removalNotification = await Notification.findOne({
         userId: panelistUser._id,
         type: 'panelist_removed',
-        'metadata.projectId': projectId,
-      });
+      }).sort({ createdAt: -1 });
 
       expect(removalNotification).not.toBeNull();
+      expect(removalNotification.metadata?.projectId?.toString()).toBe(projectId.toString());
       expect(removalNotification.message).toContain('removed as a panelist');
     });
 
@@ -554,6 +554,56 @@ describe('Projects API — /api/projects', () => {
       });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should prevent adviser from updating deadlines on an unassigned project', async () => {
+      const res = await adviserAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter1: '2025-03-10T00:00:00.000Z',
+      });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow an assigned adviser to update deadlines for a single project', async () => {
+      const assignRes = await instructorAgent
+        .post(`/api/projects/${projectId}/adviser`)
+        .send({ adviserId: adviserUser._id.toString() });
+
+      expect(assignRes.status).toBe(200);
+
+      const res = await adviserAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter1: '2025-03-12T00:00:00.000Z',
+      });
+
+      expect(res.status).toBe(200);
+
+      const updatedBase = await Project.findById(projectId);
+      const unchangedSameSection = await Project.findById(sameSectionProjectId);
+
+      expect(updatedBase.deadlines.chapter1).toBeTruthy();
+      expect(unchangedSameSection.deadlines.chapter1).toBeNull();
+    });
+
+    it('should ignore sectionId override in section-wide updates and use target project section', async () => {
+      const baseProject = await Project.findById(projectId);
+      const otherProject = await Project.findById(otherSectionProjectId);
+
+      const res = await instructorAgent.patch(`/api/projects/${projectId}/deadlines`).send({
+        chapter4: '2025-06-01T00:00:00.000Z',
+        applyToSection: true,
+        sectionId: otherProject.sectionId.toString(),
+      });
+
+      expect(res.status).toBe(200);
+
+      const updatedBase = await Project.findById(projectId);
+      const updatedSameSection = await Project.findById(sameSectionProjectId);
+      const updatedOtherSection = await Project.findById(otherSectionProjectId);
+
+      expect(updatedBase.sectionId.toString()).toBe(baseProject.sectionId.toString());
+      expect(updatedBase.deadlines.chapter4).toBeTruthy();
+      expect(updatedSameSection.deadlines.chapter4).toBeTruthy();
+      expect(updatedOtherSection.deadlines.chapter4).toBeNull();
     });
 
     it('should still update only one project when applyToSection is not set', async () => {

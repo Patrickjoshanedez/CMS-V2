@@ -172,7 +172,6 @@ export const setDeadlinesSchema = z.object({
   chapter5: z.coerce.date().optional(),
   defense: z.coerce.date().optional(),
   applyToSection: z.boolean().optional(),
-  sectionId: objectId.optional(),
   tba: z
     .array(
       z.enum(['chapter1', 'chapter2', 'chapter3', 'proposal', 'chapter4', 'chapter5', 'defense']),

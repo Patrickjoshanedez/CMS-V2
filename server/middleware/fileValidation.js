@@ -231,6 +231,18 @@ const ALLOWED_AVATAR_MIME_TYPES = {
 };
 
 /**
+ * CSV MIME allowlist for student import uploads.
+ * Some browsers/clients report CSV as Excel or plain text.
+ */
+const ALLOWED_CSV_MIME_TYPES = new Set([
+  'text/csv',
+  'application/csv',
+  'text/plain',
+  'application/vnd.ms-excel',
+  'text/comma-separated-values',
+]);
+
+/**
  * Validate an uploaded avatar image.
  * Max 5 MB, JPEG/PNG/WEBP only, magic-byte verified.
  */
@@ -271,3 +283,30 @@ export const validateAvatarFile = async (req, _res, next) => {
     next(error);
   }
 };
+
+/**
+ * Validate CSV upload metadata before any CSV parsing occurs.
+ */
+export const validateCsvImportFile = (req, _res, next) => {
+  if (!req.file) {
+    return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+  }
+
+  const mimeType = (req.file.mimetype || '').toLowerCase().split(';')[0].trim();
+  const hasCsvExtension = (req.file.originalname || '').toLowerCase().endsWith('.csv');
+
+  if (!hasCsvExtension || !ALLOWED_CSV_MIME_TYPES.has(mimeType)) {
+    return next(
+      new AppError(
+        'Invalid file type for student import. Please upload a CSV file (text/csv).',
+        400,
+        'INVALID_CSV_FILE_TYPE',
+      ),
+    );
+  }
+
+  req.file.validatedMime = mimeType;
+  next();
+};
+
+export { ALLOWED_CSV_MIME_TYPES };

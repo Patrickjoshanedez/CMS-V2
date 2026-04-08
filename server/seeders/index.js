@@ -1153,6 +1153,38 @@ async function seed() {
     console.log(
       `   🎓 ${panelistIds.length * 4} evaluations created (proposal/midterm/paper/final × ${panelistIds.length} panelists)`,
     );
+
+    // Create submission records for archived projects
+    const leaderId = leader._id;
+    const submittedAt = new Date(pd.archivedAt.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+    // Create final_academic submission
+    await Submission.create({
+      projectId: project._id,
+      type: 'final_academic',
+      fileName: `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_academic.pdf`,
+      fileSize: 5242880 + Math.random() * 1024000,
+      mimeType: 'application/pdf',
+      uploadedBy: leaderId,
+      status: 'approved',
+      submittedAt,
+      approvedAt: pd.archivedAt,
+    });
+
+    // Create final_journal submission
+    await Submission.create({
+      projectId: project._id,
+      type: 'final_journal',
+      fileName: `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_journal.pdf`,
+      fileSize: 4194304 + Math.random() * 1024000,
+      mimeType: 'application/pdf',
+      uploadedBy: leaderId,
+      status: 'approved',
+      submittedAt: new Date(submittedAt.getTime() + 2 * 24 * 60 * 60 * 1000),
+      approvedAt: pd.archivedAt,
+    });
+
+    console.log(`   📄 2 submission records created (final_academic & final_journal)`);
   }
 
   // ── 6. Summary ────────────────────────────────────────────────

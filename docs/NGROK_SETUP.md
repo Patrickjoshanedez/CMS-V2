@@ -78,8 +78,19 @@ Fail-closed policy:
 
 ## 2) Start the full production stack with public exposure profile
 
+Fail-closed preflight (must fail if both profiles are requested together):
+
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile public-exposure up -d --build
+COMPOSE_PROFILES="public-exposure"
+if printf '%s' "$COMPOSE_PROFILES" | grep -Eq '(^|,)public-exposure(,|$)' \
+	&& printf '%s' "$COMPOSE_PROFILES" | grep -Eq '(^|,)localstack-testing(,|$)'; then
+	echo "ERROR: public-exposure and localstack-testing cannot be active together."
+	exit 1
+fi
+```
+
+```bash
+PUBLIC_EXPOSURE_MODE=true docker compose --env-file .env.prod -f docker-compose.prod.yml --profile public-exposure up -d --build
 ```
 
 Do not use ngrok-only/client-only starts or `--no-deps` in production. Always bring up the full production stack to keep `client` and `server` on the same compose network.
@@ -116,7 +127,7 @@ NGROK_LOCALSTACK_DOMAIN=your-ngrok-domain.ngrok-free.app
 Run:
 
 ```bash
-docker compose --env-file .env.prod -f docker-compose.prod.yml --profile localstack-testing up -d
+PUBLIC_EXPOSURE_MODE=false docker compose --env-file .env.prod -f docker-compose.prod.yml --profile localstack-testing up -d
 ```
 
 Notes:

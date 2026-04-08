@@ -15,6 +15,10 @@ const BASE_PRODUCTION_ENV = Object.freeze({
   S3_ACCESS_KEY_ID: '',
   S3_SECRET_ACCESS_KEY: '',
   ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE: 'false',
+  ALLOW_PRODUCTION_LOCALSTACK_TESTING: 'false',
+  PUBLIC_EXPOSURE_MODE: 'false',
+  NGROK_DOMAIN: '',
+  S3_FORCE_PATH_STYLE: 'false',
 });
 
 const buildProductionEnv = (overrides = {}) => ({
@@ -65,5 +69,40 @@ describe('env production S3 bucket guard', () => {
 
     expect(env.S3_BUCKET).toBe('other-production-bucket');
     expect(env.ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE).toBe(true);
+  });
+
+  it('rejects production localstack testing when PUBLIC_EXPOSURE_MODE=true', async () => {
+    await expect(
+      loadEnvWith({
+        ALLOW_PRODUCTION_LOCALSTACK_TESTING: 'true',
+        PUBLIC_EXPOSURE_MODE: 'true',
+        S3_ENDPOINT: 'http://localstack:4566',
+        S3_FORCE_PATH_STYLE: 'true',
+      }),
+    ).rejects.toThrow(/forbidden when public exposure indicators are set/);
+  });
+
+  it('rejects production localstack testing when NGROK_DOMAIN is configured', async () => {
+    await expect(
+      loadEnvWith({
+        ALLOW_PRODUCTION_LOCALSTACK_TESTING: 'true',
+        NGROK_DOMAIN: 'cms.example.ngrok-free.app',
+        S3_ENDPOINT: 'http://localstack:4566',
+        S3_FORCE_PATH_STYLE: 'true',
+      }),
+    ).rejects.toThrow(/forbidden when public exposure indicators are set/);
+  });
+
+  it('allows production localstack testing when public exposure indicators are not set', async () => {
+    const env = await loadEnvWith({
+      ALLOW_PRODUCTION_LOCALSTACK_TESTING: 'true',
+      PUBLIC_EXPOSURE_MODE: 'false',
+      NGROK_DOMAIN: '',
+      S3_ENDPOINT: 'http://localstack:4566',
+      S3_FORCE_PATH_STYLE: 'true',
+    });
+
+    expect(env.ALLOW_PRODUCTION_LOCALSTACK_TESTING).toBe(true);
+    expect(env.PUBLIC_EXPOSURE_MODE).toBe(false);
   });
 });

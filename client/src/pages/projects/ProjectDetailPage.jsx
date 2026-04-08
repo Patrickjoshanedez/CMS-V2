@@ -30,8 +30,9 @@ import {
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { userService } from '@/services/authService';
+import { getProjectResolveErrorMessage } from './projectDetailUtils';
 import { useQuery } from '@tanstack/react-query';
-import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES } from '@cms/shared';
+import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
 import {
   ArrowLeft,
   Loader2,
@@ -63,10 +64,47 @@ import { toast } from 'sonner';
 
 /* ────────── Sub-components ────────── */
 
+function TitleProposalsSection({ project }) {
+  if (!project.titleProposals || project.titleProposals.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Title Proposals</CardTitle>
+        <CardDescription>
+          Review all submitted title options before final approval or revision decisions.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {project.titleProposals.map((proposal, idx) => {
+          const title = typeof proposal === 'string' ? proposal : proposal?.title;
+
+          return (
+            <div
+              key={proposal?._id || `${idx}-${title || 'proposal'}`}
+              className="rounded-md border p-3"
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Proposal {idx + 1}
+              </p>
+              <p className="mt-1 text-sm font-medium">{title || 'Untitled proposal'}</p>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
 /**
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
 function ProjectInfoPanel({ project }) {
+  const capstoneTypeOrPhase =
+    project.capstoneType || project.projectType || `Capstone ${project.capstonePhase}`;
+
   return (
     <Card>
       <CardHeader>
@@ -87,8 +125,22 @@ function ProjectInfoPanel({ project }) {
         {/* Abstract */}
         {project.abstract && (
           <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Abstract</p>
+            <p className="mb-1 text-sm font-medium text-muted-foreground">Overview</p>
             <p className="text-sm leading-relaxed">{project.abstract}</p>
+          </div>
+        )}
+
+        {/* SDG tags */}
+        {project.sdgTags?.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">SDG Tags</p>
+            <div className="flex flex-wrap gap-1.5">
+              {project.sdgTags.map((tag, i) => (
+                <Badge key={`${tag}-${i}`} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
 
@@ -127,6 +179,11 @@ function ProjectInfoPanel({ project }) {
             <span className="text-muted-foreground">Panelists:</span>
             <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
           </div>
+          <div className="flex items-center gap-2 text-sm sm:col-span-3">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Capstone Type/Phase:</span>
+            <span className="font-medium">{capstoneTypeOrPhase}</span>
+          </div>
         </div>
 
         {/* Panelist names */}
@@ -150,6 +207,7 @@ function ProjectInfoPanel({ project }) {
 
         {/* Modification request */}
         {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+          project.titleModificationRequest?.status === 'pending' &&
           project.titleModificationRequest?.proposedTitle && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
               <p className="mb-1 text-sm font-semibold text-amber-800 dark:text-amber-200">
@@ -246,14 +304,15 @@ function ModificationReviewCard({ project }) {
 
   const resolve = useResolveTitleModification({
     onSuccess: () => toast.success('Modification resolved.'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to resolve modification.'),
+    onError: (err) => toast.error(getProjectResolveErrorMessage(err)),
   });
 
   const modReq = project.titleModificationRequest;
-  if (!modReq?.proposedTitle) return null;
+  if (modReq?.status !== 'pending' || !modReq?.proposedTitle) return null;
 
   const handleResolve = (action) => {
+    if (resolve.isPending) return;
+
     resolve.mutate({
       projectId: project._id,
       action,
@@ -802,7 +861,14 @@ export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const { data: project, isLoading, error } = useProject(id);
+  const {
+    data: project,
+    isLoading,
+    error,
+  } = useProject(id, {
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+  });
   const { data: chapterSubmissions } = useProjectSubmissions(
     project?._id,
     { limit: 200, type: 'chapter' },
@@ -810,6 +876,7 @@ export default function ProjectDetailPage() {
   );
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const isArchived = project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
 
   return (
     <DashboardLayout>
@@ -843,6 +910,8 @@ export default function ProjectDetailPage() {
             {/* Info panel */}
             <ProjectInfoPanel project={project} />
 
+            {!isArchived && <TitleProposalsSection project={project} />}
+
             {/* Chapter progress + rounds (faculty visibility) */}
             <ChapterProgressWithRounds
               project={project}
@@ -855,28 +924,30 @@ export default function ProjectDetailPage() {
             />
 
             {/* Title review — only when submitted */}
-            {project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
+            {!isArchived && project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
               <TitleReviewCard project={project} />
             )}
 
             {/* Modification review — only when pending */}
-            {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && isInstructor && (
-              <ModificationReviewCard project={project} />
-            )}
+            {!isArchived &&
+              project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+              project.titleModificationRequest?.status === 'pending' &&
+              project.titleModificationRequest?.proposedTitle &&
+              isInstructor && <ModificationReviewCard project={project} />}
 
             {/* Assign adviser — instructor only */}
-            {isInstructor && <AssignAdviserCard project={project} />}
+            {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
 
             {/* Panelists — instructor only */}
-            {isInstructor && <ManagePanelistsCard project={project} />}
+            {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
 
             {/* Deadlines — instructor or adviser */}
-            {(isInstructor || user?.role === ROLES.ADVISER) && (
+            {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
               <DeadlinesCard project={project} isInstructor={isInstructor} />
             )}
 
             {/* Advance phase — instructor only */}
-            {isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
               <AdvancePhaseCard project={project} />
             )}
 
@@ -886,17 +957,18 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Evaluation panels — proposal defense */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
+            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
               <EvaluationPanel projectId={project._id} defenseType="proposal" />
             )}
 
             {/* Evaluation panels — final defense (Capstone 4) */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
               <EvaluationPanel projectId={project._id} defenseType="final" />
             )}
 
             {/* Final paper upload — Capstone 4 */}
             {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+              !isArchived &&
               (user?.role === ROLES.STUDENT || isInstructor) && (
                 <FinalPaperUpload projectId={project._id} />
               )}
@@ -926,7 +998,7 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Reject project — instructor only */}
-            {isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
               <RejectProjectCard project={project} />
             )}
           </>

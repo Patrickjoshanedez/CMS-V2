@@ -39,6 +39,10 @@ export function useSocket() {
 
     /** Handle incoming real-time notifications */
     const handleNotification = (notification) => {
+      if (!notification || typeof notification !== 'object') {
+        return;
+      }
+
       // Show a toast
       toast(notification.title, {
         description: notification.message,
@@ -48,11 +52,39 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
 
+      const normalizeProjectId = (value) => {
+        if (typeof value === 'string' || typeof value === 'number') {
+          return String(value);
+        }
+
+        if (
+          value &&
+          typeof value === 'object' &&
+          (typeof value._id === 'string' || typeof value._id === 'number')
+        ) {
+          return String(value._id);
+        }
+
+        return undefined;
+      };
+
+      const notificationProjectId = normalizeProjectId(
+        notification?.metadata?.projectId ?? notification?.metadata?.project,
+      );
+
+      // Primary rule: any project-related notification carrying a project id should refresh project queries.
+      if (notificationProjectId) {
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(notificationProjectId) });
+        queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+        queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+        return;
+      }
+
       if (
-        notification.type === 'panelist_assigned' ||
-        notification.type === 'panelist_removed' ||
-        notification.type === 'title_modification_requested' ||
-        notification.type === 'title_modification_resolved'
+        notification?.type === 'panelist_assigned' ||
+        notification?.type === 'panelist_removed' ||
+        notification?.type === 'title_modification_requested' ||
+        notification?.type === 'title_modification_resolved'
       ) {
         queryClient.invalidateQueries({ queryKey: projectKeys.all });
       }

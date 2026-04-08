@@ -3,7 +3,7 @@ import User from './user.model.js';
 import AppError from '../../utils/AppError.js';
 import Section from '../academics/section.model.js';
 import { ROLES } from '@cms/shared';
-import storageService from '../../services/storage.service.js';
+import storageService from '../../services/storage.index.js';
 
 const IMPORT_PASSWORD_CHARS = {
   upper: 'ABCDEFGHJKLMNPQRSTUVWXYZ',

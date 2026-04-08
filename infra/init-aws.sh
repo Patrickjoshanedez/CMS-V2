@@ -9,13 +9,10 @@ set -e
 
 REGION="us-east-1"
 
-# All buckets to create
-BUCKETS=(
-  "cms-buksu-uploads"
-  "avatars"
-  "submissions"
-  "archived-documents"
-)
+# Runtime app uses one primary uploads bucket with key prefixes
+# (for example: avatars/... and archives/projects/...).
+PRIMARY_BUCKET="${S3_BUCKET:-cms-buksu-uploads}"
+BUCKETS=("${PRIMARY_BUCKET}")
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
@@ -23,7 +20,7 @@ echo "║    LocalStack S3 Initialization — CMS V2        ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
-# ── 1. Create all buckets ─────────────────────────────────────────────────────
+# ── 1. Create primary bucket ──────────────────────────────────────────────────
 for BUCKET in "${BUCKETS[@]}"; do
   echo "[init-aws] Creating bucket: s3://${BUCKET} in ${REGION}"
   awslocal s3 mb "s3://${BUCKET}" --region "${REGION}" 2>/dev/null \
@@ -31,9 +28,9 @@ for BUCKET in "${BUCKETS[@]}"; do
     || echo "[init-aws] ℹ️  Bucket '${BUCKET}' already exists — skipping creation."
 done
 
-# ── 2. Apply CORS to all buckets ──────────────────────────────────────────────
+# ── 2. Apply CORS to primary bucket ───────────────────────────────────────────
 echo ""
-echo "[init-aws] Applying CORS policy to all buckets..."
+echo "[init-aws] Applying CORS policy to primary bucket..."
 CORS_CONFIG='{
   "CORSRules": [{
     "AllowedHeaders": ["*"],

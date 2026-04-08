@@ -246,6 +246,7 @@ function ProjectInfoPanel({ project }) {
 
         {/* Modification request */}
         {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+          project.titleModificationRequest?.status === 'pending' &&
           project.titleModificationRequest?.proposedTitle && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
               <p className="mb-1 text-sm font-semibold text-amber-800 dark:text-amber-200">
@@ -347,7 +348,7 @@ function ModificationReviewCard({ project }) {
   });
 
   const modReq = project.titleModificationRequest;
-  if (!modReq?.proposedTitle) return null;
+  if (modReq?.status !== 'pending' || !modReq?.proposedTitle) return null;
 
   const handleResolve = (action) => {
     resolve.mutate({
@@ -894,6 +895,7 @@ export default function ProjectDetailPage() {
   );
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const isArchived = project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
 
   return (
     <DashboardLayout>
@@ -927,9 +929,11 @@ export default function ProjectDetailPage() {
             {/* Info panel */}
             <ProjectInfoPanel project={project} />
             {/* Title Proposals Section */}
-            <div className="-mt-2 mb-6">
-              <TitleProposalsSection project={project} currentUser={user} />
-            </div>
+            {!isArchived && (
+              <div className="-mt-2 mb-6">
+                <TitleProposalsSection project={project} currentUser={user} />
+              </div>
+            )}
             {/* Chapter progress + rounds (faculty visibility) */}
             <ChapterProgressWithRounds
               project={project}
@@ -942,26 +946,30 @@ export default function ProjectDetailPage() {
             />
 
             {/* Title review — only when submitted */}
-            {project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
+            {!isArchived && project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
               <TitleReviewCard project={project} />
             )}
 
             {/* Modification review — only when pending */}
-            {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && isInstructor && (
-              <ModificationReviewCard project={project} />
-            )}
+            {!isArchived &&
+              project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+              project.titleModificationRequest?.status === 'pending' &&
+              project.titleModificationRequest?.proposedTitle &&
+              isInstructor && <ModificationReviewCard project={project} />}
 
             {/* Assign adviser — instructor only */}
-            {isInstructor && <AssignAdviserCard project={project} />}
+            {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
 
             {/* Panelists — instructor only */}
-            {isInstructor && <ManagePanelistsCard project={project} />}
+            {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
 
             {/* Deadlines — instructor or adviser */}
-            {(isInstructor || user?.role === ROLES.ADVISER) && <DeadlinesCard project={project} />}
+            {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
+              <DeadlinesCard project={project} />
+            )}
 
             {/* Advance phase — instructor only */}
-            {isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
               <AdvancePhaseCard project={project} />
             )}
 
@@ -971,12 +979,12 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Evaluation panels — proposal defense */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
+            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
               <EvaluationPanel projectId={project._id} defenseType="proposal" />
             )}
 
             {/* Evaluation panels — final defense (Capstone 4) */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
               <EvaluationPanel projectId={project._id} defenseType="final" />
             )}
 
@@ -987,7 +995,7 @@ export default function ProjectDetailPage() {
 
             {/* Final paper upload — Capstone 4 */}
             {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
-              project.projectStatus !== PROJECT_STATUSES.ARCHIVED &&
+              !isArchived &&
               (user?.role === ROLES.STUDENT || isInstructor) && (
                 <FinalPaperUpload projectId={project._id} />
               )}
@@ -1017,7 +1025,7 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Reject project — instructor only */}
-            {isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
               <RejectProjectCard project={project} />
             )}
           </>

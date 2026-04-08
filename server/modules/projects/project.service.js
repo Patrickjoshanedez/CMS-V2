@@ -7,7 +7,7 @@ import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
-import storageService from '../../services/storage.service.js';
+import storageService from '../../services/storage.index.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
@@ -1035,6 +1035,7 @@ class ProjectService {
   async setDeadlines(projectId, data, requester) {
     const project = await this._getProjectOrFail(projectId);
     const applyToSection = data.applyToSection === true;
+    const requesterId = requester?._id?.toString?.();
 
     if (applyToSection && requester?.role !== ROLES.INSTRUCTOR) {
       throw new AppError(
@@ -1044,8 +1045,20 @@ class ProjectService {
       );
     }
 
+    if (
+      !applyToSection &&
+      requester?.role === ROLES.ADVISER &&
+      (!project.adviserId || project.adviserId.toString() !== requesterId)
+    ) {
+      throw new AppError(
+        'You can only update deadlines for projects assigned to you.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
     const targetProjects = applyToSection
-      ? await Project.find({ sectionId: data.sectionId || project.sectionId })
+      ? await Project.find({ sectionId: project.sectionId })
       : [project];
 
     const dateFields = [

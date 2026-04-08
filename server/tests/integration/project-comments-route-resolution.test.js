@@ -297,4 +297,47 @@ describe('Projects comments route resolution', () => {
     const refreshedNonStudent = await User.findById(nonStudent._id);
     expect(refreshedNonStudent?.sectionId).toBeNull();
   });
+
+  it('rejects student import uploads when MIME type is not CSV-compatible', async () => {
+    const instructor = await User.create({
+      firstName: 'Mime',
+      lastName: 'Guard',
+      email: 'mime-guard@example.com',
+      password: 'Password123',
+      role: ROLES.INSTRUCTOR,
+      isVerified: true,
+      isActive: true,
+    });
+
+    const course = await Course.create({
+      name: 'MIME Guard Course',
+      code: 'MGC101',
+      createdBy: instructor._id,
+    });
+    const section = await Section.create({
+      name: 'MIME Guard Section',
+      code: 'MGS101',
+      courseId: course._id,
+      academicYear: '2024-2025',
+      createdBy: instructor._id,
+    });
+
+    const accessToken = generateAccessToken({
+      userId: instructor._id.toString(),
+      role: instructor.role,
+    });
+
+    const request = createRouteHarness('/api/users', userRoutes);
+    const response = await request
+      .post('/api/users/import-students')
+      .set('Cookie', [`accessToken=${accessToken}`])
+      .field('sectionId', section._id.toString())
+      .attach('file', Buffer.from('{"not":"csv"}'), {
+        filename: 'students.csv',
+        contentType: 'application/json',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body?.error?.code).toBe('INVALID_CSV_FILE_TYPE');
+  });
 });

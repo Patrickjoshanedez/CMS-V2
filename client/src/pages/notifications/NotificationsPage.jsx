@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -145,11 +145,17 @@ function getNotificationTarget(notification, role) {
     return `/projects?projectId=${encodeURIComponent(projectId)}`;
   }
 
-  if (
-    notification.type === 'team_invite' ||
-    notification.type === 'team_joined' ||
-    notification.type === 'team_locked'
-  ) {
+  if (notification.type === 'team_invite') {
+    const inviteToken = metadata.inviteToken || metadata.inviteCode;
+
+    if (inviteToken) {
+      return `/teams/invites/${encodeURIComponent(inviteToken)}/accept`;
+    }
+
+    return '/team';
+  }
+
+  if (notification.type === 'team_joined' || notification.type === 'team_locked') {
     return '/team';
   }
 
@@ -192,7 +198,15 @@ function getNotificationTarget(notification, role) {
   return '/project';
 }
 
-function NotificationItem({ notification, onOpen, onMarkRead, onDelete }) {
+function isInteractiveTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(target.closest('button, a, input, select, textarea, [role="button"]'));
+}
+
+function NotificationItem({ notification, onOpen, onMarkRead, onDelete, isDeletePending }) {
   const Icon = ICON_MAP[notification.type] || ICON_MAP.default;
 
   const handleActionClick = (handler, id) => (event) => {
@@ -206,6 +220,10 @@ function NotificationItem({ notification, onOpen, onMarkRead, onDelete }) {
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(event) => {
+        if (isInteractiveTarget(event.target)) {
+          return;
+        }
+
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onOpen?.();
@@ -229,6 +247,12 @@ function NotificationItem({ notification, onOpen, onMarkRead, onDelete }) {
           <p className={cn('text-sm font-medium', notification.isRead && 'font-normal')}>
             {notification.title}
           </p>
+          {!notification.isRead && (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+              <span>Unread</span>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground">{notification.message}</p>
           <p className="text-xs text-muted-foreground">
             {notification.createdAt
@@ -257,6 +281,7 @@ function NotificationItem({ notification, onOpen, onMarkRead, onDelete }) {
             size="icon"
             onClick={handleActionClick(onDelete, notification._id)}
             aria-label="Delete notification"
+            disabled={isDeletePending}
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
@@ -283,7 +308,29 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { user, fetchUser } = useAuthStore();
   const [page, setPage] = useState(1);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const pendingDeleteIdRef = useRef(null);
+  const clearAllInFlightRef = useRef(false);
+  const clearAllTriggerRef = useRef(null);
+  const dialogRef = useRef(null);
+  const cancelButtonRef = useRef(null);
   const limit = 20;
+
+  useEffect(() => {
+    if (!isConfirmOpen) {
+      if (clearAllTriggerRef.current instanceof HTMLElement) {
+        clearAllTriggerRef.current.focus();
+      }
+      return;
+    }
+
+    const focusTarget = cancelButtonRef.current;
+    if (focusTarget instanceof HTMLElement) {
+      focusTarget.focus();
+    }
+  }, [isConfirmOpen]);
 
   const { data, isLoading, isError } = useNotifications({ page, limit });
   const markAsRead = useMarkAsRead({
@@ -325,7 +372,22 @@ export default function NotificationsPage() {
   };
 
   const handleDelete = (id) => {
-    deleteNotification.mutate(id);
+    if (pendingDeleteIdRef.current === id) {
+      return;
+    }
+
+    pendingDeleteIdRef.current = id;
+    setPendingDeleteId(id);
+
+    deleteNotification.mutate(id, {
+      onSettled: () => {
+        if (pendingDeleteIdRef.current === id) {
+          pendingDeleteIdRef.current = null;
+        }
+
+        setPendingDeleteId((current) => (current === id ? null : current));
+      },
+    });
   };
 
   const handleOpenNotification = (notification) => {
@@ -333,8 +395,78 @@ export default function NotificationsPage() {
     navigate(target);
   };
 
+  const handleOpenClearAllConfirm = () => {
+    setConfirmError('');
+    setIsConfirmOpen(true);
+  };
+
+  const handleCloseClearAllConfirm = () => {
+    if (!clearAll.isPending) {
+      setConfirmError('');
+      setIsConfirmOpen(false);
+    }
+  };
+
   const handleClearAll = () => {
-    clearAll.mutate();
+    if (clearAllInFlightRef.current || clearAll.isPending) {
+      return;
+    }
+
+    clearAllInFlightRef.current = true;
+    setConfirmError('');
+    clearAll.mutate(undefined, {
+      onSuccess: () => {
+        clearAllInFlightRef.current = false;
+        toast.success('All notifications cleared.');
+        setConfirmError('');
+        setIsConfirmOpen(false);
+      },
+      onError: () => {
+        clearAllInFlightRef.current = false;
+        setConfirmError('Failed to clear notifications. Please try again.');
+      },
+    });
+  };
+
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCloseClearAllConfirm();
+      return;
+    }
+
+    if (event.key !== 'Tab' || !dialogRef.current) {
+      return;
+    }
+
+    const focusableSelectors = [
+      'button:not([disabled])',
+      '[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ];
+
+    const focusableElements = Array.from(
+      dialogRef.current.querySelectorAll(focusableSelectors.join(',')),
+    );
+
+    if (focusableElements.length === 0) {
+      return;
+    }
+
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    const active = document.activeElement;
+
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   return (
@@ -364,9 +496,10 @@ export default function NotificationsPage() {
             )}
             {notifications.length > 0 && (
               <Button
+                ref={clearAllTriggerRef}
                 variant="outline"
                 size="sm"
-                onClick={handleClearAll}
+                onClick={handleOpenClearAllConfirm}
                 disabled={clearAll.isPending}
                 className="text-destructive hover:text-destructive"
               >
@@ -404,6 +537,7 @@ export default function NotificationsPage() {
                 onOpen={() => handleOpenNotification(notification)}
                 onMarkRead={handleMarkRead}
                 onDelete={handleDelete}
+                isDeletePending={pendingDeleteId === notification._id}
               />
             ))}
           </div>
@@ -434,6 +568,62 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      {isConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              handleCloseClearAllConfirm();
+            }
+          }}
+          onKeyDown={handleDialogKeyDown}
+        >
+          <Card
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-all-dialog-title"
+            aria-describedby="clear-all-dialog-description"
+            className="w-full max-w-md border-destructive/30"
+          >
+            <CardContent className="space-y-4 p-6">
+              <div className="space-y-1">
+                <h4 id="clear-all-dialog-title" className="text-lg font-semibold">
+                  Confirm Action
+                </h4>
+                <p id="clear-all-dialog-description" className="text-sm text-muted-foreground">
+                  Clear all notifications? This action cannot be undone.
+                </p>
+                {confirmError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {confirmError}
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  ref={cancelButtonRef}
+                  variant="outline"
+                  onClick={handleCloseClearAllConfirm}
+                  disabled={clearAll.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleClearAll}
+                  disabled={clearAll.isPending}
+                >
+                  {clearAll.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Confirm
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

@@ -34,6 +34,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
+      STORAGE_MODE: ${STORAGE_MODE:-filesystem}
+      STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/app/uploads}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/cms_v2}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
@@ -57,6 +59,8 @@ services:
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
       ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE: ${ALLOW_PRODUCTION_S3_BUCKET_OVERRIDE:-false}
+      ALLOW_PRODUCTION_LOCALSTACK_TESTING: ${ALLOW_PRODUCTION_LOCALSTACK_TESTING:-false}
+      PUBLIC_EXPOSURE_MODE: ${PUBLIC_EXPOSURE_MODE:-false}
 
       # === Plagiarism Detection (Production Thresholds) ===
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
@@ -77,6 +81,8 @@ services:
       GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: ${GOOGLE_DRIVE_TEMPLATE_FOLDER_ID:-}
     security_opt:
       - no-new-privileges:true
+    volumes:
+      - ./uploads:/app/uploads
     cap_drop:
       - ALL
     logging:

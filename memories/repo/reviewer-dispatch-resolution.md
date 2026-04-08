@@ -2,3 +2,4 @@
 - Keep reviewer resolution deterministic in orchestrator preflight using compatibility chain: reviewer -> 100x Code Reviewer.
 - Keep reviewer policy internally consistent: if constraints are read/search only, reviewer tools must be read/search only.
 - Reviewer output contract should always require verdict tags: <review_verdict>APPROVED</review_verdict> or <review_verdict>REJECTED</review_verdict>.
+- If reviewer findings conflict with fresh local test evidence, rerun the exact command, provide pass/fail lines to reviewer, and request a current-state re-evaluation before treating REJECTED as final.

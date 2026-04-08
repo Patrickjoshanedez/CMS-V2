@@ -152,6 +152,8 @@ export default function ProposalCompilationPage() {
   const chapterReady = [1, 2, 3].every((chapter) =>
     isChapterReady(chapterSubmissions.get(chapter)),
   );
+  const capstoneTypeOrPhase =
+    project?.capstoneType || project?.projectType || `Capstone ${project?.capstonePhase}`;
   const projectUnavailable =
     project?.projectStatus === PROJECT_STATUSES.REJECTED ||
     project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
@@ -298,6 +300,41 @@ export default function ProposalCompilationPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <p className="text-sm font-semibold">Proposal Summary</p>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Overview
+                </p>
+                <p className="text-sm">{project.abstract || 'No overview provided yet.'}</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  SDG Tags
+                </p>
+                {project.sdgTags?.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {project.sdgTags.map((tag, idx) => (
+                      <Badge key={`${tag}-${idx}`} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No SDG tags added.</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Capstone Type/Phase
+                </p>
+                <p className="text-sm">{capstoneTypeOrPhase}</p>
+              </div>
+            </div>
+
             <div className="grid gap-3 md:grid-cols-2">
               {prerequisiteLabel(
                 Boolean(project?.teamId || project?.team),

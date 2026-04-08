@@ -21,7 +21,7 @@ import Project from '../projects/project.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
-import storageService from '../../services/storage.service.js';
+import storageService from '../../services/storage.index.js';
 import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
 import env from '../../config/env.js';
@@ -43,6 +43,62 @@ const logger = {
 };
 
 class SubmissionService {
+  _getPlagiarismStaleTimeoutMs() {
+    const minutes = Number(process.env.PLAGIARISM_JOB_STALE_MINUTES || 60);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 60 * 60 * 1000;
+  }
+
+  async _reconcileStalePlagiarismResult(submissionId, plagiarismResult) {
+    if (!plagiarismResult) {
+      return null;
+    }
+
+    if (!['queued', 'processing', 'pending'].includes(plagiarismResult.status)) {
+      return plagiarismResult;
+    }
+
+    const lastUpdatedAt = plagiarismResult.updatedAt || plagiarismResult.createdAt;
+    if (!lastUpdatedAt) {
+      return plagiarismResult;
+    }
+
+    const isStale =
+      Date.now() - new Date(lastUpdatedAt).getTime() > this._getPlagiarismStaleTimeoutMs();
+    if (!isStale) {
+      return plagiarismResult;
+    }
+
+    const staleError =
+      'Plagiarism processing timed out. Please re-run plagiarism check before approval.';
+
+    const updated = await PlagiarismResult.findOneAndUpdate(
+      { submissionId },
+      {
+        $set: {
+          status: PLAGIARISM_STATUSES.FAILED,
+          error: staleError,
+          errorMessage: staleError,
+          completedAt: new Date(),
+          checkedAt: new Date(),
+        },
+      },
+      { new: true },
+    ).lean();
+
+    await Submission.findByIdAndUpdate(submissionId, {
+      'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
+      'plagiarismResult.error': staleError,
+      'plagiarismResult.processedAt': new Date(),
+    });
+
+    logger.error(
+      { submissionId: submissionId.toString() },
+      'Marked stale plagiarism job as failed to avoid indefinite queued/processing state',
+    );
+
+    return updated;
+  }
+
   /* ═══════════════════ Shared Private Helpers ═══════════════════ */
 
   /**
@@ -139,12 +195,50 @@ class SubmissionService {
       ...payload,
     };
 
-    const jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    let jobId = null;
+    let enqueueError = null;
+    try {
+      jobId = await enqueuePlagiarismJob(plagiarismPayload);
+    } catch (error) {
+      enqueueError = error;
+    }
+
     if (!jobId) {
-      // Redis unavailable — run synchronously as fallback (dev/test)
-      runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
-        console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
-      });
+      if (env.NODE_ENV === 'development') {
+        // Redis unavailable in development — execute sync fallback for local workflows.
+        runPlagiarismCheckSync(plagiarismPayload).catch((err) => {
+          console.error(`[SubmissionService] Sync plagiarism fallback failed: ${err.message}`);
+        });
+      } else if (env.isProduction) {
+        const reason =
+          enqueueError?.message ||
+          'Plagiarism queue is unavailable and synchronous fallback is disabled in production.';
+
+        await Submission.findByIdAndUpdate(submission._id, {
+          'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
+          'plagiarismResult.error': reason,
+          'plagiarismResult.processedAt': new Date(),
+          'plagiarismResult.jobId': null,
+        });
+
+        logger.error(
+          {
+            submissionId: submission._id.toString(),
+            projectId: payload.projectId,
+            error: reason,
+          },
+          'Plagiarism enqueue failed in production; marked submission plagiarism status as failed',
+        );
+      } else {
+        logger.error(
+          {
+            submissionId: submission._id.toString(),
+            projectId: payload.projectId,
+            error: enqueueError?.message || null,
+          },
+          'Plagiarism queue unavailable; synchronous fallback is disabled outside development',
+        );
+      }
     } else {
       await Submission.findByIdAndUpdate(submission._id, {
         'plagiarismResult.jobId': jobId,
@@ -1315,9 +1409,13 @@ class SubmissionService {
     // --- Plagiarism check enforcement before approval ---
     if (status === SUBMISSION_STATUSES.APPROVED) {
       // Fetch plagiarism result from database
-      const plagiarismResult = await PlagiarismResult.findOne({
+      let plagiarismResult = await PlagiarismResult.findOne({
         submissionId: submission._id,
       }).lean();
+      plagiarismResult = await this._reconcileStalePlagiarismResult(
+        submission._id,
+        plagiarismResult,
+      );
 
       // Require completed plagiarism check before approval
       if (!plagiarismResult || plagiarismResult.status !== 'completed') {

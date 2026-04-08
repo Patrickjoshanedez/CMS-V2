@@ -18,7 +18,7 @@ let mongoServer;
 process.env.NODE_ENV = 'test';
 process.env.JWT_ACCESS_SECRET = 'test-access-secret-12345678';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-12345678';
-process.env.MONGODB_URI = 'mongodb://placeholder:27017/test'; // overridden in beforeAll
+process.env.MONGODB_URI = 'mongodb://203.0.113.1:27017/test'; // overridden in beforeAll
 process.env.SMTP_HOST = 'localhost';
 process.env.SMTP_PORT = '2525';
 process.env.SMTP_USER = '';

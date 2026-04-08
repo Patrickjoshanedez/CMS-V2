@@ -27,3 +27,8 @@ export const uploadManuscriptSchema = z.object({
   externalDocUrl: z.string().trim().url('externalDocUrl must be a valid URL'),
   externalDocProvider: z.enum(['google_docs', 'other']).optional(),
 });
+
+export const listProjectManuscriptsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+});

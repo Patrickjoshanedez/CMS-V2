@@ -4,7 +4,7 @@ import AppError from '../../utils/AppError.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { enqueuePlagiarismJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
-import storageService from '../../services/storage.service.js';
+import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
