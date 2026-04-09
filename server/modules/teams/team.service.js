@@ -320,12 +320,18 @@ class TeamService {
     const search = typeof query.search === 'string' ? query.search.trim() : '';
     const limit = Number.isFinite(query.limit) ? query.limit : 8;
     const memberIds = team.members.map((id) => id.toString());
+    const leader = await User.findById(leaderId).select('sectionId');
+    const scopedSectionId = leader?.sectionId || team.sectionId || null;
 
     const filter = {
       role: ROLES.STUDENT,
       isActive: true,
       _id: { $nin: memberIds },
     };
+
+    if (scopedSectionId) {
+      filter.sectionId = scopedSectionId;
+    }
 
     if (search) {
       filter.$or = [

@@ -1,0 +1,5 @@
+- After code changes: run targeted tests for touched backend modules first, then broader server tests if needed.
+- Verify no unintended API contract breaks; keep envelope compatibility unless requested otherwise.
+- Check for lint/type/runtime issues in changed files.
+- Provide evidence summary: changed files, commands run, pass/fail results, residual risks.
+- For security/auth changes: verify cookie behavior and session invalidation semantics.

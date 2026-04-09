@@ -1,0 +1,18 @@
+{
+  "key": "fact_test_language",
+  "value": {
+    "value": "javascript",
+    "metadata": {
+      "confidence": "high",
+      "recordedAt": "2026-04-08T15:51:45.402Z",
+      "type": "fact"
+    }
+  },
+  "timestamp": 1775663505402,
+  "tier": "longTerm",
+  "_meta": {
+    "storedAt": "2026-04-08T15:51:45.402Z",
+    "tokens": 35,
+    "ttl": null
+  }
+}

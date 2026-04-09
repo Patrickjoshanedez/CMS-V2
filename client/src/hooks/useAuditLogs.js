@@ -11,6 +11,8 @@ export const auditKeys = {
   entity: (targetType, targetId) => [...auditKeys.all, 'entity', targetType, targetId],
 };
 
+const unwrapEnvelopeData = (payload) => payload?.data || payload;
+
 /**
  * Fetch paginated audit logs with optional filters.
  * Only enabled when the consumer explicitly requests it (instructor views).
@@ -24,7 +26,7 @@ export function useAuditLogs(filters = {}, options = {}) {
     queryKey: auditKeys.logs(filters),
     queryFn: async () => {
       const res = await auditService.queryLogs(filters);
-      return res.data;
+      return unwrapEnvelopeData(res.data);
     },
     staleTime: 30 * 1000,
     ...options,
@@ -44,7 +46,7 @@ export function useEntityAuditHistory(targetType, targetId, limit = 20) {
     queryKey: auditKeys.entity(targetType, targetId),
     queryFn: async () => {
       const res = await auditService.getEntityHistory(targetType, targetId, limit);
-      return res.data;
+      return unwrapEnvelopeData(res.data);
     },
     enabled: !!targetType && !!targetId,
     staleTime: 30 * 1000,

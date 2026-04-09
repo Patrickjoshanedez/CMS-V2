@@ -1,0 +1,10 @@
+- Install deps (root workspaces): `npm install`
+- Run full dev: `npm run dev`
+- Run server only: `npm run dev:server`
+- Run client only: `npm run dev:client`
+- Server tests: `npm run test --workspace=server` or VS Code task `test: server`
+- Client tests: `npm run test --workspace=client` or VS Code task `test: client`
+- Lint all: `npm run lint`
+- Format all: `npm run format`
+- Seed backend data: `npm run seed --workspace=server`
+- Windows utility commands: `Get-ChildItem`, `Get-Content`, `Select-String`, `git status`, `git diff`.

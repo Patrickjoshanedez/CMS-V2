@@ -12,7 +12,10 @@ const InstructorDashboard = () => {
     error: kpisError,
   } = useQuery({
     queryKey: ['instructorKpis'],
-    queryFn: () => dashboardService.getInstructorKpis(),
+    queryFn: async () => {
+      const response = await dashboardService.getInstructorKpis();
+      return response.data?.data || response.data;
+    },
     staleTime: 60 * 1000,
   });
 
@@ -23,12 +26,18 @@ const InstructorDashboard = () => {
     refetch: refetchWorkload,
   } = useQuery({
     queryKey: ['instructorWorkload'],
-    queryFn: () => dashboardService.getInstructorWorkload(),
+    queryFn: async () => {
+      const response = await dashboardService.getInstructorWorkload();
+      return response.data?.data || response.data;
+    },
     staleTime: 30 * 1000,
   });
 
   const optimizeMutation = useMutation({
-    mutationFn: () => dashboardService.optimizeInstructorWorkload(),
+    mutationFn: async () => {
+      const response = await dashboardService.optimizeInstructorWorkload();
+      return response.data?.data || response.data;
+    },
     onSuccess: () => {
       refetchWorkload();
     },
@@ -55,8 +64,8 @@ const InstructorDashboard = () => {
     );
   }
 
-  const kpis = kpisData?.data || {};
-  const workload = workloadData?.data || {};
+  const kpis = kpisData || {};
+  const workload = workloadData || {};
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8 md:px-8">
@@ -113,7 +122,7 @@ const InstructorDashboard = () => {
           </div>
           <div className="xl:col-span-2">
             <OptimizationEngine
-              optimization={optimizeMutation.data?.data}
+              optimization={optimizeMutation.data}
               onGenerate={() => optimizeMutation.mutate()}
               loading={optimizeMutation.isPending}
             />

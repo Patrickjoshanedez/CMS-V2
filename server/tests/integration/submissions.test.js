@@ -39,7 +39,12 @@ vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
  * Create a locked team, link the student to it, and create an active project
  * with an approved title. Returns { team, project }.
  */
-async function createProjectSetup(studentId, adviserId = null, instructorId = null) {
+async function createProjectSetup(
+  studentId,
+  adviserId = null,
+  instructorId = null,
+  panelistIds = [],
+) {
   const team = await Team.create({
     name: 'Test Team',
     leaderId: studentId,
@@ -73,6 +78,7 @@ async function createProjectSetup(studentId, adviserId = null, instructorId = nu
     titleStatus: TITLE_STATUSES.APPROVED,
     projectStatus: PROJECT_STATUSES.ACTIVE,
     adviserId: adviserId || undefined,
+    panelistIds,
     memberRoleAssignments: [
       {
         userId: studentId,
@@ -113,6 +119,18 @@ async function createCompletedPlagiarismResult(submissionId, similarityPercentag
   });
 }
 
+let unassignedAdviserEmailSequence = 0;
+
+async function createUnassignedAdviserAgent() {
+  unassignedAdviserEmailSequence += 1;
+
+  const { agent } = await createAuthenticatedUserWithRole('adviser', {
+    email: `sub-unassigned-adviser-${unassignedAdviserEmailSequence}@test.com`,
+  });
+
+  return agent;
+}
+
 /* ================================================================== */
 /*  Test Suites                                                       */
 /* ================================================================== */
@@ -122,6 +140,7 @@ describe('Submissions API — /api/submissions', () => {
   let instructorAgent, _instructorUser;
   let adviserAgent, adviserUser;
   let panelistAgent, _panelistUser;
+  let assignedPanelistUser;
   let _team, project;
 
   beforeEach(async () => {
@@ -148,6 +167,9 @@ describe('Submissions API — /api/submissions', () => {
       'panelist',
       { email: 'sub-panelist@test.com' },
     ));
+    ({ user: assignedPanelistUser } = await createAuthenticatedUserWithRole('panelist', {
+      email: 'sub-assigned-panelist@test.com',
+    }));
 
     if (!studentUser) console.error('STUDENT_USER_IS_NULL');
     if (!adviserUser) console.error('ADVISER_USER_IS_NULL');
@@ -157,6 +179,7 @@ describe('Submissions API — /api/submissions', () => {
       studentUser._id,
       adviserUser._id,
       _instructorUser._id,
+      [assignedPanelistUser._id],
     ));
 
     // Re-fetch student to get updated teamId
@@ -434,6 +457,15 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.chapter).toBe(1);
     });
 
+    it('should reject single-submission read from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.get(`/api/submissions/${submissionId}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
     it('should list submissions by project', async () => {
       const res = await studentAgent.get(`/api/submissions/project/${project._id}`);
 
@@ -505,6 +537,42 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.submission.version).toBe(2);
     });
+
+    it('should reject feedback read from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.get(`/api/submissions/${submissionId}/feedback`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should reject versions read from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.get(`/api/submissions/${submissionId}/versions`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return review workspace for assigned adviser', async () => {
+      const res = await adviserAgent.get(`/api/submissions/${submissionId}/review-workspace`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data.workspace.rounds)).toBe(true);
+    });
+
+    it('should reject review workspace from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.get(
+        `/api/submissions/${submissionId}/review-workspace`,
+      );
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
   });
 
   /* ────────── Pre-signed View URL ────────── */
@@ -526,7 +594,69 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.url).toContain('mock-s3');
-      expect(res.body.data.expiresIn).toBe(300);
+      expect(res.body.data.expiresIn).toBe(3600);
+    });
+
+    it('should allow an authenticated non-team user to view an archived final journal submission', async () => {
+      await Project.findByIdAndUpdate(project._id, {
+        projectStatus: PROJECT_STATUSES.ARCHIVED,
+      });
+
+      const sub = await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        fileName: 'final-journal.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/final-journal/final-journal.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await panelistAgent.get(`/api/submissions/${sub._id}/view`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.url).toBe('https://mock-s3.example.com/signed-url');
+    });
+
+    it('should deny an archived final academic submission to a non-team user', async () => {
+      await Project.findByIdAndUpdate(project._id, {
+        projectStatus: PROJECT_STATUSES.ARCHIVED,
+      });
+
+      const sub = await Submission.create({
+        projectId: project._id,
+        type: 'final_academic',
+        fileName: 'final-academic.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/final-academic/final-academic.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await panelistAgent.get(`/api/submissions/${sub._id}/view`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should deny a non-archived final journal submission to a non-team user', async () => {
+      const sub = await Submission.create({
+        projectId: project._id,
+        type: 'final_journal',
+        fileName: 'final-journal-active.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/final-journal-active/final-journal-active.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await panelistAgent.get(`/api/submissions/${sub._id}/view`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
     });
   });
 
@@ -589,6 +719,20 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(403);
     });
 
+    it('should reject review from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submissionId}/review`)
+        .send({
+          status: 'approved',
+          reviewNote: 'Attempt from unrelated adviser.',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
     it('should reject review of locked submission', async () => {
       await Submission.findByIdAndUpdate(submissionId, { status: SUBMISSION_STATUSES.LOCKED });
 
@@ -598,6 +742,90 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('SUBMISSION_LOCKED');
+    });
+  });
+
+  /* ────────── Request Revision Round + Accept ────────── */
+  describe('POST /:submissionId/request-revision-round and /accept', () => {
+    async function createModerationSubmission(overrides = {}) {
+      return Submission.create({
+        projectId: project._id,
+        chapter: 1,
+        type: 'chapter',
+        version: 1,
+        fileName: 'chapter1-moderation.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/chapters/1/v1/chapter1-moderation.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+        ...overrides,
+      });
+    }
+
+    it('should reject request-revision-round from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const submission = await createModerationSubmission();
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submission._id}/request-revision-round`)
+        .send({ overallFeedback: 'Please revise chapter 1 structure.' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should reject requestRevisionRound for invalid accepted state transition', async () => {
+      const submission = await createModerationSubmission({
+        status: SUBMISSION_STATUSES.ACCEPTED,
+      });
+
+      const res = await adviserAgent
+        .post(`/api/submissions/${submission._id}/request-revision-round`)
+        .send({ overallFeedback: 'Re-open for another revision round.' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('INVALID_REVIEW_STATE_TRANSITION');
+    });
+
+    it('should reject markSubmissionAccepted when plagiarism is not completed', async () => {
+      const submission = await createModerationSubmission();
+
+      const res = await adviserAgent.post(`/api/submissions/${submission._id}/accept`).send({
+        overallFeedback: 'Accepting after review.',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PLAGIARISM_CHECK_REQUIRED');
+    });
+
+    it('should allow assigned adviser to mark submission accepted when plagiarism is completed', async () => {
+      const submission = await createModerationSubmission();
+      await createCompletedPlagiarismResult(submission._id, 1);
+
+      const res = await adviserAgent.post(`/api/submissions/${submission._id}/accept`).send({
+        overallFeedback: 'Accepted. Good to proceed.',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.ACCEPTED);
+      expect(res.body.data.submission.reviewClosed).toBe(true);
+    });
+
+    it('should reject markSubmissionAccepted from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+      const submission = await createModerationSubmission();
+      await createCompletedPlagiarismResult(submission._id, 1);
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submission._id}/accept`)
+        .send({
+          overallFeedback: 'Unrelated adviser attempting acceptance.',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
     });
   });
 
@@ -635,6 +863,19 @@ describe('Submissions API — /api/submissions', () => {
       });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should reject unlock from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submissionId}/unlock`)
+        .send({
+          reason: 'Unrelated adviser attempted unlock.',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
     });
 
     it('should reject unlock of non-locked submission', async () => {
@@ -699,6 +940,19 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(403);
     });
 
+    it('should reject annotation from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submissionId}/annotations`)
+        .send({
+          content: 'Unrelated adviser annotation attempt.',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
     it('should allow the annotation author to remove it', async () => {
       // Add annotation
       const addRes = await adviserAgent
@@ -733,6 +987,73 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.submission.annotations).toHaveLength(0);
+    });
+
+    it('should reject annotation removal from unassigned adviser', async () => {
+      const addRes = await adviserAgent
+        .post(`/api/submissions/${submissionId}/annotations`)
+        .send({ content: 'Annotation should stay protected.' });
+
+      const annotationId = addRes.body.data.submission.annotations[0]._id;
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.delete(
+        `/api/submissions/${submissionId}/annotations/${annotationId}`,
+      );
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+  });
+
+  describe('Annotations — reply and resolve security', () => {
+    let submissionId;
+    let annotationId;
+
+    beforeEach(async () => {
+      const sub = await Submission.create({
+        projectId: project._id,
+        chapter: 1,
+        version: 1,
+        fileName: 'chapter1.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/chapters/1/v1/chapter1.pdf',
+        status: SUBMISSION_STATUSES.PENDING,
+        submittedBy: studentUser._id,
+      });
+
+      submissionId = sub._id.toString();
+
+      const addRes = await adviserAgent
+        .post(`/api/submissions/${submissionId}/annotations`)
+        .send({ content: 'Seed annotation for reply/resolve security tests.' });
+
+      expect(addRes.status).toBe(201);
+      annotationId = addRes.body.data.submission.annotations[0]._id;
+      expect(annotationId).toBeDefined();
+    });
+
+    it('should reject annotation reply from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent
+        .post(`/api/submissions/${submissionId}/annotations/${annotationId}/replies`)
+        .send({ content: 'Unrelated adviser reply attempt.' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should reject annotation resolve from unassigned adviser', async () => {
+      const unassignedAdviserAgent = await createUnassignedAdviserAgent();
+
+      const res = await unassignedAdviserAgent.post(
+        `/api/submissions/${submissionId}/annotations/${annotationId}/resolve`,
+      );
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
     });
   });
 

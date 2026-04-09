@@ -21,7 +21,7 @@ export function useSettings() {
     queryKey: settingsKeys.detail(),
     queryFn: async () => {
       const res = await settingsService.getSettings();
-      return res.data;
+      return res.data?.data || res.data;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -37,7 +37,10 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (updates) => settingsService.updateSettings(updates),
+    mutationFn: async (updates) => {
+      const res = await settingsService.updateSettings(updates);
+      return res.data?.data || res.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: settingsKeys.all });
     },

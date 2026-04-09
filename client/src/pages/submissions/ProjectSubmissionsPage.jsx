@@ -10,10 +10,11 @@ import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
-import { ROLES, TITLE_STATUSES } from '@cms/shared';
+import { ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import {
   FileText,
   Upload,
+  BookOpen,
   AlertTriangle,
   Loader2,
   Clock,
@@ -51,22 +52,38 @@ function formatBytes(bytes) {
 
 /* ────────── Sub-components ────────── */
 
-function EmptyState({ canUpload }) {
+function EmptyState({ canUpload, canCompileProposal }) {
   const navigate = useNavigate();
+
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
       <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
       <h3 className="text-lg font-semibold">No submissions yet</h3>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        {canUpload
-          ? 'Upload your first chapter to get started.'
-          : 'No documents have been uploaded for this project.'}
+        {canCompileProposal
+          ? 'Your chapter requirements are complete. Compile and submit your proposal.'
+          : canUpload
+            ? 'Upload your first chapter to get started.'
+            : 'No documents have been uploaded for this project.'}
       </p>
-      {canUpload && (
-        <Button className="mt-6" onClick={() => navigate('/project/submissions/upload')}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Chapter
-        </Button>
+      {(canUpload || canCompileProposal) && (
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {canCompileProposal && (
+            <Button onClick={() => navigate('/project/proposal')}>
+              <BookOpen className="mr-2 h-4 w-4" />
+              Compile Proposal
+            </Button>
+          )}
+          {canUpload && (
+            <Button
+              variant={canCompileProposal ? 'outline' : 'default'}
+              onClick={() => navigate('/project/submissions/upload')}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Chapter
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -156,11 +173,53 @@ export default function ProjectSubmissionsPage() {
     enabled: !!project?._id,
   });
 
+  const { data: allSubmissionsData } = useProjectSubmissions(
+    project?._id,
+    { limit: 100 },
+    {
+      enabled: !!project?._id,
+    },
+  );
+
   const submissions = submissionsData?.submissions || [];
+  const allSubmissions = allSubmissionsData?.submissions || submissions;
   const isLoading = projectLoading || subsLoading;
   const error = projectError || subsError;
   const lateCount = submissions.filter((item) => item.isLate).length;
   const lockedCount = submissions.filter((item) => item.status === 'LOCKED').length;
+
+  const latestChapterSubmissions = allSubmissions.reduce((map, submission) => {
+    if (submission?.type !== 'chapter' || !submission?.chapter) {
+      return map;
+    }
+
+    const existing = map.get(submission.chapter);
+    const currentTimestamp = new Date(submission.updatedAt || submission.createdAt || 0).getTime();
+    const existingTimestamp = existing
+      ? new Date(existing.updatedAt || existing.createdAt || 0).getTime()
+      : 0;
+
+    if (!existing || currentTimestamp >= existingTimestamp) {
+      map.set(submission.chapter, submission);
+    }
+
+    return map;
+  }, new Map());
+
+  const canUpload = isStudent && project?.titleStatus === TITLE_STATUSES.APPROVED;
+  const chaptersReadyForProposal = [1, 2, 3].every((chapter) => {
+    const chapterSubmission = latestChapterSubmissions.get(chapter);
+    return (
+      chapterSubmission &&
+      [
+        SUBMISSION_STATUSES.APPROVED,
+        SUBMISSION_STATUSES.ACCEPTED,
+        SUBMISSION_STATUSES.LOCKED,
+      ].includes(chapterSubmission.status)
+    );
+  });
+  const hasProposal = allSubmissions.some((submission) => submission.type === 'proposal');
+  const canCompileProposal = canUpload && chaptersReadyForProposal && !hasProposal;
 
   /* ────── Loading ────── */
   if (isLoading) {
@@ -255,8 +314,6 @@ export default function ProjectSubmissionsPage() {
     );
   }
 
-  const canUpload = isStudent && project?.titleStatus === TITLE_STATUSES.APPROVED;
-
   /* ────── Main Render ────── */
   return (
     <DashboardLayout>
@@ -279,11 +336,24 @@ export default function ProjectSubmissionsPage() {
               <span className="font-medium">{project.title}</span>
             </p>
           </div>
-          {canUpload && (
-            <Button onClick={() => navigate('/project/submissions/upload')}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Chapter
-            </Button>
+          {isStudent && (
+            <div className="flex flex-wrap items-center gap-2">
+              {canCompileProposal && (
+                <Button onClick={() => navigate('/project/proposal')}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Compile Proposal
+                </Button>
+              )}
+              {canUpload && (
+                <Button
+                  variant={canCompileProposal ? 'outline' : 'default'}
+                  onClick={() => navigate('/project/submissions/upload')}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Chapter
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
@@ -352,7 +422,7 @@ export default function ProjectSubmissionsPage() {
 
         {/* Submissions list */}
         {submissions.length === 0 ? (
-          <EmptyState canUpload={canUpload} />
+          <EmptyState canUpload={canUpload} canCompileProposal={canCompileProposal} />
         ) : (
           <div className="space-y-3">
             {submissions.map((sub) => (

@@ -1446,16 +1446,17 @@ class ProjectService {
    * Search the archive for past capstone projects.
    * Students can only see journal versions; faculty can see both.
    * Supports text search by title/keywords, filtered by year, keyword, and topic.
-   * @param {Object} query - { page, limit, search?, academicYear?, keyword? }
+   * @param {Object} query - { page, limit, search?, academicYear?, courseId?, keyword? }
    * @param {Object} user - The requesting user (for role-based visibility)
    * @returns {Object} { projects, pagination }
    */
   async searchArchive(query, user) {
-    const { page = 1, limit = 10, search, academicYear, keyword } = query;
+    const { page = 1, limit = 10, search, academicYear, courseId, keyword } = query;
     const skip = (page - 1) * limit;
 
     const filter = { isArchived: true };
     if (academicYear) filter.academicYear = academicYear;
+    if (courseId) filter.courseId = courseId;
     if (keyword) filter.keywords = { $in: [keyword] };
     if (search) filter.$text = { $search: search };
 

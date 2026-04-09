@@ -44,6 +44,9 @@ const getAcademicLookupErrorMessage = (error, fallbackMessage) => {
   return fallbackMessage;
 };
 
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const AVATAR_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 /**
  * ProfilePage — user profile view and edit.
  * Displays name, email, role, and profile picture.
@@ -139,6 +142,19 @@ export default function ProfilePage() {
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > AVATAR_MAX_BYTES) {
+      setAvatarError('File size exceeds the 5MB limit for avatars.');
+      e.target.value = '';
+      return;
+    }
+
+    if (!AVATAR_ALLOWED_TYPES.has(file.type)) {
+      setAvatarError('Only JPEG, PNG, and WEBP images are allowed for avatars.');
+      e.target.value = '';
+      return;
+    }
+
     setAvatarError('');
     setIsUploadingAvatar(true);
     try {

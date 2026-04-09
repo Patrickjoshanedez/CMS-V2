@@ -21,9 +21,9 @@ const CreateProjectPage = lazy(() => import('./pages/projects/CreateProjectPage'
 const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
 const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
+const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const ChapterUploadPage = lazy(() => import('./pages/submissions/ChapterUploadPage'));
 const ProposalCompilationPage = lazy(() => import('./pages/submissions/ProposalCompilationPage'));
-const ProjectSubmissionsPage = lazy(() => import('./pages/submissions/ProjectSubmissionsPage'));
 const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDetailPage'));
 const SubmissionReviewPage = lazy(() => import('./pages/submissions/SubmissionReviewPage'));
 const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));

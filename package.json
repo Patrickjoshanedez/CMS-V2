@@ -45,6 +45,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer"
+    "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer",
+    "gpt-tokenizer": "^3.4.0"
   }
 }

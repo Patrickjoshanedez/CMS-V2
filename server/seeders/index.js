@@ -9,8 +9,8 @@
  * ─── 2025-2026 (Current Year) ───────────────────────────────────
  * Team Alpha  (student1–4)   locked, approved + panelists → Capstone 1 unlocked
  * Team Beta   (student5–8)   locked, submitted            → Proposal only
- * Team Gamma  (student9–12)  not locked, draft            → no project yet
- * student13                  orphaned
+ * Team Gamma  (student9–13)  not locked, draft            → no project yet
+ * 5 scenario students        orphaned
  *
  * ─── 2024-2025 (Previous Year — Archived) ────────────────────────
  * 5 completed teams (alumni1–20), each with:
@@ -312,7 +312,7 @@ const currentStudents = [
     email: 'student10@buksu.edu.ph',
     role: 'student',
   },
-  // ── Team Gamma (8-10) ──
+  // ── Team Gamma (8-12) ──
   {
     firstName: 'Gabriel',
     middleName: 'Mark',
@@ -327,7 +327,7 @@ const currentStudents = [
     email: 'student12@buksu.edu.ph',
     role: 'student',
   },
-  // ── Orphaned (10) ──
+  // ── Team Gamma continuation (12) ──
   {
     firstName: 'Kevin',
     middleName: 'Paul',
@@ -944,6 +944,7 @@ async function seed() {
       email: 'scenario.orphan.complete@buksu.edu.ph',
       sectionKey: 'A',
       adviserIndex: 0,
+      assignCurrentTeamName: 'Team Gamma',
     },
     {
       email: 'scenario.no.section@buksu.edu.ph',
@@ -1053,6 +1054,23 @@ async function seed() {
       },
     });
     console.log(`   📋 "${pd.title.substring(0, 55)}..." [${pd.titleStatus}]`);
+  }
+
+  // Keep orphaned student count at exactly 5 by assigning one scenario student to Team Gamma.
+  for (const assignment of scenarioAssignments) {
+    if (!assignment.assignCurrentTeamName) continue;
+
+    const userDoc = createdByEmail.get(assignment.email);
+    if (!userDoc) continue;
+
+    const currentTeam = await Team.findOne({
+      name: assignment.assignCurrentTeamName,
+      academicYear: CURRENT_YEAR,
+    }).select('_id');
+    if (!currentTeam) continue;
+
+    await Team.updateOne({ _id: currentTeam._id }, { $addToSet: { members: userDoc._id } });
+    await User.updateOne({ _id: userDoc._id }, { $set: { teamId: currentTeam._id } });
   }
 
   // ── 5. Archived year: teams + projects + evaluations ──────────

@@ -18,7 +18,9 @@ describe('System Settings API — /api/settings', () => {
   let adviserAgent;
 
   beforeEach(async () => {
-    const i = await createAuthenticatedUserWithRole('instructor', { email: 'settings-inst@test.com' });
+    const i = await createAuthenticatedUserWithRole('instructor', {
+      email: 'settings-inst@test.com',
+    });
     const s = await createAuthenticatedUserWithRole('student', { email: 'settings-stu@test.com' });
     const a = await createAuthenticatedUserWithRole('adviser', { email: 'settings-adv@test.com' });
 
@@ -40,6 +42,7 @@ describe('System Settings API — /api/settings', () => {
         titleSimilarityThreshold: 0.65,
         maxFileSize: 25 * 1024 * 1024,
         systemAnnouncement: '',
+        maintenanceMode: false,
       });
       expect(res.body.data.updatedAt).toBeDefined();
     });
@@ -72,9 +75,7 @@ describe('System Settings API — /api/settings', () => {
 
   describe('PUT /api/settings — Update settings', () => {
     it('should update plagiarism threshold as instructor', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 80 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 80 });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -92,9 +93,7 @@ describe('System Settings API — /api/settings', () => {
 
     it('should update max file size', async () => {
       const newSize = 50 * 1024 * 1024; // 50MB
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ maxFileSize: newSize });
+      const res = await instructorAgent.put('/api/settings').send({ maxFileSize: newSize });
 
       expect(res.status).toBe(200);
       expect(res.body.data.maxFileSize).toBe(newSize);
@@ -109,14 +108,19 @@ describe('System Settings API — /api/settings', () => {
       expect(res.body.data.systemAnnouncement).toBe('Maintenance scheduled for tonight.');
     });
 
+    it('should update maintenance mode flag', async () => {
+      const res = await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.maintenanceMode).toBe(true);
+    });
+
     it('should update multiple fields at once', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({
-          plagiarismThreshold: 90,
-          titleSimilarityThreshold: 0.5,
-          systemAnnouncement: 'Welcome back!',
-        });
+      const res = await instructorAgent.put('/api/settings').send({
+        plagiarismThreshold: 90,
+        titleSimilarityThreshold: 0.5,
+        systemAnnouncement: 'Welcome back!',
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.data.plagiarismThreshold).toBe(90);
@@ -125,18 +129,14 @@ describe('System Settings API — /api/settings', () => {
     });
 
     it('should persist updated values across reads', async () => {
-      await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 65 });
+      await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 65 });
 
       const res = await studentAgent.get('/api/settings');
       expect(res.body.data.plagiarismThreshold).toBe(65);
     });
 
     it('should not expose internal fields in response', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 70 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 70 });
 
       expect(res.body.data).not.toHaveProperty('_id');
       expect(res.body.data).not.toHaveProperty('key');
@@ -149,9 +149,7 @@ describe('System Settings API — /api/settings', () => {
 
   describe('Authorization — non-instructor roles denied for PUT', () => {
     it('should reject student from updating settings', async () => {
-      const res = await studentAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 50 });
+      const res = await studentAgent.put('/api/settings').send({ plagiarismThreshold: 50 });
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
@@ -159,9 +157,7 @@ describe('System Settings API — /api/settings', () => {
     });
 
     it('should reject adviser from updating settings', async () => {
-      const res = await adviserAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 50 });
+      const res = await adviserAgent.put('/api/settings').send({ plagiarismThreshold: 50 });
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
@@ -169,9 +165,7 @@ describe('System Settings API — /api/settings', () => {
     });
 
     it('should reject unauthenticated user from updating settings', async () => {
-      const res = await request
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 50 });
+      const res = await request.put('/api/settings').send({ plagiarismThreshold: 50 });
 
       expect(res.status).toBe(401);
       expect(res.body.success).toBe(false);
@@ -182,9 +176,7 @@ describe('System Settings API — /api/settings', () => {
 
   describe('Validation — Zod schema enforcement', () => {
     it('should reject plagiarismThreshold below 0', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: -5 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: -5 });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -192,9 +184,7 @@ describe('System Settings API — /api/settings', () => {
     });
 
     it('should reject plagiarismThreshold above 100', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 150 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 150 });
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -219,9 +209,7 @@ describe('System Settings API — /api/settings', () => {
     });
 
     it('should reject maxFileSize below 1KB', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ maxFileSize: 500 });
+      const res = await instructorAgent.put('/api/settings').send({ maxFileSize: 500 });
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -254,37 +242,36 @@ describe('System Settings API — /api/settings', () => {
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
 
+    it('should reject non-boolean maintenanceMode', async () => {
+      const res = await instructorAgent.put('/api/settings').send({ maintenanceMode: 'yes' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('should accept boundary value — plagiarismThreshold 0', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 0 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 0 });
 
       expect(res.status).toBe(200);
       expect(res.body.data.plagiarismThreshold).toBe(0);
     });
 
     it('should accept boundary value — plagiarismThreshold 100', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ plagiarismThreshold: 100 });
+      const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 100 });
 
       expect(res.status).toBe(200);
       expect(res.body.data.plagiarismThreshold).toBe(100);
     });
 
     it('should accept boundary value — titleSimilarityThreshold 0', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ titleSimilarityThreshold: 0 });
+      const res = await instructorAgent.put('/api/settings').send({ titleSimilarityThreshold: 0 });
 
       expect(res.status).toBe(200);
       expect(res.body.data.titleSimilarityThreshold).toBe(0);
     });
 
     it('should accept boundary value — titleSimilarityThreshold 1', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ titleSimilarityThreshold: 1 });
+      const res = await instructorAgent.put('/api/settings').send({ titleSimilarityThreshold: 1 });
 
       expect(res.status).toBe(200);
       expect(res.body.data.titleSimilarityThreshold).toBe(1);

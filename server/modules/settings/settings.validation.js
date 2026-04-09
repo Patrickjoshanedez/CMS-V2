@@ -25,5 +25,6 @@ export const updateSettingsSchema = z
       .string()
       .max(500, 'System announcement must be at most 500 characters')
       .optional(),
+    maintenanceMode: z.boolean().optional(),
   })
   .strict();

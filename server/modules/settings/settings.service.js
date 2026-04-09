@@ -18,6 +18,7 @@ class SettingsService {
       titleSimilarityThreshold: settings.titleSimilarityThreshold,
       maxFileSize: settings.maxFileSize,
       systemAnnouncement: settings.systemAnnouncement,
+      maintenanceMode: settings.maintenanceMode,
       updatedAt: settings.updatedAt,
     };
   }
@@ -34,6 +35,7 @@ class SettingsService {
       'titleSimilarityThreshold',
       'maxFileSize',
       'systemAnnouncement',
+      'maintenanceMode',
     ];
 
     // Only include whitelisted fields
@@ -57,6 +59,7 @@ class SettingsService {
       titleSimilarityThreshold: settings.titleSimilarityThreshold,
       maxFileSize: settings.maxFileSize,
       systemAnnouncement: settings.systemAnnouncement,
+      maintenanceMode: settings.maintenanceMode,
       updatedAt: settings.updatedAt,
     };
   }

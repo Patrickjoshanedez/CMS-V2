@@ -12,6 +12,7 @@ import mongoose from 'mongoose';
  *   - titleSimilarityThreshold: similarity cutoff for duplicate title detection (default 0.65)
  *   - maxFileSize: maximum upload file size in bytes (default 25MB)
  *   - systemAnnouncement: optional banner message displayed to all users
+ *   - maintenanceMode: global maintenance gate toggle (default false)
  */
 const systemSettingsSchema = new mongoose.Schema(
   {
@@ -50,6 +51,12 @@ const systemSettingsSchema = new mongoose.Schema(
       type: String,
       default: '',
       maxlength: 500,
+    },
+
+    // --- Maintenance Mode ---
+    maintenanceMode: {
+      type: Boolean,
+      default: false,
     },
 
     // --- Updated by ---

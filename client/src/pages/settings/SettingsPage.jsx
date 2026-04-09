@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -9,8 +10,17 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Textarea } from '@/components/ui/Textarea';
 import ThemeToggle from '@/components/ThemeToggle';
 import {
-  Palette, Bell, Shield, Info, Loader2, CheckCircle, Eye, EyeOff,
-  Settings2, Save, RotateCcw,
+  Palette,
+  Bell,
+  Shield,
+  Info,
+  Loader2,
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Settings2,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
@@ -156,6 +166,8 @@ export default function SettingsPage() {
  * Validates confirm-password match on the client before calling the API.
  */
 function ChangePasswordForm() {
+  const navigate = useNavigate();
+  const clearAuthState = useAuthStore((state) => state.clearAuthState);
   const [show, setShow] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -190,7 +202,22 @@ function ChangePasswordForm() {
 
     setIsSubmitting(true);
     try {
-      await authService.changePassword({ currentPassword, newPassword });
+      const response = await authService.changePassword({ currentPassword, newPassword });
+      const responseData = response?.data || {};
+      const reauthRequired =
+        Boolean(responseData?.data?.reauthRequired) || Boolean(responseData?.reauthRequired);
+
+      if (reauthRequired) {
+        resetForm();
+        setShow(false);
+        clearAuthState();
+        toast.success(
+          responseData?.message || 'Password changed successfully. Please log in again.',
+        );
+        navigate('/login', { replace: true });
+        return;
+      }
+
       setSuccess(true);
       resetForm();
       setShow(false);
@@ -328,6 +355,7 @@ function SystemSettingsForm() {
     titleSimilarityThreshold: 0.65,
     maxFileSize: 25,
     systemAnnouncement: '',
+    maintenanceMode: false,
   });
   const [dirty, setDirty] = useState(false);
 
@@ -339,6 +367,7 @@ function SystemSettingsForm() {
         titleSimilarityThreshold: settings.titleSimilarityThreshold ?? 0.65,
         maxFileSize: settings.maxFileSize ? Math.round(settings.maxFileSize / (1024 * 1024)) : 25,
         systemAnnouncement: settings.systemAnnouncement ?? '',
+        maintenanceMode: Boolean(settings.maintenanceMode),
       });
       setDirty(false);
     }
@@ -356,6 +385,7 @@ function SystemSettingsForm() {
         titleSimilarityThreshold: settings.titleSimilarityThreshold ?? 0.65,
         maxFileSize: settings.maxFileSize ? Math.round(settings.maxFileSize / (1024 * 1024)) : 25,
         systemAnnouncement: settings.systemAnnouncement ?? '',
+        maintenanceMode: Boolean(settings.maintenanceMode),
       });
       setDirty(false);
     }
@@ -388,6 +418,7 @@ function SystemSettingsForm() {
         titleSimilarityThreshold: Number(form.titleSimilarityThreshold),
         maxFileSize: Number(form.maxFileSize) * 1024 * 1024,
         systemAnnouncement: form.systemAnnouncement.trim(),
+        maintenanceMode: Boolean(form.maintenanceMode),
       });
       toast.success('System settings updated successfully.');
       setDirty(false);
@@ -431,7 +462,8 @@ function SystemSettingsForm() {
           className="h-2 cursor-pointer accent-primary"
         />
         <p className="text-xs text-muted-foreground">
-          Submissions must meet this originality percentage to pass the plagiarism check during archival.
+          Submissions must meet this originality percentage to pass the plagiarism check during
+          archival.
         </p>
       </div>
 
@@ -488,6 +520,29 @@ function SystemSettingsForm() {
         <p className="text-xs text-muted-foreground">
           {form.systemAnnouncement.length}/500 characters. Visible to all users on the dashboard.
         </p>
+      </div>
+
+      {/* Maintenance Mode */}
+      <div className="space-y-2">
+        <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
+        <div className="flex items-center justify-between rounded-md border px-3 py-2">
+          <div>
+            <p className="text-sm font-medium">Temporarily restrict normal access</p>
+            <p className="text-xs text-muted-foreground">
+              Enable this only during maintenance windows.
+            </p>
+          </div>
+          <label htmlFor="maintenanceMode" className="flex items-center gap-2 text-sm">
+            <input
+              id="maintenanceMode"
+              type="checkbox"
+              checked={form.maintenanceMode}
+              onChange={(e) => handleChange('maintenanceMode', e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            <span>{form.maintenanceMode ? 'Enabled' : 'Disabled'}</span>
+          </label>
+        </div>
       </div>
 
       {/* Actions */}

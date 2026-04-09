@@ -1,0 +1,5 @@
+- Purpose: CMS-V2 is a MERN Capstone Management and Archiving System with plagiarism checking and RBAC (student, adviser, panelist, instructor).
+- Monorepo workspaces: `server` (Express + Mongoose), `client` (React + Vite), `shared` (`@cms/shared` constants/contracts).
+- Runtime entrypoints: server `server/server.js`, client `client/src/main.jsx`.
+- Backend patterns: catchAsync wrappers, AppError, cookie-based JWT auth with refresh rotation.
+- Key docs: `README.md`, `docs/CMS-V2-Test-Cases.md`, architecture/deployment docs under `docs/`.

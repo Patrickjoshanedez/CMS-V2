@@ -36,13 +36,14 @@ const navItems = {
     { label: 'My Team', icon: UsersRound, path: '/team' },
     { label: 'My Capstone', icon: FileText, path: '/project' },
     { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
-    { label: 'Upload Chapter', icon: Upload, path: '/project/submissions/upload' },
+    { label: 'Documents', icon: FileText, path: '/documents/manuscripts' },
   ],
   // Instructor/admin-specific
   instructor: [
     { label: 'Users', icon: Users, path: '/users' },
     { label: 'Teams', icon: UsersRound, path: '/teams' },
     { label: 'Projects', icon: FileText, path: '/projects' },
+    { label: 'Documents', icon: FileText, path: '/documents/manuscripts' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },
     { label: 'Upload Archived Capstone', icon: Upload, path: '/archive/upload/capstone' },
     { label: 'Activity Log', icon: ScrollText, path: '/admin/audit-log' },
@@ -52,6 +53,7 @@ const navItems = {
     { label: 'My Teams', icon: UsersRound, path: '/teams' },
     { label: 'Team Review', icon: ClipboardCheck, path: '/adviser/team-review' },
     { label: 'Projects', icon: FileText, path: '/projects' },
+    { label: 'Documents', icon: FileText, path: '/documents/manuscripts' },
   ],
   // Panelist-specific
   panelist: [{ label: 'Projects', icon: FileText, path: '/projects' }],

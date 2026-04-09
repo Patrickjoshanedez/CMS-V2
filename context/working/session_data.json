@@ -1,0 +1,13 @@
+{
+  "key": "session_data",
+  "value": {
+    "items": [1, 2, 3]
+  },
+  "timestamp": 1775664851008,
+  "tier": "working",
+  "_meta": {
+    "storedAt": "2026-04-08T16:14:11.008Z",
+    "tokens": 9,
+    "ttl": 300000
+  }
+}

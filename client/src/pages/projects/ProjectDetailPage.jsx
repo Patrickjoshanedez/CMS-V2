@@ -27,6 +27,7 @@ import {
   useSetDeadlines,
   useRejectProject,
   useAdvancePhase,
+  useArchiveProject,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { userService } from '@/services/authService';
@@ -48,6 +49,7 @@ import {
   FileText,
   ArrowUpCircle,
   Award,
+  Archive,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -790,6 +792,62 @@ function AdvancePhaseCard({ project }) {
 }
 
 /**
+ * Archive project card — instructor only once Capstone 4 is reached.
+ */
+function ArchiveProjectCard({ project }) {
+  const [completionNotes, setCompletionNotes] = useState('');
+
+  const archive = useArchiveProject({
+    onSuccess: () => toast.success('Project archived successfully.'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to archive project.'),
+  });
+
+  const handleArchive = () => {
+    archive.mutate({
+      projectId: project._id,
+      completionNotes: completionNotes.trim() || undefined,
+    });
+  };
+
+  return (
+    <Card className="border-emerald-200 dark:border-emerald-900">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Archive className="h-5 w-5 text-emerald-600" />
+          Archive Project
+        </CardTitle>
+        <CardDescription>
+          Archive this project after all final requirements are satisfied. Completion notes are
+          optional.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor={`archive-notes-${project._id}`}>Completion Notes (optional)</Label>
+          <Textarea
+            id={`archive-notes-${project._id}`}
+            value={completionNotes}
+            onChange={(e) => setCompletionNotes(e.target.value)}
+            placeholder="Add completion notes for the archive record."
+            maxLength={2000}
+            rows={3}
+          />
+        </div>
+        <Button disabled={archive.isPending} onClick={handleArchive}>
+          {archive.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Archive className="mr-2 h-4 w-4" />
+          )}
+          Archive Project
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Reject entire project card — instructor only, destructive action.
  */
 function RejectProjectCard({ project }) {
@@ -876,7 +934,8 @@ export default function ProjectDetailPage() {
   );
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
-  const isArchived = project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
+  const isArchived =
+    Boolean(project?.isArchived) || project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
 
   return (
     <DashboardLayout>
@@ -947,9 +1006,17 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Advance phase — instructor only */}
-            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
               <AdvancePhaseCard project={project} />
             )}
+
+            {/* Archive transition — instructor only (Capstone 4) */}
+            {!isArchived &&
+              isInstructor &&
+              project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+              project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+                <ArchiveProjectCard project={project} />
+              )}
 
             {/* Prototype showcase — visible to all faculty */}
             {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
@@ -973,8 +1040,30 @@ export default function ProjectDetailPage() {
                 <FinalPaperUpload projectId={project._id} />
               )}
 
-            {/* Certificate link — Capstone 4 */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+            {/* Documents workspace quick action */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Documents Workspace
+                </CardTitle>
+                <CardDescription>
+                  Open the manuscript workspace with this project pre-selected.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Open Documents Workspace
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Certificate link — archived projects only */}
+            {isArchived && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -998,7 +1087,7 @@ export default function ProjectDetailPage() {
             )}
 
             {/* Reject project — instructor only */}
-            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
+            {!isArchived && isInstructor && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
               <RejectProjectCard project={project} />
             )}
           </>

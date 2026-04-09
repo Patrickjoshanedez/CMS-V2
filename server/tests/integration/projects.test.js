@@ -20,6 +20,7 @@ import Submission from '../../modules/submissions/submission.model.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import storageService from '../../services/storage.service.js';
 import env from '../../config/env.js';
+import { PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
 
 vi.spyOn(googleDriveReviewService, 'createProjectFolder').mockResolvedValue({
   folderId: 'mock-drive-folder-id',
@@ -1057,6 +1058,74 @@ describe('Projects API — /api/projects', () => {
 
       expect(res.status).toBe(413);
       expect(res.body.error.code).toBe('FILE_TOO_LARGE');
+    });
+  });
+
+  /* ────────── Final Upload Eligibility ────────── */
+  describe('POST /api/submissions/:projectId/final-academic — eligibility guard', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
+      projectId = createRes.body.data.project._id;
+
+      await Project.findByIdAndUpdate(projectId, {
+        capstonePhase: 4,
+        titleStatus: TITLE_STATUSES.APPROVED,
+        projectStatus: PROJECT_STATUSES.ARCHIVED,
+        isArchived: true,
+      });
+    });
+
+    it('should reject final uploads for archived projects', async () => {
+      const res = await studentAgent
+        .post(`/api/submissions/${projectId}/final-academic`)
+        .attach('file', createPdfBuffer(), 'final-academic.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PROJECT_NOT_ACTIVE');
+    });
+  });
+
+  /* ────────── Capstone 1 Prerequisites ────────── */
+  describe('POST /api/submissions/:projectId/chapters — Capstone 1 guard', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
+      projectId = createRes.body.data.project._id;
+
+      await Project.findByIdAndUpdate(projectId, {
+        capstonePhase: 1,
+        titleStatus: TITLE_STATUSES.APPROVED,
+        projectStatus: PROJECT_STATUSES.ACTIVE,
+        panelistIds: [],
+      });
+    });
+
+    it('should reject chapter upload when panelists are not yet assigned', async () => {
+      const res = await studentAgent
+        .post(`/api/submissions/${projectId}/chapters`)
+        .field('chapter', '1')
+        .attach('file', createPdfBuffer(), 'chapter1.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PANELISTS_NOT_ASSIGNED');
+    });
+
+    it('should allow chapter upload once at least one panelist is assigned', async () => {
+      const assignRes = await instructorAgent
+        .post(`/api/projects/${projectId}/panelists`)
+        .send({ panelistId: panelistUser._id.toString() });
+      expect(assignRes.status).toBe(200);
+
+      const res = await studentAgent
+        .post(`/api/submissions/${projectId}/chapters`)
+        .field('chapter', '1')
+        .attach('file', createPdfBuffer(), 'chapter1.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
     });
   });
 

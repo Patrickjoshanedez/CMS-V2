@@ -1,0 +1,13 @@
+{
+  "key": "temp_calculation",
+  "value": {
+    "result": 42
+  },
+  "timestamp": 1775663505399,
+  "tier": "working",
+  "_meta": {
+    "storedAt": "2026-04-08T15:51:45.399Z",
+    "tokens": 5,
+    "ttl": 300000
+  }
+}

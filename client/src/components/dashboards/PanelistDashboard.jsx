@@ -8,7 +8,10 @@ const PanelistDashboard = () => {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['panelistTopics'],
-    queryFn: () => dashboardService.getPanelistTopics(),
+    queryFn: async () => {
+      const response = await dashboardService.getPanelistTopics();
+      return response.data?.data || response.data;
+    },
     staleTime: 60 * 1000,
   });
 
@@ -19,8 +22,8 @@ const PanelistDashboard = () => {
     },
   });
 
-  const assigned = data?.data?.assigned || [];
-  const available = data?.data?.available || [];
+  const assigned = data?.assigned || [];
+  const available = data?.available || [];
 
   if (isLoading) {
     return (

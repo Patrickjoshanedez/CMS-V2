@@ -1,0 +1,6 @@
+- Backend stack: Node.js ESM + Express 4 + Mongoose 8.
+- Follow module-based structure under `server/modules/*` with controller/service/validation/routes split.
+- Use centralized async error handling (`catchAsync`) and `AppError` for operational errors.
+- Validate request payload/query via module validation schemas before controller/service logic.
+- Auth/security: HTTP-only cookies for tokens; do not expose sensitive auth data in responses.
+- Prefer minimal safe changes and preserve existing response envelope contracts (`success`, `message`, `data`) where present.

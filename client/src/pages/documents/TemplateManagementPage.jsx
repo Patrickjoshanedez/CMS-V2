@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -16,15 +16,7 @@ import {
   useSyncManuscriptPermissions,
 } from '@/hooks/useDocuments';
 import { DOCUMENT_TYPES, ROLES } from '@cms/shared';
-import {
-  AlertCircle,
-  ExternalLink,
-  FileText,
-  Loader2,
-  RefreshCw,
-  Save,
-  Send,
-} from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText, Loader2, RefreshCw, Save, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DOC_TYPE_LABELS = {
@@ -75,7 +67,8 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
       <CardHeader>
         <CardTitle>Submit Manuscript</CardTitle>
         <CardDescription>
-          Submit a link to your external document (Google Docs, etc.). Advisers and instructors will review via the link.
+          Submit a link to your external document (Google Docs, etc.). Advisers and instructors will
+          review via the link.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -137,7 +130,11 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
           </div>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="mr-2 h-4 w-4" />
+            )}
             Submit Document Link
           </Button>
         </form>
@@ -146,7 +143,15 @@ function UploadForm({ onSubmit, isLoading, canUpload }) {
   );
 }
 
-function ManuscriptRow({ manuscript, projectId, canReview, onSyncPermissions, onSyncComments, onSubmitReview }) {
+function ManuscriptRow({
+  manuscript,
+  projectId,
+  canReview,
+  canSyncPermissions,
+  onSyncPermissions,
+  onSyncComments,
+  onSubmitReview,
+}) {
   const navigate = useNavigate();
 
   return (
@@ -170,20 +175,32 @@ function ManuscriptRow({ manuscript, projectId, canReview, onSyncPermissions, on
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/projects/${projectId}/documents/${manuscript.documentType}`)}
+              onClick={() =>
+                navigate(`/projects/${projectId}/documents/${manuscript.documentType}`)
+              }
             >
               <ExternalLink className="mr-2 h-4 w-4" />
               Open
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => onSyncPermissions(manuscript.documentType)}>
-              <Save className="mr-2 h-4 w-4" />
-              Sync Permissions
-            </Button>
+            {canSyncPermissions && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onSyncPermissions(manuscript.documentType)}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Sync Permissions
+              </Button>
+            )}
 
             {canReview && (
               <>
-                <Button variant="outline" size="sm" onClick={() => onSyncComments(manuscript.documentType)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSyncComments(manuscript.documentType)}
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Sync Comments
                 </Button>
@@ -202,7 +219,29 @@ function ManuscriptRow({ manuscript, projectId, canReview, onSyncPermissions, on
 
 export default function TemplateManagementPage() {
   const { user } = useAuthStore();
-  const [projectId, setProjectId] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [projectId, setProjectId] = useState(() => searchParams.get('projectId')?.trim() || '');
+
+  useEffect(() => {
+    const queryProjectId = searchParams.get('projectId')?.trim() || '';
+    if (queryProjectId !== projectId) {
+      setProjectId(queryProjectId);
+    }
+  }, [searchParams, projectId]);
+
+  const handleProjectIdChange = (event) => {
+    const value = event.target.value.trim();
+    setProjectId(value);
+
+    const nextParams = new URLSearchParams(searchParams);
+    if (value) {
+      nextParams.set('projectId', value);
+    } else {
+      nextParams.delete('projectId');
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const canUpload = useMemo(
     () => user?.role === ROLES.STUDENT || user?.role === ROLES.INSTRUCTOR,
@@ -211,6 +250,14 @@ export default function TemplateManagementPage() {
 
   const canReview = useMemo(
     () => user?.role === ROLES.ADVISER || user?.role === ROLES.INSTRUCTOR,
+    [user?.role],
+  );
+
+  const canSyncPermissions = useMemo(
+    () =>
+      user?.role === ROLES.STUDENT ||
+      user?.role === ROLES.ADVISER ||
+      user?.role === ROLES.INSTRUCTOR,
     [user?.role],
   );
 
@@ -224,12 +271,14 @@ export default function TemplateManagementPage() {
 
   const uploadMutation = useUploadManuscript(projectId, {
     onSuccess: () => toast.success('Manuscript uploaded successfully.'),
-    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to upload manuscript.'),
+    onError: (error) =>
+      toast.error(error?.response?.data?.message || 'Failed to upload manuscript.'),
   });
 
   const syncPermissionsMutation = useSyncManuscriptPermissions(projectId, {
     onSuccess: () => toast.success('Permissions synchronized.'),
-    onError: (error) => toast.error(error?.response?.data?.message || 'Failed to sync permissions.'),
+    onError: (error) =>
+      toast.error(error?.response?.data?.message || 'Failed to sync permissions.'),
   });
 
   const syncCommentsMutation = useSyncManuscriptComments(projectId, {
@@ -250,7 +299,8 @@ export default function TemplateManagementPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Manuscript Review Workspace</h1>
           <p className="text-muted-foreground">
-            Enter a project ID to upload manuscripts, open Google review links, and manage review sync.
+            Open this page from a project to auto-fill context, or enter a project ID manually to
+            upload manuscripts, open review links, and manage sync.
           </p>
         </div>
 
@@ -258,7 +308,8 @@ export default function TemplateManagementPage() {
           <CardHeader>
             <CardTitle>Project Context</CardTitle>
             <CardDescription>
-              This workspace is project-scoped. Provide the project ID before loading manuscripts.
+              This workspace is project-scoped. Project ID is auto-filled when provided in the URL,
+              and can still be edited manually.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -266,7 +317,7 @@ export default function TemplateManagementPage() {
             <Input
               id="projectId"
               value={projectId}
-              onChange={(event) => setProjectId(event.target.value.trim())}
+              onChange={handleProjectIdChange}
               placeholder="Paste a project ID"
             />
           </CardContent>
@@ -281,7 +332,9 @@ export default function TemplateManagementPage() {
         {!projectId && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Set a project ID first to load manuscript records.</AlertDescription>
+            <AlertDescription>
+              Set a project ID first, or open this page from a project quick action to prefill it.
+            </AlertDescription>
           </Alert>
         )}
 
@@ -320,6 +373,7 @@ export default function TemplateManagementPage() {
                 manuscript={manuscript}
                 projectId={projectId}
                 canReview={canReview}
+                canSyncPermissions={canSyncPermissions}
                 onSyncPermissions={(documentType) => syncPermissionsMutation.mutate(documentType)}
                 onSyncComments={(documentType) => syncCommentsMutation.mutate(documentType)}
                 onSubmitReview={(documentType) => submitReviewMutation.mutate(documentType)}

@@ -2,7 +2,6 @@ import supertest from 'supertest';
 import mongoose from 'mongoose';
 import app from '../app.js';
 import User from '../modules/users/user.model.js';
-import OTP from '../modules/auth/otp.model.js';
 
 /**
  * Test helpers for server integration / e2e tests.
@@ -17,6 +16,9 @@ export const createAgent = () => supertest.agent(app);
 /** Simple request helper (no cookie persistence) */
 export const request = supertest(app);
 
+const buildUniqueEmail = (prefix) =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+
 /**
  * Register a user, verify their OTP, and return the user document.
  * Bypasses email by reading the OTP directly from the in-memory DB.
@@ -28,26 +30,29 @@ export async function createVerifiedUser(overrides = {}) {
   const userData = {
     firstName: 'Test',
     lastName: 'User',
-    email: 'test@example.com',
+    email: buildUniqueEmail('test-user'),
     password: 'Password123',
     confirmPassword: 'Password123',
+    isVerified: true,
     ...overrides,
   };
 
-  // Register via API
-  await request.post('/api/auth/register').send(userData);
-
-  // Read the plaintext OTP — we need to grab it before hashing.
-  // Since the OTP is hashed on save, we intercept by finding the record and
-  // using bcrypt to verify a brute-force of 6-digit codes. Instead, we'll
-  // directly verify the user in the DB (faster and more reliable for tests).
-  await User.findOneAndUpdate({ email: userData.email }, { isVerified: true });
-
-  const user = await User.findOne({ email: userData.email });
-  // Clean up OTPs
-  await OTP.deleteMany({ email: userData.email });
-
-  return user;
+  return User.create({
+    firstName: userData.firstName,
+    middleName: userData.middleName,
+    lastName: userData.lastName,
+    email: userData.email,
+    password: userData.password,
+    authProvider: userData.authProvider,
+    role: userData.role,
+    isVerified: userData.isVerified,
+    isActive: userData.isActive,
+    teamId: userData.teamId,
+    sectionId: userData.sectionId,
+    instructorId: userData.instructorId,
+    profilePicture: userData.profilePicture,
+    lastLoginAt: userData.lastLoginAt,
+  });
 }
 
 /**
@@ -60,13 +65,13 @@ export async function createAuthenticatedAgent(overrides = {}) {
   const userData = {
     firstName: 'Test',
     lastName: 'User',
-    email: 'test@example.com',
+    email: buildUniqueEmail('test-user'),
     password: 'Password123',
     confirmPassword: 'Password123',
     ...overrides,
   };
 
-  const user = await createVerifiedUser(overrides);
+  const user = await createVerifiedUser(userData);
 
   const agent = createAgent();
 
@@ -91,20 +96,19 @@ export async function createAuthenticatedAgent(overrides = {}) {
  * @returns {Promise<{ agent: supertest.SuperAgentTest, user: Object }>}
  */
 export async function createAuthenticatedUserWithRole(role, overrides = {}) {
-  const email = `${role}@example.com`;
+  const email = overrides.email || buildUniqueEmail(role);
   const userData = {
     firstName: 'Test',
     lastName: role.charAt(0).toUpperCase() + role.slice(1),
     email,
     password: 'Password123',
     confirmPassword: 'Password123',
+    role,
+    isVerified: true,
     ...overrides,
   };
 
-  // Register and verify
-  await request.post('/api/auth/register').send(userData);
-  await User.findOneAndUpdate({ email: userData.email }, { isVerified: true, role });
-  await OTP.deleteMany({ email: userData.email });
+  const user = await createVerifiedUser(userData);
 
   // Login
   const agent = createAgent();
@@ -113,12 +117,6 @@ export async function createAuthenticatedUserWithRole(role, overrides = {}) {
     password: userData.password,
   });
 
-  const user = await User.findOne({ email: userData.email });
-  if (!user) {
-    console.error('Failed to create/find user! Request payload:', userData);
-    const checkRes = await request.post('/api/auth/register').send(userData);
-    console.error('Re-trying registration to get error:', checkRes.body);
-  }
   return { agent, user };
 }
 

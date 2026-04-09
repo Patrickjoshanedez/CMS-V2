@@ -475,9 +475,23 @@ class SubmissionService {
    *
    * @param {Object} user
    * @param {Object} project
+   * @param {Object|null} submission
+   * @param {Object} options
+   * @param {boolean} options.allowArchivedFinalJournalPublicView
    */
-  _assertCanViewSubmission(user, project) {
+  _assertCanViewSubmission(user, project, submission = null, options = {}) {
     const userId = user._id.toString();
+    const { allowArchivedFinalJournalPublicView = false } = options;
+
+    // Central archiving exception: any authenticated user can view archived final journals.
+    if (
+      allowArchivedFinalJournalPublicView &&
+      submission &&
+      project.projectStatus === PROJECT_STATUSES.ARCHIVED &&
+      submission.type === 'final_journal'
+    ) {
+      return;
+    }
 
     if (user.role === ROLES.INSTRUCTOR) return;
 
@@ -505,6 +519,90 @@ class SubmissionService {
     }
 
     throw new AppError('You do not have permission to view this submission.', 403, 'FORBIDDEN');
+  }
+
+  /**
+   * Authorization for faculty moderation mutations.
+   * Allowed: instructor or assigned adviser of the submission's project.
+   *
+   * @param {Object} user
+   * @param {Object} project
+   */
+  _assertCanModerateSubmission(user, project) {
+    const userId = user._id.toString();
+
+    if (user.role === ROLES.INSTRUCTOR) {
+      return;
+    }
+
+    if (
+      user.role === ROLES.ADVISER &&
+      project.adviserId &&
+      project.adviserId.toString() === userId
+    ) {
+      return;
+    }
+
+    throw new AppError('You do not have permission to moderate this submission.', 403, 'FORBIDDEN');
+  }
+
+  /**
+   * Resolve moderation context and enforce faculty mutation authorization.
+   *
+   * @param {Object} submission
+   * @param {string} reviewerId
+   * @returns {Promise<{ reviewer: Object, project: Object }>}
+   */
+  async _getModerationContext(submission, reviewerId) {
+    const reviewer = await User.findById(reviewerId).select('role');
+    if (!reviewer) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const project = await Project.findById(submission.projectId).select('adviserId');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanModerateSubmission(reviewer, project);
+
+    return { reviewer, project };
+  }
+
+  /**
+   * Resolve a submission + requester context and enforce submission-view authorization.
+   *
+   * @param {string} submissionId
+   * @param {string} requesterId
+   * @param {Object} options
+   * @param {string} options.submissionSelect
+   * @param {boolean} options.allowArchivedFinalJournalPublicView
+   * @returns {Promise<{ submission: Object, user: Object, project: Object }>}
+   */
+  async getSubmissionViewContext(submissionId, requesterId, options = {}) {
+    const { submissionSelect = 'projectId type', allowArchivedFinalJournalPublicView = false } =
+      options;
+
+    const submission = await Submission.findById(submissionId).select(submissionSelect);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project, submission, {
+      allowArchivedFinalJournalPublicView,
+    });
+
+    return { submission, user, project };
   }
 
   /* ═══════════════════ Upload: Chapter ═══════════════════ */
@@ -559,6 +657,14 @@ class SubmissionService {
         'Your project title must be approved before uploading chapters.',
         400,
         'TITLE_NOT_APPROVED',
+      );
+    }
+
+    if (project.capstonePhase === 1 && (!project.panelistIds || project.panelistIds.length === 0)) {
+      throw new AppError(
+        'Panelists must be assigned before chapter uploads can begin.',
+        400,
+        'PANELISTS_NOT_ASSIGNED',
       );
     }
 
@@ -857,6 +963,14 @@ class SubmissionService {
    * @param {Object} project
    */
   _assertFinalPaperEligible(project) {
+    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+      throw new AppError(
+        'Final paper uploads are only allowed for active projects.',
+        400,
+        'PROJECT_NOT_ACTIVE',
+      );
+    }
+
     if (project.capstonePhase !== 4) {
       throw new AppError(
         'Final paper uploads are only allowed in Capstone Phase 4.',
@@ -1075,9 +1189,10 @@ class SubmissionService {
   /**
    * Get a single submission by ID with populated references.
    * @param {string} submissionId
+   * @param {string} requesterId
    * @returns {Object} { submission }
    */
-  async getSubmission(submissionId) {
+  async getSubmission(submissionId, requesterId) {
     const submission = await Submission.findById(submissionId)
       .populate('submittedBy', 'firstName middleName lastName email')
       .populate('reviewedBy', 'firstName middleName lastName email')
@@ -1087,6 +1202,18 @@ class SubmissionService {
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
+
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project, submission);
 
     return { submission };
   }
@@ -1233,9 +1360,11 @@ class SubmissionService {
     const project = await Project.findById(submission.projectId).populate('teamId', 'members');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
-    this._assertCanViewSubmission(user, project);
+    this._assertCanViewSubmission(user, project, submission, {
+      allowArchivedFinalJournalPublicView: true,
+    });
 
-    const expiresIn = 300; // 5 minutes
+    const expiresIn = 3600; // 1 hour
 
     const fallbackUrl = submission.driveWebViewLink || submission.syncedGoogleDocUrl || null;
 
@@ -1282,7 +1411,7 @@ class SubmissionService {
    */
   async getGoogleDocComments(submissionId, requesterId) {
     const submission = await Submission.findById(submissionId).select(
-      'projectId syncedGoogleDocId',
+      'projectId syncedGoogleDocId type',
     );
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
@@ -1298,7 +1427,7 @@ class SubmissionService {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    this._assertCanViewSubmission(user, project);
+    this._assertCanViewSubmission(user, project, submission);
 
     return {
       status: 'unavailable',
@@ -1317,14 +1446,10 @@ class SubmissionService {
    * @param {string} submissionId
    * @returns {Object} { submissionId, plagiarismResult, originalityScore }
    */
-  async getPlagiarismStatus(submissionId) {
-    const submission = await Submission.findById(submissionId).select(
-      'plagiarismResult originalityScore',
-    );
-
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
+  async getPlagiarismStatus(submissionId, requesterId) {
+    const { submission } = await this.getSubmissionViewContext(submissionId, requesterId, {
+      submissionSelect: 'projectId type plagiarismResult originalityScore',
+    });
 
     return {
       submissionId: submission._id,
@@ -1338,16 +1463,21 @@ class SubmissionService {
    * source snippets) for the highlight-and-compare viewer.
    *
    * @param {string} submissionId
+   * @param {string} requesterId
    * @returns {Object} { submissionId, originalityScore, fullReport, matchedSources }
    */
-  async getPlagiarismReport(submissionId) {
-    const submission = await Submission.findById(submissionId).select(
-      'plagiarismResult originalityScore extractedText',
-    );
-
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+  async getPlagiarismReport(submissionId, requesterId) {
+    if (!requesterId) {
+      throw new AppError(
+        'Authentication required to access plagiarism reports.',
+        401,
+        'UNAUTHENTICATED',
+      );
     }
+
+    const { submission } = await this.getSubmissionViewContext(submissionId, requesterId, {
+      submissionSelect: 'projectId type plagiarismResult originalityScore extractedText',
+    });
 
     const { plagiarismResult, originalityScore, extractedText } = submission;
 
@@ -1385,6 +1515,8 @@ class SubmissionService {
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
+
+    await this._getModerationContext(submission, reviewerId);
 
     if (submission.status === SUBMISSION_STATUSES.LOCKED) {
       throw new AppError('Cannot review a locked submission.', 400, 'SUBMISSION_LOCKED');
@@ -1550,6 +1682,8 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
+    await this._getModerationContext(submission, adviserId);
+
     if (submission.status !== SUBMISSION_STATUSES.LOCKED) {
       throw new AppError('Only locked submissions can be unlocked.', 400, 'NOT_LOCKED');
     }
@@ -1592,6 +1726,8 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
+    await this._getModerationContext(submission, userId);
+
     submission.annotations.push({
       userId,
       page: data.page || 1,
@@ -1631,10 +1767,9 @@ class SubmissionService {
    * @returns {Object} { submission }
    */
   async addAnnotationReply(submissionId, annotationId, userId, data) {
-    const submission = await Submission.findById(submissionId);
-    if (!submission) {
-      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-    }
+    const { submission } = await this.getSubmissionViewContext(submissionId, userId, {
+      submissionSelect: 'projectId type annotations',
+    });
 
     const annotation = submission.annotations.id(annotationId);
     if (!annotation) {
@@ -1667,6 +1802,8 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
+    await this._getModerationContext(submission, userId);
+
     const annotation = submission.annotations.id(annotationId);
     if (!annotation) {
       throw new AppError('Annotation not found.', 404, 'ANNOTATION_NOT_FOUND');
@@ -1691,11 +1828,13 @@ class SubmissionService {
    * @param {string} userId - The faculty member marking as resolved
    * @returns {Object} { submission }
    */
-  async markAnnotationResolved(submissionId, annotationId, _userId) {
+  async markAnnotationResolved(submissionId, annotationId, userId) {
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
+
+    await this._getModerationContext(submission, userId);
 
     const annotation = submission.annotations.id(annotationId);
     if (!annotation) {
@@ -1718,7 +1857,7 @@ class SubmissionService {
    * @param {string} userRole - User's role
    * @returns {Object} { feedback }
    */
-  async getSubmissionFeedback(submissionId, userId, userRole) {
+  async getSubmissionFeedback(submissionId, userId, _userRole) {
     const submission = await Submission.findById(submissionId)
       .populate('submittedBy', 'name email')
       .populate('projectId', 'title')
@@ -1728,10 +1867,18 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    // Authorization: student can view their own feedback, faculty can view all
-    if (userRole === ROLES.STUDENT && submission.submittedBy._id.toString() !== userId.toString()) {
-      throw new AppError('You can only view your own submissions.', 403, 'FORBIDDEN');
+    const user = await User.findById(userId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    const projectId = submission.projectId?._id || submission.projectId;
+    const project = await Project.findById(projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project, submission);
 
     const now = new Date();
     const daysRemaining = submission.revisionDeadline
@@ -1788,7 +1935,7 @@ class SubmissionService {
    * @param {string} userRole - User's role
    * @returns {Object} { versions }
    */
-  async getSubmissionVersions(submissionId, userId, userRole) {
+  async getSubmissionVersions(submissionId, userId, _userRole) {
     const submission = await Submission.findById(submissionId)
       .populate('submittedBy', 'name email')
       .lean();
@@ -1797,10 +1944,17 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    // Authorization: student can view their own versions, faculty can view all
-    if (userRole === ROLES.STUDENT && submission.submittedBy._id.toString() !== userId.toString()) {
-      throw new AppError('You can only view your own submissions.', 403, 'FORBIDDEN');
+    const user = await User.findById(userId).select('role teamId');
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    this._assertCanViewSubmission(user, project, submission);
 
     // Fetch all versions of this chapter from the same project
     const allVersions = await Submission.find({
@@ -1839,7 +1993,7 @@ class SubmissionService {
    * @returns {Object} { workspace }
    */
   async getSubmissionReviewWorkspace(submissionId, userId, _userRole) {
-    const { submission } = await this.getSubmission(submissionId);
+    const { submission } = await this.getSubmission(submissionId, userId);
 
     const project = await Project.findById(submission.projectId).populate('teamId', 'name members');
     const user = await User.findById(userId);
@@ -1848,7 +2002,7 @@ class SubmissionService {
       throw new AppError('Project or user not found.', 404, 'NOT_FOUND');
     }
 
-    this._assertCanViewSubmission(user, project);
+    this._assertCanViewSubmission(user, project, submission);
 
     const baseFilter = {
       projectId: submission.projectId,
@@ -1945,8 +2099,17 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    if (submission.reviewClosed) {
-      throw new AppError('Review thread is already closed.', 400, 'REVIEW_THREAD_CLOSED');
+    await this._getModerationContext(submission, reviewerId);
+
+    if (
+      submission.reviewClosed ||
+      [SUBMISSION_STATUSES.ACCEPTED, SUBMISSION_STATUSES.LOCKED].includes(submission.status)
+    ) {
+      throw new AppError(
+        'Cannot request revision from the current review state.',
+        400,
+        'INVALID_REVIEW_STATE_TRANSITION',
+      );
     }
 
     submission.status = SUBMISSION_STATUSES.REVISIONS_REQUIRED;
@@ -2006,6 +2169,30 @@ class SubmissionService {
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    await this._getModerationContext(submission, reviewerId);
+
+    let plagiarismResult = await PlagiarismResult.findOne({
+      submissionId: submission._id,
+    }).lean();
+    plagiarismResult = await this._reconcileStalePlagiarismResult(submission._id, plagiarismResult);
+
+    if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+      throw new AppError(
+        'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
+        400,
+        'PLAGIARISM_CHECK_REQUIRED',
+      );
+    }
+
+    const threshold = await this._getPlagiarismRejectThreshold();
+    if (plagiarismResult.similarityPercentage > threshold) {
+      throw new AppError(
+        `Cannot approve: Plagiarism score (${plagiarismResult.similarityPercentage.toFixed(1)}%) exceeds threshold (${threshold}%). Please review matched sources or request revisions.`,
+        400,
+        'PLAGIARISM_SCORE_TOO_HIGH',
+      );
     }
 
     submission.status = SUBMISSION_STATUSES.ACCEPTED;

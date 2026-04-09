@@ -204,7 +204,11 @@ export const resetPassword = catchAsync(async (req, res) => {
 export const changePassword = catchAsync(async (req, res) => {
   await authService.changePassword(req.user._id, req.body);
 
-  return sendSuccess(res, HTTP_STATUS.OK, 'Password changed successfully.');
+  clearAuthCookies(req, res);
+
+  return sendSuccess(res, HTTP_STATUS.OK, 'Password changed successfully. Please log in again.', {
+    reauthRequired: true,
+  });
 });
 
 /**

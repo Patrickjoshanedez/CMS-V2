@@ -10,7 +10,7 @@ import { useUnreadCount } from '@/hooks/useNotifications';
  * Ordered from most specific to least specific so the first match wins.
  */
 const PAGE_TITLES = [
-  { path: '/project/submissions/upload', title: 'Upload Chapter' },
+  { path: '/project/submissions/upload', title: 'Submissions' },
   { path: '/project/submissions', title: 'Submissions' },
   { path: '/project/create', title: 'Create Project' },
   { path: '/project', title: 'My Capstone' },

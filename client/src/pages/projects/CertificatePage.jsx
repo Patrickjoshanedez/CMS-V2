@@ -20,6 +20,8 @@ export default function CertificatePage() {
   const { data: certData, isLoading, isError, error, refetch } = useCertificateUrl(projectId);
   const uploadMutation = useUploadCertificate();
 
+  const certificateErrorCode = error?.response?.data?.error?.code ?? error?.code;
+  const isMissingCertificate = certificateErrorCode === 'NO_CERTIFICATE';
   const certificateUrl = certData?.url ?? null;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
 
@@ -35,7 +37,7 @@ export default function CertificatePage() {
     formData.append('file', selectedFile);
 
     try {
-      await uploadMutation.mutateAsync({ projectId, file: formData });
+      await uploadMutation.mutateAsync({ projectId, formData });
       toast.success('Certificate uploaded successfully');
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -55,7 +57,7 @@ export default function CertificatePage() {
     );
   }
 
-  if (isError) {
+  if (isError && !isMissingCertificate) {
     return (
       <DashboardLayout>
         <div className="max-w-2xl mx-auto py-8 px-4">
@@ -128,7 +130,7 @@ export default function CertificatePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
+                  accept=".pdf"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -147,7 +149,7 @@ export default function CertificatePage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Accepted formats: PDF, PNG, JPG (max 10MB)
+                  Accepted format: PDF only (max 10MB)
                 </p>
 
                 <Button onClick={handleUpload} disabled={!selectedFile || uploadMutation.isPending}>

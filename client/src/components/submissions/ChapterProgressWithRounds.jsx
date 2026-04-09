@@ -78,8 +78,8 @@ export default function ChapterProgressWithRounds({
   chapters = [1, 2, 3],
   title = 'Chapter Progress',
   description = 'Track the status of each chapter submission.',
-  showUploadButton = true,
   showAllSubmissionsButton = true,
+  showUploadButton = false,
 }) {
   const navigate = useNavigate();
 
@@ -103,6 +103,17 @@ export default function ChapterProgressWithRounds({
     return map;
   }, [chapters, submissions]);
 
+  const suggestedUploadChapter = useMemo(() => {
+    for (const chapter of chapters) {
+      const latest = chapterRoundsMap.get(chapter)?.[0];
+      if (!latest || latest.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+        return chapter;
+      }
+    }
+
+    return chapters[0];
+  }, [chapters, chapterRoundsMap]);
+
   return (
     <Card>
       <CardHeader>
@@ -111,12 +122,25 @@ export default function ChapterProgressWithRounds({
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          {showAllSubmissionsButton && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
-              <ClipboardList className="mr-2 h-4 w-4" />
-              All Submissions
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {showUploadButton && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  navigate(`/project/submissions/upload?chapter=${suggestedUploadChapter}`)
+                }
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Chapter
+              </Button>
+            )}
+            {showAllSubmissionsButton && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/project/submissions')}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                All Submissions
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -216,15 +240,6 @@ export default function ChapterProgressWithRounds({
             );
           })}
         </div>
-
-        {showUploadButton && (
-          <div className="mt-4">
-            <Button onClick={() => navigate('/project/submissions/upload')} className="w-full">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Chapter
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

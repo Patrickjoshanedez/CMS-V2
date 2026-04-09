@@ -9,6 +9,8 @@ export const academicKeys = {
   hierarchy: (filters) => [...academicKeys.all, 'hierarchy', filters],
 };
 
+const unwrapEnvelopeData = (payload) => payload?.data || payload;
+
 function useAcademicMutation(mutationFn, options = {}) {
   const queryClient = useQueryClient();
   const { onSuccess, onError, ...restOptions } = options;
@@ -29,7 +31,8 @@ export function useCourses(options = {}) {
     queryKey: academicKeys.courses(),
     queryFn: async () => {
       const { data } = await academicService.listCourses();
-      return data.data.courses;
+      const payload = unwrapEnvelopeData(data);
+      return payload?.courses || (Array.isArray(payload) ? payload : []);
     },
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -48,7 +51,8 @@ export function useSections(filters = {}, options = {}) {
     queryKey: academicKeys.sections(filters),
     queryFn: async () => {
       const { data } = await academicService.listSections(filters);
-      return data.data.sections;
+      const payload = unwrapEnvelopeData(data);
+      return payload?.sections || (Array.isArray(payload) ? payload : []);
     },
     staleTime: 30 * 1000,
     ...options,
@@ -74,7 +78,8 @@ export function useAcademicYears(options = {}) {
     queryKey: academicKeys.years(),
     queryFn: async () => {
       const { data } = await academicService.listAcademicYears();
-      return data.data.academicYears;
+      const payload = unwrapEnvelopeData(data);
+      return payload?.academicYears || (Array.isArray(payload) ? payload : []);
     },
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -86,7 +91,8 @@ export function useAcademicHierarchy(filters = {}, options = {}) {
     queryKey: academicKeys.hierarchy(filters),
     queryFn: async () => {
       const { data } = await academicService.getHierarchy(filters);
-      return data.data.hierarchy;
+      const payload = unwrapEnvelopeData(data);
+      return payload?.hierarchy || payload || {};
     },
     staleTime: 60 * 1000,
     ...options,

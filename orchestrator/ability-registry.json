@@ -1,0 +1,104 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": null,
+  "description": "Ability Registry - Catalog of installed skills, hooks, and instruction injections",
+  "skills": [],
+  "trustedSources": [
+    {
+      "name": "CMS-V2 Agents",
+      "pattern": "^https://raw\\.githubusercontent\\.com/Patrickjoshanedez/CMS-V2/",
+      "autoFetch": true,
+      "description": "Official CMS-V2 agent skill definitions"
+    },
+    {
+      "name": "Anthropic Cookbook",
+      "pattern": "^https://raw\\.githubusercontent\\.com/anthropics/",
+      "autoFetch": false,
+      "description": "Anthropic's official examples and patterns"
+    },
+    {
+      "name": "Cursor Rules",
+      "pattern": "^https://raw\\.githubusercontent\\.com/[^/]+/[^/]+/.*\\.cursorrules$",
+      "autoFetch": false,
+      "description": "Cursor IDE rule configurations"
+    },
+    {
+      "name": "GitHub Agent Files",
+      "pattern": "^https://raw\\.githubusercontent\\.com/[^/]+/[^/]+/.*\\.agent\\.md$",
+      "autoFetch": false,
+      "description": "GitHub agent markdown configurations"
+    },
+    {
+      "name": "Microsoft Learn",
+      "pattern": "^https://learn\\.microsoft\\.com/",
+      "autoFetch": false,
+      "description": "Microsoft official documentation and patterns"
+    },
+    {
+      "name": "Context7",
+      "pattern": "^https://context7\\.io/",
+      "autoFetch": false,
+      "description": "Context7 library documentation"
+    }
+  ],
+  "hooks": {
+    "builtin": [
+      "tokenBudgetCheck",
+      "hllmBlacklistCheck",
+      "selfAuditCheck",
+      "contextCheckpoint",
+      "lessonCreated"
+    ],
+    "custom": [],
+    "disabled": []
+  },
+  "instructions": {
+    "global": [
+      {
+        "id": "quality-gate",
+        "content": "Always verify your work locally before marking complete. Run tests when available.",
+        "priority": 10,
+        "enabled": true
+      },
+      {
+        "id": "hllm-awareness",
+        "content": "Check lessons learned before attempting fixes. Avoid previously blacklisted patterns.",
+        "priority": 20,
+        "enabled": true
+      }
+    ],
+    "perAgent": {
+      "coder": [
+        {
+          "id": "coder-solid",
+          "content": "Follow SOLID principles. Prefer composition over inheritance.",
+          "priority": 50,
+          "enabled": true
+        }
+      ],
+      "reviewer": [
+        {
+          "id": "reviewer-security",
+          "content": "Always check for security vulnerabilities, injection risks, and sensitive data exposure.",
+          "priority": 30,
+          "enabled": true
+        }
+      ],
+      "test-automation": [
+        {
+          "id": "test-coverage",
+          "content": "Aim for meaningful coverage of edge cases, not just happy paths.",
+          "priority": 40,
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "createdAt": null,
+    "lastSkillUpdate": null,
+    "totalSkillsInstalled": 0,
+    "totalHooksActive": 5
+  }
+}

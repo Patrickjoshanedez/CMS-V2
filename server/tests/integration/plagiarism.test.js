@@ -19,6 +19,7 @@ import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
+import PlagiarismResult from '../../modules/plagiarism/plagiarism.model.js';
 import storageService from '../../services/storage.service.js';
 import {
   SUBMISSION_STATUSES,
@@ -785,13 +786,212 @@ describe('Plagiarism API — GET /api/submissions/:submissionId/plagiarism', () 
   });
 });
 
+describe('Plagiarism API — corpus state controls', () => {
+  let studentAgent, studentUser;
+  let adviserAgent, adviserUser;
+  let project;
+  let submission;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
+    vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
+      'https://mock-s3.example.com/signed-url',
+    );
+    vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
+    vi.spyOn(storageService, 'downloadFile').mockResolvedValue(
+      Buffer.from(
+        'Corpus state test content that is long enough to pass plagiarism extraction requirements.',
+      ),
+    );
+
+    ({ agent: studentAgent, user: studentUser } = await createAuthenticatedUserWithRole('student', {
+      email: 'plag-corpus-student@test.com',
+    }));
+    ({ agent: adviserAgent, user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
+      email: 'plag-corpus-adviser@test.com',
+    }));
+
+    const setup = await createProjectSetup(studentUser._id, adviserUser._id);
+    project = setup.project;
+    studentUser = await User.findById(studentUser._id);
+
+    submission = await Submission.create({
+      projectId: project._id,
+      chapter: 1,
+      version: 1,
+      fileName: 'chapter1.pdf',
+      fileType: 'application/pdf',
+      fileSize: 1024,
+      storageKey: 'test/chapter1.pdf',
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: studentUser._id,
+      extractedText: 'Sample extracted text used for corpus indexing state tests.',
+    });
+  });
+
+  it('should upsert corpus metadata and expose it in plagiarism result payload', async () => {
+    const indexRes = await adviserAgent.post(`/api/submissions/${submission._id}/plagiarism/index`);
+
+    expect(indexRes.status).toBe(200);
+
+    const indexedResultDoc = await PlagiarismResult.findOne({
+      submissionId: submission._id,
+    }).lean();
+    expect(indexedResultDoc).not.toBeNull();
+    expect(indexedResultDoc.rawData?.indexedAt).toBeTruthy();
+
+    const afterIndex = await adviserAgent.get(
+      `/api/submissions/${submission._id}/plagiarism/result`,
+    );
+    expect(afterIndex.status).toBe(200);
+    expect(afterIndex.body.data.corpus.known).toBe(true);
+    expect(afterIndex.body.data.corpus.isIndexed).toBe(true);
+    expect(afterIndex.body.data.corpus.indexedAt).toBeTruthy();
+
+    const removeRes = await adviserAgent.delete(
+      `/api/submissions/${submission._id}/plagiarism/index`,
+    );
+    expect(removeRes.status).toBe(200);
+
+    const afterRemove = await adviserAgent.get(
+      `/api/submissions/${submission._id}/plagiarism/result`,
+    );
+    expect(afterRemove.status).toBe(200);
+    expect(afterRemove.body.data.corpus.known).toBe(true);
+    expect(afterRemove.body.data.corpus.isIndexed).toBe(false);
+    expect(afterRemove.body.data.corpus.removedFromCorpusAt).toBeTruthy();
+  });
+});
+
+describe('Plagiarism API — submission-scoped authorization', () => {
+  let studentAgent, studentUser;
+  let adviserAgent, adviserUser;
+  let outsiderStudentAgent;
+  let outsiderAdviserAgent;
+  let panelistAgent;
+  let project;
+  let submission;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
+    vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
+      'https://mock-s3.example.com/signed-url',
+    );
+    vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
+    vi.spyOn(storageService, 'downloadFile').mockResolvedValue(
+      Buffer.from(
+        'Scoped authorization test content that is sufficiently long for plagiarism processing checks.',
+      ),
+    );
+
+    ({ agent: studentAgent, user: studentUser } = await createAuthenticatedUserWithRole('student', {
+      email: 'plag-scope-student@test.com',
+    }));
+    ({ agent: adviserAgent, user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
+      email: 'plag-scope-adviser@test.com',
+    }));
+    ({ agent: outsiderStudentAgent } = await createAuthenticatedUserWithRole('student', {
+      email: 'plag-scope-outsider-student@test.com',
+    }));
+    ({ agent: outsiderAdviserAgent } = await createAuthenticatedUserWithRole('adviser', {
+      email: 'plag-scope-outsider-adviser@test.com',
+    }));
+    ({ agent: panelistAgent } = await createAuthenticatedUserWithRole('panelist', {
+      email: 'plag-scope-panelist@test.com',
+    }));
+
+    const setup = await createProjectSetup(studentUser._id, adviserUser._id);
+    project = setup.project;
+    studentUser = await User.findById(studentUser._id);
+
+    submission = await Submission.create({
+      projectId: project._id,
+      chapter: 1,
+      version: 1,
+      fileName: 'chapter1.pdf',
+      fileType: 'application/pdf',
+      fileSize: 1024,
+      storageKey: 'test/chapter1.pdf',
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: studentUser._id,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+  });
+
+  it('should reject unrelated students from /plagiarism status endpoint', async () => {
+    const res = await outsiderStudentAgent.get(`/api/submissions/${submission._id}/plagiarism`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('should reject unrelated students from /plagiarism/report before completion checks', async () => {
+    const res = await outsiderStudentAgent.get(
+      `/api/submissions/${submission._id}/plagiarism/report`,
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('should reject unrelated students from /plagiarism/report endpoint', async () => {
+    submission.plagiarismResult = {
+      status: PLAGIARISM_STATUSES.COMPLETED,
+      originalityScore: 88,
+      matchedSources: [],
+      processedAt: new Date(),
+    };
+    submission.originalityScore = 88;
+    submission.extractedText =
+      'Submission-scoped report endpoint authorization check with complete plagiarism data.';
+    await submission.save();
+
+    const res = await outsiderStudentAgent.get(
+      `/api/submissions/${submission._id}/plagiarism/report`,
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('should reject unassigned panelists from /plagiarism/check and /plagiarism/result', async () => {
+    const checkRes = await panelistAgent.post(
+      `/api/submissions/${submission._id}/plagiarism/check`,
+    );
+    expect(checkRes.status).toBe(403);
+    expect(checkRes.body.error.code).toBe('FORBIDDEN');
+
+    const resultRes = await panelistAgent.get(
+      `/api/submissions/${submission._id}/plagiarism/result`,
+    );
+    expect(resultRes.status).toBe(403);
+    expect(resultRes.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('should reject unassigned advisers from /plagiarism/index mutations', async () => {
+    const indexRes = await outsiderAdviserAgent.post(
+      `/api/submissions/${submission._id}/plagiarism/index`,
+    );
+    expect(indexRes.status).toBe(403);
+    expect(indexRes.body.error.code).toBe('FORBIDDEN');
+
+    const removeRes = await outsiderAdviserAgent.delete(
+      `/api/submissions/${submission._id}/plagiarism/index`,
+    );
+    expect(removeRes.status).toBe(403);
+    expect(removeRes.body.error.code).toBe('FORBIDDEN');
+  });
+});
+
 /* ================================================================== */
 /*  5. Upload triggers plagiarism — Integration                       */
 /* ================================================================== */
 
 describe('Upload triggers plagiarism enqueue', () => {
   let studentAgent, studentUser;
-  let adviserUser, project;
+  let adviserUser, panelistUser, project;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -814,9 +1014,18 @@ describe('Upload triggers plagiarism enqueue', () => {
     ({ user: adviserUser } = await createAuthenticatedUserWithRole('adviser', {
       email: 'plag-upload-adviser@test.com',
     }));
+    ({ user: panelistUser } = await createAuthenticatedUserWithRole('panelist', {
+      email: 'plag-upload-panelist@test.com',
+    }));
 
     const setup = await createProjectSetup(studentUser._id, adviserUser._id);
-    project = setup.project;
+    project = await Project.findByIdAndUpdate(
+      setup.project._id,
+      {
+        $addToSet: { panelistIds: panelistUser._id },
+      },
+      { new: true },
+    );
     studentUser = await User.findById(studentUser._id);
   });
 

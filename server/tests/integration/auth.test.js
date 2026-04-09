@@ -181,6 +181,33 @@ describe('Auth API — /api/auth', () => {
     });
   });
 
+  // ----- CHANGE PASSWORD -----
+
+  describe('POST /api/auth/change-password', () => {
+    it('should clear auth cookies and require re-login after password change', async () => {
+      const { agent } = await createAuthenticatedAgent({
+        email: 'changepw@example.com',
+      });
+
+      const res = await agent.post('/api/auth/change-password').send({
+        currentPassword: 'Password123',
+        newPassword: 'NewPassword123',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.reauthRequired).toBe(true);
+
+      const cookies = res.headers['set-cookie'];
+      const cookieStr = Array.isArray(cookies) ? cookies.join('; ') : cookies || '';
+      expect(cookieStr).toContain('accessToken=');
+      expect(cookieStr).toContain('refreshToken=');
+
+      const protectedRes = await agent.get('/api/users/me');
+      expect(protectedRes.status).toBe(401);
+    });
+  });
+
   // ----- GET CURRENT USER -----
 
   describe('GET /api/users/me', () => {

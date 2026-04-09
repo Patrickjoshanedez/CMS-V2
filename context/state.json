@@ -1,60 +1,25 @@
 {
-  "contextVersion": "1.0",
-  "initializedAt": "2026-04-08",
-  "task": {
-    "id": "cmsv2-seed-archive-and-sdg-requirements",
-    "goal": "Seed 5 archived completed projects and require SDG tags/category with dropdown options during project creation.",
-    "status": "initialized",
-    "priority": "high"
-  },
-  "workingContext": {
-    "phase": "analysis-complete",
-    "activeTargets": [
-      "server/seeders/index.js",
-      "server/modules/projects/project.model.js",
-      "server/modules/projects/project.validation.js",
-      "client/src/pages/projects/CreateProjectPage.jsx",
-      "shared/constants/sdg.js"
-    ],
-    "verifiedFacts": {
-      "archivedSeedCountInSeeder": 5,
-      "archivedSeedSource": "server/seeders/index.js::archivedTeamDefs",
-      "createProjectHasNoSdgOrCategoryFields": true,
-      "projectSchemaHasNoSdgOrCategoryFields": true,
-      "createProjectValidationHasNoSdgOrCategoryRequirements": true,
-      "sdgOptionSourceExists": true,
-      "sdgOptionSourcePath": "shared/constants/sdg.js"
+  "contextVersion": "2.0",
+  "tokenBudget": {
+    "working": {
+      "used": 0,
+      "max": 2000
+    },
+    "session": {
+      "used": 0,
+      "max": 8000
+    },
+    "longTerm": {
+      "used": 0,
+      "max": 4000
     }
   },
-  "sessionContext": {
-    "discoveredConstraints": [
-      "Project module has mirrored -PatPat files that may require synchronized edits.",
-      "Shared package already exports SDG constants via shared/index.js.",
-      "Seeder already creates archived projects with projectStatus=archived and isArchived=true."
-    ],
-    "likelyChangeAreas": [
-      "Add/confirm required project fields for SDG tags and category in schema + Zod validation.",
-      "Add dropdown-based inputs in Create Project UI and include payload mapping.",
-      "If needed, enforce backend service checks for category/SDG presence.",
-      "Confirm seeder remains exactly 5 archived completed projects (already true) or adjust if a separate seed path is intended."
-    ]
+  "hllm": {
+    "lessonsLoaded": 0,
+    "blacklistPatterns": []
   },
-  "longTermFacts": {
-    "projectStatusesIncludeArchived": true,
-    "projectStatusConstantPath": "shared/constants/projectStatuses.js",
-    "sdgGoalsCount": 17,
-    "sdgSuggestionFormat": "SDG X: Name"
-  },
-  "assumptions": [
-    "The required archived seed target is the main seeder at server/seeders/index.js.",
-    "\"category\" refers to project category/domain captured at project creation time.",
-    "SDG tags and category must be required at both UI and API validation layers.",
-    "No database migration script is required beyond schema-compatible updates."
-  ],
-  "missingInfo": [
-    "Authoritative dropdown list for project category values is not yet defined.",
-    "Expected SDG storage format is not specified (e.g., string tags vs numeric IDs).",
-    "Unclear whether -PatPat mirrored files must be updated in lockstep for this task.",
-    "Unclear whether archived seeding must also be added to any test-specific seeders besides server/seeders/index.js."
-  ]
+  "checkpoint": {
+    "lastId": null,
+    "lastTimestamp": null
+  }
 }

@@ -82,7 +82,10 @@ export const uploadFinalJournal = catchAsync(async (req, res) => {
 
 /** GET /api/submissions/:submissionId — Get a single submission */
 export const getSubmission = catchAsync(async (req, res) => {
-  const { submission } = await submissionService.getSubmission(req.params.submissionId);
+  const { submission } = await submissionService.getSubmission(
+    req.params.submissionId,
+    req.user._id,
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -164,7 +167,7 @@ export const getGoogleDocComments = catchAsync(async (req, res) => {
 
 /** GET /api/submissions/:submissionId/plagiarism — Get plagiarism check status */
 export const getPlagiarismStatus = catchAsync(async (req, res) => {
-  const result = await submissionService.getPlagiarismStatus(req.params.submissionId);
+  const result = await submissionService.getPlagiarismStatus(req.params.submissionId, req.user._id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -178,7 +181,8 @@ export const getPlagiarismStatus = catchAsync(async (req, res) => {
  * Only accessible once the plagiarism check has completed.
  */
 export const getPlagiarismReport = catchAsync(async (req, res) => {
-  const report = await submissionService.getPlagiarismReport(req.params.submissionId);
+  const requesterId = req.user._id;
+  const report = await submissionService.getPlagiarismReport(req.params.submissionId, requesterId);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

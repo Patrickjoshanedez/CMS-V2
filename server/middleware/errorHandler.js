@@ -22,7 +22,9 @@ const errorHandler = (err, req, res, _next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       statusCode = 413;
       code = 'FILE_TOO_LARGE';
-      message = 'File size exceeds the allowed upload limit.';
+      message = req.originalUrl?.includes('/api/users/me/avatar')
+        ? 'File size exceeds the 5MB limit for avatars.'
+        : 'File size exceeds the allowed upload limit.';
     } else if (err.code === 'LIMIT_FILE_COUNT') {
       statusCode = 400;
       code = 'FILE_COUNT_EXCEEDED';

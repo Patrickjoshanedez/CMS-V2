@@ -6,23 +6,104 @@ import { enqueuePlagiarismJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
+import submissionService from '../submissions/submission.service.js';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 
+const resolveCorpusMetadata = (...candidates) => {
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+
+    const source =
+      candidate.corpus && typeof candidate.corpus === 'object' ? candidate.corpus : candidate;
+    const indexedAt = typeof source.indexedAt === 'string' ? source.indexedAt : null;
+    const removedFromCorpusAt =
+      typeof source.removedFromCorpusAt === 'string' ? source.removedFromCorpusAt : null;
+
+    if (!indexedAt && !removedFromCorpusAt) {
+      continue;
+    }
+
+    const indexedAtTs = indexedAt ? Date.parse(indexedAt) : Number.NaN;
+    const removedAtTs = removedFromCorpusAt ? Date.parse(removedFromCorpusAt) : Number.NaN;
+    const isIndexed =
+      Boolean(indexedAt) &&
+      (!removedFromCorpusAt ||
+        (Number.isFinite(indexedAtTs) &&
+          Number.isFinite(removedAtTs) &&
+          indexedAtTs > removedAtTs));
+
+    return {
+      isIndexed,
+      indexedAt,
+      removedFromCorpusAt,
+      known: true,
+    };
+  }
+
+  return {
+    isIndexed: false,
+    indexedAt: null,
+    removedFromCorpusAt: null,
+    known: false,
+  };
+};
+
+const mergeFullReportWithCorpusData = (fullReport, collectionRawData) => {
+  if (!collectionRawData || typeof collectionRawData !== 'object') {
+    return fullReport || null;
+  }
+
+  if (!fullReport || typeof fullReport !== 'object') {
+    return { rawData: collectionRawData };
+  }
+
+  const existingRawData =
+    fullReport.rawData && typeof fullReport.rawData === 'object' ? fullReport.rawData : {};
+
+  return {
+    ...fullReport,
+    rawData: {
+      ...existingRawData,
+      ...collectionRawData,
+    },
+  };
+};
+
 const mapSubmissionResult = (submission, collectionResult) => {
+  const collectionRawData =
+    collectionResult?.rawData && typeof collectionResult.rawData === 'object'
+      ? collectionResult.rawData
+      : null;
+
   if (submission?.plagiarismResult?.status) {
+    const mergedFullReport = mergeFullReportWithCorpusData(
+      submission.plagiarismResult.fullReport || null,
+      collectionRawData,
+    );
+    const corpus = resolveCorpusMetadata(
+      collectionRawData,
+      submission.plagiarismResult.fullReport?.rawData,
+      submission.plagiarismResult.fullReport,
+    );
+
     return {
       status: submission.plagiarismResult.status,
       originalityScore: submission.originalityScore,
       matchedSources: submission.plagiarismResult.matchedSources || [],
-      fullReport: submission.plagiarismResult.fullReport || null,
+      fullReport: mergedFullReport,
       processedAt: submission.plagiarismResult.processedAt || null,
       jobId: submission.plagiarismResult.jobId || null,
       error: submission.plagiarismResult.error || null,
+      corpus,
     };
   }
 
   if (collectionResult) {
     const similarity = collectionResult.similarityPercentage ?? null;
+    const corpus = resolveCorpusMetadata(collectionRawData);
+
     return {
       status: collectionResult.status,
       originalityScore: similarity === null ? null : Math.max(0, 100 - similarity),
@@ -31,6 +112,7 @@ const mapSubmissionResult = (submission, collectionResult) => {
       processedAt: collectionResult.checkedAt || collectionResult.completedAt || null,
       jobId: collectionResult.taskId || null,
       error: collectionResult.error || collectionResult.errorMessage || null,
+      corpus,
     };
   }
 
@@ -42,19 +124,25 @@ const mapSubmissionResult = (submission, collectionResult) => {
     processedAt: null,
     jobId: null,
     error: null,
+    corpus: {
+      isIndexed: false,
+      indexedAt: null,
+      removedFromCorpusAt: null,
+      known: false,
+    },
   };
 };
 
 export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
 
-  const submission = await Submission.findById(submissionId).select(
-    'storageKey fileType projectId chapter plagiarismResult',
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'storageKey fileType projectId chapter plagiarismResult type',
+    },
   );
-
-  if (!submission) {
-    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-  }
 
   const status = submission.plagiarismResult?.status;
   if (status === PLAGIARISM_STATUSES.QUEUED || status === PLAGIARISM_STATUSES.PROCESSING) {
@@ -121,14 +209,15 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
 export const getSubmissionPlagiarismResult = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
 
-  const [submission, collectionResult] = await Promise.all([
-    Submission.findById(submissionId).select('plagiarismResult originalityScore'),
-    PlagiarismResult.findOne({ submissionId }).lean(),
-  ]);
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'projectId type plagiarismResult originalityScore',
+    },
+  );
 
-  if (!submission) {
-    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-  }
+  const collectionResult = await PlagiarismResult.findOne({ submissionId: submission._id }).lean();
 
   const result = mapSubmissionResult(submission, collectionResult);
 
@@ -144,13 +233,13 @@ export const getSubmissionPlagiarismResult = catchAsync(async (req, res) => {
 export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
 
-  const submission = await Submission.findById(submissionId).select(
-    'storageKey fileType extractedText',
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'storageKey fileType extractedText projectId type',
+    },
   );
-
-  if (!submission) {
-    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-  }
 
   if (!submission.extractedText || submission.extractedText.trim().length === 0) {
     const fileBuffer = await storageService.downloadFile(submission.storageKey);
@@ -161,16 +250,26 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
     });
   }
 
+  const indexedAt = new Date().toISOString();
+
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
-        rawData: {
-          indexedAt: new Date().toISOString(),
-        },
+        checkedAt: new Date(),
+        'rawData.indexedAt': indexedAt,
+        'rawData.removedFromCorpusAt': null,
+        'rawData.corpus.indexedAt': indexedAt,
+        'rawData.corpus.removedFromCorpusAt': null,
+      },
+      $setOnInsert: {
+        taskId: `corpus-manual-${submission._id.toString()}`,
+        status: 'pending',
+        error: null,
+        errorMessage: null,
       },
     },
-    { upsert: false, new: true },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({
@@ -182,23 +281,34 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
 export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
 
-  const submission = await Submission.findById(submissionId).select('extractedText');
-  if (!submission) {
-    throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
-  }
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'extractedText projectId type',
+    },
+  );
 
   await Submission.findByIdAndUpdate(submission._id, { extractedText: null });
+
+  const removedFromCorpusAt = new Date().toISOString();
 
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
-        rawData: {
-          removedFromCorpusAt: new Date().toISOString(),
-        },
+        checkedAt: new Date(),
+        'rawData.removedFromCorpusAt': removedFromCorpusAt,
+        'rawData.corpus.removedFromCorpusAt': removedFromCorpusAt,
+      },
+      $setOnInsert: {
+        taskId: `corpus-manual-${submission._id.toString()}`,
+        status: 'pending',
+        error: null,
+        errorMessage: null,
       },
     },
-    { upsert: false, new: true },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({

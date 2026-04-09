@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { request, createAuthenticatedUserWithRole } from '../helpers.js';
+import { request, createAuthenticatedUserWithRole, createCourseAndSection } from '../helpers.js';
 import User from '../../modules/users/user.model.js';
 import Team from '../../modules/teams/team.model.js';
 
@@ -180,6 +180,47 @@ describe('Teams API — /api/teams', () => {
       });
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  // ----- INVITE CANDIDATES -----
+
+  describe('GET /api/teams/:id/invite-candidates', () => {
+    it('should only list students from the same section as the team leader', async () => {
+      const { agent: leaderAgent, user: leaderUser } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'invite-candidates-leader@example.com',
+        },
+      );
+
+      const { section: leaderSection } = await createCourseAndSection(leaderUser._id);
+      const { section: otherSection } = await createCourseAndSection(leaderUser._id);
+
+      await User.findByIdAndUpdate(leaderUser._id, { sectionId: leaderSection._id });
+
+      await createAuthenticatedUserWithRole('student', {
+        email: 'invite-candidate-same-section@example.com',
+        sectionId: leaderSection._id,
+      });
+
+      await createAuthenticatedUserWithRole('student', {
+        email: 'invite-candidate-other-section@example.com',
+        sectionId: otherSection._id,
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Scoped Invite Team',
+        academicYear: '2025-2026',
+      });
+
+      const teamId = teamRes.body.data.team._id;
+      const res = await leaderAgent.get(`/api/teams/${teamId}/invite-candidates`);
+
+      expect(res.status).toBe(200);
+      const candidateEmails = res.body.data.candidates.map((candidate) => candidate.email);
+      expect(candidateEmails).toContain('invite-candidate-same-section@example.com');
+      expect(candidateEmails).not.toContain('invite-candidate-other-section@example.com');
     });
   });
 

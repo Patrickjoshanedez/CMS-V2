@@ -268,6 +268,7 @@ export const searchArchiveQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
     .optional(),
+  courseId: objectId.optional(),
   keyword: z.string().trim().max(100).optional(),
 });
 

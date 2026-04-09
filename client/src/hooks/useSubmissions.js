@@ -135,7 +135,7 @@ export function useViewUrl(submissionId, options = {}) {
       return data.data; // { url, expiresIn }
     },
     enabled: !!submissionId,
-    staleTime: 10 * 60 * 1000, // 10 min — URL expires after 15 min
+    staleTime: 55 * 60 * 1000, // 55 min — keeps cache fresh before 1h signed URL expiry
     ...options,
   });
 }

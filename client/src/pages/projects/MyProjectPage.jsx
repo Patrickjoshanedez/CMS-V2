@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -28,6 +28,7 @@ import {
 } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { WORKFLOW_TABS, resolveActiveWorkflowTab } from './myProjectTabs';
 import {
   TITLE_STATUSES,
   CAPSTONE_PHASES,
@@ -866,7 +867,10 @@ function getNextStep(project, submissions) {
         return {
           title: `Revise ${CHAPTER_LABELS[ch]}`,
           description: `Your adviser requested revisions on ${CHAPTER_LABELS[ch]}. Upload a new version.`,
-          action: { label: 'Upload Revision', path: '/project/submissions/upload' },
+          action: {
+            label: 'Upload Revision',
+            path: `/project/submissions/upload?chapter=${ch}`,
+          },
           icon: AlertTriangle,
           color: 'text-amber-600 dark:text-amber-400',
         };
@@ -878,7 +882,11 @@ function getNextStep(project, submissions) {
       const sub = chapterMap[ch];
       return (
         sub &&
-        (sub.status === SUBMISSION_STATUSES.LOCKED || sub.status === SUBMISSION_STATUSES.APPROVED)
+        [
+          SUBMISSION_STATUSES.LOCKED,
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+        ].includes(sub.status)
       );
     });
 
@@ -888,8 +896,7 @@ function getNextStep(project, submissions) {
       if (!hasProposal) {
         return {
           title: 'Compile Your Proposal',
-          description:
-            'All chapters 1–3 are approved/locked. Compile and submit your full proposal.',
+          description: 'All chapters 1–3 are approved/locked. Submit your compiled proposal.',
           action: { label: 'Compile Proposal', path: '/project/proposal' },
           icon: BookOpen,
           color: 'text-green-600 dark:text-green-400',
@@ -911,7 +918,10 @@ function getNextStep(project, submissions) {
         return {
           title: `Upload ${CHAPTER_LABELS[ch]}`,
           description: `Start by uploading your ${CHAPTER_LABELS[ch]} draft for adviser review.`,
-          action: { label: `Upload ${CHAPTER_LABELS[ch]}`, path: '/project/submissions/upload' },
+          action: {
+            label: `Upload ${CHAPTER_LABELS[ch]}`,
+            path: `/project/submissions/upload?chapter=${ch}`,
+          },
           icon: Upload,
           color: 'text-blue-600 dark:text-blue-400',
         };
@@ -967,26 +977,16 @@ function NextStepCard({ project, submissions }) {
 
 export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: project, isLoading, error } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam();
 
   const { data: submissions } = useProjectSubmissions(
     project?._id,
-    { limit: 200, type: 'chapter' },
+    { limit: 200 },
     { enabled: !!project?._id },
   );
-
-  if (!user) {
-    fetchUser();
-    return (
-      <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   // Derived unlock conditions
   const hasPanelists = project?.panelistIds?.length > 0;
@@ -996,8 +996,14 @@ export default function MyProjectPage() {
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
   const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+  const isArchivedProject =
+    project?.projectStatus === PROJECT_STATUSES.ARCHIVED || Boolean(project?.isArchived);
 
-  const workflowTabs = ['proposal', 'capstone_1', 'capstone_2', 'capstone_3', 'final'];
+  const unlockedTabs = ['proposal'];
+  if (capstone1Unlocked) unlockedTabs.push('capstone_1');
+  if (capstone2Unlocked) unlockedTabs.push('capstone_2');
+  if (capstone3Unlocked) unlockedTabs.push('capstone_3');
+  if (finalUnlocked) unlockedTabs.push('final');
 
   function getDefaultTab() {
     if (!project) return 'proposal';
@@ -1010,7 +1016,31 @@ export default function MyProjectPage() {
 
   const defaultTab = getDefaultTab();
   const requestedTab = searchParams.get('tab');
-  const activeTab = workflowTabs.includes(requestedTab) ? requestedTab : defaultTab;
+  const { activeTab, shouldNormalizeRequestedTab } = resolveActiveWorkflowTab({
+    requestedTab,
+    unlockedTabs,
+    workflowTabs: WORKFLOW_TABS,
+    defaultTab,
+  });
+
+  useEffect(() => {
+    if (!shouldNormalizeRequestedTab) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('tab', activeTab);
+    setSearchParams(nextParams, { replace: true });
+  }, [activeTab, searchParams, setSearchParams, shouldNormalizeRequestedTab]);
+
+  if (!user) {
+    fetchUser();
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Get the reason why a tab is locked
   const getLockedReason = (tabName) => {
@@ -1044,6 +1074,11 @@ export default function MyProjectPage() {
   };
 
   const handleTabChange = (tabName) => {
+    if (!unlockedTabs.includes(tabName)) {
+      handleLockedTabClick(tabName);
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', tabName);
     setSearchParams(nextParams, { replace: true });
@@ -1052,11 +1087,25 @@ export default function MyProjectPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight">My Capstone</h3>
-          <p className="text-muted-foreground">
-            Track your capstone project progress and manage your submissions.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight">My Capstone</h3>
+            <p className="text-muted-foreground">
+              Track your capstone project progress and manage your submissions.
+            </p>
+          </div>
+          {project?._id &&
+            project.projectStatus !== PROJECT_STATUSES.REJECTED &&
+            !isArchivedProject && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Documents Workspace
+              </Button>
+            )}
         </div>
 
         {isLoading && (
@@ -1082,112 +1131,132 @@ export default function MyProjectPage() {
           <RejectedProjectState project={project} />
         )}
 
-        {project && !isLoading && !error && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-          <>
-            {/* Phase stepper — always visible above tabs */}
-            <WorkflowPhaseTracker project={project} />
+        {project &&
+          !isLoading &&
+          !error &&
+          project.projectStatus !== PROJECT_STATUSES.REJECTED &&
+          isArchivedProject && (
+            <>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  This project is archived. Workflow uploads and edits are read-only.
+                </AlertDescription>
+              </Alert>
+              <ProjectInfoCard project={project} />
+            </>
+          )}
 
-            {/* Tabbed workflow */}
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList>
-                <TabsTrigger value="proposal">Proposal</TabsTrigger>
-                <TabsTrigger
-                  value="capstone_1"
-                  locked={!capstone1Unlocked}
-                  lockedReason={getLockedReason('capstone_1')}
-                  onLockedClick={() => handleLockedTabClick('capstone_1')}
-                >
-                  Capstone 1
-                </TabsTrigger>
-                <TabsTrigger
-                  value="capstone_2"
-                  locked={!capstone2Unlocked}
-                  lockedReason={getLockedReason('capstone_2')}
-                  onLockedClick={() => handleLockedTabClick('capstone_2')}
-                >
-                  Capstone 2
-                </TabsTrigger>
-                <TabsTrigger
-                  value="capstone_3"
-                  locked={!capstone3Unlocked}
-                  lockedReason={getLockedReason('capstone_3')}
-                  onLockedClick={() => handleLockedTabClick('capstone_3')}
-                >
-                  Capstone 3
-                </TabsTrigger>
-                <TabsTrigger
-                  value="final"
-                  locked={!finalUnlocked}
-                  lockedReason={getLockedReason('final')}
-                  onLockedClick={() => handleLockedTabClick('final')}
-                >
-                  Final Defense
-                </TabsTrigger>
-              </TabsList>
+        {project &&
+          !isLoading &&
+          !error &&
+          project.projectStatus !== PROJECT_STATUSES.REJECTED &&
+          !isArchivedProject && (
+            <>
+              {/* Phase stepper — always visible above tabs */}
+              <WorkflowPhaseTracker project={project} />
 
-              {/* ── Proposal Tab ── */}
-              <TabsContent value="proposal">
-                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+              {/* Tabbed workflow */}
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList>
+                  <TabsTrigger value="proposal">Proposal</TabsTrigger>
+                  <TabsTrigger
+                    value="capstone_1"
+                    locked={!capstone1Unlocked}
+                    lockedReason={getLockedReason('capstone_1')}
+                    onLockedClick={() => handleLockedTabClick('capstone_1')}
+                  >
+                    Capstone 1
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="capstone_2"
+                    locked={!capstone2Unlocked}
+                    lockedReason={getLockedReason('capstone_2')}
+                    onLockedClick={() => handleLockedTabClick('capstone_2')}
+                  >
+                    Capstone 2
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="capstone_3"
+                    locked={!capstone3Unlocked}
+                    lockedReason={getLockedReason('capstone_3')}
+                    onLockedClick={() => handleLockedTabClick('capstone_3')}
+                  >
+                    Capstone 3
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="final"
+                    locked={!finalUnlocked}
+                    lockedReason={getLockedReason('final')}
+                    onLockedClick={() => handleLockedTabClick('final')}
+                  >
+                    Final Defense
+                  </TabsTrigger>
+                </TabsList>
 
-                {/* Show workflow prerequisite banner when title not yet approved or no panelists */}
-                {(!titleApproved || !hasPanelists) && (
-                  <WorkflowPrerequisiteBanner
-                    titleStatus={titleStatus}
-                    hasPanelists={hasPanelists}
+                {/* ── Proposal Tab ── */}
+                <TabsContent value="proposal">
+                  {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+
+                  {/* Show workflow prerequisite banner when title not yet approved or no panelists */}
+                  {(!titleApproved || !hasPanelists) && (
+                    <WorkflowPrerequisiteBanner
+                      titleStatus={titleStatus}
+                      hasPanelists={hasPanelists}
+                    />
+                  )}
+
+                  {/* Show TitlePendingCard for non-approved title states (placed above ProjectInfoCard) */}
+                  {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (
+                    <TitlePendingCard titleStatus={titleStatus} />
+                  )}
+
+                  <ProjectInfoCard project={project} />
+                  <TitleActionsSection project={project} />
+
+                  {/* Show PanelistsPendingCard when title approved but no panelists */}
+                  {titleApproved && !hasPanelists && <PanelistsPendingCard />}
+                </TabsContent>
+
+                {/* ── Capstone 1 Tab ── */}
+                <TabsContent value="capstone_1">
+                  <NextStepCard project={project} submissions={submissions} />
+                  <ChapterProgressWithRounds
+                    project={project}
+                    submissions={submissions}
+                    chapters={[1, 2, 3]}
+                    showUploadButton={titleApproved}
                   />
-                )}
+                  {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
+                  <EvaluationPanel projectId={project._id} defenseType="proposal" />
+                </TabsContent>
 
-                {/* Show TitlePendingCard for non-approved title states (placed above ProjectInfoCard) */}
-                {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (
-                  <TitlePendingCard titleStatus={titleStatus} />
-                )}
+                {/* ── Capstone 2 Tab ── */}
+                <TabsContent value="capstone_2">
+                  <PrototypeUploadForm projectId={project._id} />
+                  <PrototypeGallery projectId={project._id} canDelete />
+                  <EvaluationPanel projectId={project._id} defenseType="midterm" />
+                </TabsContent>
 
-                <ProjectInfoCard project={project} />
-                <TitleActionsSection project={project} />
+                {/* ── Capstone 3 Tab ── */}
+                <TabsContent value="capstone_3">
+                  <ChapterProgressWithRounds
+                    project={project}
+                    submissions={submissions}
+                    chapters={[4, 5]}
+                    showUploadButton={titleApproved}
+                  />
+                  <EvaluationPanel projectId={project._id} defenseType="paper" />
+                </TabsContent>
 
-                {/* Show PanelistsPendingCard when title approved but no panelists */}
-                {titleApproved && !hasPanelists && <PanelistsPendingCard />}
-              </TabsContent>
-
-              {/* ── Capstone 1 Tab ── */}
-              <TabsContent value="capstone_1">
-                <NextStepCard project={project} submissions={submissions} />
-                <ChapterProgressWithRounds
-                  project={project}
-                  submissions={submissions}
-                  chapters={[1, 2, 3]}
-                  showUploadButton={titleApproved}
-                />
-                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
-                <EvaluationPanel projectId={project._id} defenseType="proposal" />
-              </TabsContent>
-
-              {/* ── Capstone 2 Tab ── */}
-              <TabsContent value="capstone_2">
-                <PrototypeUploadForm projectId={project._id} />
-                <PrototypeGallery projectId={project._id} canDelete />
-                <EvaluationPanel projectId={project._id} defenseType="midterm" />
-              </TabsContent>
-
-              {/* ── Capstone 3 Tab ── */}
-              <TabsContent value="capstone_3">
-                <ChapterProgressWithRounds
-                  project={project}
-                  submissions={submissions}
-                  chapters={[4, 5]}
-                  showUploadButton={titleApproved}
-                />
-                <EvaluationPanel projectId={project._id} defenseType="paper" />
-              </TabsContent>
-
-              {/* ── Final Defense Tab ── */}
-              <TabsContent value="final">
-                <FinalPaperUpload projectId={project._id} />
-                <EvaluationPanel projectId={project._id} defenseType="final" />
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
+                {/* ── Final Defense Tab ── */}
+                <TabsContent value="final">
+                  <FinalPaperUpload projectId={project._id} />
+                  <EvaluationPanel projectId={project._id} defenseType="final" />
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
       </div>
     </DashboardLayout>
   );

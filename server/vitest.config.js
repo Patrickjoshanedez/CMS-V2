@@ -10,7 +10,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.js'],
     testTimeout: 60000,
-    hookTimeout: 60000, // MongoMemoryServer startup can be slow on first run
+    hookTimeout: 120000, // Extended for slow beforeEach with multiple user/team setups in integration tests
     // Run tests sequentially — shared in-memory DB
     fileParallelism: false,
   },
