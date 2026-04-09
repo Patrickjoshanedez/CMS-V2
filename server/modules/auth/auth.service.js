@@ -298,6 +298,14 @@ class AuthService {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
+    if (!user.password) {
+      throw new AppError(
+        'This account does not have a local password. Please use the supported sign-in method.',
+        401,
+        'PASSWORD_NOT_AVAILABLE',
+      );
+    }
+
     // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {

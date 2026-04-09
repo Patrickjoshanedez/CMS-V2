@@ -204,24 +204,12 @@ function ChangePasswordForm() {
     try {
       const response = await authService.changePassword({ currentPassword, newPassword });
       const responseData = response?.data || {};
-      const reauthRequired =
-        Boolean(responseData?.data?.reauthRequired) || Boolean(responseData?.reauthRequired);
-
-      if (reauthRequired) {
-        resetForm();
-        setShow(false);
-        clearAuthState();
-        toast.success(
-          responseData?.message || 'Password changed successfully. Please log in again.',
-        );
-        navigate('/login', { replace: true });
-        return;
-      }
-
       setSuccess(true);
       resetForm();
       setShow(false);
-      setTimeout(() => setSuccess(false), 4000);
+      clearAuthState();
+      toast.success(responseData?.message || 'Password changed successfully. Please log in again.');
+      navigate('/login', { replace: true });
     } catch (err) {
       setError(err?.response?.data?.error?.message || 'Failed to change password.');
     } finally {

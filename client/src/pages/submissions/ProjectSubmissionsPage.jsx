@@ -10,7 +10,7 @@ import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
-import { ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
+import { DOCUMENT_TYPES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import {
   FileText,
   Upload,
@@ -206,7 +206,11 @@ export default function ProjectSubmissionsPage() {
     return map;
   }, new Map());
 
-  const canUpload = isStudent && project?.titleStatus === TITLE_STATUSES.APPROVED;
+  const titleApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
+  const hasProposal = allSubmissions.some(
+    (submission) => submission.type === DOCUMENT_TYPES.PROPOSAL,
+  );
+  const canUpload = isStudent && titleApproved;
   const chaptersReadyForProposal = [1, 2, 3].every((chapter) => {
     const chapterSubmission = latestChapterSubmissions.get(chapter);
     return (
@@ -218,8 +222,7 @@ export default function ProjectSubmissionsPage() {
       ].includes(chapterSubmission.status)
     );
   });
-  const hasProposal = allSubmissions.some((submission) => submission.type === 'proposal');
-  const canCompileProposal = canUpload && chaptersReadyForProposal && !hasProposal;
+  const canCompileProposal = isStudent && titleApproved && chaptersReadyForProposal && !hasProposal;
 
   /* ────── Loading ────── */
   if (isLoading) {

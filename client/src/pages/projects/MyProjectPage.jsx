@@ -32,6 +32,7 @@ import { WORKFLOW_TABS, resolveActiveWorkflowTab } from './myProjectTabs';
 import {
   TITLE_STATUSES,
   CAPSTONE_PHASES,
+  DOCUMENT_TYPES,
   SUBMISSION_STATUSES,
   PROJECT_STATUSES,
 } from '@cms/shared';
@@ -891,17 +892,17 @@ function getNextStep(project, submissions) {
     });
 
     if (allChaptersReady) {
-      // Check if proposal has been compiled
-      const hasProposal = submissions?.submissions?.some((s) => s.type === 'proposal');
+      const hasProposal = submissions?.submissions?.some((s) => s.type === DOCUMENT_TYPES.PROPOSAL);
       if (!hasProposal) {
         return {
           title: 'Compile Your Proposal',
-          description: 'All chapters 1–3 are approved/locked. Submit your compiled proposal.',
+          description: 'All chapters 1–3 are approved or locked. Submit your compiled proposal.',
           action: { label: 'Compile Proposal', path: '/project/proposal' },
           icon: BookOpen,
           color: 'text-green-600 dark:text-green-400',
         };
       }
+
       return {
         title: 'Proposal Submitted',
         description: 'Your full proposal has been compiled. Await adviser and panelist review.',

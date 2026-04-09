@@ -72,6 +72,7 @@ export const listSectionsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Invalid academic year format')
     .optional(),
+  fallback: z.coerce.boolean().optional().default(false),
 });
 
 export const hierarchyQuerySchema = z.object({

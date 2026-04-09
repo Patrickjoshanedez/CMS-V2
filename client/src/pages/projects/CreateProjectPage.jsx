@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
+import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
 import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CAPSTONE_TITLE_VALUES, SDG_TAG_SUGGESTIONS } from '@cms/shared';
@@ -67,6 +68,7 @@ export default function CreateProjectPage() {
 
   const hasFinalizedTeam = Boolean(team?.members?.length > 0 && team?.isLocked);
   const needsTeamFinalization = !isTeamLoading && !hasFinalizedTeam;
+  const teamDefaultsAppliedRef = useRef(false);
 
   const {
     data: sections = [],
@@ -78,8 +80,9 @@ export default function CreateProjectPage() {
     { enabled: Boolean(form.academicYear), refetchOnMount: 'always' },
   );
 
-  // Sections are pre-filtered by academicYear via query params (line 77)
   const sectionOptions = sections;
+  const isAnySectionLoading = isSectionsLoading;
+  const isAnySectionError = isSectionsError;
 
   useEffect(() => {
     if (academicYears.length === 0) {
@@ -93,6 +96,32 @@ export default function CreateProjectPage() {
       }));
     }
   }, [academicYears, form.academicYear]);
+
+  // Initialize form defaults from team context once the team is known.
+  useEffect(() => {
+    if (isTeamLoading || !team || teamDefaultsAppliedRef.current) {
+      return;
+    }
+
+    setForm((prev) => {
+      const updates = {};
+      const normalizedTeamSectionId =
+        typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
+
+      // Prefer the team's academic year when available so the section list and selection stay aligned.
+      if (team.academicYear && prev.academicYear !== team.academicYear) {
+        updates.academicYear = team.academicYear;
+      }
+
+      // Pre-fill section from team context to avoid blocking project creation.
+      if (normalizedTeamSectionId && !prev.sectionId) {
+        updates.sectionId = normalizedTeamSectionId;
+      }
+
+      teamDefaultsAppliedRef.current = true;
+      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+    });
+  }, [team, isTeamLoading]);
 
   useEffect(() => {
     // Clear sectionId when sections change AND current selection is no longer valid
@@ -373,6 +402,18 @@ export default function CreateProjectPage() {
                     Add Proposal
                   </Button>
                 </div>
+
+                {/* Real-time Title Similarity Checking */}
+                {titleProposals[selectedTitleIndex] && (
+                  <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                    <p className="text-xs font-medium text-blue-900">Title Similarity Check</p>
+                    <TitleSimilarityChecker
+                      title={titleProposals[selectedTitleIndex]}
+                      keywords={keywordList}
+                      debounceMs={500}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Abstract */}
@@ -496,7 +537,7 @@ export default function CreateProjectPage() {
               {/* Section */}
               <div className="space-y-2">
                 <Label htmlFor="sectionId">Section *</Label>
-                {isSectionsError ? (
+                {isAnySectionError ? (
                   <Alert variant="destructive">
                     <AlertDescription className="flex items-center justify-between">
                       <span>Failed to load sections.</span>
@@ -504,7 +545,7 @@ export default function CreateProjectPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => refetchSections()}
-                        disabled={isSectionsLoading}
+                        disabled={isAnySectionLoading}
                       >
                         Retry
                       </Button>
@@ -518,17 +559,19 @@ export default function CreateProjectPage() {
                   onChange={handleChange}
                   required
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled={isSectionsLoading || (isSectionsError && sectionOptions.length === 0)}
+                  disabled={
+                    isAnySectionLoading || (isAnySectionError && sectionOptions.length === 0)
+                  }
                 >
                   <option value="">
-                    {isSectionsLoading
+                    {isAnySectionLoading
                       ? 'Loading sections...'
-                      : isSectionsError
+                      : isAnySectionError
                         ? 'Error loading sections'
                         : !form.academicYear
                           ? 'Please select an academic year first'
                           : sectionOptions.length === 0
-                            ? 'No sections available for this academic year'
+                            ? 'No active sections available. Contact your instructor to create one.'
                             : 'Select a section'}
                   </option>
                   {sectionOptions.map((section) => (

@@ -40,6 +40,20 @@ const isAuthPublicRequest = (url = '') => {
   );
 };
 
+const CHANGE_PASSWORD_AUTH_VALIDATION_CODES = new Set([
+  'INVALID_CREDENTIALS',
+  'PASSWORD_NOT_AVAILABLE',
+  'PASSWORD_REUSE',
+]);
+
+const isChangePasswordAuthValidationError = (originalRequest, error) => {
+  return (
+    originalRequest.url?.includes('/auth/change-password') &&
+    error.response?.status === 401 &&
+    CHANGE_PASSWORD_AUTH_VALIDATION_CODES.has(error.response?.data?.error?.code)
+  );
+};
+
 // Response interceptor — handle 401 with token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -49,13 +63,11 @@ api.interceptors.response.use(
     const skipAuthRefresh = Boolean(originalRequest?.skipAuthRefresh);
 
     // Auth endpoints that must never trigger a refresh retry to avoid infinite loops.
-    const isAuthSelfRequest =
-      originalRequest.url?.includes('/auth/refresh') ||
-      originalRequest.url?.includes('/auth/logout');
+    const isAuthSelfRequest = originalRequest.url?.includes('/auth/refresh');
 
     const isPublicAuthRequest = isAuthPublicRequest(originalRequest.url);
 
-    // If the refresh or logout endpoint itself fails, just clear state and reject.
+    // If the refresh endpoint itself fails, just clear state and reject.
     if (isAuthSelfRequest) {
       if (originalRequest.url?.includes('/auth/refresh')) {
         // Refresh failed — clear client auth state only; do not cascade another API logout call.
@@ -73,6 +85,10 @@ api.interceptors.response.use(
 
     // If we received a 429 (rate limited) on any auth call, do not retry.
     if (status === 429) {
+      return Promise.reject(error);
+    }
+
+    if (isChangePasswordAuthValidationError(originalRequest, error)) {
       return Promise.reject(error);
     }
 

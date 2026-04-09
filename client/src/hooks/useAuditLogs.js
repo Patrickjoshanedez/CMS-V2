@@ -15,7 +15,7 @@ const unwrapEnvelopeData = (payload) => payload?.data || payload;
 
 /**
  * Fetch paginated audit logs with optional filters.
- * Only enabled when the consumer explicitly requests it (instructor views).
+ * Enabled by default for auto-refreshing audit table views; pass options.enabled=false to opt out.
  *
  * @param {Object} filters - See auditService.queryLogs params
  * @param {Object} [options] - Additional React Query options
@@ -29,6 +29,8 @@ export function useAuditLogs(filters = {}, options = {}) {
       return unwrapEnvelopeData(res.data);
     },
     staleTime: 30 * 1000,
+    refetchInterval: 15 * 1000,
+    refetchOnWindowFocus: true,
     ...options,
   });
 }

@@ -194,6 +194,67 @@ describe('Projects API — /api/projects', () => {
       // Should still succeed but may include similarProjects
       expect(res.body.data).toHaveProperty('project');
     });
+
+    it('should resolve sectionId from team context when not provided in payload', async () => {
+      // Setup: create a team with sectionId linked
+      const { user: student3, agent: agentStudent3 } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'student3@test.com',
+          name: 'Student Three',
+        },
+      );
+      const team3 = await Team.create({
+        name: 'Gamma Team',
+        leaderId: student3._id,
+        members: [student3._id],
+        isLocked: true,
+        academicYear: '2024-2025',
+        sectionId: section._id,
+      });
+      await User.findByIdAndUpdate(student3._id, { teamId: team3._id });
+
+      const payloadWithoutSection = createValidProjectPayload(team3._id, course._id, section._id, [
+        student3._id,
+      ]);
+      delete payloadWithoutSection.sectionId;
+
+      const res = await agentStudent3.post('/api/projects').send(payloadWithoutSection);
+
+      expect(res.status).toBe(201);
+      expect(res.body.data).toHaveProperty('project');
+      expect(res.body.data.project.sectionId).toBe(section._id.toString());
+    });
+
+    it('should fail when sectionId cannot be resolved from payload or team context', async () => {
+      // Create a team WITHOUT sectionId and ensure user also has no section
+      const { user: student4, agent: agentStudent4 } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'student4@test.com',
+          name: 'Student Four',
+        },
+      );
+      const team4 = await Team.create({
+        name: 'Delta Team',
+        leaderId: student4._id,
+        members: [student4._id],
+        isLocked: true,
+        academicYear: '2024-2025',
+      });
+      await User.findByIdAndUpdate(student4._id, { teamId: team4._id, sectionId: null });
+
+      const payloadWithoutSection = createValidProjectPayload(team4._id, course._id, section._id, [
+        student4._id,
+      ]);
+      delete payloadWithoutSection.sectionId;
+
+      const res = await agentStudent4.post('/api/projects').send(payloadWithoutSection);
+
+      expect(res.status).toBe(400);
+      expect(res.body?.error?.code).toBe('SECTION_NOT_FOUND');
+      expect(res.body?.error?.message || '').toContain('No section found');
+    });
   });
 
   /* ────────── Title Submission Workflow ────────── */

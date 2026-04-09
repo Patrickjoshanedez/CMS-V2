@@ -60,7 +60,7 @@ export const createProjectSchema = z.object({
     .min(1, 'At least one SDG tag is required')
     .max(17, 'A project can have at most 17 SDG tags'),
   academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
-  sectionId: objectId,
+  sectionId: objectId.optional(),
   memberRoleAssignments: z
     .array(
       z.object({

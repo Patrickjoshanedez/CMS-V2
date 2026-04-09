@@ -26,6 +26,7 @@
 import Project from '../modules/projects/project.model.js';
 import Submission from '../modules/submissions/submission.model.js';
 import Notification from '../modules/notifications/notification.model.js';
+import Team from '../modules/teams/team.model.js';
 import auditService from '../modules/audit/audit.service.js';
 import { emitToUser } from './socket.service.js';
 import { PROJECT_STATUSES } from '@cms/shared';
@@ -53,6 +54,23 @@ const COLLOQUIAL_PATTERNS = [
   /\byou know\b/i,
 ];
 
+const OBJECT_ID_LIKE_REGEX = /^[a-fA-F0-9]{24}$/;
+
+function resolveAuditActorId(event) {
+  const candidates = [event?.adviserId, event?.panelistIds?.[0], event?.teamMemberIds?.[0]];
+
+  for (const candidate of candidates) {
+    const rawValue =
+      candidate && typeof candidate === 'object' && candidate._id ? candidate._id : candidate;
+    const value = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
+    if (OBJECT_ID_LIKE_REGEX.test(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 /* ─────────────── Stage 1: Intake Service ─────────────── */
 
 /**
@@ -66,7 +84,7 @@ const COLLOQUIAL_PATTERNS = [
 async function intakeService(submissionId, projectId) {
   const [submission, project] = await Promise.all([
     Submission.findById(submissionId).lean(),
-    Project.findById(projectId).populate('teamId', 'name').lean(),
+    Project.findById(projectId).populate('teamId', 'name members').lean(),
   ]);
 
   if (!submission || !project) {
@@ -83,6 +101,9 @@ async function intakeService(submissionId, projectId) {
     approvedTitle: project.title,
     teamId: project.teamId?._id?.toString(),
     teamName: project.teamId?.name || 'Unknown',
+    teamMemberIds: (project.teamId?.members || [])
+      .map((memberId) => memberId?.toString())
+      .filter(Boolean),
     panelistIds: project.panelistIds || [],
     adviserId: project.adviserId?.toString(),
     rawText,
@@ -202,7 +223,33 @@ async function routerService(event) {
 }
 
 async function _handlePassedTriage(event) {
-  const { projectId, panelistIds, teamId } = event;
+  const { projectId, panelistIds } = event;
+  const auditActorId = resolveAuditActorId(event);
+  const plannedPanelistCount = Array.isArray(panelistIds) ? panelistIds.length : 0;
+
+  if (!auditActorId) {
+    const message =
+      '[PanelistTriage] Unable to resolve triage.passed audit actor from adviser/panelist/team members.';
+    console.warn(message);
+    throw new Error(message);
+  }
+
+  // Log to immutable audit trail
+  await auditService.log({
+    action: 'triage.passed',
+    actor: auditActorId,
+    actorRole: 'system',
+    targetType: 'Project',
+    targetId: projectId,
+    description: `Automated triage PASSED for project "${event.projectTitle}". Project promoted to DEFENSE_READY.`,
+    metadata: {
+      submissionId: event.submissionId,
+      wordCount: event.wordCount,
+      panelistsNotified: plannedPanelistCount,
+      teamMemberIds: event.teamMemberIds || [],
+    },
+    requireSuccess: true,
+  });
 
   // Promote project to DEFENSE_READY — the only permitted state mutation in this pipeline
   await Project.findByIdAndUpdate(projectId, {
@@ -214,7 +261,7 @@ async function _handlePassedTriage(event) {
     (panelistIds || []).map(async (panelistId) => {
       const notif = await Notification.create({
         userId: panelistId,
-        type: 'triage_passed',
+        type: 'submission_approved',
         title: 'New Manuscript Ready for Review',
         message: `A manuscript for "${event.projectTitle}" has passed automated triage and is available for panelist review.`,
         metadata: {
@@ -228,24 +275,7 @@ async function _handlePassedTriage(event) {
     }),
   );
 
-  // Log to immutable audit trail
-  await auditService.log({
-    action: 'triage.passed',
-    actor: teamId || 'system',
-    actorRole: 'system',
-    targetType: 'project',
-    targetId: projectId,
-    description: `Automated triage PASSED for project "${event.projectTitle}". Project promoted to DEFENSE_READY.`,
-    metadata: {
-      submissionId: event.submissionId,
-      wordCount: event.wordCount,
-      panelistsNotified: panelistNotifications.length,
-    },
-  });
-
-  console.log(
-    `[PanelistTriage] Project ${projectId} promoted to DEFENSE_READY after triage pass.`,
-  );
+  console.log(`[PanelistTriage] Project ${projectId} promoted to DEFENSE_READY after triage pass.`);
 
   return {
     outcome: 'passed',
@@ -261,10 +291,16 @@ async function _handleFailedTriage(
   validationResult,
   sentimentResult,
 ) {
-  const allFailures = [
-    ...(validationResult.failures || []),
-    ...(sentimentResult.violations || []),
-  ];
+  const auditActorId = resolveAuditActorId(event);
+
+  if (!auditActorId) {
+    const message =
+      '[PanelistTriage] Unable to resolve triage.failed audit actor from adviser/panelist/team members.';
+    console.warn(message);
+    throw new Error(message);
+  }
+
+  const allFailures = [...(validationResult.failures || []), ...(sentimentResult.violations || [])];
 
   const revisionPayload = {
     submissionId,
@@ -276,44 +312,56 @@ async function _handleFailedTriage(
       'Your manuscript requires the following revisions before it can be submitted to panelists.',
   };
 
-  // Notify the team (if teamId is available)
-  if (event.teamId) {
-    const studentNotif = await Notification.create({
-      userId: event.teamId,
-      type: 'triage_failed',
-      title: 'Manuscript Requires Revisions',
-      message: `Your manuscript for "${event.projectTitle}" requires revisions before panelist review.`,
-      metadata: revisionPayload,
-    });
-    emitToUser(event.teamId, 'notification:new', studentNotif);
+  // Notify each team member (if teamId is available)
+  let teamMemberIds = event.teamMemberIds || [];
+  if ((!teamMemberIds || teamMemberIds.length === 0) && event.teamId) {
+    const team = await Team.findById(event.teamId).select('members').lean();
+    teamMemberIds = (team?.members || []).map((memberId) => memberId?.toString()).filter(Boolean);
   }
 
-  // Notify the adviser
-  if (event.adviserId) {
-    const adviserNotif = await Notification.create({
-      userId: event.adviserId,
-      type: 'triage_failed',
-      title: 'Student Manuscript Requires Revisions',
-      message: `A manuscript for "${event.projectTitle}" failed automated triage and requires revision.`,
-      metadata: revisionPayload,
-    });
-    emitToUser(event.adviserId, 'notification:new', adviserNotif);
-  }
-
-  // Log rejection to immutable audit trail
+  // Log rejection to immutable audit trail before creating notifications
   await auditService.log({
     action: 'triage.failed',
-    actor: event.teamId || 'system',
+    actor: auditActorId,
     actorRole: 'system',
-    targetType: 'submission',
+    targetType: 'Submission',
     targetId: submissionId,
     description: `Automated triage FAILED for project "${event.projectTitle}". Manuscript routed back for revision.`,
     metadata: {
       submissionId,
       projectId,
       requiredRevisions: allFailures,
+      teamMemberIds,
     },
+    requireSuccess: true,
   });
+
+  if (teamMemberIds.length > 0) {
+    await Promise.all(
+      teamMemberIds.map(async (memberId) => {
+        const studentNotif = await Notification.create({
+          userId: memberId,
+          type: 'submission_revisions_required',
+          title: 'Manuscript Requires Revisions',
+          message: `Your manuscript for "${event.projectTitle}" requires revisions before panelist review.`,
+          metadata: revisionPayload,
+        });
+        emitToUser(memberId, 'notification:new', studentNotif);
+      }),
+    );
+  }
+
+  // Notify the adviser
+  if (event.adviserId) {
+    const adviserNotif = await Notification.create({
+      userId: event.adviserId,
+      type: 'submission_revisions_required',
+      title: 'Student Manuscript Requires Revisions',
+      message: `A manuscript for "${event.projectTitle}" failed automated triage and requires revision.`,
+      metadata: revisionPayload,
+    });
+    emitToUser(event.adviserId, 'notification:new', adviserNotif);
+  }
 
   console.warn(
     `[PanelistTriage] Project ${projectId} triage FAILED — ${allFailures.length} revision(s) required.`,

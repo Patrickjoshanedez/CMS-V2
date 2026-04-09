@@ -7,6 +7,7 @@ import errorHandler from './middleware/errorHandler.js';
 import AppError from './utils/AppError.js';
 import env from './config/env.js';
 import authenticate from './middleware/authenticate.js';
+import auditRequestCapture from './middleware/auditRequestCapture.js';
 
 // --- Route imports ---
 import authRoutes from './modules/auth/auth.routes.js';
@@ -76,6 +77,8 @@ app.get('/api/health', (req, res) => {
 app.use('/storage', authenticate, storageFileServerRouter);
 
 // ---------- API Routes ----------
+
+app.use(auditRequestCapture);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

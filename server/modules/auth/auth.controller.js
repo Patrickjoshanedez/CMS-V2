@@ -146,12 +146,16 @@ export const login = catchAsync(async (req, res) => {
  */
 export const refresh = catchAsync(async (req, res) => {
   const refreshTokenStr = req.cookies?.refreshToken;
+  try {
+    const { accessToken, refreshToken } = await authService.refreshToken(refreshTokenStr);
 
-  const { accessToken, refreshToken } = await authService.refreshToken(refreshTokenStr);
+    setAuthCookies(req, res, { accessToken, refreshToken });
 
-  setAuthCookies(req, res, { accessToken, refreshToken });
-
-  return sendSuccess(res, HTTP_STATUS.OK, 'Token refreshed successfully.');
+    return sendSuccess(res, HTTP_STATUS.OK, 'Token refreshed successfully.');
+  } catch (error) {
+    clearAuthCookies(req, res);
+    throw error;
+  }
 });
 
 /**

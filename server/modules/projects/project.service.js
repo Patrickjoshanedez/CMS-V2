@@ -50,7 +50,31 @@ class ProjectService {
       throw new AppError('Only students can create projects.', 403, 'FORBIDDEN');
     }
 
-    const section = await Section.findById(data.sectionId).populate('courseId', 'name code');
+    // Resolve section ID: explicit payload > team > user
+    let effectiveSectionId = data.sectionId;
+    if (!effectiveSectionId) {
+      // Try to get from team context
+      if (user.teamId) {
+        const team = await Team.findById(user.teamId).select('sectionId');
+        if (team?.sectionId) {
+          effectiveSectionId = team.sectionId;
+        }
+      }
+      // Fall back to user section if available
+      if (!effectiveSectionId && user.sectionId) {
+        effectiveSectionId = user.sectionId;
+      }
+    }
+
+    if (!effectiveSectionId) {
+      throw new AppError(
+        'No section found. Please provide a section, ensure your team has a section, or update your profile.',
+        400,
+        'SECTION_NOT_FOUND',
+      );
+    }
+
+    const section = await Section.findById(effectiveSectionId).populate('courseId', 'name code');
     if (!section) {
       throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
     }

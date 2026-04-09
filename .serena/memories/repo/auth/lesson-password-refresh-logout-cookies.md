@@ -1,0 +1,4 @@
+- Guard bcrypt compare in password-change flows when the stored password hash is missing to avoid runtime crashes.
+- In auth interceptors, bypass refresh only for explicit validation/error codes; do not blanket-disable refresh retries on business endpoints.
+- Keep client logout behavior aligned with server-side session/cookie invalidation so the UI does not remain stale-authenticated.
+- On refresh failure, clear auth cookies server-side to prevent repeated invalid refresh-cookie submissions.

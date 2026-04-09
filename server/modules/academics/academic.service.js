@@ -49,14 +49,24 @@ class AcademicService {
   }
 
   async listSections(query) {
-    const filter = { isActive: true };
-    if (query.courseId) filter.courseId = query.courseId;
-    if (query.academicYear) filter.academicYear = query.academicYear;
+    const fallbackEnabled = query.fallback === true;
+    const baseFilter = { isActive: true };
+    if (query.courseId) baseFilter.courseId = query.courseId;
 
-    const sections = await Section.find(filter)
+    const primaryFilter = { ...baseFilter };
+    if (query.academicYear) primaryFilter.academicYear = query.academicYear;
+
+    let sections = await Section.find(primaryFilter)
       .sort({ academicYear: -1, name: 1 })
       .populate('courseId', 'name code')
       .lean();
+
+    if (fallbackEnabled && query.academicYear && sections.length === 0) {
+      sections = await Section.find(baseFilter)
+        .sort({ academicYear: -1, name: 1 })
+        .populate('courseId', 'name code')
+        .lean();
+    }
 
     return { sections };
   }

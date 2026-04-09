@@ -8,6 +8,33 @@ import AuditLog from './audit.model.js';
  * for querying and paginating audit records for the admin UI.
  */
 class AuditService {
+  _escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  _normalizePagination(page, limit) {
+    const normalizedPage = Number.isFinite(Number(page))
+      ? Math.max(1, Math.trunc(Number(page)))
+      : 1;
+
+    const numericLimit = Number.isFinite(Number(limit)) ? Math.trunc(Number(limit)) : 50;
+    const normalizedLimit = Math.min(100, Math.max(1, numericLimit));
+
+    return { normalizedPage, normalizedLimit };
+  }
+
+  _normalizeEndDate(endDate) {
+    if (!endDate) return null;
+
+    const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (typeof endDate === 'string' && dateOnlyPattern.test(endDate)) {
+      const [year, month, day] = endDate.split('-').map(Number);
+      return new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+
+    return new Date(endDate);
+  }
+
   /**
    * Create an audit log entry.
    * @param {Object} params
@@ -19,9 +46,20 @@ class AuditService {
    * @param {string} params.description - Human-readable description
    * @param {Object} [params.metadata] - Extra context
    * @param {string} [params.ipAddress] - Client IP
+   * @param {boolean} [params.requireSuccess=false] - When true, rethrow write errors
    * @returns {Promise<Object>} The created audit log entry.
    */
-  async log({ action, actor, actorRole, targetType, targetId, description, metadata, ipAddress }) {
+  async log({
+    action,
+    actor,
+    actorRole,
+    targetType,
+    targetId,
+    description,
+    metadata,
+    ipAddress,
+    requireSuccess = false,
+  }) {
     try {
       const entry = await AuditLog.create({
         action,
@@ -36,8 +74,11 @@ class AuditService {
       return entry;
     } catch (error) {
       // Audit logging should never crash the main operation.
-      // Log the error but do not rethrow.
+      // Log the error but only rethrow when strict mode is requested.
       console.error('[AuditService] Failed to write audit log:', error.message);
+      if (requireSuccess) {
+        throw error;
+      }
       return null;
     }
   }
@@ -81,10 +122,11 @@ class AuditService {
     } = filters;
 
     const query = {};
+    const { normalizedPage, normalizedLimit } = this._normalizePagination(page, limit);
 
     if (action) {
       // Support partial match for action codes (e.g. 'project' matches 'project.archived')
-      query.action = { $regex: action, $options: 'i' };
+      query.action = { $regex: this._escapeRegex(String(action)), $options: 'i' };
     }
     if (actor) {
       query.actor = actor;
@@ -98,17 +140,17 @@ class AuditService {
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      if (endDate) query.createdAt.$lte = this._normalizeEndDate(endDate);
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (normalizedPage - 1) * normalizedLimit;
 
     const [logs, total] = await Promise.all([
       AuditLog.find(query)
         .populate('actor', 'firstName lastName email role')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(normalizedLimit)
         .lean(),
       AuditLog.countDocuments(query),
     ]);
@@ -116,8 +158,8 @@ class AuditService {
     return {
       logs,
       total,
-      page,
-      totalPages: Math.ceil(total / limit),
+      page: normalizedPage,
+      totalPages: Math.ceil(total / normalizedLimit),
     };
   }
 
