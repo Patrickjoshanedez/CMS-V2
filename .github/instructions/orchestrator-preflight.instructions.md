@@ -1,0 +1,16 @@
+---
+description: Mandatory preflight requirements for orchestrator planning-stage safety checks.
+applyTo: "**"
+---
+
+# Orchestrator Preflight Contract
+
+Before planning begins, preflight must validate all of the following:
+
+- Agents: required orchestrator agent set resolves and metadata loads.
+- Instructions: instruction sources are present and `.github/instructions/` is non-empty.
+- Skills: `.github/skills/*/SKILL.md` catalog exists and is readable.
+- Hooks: `.github/hooks/copilot-runtime-hooks.json` and `.github/hooks/orchestrator-automation.json` parse and reference existing scripts.
+- Directories: `.github/agents`, `.github/instructions`, `.github/skills`, `.github/hooks`, `.github/hooks/scripts`, `.github/hooks/state` all exist.
+
+If any preflight check fails, stop before planning and report the blocker with evidence.

@@ -1,9 +1,9 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T01:28:16.287022Z",
+  "generated_at": "2026-04-10T17:05:52.358810Z",
   "metadata": {
     "agent_count": 11,
-    "edges_count": 1,
+    "edges_count": 8,
     "has_cycles": false,
     "has_deadlocks": false,
     "validation_status": "valid"
@@ -11,44 +11,63 @@
   "nodes": {
     "100x code reviewer": {
       "name": "100x Code Reviewer",
-      "tools_count": 7,
+      "tools_count": 13,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "coder": {
       "name": "coder",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "context-manager": {
       "name": "context-manager",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "logic-debugger": {
       "name": "logic-debugger",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "orchestrator": {
       "name": "orchestrator",
-      "tools_count": 22,
-      "can_delegate_to": ["researcher"],
+      "tools_count": 33,
+      "can_delegate_to": [
+        "100x code reviewer",
+        "coder",
+        "context-manager",
+        "logic-debugger",
+        "product-design-handoff",
+        "researcher",
+        "test-automation",
+        "thinker pro"
+      ],
       "can_receive_from": [],
       "errors": []
     },
     "product-design-handoff": {
       "name": "product-design-handoff",
-      "tools_count": 16,
+      "tools_count": 18,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "project-manager": {
@@ -60,9 +79,11 @@
     },
     "researcher": {
       "name": "researcher",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": ["orchestrator"],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "reviewer": {
@@ -74,31 +95,70 @@
     },
     "test-automation": {
       "name": "test-automation",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     },
     "thinker pro": {
       "name": "Thinker pro",
-      "tools_count": 18,
+      "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
       "errors": []
     }
   },
   "edges": [
     {
       "source": "orchestrator",
+      "target": "thinker pro",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "product-design-handoff",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "coder",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
       "target": "researcher",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "100x code reviewer",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "context-manager",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "logic-debugger",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "test-automation",
       "bidirectional": false
     }
   ],
   "validation": {
     "total_agents": 11,
     "bidirectional_pairs": 0,
-    "unidirectional_edges": 1,
-    "isolated_agents": 9,
+    "unidirectional_edges": 8,
+    "isolated_agents": 2,
     "cycles": [],
     "deadlocks": [],
     "errors": []

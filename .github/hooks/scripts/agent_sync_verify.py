@@ -13,8 +13,7 @@ import logging
 import os
 import re
 import time
-from collections import defaultdict, deque
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -114,33 +113,45 @@ def write_json_atomically(target_path: Path, payload: dict[str, Any]) -> None:
     raise RuntimeError(f"Failed to atomically write {target_path}")
 
 
-def extract_delegation_instructions(agent_file: Path) -> set[str]:
-    """Extract agent delegation instructions from markdown files."""
-    try:
-        content = agent_file.read_text(encoding='utf-8')
-    except Exception as e:
-        logger.warning(f"Could not read {agent_file}: {e}")
-        return set()
-    
-    delegations = set()
-    
-    # Look for patterns like "delegate to researcher", "call @researcher", etc.
-    # Also look for agent function calls or explicit routing
-    patterns = [
-        r'delegate\s+to\s+(\w[\w\s-]*)',
-        r'@(\w[\w\s-]*)\s+(?:agent|to)',
-        r'(?:agent|sub-?agents?)\s+(?:like|such as|including|to).*?(["\']?)(\w[\w\s-]*)\1',
-        r'call.*?(\w[\w\s-]*)\s+(?:agent|to)',
-        r'next-?agent.*?(?:is|=|:)\s+(["\'])?(\w[\w\s-]*)(?:\1)?',
-    ]
-    
-    for pattern in patterns:
-        for match in re.finditer(pattern, content, re.IGNORECASE):
-            # Get the captured group that contains the agent name
-            for i in range(1, len(match.groups()) + 1):
-                if match.group(i) and not match.group(i) in ['"', "'"]:
-                    delegations.add(match.group(i).strip().lower())
-    
+def _extract_agent_name_from_frontmatter(content: str) -> str:
+    """Extract agent name from frontmatter if present."""
+    match = re.search(r'^---\r?\n([\s\S]*?)\r?\n---', content)
+    if not match:
+        return ""
+
+    frontmatter = match.group(1)
+    name_match = re.search(r'^name\s*:\s*(.+)$', frontmatter, re.MULTILINE)
+    if not name_match:
+        return ""
+
+    raw = name_match.group(1).strip().strip('"\'')
+    return raw
+
+
+def extract_delegation_instructions(
+    content: str,
+    source_agent_norm: str,
+    known_agents: dict[str, str],
+) -> set[str]:
+    """Extract delegation targets by matching known agent tokens in content."""
+    delegations: set[str] = set()
+
+    for target_norm, target_display in known_agents.items():
+        if target_norm == source_agent_norm:
+            continue
+
+        escaped = re.escape(target_display)
+        patterns = [
+            rf'`{escaped}`',
+            rf'@{escaped}(?:\b|$)',
+            rf'(?<!\w){escaped}(?!\w)',
+        ]
+
+        for pattern in patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                delegations.add(target_norm)
+                break
+
     return delegations
 
 
@@ -161,32 +172,44 @@ def build_agent_graph(registry: dict[str, Any]) -> dict[str, AgentNode]:
             tools=agent_info.get("tools", [])
         )
     
-    # Extract delegation relationships from agent files
+    known_agents = {normalize_agent_name(name): name for name in registry.get("agents", {}).keys()}
+
+    orchestrator_norm = normalize_agent_name("orchestrator")
+    allowed_orchestrator_targets = {
+        normalize_agent_name("context-manager"),
+        normalize_agent_name("researcher"),
+        normalize_agent_name("Thinker pro"),
+        normalize_agent_name("product-design-handoff"),
+        normalize_agent_name("coder"),
+        normalize_agent_name("logic-debugger"),
+        normalize_agent_name("test-automation"),
+        normalize_agent_name("100x Code Reviewer"),
+    }
+
+    # Extract delegation relationships from agent files.
+    # We intentionally model orchestrator-driven routing only to avoid false
+    # cycles from descriptive cross-agent mentions in non-orchestrator docs.
     for agent_file in AGENTS_DIR.glob("*.agent.md"):
-        delegations = extract_delegation_instructions(agent_file)
-        
-        # Find matching agent in registry
-        agent_name = None
-        for registered_name in nodes.keys():
-            if registered_name in [normalize_agent_name(agent_file.stem), normalize_agent_name(agent_file.stem.replace('.agent', ''))]:
-                agent_name = registered_name
-                break
-        
-        # Try to extract from file name
-        if not agent_name:
-            base_name = agent_file.stem.replace('.agent', '')
-            normalized = normalize_agent_name(base_name)
-            if normalized in nodes:
-                agent_name = normalized
-        
-        if agent_name and agent_name in nodes:
-            for delegation in delegations:
-                # Find matching target agent
-                for target_name in nodes.keys():
-                    if delegation in target_name or target_name in delegation:
-                        nodes[agent_name].can_delegate_to.add(target_name)
-                        nodes[target_name].can_receive_from.add(agent_name)
-                        break
+        try:
+            content = agent_file.read_text(encoding='utf-8')
+        except Exception as e:
+            logger.warning(f"Could not read {agent_file}: {e}")
+            continue
+
+        frontmatter_name = _extract_agent_name_from_frontmatter(content)
+        source_norm = normalize_agent_name(frontmatter_name)
+        if not source_norm or source_norm not in nodes:
+            continue
+        if source_norm != orchestrator_norm:
+            continue
+
+        delegations = extract_delegation_instructions(content, source_norm, known_agents)
+        for target_norm in delegations:
+            if target_norm not in allowed_orchestrator_targets:
+                continue
+            if target_norm in nodes:
+                nodes[source_norm].can_delegate_to.add(target_norm)
+                nodes[target_norm].can_receive_from.add(source_norm)
     
     return nodes
 

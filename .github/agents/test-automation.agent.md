@@ -1,15 +1,15 @@
 ---
-description: "Use when you need to write, run, or debug automated tests. Generates test cases, executes test suites, and analyzes test failures."
+description: "Premier test automation agent. Writes, executes, debugs, and analyzes all test suites (unit, integration, e2e). Mandatory fix loops and verification-first execution. Enforces test quality and mutation scoring."
 name: "test-automation"
-tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, 'io.github.ChromeDevTools/chrome-devtools-mcp/*', 'io.github.github/github-mcp-server/*', 'io.github.upstash/context7/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*', 'oraios/serena/*', 'microsoftdocs/mcp/*', vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
+tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, 'io.github.chromedevtools/chrome-devtools-mcp/*', 'io.github.github/github-mcp-server/*', 'context7/*', 'microsoft/markitdown/*', 'playwright/*', 'microsoftdocs/mcp/*', 'oraios/serena/*', 'pylance-mcp-server/*', vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
 ---
 
 # Test Automation Agent
 
 ## MCP-First Routing
 - Prefer configured MCP tools for evidence collection and reference lookup before non-MCP alternatives.
-- Test docs and API references: `io.github.upstash/context7`, `microsoftdocs/mcp`.
-- Browser and UI test diagnostics: `io.github.ChromeDevTools/chrome-devtools-mcp`, `microsoft/playwright-mcp`.
+- Test docs and API references: `context7/*`, `microsoftdocs/mcp/*`.
+- Browser and UI test diagnostics: `io.github.chromedevtools/chrome-devtools-mcp/*`, `playwright/*`.
 - Repository issue/PR context for flaky or known failures: `io.github.github/github-mcp-server`.
 - Codebase symbol tracing for targeted test selection: `oraios/serena`.
 - Use only MCP families already configured in `.vscode/mcp.json`.

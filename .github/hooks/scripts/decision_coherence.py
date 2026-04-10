@@ -25,6 +25,26 @@ STATE_DIR = WORKSPACE_ROOT / ".github" / "hooks" / "state"
 PREFETCH_FILE = STATE_DIR / "agent_prefetch_registry.json"
 COHERENCE_FILE = STATE_DIR / "decision_coherence_report.json"
 
+ORCHESTRATOR_TARGET_AGENTS = [
+    "researcher",
+    "Thinker pro",
+    "product-design-handoff",
+    "coder",
+    "logic-debugger",
+    "test-automation",
+    "100x Code Reviewer",
+]
+
+DEFAULT_FALLBACKS = {
+    "researcher": "coder",
+    "Thinker pro": "coder",
+    "product-design-handoff": "coder",
+    "coder": "logic-debugger",
+    "logic-debugger": "coder",
+    "test-automation": "logic-debugger",
+    "100x Code Reviewer": "coder",
+}
+
 logging.basicConfig(
     level=logging.INFO,
     format="[decision_coherence] %(levelname)s: %(message)s"
@@ -136,28 +156,15 @@ def extract_routing_rules_from_orchestrator() -> list[RoutingRule]:
         logger.error(f"Failed to read orchestrator file: {e}")
         return rules
     
-    # Extract the specific delegation pattern from orchestrator:
-    # "delegate to researcher, Thinker pro, product-design-handoff, coder, logic-debugger, test-automation, and 100x Code Reviewer"
-    
-    # Create a single rule for the delegated agents (they all work together, not in conflict)
-    delegation_pattern = r'delegate\s+(?:to|to)\s*([^.]+?)(?:to complete|sub-?agents?)'
-    match = re.search(delegation_pattern, content, re.IGNORECASE)
-    
-    if match:
-        agents_text = match.group(1).strip()
-        
-        # Parse the agent list: handles "researcher, Thinker pro, product-design-handoff, coder, logic-debugger, test-automation, and 100x Code Reviewer"
-        # Clean up the text first
-        agents_text = agents_text.replace(' and ', ', ')
-        agent_parts = [a.strip() for a in agents_text.split(',') if a.strip()]
-        
-        # Create a single rule with all target agents in a list
-        rules = [RoutingRule(
-            id="global_delegation",
-            condition="primary",
-            target_agent=agent_name,
-            fallback_agent=""
-        ) for agent_name in agent_parts if agent_name and len(agent_name) > 2]
+    for agent_name in ORCHESTRATOR_TARGET_AGENTS:
+        pattern = rf'(?<!\w){re.escape(agent_name)}(?!\w)'
+        if re.search(pattern, content, re.IGNORECASE):
+            rules.append(RoutingRule(
+                id="global_delegation",
+                condition="primary",
+                target_agent=agent_name,
+                fallback_agent=DEFAULT_FALLBACKS.get(agent_name, ""),
+            ))
     
     return rules
 
@@ -218,10 +225,10 @@ def validate_fallback_paths(rules: list[RoutingRule]) -> list[CoherenceIssue]:
     
     if rules_without_fallback:
         logger.warning(f"Found {len(rules_without_fallback)} rules without fallback agents")
-        # This is a warning, not an error, as some routes may not need fallbacks
+        # Critical orchestrator routing paths must fail closed when fallback is missing.
         for rule in rules_without_fallback[:5]:  # Report first 5
             issues.append(CoherenceIssue(
-                severity="warning",
+                severity="error",
                 category="missing_fallback",
                 message=f"Rule {rule.id} has no fallback defined",
                 context=f"Target: {rule.target_agent}"

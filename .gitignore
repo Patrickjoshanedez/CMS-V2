@@ -24,6 +24,9 @@ logs/
 *.log
 npm-debug.log*
 
+# User uploads (should not be tracked in version control)
+uploads/
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -80,3 +83,52 @@ scripts/token.json
 
 # LocalStack cache artifacts (contains local test keys/certs)
 .localstack/cache/
+
+# Generated hook runtime artifacts
+.github/hooks/state/
+.github/hooks/scripts/__pycache__/
+*.pyc
+
+# Local context and checkpoint files
+context/
+.probe
+
+# Test results and artifacts
+test-results/
+
+# Local staging directory
+staging/
+
+# Local development/fix scripts and artifacts
+fix.py
+fix-projects-tests.js
+fix_api.Dockerfile
+fix_worker.Dockerfile
+test_avatar.js
+verify-archive.js
+verify-filesystem-storage.js
+validation_final_run.txt
+
+# Local PowerShell utility scripts
+*.ps1
+
+# Temporary markdown and documentation
+PLAN.md
+QUICK_START.md
+AGENT_SYNC_IMPLEMENTATION_REPORT.md
+Agentic Orchestration System Enhancement.md
+code-review-fixes-summary.md
+
+# Temporary environment override files
+-PatPat.env
+
+# Local deployment/testing logs
+lan-deploy.ps1
+rebuild-prod.ps1
+rebuild-service.ps1
+refresh-all-except-plagiarism.ps1
+reinstall-plagiarism-images.ps1
+start-all-services-fixed.ps1
+start-all-services.ps1
+start-cms.ps1
+start-prod-test.ps1

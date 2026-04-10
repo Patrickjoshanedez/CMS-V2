@@ -1,20 +1,26 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T01:28:14.766351Z",
+  "generated_at": "2026-04-10T17:05:51.645292Z",
   "agent_count": 11,
   "agents": {
     "100x Code Reviewer": {
       "name": "100x Code Reviewer",
       "file": ".github\\agents\\100x-code-reviewer.agent.md",
-      "description": "The ultimate 100x Code Reviewer. Audits code for bugs, architectural consistency, extreme quality standards, security vulnerabilities, or style deviations.",
+      "description": "The ultimate 100x Code Reviewer. Audits code for bugs, architectural consistency, extreme quality standards, security vulnerabilities, or style deviations. NEVER write code\u2014only review.",
       "tools": [
         "read",
         "search",
         "web",
         "execute",
-        "io.github.upstash/context7/*",
+        "context7/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "oraios/serena/*"
+        "microsoft/markitdown/*",
+        "playwright/*",
+        "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
+        "vscode.mermaid-chat-features/renderMermaidDiagram"
       ],
       "argument_hint": "",
       "validation_status": "valid",
@@ -23,7 +29,7 @@
     "coder": {
       "name": "coder",
       "file": ".github\\agents\\coder.agent.md",
-      "description": "Implements software logic in the target programming language and tests output locally in a secure sandbox. Use for writing, editing, and executing code.",
+      "description": "Elite backend/server implementation agent. Writes robust, tested, production-ready server logic in Node.js, Python, PHP, etc. Compiles, tests, and verifies locally. For frontend work, defer to product-design-handoff.",
       "tools": [
         "agent",
         "execute",
@@ -33,25 +39,26 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
       ],
-      "argument_hint": "A discrete coding task, feature request, or logic to implement.",
+      "argument_hint": "A discrete backend coding task, API feature, database logic, or server-side implementation.",
       "validation_status": "valid",
       "validation_errors": []
     },
     "context-manager": {
       "name": "context-manager",
       "file": ".github\\agents\\context-manager.agent.md",
-      "description": "High-Efficiency Context and Storage Management Dual-Agent. Manages, persists, compresses, and retrieves context state.",
+      "description": "Hyper-efficient context and state management orchestrator. Manages working/session/long-term context layers, persists state across agent handoffs, compresses token usage, enforces HLLM. The cognitive bridge of the system.",
       "tools": [
         "agent",
         "execute",
@@ -61,13 +68,14 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
@@ -79,7 +87,7 @@
     "logic-debugger": {
       "name": "logic-debugger",
       "file": ".github\\agents\\logic-debugger.agent.md",
-      "description": "Advanced Logic & Execution Debugging Validator. Use to securely execute, test, trace, and debug complex code (Laravel/PHP, Python, JS, etc.) when the Coder Agent struggles. Enforces root-cause analysis, Historic Lesson Learning (HLLM), and strict architectural sustainability.",
+      "description": "Supreme Logic & Execution Debugging specialist. Invoked when standard coder/test-automation hit walls. Trace-driven root-cause analysis, HLLM integration, behavioral isolation, mutation score validation. The last line before escalation.",
       "tools": [
         "agent",
         "execute",
@@ -89,13 +97,14 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
@@ -116,15 +125,26 @@
         "edit",
         "search",
         "web",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
-        "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
+        "github/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
         "browser/openBrowserPage",
+        "firecrawl/firecrawl-mcp-server/*",
+        "io.github.microsoft/awesome-copilot/*",
+        "pylance-mcp-server/*",
+        "huggingface/hf-mcp-server/*",
+        "oraios/serena/*",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
+        "github.vscode-pull-request-github/issue_fetch",
+        "github.vscode-pull-request-github/labels_fetch",
+        "github.vscode-pull-request-github/notification_fetch",
+        "github.vscode-pull-request-github/doSearch",
+        "github.vscode-pull-request-github/activePullRequest",
+        "github.vscode-pull-request-github/pullRequestStatusChecks",
+        "github.vscode-pull-request-github/openPullRequest",
         "ms-azuretools.vscode-containers/containerToolsConfig",
         "ms-python.python/getPythonEnvironmentInfo",
         "ms-python.python/getPythonExecutableCommand",
@@ -139,7 +159,7 @@
     "product-design-handoff": {
       "name": "product-design-handoff",
       "file": ".github\\agents\\product-design-handoff.agent.md",
-      "description": "Bridges product requirements, visual design, and front-end implementation for collaboration and workspace apps. Use when a request needs design-system enforcement, prompt-to-prototype exploration, accessibility auditing, or a production-ready design-to-code handoff.",
+      "description": "Premier frontend/UI implementation agent. Handles all React/Vue/UI component coding, design system validation, accessibility audits, prototypes, and design-to-code handoff for collaboration/workspace apps. THE primary agent for frontend work.",
       "tools": [
         "agent",
         "read",
@@ -149,16 +169,18 @@
         "edit",
         "todo",
         "browser/openBrowserPage",
-        "io.github.upstash/context7/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram"
       ],
-      "argument_hint": "A product brief, design problem, or UX-to-implementation request for collaboration/workspace app surfaces",
+      "argument_hint": "A frontend feature, UI component, design problem, or React/UX-to-code implementation request",
       "validation_status": "valid",
       "validation_errors": []
     },
@@ -175,11 +197,11 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
+        "playwright/*",
         "oraios/serena/*",
         "microsoftdocs/mcp/*",
         "vscode/askQuestions",
@@ -193,7 +215,7 @@
     "researcher": {
       "name": "researcher",
       "file": ".github\\agents\\researcher.agent.md",
-      "description": "Investigates technical documentation, conducts web queries, and retrieves relevant code snippets. Use when factual retrieval, web context, or documentation is needed.",
+      "description": "Elite investigation unit for technical context discovery. Gathers precise documentation, web context, codebase intelligence, and code examples. Provides grounded, filtered research summaries for seamless handoff to implementation agents.",
       "tools": [
         "agent",
         "execute",
@@ -203,18 +225,19 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
       ],
-      "argument_hint": "A technical topic, framework, or documentation query to investigate.",
+      "argument_hint": "A technical topic, framework, documentation query, codebase exploration, or intelligence gathering task.",
       "validation_status": "valid",
       "validation_errors": []
     },
@@ -222,7 +245,10 @@
       "name": "reviewer",
       "file": ".github\\agents\\reviewer.agent.md",
       "description": "Use when: auditing code for bugs, architectural consistency, 100x quality standards, security vulnerabilities, or style deviations. Triggers on code review and security audit requests.",
-      "tools": ["read", "search"],
+      "tools": [
+        "read",
+        "search"
+      ],
       "argument_hint": "",
       "validation_status": "valid",
       "validation_errors": []
@@ -230,7 +256,7 @@
     "test-automation": {
       "name": "test-automation",
       "file": ".github\\agents\\test-automation.agent.md",
-      "description": "Use when you need to write, run, or debug automated tests. Generates test cases, executes test suites, and analyzes test failures.",
+      "description": "Premier test automation agent. Writes, executes, debugs, and analyzes all test suites (unit, integration, e2e). Mandatory fix loops and verification-first execution. Enforces test quality and mutation scoring.",
       "tools": [
         "agent",
         "execute",
@@ -240,13 +266,14 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
@@ -258,7 +285,7 @@
     "Thinker pro": {
       "name": "Thinker pro",
       "file": ".github\\agents\\thinker-pro.agent.md",
-      "description": "The smartest, most unrestricted problem-solving agent. Bypasses standard analytical limitations to generate breakthrough architectures, solve 'impossible' bugs, and devise 100x strategies.",
+      "description": "The apex cognitive entity. Breakthrough architecture, lateral thinking, impossible bugs, and unrestricted problem-solving. Invoked early by orchestrator for complex problems. Generates hypothesis-proven strategies and architectural blueprints.",
       "tools": [
         "agent",
         "execute",
@@ -268,18 +295,19 @@
         "web",
         "todo",
         "browser/openBrowserPage",
-        "io.github.ChromeDevTools/chrome-devtools-mcp/*",
+        "io.github.chromedevtools/chrome-devtools-mcp/*",
         "io.github.github/github-mcp-server/*",
-        "io.github.upstash/context7/*",
+        "context7/*",
         "microsoft/markitdown/*",
-        "microsoft/playwright-mcp/*",
-        "oraios/serena/*",
+        "playwright/*",
         "microsoftdocs/mcp/*",
+        "oraios/serena/*",
+        "pylance-mcp-server/*",
         "vscode/askQuestions",
         "vscode.mermaid-chat-features/renderMermaidDiagram",
         "ms-azuretools.vscode-containers/containerToolsConfig"
       ],
-      "argument_hint": "A seemingly impossible problem, deep architectural conundrum, or request for unparalleled insight.",
+      "argument_hint": "A seemingly impossible problem, architectural conundrum, scaling issue, or request for unparalleled insight requiring breakthrough thinking.",
       "validation_status": "valid",
       "validation_errors": []
     }
@@ -289,5 +317,34 @@
     "valid": 11,
     "invalid": 0,
     "missing_required": []
+  },
+  "preflight_surface": {
+    "directories": {
+      "required": [
+        ".github\\agents",
+        ".github\\instructions",
+        ".github\\skills",
+        ".github\\hooks",
+        ".github\\hooks\\scripts",
+        ".github\\hooks\\state"
+      ],
+      "missing": []
+    },
+    "instructions": {
+      "workspace_instruction_present": true,
+      "root_instruction_present": false,
+      "instructions_dir_entries": 1
+    },
+    "skills": {
+      "skill_directories": 57,
+      "skill_md_files": 57
+    },
+    "hooks": {
+      "copilot_hooks_present": true,
+      "orchestrator_hooks_present": true,
+      "missing_hook_scripts": []
+    },
+    "errors": [],
+    "warnings": []
   }
 }

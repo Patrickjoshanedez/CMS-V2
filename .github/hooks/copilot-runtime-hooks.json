@@ -2,6 +2,48 @@
   "hooks": {
     "PreToolUse": [
       {
+        "id": "agent-prefetch",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/agent_prefetch.py",
+        "linux": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "osx": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "cwd": "./",
+        "timeout": 30,
+        "failMode": "error",
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      },
+      {
+        "id": "agent-sync-verify",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/agent_sync_verify.py",
+        "linux": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "osx": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error",
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      },
+      {
+        "id": "decision-coherence",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/decision_coherence.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/decision_coherence.py",
+        "linux": "python3 .github/hooks/scripts/decision_coherence.py",
+        "osx": "python3 .github/hooks/scripts/decision_coherence.py",
+        "cwd": "./",
+        "timeout": 15,
+        "failMode": "error",
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      },
+      {
         "type": "command",
         "command": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
         "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/hllm_regex_preflight.py",

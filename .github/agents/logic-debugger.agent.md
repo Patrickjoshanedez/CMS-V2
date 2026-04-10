@@ -1,15 +1,15 @@
 ---
-description: "Advanced Logic & Execution Debugging Validator. Use to securely execute, test, trace, and debug complex code (Laravel/PHP, Python, JS, etc.) when the Coder Agent struggles. Enforces root-cause analysis, Historic Lesson Learning (HLLM), and strict architectural sustainability."
+description: "Supreme Logic & Execution Debugging specialist. Invoked when standard coder/test-automation hit walls. Trace-driven root-cause analysis, HLLM integration, behavioral isolation, mutation score validation. The last line before escalation."
 name: "logic-debugger"
-tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, 'io.github.ChromeDevTools/chrome-devtools-mcp/*', 'io.github.github/github-mcp-server/*', 'io.github.upstash/context7/*', 'microsoft/markitdown/*', 'microsoft/playwright-mcp/*', 'oraios/serena/*', 'microsoftdocs/mcp/*', vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
+tools: [agent, execute, read, edit, search, web, todo, browser/openBrowserPage, 'io.github.chromedevtools/chrome-devtools-mcp/*', 'io.github.github/github-mcp-server/*', 'context7/*', 'microsoft/markitdown/*', 'playwright/*', 'microsoftdocs/mcp/*', 'oraios/serena/*', 'pylance-mcp-server/*', vscode/askQuestions, vscode.mermaid-chat-features/renderMermaidDiagram, ms-azuretools.vscode-containers/containerToolsConfig]
 ---
 
 # 🕵️ Universal Logic & Execution Debugging Validator
 
 ## MCP-First Routing
 - Prefer configured MCP tools for debugging context and runtime evidence before non-MCP alternatives.
-- Documentation and API reference: `io.github.upstash/context7`, `microsoftdocs/mcp`.
-- Browser diagnostics and UI/runtime traces: `io.github.ChromeDevTools/chrome-devtools-mcp`, `microsoft/playwright-mcp`.
+- Documentation and API reference: `context7/*`, `microsoftdocs/mcp/*`.
+- Browser diagnostics and UI/runtime traces: `io.github.chromedevtools/chrome-devtools-mcp/*`, `playwright/*`.
 - Repository-level issue and change context: `io.github.github/github-mcp-server`.
 - Symbol-aware code tracing: `oraios/serena`.
 - Use only MCP families already configured in `.vscode/mcp.json`.

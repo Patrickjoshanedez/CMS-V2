@@ -25,3 +25,4 @@
 - Use inferred text parsing only as a bounded fallback for execution-relevant cases (`PreToolUse`, explicit `exit_code`, or execution-like tools).
 - For public-exposure policy gates, ensure text-only command payloads still run fail-closed checks through bounded inferred fallback.
 - Keep synthetic regression checks for: (A) `PreToolUse` text-only `ngrok` command blocks, (B) unknown `PostToolUse` + `exit_code` + text-only test command records pending failure.
+- Keep `copilot-runtime-hooks.json` aligned with `orchestrator-automation.json` for critical preflight hooks (`agent_prefetch`, `agent_sync_verify`, `decision_coherence`) so active runtime execution cannot bypass planning-stage safety checks.

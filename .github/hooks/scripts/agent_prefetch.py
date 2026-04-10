@@ -22,6 +22,15 @@ from typing import Any
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 AGENTS_DIR = WORKSPACE_ROOT / ".github" / "agents"
+INSTRUCTIONS_DIR = WORKSPACE_ROOT / ".github" / "instructions"
+SKILLS_DIR = WORKSPACE_ROOT / ".github" / "skills"
+HOOKS_DIR = WORKSPACE_ROOT / ".github" / "hooks"
+HOOKS_SCRIPTS_DIR = HOOKS_DIR / "scripts"
+HOOKS_STATE_DIR = HOOKS_DIR / "state"
+COPILOT_HOOKS_FILE = HOOKS_DIR / "copilot-runtime-hooks.json"
+ORCHESTRATOR_HOOKS_FILE = HOOKS_DIR / "orchestrator-automation.json"
+WORKSPACE_INSTRUCTIONS_FILE = WORKSPACE_ROOT / ".github" / "copilot-instructions.md"
+ROOT_INSTRUCTIONS_FILE = WORKSPACE_ROOT / "copilot-instructions.md"
 STATE_DIR = WORKSPACE_ROOT / ".github" / "hooks" / "state"
 STATE_FILE = STATE_DIR / "agent_prefetch_registry.json"
 
@@ -229,6 +238,191 @@ def validate_agents(agents: dict[str, AgentMetadata]) -> bool:
     return all_valid
 
 
+def _load_json_file(path: Path) -> dict[str, Any] | None:
+    """Load a JSON file and return parsed object or None if invalid."""
+    try:
+        content = path.read_text(encoding='utf-8')
+        return json.loads(content)
+    except Exception as exc:
+        logger.error(f"Failed to parse JSON file {path}: {exc}")
+        return None
+
+
+def _extract_hook_commands(hooks_config: dict[str, Any]) -> list[str]:
+    """Extract command script paths from hook configuration."""
+    commands: list[str] = []
+    hooks = hooks_config.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return commands
+
+    for lifecycle in ("PreToolUse", "PostToolUse"):
+        entries = hooks.get(lifecycle, [])
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            for key in ("script", "command", "windows", "linux", "osx"):
+                raw = entry.get(key)
+                if isinstance(raw, str) and raw.strip():
+                    commands.append(raw.strip())
+    return commands
+
+
+def _extract_hook_ids(hooks_config: dict[str, Any]) -> set[str]:
+    """Extract hook IDs across PreToolUse and PostToolUse."""
+    ids: set[str] = set()
+    hooks = hooks_config.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return ids
+
+    for lifecycle in ("PreToolUse", "PostToolUse"):
+        entries = hooks.get(lifecycle, [])
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            hook_id = entry.get("id")
+            if isinstance(hook_id, str) and hook_id.strip():
+                ids.add(hook_id.strip())
+    return ids
+
+
+def _extract_python_script_paths(commands: list[str]) -> list[Path]:
+    """Extract referenced python script paths from hook commands."""
+    script_paths: list[Path] = []
+    for cmd in commands:
+        match = re.search(r"(\.github/hooks/scripts/[\w.-]+\.py)", cmd)
+        if not match:
+            continue
+        rel = match.group(1)
+        script_paths.append(WORKSPACE_ROOT / rel)
+    return script_paths
+
+
+def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
+    """Validate preflight dependencies: agents, instructions, skills, hooks, directories."""
+    checks: dict[str, Any] = {
+        "directories": {
+            "required": [
+                str(AGENTS_DIR.relative_to(WORKSPACE_ROOT)),
+                str(INSTRUCTIONS_DIR.relative_to(WORKSPACE_ROOT)),
+                str(SKILLS_DIR.relative_to(WORKSPACE_ROOT)),
+                str(HOOKS_DIR.relative_to(WORKSPACE_ROOT)),
+                str(HOOKS_SCRIPTS_DIR.relative_to(WORKSPACE_ROOT)),
+                str(HOOKS_STATE_DIR.relative_to(WORKSPACE_ROOT)),
+            ],
+            "missing": [],
+        },
+        "instructions": {
+            "workspace_instruction_present": WORKSPACE_INSTRUCTIONS_FILE.exists(),
+            "root_instruction_present": ROOT_INSTRUCTIONS_FILE.exists(),
+            "instructions_dir_entries": 0,
+        },
+        "skills": {
+            "skill_directories": 0,
+            "skill_md_files": 0,
+        },
+        "hooks": {
+            "copilot_hooks_present": COPILOT_HOOKS_FILE.exists(),
+            "orchestrator_hooks_present": ORCHESTRATOR_HOOKS_FILE.exists(),
+            "missing_hook_scripts": [],
+        },
+        "errors": [],
+        "warnings": [],
+    }
+
+    # Required directory validation (fail-closed)
+    required_dirs = [
+        AGENTS_DIR,
+        INSTRUCTIONS_DIR,
+        SKILLS_DIR,
+        HOOKS_DIR,
+        HOOKS_SCRIPTS_DIR,
+        HOOKS_STATE_DIR,
+    ]
+    for required_dir in required_dirs:
+        if not required_dir.exists() or not required_dir.is_dir():
+            checks["directories"]["missing"].append(str(required_dir.relative_to(WORKSPACE_ROOT)))
+
+    if checks["directories"]["missing"]:
+        checks["errors"].append(
+            f"Missing required directories: {checks['directories']['missing']}"
+        )
+
+    # Instructions validation (must have at least one workspace/root instruction source)
+    if INSTRUCTIONS_DIR.exists() and INSTRUCTIONS_DIR.is_dir():
+        entries = [p for p in INSTRUCTIONS_DIR.iterdir() if p.is_file()]
+        checks["instructions"]["instructions_dir_entries"] = len(entries)
+
+    if not checks["instructions"]["workspace_instruction_present"] and not checks["instructions"]["root_instruction_present"]:
+        checks["errors"].append(
+            "No copilot instruction file found (expected .github/copilot-instructions.md or copilot-instructions.md)"
+        )
+    if checks["instructions"]["instructions_dir_entries"] == 0:
+        checks["errors"].append("No instruction files found in .github/instructions/")
+
+    # Skills validation (must contain at least one SKILL.md)
+    if SKILLS_DIR.exists() and SKILLS_DIR.is_dir():
+        skill_dirs = [p for p in SKILLS_DIR.iterdir() if p.is_dir()]
+        checks["skills"]["skill_directories"] = len(skill_dirs)
+        skill_md_files = list(SKILLS_DIR.glob("*/SKILL.md"))
+        checks["skills"]["skill_md_files"] = len(skill_md_files)
+
+    if checks["skills"]["skill_md_files"] == 0:
+        checks["errors"].append("No skill definitions found under .github/skills/*/SKILL.md")
+
+    # Hook registry + referenced script validation
+    if not checks["hooks"]["copilot_hooks_present"]:
+        checks["errors"].append("Missing hook registry: .github/hooks/copilot-runtime-hooks.json")
+    if not checks["hooks"]["orchestrator_hooks_present"]:
+        checks["warnings"].append("Missing orchestrator hook registry: .github/hooks/orchestrator-automation.json")
+
+    for hooks_file in [COPILOT_HOOKS_FILE, ORCHESTRATOR_HOOKS_FILE]:
+        if not hooks_file.exists():
+            continue
+        parsed = _load_json_file(hooks_file)
+        if parsed is None:
+            checks["errors"].append(f"Invalid JSON in hook registry: {hooks_file.relative_to(WORKSPACE_ROOT)}")
+            continue
+
+        commands = _extract_hook_commands(parsed)
+        script_paths = _extract_python_script_paths(commands)
+        for script_path in script_paths:
+            if not script_path.exists() or not script_path.is_file():
+                missing = str(script_path.relative_to(WORKSPACE_ROOT))
+                checks["hooks"]["missing_hook_scripts"].append(missing)
+
+    if checks["hooks"]["missing_hook_scripts"]:
+        checks["errors"].append(
+            f"Hook registry references missing scripts: {checks['hooks']['missing_hook_scripts']}"
+        )
+
+    # Critical hook parity guard: active runtime hooks must include core preflight IDs.
+    critical_preflight_ids = {"agent-prefetch", "agent-sync-verify", "decision-coherence"}
+    copilot_cfg = _load_json_file(COPILOT_HOOKS_FILE) if COPILOT_HOOKS_FILE.exists() else None
+    orch_cfg = _load_json_file(ORCHESTRATOR_HOOKS_FILE) if ORCHESTRATOR_HOOKS_FILE.exists() else None
+
+    if copilot_cfg and orch_cfg:
+        copilot_ids = _extract_hook_ids(copilot_cfg)
+        orch_ids = _extract_hook_ids(orch_cfg)
+
+        missing_in_copilot = sorted(list(critical_preflight_ids - copilot_ids))
+        missing_in_orchestrator = sorted(list(critical_preflight_ids - orch_ids))
+        if missing_in_copilot:
+            checks["errors"].append(
+                f"copilot-runtime-hooks.json missing critical preflight hook IDs: {missing_in_copilot}"
+            )
+        if missing_in_orchestrator:
+            checks["errors"].append(
+                f"orchestrator-automation.json missing critical preflight hook IDs: {missing_in_orchestrator}"
+            )
+
+    is_valid = len(checks["errors"]) == 0
+    return is_valid, checks
+
+
 def write_json_atomically(target_path: Path, payload: dict[str, Any]) -> None:
     """Write JSON safely with retries for transient Windows file locks."""
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -335,9 +529,13 @@ def main():
         
         # Validate agents
         all_valid = validate_agents(agents)
+
+        # Validate non-agent preflight dependencies (instructions, skills, hooks, directories)
+        surface_valid, preflight_surface = validate_preflight_surface()
         
         # Build registry
         registry = build_registry(agents)
+        registry["preflight_surface"] = preflight_surface
         
         # Ensure state directory exists
         STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -348,10 +546,16 @@ def main():
         logger.info(f"Agent registry written to {STATE_FILE}")
         logger.info(f"Agent prefetch complete: {registry['validation_summary']['valid']} valid agents")
         
-        if not all_valid or registry["validation_summary"]["invalid"] > 0:
+        if (
+            not all_valid
+            or registry["validation_summary"]["invalid"] > 0
+            or not surface_valid
+        ):
             logger.error(f"Agent validation failed: {registry['validation_summary']['invalid']} invalid agents")
             if registry["validation_summary"]["missing_required"]:
                 logger.error(f"Missing required agents: {registry['validation_summary']['missing_required']}")
+            if preflight_surface.get("errors"):
+                logger.error(f"Preflight surface errors: {preflight_surface['errors']}")
             sys.exit(1)
         
         sys.exit(0)
