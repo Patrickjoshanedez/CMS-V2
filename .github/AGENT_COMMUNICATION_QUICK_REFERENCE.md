@@ -90,7 +90,7 @@ ORCHESTRATOR.runSubagent(agentName)
     └─ RECEIVE structured response
        ├─ <research_summary> → route to next agent
        ├─ <implementation_report> → validate & review
-       ├─ <design_handoff_report> → route to coder/reviewer
+        ├─ <design_handoff_report> → route to coder/100x Code Reviewer
        ├─ <thinker_pro_strategy> → execute blueprint
        ├─ <test_failure> → trigger fix loop
        └─ <review_verdict> → APPROVED | REJECTED

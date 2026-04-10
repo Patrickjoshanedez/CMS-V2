@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T17:05:52.358810Z",
+  "generated_at": "2026-04-10T18:02:12.649177Z",
   "metadata": {
-    "agent_count": 11,
+    "agent_count": 10,
     "edges_count": 8,
     "has_cycles": false,
     "has_deadlocks": false,
@@ -86,13 +86,6 @@
       ],
       "errors": []
     },
-    "reviewer": {
-      "name": "reviewer",
-      "tools_count": 2,
-      "can_delegate_to": [],
-      "can_receive_from": [],
-      "errors": []
-    },
     "test-automation": {
       "name": "test-automation",
       "tools_count": 19,
@@ -115,22 +108,32 @@
   "edges": [
     {
       "source": "orchestrator",
-      "target": "thinker pro",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "product-design-handoff",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "coder",
       "bidirectional": false
     },
     {
       "source": "orchestrator",
+      "target": "logic-debugger",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "thinker pro",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "test-automation",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
       "target": "researcher",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "product-design-handoff",
       "bidirectional": false
     },
     {
@@ -142,23 +145,13 @@
       "source": "orchestrator",
       "target": "context-manager",
       "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "logic-debugger",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "test-automation",
-      "bidirectional": false
     }
   ],
   "validation": {
-    "total_agents": 11,
+    "total_agents": 10,
     "bidirectional_pairs": 0,
     "unidirectional_edges": 8,
-    "isolated_agents": 2,
+    "isolated_agents": 1,
     "cycles": [],
     "deadlocks": [],
     "errors": []

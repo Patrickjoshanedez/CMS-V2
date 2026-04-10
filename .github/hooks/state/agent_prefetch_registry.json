@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T17:05:51.645292Z",
-  "agent_count": 11,
+  "generated_at": "2026-04-10T18:02:11.389073Z",
+  "agent_count": 10,
   "agents": {
     "100x Code Reviewer": {
       "name": "100x Code Reviewer",
@@ -241,18 +241,6 @@
       "validation_status": "valid",
       "validation_errors": []
     },
-    "reviewer": {
-      "name": "reviewer",
-      "file": ".github\\agents\\reviewer.agent.md",
-      "description": "Use when: auditing code for bugs, architectural consistency, 100x quality standards, security vulnerabilities, or style deviations. Triggers on code review and security audit requests.",
-      "tools": [
-        "read",
-        "search"
-      ],
-      "argument_hint": "",
-      "validation_status": "valid",
-      "validation_errors": []
-    },
     "test-automation": {
       "name": "test-automation",
       "file": ".github\\agents\\test-automation.agent.md",
@@ -313,8 +301,8 @@
     }
   },
   "validation_summary": {
-    "total": 11,
-    "valid": 11,
+    "total": 10,
+    "valid": 10,
     "invalid": 0,
     "missing_required": []
   },

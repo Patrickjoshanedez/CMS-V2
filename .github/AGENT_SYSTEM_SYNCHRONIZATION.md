@@ -205,7 +205,6 @@ All 11 agents successfully discovered:
 | test-automation | `test-automation` | 18 | `.github/agents/test-automation.agent.md` | ✅ Valid |
 | 100x Code Reviewer | `100x Code Reviewer` | 7 | `.github/agents/100x-code-reviewer.agent.md` | ✅ Valid |
 | project-manager | `project-manager` | 18 | `.github/agents/project-manager.agent.md` | ✅ Valid |
-| reviewer | `reviewer` | 2 | `.github/agents/reviewer.agent.md` | ✅ Valid |
 | SUPREME_SYSTEM_ARCHITECTURE | `SUPREME_SYSTEM_ARCHITECTURE` | 0 | `.github/agents/SUPREME_SYSTEM_ARCHITECTURE.md` | ✅ Valid |
 
 ---
