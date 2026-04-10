@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T01:17:42.423336Z",
+  "generated_at": "2026-04-10T01:26:10.506832Z",
   "metadata": {
     "agent_count": 11,
     "edges_count": 1,
@@ -40,9 +40,7 @@
     "orchestrator": {
       "name": "orchestrator",
       "tools_count": 22,
-      "can_delegate_to": [
-        "researcher"
-      ],
+      "can_delegate_to": ["researcher"],
       "can_receive_from": [],
       "errors": []
     },
@@ -64,9 +62,7 @@
       "name": "researcher",
       "tools_count": 18,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "reviewer": {
