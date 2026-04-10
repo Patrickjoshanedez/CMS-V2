@@ -20,8 +20,6 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 /** Accepted MIME types (must match server fileValidation middleware) */
 const ACCEPTED_FILE_TYPES = {
   'application/pdf': '.pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-  'text/plain': '.txt',
 };
 
 const ACCEPT_STRING = Object.values(ACCEPTED_FILE_TYPES).join(',');
@@ -90,12 +88,12 @@ export default function ChapterUploadPage() {
 
     // Check MIME type
     if (!Object.keys(ACCEPTED_FILE_TYPES).includes(selectedFile.type)) {
-      return 'Invalid file type. Only PDF, DOCX, and TXT files are accepted.';
+      return 'Invalid file type. Only PDF allowed.';
     }
 
     // Check size
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      return `File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`;
+      return `File exceeds maximum size (${MAX_FILE_SIZE_MB}MB)`;
     }
 
     return '';
@@ -405,7 +403,7 @@ export default function ChapterUploadPage() {
           <CardHeader>
             <CardTitle>Document Upload</CardTitle>
             <CardDescription>
-              Accepted formats: PDF, DOCX, TXT &mdash; Max size: {MAX_FILE_SIZE_MB} MB
+              Accepted format: PDF &mdash; Max size: {MAX_FILE_SIZE_MB} MB
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -451,7 +449,7 @@ export default function ChapterUploadPage() {
                     <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
                     <span className="text-sm font-medium">Click to select a file</span>
                     <span className="mt-1 text-xs text-muted-foreground">
-                      PDF, DOCX, or TXT up to {MAX_FILE_SIZE_MB} MB
+                      PDF only, up to {MAX_FILE_SIZE_MB} MB
                     </span>
                     <Input
                       id="file"

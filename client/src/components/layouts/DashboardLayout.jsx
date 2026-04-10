@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useSocket } from '@/hooks/useSocket';
+import AnnouncementBanner from './AnnouncementBanner';
 
 /**
  * DashboardLayout — main authenticated layout with collapsible sidebar and header.
@@ -29,6 +30,10 @@ export default function DashboardLayout({ children }) {
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
+        <div className="border-b bg-background px-4 sm:px-6 lg:px-8 pt-4">
+          <AnnouncementBanner className="mb-4" />
+        </div>
+
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {children || <Outlet />}

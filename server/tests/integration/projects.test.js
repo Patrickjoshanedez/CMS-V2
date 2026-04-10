@@ -757,20 +757,38 @@ describe('Projects API — /api/projects', () => {
       projectId = res.body.data.project._id;
     });
 
-    it('should NOT allow advancing from phase 1 if proposal is not approved', async () => {
+    it('should NOT allow advancing from phase 1 when chapter 1 upload is missing', async () => {
       const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('PROPOSAL_NOT_APPROVED');
+      expect(res.body.error.code).toBe('CHAPTER1_REQUIRED_FOR_PHASE_ADVANCE');
     });
 
-    it('should advance from phase 1 to 2 when proposal is approved', async () => {
-      // Submit and approve the title first
-      await studentAgent.post(`/api/projects/${projectId}/title/submit`);
-      await instructorAgent.post(`/api/projects/${projectId}/title/approve`);
+    it('should advance from phase 1 to 2 when projectStatus is proposal_approved without chapter 1 upload', async () => {
+      await Project.findByIdAndUpdate(projectId, {
+        projectStatus: 'proposal_approved',
+        capstonePhase: 1,
+      });
 
-      // Update project status to proposal_approved (simulate full workflow)
-      await Project.findByIdAndUpdate(projectId, { projectStatus: 'proposal_approved' });
+      const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.project.capstonePhase).toBe(2);
+    });
+
+    it('should advance from phase 1 to 2 when chapter 1 upload exists', async () => {
+      await Submission.create({
+        projectId,
+        type: 'chapter',
+        chapter: 1,
+        version: 1,
+        fileName: 'chapter1-phase-gate.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1024,
+        storageKey: 'test/chapter1-phase-gate.pdf',
+        submittedBy: studentUser._id,
+        status: 'pending',
+      });
 
       const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
 
@@ -1148,6 +1166,93 @@ describe('Projects API — /api/projects', () => {
     });
   });
 
+  /* ────────── Archive Project ────────── */
+  describe('POST /:id/archive — archive project', () => {
+    let projectId;
+
+    beforeEach(async () => {
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
+      projectId = createRes.body.data.project._id;
+
+      await Submission.create([
+        {
+          projectId,
+          type: 'final_academic',
+          version: 1,
+          fileName: 'final-academic.pdf',
+          fileType: 'application/pdf',
+          fileSize: 1024,
+          storageKey: `archives/projects/${projectId}/final-academic/v1/final-academic.pdf`,
+          submittedBy: studentUser._id,
+          plagiarismResult: {
+            status: 'completed',
+            originalityScore: 90,
+          },
+        },
+        {
+          projectId,
+          type: 'final_journal',
+          version: 1,
+          fileName: 'final-journal.pdf',
+          fileType: 'application/pdf',
+          fileSize: 1024,
+          storageKey: `archives/projects/${projectId}/final-journal/v1/final-journal.pdf`,
+          submittedBy: studentUser._id,
+          plagiarismResult: {
+            status: 'completed',
+            originalityScore: 92,
+          },
+        },
+      ]);
+    });
+
+    it('should archive a project when final submissions are present and plagiarism-cleared', async () => {
+      const res = await instructorAgent
+        .post(`/api/projects/${projectId}/archive`)
+        .send({ completionNotes: 'All final requirements satisfied.' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.project.projectStatus).toBe(PROJECT_STATUSES.ARCHIVED);
+      expect(res.body.data.project.isArchived).toBe(true);
+      expect(res.body.data.project.completionNotes).toBe('All final requirements satisfied.');
+
+      const archivedProject = await Project.findById(projectId);
+      expect(archivedProject.projectStatus).toBe(PROJECT_STATUSES.ARCHIVED);
+      expect(archivedProject.isArchived).toBe(true);
+      expect(archivedProject.archivedAt).toBeTruthy();
+    });
+
+    it('should reject archive when final academic submission is missing', async () => {
+      await Submission.deleteMany({ projectId, type: 'final_academic' });
+
+      const res = await instructorAgent
+        .post(`/api/projects/${projectId}/archive`)
+        .send({ completionNotes: 'Attempt archive without academic submission.' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('MISSING_ACADEMIC');
+    });
+
+    it('should reject archive when final journal plagiarism check failed', async () => {
+      await Submission.findOneAndUpdate(
+        { projectId, type: 'final_journal' },
+        {
+          plagiarismResult: {
+            status: 'failed',
+          },
+        },
+      );
+
+      const res = await instructorAgent
+        .post(`/api/projects/${projectId}/archive`)
+        .send({ completionNotes: 'Attempt archive with failed plagiarism.' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PLAGIARISM_CHECK_FAILED');
+    });
+  });
+
   /* ────────── Capstone 1 Prerequisites ────────── */
   describe('POST /api/submissions/:projectId/chapters — Capstone 1 guard', () => {
     let projectId;
@@ -1221,6 +1326,57 @@ describe('Projects API — /api/projects', () => {
       const [firstArg, storageKey] = storageService.uploadFile.mock.calls.at(-1);
       expect(Buffer.isBuffer(firstArg)).toBe(true);
       expect(storageKey.startsWith(`archives/projects/${projectId}/certificates/`)).toBe(true);
+    });
+
+    it('should reject certificate upload when project is not archived', async () => {
+      storageService.uploadFile.mockClear();
+
+      const res = await instructorAgent
+        .post(`/api/projects/${projectId}/certificate`)
+        .attach('file', createPdfBuffer(), 'completion-certificate.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('NOT_ARCHIVED');
+      expect(storageService.uploadFile).not.toHaveBeenCalled();
+    });
+  });
+
+  /* ────────── Certificate Download URL ────────── */
+  describe('GET /:id/certificate — download completion certificate', () => {
+    let projectId;
+    const certificateKey = 'archives/projects/test-project-id/certificates/completion-certificate.pdf';
+
+    beforeEach(async () => {
+      const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);
+      projectId = createRes.body.data.project._id;
+
+      await Project.findByIdAndUpdate(projectId, {
+        isArchived: true,
+        projectStatus: PROJECT_STATUSES.ARCHIVED,
+        certificateStorageKey: certificateKey,
+      });
+    });
+
+    it('should return a signed certificate URL with a 3600-second TTL', async () => {
+      storageService.getSignedUrl.mockClear();
+
+      const res = await studentAgent.get(`/api/projects/${projectId}/certificate`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.url).toBe('https://mock-s3.example.com/signed-url');
+      expect(storageService.getSignedUrl).toHaveBeenCalledWith(certificateKey, 3600);
+    });
+
+    it('should return 404 when certificate key is missing', async () => {
+      await Project.findByIdAndUpdate(projectId, {
+        $unset: { certificateStorageKey: 1 },
+      });
+
+      const res = await studentAgent.get(`/api/projects/${projectId}/certificate`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NO_CERTIFICATE');
     });
   });
 });

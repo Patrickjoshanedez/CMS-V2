@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-04-09",
+  "scope": "workspace-root-preflight",
+  "agentsChecked": [
+    { "token": "context-manager", "status": "RESOLVED" },
+    { "token": "researcher", "status": "RESOLVED" },
+    { "token": "coder", "status": "RESOLVED" },
+    { "token": "logic-debugger", "status": "RESOLVED" },
+    { "token": "test-automation", "status": "RESOLVED" },
+    { "token": "reviewer", "status": "RESOLVED" },
+    { "token": "100x Code Reviewer", "status": "NOT_FOUND" }
+  ],
+  "recommendedReviewerToken": "reviewer",
+  "notes": [
+    "Primary agent registry in workspace root resolves reviewer.",
+    "Fallback token appears only in staging snapshot, not active root agent registry."
+  ]
+}

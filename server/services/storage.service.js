@@ -246,6 +246,54 @@ class StorageService {
   }
 
   /**
+   * Normalize legacy or malformed storage key inputs into a clean S3 object key.
+   * Accepts bare keys, path-style URLs, and s3:// URLs.
+   *
+   * @param {string} rawKey
+   * @returns {string}
+   */
+  _normalizeStorageKey(rawKey) {
+    if (typeof rawKey !== 'string') {
+      return '';
+    }
+
+    let key = rawKey.trim();
+    if (!key) {
+      return '';
+    }
+
+    // Handle s3://bucket/key and s3://key formats.
+    if (key.startsWith('s3://')) {
+      key = key.replace(/^s3:\/\//i, '');
+      if (this.bucket && key.startsWith(`${this.bucket}/`)) {
+        key = key.slice(this.bucket.length + 1);
+      } else {
+        const slashIndex = key.indexOf('/');
+        key = slashIndex >= 0 ? key.slice(slashIndex + 1) : key;
+      }
+    }
+
+    // Handle full URLs that include the object key in the path.
+    if (/^https?:\/\//i.test(key)) {
+      try {
+        const parsed = new URL(key);
+        key = decodeURIComponent(parsed.pathname || '');
+      } catch (_error) {
+        // Keep raw key if URL parsing fails.
+      }
+    }
+
+    key = key.replace(/\\/g, '/').replace(/^\/+/, '');
+
+    // Remove path-style bucket prefix (bucket/key).
+    if (this.bucket && key.startsWith(`${this.bucket}/`)) {
+      key = key.slice(this.bucket.length + 1);
+    }
+
+    return key;
+  }
+
+  /**
    * Health check to verify S3 connectivity.
    * Can be used by health endpoints or startup checks.
    *
@@ -446,10 +494,15 @@ class StorageService {
   async getSignedUrl(key, expiresInSeconds = 300) {
     this._validateConfiguration();
 
+    const normalizedKey = this._normalizeStorageKey(key);
+    if (!normalizedKey) {
+      throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
+    }
+
     try {
       const command = new HeadObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: normalizedKey,
       });
 
       // Verify the object exists before generating the URL
@@ -458,7 +511,7 @@ class StorageService {
       // Use GetObjectCommand for the actual download URL
       const getCommand = new GetObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: normalizedKey,
       });
 
       const publicUrl = env.S3_PUBLIC_URL?.trim();
@@ -506,10 +559,15 @@ class StorageService {
   async downloadFile(key) {
     this._validateConfiguration();
 
+    const normalizedKey = this._normalizeStorageKey(key);
+    if (!normalizedKey) {
+      throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
+    }
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: normalizedKey,
       });
 
       const response = await s3Client.send(command);
@@ -538,10 +596,15 @@ class StorageService {
   async deleteFile(key) {
     this._validateConfiguration();
 
+    const normalizedKey = this._normalizeStorageKey(key);
+    if (!normalizedKey) {
+      throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
+    }
+
     try {
       const command = new DeleteObjectCommand({
         Bucket: this.bucket,
-        Key: key,
+        Key: normalizedKey,
       });
 
       await s3Client.send(command);

@@ -266,6 +266,133 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
   });
 });
 
+describe('Dashboard API — Panelist topic selection flow', () => {
+  it('should list eligible topics and allow panelist selection from dashboard', async () => {
+    const { agent: panelistAgent, user: panelist } = await createAuthenticatedUserWithRole('panelist', {
+      email: 'panelist-topics-flow@example.com',
+    });
+
+    const { user: instructor } = await createAuthenticatedUserWithRole('instructor', {
+      email: 'instructor-topics-flow@example.com',
+    });
+
+    const { course, section } = await createCourseAndSection(instructor._id);
+
+    const createProjectForStudent = async (email, title, projectOverrides = {}) => {
+      const student = await User.create({
+        firstName: 'Topic',
+        lastName: 'Student',
+        email,
+        password: 'Password123',
+        isVerified: true,
+        role: 'student',
+      });
+
+      const team = await Team.create({
+        name: `${title} Team`,
+        leaderId: student._id,
+        members: [student._id],
+        academicYear: '2024-2025',
+        isLocked: true,
+      });
+
+      await User.findByIdAndUpdate(student._id, { teamId: team._id });
+
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [student._id]);
+      payload.title = title;
+
+      return Project.create({
+        ...payload,
+        ...projectOverrides,
+      });
+    };
+
+    const eligibleProject = await createProjectForStudent(
+      'panelist-topic-eligible@example.com',
+      'Eligible Dashboard Topic',
+    );
+
+    const inactiveProject = await createProjectForStudent(
+      'panelist-topic-inactive@example.com',
+      'Inactive Dashboard Topic',
+      { projectStatus: 'proposal_submitted' },
+    );
+
+    const archivedProject = await createProjectForStudent(
+      'panelist-topic-archived@example.com',
+      'Archived Dashboard Topic',
+      { projectStatus: 'archived', isArchived: true },
+    );
+
+    await createProjectForStudent('panelist-topic-assigned@example.com', 'Already Assigned Topic', {
+      panelistIds: [panelist._id],
+      projectStatus: 'proposal_submitted',
+    });
+
+    const extraPanelists = [];
+    for (let index = 0; index < 3; index += 1) {
+      const extraPanelist = await User.create({
+        firstName: `Full${index}`,
+        lastName: 'Panelist',
+        email: `panelist-topic-full-${index}@example.com`,
+        password: 'Password123',
+        isVerified: true,
+        role: 'panelist',
+      });
+      extraPanelists.push(extraPanelist._id);
+    }
+
+    await createProjectForStudent('panelist-topic-full@example.com', 'Full Slot Topic', {
+      panelistIds: extraPanelists,
+      projectStatus: 'proposal_submitted',
+    });
+
+    const topicsRes = await panelistAgent.get('/api/dashboard/panelist/topics');
+
+    expect(topicsRes.status).toBe(200);
+    expect(topicsRes.body.success).toBe(true);
+    expect(topicsRes.body.data.available.map((item) => item._id)).toContain(
+      eligibleProject._id.toString(),
+    );
+    expect(topicsRes.body.data.available.map((item) => item._id)).not.toContain(
+      inactiveProject._id.toString(),
+    );
+    expect(topicsRes.body.data.available.map((item) => item._id)).not.toContain(
+      archivedProject._id.toString(),
+    );
+    expect(topicsRes.body.data.available.every((item) => item.hasSlot === true)).toBe(true);
+    expect(topicsRes.body.data.available.every((item) => item.isAssigned === false)).toBe(true);
+
+    for (const projectId of [inactiveProject._id, archivedProject._id]) {
+      const selectRejectedRes = await panelistAgent.post(
+        `/api/dashboard/panelist/topics/${projectId}/select`,
+      );
+
+      expect(selectRejectedRes.status).toBe(400);
+      expect(selectRejectedRes.body.error.code).toBe('PROJECT_NOT_ACTIVE');
+    }
+
+    const selectRes = await panelistAgent.post(
+      `/api/dashboard/panelist/topics/${eligibleProject._id}/select`,
+    );
+
+    expect(selectRes.status).toBe(200);
+    expect(selectRes.body.success).toBe(true);
+    expect(selectRes.body.data.alreadyAssigned).toBe(false);
+
+    const repeatSelectRes = await panelistAgent.post(
+      `/api/dashboard/panelist/topics/${eligibleProject._id}/select`,
+    );
+
+    expect(repeatSelectRes.status).toBe(200);
+    expect(repeatSelectRes.body.success).toBe(true);
+    expect(repeatSelectRes.body.data.alreadyAssigned).toBe(true);
+
+    const updatedProject = await Project.findById(eligibleProject._id).lean();
+    expect(updatedProject.panelistIds.map((id) => id.toString())).toContain(panelist._id.toString());
+  });
+});
+
 describe('Change Password API — POST /api/auth/change-password', () => {
   it('should reject unauthenticated requests with 401', async () => {
     const { default: supertest } = await import('supertest');

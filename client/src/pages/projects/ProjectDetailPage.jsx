@@ -30,8 +30,10 @@ import {
   useArchiveProject,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
 import { userService } from '@/services/authService';
 import { getProjectResolveErrorMessage } from './projectDetailUtils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useQuery } from '@tanstack/react-query';
 import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
 import {
@@ -50,6 +52,8 @@ import {
   ArrowUpCircle,
   Award,
   Archive,
+  ScrollText,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -913,6 +917,78 @@ function RejectProjectCard({ project }) {
   );
 }
 
+export function ProjectHistoryCard({ projectId }) {
+  const { data: logs = [], isLoading, isError } = useEntityAuditHistory('Project', projectId, 100);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ScrollText className="h-5 w-5" />
+          Project Activity
+        </CardTitle>
+        <CardDescription>
+          Track the latest changes for this project from the system audit trail.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="summary">
+          <TabsList>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="summary" className="space-y-2">
+            <p className="text-sm text-muted-foreground">Total audit entries: {logs.length}</p>
+            {logs[0] ? (
+              <p className="text-sm text-muted-foreground">
+                Latest activity: {logs[0].action} at {new Date(logs[0].createdAt).toLocaleString()}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No activity has been logged yet.</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-3">
+            {isLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading project history...
+              </div>
+            )}
+
+            {isError && (
+              <Alert variant="destructive">
+                <AlertDescription>Failed to load project history.</AlertDescription>
+              </Alert>
+            )}
+
+            {!isLoading && !isError && logs.length === 0 && (
+              <p className="text-sm text-muted-foreground">No history entries found for this project.</p>
+            )}
+
+            {!isLoading &&
+              !isError &&
+              logs.map((log) => (
+                <div key={log._id} className="rounded-md border px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{log.action}</Badge>
+                    <Badge variant="secondary">{log.actorRole || 'unknown'}</Badge>
+                  </div>
+                  {log.description && <p className="mt-2 text-sm">{log.description}</p>}
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{new Date(log.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Main Page ────────── */
 
 export default function ProjectDetailPage() {
@@ -968,6 +1044,9 @@ export default function ProjectDetailPage() {
           <>
             {/* Info panel */}
             <ProjectInfoPanel project={project} />
+
+            {/* History tab with audit trail */}
+            <ProjectHistoryCard projectId={project._id} />
 
             {!isArchived && <TitleProposalsSection project={project} />}
 

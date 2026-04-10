@@ -112,6 +112,14 @@ router.patch(
   authorize(ROLES.STUDENT),
   checkTitleLock,
   validate(updateTitleSchema),
+  auditLog('project.title_updated', 'Project', {
+    getDescription: (req) => `Updated project title details for project ${req.params.id}`,
+    getMetadata: (req) => ({
+      hasTitle: typeof req.body.title === 'string',
+      hasAbstract: typeof req.body.abstract === 'string',
+      hasKeywords: Array.isArray(req.body.keywords),
+    }),
+  }),
   projectController.updateTitle,
 );
 
@@ -120,6 +128,9 @@ router.post(
   '/:id/title/submit',
   authorize(ROLES.STUDENT),
   validate(submitTitleSchema),
+  auditLog('project.title_submitted', 'Project', {
+    getDescription: (req) => `Submitted project title for approval: ${req.params.id}`,
+  }),
   projectController.submitTitle,
 );
 
@@ -129,6 +140,9 @@ router.patch(
   authorize(ROLES.STUDENT),
   checkTitleLock,
   validate(updateTitleSchema),
+  auditLog('project.title_revised', 'Project', {
+    getDescription: (req) => `Revised and resubmitted project title for project ${req.params.id}`,
+  }),
   projectController.reviseAndResubmit,
 );
 
@@ -137,6 +151,13 @@ router.post(
   '/:id/title/modification',
   authorize(ROLES.STUDENT),
   validate(requestTitleModificationSchema),
+  auditLog('project.title_modification_requested', 'Project', {
+    getDescription: (req) => `Requested title modification for project ${req.params.id}`,
+    getMetadata: (req) => ({
+      hasProposedTitle: typeof req.body.proposedTitle === 'string',
+      hasReason: typeof req.body.reason === 'string',
+    }),
+  }),
   projectController.requestTitleModification,
 );
 
@@ -243,6 +264,10 @@ router.delete(
   '/:id/panelists',
   authorize(ROLES.INSTRUCTOR),
   validate(removePanelistSchema),
+  auditLog('project.panelist_removed', 'Project', {
+    getDescription: (req) => `Removed panelist from project ${req.params.id}`,
+    getMetadata: (req) => ({ panelistId: req.body.panelistId }),
+  }),
   projectController.removePanelist,
 );
 
@@ -251,6 +276,9 @@ router.patch(
   '/:id/deadlines',
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(setDeadlinesSchema),
+  auditLog('project.deadlines_updated', 'Project', {
+    getDescription: (req) => `Updated deadlines for project ${req.params.id}`,
+  }),
   projectController.setDeadlines,
 );
 
@@ -296,6 +324,9 @@ router.post(
   uploadLimiter,
   upload.single('file'),
   validateFile,
+  auditLog('project.certificate_uploaded', 'Project', {
+    getDescription: (req) => `Uploaded completion certificate for project ${req.params.id}`,
+  }),
   projectController.uploadCertificate,
 );
 
@@ -305,7 +336,14 @@ router.get('/:id/certificate', projectController.getCertificateUrl);
 /* ────── Panelist routes ────── */
 
 // Panelist self-selects into a project
-router.post('/:id/panelists/select', authorize(ROLES.PANELIST), projectController.selectAsPanelist);
+router.post(
+  '/:id/panelists/select',
+  authorize(ROLES.PANELIST),
+  auditLog('project.panelist_self_selected', 'Project', {
+    getDescription: (req) => `Panelist self-selected into project ${req.params.id}`,
+  }),
+  projectController.selectAsPanelist,
+);
 
 /* ────── Faculty shared routes ────── */
 

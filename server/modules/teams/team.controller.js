@@ -89,6 +89,21 @@ export const assignMemberRole = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/members/:memberId/leader — Transfer team leadership (Leader only) */
+export const transferLeadership = catchAsync(async (req, res) => {
+  const { team } = await teamService.transferLeadership(
+    req.params.id,
+    req.user._id,
+    req.params.memberId,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team leadership transferred successfully.',
+    data: { team },
+  });
+});
+
 /** PATCH /api/teams/:id/google-doc-link — Attach or clear team Google Docs link (Leader only) */
 export const updateGoogleDocLink = catchAsync(async (req, res) => {
   const { team } = await teamService.updateGoogleDocLink(

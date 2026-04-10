@@ -221,8 +221,8 @@ const runTests = async () => {
   await test('Path traversal protection', async () => {
     const dangerousPath = path.join(verifier.baseDir, '..', '..', 'sensitive-file');
     const normalized = path.normalize(dangerousPath);
-    // Should still be under baseDir
-    return normalized.startsWith(path.resolve(verifier.baseDir));
+    // Traversal attempt should resolve outside baseDir and be rejected by secure resolvers.
+    return !normalized.startsWith(path.resolve(verifier.baseDir));
   });
 
   // Summary

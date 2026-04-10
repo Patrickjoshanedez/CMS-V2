@@ -12,7 +12,7 @@ const router = Router();
  * Audit log routes — /api/audit
  *
  * GET  /                          — Query all audit logs (Instructor only)
- * GET  /:targetType/:targetId     — Entity-specific history (Instructor, Adviser, Panelist)
+ * GET  /:targetType/:targetId     — Entity-specific history (authenticated roles)
  */
 
 router.use(authenticate);
@@ -28,7 +28,7 @@ router.get(
 // Entity history — available to faculty roles
 router.get(
   '/:targetType/:targetId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
   auditController.getEntityHistory,
 );
 

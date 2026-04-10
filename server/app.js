@@ -9,6 +9,8 @@ import env from './config/env.js';
 import authenticate from './middleware/authenticate.js';
 import auditRequestCapture from './middleware/auditRequestCapture.js';
 
+import checkMaintenance from './middleware/checkMaintenance.js';
+
 // --- Route imports ---
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/user.routes.js';
@@ -81,6 +83,10 @@ app.use('/storage', authenticate, storageFileServerRouter);
 app.use(auditRequestCapture);
 
 app.use('/api/auth', authRoutes);
+
+// Global maintenance gate for authenticated API routes.
+app.use('/api', authenticate, checkMaintenance());
+
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);

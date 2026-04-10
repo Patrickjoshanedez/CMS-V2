@@ -186,7 +186,9 @@ export default function ProjectSubmissionsPage() {
   const isLoading = projectLoading || subsLoading;
   const error = projectError || subsError;
   const lateCount = submissions.filter((item) => item.isLate).length;
-  const lockedCount = submissions.filter((item) => item.status === 'LOCKED').length;
+  const lockedCount = submissions.filter(
+    (item) => item.status === SUBMISSION_STATUSES.LOCKED,
+  ).length;
 
   const latestChapterSubmissions = allSubmissions.reduce((map, submission) => {
     if (submission?.type !== 'chapter' || !submission?.chapter) {

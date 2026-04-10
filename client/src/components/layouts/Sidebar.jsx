@@ -46,7 +46,7 @@ const navItems = {
     { label: 'Documents', icon: FileText, path: '/documents/manuscripts' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },
     { label: 'Upload Archived Capstone', icon: Upload, path: '/archive/upload/capstone' },
-    { label: 'Activity Log', icon: ScrollText, path: '/admin/audit-log' },
+    { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
   ],
   // Adviser-specific
   adviser: [

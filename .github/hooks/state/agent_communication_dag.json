@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-10T01:17:42.423336Z",
+  "metadata": {
+    "agent_count": 11,
+    "edges_count": 1,
+    "has_cycles": false,
+    "has_deadlocks": false,
+    "validation_status": "valid"
+  },
+  "nodes": {
+    "100x code reviewer": {
+      "name": "100x Code Reviewer",
+      "tools_count": 7,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "coder": {
+      "name": "coder",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "context-manager": {
+      "name": "context-manager",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "logic-debugger": {
+      "name": "logic-debugger",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "orchestrator": {
+      "name": "orchestrator",
+      "tools_count": 22,
+      "can_delegate_to": [
+        "researcher"
+      ],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "product-design-handoff": {
+      "name": "product-design-handoff",
+      "tools_count": 16,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "project-manager": {
+      "name": "project-manager",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "researcher": {
+      "name": "researcher",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [
+        "orchestrator"
+      ],
+      "errors": []
+    },
+    "reviewer": {
+      "name": "reviewer",
+      "tools_count": 2,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "test-automation": {
+      "name": "test-automation",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
+    "thinker pro": {
+      "name": "Thinker pro",
+      "tools_count": 18,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    }
+  },
+  "edges": [
+    {
+      "source": "orchestrator",
+      "target": "researcher",
+      "bidirectional": false
+    }
+  ],
+  "validation": {
+    "total_agents": 11,
+    "bidirectional_pairs": 0,
+    "unidirectional_edges": 1,
+    "isolated_agents": 9,
+    "cycles": [],
+    "deadlocks": [],
+    "errors": []
+  }
+}

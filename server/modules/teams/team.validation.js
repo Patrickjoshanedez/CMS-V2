@@ -58,6 +58,11 @@ export const assignMemberRoleSchema = z.object({
     .default(''),
 });
 
+export const transferTeamLeadershipSchema = z.object({
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid team id'),
+  memberId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid memberId'),
+});
+
 export const updateTeamGoogleDocLinkSchema = z.object({
   googleDocUrl: z
     .string()

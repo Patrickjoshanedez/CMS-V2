@@ -1,0 +1,100 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-10T01:17:43.445214Z",
+  "validation_status": "valid",
+  "summary": {
+    "total_issues": 5,
+    "errors": 0,
+    "warnings": 5,
+    "infos": 0,
+    "routing_rules_count": 7,
+    "conflicts_count": 0,
+    "missing_fallbacks_count": 7
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "category": "missing_fallback",
+      "message": "Rule global_delegation has no fallback defined",
+      "context": "Target: researcher"
+    },
+    {
+      "severity": "warning",
+      "category": "missing_fallback",
+      "message": "Rule global_delegation has no fallback defined",
+      "context": "Target: Thinker pro"
+    },
+    {
+      "severity": "warning",
+      "category": "missing_fallback",
+      "message": "Rule global_delegation has no fallback defined",
+      "context": "Target: product-design-handoff"
+    },
+    {
+      "severity": "warning",
+      "category": "missing_fallback",
+      "message": "Rule global_delegation has no fallback defined",
+      "context": "Target: coder"
+    },
+    {
+      "severity": "warning",
+      "category": "missing_fallback",
+      "message": "Rule global_delegation has no fallback defined",
+      "context": "Target: logic-debugger"
+    }
+  ],
+  "routing_rules": [
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "researcher",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "Thinker pro",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "product-design-handoff",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "coder",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "logic-debugger",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "test-automation",
+      "fallback_agent": ""
+    },
+    {
+      "id": "global_delegation",
+      "condition": "primary",
+      "target_agent": "100x Code Reviewer",
+      "fallback_agent": ""
+    }
+  ],
+  "conflicts": [],
+  "missing_fallbacks": [
+    "global_delegation",
+    "global_delegation",
+    "global_delegation",
+    "global_delegation",
+    "global_delegation",
+    "global_delegation",
+    "global_delegation"
+  ]
+}

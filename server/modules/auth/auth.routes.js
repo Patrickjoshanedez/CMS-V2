@@ -3,7 +3,7 @@ import * as authController from './auth.controller.js';
 import validate from '../../middleware/validate.js';
 import authenticate from '../../middleware/authenticate.js';
 import verifyCaptcha from '../../middleware/verifyCaptcha.js';
-import { authLimiter, otpLimiter } from '../../middleware/rateLimiter.js';
+import { authLimiter, otpLimiter, loginLimiter } from '../../middleware/rateLimiter.js';
 import {
   registerSchema,
   loginSchema,
@@ -34,7 +34,7 @@ router.post(
 );
 router.post('/verify-otp', authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 router.post('/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOtp);
-router.post('/login', authLimiter, verifyCaptcha, validate(loginSchema), authController.login);
+router.post('/login', loginLimiter, verifyCaptcha, validate(loginSchema), authController.login);
 router.post('/google', authLimiter, validate(googleLoginSchema), authController.googleLogin);
 router.post('/refresh', authLimiter, authController.refresh);
 router.post(

@@ -10,6 +10,7 @@ import {
   inviteCandidatesQuerySchema,
   listTeamsQuerySchema,
   assignMemberRoleSchema,
+  transferTeamLeadershipSchema,
   updateTeamGoogleDocLinkSchema,
 } from './team.validation.js';
 
@@ -50,6 +51,13 @@ router.patch(
   authorize(ROLES.STUDENT),
   validate(assignMemberRoleSchema),
   teamController.assignMemberRole,
+);
+
+router.patch(
+  '/:id/members/:memberId/leader',
+  authorize(ROLES.STUDENT),
+  validate(transferTeamLeadershipSchema, 'params'),
+  teamController.transferLeadership,
 );
 
 router.patch(

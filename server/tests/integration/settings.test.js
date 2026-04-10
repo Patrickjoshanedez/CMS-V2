@@ -4,12 +4,11 @@ import { createAuthenticatedUserWithRole, request } from '../helpers.js';
 /* ═══════════════════════════════════════════════════════════════════
  *  System Settings API — /api/settings
  *
- *  Tests cover:
- *    1. GET  / — Any authenticated user can read settings
- *    2. PUT  / — Only Instructor can update settings
- *    3. Validation — Zod schema enforcement
- *    4. Authorization — Non-instructor roles are denied
- *    5. Default values — Singleton pattern with upsert
+ *  Test Cases:
+ *    TC-SET-001: GET /api/settings — Any authenticated user can read
+ *    TC-SET-002: Announcement display — Update & retrieve on dashboards
+ *    TC-SET-003: Maintenance mode — Blocks non-instructors with 503
+ *    TC-SET-004: Auth protection — PUT restricted to instructors only
  * ═══════════════════════════════════════════════════════════════════ */
 
 describe('System Settings API — /api/settings', () => {
@@ -29,9 +28,9 @@ describe('System Settings API — /api/settings', () => {
     adviserAgent = a.agent;
   });
 
-  /* ──────────── GET /api/settings ──────────── */
+  /* ──────────── TC-SET-001: GET /api/settings ──────────── */
 
-  describe('GET /api/settings', () => {
+  describe('TC-SET-001 — GET /api/settings (Any authenticated user)', () => {
     it('should return default settings when none have been set', async () => {
       const res = await instructorAgent.get('/api/settings');
 
@@ -71,9 +70,9 @@ describe('System Settings API — /api/settings', () => {
     });
   });
 
-  /* ──────────── PUT /api/settings ──────────── */
+  /* ──────────── TC-SET-004: PUT Auth Protection ──────────── */
 
-  describe('PUT /api/settings — Update settings', () => {
+  describe('TC-SET-004 — PUT /api/settings (Instructor-only)', () => {
     it('should update plagiarism threshold as instructor', async () => {
       const res = await instructorAgent.put('/api/settings').send({ plagiarismThreshold: 80 });
 
@@ -97,22 +96,6 @@ describe('System Settings API — /api/settings', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.maxFileSize).toBe(newSize);
-    });
-
-    it('should update system announcement', async () => {
-      const res = await instructorAgent
-        .put('/api/settings')
-        .send({ systemAnnouncement: 'Maintenance scheduled for tonight.' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.systemAnnouncement).toBe('Maintenance scheduled for tonight.');
-    });
-
-    it('should update maintenance mode flag', async () => {
-      const res = await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.maintenanceMode).toBe(true);
     });
 
     it('should update multiple fields at once', async () => {
@@ -143,11 +126,7 @@ describe('System Settings API — /api/settings', () => {
       expect(res.body.data).not.toHaveProperty('updatedBy');
       expect(res.body.data).not.toHaveProperty('__v');
     });
-  });
 
-  /* ──────────── Authorization ──────────── */
-
-  describe('Authorization — non-instructor roles denied for PUT', () => {
     it('should reject student from updating settings', async () => {
       const res = await studentAgent.put('/api/settings').send({ plagiarismThreshold: 50 });
 
@@ -275,6 +254,138 @@ describe('System Settings API — /api/settings', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.titleSimilarityThreshold).toBe(1);
+    });
+  });
+
+  /* ──────────── TC-SET-002: Announcement Display ──────────── */
+
+  describe('TC-SET-002 — Announcement visible on dashboards', () => {
+    it('should update system announcement and retrieve it', async () => {
+      const announcementText = 'System maintenance scheduled for tonight 10 PM - 2 AM EST';
+
+      // Instructor updates the announcement
+      const updateRes = await instructorAgent
+        .put('/api/settings')
+        .send({ systemAnnouncement: announcementText });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.data.systemAnnouncement).toBe(announcementText);
+
+      // Student should see the announcement when calling GET /api/settings
+      const studentRes = await studentAgent.get('/api/settings');
+      expect(studentRes.status).toBe(200);
+      expect(studentRes.body.data.systemAnnouncement).toBe(announcementText);
+    });
+
+    it('should clear announcement when set to empty string', async () => {
+      // First set an announcement
+      await instructorAgent
+        .put('/api/settings')
+        .send({ systemAnnouncement: 'Important notice' });
+
+      // Then clear it
+      const res = await instructorAgent
+        .put('/api/settings')
+        .send({ systemAnnouncement: '' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.systemAnnouncement).toBe('');
+
+      // Verify it's cleared
+      const getRes = await studentAgent.get('/api/settings');
+      expect(getRes.body.data.systemAnnouncement).toBe('');
+    });
+
+    it('should allow 500-character announcement at max boundary', async () => {
+      const maxAnnouncement = 'A'.repeat(500);
+
+      const res = await instructorAgent
+        .put('/api/settings')
+        .send({ systemAnnouncement: maxAnnouncement });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.systemAnnouncement).toBe(maxAnnouncement);
+      expect(res.body.data.systemAnnouncement.length).toBe(500);
+    });
+  });
+
+  /* ──────────── TC-SET-003: Maintenance Mode Enforcement ──────────── */
+
+  describe('TC-SET-003 — Maintenance mode blocks non-instructors with 503', () => {
+    it('should enable maintenance mode via settings', async () => {
+      const res = await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.maintenanceMode).toBe(true);
+    });
+
+    it('should return 503 Service Unavailable for students when maintenance mode is on', async () => {
+      // Enable maintenance mode first
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+
+      // Give the setting time to propagate
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Try to access dashboard as student — should get 503
+      const res = await studentAgent.get('/api/dashboard');
+
+      expect(res.status).toBe(503);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it('should return 503 for advisers when maintenance mode is on', async () => {
+      // Enable maintenance mode
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Try to access dashboard as adviser
+      const res = await adviserAgent.get('/api/dashboard');
+
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it('should allow instructors to access dashboard even when maintenance mode is on', async () => {
+      // Enable maintenance mode
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Instructor should still be able to access
+      const res = await instructorAgent.get('/api/dashboard');
+
+      // Should NOT be 503
+      expect(res.status).not.toBe(503);
+    });
+
+    it('should block non-instructors from submissions when maintenance mode is on', async () => {
+      // Enable maintenance mode
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Student tries to access submissions
+      const res = await studentAgent.get('/api/submissions');
+
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it('should disable maintenance mode and restore access', async () => {
+      // First enable
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: true });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Student should be blocked
+      let res = await studentAgent.get('/api/dashboard');
+      expect(res.status).toBe(503);
+
+      // Now disable
+      await instructorAgent.put('/api/settings').send({ maintenanceMode: false });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Student should be allowed through
+      res = await studentAgent.get('/api/dashboard');
+      expect(res.status).not.toBe(503);
     });
   });
 });

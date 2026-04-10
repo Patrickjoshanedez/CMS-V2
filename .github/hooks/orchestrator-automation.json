@@ -3,38 +3,92 @@
   "schemaVersion": 1,
   "description": "Workspace hook registry for orchestrator lifecycle enforcement.",
   "hooks": {
-    "PreToolUse": {
-      "enabled": true,
-      "handlers": [
-        {
-          "id": "public-internet-exposure-gate",
-          "script": ".github/hooks/scripts/continual_learning_checkpoint.py",
-          "timeoutMs": 15000,
-          "failMode": "error"
-        }
-      ]
-    },
-    "PostToolUse": {
-      "enabled": true,
-      "handlers": [
-        {
-          "id": "continual-learning-checkpoint",
-          "script": ".github/hooks/scripts/continual_learning_checkpoint.py",
-          "timeoutMs": 15000,
-          "failMode": "error"
-        }
-      ]
-    },
-    "PostTaskCompletion": {
-      "enabled": true,
-      "handlers": [
-        {
-          "id": "continual-learning-checkpoint",
-          "script": ".github/hooks/scripts/continual_learning_checkpoint.py",
-          "timeoutMs": 15000,
-          "failMode": "error"
-        }
-      ]
-    }
+    "PreToolUse": [
+      {
+        "id": "agent-prefetch",
+        "type": "command",
+        "script": ".github/hooks/scripts/agent_prefetch.py",
+        "command": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/agent_prefetch.py",
+        "linux": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "osx": "python3 .github/hooks/scripts/agent_prefetch.py",
+        "cwd": "./",
+        "timeout": 30,
+        "failMode": "error",
+        "description": "Load and validate all agent metadata, build registry"
+      },
+      {
+        "id": "agent-sync-verify",
+        "type": "command",
+        "script": ".github/hooks/scripts/agent_sync_verify.py",
+        "command": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/agent_sync_verify.py",
+        "linux": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "osx": "python3 .github/hooks/scripts/agent_sync_verify.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error",
+        "description": "Verify agent communication paths and build DAG"
+      },
+      {
+        "id": "decision-coherence",
+        "type": "command",
+        "script": ".github/hooks/scripts/decision_coherence.py",
+        "command": "python3 .github/hooks/scripts/decision_coherence.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/decision_coherence.py",
+        "linux": "python3 .github/hooks/scripts/decision_coherence.py",
+        "osx": "python3 .github/hooks/scripts/decision_coherence.py",
+        "cwd": "./",
+        "timeout": 15,
+        "failMode": "error",
+        "description": "Validate orchestrator routing rules for coherence"
+      },
+      {
+        "id": "hllm-regex-preflight",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/hllm_regex_preflight.py",
+        "linux": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "osx": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error"
+      },
+      {
+        "id": "static-gatekeeper",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/static_gatekeeper.py",
+        "linux": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "osx": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "cwd": "./",
+        "timeout": 120,
+        "failMode": "error"
+      },
+      {
+        "id": "public-internet-exposure-gate",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/continual_learning_checkpoint.py",
+        "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "id": "continual-learning-checkpoint",
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/continual_learning_checkpoint.py",
+        "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error"
+      }
+    ]
   }
 }

@@ -1160,7 +1160,7 @@ class ProjectService {
    * Advance a project to the next capstone phase (instructor action).
    *
    * Phase transitions:
-   * - 1 → 2: Requires proposal approved (projectStatus === PROPOSAL_APPROVED)
+    * - 1 → 2: Requires chapter 1 upload signal OR proposal approved status
    * - 2 → 3: Allowed once the instructor decides the team is ready
    * - 3 → 4: Allowed once the instructor decides the team is ready
    * - 4 → (none): Phase 4 is the final phase — cannot advance further.
@@ -1182,16 +1182,24 @@ class ProjectService {
       );
     }
 
-    // Phase 1 → 2 requires the proposal to be approved
-    if (
-      capstonePhase === CAPSTONE_PHASES.PHASE_1 &&
-      project.projectStatus !== PROJECT_STATUSES.PROPOSAL_APPROVED
-    ) {
-      throw new AppError(
-        'The proposal must be approved before advancing to Capstone 2.',
-        400,
-        'PROPOSAL_NOT_APPROVED',
-      );
+    // Phase 1 → 2 requires chapter 1 evidence (upload exists) or a proposal-approved status.
+    if (capstonePhase === CAPSTONE_PHASES.PHASE_1) {
+      const hasChapterOneSubmission = await Submission.exists({
+        projectId: project._id,
+        type: 'chapter',
+        chapter: 1,
+      });
+
+      if (
+        project.projectStatus !== PROJECT_STATUSES.PROPOSAL_APPROVED &&
+        !hasChapterOneSubmission
+      ) {
+        throw new AppError(
+          'Upload Chapter 1 before advancing to Capstone 2.',
+          400,
+          'CHAPTER1_REQUIRED_FOR_PHASE_ADVANCE',
+        );
+      }
     }
 
     const previousPhase = project.capstonePhase;

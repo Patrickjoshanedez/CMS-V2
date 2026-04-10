@@ -20,7 +20,8 @@ import {
   useSubmissionReviewWorkspace,
   useViewUrl,
 } from '@/hooks/useSubmissions';
-import { SUBMISSION_STATUSES } from '@cms/shared';
+import { ROLES, SUBMISSION_STATUSES } from '@cms/shared';
+import { useAuthStore } from '@/stores/authStore';
 
 function formatBytes(bytes) {
   if (!bytes) return '—';
@@ -119,6 +120,7 @@ function ThreadedComments({ round, canComment, onAddReply, replyMutationPending 
 export default function SubmissionReviewPage() {
   const navigate = useNavigate();
   const { submissionId } = useParams();
+  const user = useAuthStore((state) => state.user);
 
   const [activeRoundNumber, setActiveRoundNumber] = useState('1');
   const [overallNotes, setOverallNotes] = useState('');
@@ -205,7 +207,8 @@ export default function SubmissionReviewPage() {
   const originalityScore = activeRound?.originalityScore;
 
   const isRoundPendingUpload = activeRound?.status === SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD;
-  const canTakeDecision = !!activeSubmissionId && !activeRound?.reviewClosed;
+  const canModerate = [ROLES.ADVISER, ROLES.INSTRUCTOR].includes(user?.role);
+  const canTakeDecision = !!activeSubmissionId && !activeRound?.reviewClosed && canModerate;
 
   return (
     <DashboardLayout>
@@ -423,7 +426,7 @@ export default function SubmissionReviewPage() {
                 <CardContent>
                   <ThreadedComments
                     round={activeRound}
-                    canComment
+                    canComment={canModerate}
                     replyMutationPending={addReply.isPending}
                     onAddReply={(annotationId, content, done) => {
                       addReply.mutate(
@@ -457,6 +460,7 @@ export default function SubmissionReviewPage() {
                 value={overallNotes}
                 onChange={(event) => setOverallNotes(event.target.value)}
                 placeholder="Write overall guidance before approving, requesting revision, or accepting."
+                disabled={!canModerate}
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -499,6 +503,11 @@ export default function SubmissionReviewPage() {
               </Button>
             </div>
           </div>
+          {!canModerate ? (
+            <p className="px-4 pb-3 text-xs text-muted-foreground lg:px-6">
+              Decision actions are available to advisers and instructors.
+            </p>
+          ) : null}
         </div>
 
         {selectionDraft ? (
@@ -532,7 +541,10 @@ export default function SubmissionReviewPage() {
               <Button
                 size="sm"
                 disabled={
-                  addAnnotation.isPending || !selectionDraft.content.trim() || !activeSubmissionId
+                  addAnnotation.isPending ||
+                  !selectionDraft.content.trim() ||
+                  !activeSubmissionId ||
+                  !canModerate
                 }
                 onClick={() => {
                   addAnnotation.mutate(

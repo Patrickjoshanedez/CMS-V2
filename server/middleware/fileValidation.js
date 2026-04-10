@@ -141,6 +141,41 @@ const validateDualArchiveFiles = async (req, _res, next) => {
   }
 };
 
+/**
+ * Validate an uploaded document as PDF-only.
+ * Used by submission upload routes that must reject non-PDF payloads.
+ */
+export const validatePdfFile = async (req, _res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+    }
+
+    const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    if (req.file.size > maxBytes) {
+      return next(
+        new AppError(
+          `File exceeds maximum size (${env.MAX_UPLOAD_SIZE_MB}MB)`,
+          413,
+          'FILE_TOO_LARGE',
+        ),
+      );
+    }
+
+    const detectedMime = await detectDocumentMime(req.file.buffer, req.file.originalname);
+    if (detectedMime !== 'application/pdf') {
+      return next(
+        new AppError('Invalid file type. Only PDF allowed.', 400, 'INVALID_FILE_TYPE'),
+      );
+    }
+
+    req.file.validatedMime = detectedMime;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export { ALLOWED_MIME_TYPES, EXTENSION_FALLBACK_TYPES, validateDualArchiveFiles };
 export default validateFile;
 

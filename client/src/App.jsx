@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from 'sonner';
+import { ROLES } from '@cms/shared';
 
 // Lazy-loaded page imports
 import { lazy, Suspense, useEffect, useRef } from 'react';
@@ -77,6 +78,16 @@ function GuestRoute({ children }) {
   return children;
 }
 
+export function RoleRoute({ children, allowedRoles }) {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/forbidden" replace />;
+  }
+
+  return children;
+}
+
 // ---------------------------------------------------------------------------
 // Route configuration — eliminates repetitive wrapper boilerplate
 // ---------------------------------------------------------------------------
@@ -95,6 +106,7 @@ const PROTECTED_ROUTES = [
   { path: '/teams/invites/:token/:action', Component: TeamsPage },
   { path: '/team', Component: TeamsPage },
   { path: '/users', Component: UsersPage },
+  { path: '/admin/users', Component: UsersPage, allowedRoles: [ROLES.INSTRUCTOR] },
   { path: '/profile', Component: ProfilePage },
   { path: '/settings', Component: SettingsPage },
   { path: '/notifications', Component: NotificationsPage },
@@ -112,6 +124,7 @@ const PROTECTED_ROUTES = [
   { path: '/reports', Component: ReportsPage },
   { path: '/reports/bulk-upload', Component: ExistingCapstoneUploadPage },
   // Admin
+  { path: '/admin/audit', Component: AuditLogPage },
   { path: '/admin/audit-log', Component: AuditLogPage },
   // Documents
   { path: '/documents/manuscripts', Component: TemplateManagementPage },
@@ -174,13 +187,19 @@ export default function App() {
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
 
           {/* Protected routes — redirect to login if not authenticated */}
-          {PROTECTED_ROUTES.map(({ path, Component }) => (
+          {PROTECTED_ROUTES.map(({ path, Component, allowedRoles }) => (
             <Route
               key={path}
               path={path}
               element={
                 <ProtectedRoute>
-                  <Component />
+                  {allowedRoles ? (
+                    <RoleRoute allowedRoles={allowedRoles}>
+                      <Component />
+                    </RoleRoute>
+                  ) : (
+                    <Component />
+                  )}
                 </ProtectedRoute>
               }
             />

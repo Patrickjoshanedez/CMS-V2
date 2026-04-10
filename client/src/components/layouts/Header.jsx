@@ -26,6 +26,7 @@ const PAGE_TITLES = [
   { path: '/users', title: 'Users' },
   { path: '/projects', title: 'Projects' },
   { path: '/reports', title: 'Reports' },
+  { path: '/admin/audit', title: 'Activity Log' },
   { path: '/admin/audit-log', title: 'Activity Log' },
   { path: '/settings', title: 'Settings' },
   { path: '/profile', title: 'Profile' },

@@ -10,9 +10,11 @@
 import User from '../users/user.model.js';
 import Team from '../teams/team.model.js';
 import Project from '../projects/project.model.js';
+import projectService from '../projects/project.service.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
 import Notification from '../notifications/notification.model.js';
+import AppError from '../../utils/AppError.js';
 import {
   ROLES,
   TITLE_STATUSES,
@@ -449,6 +451,7 @@ class DashboardService {
       Project.find({
         panelistIds: { $ne: panelistId },
         projectStatus: PROJECT_STATUSES.ACTIVE,
+        isArchived: { $ne: true },
       })
         .populate('teamId', 'name members')
         .populate('adviserId', 'firstName lastName')
@@ -495,20 +498,19 @@ class DashboardService {
    * @returns {Promise<Object>}
    */
   async selectPanelistTopic(projectId, panelistId) {
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId)
+      .select('_id title panelistIds projectStatus isArchived')
+      .lean();
 
     if (!project) {
-      throw new Error('Project not found.');
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
-      throw new Error('Only active projects can be selected.');
+    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE || project.isArchived) {
+      throw new AppError('Only active projects can be selected.', 400, 'PROJECT_NOT_ACTIVE');
     }
 
-    const alreadyAssigned = project.panelistIds.some(
-      (id) => id.toString() === panelistId.toString(),
-    );
-    if (alreadyAssigned) {
+    if (project.panelistIds?.some((id) => id.toString() === panelistId.toString())) {
       return {
         alreadyAssigned: true,
         project: {
@@ -519,19 +521,14 @@ class DashboardService {
       };
     }
 
-    if (project.panelistIds.length >= 3) {
-      throw new Error('This project has reached the maximum number of panelists.');
-    }
-
-    project.panelistIds.push(panelistId);
-    await project.save();
+    const { project: updatedProject } = await projectService.selectAsPanelist(projectId, panelistId);
 
     return {
       alreadyAssigned: false,
       project: {
-        _id: project._id,
-        title: project.title,
-        panelistCount: project.panelistIds.length,
+        _id: updatedProject._id,
+        title: updatedProject.title,
+        panelistCount: updatedProject.panelistIds.length,
       },
     };
   }

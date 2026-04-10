@@ -43,6 +43,59 @@ const logger = {
 };
 
 class SubmissionService {
+  _isTrustedSubmissionFallbackUrl(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return false;
+    }
+
+    try {
+      const parsed = new URL(value.trim());
+      if (!['https:', 'http:'].includes(parsed.protocol)) {
+        return false;
+      }
+
+      const host = parsed.hostname.toLowerCase();
+      return (
+        host === 'drive.google.com' ||
+        host === 'docs.google.com' ||
+        host === 'www.googleapis.com'
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  _resolveSubmissionFallbackUrl(submission) {
+    const candidates = [
+      submission?.driveWebContentLink,
+      submission?.driveWebViewLink,
+      submission?.syncedGoogleDocUrl,
+    ];
+
+    for (const candidate of candidates) {
+      if (this._isTrustedSubmissionFallbackUrl(candidate)) {
+        return candidate.trim();
+      }
+    }
+
+    return null;
+  }
+
+  _toMatchedSourcesFromCollection(collectionResult) {
+    const textMatches = Array.isArray(collectionResult?.textMatches)
+      ? collectionResult.textMatches
+      : [];
+
+    return textMatches.map((match) => ({
+      submissionId: match?.submissionId || match?.id || null,
+      projectTitle: match?.title || 'Unknown Project',
+      chapter: match?.chapter ?? null,
+      matchPercentage: match?.matchPercentage ?? match?.similarity ?? null,
+      spans: Array.isArray(match?.spans) ? match.spans : [],
+      sourceSnippet: match?.sourceSnippet || '',
+    }));
+  }
+
   _getPlagiarismStaleTimeoutMs() {
     const minutes = Number(process.env.PLAGIARISM_JOB_STALE_MINUTES || 60);
     return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 60 * 60 * 1000;
@@ -1366,7 +1419,7 @@ class SubmissionService {
 
     const expiresIn = 3600; // 1 hour
 
-    const fallbackUrl = submission.driveWebViewLink || submission.syncedGoogleDocUrl || null;
+    const fallbackUrl = this._resolveSubmissionFallbackUrl(submission);
 
     if (!submission.storageKey) {
       if (fallbackUrl) {
@@ -1479,9 +1532,15 @@ class SubmissionService {
       submissionSelect: 'projectId type plagiarismResult originalityScore extractedText',
     });
 
-    const { plagiarismResult, originalityScore, extractedText } = submission;
+    const collectionResult = await PlagiarismResult.findOne({ submissionId: submission._id })
+      .select('status similarityPercentage textMatches rawData checkedAt completedAt')
+      .lean();
 
-    if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+    const { plagiarismResult, extractedText } = submission;
+
+    const effectiveStatus = plagiarismResult?.status || collectionResult?.status || null;
+
+    if (effectiveStatus !== PLAGIARISM_STATUSES.COMPLETED) {
       throw new AppError(
         'Plagiarism check has not completed yet.',
         400,
@@ -1489,13 +1548,27 @@ class SubmissionService {
       );
     }
 
+    const originalityScore =
+      submission.originalityScore ??
+      plagiarismResult?.originalityScore ??
+      (Number.isFinite(collectionResult?.similarityPercentage)
+        ? Math.max(0, 100 - collectionResult.similarityPercentage)
+        : null);
+
+    const fullReport = plagiarismResult?.fullReport || collectionResult?.rawData || null;
+
+    const matchedSources =
+      (Array.isArray(plagiarismResult?.matchedSources) && plagiarismResult.matchedSources) ||
+      this._toMatchedSourcesFromCollection(collectionResult);
+
     return {
       submissionId: submission._id,
       originalityScore,
       extractedText: extractedText || null,
-      fullReport: plagiarismResult.fullReport || null,
-      matchedSources: plagiarismResult.matchedSources || [],
-      processedAt: plagiarismResult.processedAt,
+      fullReport,
+      matchedSources,
+      processedAt:
+        plagiarismResult?.processedAt || collectionResult?.completedAt || collectionResult?.checkedAt,
     };
   }
 
@@ -1919,7 +1992,8 @@ class SubmissionService {
       })),
       unaddressedCount: submission.annotations.filter((a) => !a.resolved).length,
       plagiarism: {
-        score: submission.plagiarismResult?.percentageMatched || null,
+        score:
+          submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
         status: submission.plagiarismResult?.status || 'not_checked',
       },
     };
@@ -1962,7 +2036,9 @@ class SubmissionService {
       chapter: submission.chapter,
       submittedBy: submission.submittedBy,
     })
-      .select('version createdAt status fileName fileSize submittedBy reviewNote plagiarismResult')
+      .select(
+        'version createdAt status fileName fileSize submittedBy reviewNote plagiarismResult originalityScore',
+      )
       .populate('submittedBy', 'name')
       .sort({ version: -1 })
       .lean();
@@ -1976,7 +2052,7 @@ class SubmissionService {
       fileSize: v.fileSize,
       submittedBy: v.submittedBy,
       reviewNote: v.reviewNote,
-      plagiarismScore: v.plagiarismResult?.percentageMatched || null,
+      plagiarismScore: v.originalityScore ?? v.plagiarismResult?.originalityScore ?? null,
     }));
 
     return { versions };

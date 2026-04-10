@@ -117,6 +117,16 @@ export default defineConfig(({ mode }) => {
             proxy.on('error', createProxyErrorHandler('api', apiProxyTarget));
           },
         },
+        '/storage': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          agent: nonKeepAliveHttpAgent,
+          timeout: 15000,
+          proxyTimeout: 15000,
+          configure: (proxy) => {
+            proxy.on('error', createProxyErrorHandler('storage', apiProxyTarget));
+          },
+        },
         '/socket.io': {
           target: apiProxyTarget,
           changeOrigin: true,

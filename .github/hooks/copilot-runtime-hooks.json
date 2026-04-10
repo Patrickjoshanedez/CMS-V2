@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/hllm_regex_preflight.py",
+        "linux": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "osx": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
+        "cwd": "./",
+        "timeout": 20,
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      },
+      {
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/static_gatekeeper.py",
+        "linux": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "osx": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "cwd": "./",
+        "timeout": 120,
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      },
+      {
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/continual_learning_checkpoint.py",
+        "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "cwd": "./",
+        "timeout": 20,
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "windows": ".\\.venv\\Scripts\\python.exe .github/hooks/scripts/continual_learning_checkpoint.py",
+        "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
+        "cwd": "./",
+        "timeout": 20,
+        "env": {
+          "PYTHONUTF8": "1"
+        }
+      }
+    ]
+  }
+}

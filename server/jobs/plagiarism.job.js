@@ -31,6 +31,117 @@ import { PLAGIARISM_STATUSES } from '@cms/shared';
 /** @type {Worker|null} */
 let plagiarismWorker = null;
 
+const TRUSTED_FALLBACK_HOSTS = new Set(['drive.google.com', 'docs.google.com', 'www.googleapis.com']);
+
+function isTrustedFallbackUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(value.trim());
+    if (!['https:', 'http:'].includes(parsed.protocol)) {
+      return false;
+    }
+    return TRUSTED_FALLBACK_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch (_error) {
+    return false;
+  }
+}
+
+function buildGoogleDocExportUrl(url) {
+  if (!isTrustedFallbackUrl(url)) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.toLowerCase() !== 'docs.google.com') {
+      return null;
+    }
+
+    const match = parsed.pathname.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) {
+      return null;
+    }
+
+    return `https://docs.google.com/document/d/${match[1]}/export?format=txt`;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function downloadBufferFromUrl(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Remote fetch failed with ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || '';
+
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      contentType,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function readSubmissionFileWithFallback({ submissionId, storageKey, fileType }) {
+  let primaryReadError = null;
+
+  if (storageKey) {
+    try {
+      const fileBuffer = await storageService.downloadFile(storageKey);
+      return { fileBuffer, effectiveFileType: fileType };
+    } catch (error) {
+      primaryReadError = error;
+      console.warn(
+        `[Plagiarism Worker] Storage read failed for submission ${submissionId}, trying trusted fallback URL: ${error.message}`,
+      );
+    }
+  }
+
+  const submission = await Submission.findById(submissionId)
+    .select('driveWebContentLink driveWebViewLink syncedGoogleDocUrl')
+    .lean();
+
+  const fallbackCandidates = [
+    submission?.driveWebContentLink,
+    submission?.driveWebViewLink,
+    submission?.syncedGoogleDocUrl,
+  ].filter((value) => isTrustedFallbackUrl(value));
+
+  for (const candidate of fallbackCandidates) {
+    try {
+      const exportUrl = buildGoogleDocExportUrl(candidate);
+      const targetUrl = exportUrl || candidate;
+      const { buffer } = await downloadBufferFromUrl(targetUrl);
+
+      return {
+        fileBuffer: buffer,
+        effectiveFileType: exportUrl ? 'text/plain' : fileType,
+      };
+    } catch (error) {
+      console.warn(
+        `[Plagiarism Worker] Fallback URL read failed for submission ${submissionId}: ${error.message}`,
+      );
+    }
+  }
+
+  if (primaryReadError?.message) {
+    throw new Error(primaryReadError.message);
+  }
+
+  throw new Error('Submission file is unavailable for plagiarism processing');
+}
+
 /**
  * Build the comparison corpus from existing submissions.
  * Includes approved/locked submissions from ALL projects (archive-wide check),
@@ -101,11 +212,15 @@ async function processJob(job) {
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
-  // Step 1: Download file from S3
-  const fileBuffer = await storageService.downloadFile(storageKey);
+  // Step 1: Download file from storage (with trusted fallback URLs when needed)
+  const { fileBuffer, effectiveFileType } = await readSubmissionFileWithFallback({
+    submissionId,
+    storageKey,
+    fileType,
+  });
 
   // Step 2: Extract text
-  const extractedText = await extractText(fileBuffer, fileType);
+  const extractedText = await extractText(fileBuffer, effectiveFileType);
 
   if (!extractedText || extractedText.trim().length < 50) {
     // Too little text to meaningfully compare — mark as completed with 100% originality

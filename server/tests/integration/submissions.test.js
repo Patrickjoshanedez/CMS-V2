@@ -390,6 +390,30 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
     });
+
+    it('should reject non-PDF chapter upload with exact message', async () => {
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '1')
+        .attach('file', Buffer.from([0x4d, 0x5a, 0x90, 0x00]), 'program.exe');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('INVALID_FILE_TYPE');
+      expect(res.body.error.message).toBe('Invalid file type. Only PDF allowed.');
+    });
+
+    it('should reject oversized chapter upload with exact message', async () => {
+      const oversizedBuffer = Buffer.alloc(26 * 1024 * 1024, 0x41);
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '1')
+        .attach('file', oversizedBuffer, 'chapter1.pdf');
+
+      expect(res.status).toBe(413);
+      expect(res.body.error.code).toBe('FILE_TOO_LARGE');
+      expect(res.body.error.message).toBe('File exceeds maximum size (25MB)');
+    });
   });
 
   /* ────────── Proposal Upload ────────── */

@@ -7,6 +7,10 @@ import { FileQuestion } from 'lucide-react';
  * Does not wrap in DashboardLayout because the user may be unauthenticated.
  */
 export default function NotFoundPage() {
+  const handleGoBack = () => {
+    window.history.back();
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
       <FileQuestion className="mb-6 h-20 w-20 text-muted-foreground" />
@@ -18,6 +22,9 @@ export default function NotFoundPage() {
         The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
       <div className="mt-8 flex items-center gap-3">
+        <Button variant="outline" onClick={handleGoBack}>
+          Go Back
+        </Button>
         <Button asChild>
           <Link to="/dashboard">Go to Dashboard</Link>
         </Button>

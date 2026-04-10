@@ -218,26 +218,64 @@ class FilesystemStorageService {
   }
 
   /**
+   * Resolve and validate a storage key into an absolute path under baseDir.
+   * Accepts absolute filesystem keys, legacy relative keys, and /storage URLs.
+   * @private
+   */
+  _resolveStoragePath(key) {
+    if (typeof key !== 'string' || key.trim().length === 0) {
+      throw new AppError('Invalid storage key.', 400, 'STORAGE_INVALID_KEY');
+    }
+
+    const basePath = path.resolve(this.baseDir);
+    let normalizedKey = key.trim().replace(/\\/g, '/');
+
+    if (normalizedKey.startsWith('/storage/')) {
+      normalizedKey = normalizedKey.slice('/storage/'.length);
+    } else if (normalizedKey === '/storage') {
+      normalizedKey = '';
+    }
+
+    const candidatePath = path.isAbsolute(normalizedKey)
+      ? path.resolve(normalizedKey)
+      : path.resolve(basePath, normalizedKey);
+
+    const relativeToBase = path.relative(basePath, candidatePath);
+    const isOutsideBase = relativeToBase.startsWith('..') || path.isAbsolute(relativeToBase);
+
+    if (isOutsideBase) {
+      throw new AppError('Invalid storage key path.', 400, 'STORAGE_INVALID_KEY');
+    }
+
+    return candidatePath;
+  }
+
+  /**
    * Generate a local file URL for viewing/downloading.
    * In development, this returns a relative URL that can be served by Express.
    * For public access, configure a static file middleware on /storage route.
    *
-   * @param {string} key - Full filesystem path
+  * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
    * @returns {Promise<string>} Public URL or local path
    * @throws {AppError} If file doesn't exist
    */
   async getSignedUrl(key) {
     try {
+    const resolvedPath = this._resolveStoragePath(key);
+
       // Check if file exists
-      await fs.access(key);
+    await fs.access(resolvedPath);
 
       // Return a URL path relative to the base uploads directory
       // This expects a static middleware mounted at /storage in Express
-      const relativePath = path.relative(this.baseDir, key);
+    const relativePath = path.relative(path.resolve(this.baseDir), resolvedPath);
       const url = `/storage/${relativePath.replace(/\\/g, '/')}`;
 
       return url;
     } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
       if (error.code === 'ENOENT') {
         throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
       }
@@ -249,15 +287,19 @@ class FilesystemStorageService {
   /**
    * Download a file from the filesystem as a Buffer.
    *
-   * @param {string} key - Full filesystem path
+   * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
    * @returns {Promise<Buffer>} File content
    * @throws {AppError} If file not found or read fails
    */
   async downloadFile(key) {
     try {
-      const buffer = await fs.readFile(key);
+      const resolvedPath = this._resolveStoragePath(key);
+      const buffer = await fs.readFile(resolvedPath);
       return buffer;
     } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
       if (error.code === 'ENOENT') {
         throw new AppError('The requested file was not found.', 404, 'STORAGE_FILE_NOT_FOUND');
       }
@@ -269,22 +311,27 @@ class FilesystemStorageService {
   /**
    * Delete a file from the filesystem.
    *
-   * @param {string} key - Full filesystem path
+   * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
    * @returns {Promise<void>}
    * @throws {AppError} If deletion fails
    */
   async deleteFile(key) {
     try {
-      await fs.unlink(key);
+      const resolvedPath = this._resolveStoragePath(key);
+
+      await fs.unlink(resolvedPath);
 
       // Also delete the metadata file if it exists
-      const metadataPath = `${key}.meta.json`;
+      const metadataPath = `${resolvedPath}.meta.json`;
       try {
         await fs.unlink(metadataPath);
       } catch {
         // Metadata file may not exist, that's fine
       }
     } catch (error) {
+      if (error.isOperational) {
+        throw error;
+      }
       if (error.code === 'ENOENT') {
         // File already doesn't exist, that's fine
         return;

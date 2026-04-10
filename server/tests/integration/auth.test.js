@@ -130,6 +130,46 @@ describe('Auth API — /api/auth', () => {
 
       expect(res.status).toBe(401);
     });
+
+    it('should return 429 after 100 requests within one minute when limiter is enabled in test', async () => {
+      const previousEnforce = process.env.ENFORCE_RATE_LIMIT_IN_TEST;
+      const previousTestMax = process.env.RATE_LIMIT_TEST_MAX;
+
+      process.env.ENFORCE_RATE_LIMIT_IN_TEST = 'true';
+      process.env.RATE_LIMIT_TEST_MAX = '100';
+
+      try {
+        await createVerifiedUser({ email: 'burst-rate-limit@example.com' });
+
+        const responses = [];
+        for (let attempt = 0; attempt < 101; attempt += 1) {
+          // Use wrong password so successful logins do not affect auth cookie state.
+          responses.push(
+            await request.post('/api/auth/login').send({
+              email: 'burst-rate-limit@example.com',
+              password: 'WrongPassword123',
+            }),
+          );
+        }
+
+        for (let index = 0; index < 100; index += 1) {
+          expect(responses[index].status).toBe(401);
+        }
+        expect(responses[100].status).toBe(429);
+      } finally {
+        if (previousEnforce === undefined) {
+          delete process.env.ENFORCE_RATE_LIMIT_IN_TEST;
+        } else {
+          process.env.ENFORCE_RATE_LIMIT_IN_TEST = previousEnforce;
+        }
+
+        if (previousTestMax === undefined) {
+          delete process.env.RATE_LIMIT_TEST_MAX;
+        } else {
+          process.env.RATE_LIMIT_TEST_MAX = previousTestMax;
+        }
+      }
+    });
   });
 
   // ----- TOKEN REFRESH -----
