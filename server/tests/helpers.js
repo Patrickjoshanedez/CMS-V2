@@ -143,19 +143,28 @@ export async function createCourseAndSection(userId) {
 export function createValidProjectPayload(teamId, courseId, sectionId, members = []) {
   const leaderId = members[0] || new mongoose.Types.ObjectId();
   const title = 'Capstone Management System with Plagiarism Checker';
+  const buildProposal = (proposalTitle, index) => ({
+    title: proposalTitle,
+    description: `Detailed description for proposal ${index + 1} focusing on scope, objectives, and implementation approach.`,
+    capstoneType: 'Web Application',
+    sdgTags: ['SDG 4: Quality Education'],
+  });
+
+  const proposalTitles = [
+    title,
+    'Capstone Management System with Plagiarism Checker 1',
+    'Capstone Management System with Plagiarism Checker 2',
+    'Capstone Management System with Plagiarism Checker 3',
+    'Capstone Management System with Plagiarism Checker 4',
+    'Capstone Management System with Plagiarism Checker 5',
+  ];
+
   return {
     teamId,
     courseId,
     sectionId,
     title,
-    titleProposals: [
-      title,
-      'Capstone Management System with Plagiarism Checker 1',
-      'Capstone Management System with Plagiarism Checker 2',
-      'Capstone Management System with Plagiarism Checker 3',
-      'Capstone Management System with Plagiarism Checker 4',
-      'Capstone Management System with Plagiarism Checker 5',
-    ],
+    titleProposals: proposalTitles.map(buildProposal),
     abstract: 'A web-based system for managing capstone projects.',
     keywords: ['capstone', 'plagiarism', 'management'],
     sdgTags: ['SDG 4: Quality Education'],

@@ -306,6 +306,10 @@ class GoogleDriveReviewService {
   }
 
   async listComments(fileId, pageToken = null) {
+    if (!fileId) {
+      throw new AppError('File ID is required.', 400, 'FILE_ID_MISSING');
+    }
+
     await this._ensureInitialized();
 
     const response = await this._withRetry(() =>

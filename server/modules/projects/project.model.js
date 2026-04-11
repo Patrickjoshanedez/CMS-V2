@@ -207,6 +207,45 @@ const titleProposalCommentThreadSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const titleProposalMetadataSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: [10, 'Title proposal must be at least 10 characters'],
+      maxlength: [300, 'Title proposal must not exceed 300 characters'],
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: [20, 'Title proposal description must be at least 20 characters'],
+      maxlength: [1000, 'Title proposal description must not exceed 1000 characters'],
+    },
+    capstoneType: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: [2, 'Capstone type must be at least 2 characters'],
+      maxlength: [120, 'Capstone type must not exceed 120 characters'],
+    },
+    sdgTags: {
+      type: [String],
+      enum: {
+        values: SDG_TAG_SUGGESTIONS,
+        message: 'Invalid SDG tag',
+      },
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0 && arr.length <= 17,
+        message: 'Each title proposal must include between 1 and 17 SDG tags',
+      },
+      default: [],
+    },
+  },
+  { _id: true },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     teamId: {
@@ -229,6 +268,15 @@ const projectSchema = new mongoose.Schema(
         message: 'A project must include between 5 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],
+      default: [],
+    },
+    titleProposalMetadata: {
+      type: [titleProposalMetadataSchema],
+      validate: {
+        validator: (arr) =>
+          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 5 && arr.length <= 10)),
+        message: 'Title proposal metadata must include between 5 and 10 entries',
+      },
       default: [],
     },
     titleProposalComments: {

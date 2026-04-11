@@ -713,12 +713,28 @@ class SubmissionService {
       );
     }
 
-    if (project.capstonePhase === 1 && (!project.panelistIds || project.panelistIds.length === 0)) {
+    if (Number(chapter) === 1 && !project.adviserId) {
       throw new AppError(
-        'Panelists must be assigned before chapter uploads can begin.',
+        'Chapter 1 submission requires an assigned adviser.',
         400,
-        'PANELISTS_NOT_ASSIGNED',
+        'ADVISER_REQUIRED_FOR_CHAPTER_1',
       );
+    }
+
+    if (Number(chapter) >= 4) {
+      const lockedProposal = await Submission.findOne({
+        projectId,
+        type: 'proposal',
+        status: SUBMISSION_STATUSES.LOCKED,
+      });
+
+      if (!lockedProposal) {
+        throw new AppError(
+          'Your full proposal must be approved before submitting Chapters 4 and 5.',
+          400,
+          'PROPOSAL_NOT_APPROVED',
+        );
+      }
     }
 
     // --- Check if previous version is locked ---
@@ -870,12 +886,19 @@ class SubmissionService {
     const { remarks } = data;
 
     const hasAdviser = Boolean(project.adviserId);
-    const hasInstructor = Boolean(user.instructorId);
-    if (!hasAdviser || !hasInstructor) {
+    if (!hasAdviser) {
       throw new AppError(
-        'Proposal submission requires both an assigned adviser and instructor.',
+        'Proposal submission requires an assigned adviser.',
         400,
-        'MISSING_ADVISER_OR_INSTRUCTOR',
+        'MISSING_ADVISER',
+      );
+    }
+
+    if (!Array.isArray(project.panelistIds) || project.panelistIds.length !== 3) {
+      throw new AppError(
+        'Capstone 1 defense requires exactly 3 assigned panelists before proposal submission.',
+        400,
+        'THREE_PANELISTS_REQUIRED',
       );
     }
 

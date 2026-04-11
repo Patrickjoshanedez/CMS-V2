@@ -139,13 +139,20 @@ export default function RegisterPage() {
 
   /* ─── Google OAuth Handlers ─── */
   const handleGoogleSuccess = async (credentialResponse) => {
+    if (!credentialResponse?.credential) {
+      setGoogleError('Google sign-in did not return a credential. Please try again.');
+      return;
+    }
+
     try {
       setGoogleError('');
       clearError();
       await googleLogin(credentialResponse.credential);
       navigate('/dashboard', { replace: true });
     } catch {
-      // Error is handled by the store
+      // Backend errors or network timeouts during credential exchange 
+      // are already captured in the authStore `error` state and displayed via AuthStatusAlert.
+      // No need to set googleError here.
     }
   };
 

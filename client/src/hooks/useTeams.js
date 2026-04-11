@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 export const teamKeys = {
   all: ['teams'],
-  my: () => [...teamKeys.all, 'my'],
+  my: (userId) => [...teamKeys.all, 'my', userId],
   lists: () => [...teamKeys.all, 'list'],
   list: (filters) => [...teamKeys.lists(), filters],
   inviteCandidates: (teamId, search) => [...teamKeys.all, 'invite-candidates', teamId, search],
@@ -25,9 +25,11 @@ export const teamKeys = {
  * Fetch the current student's team (populated leader + members).
  * Returns null when the student has no team (404).
  */
-export function useMyTeam(options = {}) {
+export function useMyTeam(userId, options = {}) {
+  const { enabled: enabledOption, ...restOptions } = options;
+
   return useQuery({
-    queryKey: teamKeys.my(),
+    queryKey: teamKeys.my(userId),
     queryFn: async () => {
       const { data } = await teamService.getMyTeam();
       return data.data.team;
@@ -37,8 +39,9 @@ export function useMyTeam(options = {}) {
       if (error?.response?.status === 404) return false;
       return failureCount < 3;
     },
+    enabled: Boolean(userId) && (enabledOption ?? true),
     staleTime: 2 * 60 * 1000, // 2 min
-    ...options,
+    ...restOptions,
   });
 }
 

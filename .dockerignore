@@ -4,6 +4,8 @@ node_modules
 **/node_modules
 **/dist
 **/coverage
+**/.pytest_cache
+**/__pycache__
 **/.env
 **/.env.prod
 **/.env.prod.*
@@ -17,3 +19,37 @@ server/sprint*-output.txt
 server/sprint*-results.json
 /*.txt
 /*.log
+api_logs.txt
+build_logs.txt
+docker_ps.txt
+inspect.txt
+logs.txt
+logs_preview.txt
+out.txt
+ps_output.txt
+server_logs.txt
+srv_logs.txt
+update_logs.txt
+validation_final_run.txt
+vitest_output3.txt
+
+# Large docs, reports, and generated artifacts not required for runtime builds
+docs/
+documentation/
+diagnostics/
+test-results/
+tests/
+references/
+reference/
+memories/
+context/
+staging/
+uploads/
+
+# Editor/runtime metadata
+.vscode/
+.idea/
+
+# Python virtual environments
+.venv/
+venv/

@@ -7,6 +7,7 @@
  */
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { projectService } from '../services/authService';
+import { useAuthStore } from '@/stores/authStore';
 
 /* ────────── Query Keys ────────── */
 
@@ -59,14 +60,23 @@ export function useCheckTitleSimilarity(title, extraParams = {}, options = {}) {
  * Fetch the current student's team project.
  */
 export function useMyProject(options = {}) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasTeam = Boolean(useAuthStore((state) => state.user?.teamId));
+
   return useQuery({
     queryKey: projectKeys.my(),
     queryFn: async () => {
       const { data } = await projectService.getMyProject();
       return data.data.project;
     },
+    enabled: isAuthenticated && hasTeam,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if (status === 401 || status === 404 || status === 429) return false;
+      return failureCount < 2;
+    },
     staleTime: 2 * 60 * 1000, // 2 min
-    refetchOnMount: 'always', // Always refetch on mount to prevent stale cache issues
+    refetchOnMount: false,
     ...options,
   });
 }

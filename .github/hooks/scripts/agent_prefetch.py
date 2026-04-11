@@ -33,6 +33,30 @@ WORKSPACE_INSTRUCTIONS_FILE = WORKSPACE_ROOT / ".github" / "copilot-instructions
 ROOT_INSTRUCTIONS_FILE = WORKSPACE_ROOT / "copilot-instructions.md"
 STATE_DIR = WORKSPACE_ROOT / ".github" / "hooks" / "state"
 STATE_FILE = STATE_DIR / "agent_prefetch_registry.json"
+VSCODE_DIR = WORKSPACE_ROOT / ".vscode"
+MCP_CONFIG_FILE = VSCODE_DIR / "mcp.json"
+ORCHESTRATOR_AGENT_FILE = AGENTS_DIR / "orchestrator.agent.md"
+
+REQUIRED_ORCHESTRATOR_TOOLS = {
+    "vscode/askQuestions",
+    "agent",
+    "execute",
+    "read",
+    "edit",
+    "search",
+    "web",
+    "todo",
+}
+
+REQUIRED_MCP_SERVERS = {
+    "io.github.chromedevtools/chrome-devtools-mcp",
+    "io.github.github/github-mcp-server",
+    "io.github.upstash/context7",
+    "microsoft/markitdown",
+    "microsoft/playwright-mcp",
+    "microsoftdocs/mcp",
+    "oraios/serena",
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -301,6 +325,15 @@ def _extract_python_script_paths(commands: list[str]) -> list[Path]:
     return script_paths
 
 
+def _normalize_tokens(values: list[str] | set[str]) -> set[str]:
+    """Normalize token list/set for case-insensitive comparisons."""
+    return {
+        normalize_tool_token(value)
+        for value in values
+        if isinstance(value, str) and value.strip()
+    }
+
+
 def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
     """Validate preflight dependencies: agents, instructions, skills, hooks, directories."""
     checks: dict[str, Any] = {
@@ -328,6 +361,15 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
             "copilot_hooks_present": COPILOT_HOOKS_FILE.exists(),
             "orchestrator_hooks_present": ORCHESTRATOR_HOOKS_FILE.exists(),
             "missing_hook_scripts": [],
+        },
+        "tool_activation": {
+            "orchestrator_agent_present": ORCHESTRATOR_AGENT_FILE.exists(),
+            "required_orchestrator_tools": sorted(REQUIRED_ORCHESTRATOR_TOOLS),
+            "missing_orchestrator_tools": [],
+            "mcp_registry_present": MCP_CONFIG_FILE.exists(),
+            "mcp_registry_parse_ok": False,
+            "required_mcp_servers": sorted(REQUIRED_MCP_SERVERS),
+            "missing_mcp_servers": [],
         },
         "errors": [],
         "warnings": [],
@@ -418,6 +460,67 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
             checks["errors"].append(
                 f"orchestrator-automation.json missing critical preflight hook IDs: {missing_in_orchestrator}"
             )
+
+    # Tool activation guard: verify orchestrator has required core tool tokens
+    # and required MCP servers are registered in .vscode/mcp.json.
+    if not checks["tool_activation"]["orchestrator_agent_present"]:
+        checks["errors"].append(
+            "Tool activation preflight failed: missing orchestrator agent manifest (.github/agents/orchestrator.agent.md)"
+        )
+    else:
+        orchestrator_meta = parse_agent_file(ORCHESTRATOR_AGENT_FILE)
+        if orchestrator_meta is None:
+            checks["errors"].append(
+                "Tool activation preflight failed: unable to parse .github/agents/orchestrator.agent.md"
+            )
+        else:
+            active_tools = _normalize_tokens(orchestrator_meta.tools)
+            missing_tools = sorted(
+                [
+                    token
+                    for token in REQUIRED_ORCHESTRATOR_TOOLS
+                    if normalize_tool_token(token) not in active_tools
+                ]
+            )
+            checks["tool_activation"]["missing_orchestrator_tools"] = missing_tools
+            if missing_tools:
+                checks["errors"].append(
+                    "Tool activation preflight failed: orchestrator tools missing required tokens: "
+                    f"{missing_tools}"
+                )
+
+    if not checks["tool_activation"]["mcp_registry_present"]:
+        checks["errors"].append(
+            "Tool activation preflight failed: missing MCP registry (.vscode/mcp.json)"
+        )
+    else:
+        mcp_cfg = _load_json_file(MCP_CONFIG_FILE)
+        if mcp_cfg is None:
+            checks["errors"].append(
+                "Tool activation preflight failed: invalid JSON in .vscode/mcp.json"
+            )
+        else:
+            checks["tool_activation"]["mcp_registry_parse_ok"] = True
+            servers = mcp_cfg.get("servers")
+            if not isinstance(servers, dict):
+                checks["errors"].append(
+                    "Tool activation preflight failed: .vscode/mcp.json missing object field 'servers'"
+                )
+            else:
+                active_servers = _normalize_tokens(list(servers.keys()))
+                missing_servers = sorted(
+                    [
+                        server
+                        for server in REQUIRED_MCP_SERVERS
+                        if normalize_tool_token(server) not in active_servers
+                    ]
+                )
+                checks["tool_activation"]["missing_mcp_servers"] = missing_servers
+                if missing_servers:
+                    checks["errors"].append(
+                        "Tool activation preflight failed: missing required MCP server registrations: "
+                        f"{missing_servers}"
+                    )
 
     is_valid = len(checks["errors"]) == 0
     return is_valid, checks

@@ -10,6 +10,12 @@ import { submissionService } from '../services/submissionService';
 import { plagiarismService } from '../services/plagiarismService';
 import { projectKeys } from './useProjects';
 
+const isValidProjectId = (projectId) => {
+  if (typeof projectId !== 'string') return false;
+  const normalized = projectId.trim();
+  return normalized.length > 0 && normalized !== 'undefined' && normalized !== 'null';
+};
+
 /* ────────── Query Keys ────────── */
 
 export const submissionKeys = {
@@ -80,15 +86,17 @@ export function useSubmission(submissionId, options = {}) {
  * Fetch paginated/filtered submissions for a project.
  */
 export function useProjectSubmissions(projectId, filters = {}, options = {}) {
+  const { enabled: enabledOption, ...restOptions } = options;
+
   return useQuery({
     queryKey: submissionKeys.listByProject(projectId, filters),
     queryFn: async () => {
       const { data } = await submissionService.getSubmissionsByProject(projectId, filters);
       return data.data; // { submissions, pagination }
     },
-    enabled: !!projectId,
+    enabled: isValidProjectId(projectId) && (enabledOption ?? true),
     staleTime: 1 * 60 * 1000, // 1 min
-    ...options,
+    ...restOptions,
   });
 }
 
@@ -96,15 +104,17 @@ export function useProjectSubmissions(projectId, filters = {}, options = {}) {
  * Fetch all versions (history) of a specific chapter.
  */
 export function useChapterHistory(projectId, chapter, options = {}) {
+  const { enabled: enabledOption, ...restOptions } = options;
+
   return useQuery({
     queryKey: submissionKeys.chapterHistory(projectId, chapter),
     queryFn: async () => {
       const { data } = await submissionService.getChapterHistory(projectId, chapter);
       return data.data.submissions;
     },
-    enabled: !!projectId && !!chapter,
+    enabled: isValidProjectId(projectId) && !!chapter && (enabledOption ?? true),
     staleTime: 2 * 60 * 1000, // 2 min
-    ...options,
+    ...restOptions,
   });
 }
 
@@ -112,15 +122,17 @@ export function useChapterHistory(projectId, chapter, options = {}) {
  * Fetch the latest version of a specific chapter.
  */
 export function useLatestChapter(projectId, chapter, options = {}) {
+  const { enabled: enabledOption, ...restOptions } = options;
+
   return useQuery({
     queryKey: submissionKeys.latestChapter(projectId, chapter),
     queryFn: async () => {
       const { data } = await submissionService.getLatestChapter(projectId, chapter);
       return data.data.submission;
     },
-    enabled: !!projectId && !!chapter,
+    enabled: isValidProjectId(projectId) && !!chapter && (enabledOption ?? true),
     staleTime: 2 * 60 * 1000, // 2 min
-    ...options,
+    ...restOptions,
   });
 }
 

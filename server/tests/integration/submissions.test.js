@@ -341,6 +341,18 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
     });
 
+    it('should reject chapter 1 upload when no adviser is assigned', async () => {
+      await Project.findByIdAndUpdate(project._id, { adviserId: null });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '1')
+        .attach('file', createPdfBuffer(), 'chapter1.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('ADVISER_REQUIRED_FOR_CHAPTER_1');
+    });
+
     it('should reject upload when team is not finalized', async () => {
       await Team.findByIdAndUpdate(project.teamId, { isLocked: false });
 
@@ -368,6 +380,19 @@ describe('Submissions API — /api/submissions', () => {
         submittedBy: studentUser._id,
       });
 
+      await Submission.create({
+        projectId: project._id,
+        type: 'proposal',
+        chapter: null,
+        version: 1,
+        fileName: 'proposal.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: `archives/projects/${project._id}/proposal/v1/proposal.pdf`,
+        status: SUBMISSION_STATUSES.LOCKED,
+        submittedBy: studentUser._id,
+      });
+
       const res = await studentAgent
         .post(`/api/submissions/${project._id}/chapters`)
         .field('chapter', '4')
@@ -377,6 +402,28 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.submission.chapter).toBe(4);
+    });
+
+    it('should reject chapter 4 upload when proposal is not yet approved', async () => {
+      await Submission.create({
+        projectId: project._id,
+        chapter: 3,
+        version: 1,
+        fileName: 'chapter3.pdf',
+        fileType: 'application/pdf',
+        fileSize: 5000,
+        storageKey: 'projects/test/chapters/3/v1/chapter3.pdf',
+        status: SUBMISSION_STATUSES.LOCKED,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '4')
+        .attach('file', createPdfBuffer(), 'chapter4.pdf');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('PROPOSAL_NOT_APPROVED');
     });
 
     it('should reject chapter upload with an invalid prototype link', async () => {
@@ -419,6 +466,19 @@ describe('Submissions API — /api/submissions', () => {
   /* ────────── Proposal Upload ────────── */
   describe('POST /:projectId/proposal — Upload compiled proposal', () => {
     beforeEach(async () => {
+      const [{ user: panelistTwo }, { user: panelistThree }] = await Promise.all([
+        createAuthenticatedUserWithRole('panelist', {
+          email: `sub-panelist-two-${Date.now()}@test.com`,
+        }),
+        createAuthenticatedUserWithRole('panelist', {
+          email: `sub-panelist-three-${Date.now()}@test.com`,
+        }),
+      ]);
+
+      await Project.findByIdAndUpdate(project._id, {
+        panelistIds: [assignedPanelistUser._id, panelistTwo._id, panelistThree._id],
+      });
+
       for (const chapter of [1, 2, 3]) {
         await Submission.create({
           projectId: project._id,

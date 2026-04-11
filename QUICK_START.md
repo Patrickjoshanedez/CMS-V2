@@ -21,6 +21,14 @@ Your CMS now includes an **integrated plagiarism detection system** that runs al
 .\start-all-services.ps1
 ```
 
+To start the production stack with ngrok, use:
+
+```powershell
+.\start-all-services.ps1 -PublicExposure
+```
+
+That path delegates to the production compose launcher and includes the `ngrok` service.
+
 ### Linux/Mac:
 ```bash
 docker compose -f docker-compose.yml up --build -d

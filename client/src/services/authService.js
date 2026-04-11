@@ -80,6 +80,10 @@ export const projectService = {
   submitTitle: (id) => api.post(`/projects/${id}/title/submit`),
   reviseAndResubmit: (id, data) => api.patch(`/projects/${id}/title/revise`, data),
   requestTitleModification: (id, data) => api.post(`/projects/${id}/title/modification`, data),
+  generateProposalDeck: (payload) =>
+    api.post('/proposals/generate-deck', payload, {
+      responseType: 'blob',
+    }),
 
   // Real-time title similarity check
   checkTitleSimilarity: (data) => api.post('/projects/title-check', data),

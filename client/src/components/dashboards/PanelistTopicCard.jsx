@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 
 const Badge = ({ label, tone }) => {
   const styles = {
@@ -20,8 +21,23 @@ Badge.propTypes = {
 };
 
 const PanelistTopicCard = ({ topic, onSelect, selecting }) => {
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    if (topic.isAssigned) {
+      navigate(`/projects/${topic._id}`);
+    }
+  };
+
   return (
-    <article className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+    <article 
+      onClick={handleCardClick}
+      className={`bg-white rounded-xl border border-slate-200 p-5 space-y-3 ${
+        topic.isAssigned 
+          ? 'cursor-pointer hover:border-blue-400 hover:shadow-md transition-all duration-200' 
+          : ''
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="text-lg font-semibold text-slate-900">{topic.title}</h4>

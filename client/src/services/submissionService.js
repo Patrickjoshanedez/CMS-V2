@@ -1,5 +1,21 @@
 import api from './api';
 
+const normalizeProjectId = (projectId) => {
+  if (typeof projectId !== 'string') return '';
+  return projectId.trim();
+};
+
+const assertProjectId = (projectId, operation) => {
+  const normalized = normalizeProjectId(projectId);
+  if (!normalized || normalized === 'undefined' || normalized === 'null') {
+    // Log for debugging, but don't crash - let the component handle the error
+    console.warn(`[SubmissionService] ${operation} called with invalid projectId:`, projectId);
+    throw new Error(`Invalid project id for ${operation}.`);
+  }
+
+  return normalized;
+};
+
 /**
  * Submission API service — all submission-related HTTP calls.
  *
@@ -18,7 +34,7 @@ export const submissionService = {
    * @param {Function} [onUploadProgress] - Axios progress callback
    */
   uploadChapter: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${projectId}/chapters`, formData, {
+    api.post(`/submissions/${assertProjectId(projectId, 'uploadChapter')}/chapters`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000, // 2 min for large file uploads
       onUploadProgress,
@@ -30,16 +46,22 @@ export const submissionService = {
   getSubmission: (submissionId) => api.get(`/submissions/${submissionId}`),
 
   /** List submissions for a project with optional filters & pagination */
-  getSubmissionsByProject: (projectId, params) =>
-    api.get(`/submissions/project/${projectId}`, { params }),
 
+  getSubmissionsByProject: (projectId, params) => {
+    const validId = assertProjectId(projectId, 'getSubmissionsByProject');
+    return api.get(`/submissions/project/${validId}`, {
+      params,
+    });
+  },
   /** Get version history for a specific chapter */
   getChapterHistory: (projectId, chapter) =>
-    api.get(`/submissions/project/${projectId}/chapters/${chapter}`),
+    api.get(`/submissions/project/${assertProjectId(projectId, 'getChapterHistory')}/chapters/${chapter}`),
 
   /** Get only the latest version of a specific chapter */
   getLatestChapter: (projectId, chapter) =>
-    api.get(`/submissions/project/${projectId}/chapters/${chapter}/latest`),
+    api.get(
+      `/submissions/project/${assertProjectId(projectId, 'getLatestChapter')}/chapters/${chapter}/latest`,
+    ),
 
   /** Get a pre-signed URL to view the document */
   getViewUrl: (submissionId) => api.get(`/submissions/${submissionId}/view`),
@@ -100,7 +122,7 @@ export const submissionService = {
    * @param {Function} [onUploadProgress] - Axios progress callback
    */
   compileProposal: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${projectId}/proposal`, formData, {
+    api.post(`/submissions/${assertProjectId(projectId, 'compileProposal')}/proposal`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000, // 2 min for large file uploads
       onUploadProgress,
@@ -115,7 +137,7 @@ export const submissionService = {
    * @param {Function} [onUploadProgress]
    */
   uploadFinalAcademic: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${projectId}/final-academic`, formData, {
+    api.post(`/submissions/${assertProjectId(projectId, 'uploadFinalAcademic')}/final-academic`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
       onUploadProgress,
@@ -128,7 +150,7 @@ export const submissionService = {
    * @param {Function} [onUploadProgress]
    */
   uploadFinalJournal: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${projectId}/final-journal`, formData, {
+    api.post(`/submissions/${assertProjectId(projectId, 'uploadFinalJournal')}/final-journal`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
       onUploadProgress,

@@ -86,16 +86,30 @@ function TitleProposalsSection({ project }) {
       <CardContent className="space-y-3">
         {project.titleProposals.map((proposal, idx) => {
           const title = typeof proposal === 'string' ? proposal : proposal?.title;
+          const metadata = project.titleProposalMetadata?.find((entry) => entry?.title === title);
 
           return (
             <div
               key={proposal?._id || `${idx}-${title || 'proposal'}`}
-              className="rounded-md border p-3"
+              className="rounded-md border p-3 space-y-2"
             >
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Proposal {idx + 1}
               </p>
               <p className="mt-1 text-sm font-medium">{title || 'Untitled proposal'}</p>
+              {metadata?.description ? (
+                <p className="text-xs text-muted-foreground">{metadata.description}</p>
+              ) : null}
+              <div className="flex flex-wrap gap-1.5">
+                {metadata?.capstoneType ? (
+                  <Badge variant="secondary">{metadata.capstoneType}</Badge>
+                ) : null}
+                {metadata?.sdgTags?.map((tag, tagIdx) => (
+                  <Badge key={`${title}-sdg-${tagIdx}`} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
             </div>
           );
         })}

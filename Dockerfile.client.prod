@@ -4,12 +4,12 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY client/package*.json ./client/
-COPY server/package*.json ./server/
 COPY shared/package*.json ./shared/
 
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts --workspace=shared --workspace=client --include-workspace-root=false
 
-COPY . .
+COPY client ./client
+COPY shared ./shared
 
 # Inject Vite public env vars at build time via Docker build args.
 # These are baked into the JS bundle by Vite — they are NOT secrets.

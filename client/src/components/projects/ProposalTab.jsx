@@ -1,0 +1,254 @@
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, FileDown, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Label } from '@/components/ui/Label';
+import { Textarea } from '@/components/ui/Textarea';
+import { projectService } from '@/services/authService';
+
+const PITCH_DECK_FIELDS = [
+  {
+    key: 'problemStatement',
+    label: 'Problem Statement',
+    placeholder: 'Describe the high prevalence of the issue, existing gaps, and current costs...',
+  },
+  {
+    key: 'proposedSolution',
+    label: 'Proposed Solution',
+    placeholder: 'Explain how your system solves the problem, core features...',
+  },
+  {
+    key: 'uniqueContribution',
+    label: 'Unique Contribution / Innovation',
+    placeholder:
+      'What makes this different from existing tools? Campus DB-linked, cost-effective...',
+  },
+  {
+    key: 'targetUsers',
+    label: 'Target Users / Beneficiaries',
+    placeholder: 'Primary and secondary users...',
+  },
+  {
+    key: 'expectedImpact',
+    label: 'Expected Impact / Value',
+    placeholder: 'Efficiency, transparency, academic integrity...',
+  },
+];
+
+function normalizeProposalItems(project) {
+  const proposals = Array.isArray(project?.titleProposals) ? project.titleProposals : [];
+  const metadata = Array.isArray(project?.titleProposalMetadata) ? project.titleProposalMetadata : [];
+
+  return proposals
+    .map((proposal, index) => {
+      const proposalTitle = typeof proposal === 'string' ? proposal : proposal?.title;
+      const details = metadata.find((entry) => entry?.title === proposalTitle);
+      const proposalId = proposal?._id || `proposal-${index + 1}`;
+
+      return {
+        id: proposalId,
+        title: proposalTitle || `Untitled Proposal ${index + 1}`,
+        description: details?.description || '',
+      };
+    })
+    .filter((proposal) => Boolean(proposal.title));
+}
+
+function emptyDeckData() {
+  return {
+    problemStatement: '',
+    proposedSolution: '',
+    uniqueContribution: '',
+    targetUsers: '',
+    expectedImpact: '',
+  };
+}
+
+function sanitizeFilename(value) {
+  return (value || 'Proposal')
+    .replace(/[^a-zA-Z0-9\s-_]/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 80);
+}
+
+export default function ProposalTab({ project }) {
+  const proposalItems = useMemo(() => normalizeProposalItems(project), [project]);
+  const [activeAccordionId, setActiveAccordionId] = useState(null);
+  const [formsByProposal, setFormsByProposal] = useState({});
+  const [loadingProposalId, setLoadingProposalId] = useState(null);
+
+  useEffect(() => {
+    if (!proposalItems.length) {
+      setActiveAccordionId(null);
+      setFormsByProposal({});
+      return;
+    }
+
+    setActiveAccordionId((current) => {
+      if (current && proposalItems.some((proposal) => proposal.id === current)) {
+        return current;
+      }
+      return proposalItems[0].id;
+    });
+
+    setFormsByProposal((current) => {
+      const next = { ...current };
+      for (const proposal of proposalItems) {
+        if (!next[proposal.id]) {
+          next[proposal.id] = emptyDeckData();
+        }
+      }
+      return next;
+    });
+  }, [proposalItems]);
+
+  const handleFieldChange = (proposalId, field, value) => {
+    setFormsByProposal((current) => ({
+      ...current,
+      [proposalId]: {
+        ...(current[proposalId] || emptyDeckData()),
+        [field]: value,
+      },
+    }));
+  };
+
+  const toggleAccordion = (proposalId) => {
+    setActiveAccordionId((current) => (current === proposalId ? null : proposalId));
+  };
+
+  const generateDeck = async (proposal) => {
+    const deckData = formsByProposal[proposal.id] || emptyDeckData();
+
+    if (PITCH_DECK_FIELDS.some((field) => !deckData[field.key]?.trim())) {
+      toast.error('Please complete all pitch deck sections before generating the PDF.');
+      return;
+    }
+
+    setLoadingProposalId(proposal.id);
+    try {
+      const response = await projectService.generateProposalDeck({
+        projectId: project._id,
+        proposalId: proposal.id,
+        title: proposal.title,
+        deckData,
+        // Optional: pass team members along if the frontend already has them populated
+        // teamMembers: project.teamId?.members,
+      });
+
+      const filename = `${sanitizeFilename(proposal.title)}_PitchDeck.pdf`;
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success('Pitch deck generated successfully.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error?.message || 'Failed to generate presentation deck.');
+    } finally {
+      setLoadingProposalId(null);
+    }
+  };
+
+  if (!proposalItems.length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Proposal Pitch Deck Builder</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No title proposals found for this project yet.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Proposal Pitch Deck Builder</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {proposalItems.map((proposal, index) => {
+          const expanded = activeAccordionId === proposal.id;
+          const formData = formsByProposal[proposal.id] || emptyDeckData();
+          const isGenerating = loadingProposalId === proposal.id;
+
+          return (
+            <div key={proposal.id} className="overflow-hidden rounded-md border">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40"
+                onClick={() => toggleAccordion(proposal.id)}
+              >
+                <div>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Proposal {index + 1}
+                  </p>
+                  <p className="text-sm font-semibold">{proposal.title}</p>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${
+                    expanded ? 'rotate-180' : 'rotate-0'
+                  }`}
+                />
+              </button>
+
+              {expanded && (
+                <div className="border-t bg-background px-4 py-4">
+                  {proposal.description ? (
+                    <p className="mb-4 text-xs text-muted-foreground">{proposal.description}</p>
+                  ) : null}
+
+                  <div className="space-y-4">
+                    {PITCH_DECK_FIELDS.map((field) => (
+                      <div key={field.key} className="space-y-2">
+                        <Label htmlFor={`${proposal.id}-${field.key}`}>{field.label}</Label>
+                        <Textarea
+                          id={`${proposal.id}-${field.key}`}
+                          value={formData[field.key]}
+                          onChange={(event) =>
+                            handleFieldChange(proposal.id, field.key, event.target.value)
+                          }
+                          placeholder={field.placeholder}
+                          className="min-h-24"
+                        />
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      onClick={() => generateDeck(proposal)}
+                      disabled={isGenerating}
+                      className="w-full sm:w-auto"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          Generate Presentation Deck (PDF)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}

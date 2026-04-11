@@ -17,6 +17,7 @@ import userRoutes from './modules/users/user.routes.js';
 import teamRoutes from './modules/teams/team.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
+import proposalRoutes from './modules/proposals/proposal.routes.js';
 import submissionRoutes from './modules/submissions/submission.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import evaluationRoutes from './modules/evaluations/evaluation.routes.js';
@@ -38,7 +39,12 @@ if (env.TRUST_PROXY) {
 // ---------- Global Middleware ----------
 
 // Security headers
-app.use(helmet());
+// Google popup-based auth requires COOP compatibility for postMessage.
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  }),
+);
 
 // CORS — allow configured origins with credentials (cookies)
 app.use(
@@ -59,8 +65,14 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // Parse cookies (for JWT access/refresh tokens)
 app.use(cookieParser());
 
-// General rate limiter (100 requests per 15 minutes)
-app.use(generalLimiter);
+// General API rate limiter (keep auth endpoints on their dedicated limiters)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth')) {
+    return next();
+  }
+
+  return generalLimiter(req, res, next);
+});
 
 // ---------- Health Check ----------
 
@@ -91,6 +103,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/proposals', proposalRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/evaluations', evaluationRoutes);

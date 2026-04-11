@@ -308,7 +308,13 @@ function InviteMemberForm({ teamId }) {
 
   const inviteMember = useInviteMember({
     onSuccess: (result) => {
-      toast.success('Invitation sent!');
+      const invitedName = result?.data?.invitedUser?.fullName || result?.data?.invitedUser?.email;
+      toast.success(
+        result?.message ||
+          (invitedName
+            ? `You have successfully invited ${invitedName} to the team.`
+            : 'Invitation sent successfully.'),
+      );
       const generatedInviteCode = result?.data?.invite?.inviteCode;
       if (generatedInviteCode) {
         setLastInviteCode(generatedInviteCode);
@@ -1053,7 +1059,7 @@ function StudentTeamView({ user }) {
 
   const isProfileComplete = Boolean(user.sectionId && user.instructorId);
 
-  const { data: team, isLoading, isError, error } = useMyTeam();
+  const { data: team, isLoading, isError, error } = useMyTeam(user?._id);
 
   if (isLoading) {
     return (

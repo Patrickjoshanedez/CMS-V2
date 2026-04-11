@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { notificationService } from '../services/authService';
+import { useAuthStore } from '@/stores/authStore';
 
 /** Query key factory for cache management. */
 export const notificationKeys = {
@@ -21,11 +22,19 @@ export const notificationKeys = {
  * @param {Object} params - { page, limit }
  */
 export function useNotifications(params = { page: 1, limit: 20 }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return useQuery({
     queryKey: notificationKeys.list(params),
     queryFn: async () => {
       const res = await notificationService.getNotifications(params);
       return res.data.data;
+    },
+    enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if (status === 401 || status === 429) return false;
+      return failureCount < 2;
     },
     refetchInterval: 60000, // Fallback poll every 60s (real-time via Socket.IO handles most updates)
     staleTime: 15000,
@@ -38,11 +47,19 @@ export function useNotifications(params = { page: 1, limit: 20 }) {
  * Shares the same endpoint but only extracts unreadCount.
  */
 export function useUnreadCount() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return useQuery({
     queryKey: notificationKeys.unreadCount,
     queryFn: async () => {
       const res = await notificationService.getNotifications({ page: 1, limit: 1 });
       return res.data.data.unreadCount || 0;
+    },
+    enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      const status = error?.response?.status;
+      if (status === 401 || status === 429) return false;
+      return failureCount < 2;
     },
     refetchInterval: 60000,
     staleTime: 15000,

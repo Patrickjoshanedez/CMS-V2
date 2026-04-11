@@ -8,7 +8,6 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.service.js';
-import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
@@ -569,17 +568,7 @@ class ProjectService {
     }
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
-
-    // Create a unique Google Drive folder for the project workspace.
-    // Fail-open behavior is preserved so title approval is not blocked if Drive is unavailable.
-    try {
-      const folderName = `Project Workspace - ${project.title || project._id}`;
-      const { folderId } = await googleDriveReviewService.createProjectFolder(folderName);
-      project.driveFolderId = folderId;
-    } catch (error) {
-      console.error('Failed to create Drive folder for project:', error);
-      // Log the error but don't fail the complete approval process
-    }
+    project.driveFolderId = null;
 
     await project.save();
 

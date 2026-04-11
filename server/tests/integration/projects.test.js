@@ -17,15 +17,10 @@ import Project from '../../modules/projects/project.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
-import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import storageService from '../../services/storage.service.js';
 import env from '../../config/env.js';
 import { PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
 
-vi.spyOn(googleDriveReviewService, 'createProjectFolder').mockResolvedValue({
-  folderId: 'mock-drive-folder-id',
-  folderUrl: 'https://drive.google.com/drive/folders/mock-drive-folder-id',
-});
 vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
 vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
   'https://mock-s3.example.com/signed-url',
@@ -154,9 +149,15 @@ describe('Projects API — /api/projects', () => {
         title: 'Completely Different Title For Testing',
       };
       duplicatePayload.titleProposals = [
-        duplicatePayload.title,
+        {
+          title: duplicatePayload.title,
+          description:
+            'Detailed description for duplicate payload primary proposal focused on implementation plan.',
+          capstoneType: 'Web Application',
+          sdgTags: ['SDG 4: Quality Education'],
+        },
         ...duplicatePayload.titleProposals.filter(
-          (proposal) => proposal !== duplicatePayload.title,
+          (proposal) => proposal.title !== duplicatePayload.title,
         ),
       ].slice(0, 10);
 
@@ -184,6 +185,10 @@ describe('Projects API — /api/projects', () => {
         student2._id,
       ]);
       similarProjectPayload.title = 'Capstone Management System with Plagiarism Detection';
+      similarProjectPayload.titleProposalMetadata = similarProjectPayload.titleProposals;
+      similarProjectPayload.titleProposals = similarProjectPayload.titleProposals.map(
+        (proposal) => proposal.title,
+      );
 
       await Project.create(similarProjectPayload);
 

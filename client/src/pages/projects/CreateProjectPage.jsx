@@ -9,11 +9,12 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
+import { useAuthStore } from '@/stores/authStore';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
-import { AlertTriangle, X, Plus, Loader2 } from 'lucide-react';
+import { AlertTriangle, X, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { CAPSTONE_TITLE_VALUES, SDG_TAG_SUGGESTIONS } from '@cms/shared';
+import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
 /**
  * CreateProjectPage — Students create a new capstone project.
@@ -25,9 +26,60 @@ import { CAPSTONE_TITLE_VALUES, SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+const PROPOSAL_PITCH_DECK_FIELDS = [
+  {
+    key: 'problemStatement',
+    label: 'Problem Statement',
+    placeholder: 'Describe the high prevalence of the issue, existing gaps, and current costs...',
+  },
+  {
+    key: 'proposedSolution',
+    label: 'Proposed Solution',
+    placeholder: 'Explain how your system solves the problem, core features...',
+  },
+  {
+    key: 'uniqueContribution',
+    label: 'Unique Contribution / Innovation',
+    placeholder:
+      'What makes this different from existing tools? Campus DB-linked, cost-effective...',
+  },
+  {
+    key: 'targetUsers',
+    label: 'Target Users / Beneficiaries',
+    placeholder: 'Primary and secondary users...',
+  },
+  {
+    key: 'expectedImpact',
+    label: 'Expected Impact / Value',
+    placeholder: 'Efficiency, transparency, academic integrity...',
+  },
+];
+
+const createEmptyPitchDeck = () => ({
+  problemStatement: '',
+  proposedSolution: '',
+  uniqueContribution: '',
+  targetUsers: '',
+  expectedImpact: '',
+});
+
+const buildProposalDescriptionFromPitchDeck = (pitchDeck = createEmptyPitchDeck()) => {
+  return PROPOSAL_PITCH_DECK_FIELDS.map(
+    (field) => `${field.label}: ${(pitchDeck[field.key] || '').trim()}`,
+  ).join('\n\n');
+};
+
+const createEmptyProposal = () => ({
+  title: '',
+  description: '',
+  pitchDeck: createEmptyPitchDeck(),
+  capstoneType: '',
+  sdgTags: [],
+});
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const createProject = useCreateProject({
     onSuccess: () => {
       toast.success('Project created successfully!');
@@ -40,7 +92,7 @@ export default function CreateProjectPage() {
     },
   });
 
-  const { data: team, isLoading: isTeamLoading } = useMyTeam();
+  const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
   const { data: academicYears = [] } = useAcademicYears();
 
   const [form, setForm] = useState({
@@ -50,13 +102,15 @@ export default function CreateProjectPage() {
     academicYear: defaultAcademicYear,
     sectionId: '',
   });
-  const [titleProposals, setTitleProposals] = useState(['', '', '', '', '']);
-  const [selectedTitleIndex, setSelectedTitleIndex] = useState(0);
+  const [titleProposals, setTitleProposals] = useState(() =>
+    Array.from({ length: 3 }, () => createEmptyProposal()),
+  );
+  // Optional: keep track of which proposal is expanded
+  const [expandedProposalIndex, setExpandedProposalIndex] = useState(0);
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [sdgTagList, setSdgTagList] = useState([]);
   const [selectedSdgTag, setSelectedSdgTag] = useState('');
-  const [memberRoleAssignments, setMemberRoleAssignments] = useState({});
 
   const teamMembers = useMemo(() => {
     if (team?.members?.length > 0) {
@@ -140,29 +194,36 @@ export default function CreateProjectPage() {
     }
   }, [form.academicYear, refetchSections]);
 
-  useEffect(() => {
-    const members = teamMembers;
-    if (members.length === 0) {
-      return;
-    }
-
-    setMemberRoleAssignments((prev) => {
-      const next = {};
-      for (const member of members) {
-        next[member._id] = prev[member._id] || '';
-      }
-      return next;
-    });
-  }, [teamMembers]);
-
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleTitleProposalChange = (index, value) => {
+  const handleTitleProposalChange = (index, field, value) => {
     setTitleProposals((prev) => {
       const next = [...prev];
-      next[index] = value;
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      };
+      return next;
+    });
+  };
+
+  const handlePitchDeckFieldChange = (index, field, value) => {
+    setTitleProposals((prev) => {
+      const next = [...prev];
+      const current = next[index] || createEmptyProposal();
+      const nextPitchDeck = {
+        ...(current.pitchDeck || createEmptyPitchDeck()),
+        [field]: value,
+      };
+
+      next[index] = {
+        ...current,
+        pitchDeck: nextPitchDeck,
+        description: buildProposalDescriptionFromPitchDeck(nextPitchDeck),
+      };
+
       return next;
     });
   };
@@ -170,17 +231,50 @@ export default function CreateProjectPage() {
   const addTitleProposal = () => {
     setTitleProposals((prev) => {
       if (prev.length >= 10) return prev;
-      return [...prev, ''];
+      return [...prev, createEmptyProposal()];
     });
   };
 
   const removeTitleProposal = (index) => {
     setTitleProposals((prev) => {
-      if (prev.length <= 5) return prev;
+      if (prev.length <= 3) return prev;
       const next = prev.filter((_, idx) => idx !== index);
-      if (selectedTitleIndex >= next.length) {
-        setSelectedTitleIndex(next.length - 1);
+      if (expandedProposalIndex >= next.length) {
+        setExpandedProposalIndex(next.length - 1);
       }
+      return next;
+    });
+  };
+
+  const addProposalSdgTag = (index, tag) => {
+    if (!tag) return;
+
+    setTitleProposals((prev) => {
+      const next = [...prev];
+      const proposal = next[index];
+      if (!proposal) return prev;
+
+      if (!proposal.sdgTags.includes(tag)) {
+        next[index] = {
+          ...proposal,
+          sdgTags: [...proposal.sdgTags, tag],
+        };
+      }
+
+      return next;
+    });
+  };
+
+  const removeProposalSdgTag = (index, tag) => {
+    setTitleProposals((prev) => {
+      const next = [...prev];
+      const proposal = next[index];
+      if (!proposal) return prev;
+
+      next[index] = {
+        ...proposal,
+        sdgTags: proposal.sdgTags.filter((item) => item !== tag),
+      };
       return next;
     });
   };
@@ -224,18 +318,51 @@ export default function CreateProjectPage() {
     e.preventDefault();
 
     const members = teamMembers;
-    const normalizedTitleProposals = [
-      ...new Set(titleProposals.map((proposal) => proposal.trim())),
-    ].filter(Boolean);
+    const requiredProposals = titleProposals.slice(0, 3);
+    const hasIncompleteRequiredProposal = requiredProposals.some(
+      (proposal) =>
+        !proposal.title.trim() ||
+        PROPOSAL_PITCH_DECK_FIELDS.some(
+          (field) => !(proposal.pitchDeck?.[field.key] || '').trim(),
+        ) ||
+        !proposal.capstoneType.trim() ||
+        proposal.sdgTags.length === 0,
+    );
 
-    if (normalizedTitleProposals.length < 5) {
-      toast.error('Please provide at least 5 unique title proposals.');
+    if (hasIncompleteRequiredProposal) {
+      toast.error(
+        'Proposal 1 to Proposal 3 must each include title, description, capstone type, and at least one SDG tag.',
+      );
       return;
     }
 
-    const selectedTitle = titleProposals[selectedTitleIndex]?.trim();
-    if (!selectedTitle) {
-      toast.error('Select a valid primary title from your proposals.');
+    const normalizedByTitle = new Map();
+    for (const proposal of titleProposals) {
+      const normalizedPitchDeck = {
+        problemStatement: (proposal.pitchDeck?.problemStatement || '').trim(),
+        proposedSolution: (proposal.pitchDeck?.proposedSolution || '').trim(),
+        uniqueContribution: (proposal.pitchDeck?.uniqueContribution || '').trim(),
+        targetUsers: (proposal.pitchDeck?.targetUsers || '').trim(),
+        expectedImpact: (proposal.pitchDeck?.expectedImpact || '').trim(),
+      };
+
+      const normalized = {
+        title: proposal.title.trim(),
+        description: buildProposalDescriptionFromPitchDeck(normalizedPitchDeck),
+        capstoneType: proposal.capstoneType.trim(),
+        sdgTags: [...new Set(proposal.sdgTags.map((tag) => tag.trim()))].filter(Boolean),
+      };
+
+      if (!normalized.title) continue;
+      if (!normalizedByTitle.has(normalized.title)) {
+        normalizedByTitle.set(normalized.title, normalized);
+      }
+    }
+
+    const normalizedTitleProposals = [...normalizedByTitle.values()];
+
+    if (normalizedTitleProposals.length < 3) {
+      toast.error('Please provide at least 3 unique title proposals.');
       return;
     }
 
@@ -249,21 +376,15 @@ export default function CreateProjectPage() {
       return;
     }
 
-    const assignmentPayload = members.map((member) => ({
-      userId: member._id,
-      professionalTitle: memberRoleAssignments[member._id],
-    }));
-
-    const hasMissingAssignments = assignmentPayload.some((entry) => !entry.professionalTitle);
-    if (hasMissingAssignments) {
-      toast.error('Assign a professional capstone title to every team member.');
-      return;
-    }
-
     if (sdgTagList.length === 0) {
       toast.error('Select at least one SDG tag.');
       return;
     }
+
+    // Since selected title is removed, we default to the first proposal's title if needed, 
+    // or just let backend handle if it doesn't strictly need one selected title.
+    // Assuming backend still needs `title` field, using the first proposal's title.
+    const selectedTitle = normalizedTitleProposals[0]?.title || '';
 
     createProject.mutate({
       title: selectedTitle,
@@ -273,17 +394,10 @@ export default function CreateProjectPage() {
       sdgTags: sdgTagList,
       academicYear: form.academicYear,
       sectionId: form.sectionId,
-      memberRoleAssignments: assignmentPayload,
+      memberRoleAssignments: [], // removed from UI
       allowSoloCapstone: false,
       soloCapstoneConfirmed: false,
     });
-  };
-
-  const handleMemberRoleChange = (memberId, professionalTitle) => {
-    setMemberRoleAssignments((prev) => ({
-      ...prev,
-      [memberId]: professionalTitle,
-    }));
   };
 
   const formatMemberName = (member) =>
@@ -355,60 +469,184 @@ export default function CreateProjectPage() {
 
               {/* Title Proposals */}
               <div className="space-y-2">
-                <Label>Title Proposals * (minimum 5)</Label>
-                <div className="space-y-2">
-                  {titleProposals.map((proposal, index) => (
-                    <div key={`title-proposal-${index}`} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="selectedTitleProposal"
-                        checked={selectedTitleIndex === index}
-                        onChange={() => setSelectedTitleIndex(index)}
-                        className="h-4 w-4"
-                        aria-label={`Select proposal ${index + 1} as primary title`}
-                      />
-                      <Input
-                        placeholder={`Proposal ${index + 1}`}
-                        value={proposal}
-                        onChange={(e) => handleTitleProposalChange(index, e.target.value)}
-                        required={index < 5}
-                        minLength={10}
-                        maxLength={300}
-                      />
-                      {titleProposals.length > 5 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeTitleProposal(index)}
+                <Label>Title Proposals * (minimum 3)</Label>
+                <p className="text-xs text-muted-foreground">Proposal Pitch Deck Builder</p>
+                <div className="space-y-3">
+                  {titleProposals.map((proposal, index) => {
+                    const isExpanded = expandedProposalIndex === index;
+                    return (
+                      <div key={`title-proposal-${index}`} className="rounded-md border bg-card">
+                        {/* Header & Toggle */}
+                        <div
+                          className="flex cursor-pointer items-center justify-between p-3 hover:bg-accent/50 transition-colors"
+                          onClick={() => setExpandedProposalIndex(isExpanded ? -1 : index)}
                         >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                              {index + 1}
+                            </span>
+                            <div className="font-medium text-sm">
+                              {proposal.title ? proposal.title : `Proposal ${index + 1}`}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {titleProposals.length > 3 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeTitleProposal(index);
+                                }}
+                                className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                Remove
+                              </Button>
+                            )}
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="border-t p-3 space-y-4 animate-in slide-in-from-top-1">
+                            <div className="space-y-2">
+                              <Label htmlFor={`proposal-${index}-title`} className="text-xs">
+                                Proposal Title *
+                              </Label>
+                              <Input
+                                id={`proposal-${index}-title`}
+                                placeholder="Enter a descriptive title for this proposal"
+                                value={proposal.title}
+                                onChange={(e) => handleTitleProposalChange(index, 'title', e.target.value)}
+                                required={index < 3}
+                                minLength={10}
+                                maxLength={300}
+                              />
+                            </div>
+
+                            <div className="space-y-3">
+                              {PROPOSAL_PITCH_DECK_FIELDS.map((field) => (
+                                <div key={`${index}-${field.key}`} className="space-y-1">
+                                  <Label htmlFor={`proposal-${index}-${field.key}`} className="text-xs">
+                                    {field.label} {index < 3 && '*'}
+                                  </Label>
+                                  <Textarea
+                                    id={`proposal-${index}-${field.key}`}
+                                    placeholder={field.placeholder}
+                                    value={proposal.pitchDeck?.[field.key] || ''}
+                                    onChange={(event) =>
+                                      handlePitchDeckFieldChange(index, field.key, event.target.value)
+                                    }
+                                    required={index < 3}
+                                    minLength={20}
+                                    maxLength={1000}
+                                    rows={3}
+                                  />
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled
+                                title="Available after project creation"
+                              >
+                                Generate Presentation Deck (PDF)
+                              </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`proposal-${index}-capstoneType`} className="text-xs">
+                                Capstone Type *
+                              </Label>
+                              <Input
+                                id={`proposal-${index}-capstoneType`}
+                                placeholder="E.g. Web Application, Mobile Application, Hardware"
+                                value={proposal.capstoneType}
+                                onChange={(e) =>
+                                  handleTitleProposalChange(index, 'capstoneType', e.target.value)
+                                }
+                                required={index < 3}
+                                minLength={2}
+                                maxLength={120}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">SDG Tags {index < 3 && '*'}</Label>
+                              <div className="flex gap-2">
+                                <select
+                                  value=""
+                                  onChange={(e) => addProposalSdgTag(index, e.target.value)}
+                                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                >
+                                  <option value="">Add SDG tag to this proposal</option>
+                                  {SDG_TAG_SUGGESTIONS.map((tag) => (
+                                    <option key={`${index}-${tag}`} value={tag}>
+                                      {tag}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              {proposal.sdgTags.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {proposal.sdgTags.map((tag) => (
+                                    <span
+                                      key={`${index}-${tag}`}
+                                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                                    >
+                                      {tag}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProposalSdgTag(index, tag)}
+                                        className="rounded-full p-0.5 hover:bg-primary/20"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center justify-between">
+                
+                <div className="flex items-center justify-between pt-2">
                   <p className="text-xs text-muted-foreground">
-                    Choose one proposal as the primary title for submission.
+                    You can add up to 10 proposals. (Required: {Math.max(0, 3 - titleProposals.length)} more)
                   </p>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={addTitleProposal}
+                    onClick={() => {
+                      addTitleProposal();
+                      setExpandedProposalIndex(titleProposals.length);
+                    }}
+                    className="font-semibold"
                     disabled={titleProposals.length >= 10}
                   >
-                    Add Proposal
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add More Title Proposal
                   </Button>
                 </div>
 
-                {/* Real-time Title Similarity Checking */}
-                {titleProposals[selectedTitleIndex] && (
-                  <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
-                    <p className="text-xs font-medium text-blue-900">Title Similarity Check</p>
+                {/* Real-time Title Similarity Checking for expanded proposal */}
+                {titleProposals[expandedProposalIndex]?.title && (
+                  <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3 mt-4">
+                    <p className="text-xs font-medium text-blue-900">Title Similarity Check (Proposal {expandedProposalIndex + 1})</p>
                     <TitleSimilarityChecker
-                      title={titleProposals[selectedTitleIndex]}
+                      title={titleProposals[expandedProposalIndex].title}
                       keywords={keywordList}
                       debounceMs={500}
                     />
@@ -580,61 +818,6 @@ export default function CreateProjectPage() {
                     </option>
                   ))}
                 </select>
-              </div>
-
-              {/* Professional Capstone Role Assignment */}
-              <div className="space-y-2 rounded-md border p-4">
-                <Label className="text-sm font-semibold">Member Role Assignment *</Label>
-                <p className="text-xs text-muted-foreground">
-                  Assign one professional capstone title to each team member after your team is
-                  finalized and locked.
-                </p>
-
-                {isTeamLoading && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading team members...
-                  </div>
-                )}
-
-                {!isTeamLoading && teamMembers.length > 0 && (
-                  <div className="space-y-3">
-                    {teamMembers.map((member) => (
-                      <div
-                        key={member._id}
-                        className="grid gap-2 rounded-md border p-3 sm:grid-cols-2"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{formatMemberName(member)}</p>
-                          <p className="text-xs text-muted-foreground">{member.email}</p>
-                        </div>
-                        <select
-                          value={memberRoleAssignments[member._id] || ''}
-                          onChange={(e) => handleMemberRoleChange(member._id, e.target.value)}
-                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                          disabled={!hasFinalizedTeam}
-                          required
-                        >
-                          <option value="">Select professional capstone title</option>
-                          {CAPSTONE_TITLE_VALUES.map((title) => (
-                            <option key={title} value={title}>
-                              {title}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!isTeamLoading && !teamMembers.length && (
-                  <Alert>
-                    <AlertDescription>
-                      No finalized team members are available yet. Create and lock your team first
-                      to continue.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
 
               {/* Submit */}

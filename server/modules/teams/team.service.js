@@ -256,6 +256,23 @@ class TeamService {
       throw new AppError('This user is already a member of your team.', 409, 'ALREADY_MEMBER');
     }
 
+    // Block invites when the user already belongs to another team.
+    const isMemberOfAnotherTeam =
+      Boolean(invitedUser.teamId) ||
+      Boolean(
+        await Team.exists({
+          _id: { $ne: team._id },
+          members: invitedUser._id,
+        }),
+      );
+    if (isMemberOfAnotherTeam) {
+      throw new AppError(
+        `${invitedUser.fullName || 'This user'} already has a team.`,
+        409,
+        'ALREADY_IN_TEAM',
+      );
+    }
+
     // Check for existing pending invite
     const existingInvite = await TeamInvite.findOne({
       teamId,
@@ -296,7 +313,14 @@ class TeamService {
     });
     emitToUser(invitedUser._id, 'notification:new', inviteNotif);
 
-    return { invite };
+    return {
+      invite,
+      invitedUser: {
+        _id: invitedUser._id,
+        fullName: invitedUser.fullName,
+        email: invitedUser.email,
+      },
+    };
   }
 
   /**

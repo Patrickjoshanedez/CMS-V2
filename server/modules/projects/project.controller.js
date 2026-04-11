@@ -19,12 +19,23 @@ export const createProject = catchAsync(async (req, res) => {
 
 /** GET /api/projects/me — Get current student's project */
 export const getMyProject = catchAsync(async (req, res) => {
-  const { project } = await projectService.getMyProject(req.user._id);
+  try {
+    const { project } = await projectService.getMyProject(req.user._id);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    data: { project },
-  });
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: { project },
+    });
+  } catch (error) {
+    if (error?.code === 'NO_TEAM' || error?.code === 'PROJECT_NOT_FOUND') {
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: { project: null },
+      });
+    }
+
+    throw error;
+  }
 });
 
 /** GET /api/projects/:id — Get single project */

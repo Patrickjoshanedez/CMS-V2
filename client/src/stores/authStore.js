@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authService, userService } from '../services/authService';
 import { disconnectSocket } from '../services/socket';
+import { appQueryClient } from '@/lib/queryClient';
 
 const NETWORK_ERROR_MESSAGE =
   'Cannot reach the server. Check your connection and ensure the API is running.';
@@ -212,6 +213,7 @@ export const useAuthStore = create((set, _get) => ({
       // Even if logout API fails, clear client state
     } finally {
       disconnectSocket();
+      appQueryClient.clear();
       set({ user: null, isAuthenticated: false, error: null });
     }
   },
@@ -222,6 +224,7 @@ export const useAuthStore = create((set, _get) => ({
    */
   clearAuthState: () => {
     disconnectSocket();
+    appQueryClient.clear();
     set({ user: null, isAuthenticated: false, error: null });
   },
 

@@ -567,11 +567,10 @@ try {
 
 		Write-Host "[3/8] Bringing stack down with orphan cleanup and removing legacy containers..." -ForegroundColor Yellow
 		Invoke-Compose -Arguments @("down", "--remove-orphans")
-		Invoke-Compose -Arguments @("--profile", "public-exposure", "down", "--remove-orphans")
 		Remove-ContainerIfExists -ContainerName "cms-server"
 
-		Write-Host "[4/8] Rebuilding and starting production stack with public exposure..." -ForegroundColor Yellow
-		Invoke-Compose -Arguments @("--profile", "public-exposure", "up", "-d", "--build")
+		Write-Host "[4/8] Rebuilding and starting production stack (including ngrok)..." -ForegroundColor Yellow
+		Invoke-Compose -Arguments @("up", "-d", "--build")
 
 		Write-Host "[5/8] Current container state:" -ForegroundColor Yellow
 		Invoke-Compose -Arguments @("ps")

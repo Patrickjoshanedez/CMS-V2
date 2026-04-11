@@ -129,8 +129,9 @@ describe('Teams API — /api/teams', () => {
       await User.findByIdAndUpdate(outsider._id, { teamId });
 
       const res = await outsiderAgent.get('/api/teams/me');
-      expect(res.status).toBe(404);
-      expect(res.body?.error?.code).toBe('NO_TEAM');
+      expect(res.status).toBe(200);
+      expect(res.body?.success).toBe(true);
+      expect(res.body?.data?.team).toBeNull();
 
       const refreshedOutsider = await User.findById(outsider._id).select('teamId');
       expect(refreshedOutsider.teamId).toBeNull();
@@ -181,6 +182,37 @@ describe('Teams API — /api/teams', () => {
       });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should reject inviting a student who already has a team', async () => {
+      const { agent: occupiedAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'invite-occupied@example.com',
+      });
+
+      const occupiedTeamRes = await occupiedAgent.post('/api/teams').send({
+        name: 'Occupied Team',
+        academicYear: '2025-2026',
+      });
+      expect(occupiedTeamRes.status).toBe(201);
+
+      const { agent: inviterAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'inviter-occupied-check@example.com',
+      });
+
+      const inviterTeamRes = await inviterAgent.post('/api/teams').send({
+        name: 'Inviter Team',
+        academicYear: '2025-2026',
+      });
+      const inviterTeamId = inviterTeamRes.body.data.team._id;
+
+      const res = await inviterAgent.post(`/api/teams/${inviterTeamId}/invite`).send({
+        email: 'invite-occupied@example.com',
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('ALREADY_IN_TEAM');
+      expect(res.body.error.message).toContain('already has a team');
     });
   });
 
@@ -375,15 +407,10 @@ describe('Teams API — /api/teams', () => {
       const inviteRes = await invitingLeaderAgent.post(`/api/teams/${invitingTeamId}/invite`).send({
         email: 'tc-team-010-occupied@example.com',
       });
-      expect(inviteRes.status).toBe(201);
-
-      const inviteToken = inviteRes.body.data.invite.token;
-      const acceptRes = await occupiedAgent.post(`/api/teams/invites/${inviteToken}/accept`).send({});
-
-      expect(acceptRes.status).toBe(409);
-      expect(acceptRes.body.success).toBe(false);
-      expect(acceptRes.body.error.code).toBe('ALREADY_IN_TEAM');
-      expect(acceptRes.body.error.message).toBe('You are already a member of a team');
+      expect(inviteRes.status).toBe(409);
+      expect(inviteRes.body.success).toBe(false);
+      expect(inviteRes.body.error.code).toBe('ALREADY_IN_TEAM');
+      expect(inviteRes.body.error.message).toContain('already has a team');
 
       const refreshedOccupiedUser = await User.findOne({ email: 'tc-team-010-occupied@example.com' });
       expect(refreshedOccupiedUser.teamId.toString()).toBe(originalTeamId.toString());
@@ -399,7 +426,7 @@ describe('Teams API — /api/teams', () => {
       );
     });
 
-    it('should reject invite acceptance when user.teamId is null but user exists in another team members', async () => {
+    it('should reject invite when user.teamId is null but user exists in another team members', async () => {
       const { user: instructor } = await createAuthenticatedUserWithRole('instructor', {
         email: 'stale-membership-instructor@example.com',
       });
@@ -414,7 +441,7 @@ describe('Teams API — /api/teams', () => {
         email: 'stale-membership-target-leader@example.com',
       });
 
-      const { agent: inviteeAgent, user: invitee } = await createAuthenticatedUserWithRole('student', {
+      const { user: invitee } = await createAuthenticatedUserWithRole('student', {
         email: 'stale-membership-invitee@example.com',
         sectionId: section._id,
         instructorId: instructor._id,
@@ -438,15 +465,10 @@ describe('Teams API — /api/teams', () => {
       const inviteRes = await targetLeaderAgent.post(`/api/teams/${targetTeamId}/invite`).send({
         email: 'stale-membership-invitee@example.com',
       });
-      expect(inviteRes.status).toBe(201);
-
-      const inviteToken = inviteRes.body.data.invite.token;
-      const acceptRes = await inviteeAgent.post(`/api/teams/invites/${inviteToken}/accept`).send({});
-
-      expect(acceptRes.status).toBe(409);
-      expect(acceptRes.body.success).toBe(false);
-      expect(acceptRes.body.error.code).toBe('ALREADY_IN_TEAM');
-      expect(acceptRes.body.error.message).toBe('You are already a member of a team');
+      expect(inviteRes.status).toBe(409);
+      expect(inviteRes.body.success).toBe(false);
+      expect(inviteRes.body.error.code).toBe('ALREADY_IN_TEAM');
+      expect(inviteRes.body.error.message).toContain('already has a team');
 
       const refreshedInvitee = await User.findById(invitee._id).select('teamId');
       expect(refreshedInvitee.teamId).toBeNull();

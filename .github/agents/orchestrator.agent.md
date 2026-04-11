@@ -161,6 +161,7 @@ Extremely strict operational protocol preventing hallucinations and guaranteeing
    - **Hook Preflight**: Verify hook registries and referenced scripts are present and parseable (`.github/hooks/copilot-runtime-hooks.json`, `.github/hooks/orchestrator-automation.json`, `.github/hooks/scripts/*.py`).
    - **Directory Integrity Preflight**: Verify required orchestration directories exist (`.github/agents`, `.github/instructions`, `.github/skills`, `.github/hooks`, `.github/hooks/scripts`, `.github/hooks/state`).
    - **MCP Preflight**: Verify MCPs needed per use-case from Routing Decision Tree above.
+   - **Tool Activation Preflight**: Verify required orchestrator core tools are activated in agent metadata and required MCP server registrations exist in `.vscode/mcp.json`.
    - **Complexity Assessment**: If task involves architectural complexity, scaling problems, data flow redesigns, or "impossible" bugs → route to `Thinker pro` FIRST before implementation.
    - **Domain Routing**: Identify if work is frontend (→ `product-design-handoff`), backend (→ `coder`), or devops/infrastructure.
    - **Public Exposure Gate**: If Docker/ngrok exposure is in scope, verify gate before proceeding.

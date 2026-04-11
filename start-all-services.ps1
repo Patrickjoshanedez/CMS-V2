@@ -3,13 +3,31 @@
 # CMS V2 — All-in-One Startup Script (Windows PowerShell)
 #
 # This script starts ALL services including the plagiarism engine in one command.
+# Pass -PublicExposure to launch the production stack with ngrok.
 #
 # Usage:
 #   .\start-all-services.ps1
+#   .\start-all-services.ps1 -PublicExposure
 #
 # To stop all services:
 #   docker compose -f docker-compose.yml down
 # ─────────────────────────────────────────────────────────────────────────────
+
+param(
+    [switch]$PublicExposure
+)
+
+if ($PublicExposure) {
+    $productionStartupScript = Join-Path $PSScriptRoot 'start-prod-test.ps1'
+    if (-not (Test-Path $productionStartupScript)) {
+        Write-Host 'Production startup script not found: start-prod-test.ps1' -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host 'Public exposure requested; starting the production stack with ngrok...' -ForegroundColor Cyan
+    & $productionStartupScript
+    exit $LASTEXITCODE
+}
 
 Write-Host "🚀 Starting CMS V2 with integrated Plagiarism Engine..." -ForegroundColor Cyan
 Write-Host ""

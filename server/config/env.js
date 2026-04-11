@@ -716,18 +716,6 @@ const env = Object.freeze({
   // auto prefers service-account auth when both are configured
   GOOGLE_DRIVE_AUTH_MODE: (process.env.GOOGLE_DRIVE_AUTH_MODE || 'auto').trim().toLowerCase(),
 
-  // Root Drive folder for review-doc organization (not primary binary storage)
-  GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
-
-  // Drive folder for mirrored/review docs (AWS S3 remains the system of record for uploads)
-  GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID: process.env.GOOGLE_DRIVE_CAPSTONE_DOCS_FOLDER_ID || '',
-
-  // Single Google Drive template folder for the full paper template
-  GOOGLE_DRIVE_TEMPLATE_FOLDER_ID: process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID || '',
-
-  // Master Google Doc template ID for cloning (Cap1-3 chapters, proposals, final papers)
-  GOOGLE_DRIVE_TEMPLATE_FULL_PAPER_ID: process.env.GOOGLE_DRIVE_TEMPLATE_FULL_PAPER_ID || '',
-
   // Upload limits
   MAX_UPLOAD_SIZE_MB: parseInt(process.env.MAX_UPLOAD_SIZE_MB, 10) || 25,
   MAX_PROTOTYPE_SIZE_MB: parseInt(process.env.MAX_PROTOTYPE_SIZE_MB, 10) || 50,

@@ -95,8 +95,9 @@ export default function LoginPage() {
         await googleLogin(credentialResponse.credential);
         navigate('/dashboard', { replace: true });
       } catch (error) {
-        const apiMessage = error?.response?.data?.error?.message;
-        setGoogleError(apiMessage || getGoogleOriginMismatchMessage());
+        // Backend errors or network timeouts during credential exchange 
+        // are already captured in the authStore `error` state and displayed via AuthStatusAlert.
+        // No need to set googleError here unless we want to override the default display.
       }
     },
     [clearError, googleLogin, navigate],

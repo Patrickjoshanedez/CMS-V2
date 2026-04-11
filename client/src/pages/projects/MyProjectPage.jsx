@@ -17,6 +17,7 @@ import PrototypeUploadForm from '@/components/projects/PrototypeUploadForm';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
+import ProposalTab from '@/components/projects/ProposalTab';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import {
@@ -185,30 +186,6 @@ function ProjectInfoCard({ project }) {
                   {tag}
                 </Badge>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Title proposals */}
-        {project.titleProposals?.length > 0 && (
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Title Proposals</p>
-            <div className="mt-2 space-y-2">
-              {project.titleProposals.map((proposal, idx) => {
-                const proposalTitle = typeof proposal === 'string' ? proposal : proposal?.title;
-
-                return (
-                  <div
-                    key={proposal?._id || `${idx}-${proposalTitle || 'proposal'}`}
-                    className="rounded-md border p-2.5 text-sm"
-                  >
-                    <span className="mr-2 text-xs font-medium uppercase text-muted-foreground">
-                      {idx + 1}.
-                    </span>
-                    {proposalTitle || 'Untitled proposal'}
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}
@@ -981,7 +958,7 @@ export default function MyProjectPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: project, isLoading, error } = useMyProject();
-  const { data: team, isLoading: isTeamLoading } = useMyTeam();
+  const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
 
   const { data: submissions } = useProjectSubmissions(
     project?._id,
@@ -1119,6 +1096,8 @@ export default function MyProjectPage() {
           <EmptyProjectState team={isTeamLoading ? null : team} />
         )}
 
+        {!project && !isLoading && !error && <EmptyProjectState team={isTeamLoading ? null : team} />}
+
         {error && !isLoading && error.response?.status !== 404 && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -1214,6 +1193,7 @@ export default function MyProjectPage() {
 
                   <ProjectInfoCard project={project} />
                   <TitleActionsSection project={project} />
+                  <ProposalTab project={project} />
 
                   {/* Show PanelistsPendingCard when title approved but no panelists */}
                   {titleApproved && !hasPanelists && <PanelistsPendingCard />}

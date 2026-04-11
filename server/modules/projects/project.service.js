@@ -8,7 +8,6 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import storageService from '../../services/storage.index.js';
-import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
@@ -33,6 +32,41 @@ const DEFAULT_ORIGINALITY_THRESHOLD = 75;
  * Handles creation, title workflow, adviser/panelist assignment, and status transitions.
  */
 class ProjectService {
+  _normalizeTitleProposals(titleProposals = []) {
+    if (!Array.isArray(titleProposals)) return [];
+
+    const normalizedByTitle = new Map();
+
+    for (const proposal of titleProposals) {
+      if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) {
+        continue;
+      }
+
+      const title = typeof proposal.title === 'string' ? proposal.title.trim() : '';
+      const description =
+        typeof proposal.description === 'string' ? proposal.description.trim() : '';
+      const capstoneType =
+        typeof proposal.capstoneType === 'string' ? proposal.capstoneType.trim() : '';
+      const sdgTags = Array.isArray(proposal.sdgTags)
+        ? [...new Set(proposal.sdgTags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')))]
+            .filter(Boolean)
+        : [];
+
+      if (!title) continue;
+
+      if (!normalizedByTitle.has(title)) {
+        normalizedByTitle.set(title, {
+          title,
+          description,
+          capstoneType,
+          sdgTags,
+        });
+      }
+    }
+
+    return [...normalizedByTitle.values()];
+  }
+
   /* ═══════════════════ Creation ═══════════════════ */
 
   /**
@@ -118,9 +152,7 @@ class ProjectService {
       throw new AppError('Only the team leader can create a project.', 403, 'FORBIDDEN');
     }
 
-    const normalizedTitleProposals = [
-      ...new Set((data.titleProposals || []).map((proposal) => proposal.trim())),
-    ];
+    const normalizedTitleProposals = this._normalizeTitleProposals(data.titleProposals);
     const normalizedSdgTags = [...new Set((data.sdgTags || []).map((tag) => tag.trim()))];
 
     if (normalizedSdgTags.length === 0) {
@@ -140,7 +172,27 @@ class ProjectService {
       );
     }
 
-    if (!normalizedTitleProposals.includes(data.title.trim())) {
+    if (!normalizedTitleProposals[0]?.description) {
+      throw new AppError(
+        'Proposal 1 must include a description.',
+        400,
+        'PROPOSAL_DESCRIPTION_REQUIRED',
+      );
+    }
+
+    const hasIncompleteProposalMetadata = normalizedTitleProposals.some(
+      (proposal) => !proposal.description || !proposal.capstoneType || proposal.sdgTags.length === 0,
+    );
+    if (hasIncompleteProposalMetadata) {
+      throw new AppError(
+        'Each title proposal must include a description, capstone type, and at least one SDG tag.',
+        400,
+        'INCOMPLETE_TITLE_PROPOSAL_METADATA',
+      );
+    }
+
+    const proposalTitles = normalizedTitleProposals.map((proposal) => proposal.title);
+    if (!proposalTitles.includes(data.title.trim())) {
       throw new AppError(
         'Selected project title must be one of the submitted title proposals.',
         400,
@@ -229,7 +281,8 @@ class ProjectService {
     const project = await Project.create({
       teamId: team._id,
       title: data.title,
-      titleProposals: normalizedTitleProposals,
+      titleProposals: proposalTitles,
+      titleProposalMetadata: normalizedTitleProposals,
       abstract: data.abstract || '',
       keywords: data.keywords || [],
       sdgTags: normalizedSdgTags,
@@ -571,17 +624,7 @@ class ProjectService {
     }
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
-
-    // Create a unique Google Drive folder for the project workspace.
-    // Fail-open behavior is preserved so title approval is not blocked if Drive is unavailable.
-    try {
-      const folderName = `Project Workspace - ${project.title || project._id}`;
-      const { folderId } = await googleDriveReviewService.createProjectFolder(folderName);
-      project.driveFolderId = folderId;
-    } catch (error) {
-      console.error('Failed to create Drive folder for project:', error);
-      // Log the error but don't fail the complete approval process
-    }
+    project.driveFolderId = null;
 
     await project.save();
 

@@ -9,6 +9,8 @@
     "dev": "node scripts/dev-preflight.js && node --watch server.js",
     "start": "node server.js",
     "seed": "node seeders/index.js",
+    "seed:archive:pdfs": "node seeders/seed-archived-capstone-pdfs.js",
+    "seed:orphans": "node seeders/seed-orphaned-users.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -37,6 +39,7 @@
     "nodemailer": "^8.0.1",
     "pdf-parse": "^2.4.5",
     "pino": "^9.6.0",
+    "puppeteer-core": "^24.40.0",
     "socket.io": "^4.8.3",
     "uuid": "^11.0.3",
     "zod": "^3.24.1"

@@ -142,6 +142,7 @@ export default function ProjectSubmissionsPage() {
   const [searchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === ROLES.STUDENT;
+  const hasTeam = Boolean(user?.teamId);
 
   const [chapterFilter, setChapterFilter] = useState('');
 
@@ -261,8 +262,8 @@ export default function ProjectSubmissionsPage() {
   if (error || !project) {
     // Distinguish between "no team/project" (expected for new students) vs actual errors
     const errorCode = projectError?.response?.data?.error?.code;
-    const isNoTeam = errorCode === 'NO_TEAM';
-    const isNoProject = errorCode === 'PROJECT_NOT_FOUND';
+    const isNoTeam = errorCode === 'NO_TEAM' || (!hasTeam && !projectError);
+    const isNoProject = errorCode === 'PROJECT_NOT_FOUND' || (hasTeam && !project && !projectError);
 
     if (isNoTeam) {
       return (

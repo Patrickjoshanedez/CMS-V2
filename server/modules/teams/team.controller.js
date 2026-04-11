@@ -19,22 +19,38 @@ export const createTeam = catchAsync(async (req, res) => {
 
 /** GET /api/teams/me — Get current student's team */
 export const getMyTeam = catchAsync(async (req, res) => {
-  const { team } = await teamService.getMyTeam(req.user._id);
+  try {
+    const { team } = await teamService.getMyTeam(req.user._id);
 
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    data: { team },
-  });
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: { team },
+    });
+  } catch (error) {
+    if (error?.code === 'NO_TEAM' || error?.code === 'TEAM_NOT_FOUND') {
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: { team: null },
+      });
+    }
+
+    throw error;
+  }
 });
 
 /** POST /api/teams/:id/invite — Invite a student to the team (Leader only) */
 export const inviteMember = catchAsync(async (req, res) => {
-  const { invite } = await teamService.inviteMember(req.params.id, req.user._id, req.body);
+  const { invite, invitedUser } = await teamService.inviteMember(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+  const invitedUserName = invitedUser?.fullName || invitedUser?.email || 'the user';
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
-    message: 'Invitation sent successfully.',
-    data: { invite },
+    message: `You have successfully invited ${invitedUserName} to the team.`,
+    data: { invite, invitedUser },
   });
 });
 

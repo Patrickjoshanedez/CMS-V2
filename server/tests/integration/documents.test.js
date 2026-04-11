@@ -9,15 +9,10 @@ import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
 import Manuscript from '../../modules/documents/document.model.js';
-import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import storageService from '../../services/storage.service.js';
 import * as pdfMetadataExtractor from '../../utils/pdfMetadataExtractor.js';
 import { DOCUMENT_TYPES } from '@cms/shared';
 
-vi.spyOn(googleDriveReviewService, 'createProjectFolder').mockResolvedValue({
-  folderId: 'mock-drive-folder-id',
-  folderUrl: 'https://drive.google.com/drive/folders/mock-drive-folder-id',
-});
 vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
 vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue('https://mock-s3.example.com/signed-url');
 vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
@@ -85,10 +80,6 @@ async function createDocumentFixture() {
 describe('Documents API — /api/documents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(googleDriveReviewService, 'createProjectFolder').mockResolvedValue({
-      folderId: 'mock-drive-folder-id',
-      folderUrl: 'https://drive.google.com/drive/folders/mock-drive-folder-id',
-    });
     vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
     vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
       'https://mock-s3.example.com/signed-url',

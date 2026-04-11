@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-10T18:02:11.389073Z",
+  "generated_at": "2026-04-11T14:56:10.801001Z",
   "agent_count": 10,
   "agents": {
     "100x Code Reviewer": {
@@ -331,6 +331,32 @@
       "copilot_hooks_present": true,
       "orchestrator_hooks_present": true,
       "missing_hook_scripts": []
+    },
+    "tool_activation": {
+      "orchestrator_agent_present": true,
+      "required_orchestrator_tools": [
+        "agent",
+        "edit",
+        "execute",
+        "read",
+        "search",
+        "todo",
+        "vscode/askQuestions",
+        "web"
+      ],
+      "missing_orchestrator_tools": [],
+      "mcp_registry_present": true,
+      "mcp_registry_parse_ok": true,
+      "required_mcp_servers": [
+        "io.github.chromedevtools/chrome-devtools-mcp",
+        "io.github.github/github-mcp-server",
+        "io.github.upstash/context7",
+        "microsoft/markitdown",
+        "microsoft/playwright-mcp",
+        "microsoftdocs/mcp",
+        "oraios/serena"
+      ],
+      "missing_mcp_servers": []
     },
     "errors": [],
     "warnings": []

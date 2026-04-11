@@ -7,9 +7,13 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockUseQuery = vi.fn();
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: (...args) => mockUseQuery(...args),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useQuery: (...args) => mockUseQuery(...args),
+  };
+});
 
 describe('AnnouncementBanner', () => {
   beforeEach(() => {

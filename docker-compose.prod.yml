@@ -1,15 +1,34 @@
+name: cms-v2-prod
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   mongodb:
     image: mongo:7
     container_name: cms-mongodb-prod
     restart: unless-stopped
+    init: true
     volumes:
       - mongodb_prod_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
     container_name: cms-redis-prod
     restart: unless-stopped
+    init: true
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be non-empty}
     command:
       - redis-server
       - --appendonly
@@ -18,17 +37,29 @@ services:
       - ${REDIS_PASSWORD:?REDIS_PASSWORD must be non-empty}
     volumes:
       - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *default-logging
 
   server:
     build:
       context: .
       dockerfile: Dockerfile.server.prod
+    command: npm run start --workspace=server
     container_name: cms-server-prod
     restart: unless-stopped
+    init: true
     depends_on:
-      - mongodb
-      - redis
-      - plagiarism_api
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      plagiarism_api:
+        condition: service_healthy
     env_file:
       - .env.prod
     environment:
@@ -83,13 +114,17 @@ services:
       - no-new-privileges:true
     volumes:
       - ./uploads:/app/uploads
+    tmpfs:
+      - /tmp
     cap_drop:
       - ALL
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -111,8 +146,10 @@ services:
         VITE_RECAPTCHA_ENABLED: ${VITE_RECAPTCHA_ENABLED:-false}
     container_name: cms-client-prod
     restart: unless-stopped
+    init: true
     depends_on:
-      - server
+      server:
+        condition: service_healthy
     ports:
       - "8080:80"
     security_opt:
@@ -128,11 +165,13 @@ services:
       - /tmp
       - /var/cache/nginx
       - /var/run
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -146,8 +185,7 @@ services:
     image: ngrok/ngrok:3.37.3-alpine
     container_name: cms-ngrok-prod
     restart: unless-stopped
-    profiles:
-      - public-exposure
+    init: true
     env_file:
       - .env.prod
     entrypoint:
@@ -206,6 +244,7 @@ services:
       - ngrok_prod_data:/var/lib/ngrok
     tmpfs:
       - /tmp
+    logging: *default-logging
 
   # === Plagiarism Detection Services (Production Configuration) ===
 
@@ -217,9 +256,12 @@ services:
         TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
     container_name: cms-plagiarism-api-prod
     restart: unless-stopped
+    init: true
     depends_on:
-      - redis
-      - chromadb
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -250,6 +292,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging: *default-logging
 
   plagiarism_worker:
     build:
@@ -259,6 +302,7 @@ services:
         TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
     container_name: cms-plagiarism-worker-prod
     restart: unless-stopped
+    init: true
     command: >
       celery -A plagiarism_engine.tasks worker --loglevel=warning --concurrency=${PLAGIARISM_WORKER_CONCURRENCY:-2} --max-tasks-per-child=${PLAGIARISM_MAX_TASKS_PER_CHILD:-100} --prefetch-multiplier=${PLAGIARISM_PREFETCH_MULTIPLIER:-1}
     healthcheck:
@@ -267,8 +311,10 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      - redis
-      - chromadb
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -293,11 +339,13 @@ services:
         reservations:
           cpus: '1.5'
           memory: 2G
+    logging: *default-logging
 
   chromadb:
     image: chromadb/chroma:0.5.3
     container_name: cms-chromadb-prod
     restart: unless-stopped
+    init: true
     volumes:
       - chromadb_prod_data:/chroma/chroma
     environment:
@@ -311,6 +359,13 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    logging: *default-logging
 
   # === Optional LocalStack for Production-Like Testing ===
   # Use this when you need to test with S3 locally but exposed publicly via ngrok.
@@ -320,6 +375,7 @@ services:
     image: localstack/localstack:2.0.2
     container_name: cms-localstack-prod
     restart: unless-stopped
+    init: true
     profiles:
       - localstack-testing
     ports:
@@ -346,6 +402,7 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    logging: *default-logging
 
   # LocalStack S3 ngrok tunnel for external access (mobile apps, webhooks)
   # Provides a public URL for S3 presigned URLs to work from external devices.
@@ -354,6 +411,7 @@ services:
     image: ngrok/ngrok:latest
     container_name: cms-localstack-ngrok-prod
     restart: unless-stopped
+    init: true
     profiles:
       - localstack-testing
     env_file:
@@ -378,6 +436,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    logging: *default-logging
 
 volumes:
   mongodb_prod_data:

@@ -14,6 +14,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "seed": "npm run seed --workspace=server",
     "seed:server": "npm run seed --workspace=server",
+    "seed:orphans": "npm run seed:orphans --workspace=server",
     "check:endpoints": "node scripts/check-endpoint-mappings.js",
     "validate:agentic": "node scripts/validate-agentic-system.js",
     "validate:governance": "node scripts/validate-agentic-system.js && python .github/hooks/scripts/agent_prefetch.py && python .github/hooks/scripts/agent_sync_verify.py && python .github/hooks/scripts/decision_coherence.py",

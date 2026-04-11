@@ -11,6 +11,27 @@ import {
 const academicYearPattern = /^\d{4}-\d{4}$/;
 const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 const objectId = z.string().regex(objectIdPattern, 'Invalid ObjectId');
+const titleProposalSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(10, 'Each proposed title must be at least 10 characters')
+    .max(300, 'Each proposed title must not exceed 300 characters'),
+  description: z
+    .string()
+    .trim()
+    .min(20, 'Each proposal description must be at least 20 characters')
+    .max(1000, 'Each proposal description must not exceed 1000 characters'),
+  capstoneType: z
+    .string()
+    .trim()
+    .min(2, 'Each proposal capstone type must be at least 2 characters')
+    .max(120, 'Each proposal capstone type must not exceed 120 characters'),
+  sdgTags: z
+    .array(z.enum(SDG_TAG_SUGGESTIONS))
+    .min(1, 'Each proposal must include at least one SDG tag')
+    .max(17, 'Each proposal can have at most 17 SDG tags'),
+});
 
 /* ───── Create project ───── */
 
@@ -35,14 +56,8 @@ export const createProjectSchema = z.object({
     .min(10, 'Title must be at least 10 characters')
     .max(300, 'Title must not exceed 300 characters'),
   titleProposals: z
-    .array(
-      z
-        .string()
-        .trim()
-        .min(10, 'Each proposed title must be at least 10 characters')
-        .max(300, 'Each proposed title must not exceed 300 characters'),
-    )
-    .min(5, 'At least 5 title proposals are required')
+    .array(titleProposalSchema)
+    .min(3, 'At least 3 title proposals are required')
     .max(10, 'At most 10 title proposals are allowed'),
   abstract: z
     .string()
@@ -61,14 +76,6 @@ export const createProjectSchema = z.object({
     .max(17, 'A project can have at most 17 SDG tags'),
   academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
   sectionId: objectId.optional(),
-  memberRoleAssignments: z
-    .array(
-      z.object({
-        userId: objectId,
-        professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
-      }),
-    )
-    .min(1, 'At least one member role assignment is required'),
   allowSoloCapstone: z.boolean().optional().default(false),
   soloCapstoneConfirmed: z.boolean().optional().default(false),
 });
