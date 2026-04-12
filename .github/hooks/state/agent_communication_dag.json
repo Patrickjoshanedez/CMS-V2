@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-11T17:31:22.616343Z",
+  "generated_at": "2026-04-12T03:38:18.942505Z",
   "metadata": {
     "agent_count": 10,
     "edges_count": 8,
@@ -108,7 +108,12 @@
   "edges": [
     {
       "source": "orchestrator",
-      "target": "logic-debugger",
+      "target": "thinker pro",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "researcher",
       "bidirectional": false
     },
     {
@@ -123,17 +128,12 @@
     },
     {
       "source": "orchestrator",
-      "target": "researcher",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "context-manager",
       "bidirectional": false
     },
     {
       "source": "orchestrator",
-      "target": "thinker pro",
+      "target": "logic-debugger",
       "bidirectional": false
     },
     {

@@ -211,6 +211,10 @@ class ProjectService {
       );
     }
 
+    if (!data.memberRoleAssignments || !Array.isArray(data.memberRoleAssignments)) {
+      throw new AppError('Member role assignments are required.', 400, 'MISSING_ROLE_ASSIGNMENTS');
+    }
+
     const teamMemberIds = team.members.map((memberId) => memberId.toString()).sort();
     const assignedMemberIds = data.memberRoleAssignments
       .map((assignment) => assignment.userId.toString())
@@ -371,7 +375,10 @@ class ProjectService {
       const isTeamMember = project.teamId?.members?.some(
         (memberId) => memberId.toString() === requester._id.toString(),
       );
-      if (!isTeamMember) {
+
+      const isArchived = project.isArchived === true || project.projectStatus === 'archived';
+
+      if (!isTeamMember && !isArchived) {
         throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
       }
     }

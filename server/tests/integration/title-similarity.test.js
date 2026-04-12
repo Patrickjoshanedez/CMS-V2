@@ -51,10 +51,53 @@ describe('Title Similarity & Lock — /api/projects', () => {
   function buildProjectRequestPayload(title) {
     const payload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
     payload.title = title;
+
+    // We must pass objects for titleProposals as of the updated schema
+    const defaultProposals = payload.titleProposals;
+
     payload.titleProposals = [
-      title,
-      ...payload.titleProposals.filter((proposal) => proposal !== title),
-    ].slice(0, 6);
+      {
+        title,
+        description: 'This is a sufficiently long description',
+        capstoneType: ['Implementation'],
+        sdgTags: ['SDG 4: Quality Education'],
+      },
+      {
+        title: title + ' 1',
+        description: 'This is a sufficiently long description',
+        capstoneType: ['Implementation'],
+        sdgTags: ['SDG 4: Quality Education'],
+      },
+      {
+        title: title + ' 2',
+        description: 'This is a sufficiently long description',
+        capstoneType: ['Implementation'],
+        sdgTags: ['SDG 4: Quality Education'],
+      },
+      {
+        title: title + ' 3',
+        description: 'This is a sufficiently long description',
+        capstoneType: ['Implementation'],
+        sdgTags: ['SDG 4: Quality Education'],
+      },
+      {
+        title: title + ' 4',
+        description: 'This is a sufficiently long description',
+        capstoneType: ['Implementation'],
+        sdgTags: ['SDG 4: Quality Education'],
+      },
+    ];
+
+    payload.memberRoleAssignments = [
+      {
+        userId: studentUser._id,
+        role: 'Developer',
+        professionalTitle: 'Lead Developer',
+        traditionalRole: 'Programmer',
+        responsibilities: 'System Logic',
+      },
+    ];
+
     delete payload.teamId;
     return payload;
   }
@@ -148,9 +191,13 @@ describe('Title Similarity & Lock — /api/projects', () => {
   describe('PATCH /:id/title — CheckLock middleware', () => {
     it('should return 403 when title is approved (locked)', async () => {
       // Create a project and fast-forward to APPROVED status
-      const createRes = await studentAgent
-        .post('/api/projects')
-        .send(buildProjectRequestPayload('Unique Capstone Title for Lock Testing Scenario'));
+      const payload = buildProjectRequestPayload('Unique Capstone Title for Lock Testing Scenario');
+
+      const createRes = await studentAgent.post('/api/projects').send(payload);
+
+      if (createRes.status !== 201) {
+        console.error('CREATE PROJECT RESULT:', createRes.body);
+      }
 
       expect(createRes.status).toBe(201);
       const projectId = createRes.body.data.project._id;

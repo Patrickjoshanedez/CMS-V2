@@ -81,6 +81,14 @@ export const createProjectSchema = z.object({
     .max(17, 'A project can have at most 17 SDG tags'),
   academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format'),
   sectionId: objectId.optional(),
+  memberRoleAssignments: z
+    .array(
+      z.object({
+        userId: objectId,
+        professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
+      }),
+    )
+    .min(1, 'At least one member role assignment is required'),
   allowSoloCapstone: z.boolean().optional().default(false),
   soloCapstoneConfirmed: z.boolean().optional().default(false),
 });

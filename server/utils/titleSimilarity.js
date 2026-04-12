@@ -102,7 +102,13 @@ export function findSimilarProjects(candidate, existingProjects, options = {}) {
   for (const proj of existingProjects) {
     const titleScore = stringSimilarity(candidate.title, proj.title);
     const keywordScore = keywordOverlap(candidate.keywords || [], proj.keywords || []);
-    const combined = weights.title * titleScore + weights.keyword * keywordScore;
+
+    // Ensure that completely different or empty keywords cannot artificially drop the score
+    // of an otherwise identical or highly similar title.
+    const combined = Math.max(
+      titleScore,
+      weights.title * titleScore + weights.keyword * keywordScore,
+    );
 
     if (combined >= threshold) {
       results.push({
