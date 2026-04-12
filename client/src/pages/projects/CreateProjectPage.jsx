@@ -16,6 +16,9 @@ import { AlertTriangle, X, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-
 import { toast } from 'sonner';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
+import { TagInput } from '@/components/ui/TagInput';
+import { projectService } from '@/services/authService';
+
 /**
  * CreateProjectPage — Students create a new capstone project.
  *
@@ -26,6 +29,32 @@ import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+
+const CAPSTONE_TYPE_SUGGESTIONS = [
+  'IoT',
+  'Internet of Things',
+  'Machine Learning',
+  'Deep Learning',
+  'AI',
+  'Artificial Intelligence',
+  'Mobile Application',
+  'Web Application',
+  'Web Development',
+  'Database',
+  'Cloud Computing',
+  'AWS',
+  'Azure',
+  'Blockchain',
+  'Cybersecurity',
+  'Network Security',
+  'Data Science',
+  'Data Analytics',
+  'Hardware',
+  'Robotics',
+  'Game Development',
+  'Information System',
+];
+
 const PROPOSAL_PITCH_DECK_FIELDS = [
   {
     key: 'problemStatement',
@@ -73,7 +102,7 @@ const createEmptyProposal = () => ({
   title: '',
   description: '',
   pitchDeck: createEmptyPitchDeck(),
-  capstoneType: '',
+  capstoneType: [],
   sdgTags: [],
 });
 
@@ -107,6 +136,7 @@ export default function CreateProjectPage() {
   );
   // Optional: keep track of which proposal is expanded
   const [expandedProposalIndex, setExpandedProposalIndex] = useState(0);
+  const [generatingProposalIndex, setGeneratingProposalIndex] = useState(null);
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [sdgTagList, setSdgTagList] = useState([]);
@@ -246,6 +276,46 @@ export default function CreateProjectPage() {
     });
   };
 
+  const generateDeck = async (index, proposal) => {
+    const deckData = proposal.pitchDeck || createEmptyPitchDeck();
+
+    if (PROPOSAL_PITCH_DECK_FIELDS.some((field) => !deckData[field.key]?.trim())) {
+      toast.error('Please complete all pitch deck sections before generating the PDF.');
+      return;
+    }
+
+    setGeneratingProposalIndex(index);
+    try {
+      const response = await projectService.generateProposalDeck({
+        projectId: 'draft',
+        proposalId: `proposal-${index}`,
+        title: proposal.title || `Proposal ${index + 1}`,
+        deckData,
+      });
+
+      const filename = `${(proposal.title || `Proposal_${index + 1}`)
+        .replace(/[^a-zA-Z0-9\s-_]/g, '')
+        .replace(/\s+/g, '_')
+        .slice(0, 80)}_PitchDeck.pdf`;
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success('Pitch deck generated successfully.');
+    } catch (error) {
+      toast.error(error?.response?.data?.error?.message || 'Failed to generate presentation deck.');
+    } finally {
+      setGeneratingProposalIndex(null);
+    }
+  };
+
   const addProposalSdgTag = (index, tag) => {
     if (!tag) return;
 
@@ -325,7 +395,8 @@ export default function CreateProjectPage() {
         PROPOSAL_PITCH_DECK_FIELDS.some(
           (field) => !(proposal.pitchDeck?.[field.key] || '').trim(),
         ) ||
-        !proposal.capstoneType.trim() ||
+        !proposal.capstoneType ||
+        proposal.capstoneType.length === 0 ||
         proposal.sdgTags.length === 0,
     );
 
@@ -349,7 +420,7 @@ export default function CreateProjectPage() {
       const normalized = {
         title: proposal.title.trim(),
         description: buildProposalDescriptionFromPitchDeck(normalizedPitchDeck),
-        capstoneType: proposal.capstoneType.trim(),
+        capstoneType: (proposal.capstoneType || []).map((t) => t.trim()).filter(Boolean),
         sdgTags: [...new Set(proposal.sdgTags.map((tag) => tag.trim()))].filter(Boolean),
       };
 
@@ -381,7 +452,7 @@ export default function CreateProjectPage() {
       return;
     }
 
-    // Since selected title is removed, we default to the first proposal's title if needed, 
+    // Since selected title is removed, we default to the first proposal's title if needed,
     // or just let backend handle if it doesn't strictly need one selected title.
     // Assuming backend still needs `title` field, using the first proposal's title.
     const selectedTitle = normalizedTitleProposals[0]?.title || '';
@@ -523,7 +594,9 @@ export default function CreateProjectPage() {
                                 id={`proposal-${index}-title`}
                                 placeholder="Enter a descriptive title for this proposal"
                                 value={proposal.title}
-                                onChange={(e) => handleTitleProposalChange(index, 'title', e.target.value)}
+                                onChange={(e) =>
+                                  handleTitleProposalChange(index, 'title', e.target.value)
+                                }
                                 required={index < 3}
                                 minLength={10}
                                 maxLength={300}
@@ -533,7 +606,10 @@ export default function CreateProjectPage() {
                             <div className="space-y-3">
                               {PROPOSAL_PITCH_DECK_FIELDS.map((field) => (
                                 <div key={`${index}-${field.key}`} className="space-y-1">
-                                  <Label htmlFor={`proposal-${index}-${field.key}`} className="text-xs">
+                                  <Label
+                                    htmlFor={`proposal-${index}-${field.key}`}
+                                    className="text-xs"
+                                  >
                                     {field.label} {index < 3 && '*'}
                                   </Label>
                                   <Textarea
@@ -541,7 +617,11 @@ export default function CreateProjectPage() {
                                     placeholder={field.placeholder}
                                     value={proposal.pitchDeck?.[field.key] || ''}
                                     onChange={(event) =>
-                                      handlePitchDeckFieldChange(index, field.key, event.target.value)
+                                      handlePitchDeckFieldChange(
+                                        index,
+                                        field.key,
+                                        event.target.value,
+                                      )
                                     }
                                     required={index < 3}
                                     minLength={20}
@@ -554,10 +634,17 @@ export default function CreateProjectPage() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled
-                                title="Available after project creation"
+                                onClick={() => generateDeck(index, proposal)}
+                                disabled={generatingProposalIndex === index}
                               >
-                                Generate Presentation Deck (PDF)
+                                {generatingProposalIndex === index ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Generating...
+                                  </>
+                                ) : (
+                                  'Generate Presentation Deck (PDF)'
+                                )}
                               </Button>
                             </div>
 
@@ -565,21 +652,22 @@ export default function CreateProjectPage() {
                               <Label htmlFor={`proposal-${index}-capstoneType`} className="text-xs">
                                 Capstone Type *
                               </Label>
-                              <Input
+                              <TagInput
                                 id={`proposal-${index}-capstoneType`}
-                                placeholder="E.g. Web Application, Mobile Application, Hardware"
-                                value={proposal.capstoneType}
-                                onChange={(e) =>
-                                  handleTitleProposalChange(index, 'capstoneType', e.target.value)
+                                placeholder="Select or type capstone types"
+                                value={proposal.capstoneType || []}
+                                onChange={(newTags) =>
+                                  handleTitleProposalChange(index, 'capstoneType', newTags)
                                 }
-                                required={index < 3}
-                                minLength={2}
-                                maxLength={120}
+                                suggestions={CAPSTONE_TYPE_SUGGESTIONS}
+                                maxTags={5}
                               />
                             </div>
 
                             <div className="space-y-2">
-                              <Label className="text-xs text-muted-foreground">SDG Tags {index < 3 && '*'}</Label>
+                              <Label className="text-xs text-muted-foreground">
+                                SDG Tags {index < 3 && '*'}
+                              </Label>
                               <div className="flex gap-2">
                                 <select
                                   value=""
@@ -620,10 +708,11 @@ export default function CreateProjectPage() {
                     );
                   })}
                 </div>
-                
+
                 <div className="flex items-center justify-between pt-2">
                   <p className="text-xs text-muted-foreground">
-                    You can add up to 10 proposals. (Required: {Math.max(0, 3 - titleProposals.length)} more)
+                    You can add up to 10 proposals. (Required:{' '}
+                    {Math.max(0, 3 - titleProposals.length)} more)
                   </p>
                   <Button
                     type="button"
@@ -644,7 +733,9 @@ export default function CreateProjectPage() {
                 {/* Real-time Title Similarity Checking for expanded proposal */}
                 {titleProposals[expandedProposalIndex]?.title && (
                   <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3 mt-4">
-                    <p className="text-xs font-medium text-blue-900">Title Similarity Check (Proposal {expandedProposalIndex + 1})</p>
+                    <p className="text-xs font-medium text-blue-900">
+                      Title Similarity Check (Proposal {expandedProposalIndex + 1})
+                    </p>
                     <TitleSimilarityChecker
                       title={titleProposals[expandedProposalIndex].title}
                       keywords={keywordList}

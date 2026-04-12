@@ -131,7 +131,7 @@ describe('CreateProjectPage', () => {
 
   it('renders the similarity checker for the selected proposal title', async () => {
     const view = renderPage();
-    const proposalInput = view.container.querySelector('input[placeholder="Proposal 1 title"]');
+    const proposalInput = view.container.querySelector('input[id="proposal-0-title"]');
 
     expect(view.container.querySelector('[data-testid="title-similarity-checker"]')).toBeNull();
     expect(proposalInput).not.toBeNull();

@@ -153,7 +153,7 @@ describe('Projects API — /api/projects', () => {
           title: duplicatePayload.title,
           description:
             'Detailed description for duplicate payload primary proposal focused on implementation plan.',
-          capstoneType: 'Web Application',
+          capstoneType: ['Web Application'],
           sdgTags: ['SDG 4: Quality Education'],
         },
         ...duplicatePayload.titleProposals.filter(
@@ -1349,7 +1349,8 @@ describe('Projects API — /api/projects', () => {
   /* ────────── Certificate Download URL ────────── */
   describe('GET /:id/certificate — download completion certificate', () => {
     let projectId;
-    const certificateKey = 'archives/projects/test-project-id/certificates/completion-certificate.pdf';
+    const certificateKey =
+      'archives/projects/test-project-id/certificates/completion-certificate.pdf';
 
     beforeEach(async () => {
       const createRes = await studentAgent.post('/api/projects').send(validProjectPayload);

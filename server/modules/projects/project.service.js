@@ -45,11 +45,19 @@ class ProjectService {
       const title = typeof proposal.title === 'string' ? proposal.title.trim() : '';
       const description =
         typeof proposal.description === 'string' ? proposal.description.trim() : '';
-      const capstoneType =
-        typeof proposal.capstoneType === 'string' ? proposal.capstoneType.trim() : '';
+      const capstoneType = Array.isArray(proposal.capstoneType)
+        ? [
+            ...new Set(
+              proposal.capstoneType.map((ct) => (typeof ct === 'string' ? ct.trim() : '')),
+            ),
+          ].filter(Boolean)
+        : typeof proposal.capstoneType === 'string'
+          ? [proposal.capstoneType.trim()]
+          : [];
       const sdgTags = Array.isArray(proposal.sdgTags)
-        ? [...new Set(proposal.sdgTags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')))]
-            .filter(Boolean)
+        ? [
+            ...new Set(proposal.sdgTags.map((tag) => (typeof tag === 'string' ? tag.trim() : ''))),
+          ].filter(Boolean)
         : [];
 
       if (!title) continue;
@@ -181,7 +189,10 @@ class ProjectService {
     }
 
     const hasIncompleteProposalMetadata = normalizedTitleProposals.some(
-      (proposal) => !proposal.description || !proposal.capstoneType || proposal.sdgTags.length === 0,
+      (proposal) =>
+        !proposal.description ||
+        proposal.capstoneType.length === 0 ||
+        proposal.sdgTags.length === 0,
     );
     if (hasIncompleteProposalMetadata) {
       throw new AppError(
@@ -1203,7 +1214,7 @@ class ProjectService {
    * Advance a project to the next capstone phase (instructor action).
    *
    * Phase transitions:
-    * - 1 → 2: Requires chapter 1 upload signal OR proposal approved status
+   * - 1 → 2: Requires chapter 1 upload signal OR proposal approved status
    * - 2 → 3: Allowed once the instructor decides the team is ready
    * - 3 → 4: Allowed once the instructor decides the team is ready
    * - 4 → (none): Phase 4 is the final phase — cannot advance further.

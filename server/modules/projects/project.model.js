@@ -224,11 +224,12 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       maxlength: [1000, 'Title proposal description must not exceed 1000 characters'],
     },
     capstoneType: {
-      type: String,
+      type: [String],
       required: true,
-      trim: true,
-      minlength: [2, 'Capstone type must be at least 2 characters'],
-      maxlength: [120, 'Capstone type must not exceed 120 characters'],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length > 0 && arr.length <= 10,
+        message: 'Must provide between 1 and 10 capstone types',
+      },
     },
     sdgTags: {
       type: [String],

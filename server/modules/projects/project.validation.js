@@ -23,10 +23,15 @@ const titleProposalSchema = z.object({
     .min(20, 'Each proposal description must be at least 20 characters')
     .max(1000, 'Each proposal description must not exceed 1000 characters'),
   capstoneType: z
-    .string()
-    .trim()
-    .min(2, 'Each proposal capstone type must be at least 2 characters')
-    .max(120, 'Each proposal capstone type must not exceed 120 characters'),
+    .array(
+      z
+        .string()
+        .trim()
+        .min(2, 'Each capstone type must be at least 2 characters')
+        .max(120, 'Each capstone type must not exceed 120 characters'),
+    )
+    .min(1, 'Each proposal must include at least one capstone type')
+    .max(10, 'Each proposal can have at most 10 capstone types'),
   sdgTags: z
     .array(z.enum(SDG_TAG_SUGGESTIONS))
     .min(1, 'Each proposal must include at least one SDG tag')

@@ -102,7 +102,11 @@ function TitleProposalsSection({ project }) {
               ) : null}
               <div className="flex flex-wrap gap-1.5">
                 {metadata?.capstoneType ? (
-                  <Badge variant="secondary">{metadata.capstoneType}</Badge>
+                  <Badge variant="secondary">
+                    {Array.isArray(metadata.capstoneType)
+                      ? metadata.capstoneType.join(', ')
+                      : metadata.capstoneType}
+                  </Badge>
                 ) : null}
                 {metadata?.sdgTags?.map((tag, tagIdx) => (
                   <Badge key={`${title}-sdg-${tagIdx}`} variant="outline">
@@ -122,8 +126,10 @@ function TitleProposalsSection({ project }) {
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
 function ProjectInfoPanel({ project }) {
-  const capstoneTypeOrPhase =
-    project.capstoneType || project.projectType || `Capstone ${project.capstonePhase}`;
+  const capstoneRaw = project.capstoneType || project.projectType;
+  const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
+    ? capstoneRaw.join(', ')
+    : capstoneRaw || `Capstone ${project.capstonePhase}`;
 
   return (
     <Card>
@@ -978,7 +984,9 @@ export function ProjectHistoryCard({ projectId }) {
             )}
 
             {!isLoading && !isError && logs.length === 0 && (
-              <p className="text-sm text-muted-foreground">No history entries found for this project.</p>
+              <p className="text-sm text-muted-foreground">
+                No history entries found for this project.
+              </p>
             )}
 
             {!isLoading &&

@@ -152,8 +152,12 @@ export default function ProposalCompilationPage() {
   const chapterReady = [1, 2, 3].every((chapter) =>
     isChapterReady(chapterSubmissions.get(chapter)),
   );
-  const capstoneTypeOrPhase =
-    project?.capstoneType || project?.projectType || `Capstone ${project?.capstonePhase}`;
+
+  const capstoneRaw = project?.capstoneType || project?.projectType;
+  const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
+    ? capstoneRaw.join(', ')
+    : capstoneRaw || `Capstone ${project?.capstonePhase}`;
+
   const projectUnavailable =
     project?.projectStatus === PROJECT_STATUSES.REJECTED ||
     project?.projectStatus === PROJECT_STATUSES.ARCHIVED;

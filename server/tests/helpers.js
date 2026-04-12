@@ -146,7 +146,7 @@ export function createValidProjectPayload(teamId, courseId, sectionId, members =
   const buildProposal = (proposalTitle, index) => ({
     title: proposalTitle,
     description: `Detailed description for proposal ${index + 1} focusing on scope, objectives, and implementation approach.`,
-    capstoneType: 'Web Application',
+    capstoneType: ['Web Application'],
     sdgTags: ['SDG 4: Quality Education'],
   });
 

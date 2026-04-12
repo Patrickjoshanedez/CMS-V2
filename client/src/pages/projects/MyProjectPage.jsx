@@ -151,8 +151,10 @@ function RejectedProjectState({ project }) {
 }
 
 function ProjectInfoCard({ project }) {
-  const capstoneTypeOrPhase =
-    project.capstoneType || project.projectType || `Capstone ${project.capstonePhase}`;
+  const capstoneRaw = project.capstoneType || project.projectType;
+  const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
+    ? capstoneRaw.join(', ')
+    : capstoneRaw || `Capstone ${project.capstonePhase}`;
 
   return (
     <Card>
@@ -1096,7 +1098,9 @@ export default function MyProjectPage() {
           <EmptyProjectState team={isTeamLoading ? null : team} />
         )}
 
-        {!project && !isLoading && !error && <EmptyProjectState team={isTeamLoading ? null : team} />}
+        {!project && !isLoading && !error && (
+          <EmptyProjectState team={isTeamLoading ? null : team} />
+        )}
 
         {error && !isLoading && error.response?.status !== 404 && (
           <Alert variant="destructive">
