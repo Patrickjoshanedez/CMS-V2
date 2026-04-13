@@ -21,6 +21,7 @@ import {
   useProject,
   useApproveTitle,
   useRejectTitle,
+  useAddTitleComment,
   useResolveTitleModification,
   useAssignAdviser,
   useAssignPanelist,
@@ -131,10 +132,75 @@ export function resolveArchiveBackContext(locationState, locationSearch) {
 
 /* ────────── Sub-components ────────── */
 
-function TitleProposalsSection({ project }) {
+function TitleProposalsSection({ project, userRole }) {
+  const canVoteOnTitles = userRole === ROLES.INSTRUCTOR || userRole === ROLES.PANELIST;
+  const [voteForms, setVoteForms] = useState({});
+
+  const voteOnTitle = useAddTitleComment({
+    onSuccess: () => {
+      toast.success('Vote and remarks submitted.');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to submit vote.');
+    },
+  });
+
+  const approveTitle = useApproveTitle({
+    onSuccess: () => {
+      toast.success('Proposal approved.');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to approve proposal.');
+    },
+  });
+
+  const setVoteFormField = (proposalIndex, field, value) => {
+    setVoteForms((current) => ({
+      ...current,
+      [proposalIndex]: {
+        vote: current[proposalIndex]?.vote || '',
+        remarks: current[proposalIndex]?.remarks || '',
+        [field]: value,
+      },
+    }));
+  };
+
+  const parseVoteComment = (text) => {
+    const normalizedText = typeof text === 'string' ? text : '';
+    const voteMatch = normalizedText.match(/^Vote:\s*(Approve|Needs Revision|Reject)/im);
+    const remarksMatch = normalizedText.match(/Remarks:\s*([\s\S]*)$/im);
+
+    return {
+      vote: voteMatch ? voteMatch[1] : null,
+      remarks: remarksMatch ? remarksMatch[1].trim() : '',
+    };
+  };
+
   if (!project.titleProposals || project.titleProposals.length === 0) {
     return null;
   }
+
+  const submitVote = (proposalIndex) => {
+    const current = voteForms[proposalIndex] || { vote: '', remarks: '' };
+    const vote = current.vote?.trim();
+    const remarks = current.remarks?.trim();
+
+    if (!vote || !remarks) {
+      toast.error('Please select a vote and add remarks before submitting.');
+      return;
+    }
+
+    voteOnTitle.mutate({
+      projectId: project._id,
+      proposalId: String(proposalIndex),
+      text: `Vote: ${vote}\nRemarks: ${remarks}`,
+    });
+
+    setVoteForms((currentForms) => ({
+      ...currentForms,
+      [proposalIndex]: { vote: '', remarks: '' },
+    }));
+  };
 
   return (
     <Card>
@@ -148,6 +214,18 @@ function TitleProposalsSection({ project }) {
         {project.titleProposals.map((proposal, idx) => {
           const title = typeof proposal === 'string' ? proposal : proposal?.title;
           const metadata = project.titleProposalMetadata?.find((entry) => entry?.title === title);
+          const commentThread = (project.titleProposalComments || []).find(
+            (thread) => Number(thread?.proposalIndex) === idx,
+          );
+          const voteEntries = (commentThread?.comments || [])
+            .map((comment) => ({
+              ...comment,
+              ...parseVoteComment(comment?.text),
+            }))
+            .filter((entry) => Boolean(entry.vote));
+          const currentVoteForm = voteForms[idx] || { vote: '', remarks: '' };
+          const canApproveProposal = userRole === ROLES.INSTRUCTOR;
+          const canApproveNow = project.titleStatus === TITLE_STATUSES.SUBMITTED;
 
           return (
             <div
@@ -175,6 +253,106 @@ function TitleProposalsSection({ project }) {
                   </Badge>
                 ))}
               </div>
+
+              {voteEntries.length > 0 && (
+                <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Votes & Remarks
+                  </p>
+                  {voteEntries.map((entry, voteIndex) => (
+                    <div
+                      key={`${idx}-vote-${voteIndex}`}
+                      className="space-y-1 rounded-md border bg-background p-2"
+                    >
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {entry.name || 'Reviewer'}
+                        </span>
+                        <Badge variant="outline">{entry.vote}</Badge>
+                        {entry.createdAt ? (
+                          <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                        ) : null}
+                      </div>
+                      {entry.remarks ? (
+                        <p className="text-sm text-muted-foreground">{entry.remarks}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {canVoteOnTitles && (
+                <div className="space-y-3 rounded-md border bg-background/80 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Cast Vote
+                  </p>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`proposal-vote-${idx}`}>Vote</Label>
+                    <select
+                      id={`proposal-vote-${idx}`}
+                      value={currentVoteForm.vote}
+                      onChange={(event) => setVoteFormField(idx, 'vote', event.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select vote</option>
+                      <option value="Approve">Approve</option>
+                      <option value="Needs Revision">Needs Revision</option>
+                      <option value="Reject">Reject</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`proposal-remarks-${idx}`}>Remarks</Label>
+                    <Textarea
+                      id={`proposal-remarks-${idx}`}
+                      value={currentVoteForm.remarks}
+                      onChange={(event) => setVoteFormField(idx, 'remarks', event.target.value)}
+                      placeholder="Add your decision notes for this title proposal"
+                      className="min-h-24"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      disabled={voteOnTitle.isPending}
+                      onClick={() => submitVote(idx)}
+                    >
+                      {voteOnTitle.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Submit Vote
+                    </Button>
+
+                    {canApproveProposal && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={approveTitle.isPending || !canApproveNow}
+                        onClick={() => {
+                          const confirmed = window.confirm(
+                            `Approve Proposal ${idx + 1}? This will set this proposal as the approved project title.`,
+                          );
+                          if (!confirmed) return;
+                          approveTitle.mutate({ projectId: project._id, proposalId: idx });
+                        }}
+                      >
+                        {approveTitle.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Approve Proposal
+                      </Button>
+                    )}
+                  </div>
+
+                  {canApproveProposal && !canApproveNow ? (
+                    <p className="text-xs text-muted-foreground">
+                      Proposal approval is available only while title status is Submitted.
+                    </p>
+                  ) : null}
+                </div>
+              )}
             </div>
           );
         })}
@@ -252,7 +430,9 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
           <div className="flex items-start gap-2 text-sm sm:col-span-2 lg:col-span-3">
             <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Authors:</span>
-            <span className="font-medium">{authors.length ? authors.join(', ') : 'Not available'}</span>
+            <span className="font-medium">
+              {authors.length ? authors.join(', ') : 'Not available'}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -863,6 +1043,10 @@ function AdvancePhaseCard({ project }) {
 
   const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
   const isMaxPhase = currentPhase >= CAPSTONE_PHASES.PHASE_4;
+  const isProposalStage = currentPhase === CAPSTONE_PHASES.PHASE_1;
+  const currentStageLabel =
+    currentPhase === CAPSTONE_PHASES.PHASE_1 ? 'Proposal Stage' : `Capstone ${currentPhase - 1}`;
+  const nextStageLabel = isMaxPhase ? 'Final Phase Reached' : `Advance to Capstone ${currentPhase}`;
 
   return (
     <Card>
@@ -872,22 +1056,28 @@ function AdvancePhaseCard({ project }) {
           Capstone Phase
         </CardTitle>
         <CardDescription>
-          Currently in <strong>Capstone {currentPhase}</strong>.
-          {isMaxPhase ? ' This project is at the final phase.' : ' Advance when the team is ready.'}
+          Currently in <strong>{currentStageLabel}</strong>.
+          {isProposalStage
+            ? ' Approve the proposal first to unlock Capstone 1.'
+            : isMaxPhase
+              ? ' This project is at the final phase.'
+              : ' Advance when the team is ready.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button
-          disabled={isMaxPhase || advance.isPending}
-          onClick={() => advance.mutate(project._id)}
-        >
-          {advance.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUpCircle className="mr-2 h-4 w-4" />
-          )}
-          {isMaxPhase ? 'Final Phase Reached' : `Advance to Capstone ${currentPhase + 1}`}
-        </Button>
+        {!isProposalStage && (
+          <Button
+            disabled={isMaxPhase || advance.isPending}
+            onClick={() => advance.mutate(project._id)}
+          >
+            {advance.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUpCircle className="mr-2 h-4 w-4" />
+            )}
+            {nextStageLabel}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -1137,7 +1327,8 @@ export default function ProjectDetailPage() {
     { enabled: !!project?._id && isArchived },
   );
 
-  const finalManuscriptUrl = finalAcademicData?.[0]?.fileUrl || finalAcademicData?.submissions?.[0]?.fileUrl;
+  const finalManuscriptUrl =
+    finalAcademicData?.[0]?.fileUrl || finalAcademicData?.submissions?.[0]?.fileUrl;
 
   const { backDestination, backLabel } = resolveArchiveBackContext(location.state, location.search);
 
@@ -1160,7 +1351,9 @@ export default function ProjectDetailPage() {
 
   const relatedProjects = useMemo(() => {
     const adviserId = project?.adviserId?._id;
-    const currentKeywords = new Set((project?.keywords || []).map((kw) => String(kw).toLowerCase()));
+    const currentKeywords = new Set(
+      (project?.keywords || []).map((kw) => String(kw).toLowerCase()),
+    );
 
     const candidates = (relatedArchiveData?.projects || []).filter(
       (candidate) => String(candidate._id) !== String(project?._id),
@@ -1382,7 +1575,11 @@ export default function ProjectDetailPage() {
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {(related.keywords || []).slice(0, 2).map((keyword) => (
-                            <Badge key={`${related._id}-${keyword}`} variant="outline" className="text-[11px]">
+                            <Badge
+                              key={`${related._id}-${keyword}`}
+                              variant="outline"
+                              className="text-[11px]"
+                            >
                               {keyword}
                             </Badge>
                           ))}
@@ -1393,13 +1590,13 @@ export default function ProjectDetailPage() {
                 </CardContent>
               </Card>
             )}
-            
+
             {!isPeer && (
               <>
                 {/* History tab with audit trail */}
                 <ProjectHistoryCard projectId={project._id} />
 
-                {!isArchived && <TitleProposalsSection project={project} />}
+                {!isArchived && <TitleProposalsSection project={project} userRole={user?.role} />}
 
                 {/* Chapter progress + rounds (faculty visibility) */}
                 <ChapterProgressWithRounds
@@ -1412,114 +1609,118 @@ export default function ProjectDetailPage() {
                   showAllSubmissionsButton={false}
                 />
 
-            {/* Title review — only when submitted */}
-            {!isArchived && project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
-              <TitleReviewCard project={project} />
-            )}
+                {/* Title review — only when submitted */}
+                {!isArchived &&
+                  project.titleStatus === TITLE_STATUSES.SUBMITTED &&
+                  isInstructor && <TitleReviewCard project={project} />}
 
-            {/* Modification review — only when pending */}
-            {!isArchived &&
-              project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
-              project.titleModificationRequest?.status === 'pending' &&
-              project.titleModificationRequest?.proposedTitle &&
-              isInstructor && <ModificationReviewCard project={project} />}
+                {/* Modification review — only when pending */}
+                {!isArchived &&
+                  project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
+                  project.titleModificationRequest?.status === 'pending' &&
+                  project.titleModificationRequest?.proposedTitle &&
+                  isInstructor && <ModificationReviewCard project={project} />}
 
-            {/* Assign adviser — instructor only */}
-            {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
+                {/* Assign adviser — instructor only */}
+                {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
 
-            {/* Panelists — instructor only */}
-            {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
+                {/* Panelists — instructor only */}
+                {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
 
-            {/* Deadlines — instructor or adviser */}
-            {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
-              <DeadlinesCard project={project} isInstructor={isInstructor} />
-            )}
+                {/* Deadlines — instructor or adviser */}
+                {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
+                  <DeadlinesCard project={project} isInstructor={isInstructor} />
+                )}
 
-            {/* Advance phase — instructor only */}
-            {!isArchived && isInstructor && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-              <AdvancePhaseCard project={project} />
-            )}
+                {/* Advance phase — instructor only */}
+                {!isArchived &&
+                  isInstructor &&
+                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+                    <AdvancePhaseCard project={project} />
+                  )}
 
-            {/* Archive transition — instructor only (Capstone 4) */}
-            {!isArchived &&
-              isInstructor &&
-              project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
-              project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-                <ArchiveProjectCard project={project} />
-              )}
+                {/* Archive transition — instructor only (Capstone 4) */}
+                {!isArchived &&
+                  isInstructor &&
+                  project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+                    <ArchiveProjectCard project={project} />
+                  )}
 
-            {/* Prototype showcase — visible to all faculty */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
-              <PrototypeGallery projectId={project._id} canDelete={false} />
-            )}
+                {/* Prototype showcase — visible to all faculty */}
+                {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
+                  <PrototypeGallery projectId={project._id} canDelete={false} />
+                )}
 
-            {/* Evaluation panels — proposal defense */}
-            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
-              <EvaluationPanel projectId={project._id} defenseType="proposal" />
-            )}
+                {/* Evaluation panels — proposal defense */}
+                {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
+                  <EvaluationPanel projectId={project._id} defenseType="proposal" />
+                )}
 
-            {/* Evaluation panels — final defense (Capstone 4) */}
-            {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
-              <EvaluationPanel projectId={project._id} defenseType="final" />
-            )}
+                {/* Evaluation panels — final defense (Capstone 4) */}
+                {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
+                  <EvaluationPanel projectId={project._id} defenseType="final" />
+                )}
 
-            {/* Final paper upload — Capstone 4 */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
-              !isArchived &&
-              (user?.role === ROLES.STUDENT || isInstructor) && (
-                <FinalPaperUpload projectId={project._id} />
-              )}
+                {/* Final paper upload — Capstone 4 */}
+                {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
+                  !isArchived &&
+                  (user?.role === ROLES.STUDENT || isInstructor) && (
+                    <FinalPaperUpload projectId={project._id} />
+                  )}
 
-            {/* Documents workspace quick action */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Documents Workspace
-                </CardTitle>
-                <CardDescription>
-                  Open the manuscript workspace with this project pre-selected.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Open Documents Workspace
-                </Button>
-              </CardContent>
-            </Card>
+                {/* Documents workspace quick action */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Documents Workspace
+                    </CardTitle>
+                    <CardDescription>
+                      Open the manuscript workspace with this project pre-selected.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Open Documents Workspace
+                    </Button>
+                  </CardContent>
+                </Card>
 
-            {/* Certificate link — archived projects only */}
-            {isArchived && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="h-5 w-5" />
-                    Completion Certificate
-                  </CardTitle>
-                  <CardDescription>
-                    View or manage the completion certificate for this project.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(`/projects/${project._id}/certificate`)}
-                  >
-                    <Award className="mr-2 h-4 w-4" />
-                    Go to Certificate
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                {/* Certificate link — archived projects only */}
+                {isArchived && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Award className="h-5 w-5" />
+                        Completion Certificate
+                      </CardTitle>
+                      <CardDescription>
+                        View or manage the completion certificate for this project.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                      >
+                        <Award className="mr-2 h-4 w-4" />
+                        Go to Certificate
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
 
-            {/* Reject project — instructor only */}
-            {!isArchived && isInstructor && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-              <RejectProjectCard project={project} />
-            )}
+                {/* Reject project — instructor only */}
+                {!isArchived &&
+                  isInstructor &&
+                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+                    <RejectProjectCard project={project} />
+                  )}
               </>
             )}
           </>

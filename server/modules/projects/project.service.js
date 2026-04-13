@@ -44,7 +44,9 @@ function toBoundedThreshold(value, fallback) {
  */
 class ProjectService {
   async getCreateProjectDraft(userId) {
-    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    const user = await User.findById(userId).select(
+      '+createProjectDraft +createProjectDraftUpdatedAt',
+    );
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
     return {
@@ -54,7 +56,9 @@ class ProjectService {
   }
 
   async saveCreateProjectDraft(userId, draft) {
-    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    const user = await User.findById(userId).select(
+      '+createProjectDraft +createProjectDraftUpdatedAt',
+    );
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
     user.createProjectDraft = draft;
@@ -68,7 +72,9 @@ class ProjectService {
   }
 
   async clearCreateProjectDraft(userId) {
-    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    const user = await User.findById(userId).select(
+      '+createProjectDraft +createProjectDraftUpdatedAt',
+    );
     if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
 
     user.createProjectDraft = null;
@@ -681,7 +687,7 @@ class ProjectService {
    * @param {string} instructorId
    * @returns {Object} { project }
    */
-  async approveTitle(projectId, instructorId) {
+  async approveTitle(projectId, instructorId, data = {}) {
     const project = await this._getProjectOrFail(projectId);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
@@ -690,6 +696,35 @@ class ProjectService {
         400,
         'INVALID_STATUS_TRANSITION',
       );
+    }
+
+    if (data?.proposalId !== undefined && data?.proposalId !== null && data?.proposalId !== '') {
+      const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+      let proposalIndex = -1;
+
+      if (typeof data.proposalId === 'number' && Number.isInteger(data.proposalId)) {
+        proposalIndex = data.proposalId;
+      } else if (/^\d+$/.test(String(data.proposalId))) {
+        proposalIndex = Number.parseInt(String(data.proposalId), 10);
+      }
+
+      if (proposalIndex < 0 || proposalIndex >= proposals.length) {
+        throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
+      }
+
+      const selectedProposal = proposals[proposalIndex];
+      const selectedTitle =
+        typeof selectedProposal === 'string'
+          ? selectedProposal.trim()
+          : typeof selectedProposal?.title === 'string'
+            ? selectedProposal.title.trim()
+            : '';
+
+      if (!selectedTitle) {
+        throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
+      }
+
+      project.title = selectedTitle;
     }
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
@@ -1910,17 +1945,23 @@ class ProjectService {
           projects: yearGroups.get(yearKey),
         })),
         filterOptions: {
-          academicYears: [...new Set(records.map((record) => record.academicYear).filter(Boolean))].sort(
-            (a, b) => b.localeCompare(a),
+          academicYears: [
+            ...new Set(records.map((record) => record.academicYear).filter(Boolean)),
+          ].sort((a, b) => b.localeCompare(a)),
+          authors: [
+            ...new Set(
+              records
+                .flatMap((record) => record.authors.map((item) => item.fullName))
+                .filter(Boolean),
+            ),
+          ].sort((a, b) => a.localeCompare(b)),
+          advisers: [...uniqueAdvisers.values()].sort((a, b) =>
+            a.fullName.localeCompare(b.fullName),
           ),
-          authors: [...new Set(records.flatMap((record) => record.authors.map((item) => item.fullName)).filter(Boolean))].sort(
-            (a, b) => a.localeCompare(b),
-          ),
-          advisers: [...uniqueAdvisers.values()].sort((a, b) => a.fullName.localeCompare(b.fullName)),
           programs: [...uniquePrograms.values()].sort((a, b) => a.label.localeCompare(b.label)),
-          keywords: [...new Set(records.flatMap((record) => record.keywords || []).filter(Boolean))].sort(
-            (a, b) => a.localeCompare(b),
-          ),
+          keywords: [
+            ...new Set(records.flatMap((record) => record.keywords || []).filter(Boolean)),
+          ].sort((a, b) => a.localeCompare(b)),
         },
       },
     };
@@ -2053,8 +2094,12 @@ class ProjectService {
       const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
 
       if (
-        (!normalizedTitle || !normalizedAbstract || resolvedAuthors.length === 0 || !resolvedPublicationYear || resolvedKeywords.length === 0)
-        && academicPaperFile?.buffer
+        (!normalizedTitle ||
+          !normalizedAbstract ||
+          resolvedAuthors.length === 0 ||
+          !resolvedPublicationYear ||
+          resolvedKeywords.length === 0) &&
+        academicPaperFile?.buffer
       ) {
         try {
           const extracted = await extractPdfMetadata(academicPaperFile.buffer);
@@ -2081,7 +2126,10 @@ class ProjectService {
           }
           metadataExtractedAt = new Date();
         } catch (error) {
-          console.warn('[ProjectService] PDF metadata extraction failed during archive upload:', error?.message);
+          console.warn(
+            '[ProjectService] PDF metadata extraction failed during archive upload:',
+            error?.message,
+          );
         }
       }
 
@@ -2093,7 +2141,10 @@ class ProjectService {
         );
       }
 
-      similarityAudit = await this._computeArchiveSimilarityAudit(normalizedTitle, normalizedAbstract);
+      similarityAudit = await this._computeArchiveSimilarityAudit(
+        normalizedTitle,
+        normalizedAbstract,
+      );
 
       // Create an internal placeholder team to satisfy project schema invariants.
       archiveTeam = await Team.create({

@@ -160,8 +160,25 @@ export default function CreateProjectPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const createProject = useCreateProject({
-    onSuccess: () => {
-      toast.success('Project created successfully!');
+    onSuccess: async (result) => {
+      const createdProjectId = result?.data?.project?._id || result?.project?._id;
+
+      if (!createdProjectId) {
+        toast.success('Project created successfully.');
+        navigate('/project');
+        return;
+      }
+
+      try {
+        await projectService.submitTitle(createdProjectId);
+        toast.success('Project submitted for instructor approval.');
+      } catch (submitError) {
+        toast.error(
+          submitError?.response?.data?.error?.message ||
+            'Project created, but automatic submission failed. Please submit from My Capstone.',
+        );
+      }
+
       navigate('/project');
     },
     onError: (err) => {
@@ -689,7 +706,7 @@ export default function CreateProjectPage() {
               disabled={createProject.isPending || needsTeamFinalization}
             >
               {createProject.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit Project
+              Submit Project for Approval
             </Button>
           </div>
         </div>
@@ -1023,8 +1040,8 @@ export default function CreateProjectPage() {
                               </p>
                               {proposalPlagiarismResults[index] && (
                                 <p className="text-sm text-muted-foreground mt-1">
-                                  Originality: {proposalPlagiarismResults[index].originalityScore}% | Similarity:{' '}
-                                  {proposalPlagiarismResults[index].similarityScore}%
+                                  Originality: {proposalPlagiarismResults[index].originalityScore}%
+                                  | Similarity: {proposalPlagiarismResults[index].similarityScore}%
                                 </p>
                               )}
                             </div>

@@ -273,7 +273,9 @@ function EditTitleForm({ project }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Title Actions</CardTitle>
-          <CardDescription>Your title is in draft. Edit your project details below.</CardDescription>
+          <CardDescription>
+            Your title is in draft. Edit your project details below.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex gap-3">
           <Button variant="outline" onClick={() => setEditing(true)}>
@@ -635,8 +637,7 @@ function TitlePendingCard({ titleStatus }) {
             <div className="mt-3 flex items-center gap-2 rounded-md bg-white/60 dark:bg-black/20 px-3 py-2">
               <Lock className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">
-                Chapter submissions are locked until your title is approved and panelists are
-                assigned.
+                Chapter submissions are locked until your title is approved.
               </span>
             </div>
           )}
@@ -648,17 +649,15 @@ function TitlePendingCard({ titleStatus }) {
 
 /**
  * WorkflowPrerequisiteBanner — prominent banner explaining the workflow
- * when the title is not yet approved.
+ * until the title is approved.
  */
-function WorkflowPrerequisiteBanner({ titleStatus, hasPanelists }) {
-  // Only show when title is not approved or when approved but no panelists
-  if (titleStatus === TITLE_STATUSES.APPROVED && hasPanelists) return null;
+function WorkflowPrerequisiteBanner({ titleStatus }) {
+  if (titleStatus === TITLE_STATUSES.APPROVED) return null;
 
   const getStep = () => {
     if (titleStatus === TITLE_STATUSES.DRAFT) return 1;
     if (titleStatus === TITLE_STATUSES.SUBMITTED) return 2;
     if (titleStatus === TITLE_STATUSES.REVISION_REQUIRED) return 1;
-    if (titleStatus === TITLE_STATUSES.APPROVED && !hasPanelists) return 3;
     return 1;
   };
 
@@ -672,11 +671,6 @@ function WorkflowPrerequisiteBanner({ titleStatus, hasPanelists }) {
         titleStatus !== TITLE_STATUSES.DRAFT && titleStatus !== TITLE_STATUSES.REVISION_REQUIRED,
     },
     { num: 2, label: 'Get Approved', completed: titleStatus === TITLE_STATUSES.APPROVED },
-    {
-      num: 3,
-      label: 'Panelists Assigned',
-      completed: titleStatus === TITLE_STATUSES.APPROVED && hasPanelists,
-    },
   ];
 
   return (
@@ -952,10 +946,10 @@ export default function MyProjectPage() {
   );
 
   // Derived unlock conditions
-  const hasPanelists = project?.panelistIds?.length > 0;
   const titleStatus = project?.titleStatus;
   const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
-  const capstone1Unlocked = titleApproved && hasPanelists;
+  const hasPanelists = Array.isArray(project?.panelistIds) && project.panelistIds.length > 0;
+  const capstone1Unlocked = titleApproved;
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
   const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
@@ -1010,9 +1004,6 @@ export default function MyProjectPage() {
     if (tabName === 'capstone_1') {
       if (!titleApproved) {
         return 'Your title must be approved before you can access Capstone 1.';
-      }
-      if (!hasPanelists) {
-        return 'Waiting for instructor to assign panelists before you can proceed.';
       }
     }
     if (tabName === 'capstone_2') {
@@ -1165,13 +1156,8 @@ export default function MyProjectPage() {
                 <TabsContent value="proposal">
                   {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
 
-                  {/* Show workflow prerequisite banner when title not yet approved or no panelists */}
-                  {(!titleApproved || !hasPanelists) && (
-                    <WorkflowPrerequisiteBanner
-                      titleStatus={titleStatus}
-                      hasPanelists={hasPanelists}
-                    />
-                  )}
+                  {/* Show workflow prerequisite banner until title approval */}
+                  {!titleApproved && <WorkflowPrerequisiteBanner titleStatus={titleStatus} />}
 
                   {/* Show TitlePendingCard for non-approved title states (placed above ProjectInfoCard) */}
                   {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (

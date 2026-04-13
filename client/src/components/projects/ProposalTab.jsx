@@ -40,7 +40,9 @@ const PROPOSAL_DRAFT_STORAGE_PREFIX = 'cms:proposal-draft';
 
 function normalizeProposalItems(project) {
   const proposals = Array.isArray(project?.titleProposals) ? project.titleProposals : [];
-  const metadata = Array.isArray(project?.titleProposalMetadata) ? project.titleProposalMetadata : [];
+  const metadata = Array.isArray(project?.titleProposalMetadata)
+    ? project.titleProposalMetadata
+    : [];
 
   return proposals
     .map((proposal, index) => {
@@ -73,9 +75,7 @@ function parsePitchDeckFromDescription(description = '') {
 
   PITCH_DECK_FIELDS.forEach((field, index) => {
     const nextFieldLabel = PITCH_DECK_FIELDS[index + 1]?.label;
-    const nextFieldBoundary = nextFieldLabel
-      ? `(?=\\s*${escapeRegex(nextFieldLabel)}\\s*:)`
-      : '$';
+    const nextFieldBoundary = nextFieldLabel ? `(?=\\s*${escapeRegex(nextFieldLabel)}\\s*:)` : '$';
     const matcher = new RegExp(
       `${escapeRegex(field.label)}\\s*:\\s*([\\s\\S]*?)${nextFieldBoundary}`,
       'i',
@@ -182,7 +182,10 @@ export default function ProposalTab({ project }) {
       ...draft,
     };
 
-    window.localStorage.setItem(getDraftStorageKey(project._id, proposal.id), JSON.stringify(payload));
+    window.localStorage.setItem(
+      getDraftStorageKey(project._id, proposal.id),
+      JSON.stringify(payload),
+    );
     toast.success('Proposal draft saved locally.');
   };
 

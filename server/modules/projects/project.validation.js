@@ -153,7 +153,9 @@ export const submitTitleSchema = z.object({}).strict();
 
 /* ───── Approve title (instructor action) ───── */
 
-export const approveTitleSchema = z.object({}).strict();
+export const approveTitleSchema = z.object({
+  proposalId: z.union([z.string().trim().min(1), z.number().int().nonnegative()]).optional(),
+});
 
 /* ───── Reject title (instructor action) ───── */
 
@@ -334,8 +336,14 @@ export const searchArchiveQuerySchema = z.object({
 /* ───── Generate report query ───── */
 
 export const reportQuerySchema = z.object({
-  academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format').optional(),
-  year: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format').optional(),
+  academicYear: z
+    .string()
+    .regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format')
+    .optional(),
+  year: z
+    .string()
+    .regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format')
+    .optional(),
   adviserId: objectId.optional(),
   title: z.string().trim().max(300, 'Title must not exceed 300 characters').optional(),
   author: z.string().trim().max(200, 'Author must not exceed 200 characters').optional(),
@@ -371,15 +379,11 @@ export const bulkUploadSchema = z.object({
     },
     z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
   ),
-  publicationYear: z
-    .preprocess(
-      (val) => {
-        if (val === '' || val === null || val === undefined) return undefined;
-        const parsed = Number(val);
-        return Number.isFinite(parsed) ? parsed : val;
-      },
-      z.number().int().min(1900).max(2100).optional(),
-    ),
+  publicationYear: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const parsed = Number(val);
+    return Number.isFinite(parsed) ? parsed : val;
+  }, z.number().int().min(1900).max(2100).optional()),
   doi: z.string().trim().max(255).optional().default(''),
   publicationVenue: z.string().trim().max(255).optional().default(''),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),

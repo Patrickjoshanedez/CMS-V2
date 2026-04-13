@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import { TagInput } from '@/components/ui/TagInput';
 import {
   UsersRound,
   UserPlus,
@@ -35,7 +36,9 @@ import {
   useLockTeam,
   useLeaveTeam,
 } from '@/hooks/useTeams';
+import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
+import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
 
 /**
@@ -839,14 +842,14 @@ function StudentTeamDetail({ team, userId }) {
               </Button>
 
               {isLeader && (
-              <Button
-                type="button"
-                onClick={() => lockTeam.mutate({ teamId: team._id })}
-                disabled={lockTeam.isPending || leaveTeam.isPending}
-              >
-                {lockTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Finalize Team
-              </Button>
+                <Button
+                  type="button"
+                  onClick={() => lockTeam.mutate({ teamId: team._id })}
+                  disabled={lockTeam.isPending || leaveTeam.isPending}
+                >
+                  {lockTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Finalize Team
+                </Button>
               )}
             </div>
           )}
@@ -919,11 +922,81 @@ function TeamCard({ team }) {
   );
 }
 
-function FacultyTeamDetail({ team }) {
+function FacultyTeamDetail({ team, canAssignCommittee = false }) {
   const leader = team.leaderId;
   const members = team.members || [];
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
+  const [adviserSelection, setAdviserSelection] = useState([]);
+  const [panelistSelection, setPanelistSelection] = useState([]);
+
+  const { data: adviserData = {} } = useUsers(
+    { role: ROLES.ADVISER, limit: 100 },
+    {
+      enabled: canAssignCommittee,
+    },
+  );
+  const { data: panelistData = {} } = useUsers(
+    { role: ROLES.PANELIST, limit: 100 },
+    {
+      enabled: canAssignCommittee,
+    },
+  );
+
+  const assignAdviser = useAssignAdviser({
+    onSuccess: () => {
+      toast.success('Adviser assigned.');
+      setAdviserSelection([]);
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to assign adviser.'),
+  });
+
+  const addPanelist = useAssignPanelist({
+    onSuccess: () => {
+      toast.success('Panelist added.');
+      setPanelistSelection([]);
+    },
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to add panelist.'),
+  });
+
+  const removePanelist = useRemovePanelist({
+    onSuccess: () => toast.success('Panelist removed.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to remove panelist.'),
+  });
+
+  const getUserLabel = (user) => `${formatName(user)}${user.email ? ` (${user.email})` : ''}`;
+  const advisers = adviserData.users || [];
+  const panelistCandidates = panelistData.users || [];
+  const adviserSuggestions = advisers.map(getUserLabel);
+  const panelistSuggestions = panelistCandidates
+    .filter(
+      (candidate) => !panelists.some((panelist) => (panelist._id || panelist) === candidate._id),
+    )
+    .map(getUserLabel);
+  const panelistSelectionLabel = panelistSelection[0] || '';
+  const adviserSelectionLabel = adviserSelection[0] || '';
+
+  const handleAssignAdviser = () => {
+    const selectedAdviser = advisers.find((user) => getUserLabel(user) === adviserSelectionLabel);
+    if (!selectedAdviser) return;
+    assignAdviser.mutate({
+      projectId: assignment.projectId || team.projectId || team._id,
+      adviserId: selectedAdviser._id,
+    });
+  };
+
+  const handleAddPanelist = () => {
+    const selectedPanelist = panelistCandidates.find(
+      (user) => getUserLabel(user) === panelistSelectionLabel,
+    );
+    if (!selectedPanelist) return;
+    addPanelist.mutate({
+      projectId: assignment.projectId || team.projectId || team._id,
+      panelistId: selectedPanelist._id,
+    });
+  };
 
   return (
     <Card>
@@ -996,6 +1069,90 @@ function FacultyTeamDetail({ team }) {
                 <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
               )}
             </div>
+
+            {canAssignCommittee && (
+              <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Assign Adviser
+                  </Label>
+                  <TagInput
+                    value={adviserSelection}
+                    onChange={setAdviserSelection}
+                    suggestions={adviserSuggestions}
+                    placeholder="Type to search advisers"
+                    maxTags={1}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    disabled={!adviserSelectionLabel || assignAdviser.isPending}
+                    onClick={handleAssignAdviser}
+                  >
+                    {assignAdviser.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Save Adviser
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Add Panelist
+                  </Label>
+                  <TagInput
+                    value={panelistSelection}
+                    onChange={setPanelistSelection}
+                    suggestions={panelistSuggestions}
+                    placeholder="Type to search panelists"
+                    maxTags={1}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    disabled={!panelistSelectionLabel || addPanelist.isPending}
+                    onClick={handleAddPanelist}
+                  >
+                    {addPanelist.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Add Panelist
+                  </Button>
+                </div>
+
+                {panelists.length > 0 && (
+                  <div className="space-y-2">
+                    {panelists.map((panelist) => {
+                      const panelistId = panelist._id || panelist;
+                      return (
+                        <div
+                          key={panelistId}
+                          className="flex items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <span>{formatName(panelist)}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={removePanelist.isPending}
+                            onClick={() =>
+                              removePanelist.mutate({
+                                projectId: assignment.projectId || team.projectId || team._id,
+                                panelistId,
+                              })
+                            }
+                          >
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

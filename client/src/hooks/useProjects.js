@@ -170,8 +170,12 @@ export function useRequestTitleModification(options = {}) {
 
 /** Approve a submitted title (instructor) */
 export function useApproveTitle(options = {}) {
-  return useProjectMutation(async (projectId) => {
-    const res = await projectService.approveTitle(projectId);
+  return useProjectMutation(async (payload) => {
+    const projectId = typeof payload === 'string' ? payload : payload.projectId;
+    const res = await projectService.approveTitle(
+      projectId,
+      typeof payload === 'string' ? {} : payload,
+    );
     return res.data;
   }, options);
 }
@@ -180,6 +184,14 @@ export function useApproveTitle(options = {}) {
 export function useRejectTitle(options = {}) {
   return useProjectMutation(async ({ projectId, reason }) => {
     const res = await projectService.rejectTitle(projectId, { reason });
+    return res.data;
+  }, options);
+}
+
+/** Add a comment to a title proposal */
+export function useAddTitleComment(options = {}) {
+  return useProjectMutation(async ({ projectId, proposalId, text }) => {
+    const res = await projectService.addTitleComment(projectId, proposalId, { text });
     return res.data;
   }, options);
 }

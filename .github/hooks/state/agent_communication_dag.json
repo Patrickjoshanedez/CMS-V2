@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-13T06:49:38.428796Z",
+  "generated_at": "2026-04-13T08:42:34.248182Z",
   "metadata": {
     "agent_count": 10,
     "edges_count": 8,
@@ -108,7 +108,12 @@
   "edges": [
     {
       "source": "orchestrator",
-      "target": "researcher",
+      "target": "test-automation",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "coder",
       "bidirectional": false
     },
     {
@@ -118,7 +123,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "logic-debugger",
+      "target": "researcher",
       "bidirectional": false
     },
     {
@@ -133,17 +138,12 @@
     },
     {
       "source": "orchestrator",
-      "target": "test-automation",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "thinker pro",
       "bidirectional": false
     },
     {
       "source": "orchestrator",
-      "target": "coder",
+      "target": "logic-debugger",
       "bidirectional": false
     }
   ],

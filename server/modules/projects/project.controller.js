@@ -1,7 +1,11 @@
 import projectService from './project.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
-import { calculateProposalSimilarity, extractMatchingKeywords, tokenize } from '../../utils/proposalSimilarity.js';
+import {
+  calculateProposalSimilarity,
+  extractMatchingKeywords,
+  tokenize,
+} from '../../utils/proposalSimilarity.js';
 import { checkOriginality } from '../../services/plagiarism.service.js';
 import Project from './project.model.js';
 
@@ -53,7 +57,9 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
   const allProjects = await Project.find(matchFilter)
     .sort({ createdAt: -1 })
     .limit(500)
-    .select('title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status')
+    .select(
+      'title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status',
+    )
     .lean();
 
   const submittedProposalText = buildProposalText({
@@ -227,7 +233,7 @@ export const submitTitle = catchAsync(async (req, res) => {
 
 /** POST /api/projects/:id/title/approve — Approve a submitted title */
 export const approveTitle = catchAsync(async (req, res) => {
-  const { project } = await projectService.approveTitle(req.params.id, req.user._id);
+  const { project } = await projectService.approveTitle(req.params.id, req.user._id, req.body);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -508,10 +514,14 @@ export const generateReport = catchAsync(async (req, res) => {
 
 /** POST /api/projects/archive/bulk — Bulk upload an archived capstone bundle (Instructor) */
 export const bulkUploadArchive = catchAsync(async (req, res) => {
-  const { project, submissions, similarity } = await projectService.bulkUploadArchive(req.user._id, req.body, {
-    academicPaperFile: req.files?.academicPaperFile?.[0] || null,
-    academicJournalFile: req.files?.academicJournalFile?.[0] || null,
-  });
+  const { project, submissions, similarity } = await projectService.bulkUploadArchive(
+    req.user._id,
+    req.body,
+    {
+      academicPaperFile: req.files?.academicPaperFile?.[0] || null,
+      academicJournalFile: req.files?.academicJournalFile?.[0] || null,
+    },
+  );
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
