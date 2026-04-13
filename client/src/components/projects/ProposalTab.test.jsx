@@ -23,6 +23,7 @@ vi.mock('sonner', () => ({
 }));
 
 const baseProject = {
+  _id: 'project-1',
   titleProposals: [
     { _id: 'proposal-1', title: 'Smart Incident Tracker: BukSU' },
     { _id: 'proposal-2', title: 'Barangay Escalation Dashboard' },
@@ -83,6 +84,7 @@ const renderProposalTab = (project = baseProject) => {
 describe('ProposalTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:proposal-pdf');
     globalThis.URL.revokeObjectURL = vi.fn();
   });
@@ -137,7 +139,48 @@ describe('ProposalTab', () => {
     view.unmount();
   });
 
+  it('saves the current proposal draft locally when requested', async () => {
+    const view = renderProposalTab();
+
+    const textareas = view.container.querySelectorAll('textarea');
+    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    const values = Object.values(fieldText);
+
+    for (let index = 0; index < textareas.length; index += 1) {
+      await act(async () => {
+        valueSetter.call(textareas[index], values[index]);
+        textareas[index].dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+
+    const saveButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Save Draft'),
+    );
+
+    expect(saveButton).toBeTruthy();
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const storedDraft = JSON.parse(
+      window.localStorage.getItem('cms:proposal-draft:project-1:proposal-1'),
+    );
+
+    expect(storedDraft).toEqual({
+      problemStatement: values[0],
+      proposedSolution: values[1],
+      uniqueContribution: values[2],
+      targetUsers: values[3],
+      expectedImpact: values[4],
+    });
+    expect(toastSuccess).toHaveBeenCalledWith('Proposal draft saved locally.');
+
+    view.unmount();
+  });
+
   it('submits deck data and triggers a sanitized PDF download filename', async () => {
+    vi.useFakeTimers();
     mockGenerateProposalDeck.mockResolvedValue({ data: new Uint8Array([1, 2, 3]) });
 
     const view = renderProposalTab();
@@ -150,7 +193,10 @@ describe('ProposalTab', () => {
       const element = originalCreateElement(tagName, options);
       if (tagName === 'a') {
         element.click = linkClick;
-        element.remove = linkRemove;
+        Object.defineProperty(element, 'remove', {
+          value: linkRemove,
+          configurable: true,
+        });
       }
       return element;
     });
@@ -189,8 +235,13 @@ describe('ProposalTab', () => {
       generateButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
     expect(mockGenerateProposalDeck).toHaveBeenCalledTimes(1);
     expect(mockGenerateProposalDeck).toHaveBeenCalledWith({
+      projectId: 'project-1',
       proposalId: 'proposal-1',
       title: 'Smart Incident Tracker: BukSU',
       deckData: {
@@ -215,6 +266,7 @@ describe('ProposalTab', () => {
     expect(toastSuccess).toHaveBeenCalledWith('Pitch deck generated successfully.');
 
     createElementSpy.mockRestore();
+    vi.useRealTimers();
     view.unmount();
   });
 });

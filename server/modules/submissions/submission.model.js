@@ -349,6 +349,20 @@ const submissionSchema = new mongoose.Schema(
       select: false, // Excluded from default queries to save bandwidth
     },
 
+    // --- Optional metadata auto-extracted from uploaded PDF ---
+    documentTitle: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 300,
+    },
+    documentAbstract: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 5000,
+    },
+
     // --- People ---
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,

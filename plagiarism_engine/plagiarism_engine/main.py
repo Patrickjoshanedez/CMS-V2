@@ -41,6 +41,7 @@ Or via Docker Compose (see ``docker-compose.yml``).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -51,6 +52,7 @@ from fastapi.responses import JSONResponse
 
 from .config import get_settings
 from .engine import PlagiarismEngine
+from .preprocessing import clean_text, segment_paragraphs
 from .models import (
     CheckRequest,
     CheckResponse,
@@ -58,6 +60,8 @@ from .models import (
     HealthResponse,
     IndexRequest,
     IndexResponse,
+    PreprocessRequest,
+    PreprocessResponse,
     PlagiarismReport,
     ResultResponse,
     SourceMetadata,
@@ -86,12 +90,27 @@ _cors_origins: list[str] = [o.strip() for o in _cors_raw.split(",") if o.strip()
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
     """Perform startup / shutdown tasks."""
-    logger.info("Plagiarism engine API starting up — warming up embedding model...")
-    # Instantiate the engine singleton which triggers model loading
-    engine = PlagiarismEngine()
-    _ = engine._model  # noqa: SLF001  (access triggers load)
-    logger.info("Embedding model ready.  API is accepting requests.")
+    warmup_enabled = _os.environ.get("PLAGIARISM_WARMUP_ON_STARTUP", "false").lower() == "true"
+    warmup_task: asyncio.Task[None] | None = None
+
+    if warmup_enabled:
+        logger.info("Plagiarism engine API startup: scheduling embedding warmup in background.")
+
+        def _warmup_model() -> None:
+            try:
+                engine = PlagiarismEngine()
+                _ = engine._model  # noqa: SLF001
+                logger.info("Embedding model warmup completed.")
+            except Exception:  # noqa: BLE001
+                logger.exception("Embedding model warmup failed; service remains available.")
+
+        warmup_task = asyncio.create_task(asyncio.to_thread(_warmup_model))
+    else:
+        logger.info("Plagiarism engine API startup: warmup disabled, model will load lazily on first request.")
+
     yield
+    if warmup_task and not warmup_task.done():
+        warmup_task.cancel()
     logger.info("Plagiarism engine API shutting down.")
 
 
@@ -294,6 +313,73 @@ async def delete_from_index(document_id: str) -> DeleteResponse:
         document_id=document_id,
         deleted_segments=deleted_count,
         success=True,
+    )
+
+
+@app.post(
+    "/preprocess",
+    response_model=PreprocessResponse,
+    summary="Clean and compress document text for downstream AI extraction",
+    tags=["Utilities"],
+)
+async def preprocess_text(body: PreprocessRequest) -> PreprocessResponse:
+    """Normalize text and build a compact payload optimized for LLM extraction.
+
+    This endpoint is intentionally lightweight so other services (e.g. metadata
+    extraction) can reuse the plagiarism engine's text-cleaning pipeline.
+    """
+    cleaned = clean_text(body.text)
+    if not cleaned:
+        return PreprocessResponse(
+            cleaned_text="",
+            compressed_text="",
+            original_characters=len(body.text),
+            cleaned_characters=0,
+            compressed_characters=0,
+            segments_used=0,
+        )
+
+    segments = segment_paragraphs(cleaned, min_words=body.min_words)
+    if not segments:
+        compressed = cleaned[: body.max_chars]
+        return PreprocessResponse(
+            cleaned_text=cleaned,
+            compressed_text=compressed,
+            original_characters=len(body.text),
+            cleaned_characters=len(cleaned),
+            compressed_characters=len(compressed),
+            segments_used=0,
+        )
+
+    # Keep a small prefix to preserve title-page context, then pack segments.
+    prefix_chars = min(max(600, body.max_chars // 8), 1400)
+    prefix = cleaned[:prefix_chars]
+    packed_parts = [prefix]
+    budget = max(0, body.max_chars - len(prefix))
+    used = 0
+
+    for seg in segments[: body.max_segments]:
+        part = seg.text.strip()
+        if not part:
+            continue
+
+        extra = len(part) + 2
+        if extra > budget:
+            break
+
+        packed_parts.append(part)
+        budget -= extra
+        used += 1
+
+    compressed = "\n\n".join(packed_parts).strip()[: body.max_chars]
+
+    return PreprocessResponse(
+        cleaned_text=cleaned,
+        compressed_text=compressed,
+        original_characters=len(body.text),
+        cleaned_characters=len(cleaned),
+        compressed_characters=len(compressed),
+        segments_used=used,
     )
 
 

@@ -19,6 +19,8 @@ import {
   Send,
   Link as LinkIcon,
   ExternalLink,
+  X,
+  LogOut,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import {
@@ -31,6 +33,7 @@ import {
   useAssignMemberRole,
   useUpdateGoogleDocLink,
   useLockTeam,
+  useLeaveTeam,
 } from '@/hooks/useTeams';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -292,6 +295,8 @@ function InviteMemberForm({ teamId }) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [activeWarning, setActiveWarning] = useState(null);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -323,13 +328,27 @@ function InviteMemberForm({ teamId }) {
       setQuery('');
       setDebouncedQuery('');
       setShowSuggestions(false);
+      setSelectedCandidate(null);
+      setActiveWarning(null);
     },
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to send invite.'),
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    inviteMember.mutate({ teamId, email: email.trim() });
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) return;
+
+    const isSelectedMatch =
+      selectedCandidate?.email?.toLowerCase?.() === normalizedEmail.toLowerCase();
+
+    if (isSelectedMatch && selectedCandidate?.canInvite === false) {
+      const blockingWarning = selectedCandidate.warnings?.find((warning) => warning.blocksInvite);
+      toast.error(blockingWarning?.message || 'This student cannot be invited yet.');
+      return;
+    }
+
+    inviteMember.mutate({ teamId, email: normalizedEmail });
   };
 
   return (
@@ -364,6 +383,10 @@ function InviteMemberForm({ teamId }) {
             setEmail(value);
             setQuery(value);
             setShowSuggestions(true);
+            if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
+              setSelectedCandidate(null);
+            }
+            setActiveWarning(null);
           }}
           onFocus={() => {
             if ((debouncedQuery || query).length >= 2) {
@@ -387,32 +410,141 @@ function InviteMemberForm({ teamId }) {
                 Searching students...
               </div>
             ) : candidates.length > 0 ? (
-              <ul className="max-h-56 overflow-auto py-1">
-                {candidates.map((candidate) => (
-                  <li key={candidate._id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        setEmail(candidate.email);
-                        setQuery(candidate.email);
-                        setDebouncedQuery(candidate.email);
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
-                          {candidate.fullName}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {candidate.email}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="max-h-56 overflow-auto py-1">
+                  {candidates.map((candidate) => {
+                    const warningMessages = (candidate.warnings || [])
+                      .map((warning) => warning?.message)
+                      .filter(Boolean);
+                    const blockingWarning = (candidate.warnings || []).find(
+                      (warning) => warning?.blocksInvite,
+                    );
+                    const warningTooltipText =
+                      blockingWarning?.message ||
+                      warningMessages.join('\n') ||
+                      (candidate.canInvite === false
+                        ? 'This student cannot be invited yet.'
+                        : 'Invite warning');
+
+                    return (
+                      <li key={candidate._id}>
+                        <button
+                          type="button"
+                          className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            setEmail(candidate.email);
+                            setQuery(candidate.email);
+                            setDebouncedQuery(candidate.email);
+                            setShowSuggestions(false);
+                            setSelectedCandidate(candidate);
+                            setActiveWarning(null);
+                          }}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {candidate.fullName}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {candidate.email}
+                            </span>
+                            {candidate.canInvite === false && (
+                              <span className="mt-0.5 block text-[11px] font-medium text-destructive">
+                                Cannot invite yet
+                              </span>
+                            )}
+                          </span>
+
+                          {candidate.warnings?.length > 0 && (
+                            <span
+                              className="mt-0.5 inline-flex shrink-0 items-center text-warning"
+                              title={warningTooltipText}
+                              aria-label={warningTooltipText}
+                              role="button"
+                              tabIndex={0}
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                              }}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setActiveWarning((prev) =>
+                                  prev?.candidateId === candidate._id
+                                    ? null
+                                    : {
+                                        candidateId: candidate._id,
+                                        fullName: candidate.fullName,
+                                        messages:
+                                          warningMessages.length > 0
+                                            ? warningMessages
+                                            : [warningTooltipText],
+                                      },
+                                );
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setActiveWarning((prev) =>
+                                    prev?.candidateId === candidate._id
+                                      ? null
+                                      : {
+                                          candidateId: candidate._id,
+                                          fullName: candidate.fullName,
+                                          messages:
+                                            warningMessages.length > 0
+                                              ? warningMessages
+                                              : [warningTooltipText],
+                                        },
+                                  );
+                                }
+                              }}
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {activeWarning && (
+                  <div className="z-[100] border-t bg-background/95 p-3 shadow-sm backdrop-blur">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <p className="text-xs font-semibold text-foreground">
+                        Why {activeWarning.fullName} cannot be invited
+                      </p>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setActiveWarning(null);
+                        }}
+                        className="inline-flex items-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Close warning details"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {activeWarning.messages.map((message, index) => (
+                        <p
+                          key={`${activeWarning.candidateId}-active-warning-${index}`}
+                          className="text-xs text-foreground"
+                        >
+                          {message}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="px-3 py-2 text-xs text-muted-foreground">
                 No matching students found.
@@ -473,6 +605,11 @@ function StudentTeamDetail({ team, userId }) {
     onSuccess: () => toast.success('Team finalized successfully.'),
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
+  });
+
+  const leaveTeam = useLeaveTeam({
+    onSuccess: () => toast.success('You left the team successfully.'),
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
 
   useEffect(() => {
@@ -681,16 +818,36 @@ function StudentTeamDetail({ team, userId }) {
             </div>
           )}
 
-          {isLeader && !team.isLocked && (
-            <div className="flex justify-end">
+          {!team.isLocked && (
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to leave this team?')) {
+                    leaveTeam.mutate({ teamId: team._id });
+                  }
+                }}
+                disabled={leaveTeam.isPending || lockTeam.isPending}
+              >
+                {leaveTeam.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
+                Leave Team
+              </Button>
+
+              {isLeader && (
               <Button
                 type="button"
                 onClick={() => lockTeam.mutate({ teamId: team._id })}
-                disabled={lockTeam.isPending}
+                disabled={lockTeam.isPending || leaveTeam.isPending}
               >
                 {lockTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Finalize Team
               </Button>
+              )}
             </div>
           )}
 

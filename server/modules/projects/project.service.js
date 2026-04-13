@@ -7,6 +7,8 @@ import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
+import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
+import { rankFuzzyConflicts } from '../../utils/similarityAudit.js';
 import storageService from '../../services/storage.index.js';
 import { emitToUser } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
@@ -26,12 +28,56 @@ import {
  * The actual value is read from SystemSettings at runtime.
  */
 const DEFAULT_ORIGINALITY_THRESHOLD = 75;
+const DEFAULT_SIMILARITY_THRESHOLD = 0.7;
+const DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD = 0.7;
+const MAX_ARCHIVE_SIMILARITY_CONFLICTS = 10;
+
+function toBoundedThreshold(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0, Math.min(1, numeric));
+}
 
 /**
  * ProjectService — Business logic for capstone project management.
  * Handles creation, title workflow, adviser/panelist assignment, and status transitions.
  */
 class ProjectService {
+  async getCreateProjectDraft(userId) {
+    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    return {
+      draft: user.createProjectDraft || null,
+      updatedAt: user.createProjectDraftUpdatedAt || null,
+    };
+  }
+
+  async saveCreateProjectDraft(userId, draft) {
+    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    user.createProjectDraft = draft;
+    user.createProjectDraftUpdatedAt = draft ? new Date() : null;
+    await user.save();
+
+    return {
+      draft: user.createProjectDraft || null,
+      updatedAt: user.createProjectDraftUpdatedAt || null,
+    };
+  }
+
+  async clearCreateProjectDraft(userId) {
+    const user = await User.findById(userId).select('+createProjectDraft +createProjectDraftUpdatedAt');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    user.createProjectDraft = null;
+    user.createProjectDraftUpdatedAt = null;
+    await user.save();
+
+    return { draft: null, updatedAt: null };
+  }
+
   _normalizeTitleProposals(titleProposals = []) {
     if (!Array.isArray(titleProposals)) return [];
 
@@ -360,7 +406,10 @@ class ProjectService {
     const project = await Project.findById(projectId)
       .populate('teamId', 'name leaderId members academicYear courseId sectionId')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
-      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+      .populate('courseId', 'name code')
+      .populate('sectionId', 'name academicYear courseId')
+      .populate('memberRoleAssignments.userId', 'firstName middleName lastName email');
 
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
@@ -450,8 +499,11 @@ class ProjectService {
     if (titleStatus) filter.titleStatus = titleStatus;
     if (projectStatus) filter.projectStatus = projectStatus;
     if (adviserId) filter.adviserId = adviserId;
+
     if (search) {
-      filter.$text = { $search: search };
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      filter.$or = [{ title: regex }, { abstract: regex }, { keywords: regex }];
     }
 
     const [projects, total] = await Promise.all([
@@ -460,10 +512,11 @@ class ProjectService {
         .skip(skip)
         .limit(limit)
         .populate('teamId', 'name leaderId members academicYear courseId sectionId')
-        .populate('adviserId', 'firstName middleName lastName email')
-        .populate('panelistIds', 'firstName middleName lastName email')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .populate('sectionId', 'name academicYear courseId')
         .populate('courseId', 'name code')
-        .populate('sectionId', 'name academicYear'),
+        .populate('memberRoleAssignments.userId', 'firstName middleName lastName email'),
       Project.countDocuments(filter),
     ]);
 
@@ -478,11 +531,7 @@ class ProjectService {
     };
   }
 
-  /* ═══════════════════ Standalone Title Similarity Check ═══════════════════ */
-
   /**
-   * Two-tier title similarity check for real-time duplicate detection.
-   *
    * Tier 1 — MongoDB $text search narrows candidates to titles that share
    *          significant keywords with the candidate string.
    * Tier 2 — Levenshtein-based scoring (via findSimilarProjects) ranks the
@@ -1671,42 +1720,267 @@ class ProjectService {
    * @returns {Object} { report }
    */
   async generateReport(query) {
-    const { academicYear, adviserId } = query;
+    const {
+      academicYear: academicYearFilter,
+      year,
+      adviserId,
+      title,
+      author,
+      courseId,
+      keyword,
+      sortBy = 'archivedAt',
+      sortOrder = 'desc',
+    } = query ?? {};
 
+    const effectiveAcademicYear = academicYearFilter || year;
     const matchStage = { isArchived: true };
-    if (academicYear) matchStage.academicYear = academicYear;
-    if (adviserId) matchStage.adviserId = new mongoose.Types.ObjectId(adviserId);
 
-    const report = await Project.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: '$academicYear',
-          count: { $sum: 1 },
-          projects: {
-            $push: {
-              _id: '$_id',
-              title: '$title',
-              keywords: '$keywords',
-              archivedAt: '$archivedAt',
-            },
-          },
+    if (effectiveAcademicYear) matchStage.academicYear = effectiveAcademicYear;
+    if (adviserId) matchStage.adviserId = adviserId;
+    if (title) {
+      matchStage.title = { $regex: title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    }
+    if (keyword) {
+      matchStage.keywords = {
+        $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        $options: 'i',
+      };
+    }
+
+    const normalizeFullName = (person) =>
+      [person?.firstName, person?.middleName, person?.lastName].filter(Boolean).join(' ').trim();
+
+    const toComparableValue = (value) => {
+      if (value instanceof Date) return value.getTime();
+      if (value && typeof value === 'object' && typeof value.valueOf === 'function') {
+        const valueOf = value.valueOf();
+        if (typeof valueOf === 'number') return valueOf;
+      }
+      if (typeof value === 'string') return value.toLowerCase();
+      if (value == null) return '';
+      return value;
+    };
+
+    const compareRecords = (left, right) => {
+      const direction = sortOrder === 'asc' ? 1 : -1;
+      const leftValue = toComparableValue(left?.[sortBy]);
+      const rightValue = toComparableValue(right?.[sortBy]);
+
+      if (leftValue < rightValue) return -1 * direction;
+      if (leftValue > rightValue) return 1 * direction;
+
+      const leftArchivedAt = left?.archivedAt ? new Date(left.archivedAt).getTime() : 0;
+      const rightArchivedAt = right?.archivedAt ? new Date(right.archivedAt).getTime() : 0;
+      if (leftArchivedAt !== rightArchivedAt) return rightArchivedAt - leftArchivedAt;
+
+      return (left?.title || '').localeCompare(right?.title || '');
+    };
+
+    const projects = await Project.find(matchStage)
+      .select(
+        'title abstract keywords academicYear archivedAt adviserId teamId courseId projectStatus isArchived capstonePhase archiveMetadata',
+      )
+      .populate([
+        {
+          path: 'teamId',
+          select: 'name members academicYear courseId sectionId',
+          populate: [
+            { path: 'members', select: 'firstName middleName lastName' },
+            { path: 'courseId', select: 'name code' },
+          ],
         },
-      },
-      { $sort: { _id: -1 } },
-    ]);
+        { path: 'adviserId', select: 'firstName middleName lastName' },
+        { path: 'courseId', select: 'name code' },
+      ])
+      .lean();
 
-    const totalCount = report.reduce((sum, yr) => sum + yr.count, 0);
+    const records = projects
+      .map((project) => {
+        const projectCourse = project.courseId || project.teamId?.courseId || null;
+        const archiveAuthors = Array.isArray(project.archiveMetadata?.authors)
+          ? project.archiveMetadata.authors
+              .map((author) => (typeof author === 'string' ? author.trim() : ''))
+              .filter(Boolean)
+              .map((fullName) => ({ _id: null, fullName }))
+          : [];
+
+        const teamAuthors = Array.isArray(project.teamId?.members)
+          ? project.teamId.members
+              .map((member) => {
+                const fullName = normalizeFullName(member);
+                return fullName
+                  ? {
+                      _id: member._id,
+                      fullName,
+                    }
+                  : null;
+              })
+              .filter(Boolean)
+          : [];
+        const authors = archiveAuthors.length > 0 ? archiveAuthors : teamAuthors;
+        const adviserFullName = project.adviserId ? normalizeFullName(project.adviserId) : '';
+
+        return {
+          _id: project._id,
+          title: project.title ?? '',
+          abstract: project.abstract ?? '',
+          keywords: Array.isArray(project.keywords) ? project.keywords : [],
+          academicYear: project.academicYear ?? null,
+          semester: project.capstonePhase ?? null,
+          course: projectCourse
+            ? {
+                _id: projectCourse._id,
+                name: projectCourse.name ?? '',
+                code: projectCourse.code ?? '',
+              }
+            : null,
+          adviser:
+            project.adviserId && adviserFullName
+              ? { _id: project.adviserId._id, fullName: adviserFullName }
+              : null,
+          authors,
+          status: project.isArchived ? 'Archived' : project.projectStatus || 'Active',
+          grade: null,
+          archivedAt: project.archivedAt ?? null,
+        };
+      })
+      .filter((record) => {
+        if (courseId && String(record.course?._id ?? '') !== String(courseId)) {
+          return false;
+        }
+
+        if (author) {
+          const authorMatch = record.authors.some((item) =>
+            item.fullName.toLowerCase().includes(author.toLowerCase()),
+          );
+
+          if (!authorMatch) return false;
+        }
+
+        return true;
+      })
+      .sort(compareRecords);
+
+    const yearGroups = new Map();
+
+    for (const record of records) {
+      const yearKey = record.academicYear ?? 'Unspecified';
+      if (!yearGroups.has(yearKey)) {
+        yearGroups.set(yearKey, []);
+      }
+      yearGroups.get(yearKey).push(record);
+    }
+
+    const sortedAcademicYears = [...yearGroups.keys()].sort((a, b) => b.localeCompare(a));
+
+    const uniqueAdvisers = new Map();
+    const uniquePrograms = new Map();
+    for (const record of records) {
+      if (record.adviser?._id && record.adviser?.fullName) {
+        uniqueAdvisers.set(String(record.adviser._id), {
+          _id: String(record.adviser._id),
+          fullName: record.adviser.fullName,
+        });
+      }
+
+      if (record.course?._id) {
+        uniquePrograms.set(String(record.course._id), {
+          _id: String(record.course._id),
+          name: record.course.name || '',
+          code: record.course.code || '',
+          label:
+            record.course.code && record.course.name
+              ? `${record.course.name} (${record.course.code})`
+              : record.course.name || record.course.code || '',
+        });
+      }
+    }
 
     return {
       report: {
-        totalProjects: totalCount,
-        byYear: report.map((yr) => ({
-          academicYear: yr._id,
-          count: yr.count,
-          projects: yr.projects,
+        totalProjects: records.length,
+        matchingCount: records.length,
+        records,
+        byYear: sortedAcademicYears.map((yearKey) => ({
+          _id: yearKey,
+          academicYear: yearKey,
+          count: yearGroups.get(yearKey).length,
+          projects: yearGroups.get(yearKey),
         })),
+        filterOptions: {
+          academicYears: [...new Set(records.map((record) => record.academicYear).filter(Boolean))].sort(
+            (a, b) => b.localeCompare(a),
+          ),
+          authors: [...new Set(records.flatMap((record) => record.authors.map((item) => item.fullName)).filter(Boolean))].sort(
+            (a, b) => a.localeCompare(b),
+          ),
+          advisers: [...uniqueAdvisers.values()].sort((a, b) => a.fullName.localeCompare(b.fullName)),
+          programs: [...uniquePrograms.values()].sort((a, b) => a.label.localeCompare(b.label)),
+          keywords: [...new Set(records.flatMap((record) => record.keywords || []).filter(Boolean))].sort(
+            (a, b) => a.localeCompare(b),
+          ),
+        },
       },
+    };
+  }
+
+  async _computeArchiveSimilarityAudit(title, abstract) {
+    let titleThreshold = DEFAULT_SIMILARITY_THRESHOLD;
+    try {
+      const settings = await settingsService.getSettings();
+      titleThreshold = toBoundedThreshold(
+        settings?.titleSimilarityThreshold,
+        DEFAULT_SIMILARITY_THRESHOLD,
+      );
+    } catch {
+      // Keep default threshold when settings lookup fails.
+    }
+
+    const abstractThreshold = toBoundedThreshold(
+      process.env.ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD,
+      DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD,
+    );
+
+    const archivedProjects = await Project.find({ isArchived: true })
+      .select('_id title abstract academicYear archiveMetadata.publicationYear')
+      .lean();
+
+    const titleConflicts = rankFuzzyConflicts({
+      candidateText: title,
+      rows: archivedProjects,
+      threshold: titleThreshold,
+      maxResults: MAX_ARCHIVE_SIMILARITY_CONFLICTS,
+      getText: (project) => project?.title || '',
+      mapRow: (project) => ({
+        projectId: project._id,
+        title: project.title,
+        academicYear: project.academicYear || '',
+        publicationYear: project.archiveMetadata?.publicationYear ?? null,
+      }),
+    });
+
+    const abstractConflicts = abstract
+      ? rankFuzzyConflicts({
+          candidateText: abstract,
+          rows: archivedProjects,
+          threshold: abstractThreshold,
+          maxResults: MAX_ARCHIVE_SIMILARITY_CONFLICTS,
+          getText: (project) => project?.abstract || '',
+          mapRow: (project) => ({
+            projectId: project._id,
+            title: project.title,
+            academicYear: project.academicYear || '',
+            publicationYear: project.archiveMetadata?.publicationYear ?? null,
+          }),
+        })
+      : [];
+
+    return {
+      checkedAt: new Date(),
+      titleThreshold,
+      abstractThreshold,
+      titleConflicts,
+      abstractConflicts,
     };
   }
 
@@ -1746,8 +2020,28 @@ class ProjectService {
       );
     }
 
-    const normalizedTitle = data.title.trim();
-    const normalizedKeywords = Array.isArray(data.keywords) ? data.keywords : [];
+    let normalizedTitle = (data.title || '').trim();
+    let normalizedAbstract = (data.abstract || '').trim();
+    const normalizedKeywords = Array.isArray(data.keywords)
+      ? data.keywords.map((item) => item?.trim()).filter(Boolean)
+      : [];
+    let resolvedKeywords = normalizedKeywords;
+    let resolvedAuthors = Array.isArray(data.authors)
+      ? data.authors.map((item) => item?.trim()).filter(Boolean)
+      : [];
+    let resolvedPublicationYear = Number.isInteger(data.publicationYear)
+      ? data.publicationYear
+      : null;
+    const resolvedDoi = (data.doi || '').trim();
+    const resolvedPublicationVenue = (data.publicationVenue || '').trim();
+    let metadataExtractedAt = null;
+    let similarityAudit = {
+      checkedAt: null,
+      titleThreshold: DEFAULT_SIMILARITY_THRESHOLD,
+      abstractThreshold: DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD,
+      titleConflicts: [],
+      abstractConflicts: [],
+    };
 
     let archiveTeam;
     let project;
@@ -1755,6 +2049,49 @@ class ProjectService {
 
     try {
       const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
+
+      if (
+        (!normalizedTitle || !normalizedAbstract || resolvedAuthors.length === 0 || !resolvedPublicationYear || resolvedKeywords.length === 0)
+        && academicPaperFile?.buffer
+      ) {
+        try {
+          const extracted = await extractPdfMetadata(academicPaperFile.buffer);
+          if (!normalizedTitle && extracted?.title?.trim()) {
+            normalizedTitle = extracted.title.trim();
+          }
+          if (!normalizedAbstract && extracted?.abstract?.trim()) {
+            normalizedAbstract = extracted.abstract.trim();
+          }
+          if (resolvedAuthors.length === 0 && Array.isArray(extracted?.authors)) {
+            resolvedAuthors = extracted.authors
+              .map((item) => item?.trim())
+              .filter(Boolean)
+              .slice(0, 20);
+          }
+          if (!resolvedPublicationYear && Number.isInteger(extracted?.publicationYear)) {
+            resolvedPublicationYear = extracted.publicationYear;
+          }
+          if (resolvedKeywords.length === 0 && Array.isArray(extracted?.keywords)) {
+            resolvedKeywords = extracted.keywords
+              .map((item) => item?.trim())
+              .filter(Boolean)
+              .slice(0, 10);
+          }
+          metadataExtractedAt = new Date();
+        } catch (error) {
+          console.warn('[ProjectService] PDF metadata extraction failed during archive upload:', error?.message);
+        }
+      }
+
+      if (!normalizedTitle) {
+        throw new AppError(
+          'A project title is required. Please provide one or upload a PDF with detectable metadata.',
+          400,
+          'TITLE_REQUIRED',
+        );
+      }
+
+      similarityAudit = await this._computeArchiveSimilarityAudit(normalizedTitle, normalizedAbstract);
 
       // Create an internal placeholder team to satisfy project schema invariants.
       archiveTeam = await Team.create({
@@ -1775,8 +2112,16 @@ class ProjectService {
           normalizedTitle,
           normalizedTitle,
         ],
-        abstract: data.abstract || '',
-        keywords: normalizedKeywords,
+        abstract: normalizedAbstract,
+        keywords: resolvedKeywords,
+        archiveMetadata: {
+          authors: resolvedAuthors,
+          publicationYear: resolvedPublicationYear,
+          doi: resolvedDoi,
+          publicationVenue: resolvedPublicationVenue,
+          extractedAt: metadataExtractedAt,
+          similarityAudit,
+        },
         academicYear: data.academicYear,
         courseId: new mongoose.Types.ObjectId(),
         sectionId: new mongoose.Types.ObjectId(),
@@ -1868,6 +2213,18 @@ class ProjectService {
         submissions: {
           finalAcademic: finalAcademicSubmission,
           finalJournal: finalJournalSubmission,
+        },
+        similarity: {
+          checkedAt: similarityAudit.checkedAt,
+          titleThreshold: similarityAudit.titleThreshold,
+          abstractThreshold: similarityAudit.abstractThreshold,
+          titleConflicts: similarityAudit.titleConflicts,
+          abstractConflicts: similarityAudit.abstractConflicts,
+          warning:
+            similarityAudit.titleConflicts.length > 0 ||
+            similarityAudit.abstractConflicts.length > 0
+              ? 'High similarity detected!'
+              : null,
         },
       };
     } catch (error) {

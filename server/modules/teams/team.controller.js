@@ -146,6 +146,17 @@ export const lockTeam = catchAsync(async (req, res) => {
   });
 });
 
+/** DELETE /api/teams/:id/members/me — Leave team (member only, not finalized) */
+export const leaveTeam = catchAsync(async (req, res) => {
+  const { team } = await teamService.leaveTeam(req.params.id, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'You have left the team successfully.',
+    data: { team },
+  });
+});
+
 /** GET /api/teams — List all teams (Instructor/Adviser) */
 export const listTeams = catchAsync(async (req, res) => {
   const { teams, pagination } = await teamService.listTeams(req.query);

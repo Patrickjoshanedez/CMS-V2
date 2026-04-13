@@ -69,6 +69,13 @@ import * as hookEnforcer from './hook-enforcer.js';
 // Ability Manager - Skill lifecycle and instruction injection
 import * as abilityManager from './ability-manager.js';
 
+// Serena Integration - Semantic code exploration and symbol management
+import {
+  SerenaIntegrationManager,
+  SerenaAbilityDiscovery,
+  SerenaDispatcherRouter,
+} from './serena-integration.js';
+
 /**
  * Initialize the orchestrator module.
  * Creates required directories, loads existing lessons,
@@ -181,6 +188,11 @@ export {
 
   // Ability Manager Module
   abilityManager,
+
+  // Serena Integration
+  SerenaIntegrationManager,
+  SerenaAbilityDiscovery,
+  SerenaDispatcherRouter,
 };
 
 // Default export with all functionality
@@ -239,4 +251,9 @@ export default {
 
   // Ability Manager Module
   abilityManager,
+
+  // Serena Integration
+  SerenaIntegrationManager,
+  SerenaAbilityDiscovery,
+  SerenaDispatcherRouter,
 };

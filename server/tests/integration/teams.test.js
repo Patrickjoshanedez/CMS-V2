@@ -488,7 +488,7 @@ describe('Teams API — /api/teams', () => {
   // ----- INVITE CANDIDATES -----
 
   describe('GET /api/teams/:id/invite-candidates', () => {
-    it('should only list students from the same section as the team leader', async () => {
+    it('should include cross-section students with a warning message', async () => {
       const { agent: leaderAgent, user: leaderUser } = await createAuthenticatedUserWithRole(
         'student',
         {
@@ -520,12 +520,27 @@ describe('Teams API — /api/teams', () => {
       const res = await leaderAgent.get(`/api/teams/${teamId}/invite-candidates`);
 
       expect(res.status).toBe(200);
-      const candidateEmails = res.body.data.candidates.map((candidate) => candidate.email);
-      expect(candidateEmails).toContain('invite-candidate-same-section@example.com');
-      expect(candidateEmails).not.toContain('invite-candidate-other-section@example.com');
+      const sameSectionCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'invite-candidate-same-section@example.com',
+      );
+      const otherSectionCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'invite-candidate-other-section@example.com',
+      );
+
+      expect(sameSectionCandidate).toBeTruthy();
+      expect(otherSectionCandidate).toBeTruthy();
+      expect(otherSectionCandidate.canInvite).toBe(true);
+      expect(otherSectionCandidate.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'DIFFERENT_SECTION',
+            blocksInvite: false,
+          }),
+        ]),
+      );
     });
 
-    it('TC-TEAM-009 should exclude same-section students who are already in a team', async () => {
+    it('TC-TEAM-009 should include already-teamed students as blocked candidates', async () => {
       const { agent: leaderAgent, user: leaderUser } = await createAuthenticatedUserWithRole(
         'student',
         {
@@ -560,12 +575,29 @@ describe('Teams API — /api/teams', () => {
       const res = await leaderAgent.get(`/api/teams/${leaderTeamId}/invite-candidates`);
 
       expect(res.status).toBe(200);
-      const candidateEmails = res.body.data.candidates.map((candidate) => candidate.email);
-      expect(candidateEmails).toContain('tc-team-009-eligible@example.com');
-      expect(candidateEmails).not.toContain('tc-team-009-occupied@example.com');
+      const eligibleCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'tc-team-009-eligible@example.com',
+      );
+      const occupiedCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'tc-team-009-occupied@example.com',
+      );
+
+      expect(eligibleCandidate).toBeTruthy();
+      expect(eligibleCandidate.canInvite).toBe(true);
+
+      expect(occupiedCandidate).toBeTruthy();
+      expect(occupiedCandidate.canInvite).toBe(false);
+      expect(occupiedCandidate.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'ALREADY_IN_TEAM',
+            blocksInvite: true,
+          }),
+        ]),
+      );
     });
 
-    it('should enforce no-team invariant even when using search query', async () => {
+    it('should return blocked team warnings even when using search query', async () => {
       const { agent: leaderAgent, user: leaderUser } = await createAuthenticatedUserWithRole(
         'student',
         {
@@ -604,9 +636,26 @@ describe('Teams API — /api/teams', () => {
       );
 
       expect(res.status).toBe(200);
-      const candidateEmails = res.body.data.candidates.map((candidate) => candidate.email);
-      expect(candidateEmails).toContain('searchinvariant.eligible@example.com');
-      expect(candidateEmails).not.toContain('searchinvariant.occupied@example.com');
+      const eligibleCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'searchinvariant.eligible@example.com',
+      );
+      const occupiedCandidate = res.body.data.candidates.find(
+        (candidate) => candidate.email === 'searchinvariant.occupied@example.com',
+      );
+
+      expect(eligibleCandidate).toBeTruthy();
+      expect(eligibleCandidate.canInvite).toBe(true);
+
+      expect(occupiedCandidate).toBeTruthy();
+      expect(occupiedCandidate.canInvite).toBe(false);
+      expect(occupiedCandidate.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'ALREADY_IN_TEAM',
+            blocksInvite: true,
+          }),
+        ]),
+      );
     });
   });
 

@@ -135,8 +135,14 @@ export default function ArchiveLegacyUploadPage({
     setForm((prev) => ({ ...prev, [name]: value }));
   }, []);
 
+  const toAcademicYearRange = useCallback((publicationYear) => {
+    if (!publicationYear || Number.isNaN(Number(publicationYear))) return '';
+    const year = Number(publicationYear);
+    return `${year}-${year + 1}`;
+  }, []);
+
   /**
-   * Extracts title and abstract from a PDF file using the server API.
+   * Extracts title, abstract, publication year, and keywords from a PDF file using the server API.
    */
   const handlePdfExtraction = useCallback(
     async (pdfFile) => {
@@ -145,7 +151,14 @@ export default function ArchiveLegacyUploadPage({
       setIsExtracting(true);
       try {
         const response = await documentService.extractPdfMetadata(pdfFile);
-        const { title, abstract, confidence } = response.data.data;
+        const {
+          title,
+          abstract,
+          publicationYear,
+          authors = [],
+          keywords: extractedKeywords = [],
+          confidence,
+        } = response.data.data;
 
         // Only auto-fill if fields are empty or confidence is high
         if (title && (!form.title || confidence.title > 0.7)) {
@@ -157,17 +170,36 @@ export default function ArchiveLegacyUploadPage({
           toast.success('Abstract extracted from PDF');
         }
 
+        const extractedAcademicYear = toAcademicYearRange(publicationYear);
+        if (
+          extractedAcademicYear &&
+          (!form.academicYear || confidence.publicationYear > 0.7)
+        ) {
+          setForm((prev) => ({ ...prev, academicYear: extractedAcademicYear }));
+          toast.success('Academic year inferred from PDF publication year');
+        }
+
+        if (Array.isArray(extractedKeywords) && extractedKeywords.length > 0 && keywords.length === 0) {
+          setKeywords(extractedKeywords.slice(0, 10));
+          toast.success('Keywords extracted from PDF');
+        }
+
+        if (Array.isArray(authors) && authors.length > 0) {
+          toast.info(`Detected author(s): ${authors.slice(0, 3).join(', ')}`);
+        }
+
         if (!title && !abstract) {
           toast.info('Could not extract title/abstract from this PDF format.');
         }
       } catch (err) {
-        // Silent fail - user can still fill manually
+        const apiMessage = err?.response?.data?.message;
+        toast.error(apiMessage || 'Automatic PDF extraction failed. You can still fill the fields manually.');
         console.warn('PDF extraction failed:', err);
       } finally {
         setIsExtracting(false);
       }
     },
-    [form.title, form.abstract],
+    [form.title, form.abstract, form.academicYear, keywords.length, toAcademicYearRange],
   );
 
   const handleFileChange = useCallback(
@@ -341,7 +373,7 @@ export default function ArchiveLegacyUploadPage({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Title and abstract will be auto-extracted when you select a PDF.
+                  Title, abstract, publication year, and keywords will be auto-extracted when you select a PDF.
                 </p>
               </div>
             </CardContent>

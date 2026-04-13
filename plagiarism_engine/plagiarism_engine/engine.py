@@ -51,7 +51,7 @@ from typing import Any
 
 from .config import get_settings
 from .database import ChromaStore
-from .embeddings import EmbeddingModel, get_embedding_model
+from .embeddings import EmbeddingModel, get_embedding_model, get_loaded_embedding_model
 from .models import (
     IndexRequest,
     IndexResponse,
@@ -397,13 +397,14 @@ class PlagiarismEngine:
 
     def health(self) -> dict[str, Any]:
         """Return health/diagnostic information for the ``/health`` endpoint."""
+        loaded_model = get_loaded_embedding_model()
         return {
             "status": "ok",
             "chroma_collection": self._store.collection_name,
             "collection_count": self._store.count,
-            "model_loaded": self._model.is_loaded,
-            "model_name": self._model.model_name,
-            "embedding_dim": self._model.embedding_dim,
+            "model_loaded": loaded_model is not None and loaded_model.is_loaded,
+            "model_name": loaded_model.model_name if loaded_model else self._cfg.EMBEDDING_MODEL,
+            "embedding_dim": loaded_model.embedding_dim if loaded_model else None,
             "settings": {
                 "kgram_size": self._cfg.KGRAM_SIZE,
                 "window_size": self._cfg.WINDOW_SIZE,

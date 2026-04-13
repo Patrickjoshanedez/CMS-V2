@@ -137,11 +137,12 @@ router.post(
 /**
  * POST /:submissionId/review
  * Review a submission (approve / request revisions / reject).
- * Only advisers and instructors can review.
+ * Instructors, advisers, and panelists can review.
+ * Proposal approval is enforced in service to instructor/panelist only.
  */
 router.post(
   '/:submissionId/review',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(reviewSubmissionSchema),
   auditLog('submission.reviewed', 'Submission', {

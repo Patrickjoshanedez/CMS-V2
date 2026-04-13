@@ -16,6 +16,7 @@ import { ROLES } from '@cms/shared';
 import {
   createProjectSchema,
   checkTitleSimilaritySchema,
+  saveCreateProjectDraftSchema,
   updateTitleSchema,
   submitTitleSchema,
   approveTitleSchema,
@@ -46,6 +47,18 @@ const router = Router();
  * All routes require authentication.
  */
 router.use(authenticate);
+
+// Similarity scan
+router.post('/similarity-scan', projectController.checkProposalSimilarity);
+
+// Create-project draft persistence (authenticated user)
+router.get('/create-draft', projectController.getCreateProjectDraft);
+router.put(
+  '/create-draft',
+  validate(saveCreateProjectDraftSchema),
+  projectController.saveCreateProjectDraft,
+);
+router.delete('/create-draft', projectController.clearCreateProjectDraft);
 
 /* ────── Student routes ────── */
 

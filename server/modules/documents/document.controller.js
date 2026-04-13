@@ -112,7 +112,7 @@ export const getArchivedComments = catchAsync(async (req, res) => {
 
 /**
  * POST /api/documents/extract-pdf-metadata
- * Extracts title and abstract from an uploaded PDF file.
+ * Extracts title, abstract, publication year, authors, and keywords from an uploaded PDF file.
  * Expects multipart/form-data with a single 'file' field.
  */
 export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
@@ -125,14 +125,28 @@ export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
     throw new AppError('Only PDF files are supported.', 400, 'INVALID_FILE_TYPE');
   }
 
-  const { title, abstract, confidence } = await extractPdfMetadata(req.file.buffer);
+  const {
+    title,
+    abstract,
+    publicationYear,
+    authors,
+    keywords,
+    confidence,
+    extractionProvider,
+  } = await extractPdfMetadata(
+    req.file.buffer,
+  );
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
     data: {
       title,
       abstract,
+      publicationYear,
+      authors,
+      keywords,
       confidence,
+      extractionProvider,
     },
   });
 });

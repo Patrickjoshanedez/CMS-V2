@@ -298,6 +298,134 @@ const projectSchema = new mongoose.Schema(
       },
       default: [],
     },
+    archiveMetadata: {
+      authors: {
+        type: [String],
+        validate: {
+          validator: (arr) => Array.isArray(arr) && arr.length <= 20,
+          message: 'Archive metadata can have at most 20 authors',
+        },
+        default: [],
+      },
+      publicationYear: {
+        type: Number,
+        min: 1900,
+        max: 2100,
+        default: null,
+      },
+      doi: {
+        type: String,
+        trim: true,
+        maxlength: [255, 'DOI must not exceed 255 characters'],
+        default: '',
+      },
+      publicationVenue: {
+        type: String,
+        trim: true,
+        maxlength: [255, 'Publication venue must not exceed 255 characters'],
+        default: '',
+      },
+      extractedAt: {
+        type: Date,
+        default: null,
+      },
+      similarityAudit: {
+        checkedAt: {
+          type: Date,
+          default: null,
+        },
+        titleThreshold: {
+          type: Number,
+          min: 0,
+          max: 1,
+          default: 0.7,
+        },
+        abstractThreshold: {
+          type: Number,
+          min: 0,
+          max: 1,
+          default: 0.7,
+        },
+        titleConflicts: {
+          type: [
+            {
+              projectId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Project',
+              },
+              title: {
+                type: String,
+                trim: true,
+                maxlength: [300, 'Conflict title must not exceed 300 characters'],
+              },
+              academicYear: {
+                type: String,
+                trim: true,
+                default: '',
+              },
+              publicationYear: {
+                type: Number,
+                min: 1900,
+                max: 2100,
+                default: null,
+              },
+              score: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0,
+              },
+              similarityPct: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: 0,
+              },
+            },
+          ],
+          default: [],
+        },
+        abstractConflicts: {
+          type: [
+            {
+              projectId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Project',
+              },
+              title: {
+                type: String,
+                trim: true,
+                maxlength: [300, 'Conflict title must not exceed 300 characters'],
+              },
+              academicYear: {
+                type: String,
+                trim: true,
+                default: '',
+              },
+              publicationYear: {
+                type: Number,
+                min: 1900,
+                max: 2100,
+                default: null,
+              },
+              score: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0,
+              },
+              similarityPct: {
+                type: Number,
+                min: 0,
+                max: 100,
+                default: 0,
+              },
+            },
+          ],
+          default: [],
+        },
+      },
+    },
     sdgTags: {
       type: [String],
       enum: {

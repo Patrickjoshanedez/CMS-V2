@@ -6,9 +6,139 @@
  */
 
 import fs from 'fs/promises';
+import crypto from 'crypto';
 import pino from 'pino';
+import env from '../config/env.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+
+const GLM_METADATA_PROMPT = [
+  'Extract the Title, Authors, and Abstract from this academic paper text snippet.',
+  "Return ONLY strict JSON with this exact schema: {\"title\":\"\",\"authors\":[],\"abstract\":\"\"}",
+  'Do not include markdown or extra keys. Use empty string/array when unknown.',
+  'Text snippet:',
+].join('\n');
+
+const extractionCache = new Map();
+const EXTRACTION_CACHE_TTL_MS = Number.isFinite(env.PDF_METADATA_CACHE_TTL_MS)
+  ? env.PDF_METADATA_CACHE_TTL_MS
+  : 10 * 60 * 1000;
+const EXTRACTION_CACHE_MAX_ENTRIES = 100;
+
+function computeBufferHash(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+function buildExtractionCacheKey(bufferHash) {
+  const strategy = String(env.PDF_METADATA_GLM_STRATEGY || 'fallback').toLowerCase();
+  const model = String(env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest').toLowerCase();
+  const preprocess = String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true')
+    .trim()
+    .toLowerCase();
+  return `${bufferHash}:${strategy}:${model}:${preprocess}`;
+}
+
+function getCachedExtraction(cacheKey) {
+  const hit = extractionCache.get(cacheKey);
+  if (!hit) return null;
+
+  if (Date.now() >= hit.expiresAt) {
+    extractionCache.delete(cacheKey);
+    return null;
+  }
+
+  return hit.value;
+}
+
+function setCachedExtraction(cacheKey, value) {
+  if (!cacheKey || !value) return;
+
+  if (extractionCache.size >= EXTRACTION_CACHE_MAX_ENTRIES) {
+    const oldestKey = extractionCache.keys().next().value;
+    if (oldestKey) extractionCache.delete(oldestKey);
+  }
+
+  extractionCache.set(cacheKey, {
+    value,
+    expiresAt: Date.now() + EXTRACTION_CACHE_TTL_MS,
+  });
+}
+
+function shouldUseGlmFallback(baseResult) {
+  const strategy = String(env.PDF_METADATA_GLM_STRATEGY || 'fallback').toLowerCase();
+  if (strategy === 'always') return true;
+
+  const hasStrongTitle =
+    baseResult.title &&
+    baseResult.title.length >= 30 &&
+    Number(baseResult.confidence?.title || 0) >= 0.75;
+
+  const hasStrongAbstract =
+    baseResult.abstract &&
+    baseResult.abstract.length >= 220 &&
+    Number(baseResult.confidence?.abstract || 0) >= 0.8;
+
+  const hasAuthors = Array.isArray(baseResult.authors) && baseResult.authors.length > 0;
+
+  return !(hasStrongTitle && hasStrongAbstract && hasAuthors);
+}
+
+async function buildGlmInputText(pdfText) {
+  const fallback = cleanText(String(pdfText || '')).slice(0, 12000);
+  if (!fallback) return '';
+
+  const shouldUsePlagiarismPreprocess =
+    String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true').trim().toLowerCase() ===
+    'true';
+
+  if (!shouldUsePlagiarismPreprocess) {
+    return fallback;
+  }
+
+  const engineBaseUrl = (process.env.PLAGIARISM_ENGINE_URL || 'http://localhost:8001').replace(/\/+$/, '');
+  const maxChars = Math.min(
+    20000,
+    Math.max(2000, Number.parseInt(process.env.PDF_METADATA_PREPROCESS_MAX_CHARS || '9000', 10) || 9000),
+  );
+  const timeoutMs = Math.min(
+    10000,
+    Math.max(1000, Number.parseInt(process.env.PDF_METADATA_PREPROCESS_TIMEOUT_MS || '4000', 10) || 4000),
+  );
+
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${engineBaseUrl}/preprocess`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: pdfText,
+        max_chars: maxChars,
+        max_segments: 12,
+        min_words: 10,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    const payload = await response.json();
+    const compressedText = cleanText(String(payload?.compressed_text || '')).slice(0, 12000);
+    if (!compressedText) {
+      return fallback;
+    }
+
+    return compressedText;
+  } catch (error) {
+    logger.debug({ err: error?.message }, 'Plagiarism preprocess unavailable; using local normalized text');
+    return fallback;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
 
 async function parsePdf(pdfBuffer) {
   const pdfModule = await import('pdf-parse');
@@ -34,34 +164,200 @@ async function parsePdf(pdfBuffer) {
   throw new Error('Unsupported pdf-parse module shape');
 }
 
+function parseBoolean(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase() === 'true';
+}
+
+function safeParseJson(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeOcrPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null;
+  }
+
+  const title = cleanText(String(payload.title || '')).slice(0, 300);
+  const abstract = cleanText(String(payload.abstract || '')).slice(0, 3000);
+
+  const authors = Array.isArray(payload.authors)
+    ? payload.authors
+        .map((value) => sanitizeAuthorName(value))
+        .filter((value) => isLikelyAuthorName(value))
+        .slice(0, 20)
+    : [];
+
+  if (!title && !abstract && authors.length === 0) {
+    return null;
+  }
+
+  return {
+    title,
+    abstract,
+    authors,
+    confidence: {
+      title: title ? 0.88 : 0,
+      abstract: abstract ? 0.86 : 0,
+      authors: authors.length > 0 ? 0.82 : 0,
+    },
+  };
+}
+
+async function extractWithGlmOcr(pdfText) {
+  if (!env.PDF_METADATA_ENABLE_GLM_OCR) {
+    return null;
+  }
+
+  try {
+    const ollamaModule = await import('ollama');
+
+    const OllamaClient = ollamaModule?.Ollama || ollamaModule?.default?.Ollama;
+
+    if (typeof OllamaClient !== 'function') {
+      logger.warn('GLM dependency loaded but Ollama client constructor is unavailable; skipping model extraction');
+      return null;
+    }
+
+    const ollamaClient = new OllamaClient({
+      host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
+    });
+
+    if (typeof ollamaClient?.generate !== 'function') {
+      logger.warn('GLM dependency loaded but generate API is unavailable; skipping model extraction');
+      return null;
+    }
+
+    const normalizedText = await buildGlmInputText(pdfText);
+    if (!normalizedText) {
+      return null;
+    }
+
+    const response = await ollamaClient.generate({
+      model: env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest',
+      prompt: `${GLM_METADATA_PROMPT}\n${normalizedText}`,
+      format: 'json',
+      stream: false,
+    });
+
+    const parsed = safeParseJson(response?.response || '');
+    const normalized = normalizeOcrPayload(parsed);
+    if (!normalized) return null;
+
+    return {
+      ...normalized,
+      provider: 'glm-ocr',
+    };
+  } catch (error) {
+    logger.warn({ err: error?.message }, 'GLM extraction failed; falling back to heuristic parser');
+    return null;
+  }
+}
+
 /**
  * Extracts title and abstract from a PDF file.
  *
  * @param {Buffer} pdfBuffer - PDF file buffer
- * @returns {Promise<{title: string, abstract: string, confidence: {title: number, abstract: number}}>}
+ * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>} 
  */
 export async function extractPdfMetadata(pdfBuffer) {
+  const cacheKey = buildExtractionCacheKey(computeBufferHash(pdfBuffer));
+  const cached = getCachedExtraction(cacheKey);
+  if (cached) {
+    logger.debug({ cacheKey }, 'Returning cached PDF metadata extraction result');
+    return cached;
+  }
+
   const data = await parsePdf(pdfBuffer);
   const text = data.text;
 
   if (!text || text.trim().length === 0) {
     logger.warn('PDF contains no extractable text');
-    return { title: '', abstract: '', confidence: { title: 0, abstract: 0 } };
+    const emptyResult = {
+      title: '',
+      abstract: '',
+      publicationYear: null,
+      authors: [],
+      keywords: [],
+      confidence: { title: 0, abstract: 0, publicationYear: 0, authors: 0, keywords: 0 },
+      extractionProvider: 'heuristic',
+    };
+
+    setCachedExtraction(cacheKey, emptyResult);
+    return emptyResult;
   }
 
   logger.info({ textLength: text.length, pages: data.numpages }, 'Extracting metadata from PDF');
 
   const title = extractTitle(text, data.info);
   const abstract = extractAbstract(text);
+  const publicationYear = extractPublicationYear(text, data.info);
+  const authors = extractAuthors(text, data.info);
+  const keywords = extractKeywords(text);
 
-  return {
+  const baseResult = {
     title: title.value,
     abstract: abstract.value,
+    publicationYear: publicationYear.value,
+    authors: authors.value,
+    keywords: keywords.value,
     confidence: {
       title: title.confidence,
       abstract: abstract.confidence,
+      publicationYear: publicationYear.confidence,
+      authors: authors.confidence,
+      keywords: keywords.confidence,
     },
+    extractionProvider: 'heuristic',
   };
+
+  if (!shouldUseGlmFallback(baseResult)) {
+    setCachedExtraction(cacheKey, baseResult);
+    return baseResult;
+  }
+
+  const ocrMetadata = await extractWithGlmOcr(text);
+  if (!ocrMetadata) {
+    setCachedExtraction(cacheKey, baseResult);
+    return baseResult;
+  }
+
+  const mergedResult = {
+    title: ocrMetadata.title || baseResult.title,
+    abstract: ocrMetadata.abstract || baseResult.abstract,
+    publicationYear: baseResult.publicationYear,
+    authors: ocrMetadata.authors.length > 0 ? ocrMetadata.authors : baseResult.authors,
+    keywords: baseResult.keywords,
+    confidence: {
+      title: ocrMetadata.title ? ocrMetadata.confidence.title : baseResult.confidence.title,
+      abstract: ocrMetadata.abstract
+        ? ocrMetadata.confidence.abstract
+        : baseResult.confidence.abstract,
+      publicationYear: baseResult.confidence.publicationYear,
+      authors:
+        ocrMetadata.authors.length > 0
+          ? ocrMetadata.confidence.authors
+          : baseResult.confidence.authors,
+      keywords: baseResult.confidence.keywords,
+    },
+    extractionProvider: ocrMetadata.provider,
+  };
+
+  setCachedExtraction(cacheKey, mergedResult);
+  return mergedResult;
 }
 
 /**
@@ -196,6 +492,116 @@ function extractAbstract(text) {
 }
 
 /**
+ * Extracts publication year from PDF metadata and nearby text context.
+ */
+function extractPublicationYear(text, pdfInfo) {
+  const currentYear = new Date().getFullYear();
+
+  const fromInfo = findValidYear(pdfInfo?.CreationDate) || findValidYear(pdfInfo?.ModDate);
+  if (fromInfo) {
+    return { value: fromInfo, confidence: 0.9 };
+  }
+
+  const firstChunk = text.slice(0, 6000);
+  const preferredPatterns = [
+    /\b(?:published|publication|accepted|copyright|©|journal)\s*(?:in|:)??\s*(19\d{2}|20\d{2})\b/gi,
+    /\b(19\d{2}|20\d{2})\b(?=\s*(?:ieee|acm|springer|elsevier|wiley|journal|conference))/gi,
+  ];
+
+  for (const pattern of preferredPatterns) {
+    const match = pattern.exec(firstChunk);
+    if (!match) continue;
+    const candidate = Number(match[1]);
+    if (candidate >= 1900 && candidate <= currentYear + 1) {
+      return { value: candidate, confidence: 0.8 };
+    }
+  }
+
+  const years = Array.from(firstChunk.matchAll(/\b(19\d{2}|20\d{2})\b/g))
+    .map((m) => Number(m[1]))
+    .filter((year) => year >= 1900 && year <= currentYear + 1);
+
+  if (years.length > 0) {
+    // Pick the most recent year in the header region, which usually maps to publication year.
+    return { value: Math.max(...years), confidence: 0.55 };
+  }
+
+  return { value: null, confidence: 0 };
+}
+
+/**
+ * Extracts author names from PDF metadata and title-page lines.
+ */
+function extractAuthors(text, pdfInfo) {
+  const fromInfo = normalizeAuthors(pdfInfo?.Author);
+  if (fromInfo.length > 0) {
+    return { value: fromInfo, confidence: 0.9 };
+  }
+
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 60);
+
+  const abstractIdx = lines.findIndex((line) => /^abstract\b/i.test(line));
+  const maxIndex = abstractIdx > 0 ? abstractIdx : Math.min(lines.length, 25);
+  const candidateWindow = lines.slice(0, maxIndex);
+
+  const candidates = [];
+  for (const line of candidateWindow) {
+    if (line.length < 5 || line.length > 200) continue;
+    if (/\b(university|college|department|faculty|school|journal|conference|doi|abstract)\b/i.test(line)) {
+      continue;
+    }
+
+    const parts = line
+      .split(/,|\band\b|&/i)
+      .map((v) => sanitizeAuthorName(v))
+      .filter(Boolean);
+
+    const valid = parts.filter((name) => isLikelyAuthorName(name));
+    if (valid.length > 0) {
+      candidates.push(...valid);
+    }
+    if (candidates.length >= 6) break;
+  }
+
+  const deduped = Array.from(new Set(candidates)).slice(0, 6);
+  if (deduped.length > 0) {
+    return { value: deduped, confidence: 0.65 };
+  }
+
+  return { value: [], confidence: 0 };
+}
+
+/**
+ * Extracts keywords from a dedicated keywords section.
+ */
+function extractKeywords(text) {
+  const match = text.match(
+    /(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([^\n]{3,400})/i,
+  );
+  if (!match || !match[1]) {
+    return { value: [], confidence: 0 };
+  }
+
+  const parsed = match[1]
+    .split(/,|;|\u2022|\|/)
+    .map((v) => v.trim())
+    .map((v) => v.replace(/^[-:\s]+/, '').replace(/[.;\s]+$/, ''))
+    .filter(Boolean)
+    .filter((v) => v.length >= 2 && v.length <= 64)
+    .slice(0, 12);
+
+  if (parsed.length === 0) {
+    return { value: [], confidence: 0 };
+  }
+
+  return { value: Array.from(new Set(parsed)), confidence: 0.8 };
+}
+
+/**
  * Helper functions
  */
 
@@ -214,6 +620,52 @@ function findSectionIndex(lines, patterns) {
     }
   }
   return -1;
+}
+
+function findValidYear(value) {
+  if (!value) return null;
+
+  const currentYear = new Date().getFullYear();
+  const match = String(value).match(/(19\d{2}|20\d{2})/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  if (year < 1900 || year > currentYear + 1) return null;
+  return year;
+}
+
+function normalizeAuthors(rawAuthor) {
+  if (!rawAuthor || typeof rawAuthor !== 'string') return [];
+
+  return Array.from(
+    new Set(
+      rawAuthor
+        .split(/,|;|\band\b|&/i)
+        .map((name) => sanitizeAuthorName(name))
+        .filter((name) => isLikelyAuthorName(name)),
+    ),
+  ).slice(0, 8);
+}
+
+function sanitizeAuthorName(name) {
+  return String(name || '')
+    .replace(/\b(ph\.?d\.?|m\.?s\.?|m\.?a\.?|m\.?eng\.?|b\.?s\.?|dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isLikelyAuthorName(name) {
+  if (!name) return false;
+  if (name.length < 3 || name.length > 80) return false;
+  if (/\d/.test(name)) return false;
+  if (/\b(university|college|department|faculty|school|research|journal|conference)\b/i.test(name)) {
+    return false;
+  }
+
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+
+  return words.every((word) => /^[A-Z][a-zA-Z'.-]+$/.test(word));
 }
 
 function findTitleFromLines(lines) {

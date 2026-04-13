@@ -43,6 +43,20 @@ const parsePositiveInteger = (value, defaultValue) => {
   return parsed;
 };
 
+const parseUnitInterval = (value, defaultValue) => {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+
+  if (parsed < 0 || parsed > 1) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
 const parseCookieSameSite = (value, defaultValue = 'strict') => {
   if (typeof value !== 'string') {
     return defaultValue;
@@ -690,6 +704,18 @@ const env = Object.freeze({
   // Plagiarism (native engine)
   PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
   PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
+
+  // PDF metadata extraction and similarity audit
+  PDF_METADATA_ENABLE_GLM_OCR: parseBoolean(process.env.PDF_METADATA_ENABLE_GLM_OCR, true),
+  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr',
+  PDF_METADATA_GLM_STRATEGY: (process.env.PDF_METADATA_GLM_STRATEGY || 'fallback')
+    .toLowerCase()
+    .trim(),
+  PDF_METADATA_CACHE_TTL_MS: parseInt(process.env.PDF_METADATA_CACHE_TTL_MS, 10) || 600000,
+  ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD: parseUnitInterval(
+    process.env.ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD,
+    0.7,
+  ),
 
   // reCAPTCHA v2
   RECAPTCHA_ENABLED: parseBoolean(process.env.RECAPTCHA_ENABLED, true),

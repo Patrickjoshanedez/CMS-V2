@@ -41,18 +41,93 @@ export function levenshteinDistance(a, b) {
 }
 
 /**
+ * Normalise a title for resilient similarity comparison.
+ * Handles mixed casing, punctuation, and collapsed word boundaries.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function normaliseTitle(value) {
+  return (value || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokeniseTitle(value) {
+  const normalised = normaliseTitle(value);
+  if (!normalised) return [];
+  return normalised.split(' ').filter(Boolean);
+}
+
+function tokenOverlapStats(a, b) {
+  const tokensA = tokeniseTitle(a);
+  const tokensB = tokeniseTitle(b);
+
+  if (tokensA.length === 0 || tokensB.length === 0) {
+    return {
+      jaccard: 0,
+      containment: 0,
+      sharedCount: 0,
+      minTokenCount: Math.min(tokensA.length, tokensB.length),
+    };
+  }
+
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  let sharedCount = 0;
+
+  for (const token of setA) {
+    if (setB.has(token)) sharedCount++;
+  }
+
+  const unionCount = setA.size + setB.size - sharedCount;
+  const minTokenCount = Math.min(setA.size, setB.size);
+
+  return {
+    jaccard: unionCount === 0 ? 0 : sharedCount / unionCount,
+    containment: minTokenCount === 0 ? 0 : sharedCount / minTokenCount,
+    sharedCount,
+    minTokenCount,
+  };
+}
+
+/**
  * Compute a normalised string similarity score (0–1) from Levenshtein distance.
  * @param {string} a - First string.
  * @param {string} b - Second string.
  * @returns {number} Similarity score where 1.0 = identical.
  */
 export function stringSimilarity(a, b) {
-  const normA = a.toLowerCase().trim();
-  const normB = b.toLowerCase().trim();
+  const normA = normaliseTitle(a);
+  const normB = normaliseTitle(b);
   if (normA === normB) return 1;
+
+  const shorter = normA.length <= normB.length ? normA : normB;
+  const longer = normA.length <= normB.length ? normB : normA;
+
+  // If a full shorter title is contained in the longer variant, treat it as a strong duplicate signal.
+  // This catches repeated/copy-pasted patterns like "... CheckerChecker ..." that pure edit distance can miss.
+  if (shorter.length >= 20 && longer.includes(shorter)) {
+    return 0.98;
+  }
+
   const maxLen = Math.max(normA.length, normB.length);
   if (maxLen === 0) return 1;
-  return 1 - levenshteinDistance(normA, normB) / maxLen;
+  const charScore = 1 - levenshteinDistance(normA, normB) / maxLen;
+
+  // Token signals catch keyword-level similarity where character-level edits are noisy.
+  const { jaccard, containment, sharedCount, minTokenCount } = tokenOverlapStats(normA, normB);
+  const tokenBlend = 0.45 * jaccard + 0.55 * containment;
+
+  // If the shorter title is mostly contained in the longer one with >=2 shared tokens,
+  // treat it as a strong near-duplicate signal.
+  const strongContainmentBoost =
+    sharedCount >= 2 && minTokenCount >= 3 && containment >= 0.66 ? containment : 0;
+
+  return Math.max(charScore, tokenBlend, strongContainmentBoost);
 }
 
 /**

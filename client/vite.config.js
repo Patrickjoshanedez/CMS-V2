@@ -5,6 +5,7 @@ import http from 'http';
 
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
 const backendDefaultProxyTarget = 'http://localhost:5000';
+const proxyTimeoutMs = 120000;
 const customViteLogger = createLogger();
 const originalViteErrorLogger = customViteLogger.error.bind(customViteLogger);
 const allowedHosts = [
@@ -111,8 +112,8 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
           agent: nonKeepAliveHttpAgent,
-          timeout: 15000,
-          proxyTimeout: 15000,
+          timeout: proxyTimeoutMs,
+          proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
             proxy.on('error', createProxyErrorHandler('api', apiProxyTarget));
           },
@@ -121,8 +122,8 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
           agent: nonKeepAliveHttpAgent,
-          timeout: 15000,
-          proxyTimeout: 15000,
+          timeout: proxyTimeoutMs,
+          proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
             proxy.on('error', createProxyErrorHandler('storage', apiProxyTarget));
           },
@@ -132,8 +133,8 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           ws: true,
           agent: nonKeepAliveHttpAgent,
-          timeout: 15000,
-          proxyTimeout: 15000,
+          timeout: proxyTimeoutMs,
+          proxyTimeout: proxyTimeoutMs,
           configure: (proxy) => {
             proxy.on('error', createProxyErrorHandler('ws', apiProxyTarget));
           },

@@ -84,6 +84,9 @@ const DEFAULT_ROLE_ASSIGNMENTS = [
   },
 ];
 
+const FIXTURE_STUDENT_COUNT = 12;
+const FIXTURE_EMAIL_PREFIX = 'archive.seed.student';
+
 if (!MONGODB_URI) {
   console.error('MONGODB_URI is required');
   process.exit(1);
@@ -193,10 +196,51 @@ const buildTitleProposals = (title) => [
   `${title} with Integrated Similarity Detection`,
 ];
 
+const ensureFixtureStudents = async (count = FIXTURE_STUDENT_COUNT) => {
+  const existing = await User.find({
+    email: { $regex: `^${FIXTURE_EMAIL_PREFIX}\\d+@buksu\\.edu\\.ph$`, $options: 'i' },
+  })
+    .select('_id email')
+    .sort({ email: 1 })
+    .lean();
+
+  const existingEmailSet = new Set(existing.map((entry) => entry.email.toLowerCase()));
+
+  for (let index = 1; index <= count; index += 1) {
+    const email = `${FIXTURE_EMAIL_PREFIX}${index}@buksu.edu.ph`;
+    if (existingEmailSet.has(email)) {
+      continue;
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await User.create({
+      firstName: 'Archive',
+      middleName: '',
+      lastName: `Fixture ${index}`,
+      email,
+      password: 'Password123',
+      role: 'student',
+      isVerified: true,
+      isActive: false,
+      teamId: null,
+      sectionId: null,
+      instructorId: null,
+    });
+  }
+
+  return User.find({
+    email: { $regex: `^${FIXTURE_EMAIL_PREFIX}\\d+@buksu\\.edu\\.ph$`, $options: 'i' },
+  })
+    .select('_id email')
+    .sort({ email: 1 })
+    .limit(count)
+    .lean();
+};
+
 const getSeedContext = async () => {
   const adviser = await User.findOne({ role: 'adviser' }).select('_id').lean();
   const panelist = await User.findOne({ role: 'panelist' }).select('_id').lean();
-  const students = await User.find({ role: 'student' }).select('_id').limit(12).lean();
+  const students = await ensureFixtureStudents();
   const createdBy =
     (await User.findOne({ role: { $in: ['instructor', 'adviser'] } })
       .select('_id')

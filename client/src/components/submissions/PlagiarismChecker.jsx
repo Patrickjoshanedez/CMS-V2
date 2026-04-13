@@ -278,15 +278,18 @@ const PlagiarismChecker = ({
   // ───────────────────────────────────────────────────────────────────────
 
   const handleTriggerCheck = useCallback(async () => {
-    // TODO: Extract text from submission document
-    // This would require fetching the Google Doc or uploaded PDF
+    const detectedTitle =
+      typeof plagiarismResult?.detectedTitle === 'string' ? plagiarismResult.detectedTitle : '';
+    const detectedAbstract =
+      typeof plagiarismResult?.detectedAbstract === 'string'
+        ? plagiarismResult.detectedAbstract
+        : '';
+
     triggerCheck({
-      text: 'Placeholder text from submission document', // Real implementation extracts from file
-      title: submissionTitle,
-      chapter: 'Chapter 1', // Should come from submission data
-      projectId: 'project-123', // Should come from submission data
+      title: detectedTitle || submissionTitle || undefined,
+      abstract: detectedAbstract || undefined,
     });
-  }, [submissionTitle, triggerCheck]);
+  }, [plagiarismResult?.detectedAbstract, plagiarismResult?.detectedTitle, submissionTitle, triggerCheck]);
 
   // ───────────────────────────────────────────────────────────────────────
   // Render

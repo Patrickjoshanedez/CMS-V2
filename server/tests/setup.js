@@ -24,6 +24,9 @@ process.env.SMTP_PORT = '2525';
 process.env.SMTP_USER = '';
 process.env.SMTP_PASS = '';
 process.env.RECAPTCHA_SECRET_KEY = ''; // Disable reCAPTCHA in tests
+process.env.RECAPTCHA_ENABLED = 'false';
+process.env.COOKIE_SECURE = 'false';
+process.env.COOKIE_SAME_SITE = 'lax';
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();

@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useMemo, useRef, useState } from 'react';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -15,6 +15,7 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
+import ReadonlyPDFViewer from '@/components/projects/ReadonlyPDFViewer';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import {
   useProject,
@@ -28,6 +29,7 @@ import {
   useRejectProject,
   useAdvancePhase,
   useArchiveProject,
+  useArchiveSearch,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
@@ -54,8 +56,67 @@ import {
   Archive,
   ScrollText,
   Clock,
+  Bookmark,
+  BookmarkCheck,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+export const ARCHIVE_BOOKMARKS_STORAGE_KEY = 'cms.archive.bookmarks';
+
+export function getFullName(person) {
+  if (!person) return null;
+  if (typeof person === 'string') return person;
+
+  const parts = [person.firstName, person.middleName, person.lastName]
+    .filter(Boolean)
+    .map((part) => String(part).trim());
+
+  return parts.length ? parts.join(' ') : person.email || null;
+}
+
+export function getProjectAuthors(project) {
+  const assignmentAuthors = (project?.memberRoleAssignments || [])
+    .map((assignment) => assignment?.userId)
+    .map(getFullName)
+    .filter(Boolean);
+
+  if (assignmentAuthors.length > 0) return assignmentAuthors;
+
+  const teamName = project?.teamId?.name;
+  return teamName ? [teamName] : [];
+}
+
+export function formatCitation(project, style, authors) {
+  const year = project?.academicYear?.split('-')?.[1] || new Date().getFullYear();
+  const title = project?.title || 'Untitled project';
+  const adviser = getFullName(project?.adviserId) || 'Adviser unavailable';
+  const institution = project?.courseId?.name || 'University repository';
+  const authorText = authors.length ? authors.join(', ') : 'Unknown author';
+
+  if (style === 'ieee') {
+    return `${authorText}, "${title}," ${institution}, ${year}. Adviser: ${adviser}.`;
+  }
+
+  if (style === 'mla') {
+    return `${authorText}. "${title}." ${institution}, ${year}. Adviser: ${adviser}.`;
+  }
+
+  return `${authorText} (${year}). ${title}. ${institution}. Adviser: ${adviser}.`;
+}
+
+export function resolveArchiveBackContext(locationState, locationSearch) {
+  const fromArchive =
+    Boolean(locationState?.fromArchive) ||
+    new URLSearchParams(locationSearch || '').get('from') === 'archive';
+
+  return {
+    fromArchive,
+    backDestination: locationState?.returnTo || (fromArchive ? '/archive' : '/projects'),
+    backLabel: fromArchive ? 'Back to Search Results' : 'Back to Projects',
+  };
+}
 
 /**
  * ProjectDetailPage — Faculty project detail view.
@@ -125,7 +186,7 @@ function TitleProposalsSection({ project }) {
 /**
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
-function ProjectInfoPanel({ project }) {
+function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
     ? capstoneRaw.join(', ')
@@ -173,19 +234,26 @@ function ProjectInfoPanel({ project }) {
         {/* Keywords */}
         {project.keywords?.length > 0 && (
           <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Keywords</p>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">Keywords / Tech Stack</p>
             <div className="flex flex-wrap gap-1.5">
               {project.keywords.map((kw, i) => (
-                <Badge key={i} variant="secondary">
-                  {kw}
-                </Badge>
+                <button key={`${kw}-${i}`} type="button" onClick={() => onKeywordClick?.(kw)}>
+                  <Badge variant="secondary" className="cursor-pointer hover:bg-primary/20">
+                    {kw}
+                  </Badge>
+                </button>
               ))}
             </div>
           </div>
         )}
 
         {/* Meta grid */}
-        <div className="grid gap-4 border-t pt-4 sm:grid-cols-3">
+        <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-start gap-2 text-sm sm:col-span-2 lg:col-span-3">
+            <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Authors:</span>
+            <span className="font-medium">{authors.length ? authors.join(', ') : 'Not available'}</span>
+          </div>
           <div className="flex items-center gap-2 text-sm">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Team:</span>
@@ -204,6 +272,16 @@ function ProjectInfoPanel({ project }) {
             <Users className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Panelists:</span>
             <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Academic Year:</span>
+            <span className="font-medium">{project.academicYear || '—'}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm sm:col-span-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Program / Department:</span>
+            <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
           </div>
           <div className="flex items-center gap-2 text-sm sm:col-span-3">
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -249,7 +327,7 @@ function ProjectInfoPanel({ project }) {
           )}
 
         {/* Deadlines — color-coded urgency display */}
-        {project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
+        {!isPeer && project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
       </CardContent>
     </Card>
   );
@@ -1016,7 +1094,18 @@ export function ProjectHistoryCard({ projectId }) {
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
+  const [citationStyle, setCitationStyle] = useState('apa');
+  const [bookmarkedIds, setBookmarkedIds] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(ARCHIVE_BOOKMARKS_STORAGE_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const {
     data: project,
     isLoading,
@@ -1025,23 +1114,123 @@ export default function ProjectDetailPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
   });
-  const { data: chapterSubmissions } = useProjectSubmissions(
-    project?._id,
-    { limit: 200, type: 'chapter' },
-    { enabled: !!project?._id },
-  );
-
+  const isStudent = user?.role === ROLES.STUDENT;
+  const projectTeamId = project?.teamId?._id || project?.teamId;
+  const userTeamId = user?.teamId?._id || user?.teamId;
+  const isAuthor =
+    isStudent && userTeamId && projectTeamId && String(userTeamId) === String(projectTeamId);
+  const isOwnerOrAdmin = !isStudent || isAuthor;
+  const isPeer = isStudent && !isAuthor;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const isArchived =
     Boolean(project?.isArchived) || project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
+
+  const { data: chapterSubmissions } = useProjectSubmissions(
+    project?._id,
+    { limit: 200, type: 'chapter' },
+    { enabled: !!project?._id && isOwnerOrAdmin },
+  );
+
+  const { data: finalAcademicData } = useProjectSubmissions(
+    project?._id,
+    { limit: 1, type: 'final_academic' },
+    { enabled: !!project?._id && isArchived },
+  );
+
+  const finalManuscriptUrl = finalAcademicData?.[0]?.fileUrl || finalAcademicData?.submissions?.[0]?.fileUrl;
+
+  const { backDestination, backLabel } = resolveArchiveBackContext(location.state, location.search);
+
+  const authors = useMemo(() => getProjectAuthors(project), [project]);
+  const isBookmarked = Boolean(project?._id && bookmarkedIds.includes(project._id));
+  const canViewAcademic = !isStudent || isAuthor;
+
+  const { data: relatedArchiveData } = useArchiveSearch(
+    {
+      search: (project?.keywords || [])[0] || project?.title || '',
+      academicYear: project?.academicYear,
+      page: 1,
+      limit: 8,
+    },
+    {
+      enabled: isArchived && !!project?._id,
+      staleTime: 60_000,
+    },
+  );
+
+  const relatedProjects = useMemo(() => {
+    const adviserId = project?.adviserId?._id;
+    const currentKeywords = new Set((project?.keywords || []).map((kw) => String(kw).toLowerCase()));
+
+    const candidates = (relatedArchiveData?.projects || []).filter(
+      (candidate) => String(candidate._id) !== String(project?._id),
+    );
+
+    const scored = candidates
+      .map((candidate) => {
+        let score = 0;
+        const candidateKeywords = (candidate.keywords || []).map((kw) => String(kw).toLowerCase());
+        candidateKeywords.forEach((kw) => {
+          if (currentKeywords.has(kw)) score += 2;
+        });
+
+        if (adviserId && String(candidate?.adviserId?._id) === String(adviserId)) {
+          score += 3;
+        }
+
+        return { candidate, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map((entry) => entry.candidate);
+
+    return scored;
+  }, [project, relatedArchiveData]);
+
+  const citationText = useMemo(
+    () => formatCitation(project, citationStyle, authors),
+    [project, citationStyle, authors],
+  );
+
+  const toggleBookmark = () => {
+    if (!project?._id) return;
+
+    const next = isBookmarked
+      ? bookmarkedIds.filter((entryId) => entryId !== project._id)
+      : [...bookmarkedIds, project._id];
+
+    setBookmarkedIds(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ARCHIVE_BOOKMARKS_STORAGE_KEY, JSON.stringify(next));
+    }
+
+    toast.success(isBookmarked ? 'Removed from reading list.' : 'Saved to your reading list.');
+  };
+
+  const copyCitation = async () => {
+    try {
+      await navigator.clipboard.writeText(citationText);
+      toast.success(`${citationStyle.toUpperCase()} citation copied.`);
+    } catch {
+      toast.error('Failed to copy citation.');
+    }
+  };
+
+  const handleKeywordClick = (keyword) => {
+    navigate(`/archive?q=${encodeURIComponent(keyword)}&view=content`);
+  };
+
+  const requestFullAccess = () => {
+    toast.success('Access request submitted. Your instructor/adviser will be notified.');
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Back */}
-        <Button variant="ghost" size="sm" onClick={() => navigate('/projects')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate(backDestination)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
+          {backLabel}
         </Button>
 
         {/* Loading */}
@@ -1065,23 +1254,163 @@ export default function ProjectDetailPage() {
         {project && (
           <>
             {/* Info panel */}
-            <ProjectInfoPanel project={project} />
-
-            {/* History tab with audit trail */}
-            <ProjectHistoryCard projectId={project._id} />
-
-            {!isArchived && <TitleProposalsSection project={project} />}
-
-            {/* Chapter progress + rounds (faculty visibility) */}
-            <ChapterProgressWithRounds
+            <ProjectInfoPanel
               project={project}
-              submissions={chapterSubmissions}
-              chapters={[1, 2, 3, 4, 5]}
-              title="Chapter Progress & Rounds"
-              description="Per chapter status with round tabs including adviser review comments, document, and date."
-              showUploadButton={false}
-              showAllSubmissionsButton={false}
+              isPeer={isPeer}
+              authors={authors}
+              onKeywordClick={handleKeywordClick}
             />
+
+            {isArchived && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-3">
+                      <span>Research Utilities</span>
+                      <Button variant="outline" size="sm" onClick={toggleBookmark}>
+                        {isBookmarked ? (
+                          <>
+                            <BookmarkCheck className="mr-2 h-4 w-4" />
+                            Bookmarked
+                          </>
+                        ) : (
+                          <>
+                            <Bookmark className="mr-2 h-4 w-4" />
+                            Bookmark
+                          </>
+                        )}
+                      </Button>
+                    </CardTitle>
+                    <CardDescription>
+                      Save this archive item and generate citations for literature review workflows.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="min-w-[200px] space-y-1">
+                        <Label htmlFor="citation-style">Citation style</Label>
+                        <select
+                          id="citation-style"
+                          value={citationStyle}
+                          onChange={(event) => setCitationStyle(event.target.value)}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="apa">APA</option>
+                          <option value="ieee">IEEE</option>
+                          <option value="mla">MLA</option>
+                        </select>
+                      </div>
+                      <Button variant="secondary" onClick={copyCitation}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Cite this Project
+                      </Button>
+                    </div>
+                    <div className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+                      {citationText}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {!canViewAcademic && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="space-y-3">
+                      <p>
+                        Full manuscript access is restricted for student peer viewers to protect
+                        authorship and reduce plagiarism risk.
+                      </p>
+                      <Button variant="outline" size="sm" onClick={requestFullAccess}>
+                        Request Full Manuscript Access
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+
+            {isArchived && canViewAcademic && (
+              <>
+                <ReadonlyPDFViewer fileUrl={finalManuscriptUrl} title="Approved Manuscript" />
+                {finalManuscriptUrl && (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button asChild variant="outline" size="sm">
+                          <a href={finalManuscriptUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open Manuscript
+                          </a>
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Faculty/admin downloads are audit-logged. Student peer access remains
+                          restricted by policy.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+
+            {isArchived && relatedProjects.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Related Projects</CardTitle>
+                  <CardDescription>
+                    Similar archives based on shared keywords and adviser match.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {relatedProjects.map((related) => (
+                      <button
+                        key={related._id}
+                        type="button"
+                        className="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
+                        onClick={() =>
+                          navigate(`/projects/${related._id}`, {
+                            state: {
+                              fromArchive: true,
+                              returnTo: backDestination,
+                            },
+                          })
+                        }
+                      >
+                        <p className="line-clamp-2 text-sm font-semibold">{related.title}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                          {related.teamId?.name || 'Unknown Team'}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {(related.keywords || []).slice(0, 2).map((keyword) => (
+                            <Badge key={`${related._id}-${keyword}`} variant="outline" className="text-[11px]">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {!isPeer && (
+              <>
+                {/* History tab with audit trail */}
+                <ProjectHistoryCard projectId={project._id} />
+
+                {!isArchived && <TitleProposalsSection project={project} />}
+
+                {/* Chapter progress + rounds (faculty visibility) */}
+                <ChapterProgressWithRounds
+                  project={project}
+                  submissions={chapterSubmissions}
+                  chapters={[1, 2, 3, 4, 5]}
+                  title="Chapter Progress & Rounds"
+                  description="Per chapter status with round tabs including adviser review comments, document, and date."
+                  showUploadButton={false}
+                  showAllSubmissionsButton={false}
+                />
 
             {/* Title review — only when submitted */}
             {!isArchived && project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
@@ -1190,6 +1519,8 @@ export default function ProjectDetailPage() {
             {/* Reject project — instructor only */}
             {!isArchived && isInstructor && project.projectStatus !== PROJECT_STATUSES.REJECTED && (
               <RejectProjectCard project={project} />
+            )}
+              </>
             )}
           </>
         )}

@@ -53,6 +53,7 @@ export const teamService = {
     api.patch(`/teams/${teamId}/members/${memberId}/role`, data),
   updateGoogleDocLink: (teamId, data) => api.patch(`/teams/${teamId}/google-doc-link`, data),
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
+  leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
 };
 
@@ -87,6 +88,12 @@ export const projectService = {
 
   // Real-time title similarity check
   checkTitleSimilarity: (data) => api.post('/projects/title-check', data),
+  checkProposalSimilarity: (data) => api.post('/projects/similarity-scan', data),
+
+  // Create-project draft persistence
+  getCreateProjectDraft: () => api.get('/projects/create-draft'),
+  saveCreateProjectDraft: (draft) => api.put('/projects/create-draft', { draft }),
+  clearCreateProjectDraft: () => api.delete('/projects/create-draft'),
 
   // Instructor routes
   approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
@@ -132,6 +139,16 @@ export const projectService = {
       formData.append('title', payload.title);
       if (payload.abstract) formData.append('abstract', payload.abstract);
       if (payload.keywords) formData.append('keywords', payload.keywords);
+      if (Array.isArray(payload.authors)) {
+        payload.authors.forEach((author) => formData.append('authors', author));
+      } else if (payload.authors) {
+        formData.append('authors', payload.authors);
+      }
+      if (payload.publicationYear != null) {
+        formData.append('publicationYear', String(payload.publicationYear));
+      }
+      if (payload.doi) formData.append('doi', payload.doi);
+      if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
       formData.append('academicYear', payload.academicYear);
       formData.append('academicPaperFile', payload.academicPaperFile);
       formData.append('academicJournalFile', payload.academicJournalFile);
@@ -175,15 +192,15 @@ export const academicService = {
  */
 export const documentService = {
   /**
-   * Extract title and abstract metadata from a PDF file.
+    * Extract title, abstract, publication year, authors, and keywords metadata from a PDF file.
    * @param {File} file - The PDF file to extract metadata from
-   * @returns {Promise<{title: string, abstract: string, confidence: {title: number, abstract: number}}>}
+    * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>} 
    */
   extractPdfMetadata: (file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/documents/extract-pdf-metadata', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
     });
   },
 };

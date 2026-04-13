@@ -51,6 +51,87 @@ class TeamService {
     }
   }
 
+  async _enforceSingleTeamMembership(user, options = {}) {
+    if (!user?._id) {
+      return null;
+    }
+
+    const preferredTeamId = options.preferredTeamId ? options.preferredTeamId.toString() : null;
+    const memberships = await Team.find({ members: user._id })
+      .select('_id leaderId members memberRoles updatedAt createdAt')
+      .sort({ updatedAt: -1, createdAt: -1 });
+
+    if (memberships.length === 0) {
+      if (user.teamId) {
+        user.teamId = null;
+        await user.save({ validateBeforeSave: false });
+      }
+      return null;
+    }
+
+    const currentTeamId = user.teamId ? user.teamId.toString() : null;
+    let canonicalTeam = null;
+
+    if (preferredTeamId) {
+      canonicalTeam = memberships.find((team) => team._id.toString() === preferredTeamId) || null;
+    }
+
+    if (!canonicalTeam && currentTeamId) {
+      canonicalTeam = memberships.find((team) => team._id.toString() === currentTeamId) || null;
+    }
+
+    if (!canonicalTeam) {
+      [canonicalTeam] = memberships;
+    }
+
+    const duplicateTeams = memberships.filter(
+      (team) => team._id.toString() !== canonicalTeam._id.toString(),
+    );
+
+    for (const duplicateTeam of duplicateTeams) {
+      const remainingMembers = (duplicateTeam.members || []).filter(
+        (memberId) => memberId.toString() !== user._id.toString(),
+      );
+
+      if (duplicateTeam.leaderId?.toString() === user._id.toString()) {
+        if (remainingMembers.length === 0) {
+          await TeamInvite.deleteMany({ teamId: duplicateTeam._id, status: 'pending' });
+          await Team.deleteOne({ _id: duplicateTeam._id });
+          continue;
+        }
+
+        await Team.updateOne(
+          { _id: duplicateTeam._id },
+          {
+            $pull: {
+              members: user._id,
+              memberRoles: { userId: user._id },
+            },
+            $set: { leaderId: remainingMembers[0] },
+          },
+        );
+        continue;
+      }
+
+      await Team.updateOne(
+        { _id: duplicateTeam._id },
+        {
+          $pull: {
+            members: user._id,
+            memberRoles: { userId: user._id },
+          },
+        },
+      );
+    }
+
+    if (!user.teamId || user.teamId.toString() !== canonicalTeam._id.toString()) {
+      user.teamId = canonicalTeam._id;
+      await user.save({ validateBeforeSave: false });
+    }
+
+    return canonicalTeam._id;
+  }
+
   async generateUniqueInviteCode() {
     for (let attempts = 0; attempts < 10; attempts += 1) {
       const candidateCode = generateInviteCodeValue();
@@ -84,12 +165,25 @@ class TeamService {
       throw new AppError('Only students can create project teams.', 403, 'FORBIDDEN');
     }
 
-    if (user.teamId) {
+    await this._enforceSingleTeamMembership(user);
+
+    const alreadyInTeam = Boolean(
+      await Team.exists({
+        members: user._id,
+      }),
+    );
+
+    if (alreadyInTeam) {
       throw new AppError(
         'You are already a member of a team. Leave your current team first.',
         409,
         'ALREADY_IN_TEAM',
       );
+    }
+
+    // Self-heal stale teamId reference when user has no actual team membership.
+    if (user.teamId) {
+      user.teamId = null;
     }
 
     const normalizedName = typeof data.name === 'string' ? data.name.trim() : '';
@@ -160,31 +254,121 @@ class TeamService {
   }
 
   /**
+   * Leave a team (student member action).
+   * Allowed only while team is not finalized.
+   * If the leader leaves, leadership is transferred to another member.
+   * If the last member leaves, the team is deleted.
+   * @param {string} teamId
+   * @param {string} userId
+   * @returns {Object} { team }
+   */
+  async leaveTeam(teamId, userId) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.isLocked) {
+      throw new AppError(
+        'Finalized teams cannot be modified. You cannot leave this team anymore.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
+    const isMember = (team.members || []).some((memberId) => memberId.toString() === userId.toString());
+    if (!isMember) {
+      throw new AppError('You are not a member of this team.', 403, 'FORBIDDEN');
+    }
+
+    team.members = (team.members || []).filter((memberId) => memberId.toString() !== userId.toString());
+    team.memberRoles = (team.memberRoles || []).filter(
+      (assignment) => assignment?.userId?.toString() !== userId.toString(),
+    );
+
+    const remainingMemberIds = team.members.map((memberId) => memberId.toString());
+    const wasLeader = team.leaderId?.toString() === userId.toString();
+
+    if (remainingMemberIds.length === 0) {
+      await User.updateOne(
+        { _id: userId, teamId: team._id },
+        { $set: { teamId: null } },
+      );
+      await TeamInvite.deleteMany({ teamId: team._id, status: 'pending' });
+      await team.deleteOne();
+      return { team: null };
+    }
+
+    if (wasLeader) {
+      team.leaderId = team.members[0];
+    }
+
+    await team.save();
+
+    await User.updateOne(
+      { _id: userId, teamId: team._id },
+      { $set: { teamId: null } },
+    );
+
+    const populatedTeam = await Team.findById(team._id)
+      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate('members', 'firstName middleName lastName email profilePicture role');
+
+    return { team: populatedTeam };
+  }
+
+  /**
    * Get the authenticated student's team with populated members.
    * @param {string} userId
    * @returns {Object} { team }
    */
   async getMyTeam(userId) {
     const user = await User.findById(userId);
-    if (!user || !user.teamId) {
+    if (!user) {
       throw new AppError('You are not a member of any team.', 404, 'NO_TEAM');
     }
 
-    const team = await Team.findById(user.teamId)
-      .populate({
-        path: 'leaderId',
-        select: 'firstName middleName lastName email profilePicture instructorId',
-        populate: {
-          path: 'instructorId',
-          select: 'firstName middleName lastName email profilePicture',
-        },
-      })
-      .populate('members', 'firstName middleName lastName email profilePicture role');
+    const canonicalTeamId = await this._enforceSingleTeamMembership(user);
+
+    let team = null;
+
+    if (canonicalTeamId) {
+      team = await Team.findById(canonicalTeamId)
+        .populate({
+          path: 'leaderId',
+          select: 'firstName middleName lastName email profilePicture instructorId',
+          populate: {
+            path: 'instructorId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+        })
+        .populate('members', 'firstName middleName lastName email profilePicture role');
+    }
 
     if (!team) {
-      user.teamId = null;
+      // Reconcile stale/null user.teamId by checking actual membership records.
+      team = await Team.findOne({ members: user._id })
+        .sort({ createdAt: -1 })
+        .populate({
+          path: 'leaderId',
+          select: 'firstName middleName lastName email profilePicture instructorId',
+          populate: {
+            path: 'instructorId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+        })
+        .populate('members', 'firstName middleName lastName email profilePicture role');
+
+      if (!team) {
+        if (user.teamId) {
+          user.teamId = null;
+          await user.save({ validateBeforeSave: false });
+        }
+        throw new AppError('You are not a member of any team.', 404, 'NO_TEAM');
+      }
+
+      user.teamId = team._id;
       await user.save({ validateBeforeSave: false });
-      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
     }
 
     const isMember = team.members?.some((member) => member?._id?.toString() === userId.toString());
@@ -193,6 +377,11 @@ class TeamService {
       user.teamId = null;
       await user.save({ validateBeforeSave: false });
       throw new AppError('You are not a member of any team.', 404, 'NO_TEAM');
+    }
+
+    if (!user.teamId || user.teamId.toString() !== team._id.toString()) {
+      user.teamId = team._id;
+      await user.save({ validateBeforeSave: false });
     }
 
     const currentProject = await Project.findOne({ teamId: team._id })
@@ -229,6 +418,13 @@ class TeamService {
       throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
     }
 
+    const leaderUser = await User.findById(leaderId).select('teamId sectionId instructorId');
+    if (!leaderUser) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    await this._enforceSingleTeamMembership(leaderUser, { preferredTeamId: team._id });
+
     if (team.leaderId.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can send invitations.', 403, 'FORBIDDEN');
     }
@@ -257,20 +453,24 @@ class TeamService {
     }
 
     // Block invites when the user already belongs to another team.
-    const isMemberOfAnotherTeam =
-      Boolean(invitedUser.teamId) ||
-      Boolean(
-        await Team.exists({
-          _id: { $ne: team._id },
-          members: invitedUser._id,
-        }),
-      );
+    // Team membership is the source of truth; user.teamId can become stale.
+    const isMemberOfAnotherTeam = Boolean(
+      await Team.exists({
+        _id: { $ne: team._id },
+        members: invitedUser._id,
+      }),
+    );
     if (isMemberOfAnotherTeam) {
       throw new AppError(
         `${invitedUser.fullName || 'This user'} already has a team.`,
         409,
         'ALREADY_IN_TEAM',
       );
+    }
+
+    // Self-heal stale teamId reference when no team membership exists.
+    if (invitedUser.teamId) {
+      await User.updateOne({ _id: invitedUser._id }, { $set: { teamId: null } });
     }
 
     // Check for existing pending invite
@@ -299,7 +499,9 @@ class TeamService {
     });
 
     // Send invite email
-    const inviter = await User.findById(leaderId).select('firstName middleName lastName');
+    const inviter = await User.findById(leaderId).select(
+      'firstName middleName lastName sectionId instructorId',
+    );
     const inviterName = inviter?.fullName || 'A team leader';
     await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
 
@@ -312,6 +514,42 @@ class TeamService {
       metadata: { teamId, inviteToken: token, inviteCode },
     });
     emitToUser(invitedUser._id, 'notification:new', inviteNotif);
+
+    const isCrossSectionInvite = Boolean(
+      inviter?.sectionId &&
+        invitedUser?.sectionId &&
+        inviter.sectionId.toString() !== invitedUser.sectionId.toString(),
+    );
+
+    if (isCrossSectionInvite) {
+      const instructorRecipientIds = [
+        invitedUser?.instructorId?.toString?.(),
+        inviter?.instructorId?.toString?.(),
+      ].filter(Boolean);
+
+      const uniqueInstructorRecipientIds = [...new Set(instructorRecipientIds)];
+
+      if (uniqueInstructorRecipientIds.length > 0) {
+        const instructorNotifs = await Notification.create(
+          uniqueInstructorRecipientIds.map((recipientId) => ({
+            userId: recipientId,
+            type: 'team_invite',
+            title: 'Cross-Section Team Invitation',
+            message: `${invitedUser.fullName || invitedUser.email} was invited to join team "${team.name}" from another section.`,
+            metadata: {
+              teamId,
+              inviteeId: invitedUser._id,
+              inviteToken: token,
+              crossSection: true,
+            },
+          })),
+        );
+
+        for (const notif of instructorNotifs) {
+          emitToUser(notif.userId, 'notification:new', notif);
+        }
+      }
+    }
 
     return {
       invite,
@@ -347,46 +585,109 @@ class TeamService {
     const leader = await User.findById(leaderId).select('sectionId');
     const scopedSectionId = leader?.sectionId || team.sectionId || null;
 
-    const noTeamInvariant = {
-      $or: [{ teamId: null }, { teamId: { $exists: false } }],
-    };
-
     const filter = {
       role: ROLES.STUDENT,
       isActive: true,
       _id: { $nin: memberIds },
-      ...noTeamInvariant,
     };
 
-    if (scopedSectionId) {
-      filter.sectionId = scopedSectionId;
-    }
-
     if (search) {
-      filter.$and = [
-        noTeamInvariant,
-        {
-          $or: [
-            { firstName: { $regex: search, $options: 'i' } },
-            { middleName: { $regex: search, $options: 'i' } },
-            { lastName: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-          ],
-        },
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
       ];
-      delete filter.$or;
     }
 
     const users = await User.find(filter)
-      .select('firstName middleName lastName email')
+      .select('firstName middleName lastName email sectionId instructorId teamId')
       .sort({ firstName: 1, lastName: 1 })
       .limit(limit);
 
-    const candidates = users.map((user) => ({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-    }));
+    const candidateIds = users.map((user) => user._id);
+    const teamsContainingCandidates = await Team.find({
+      _id: { $ne: team._id },
+      members: { $in: candidateIds },
+    })
+      .select('members')
+      .lean();
+
+    const memberOfAnotherTeamSet = new Set();
+    const memberTeamMap = new Map();
+    for (const existingTeam of teamsContainingCandidates) {
+      for (const memberId of existingTeam.members || []) {
+        const key = memberId.toString();
+        memberOfAnotherTeamSet.add(key);
+        if (!memberTeamMap.has(key)) {
+          memberTeamMap.set(key, existingTeam._id.toString());
+        }
+      }
+    }
+
+    const staleTeamIdUpdates = [];
+
+    const candidates = users
+      .map((user) => {
+      const userId = user._id.toString();
+      const inAnotherSection = Boolean(
+        scopedSectionId && user.sectionId && user.sectionId.toString() !== scopedSectionId.toString(),
+      );
+      // Rely on current team membership records instead of user.teamId, which can be stale.
+      const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
+      const mappedTeamId = memberTeamMap.get(userId);
+      const currentTeamId = user.teamId ? user.teamId.toString() : null;
+      if (alreadyInTeam && mappedTeamId && currentTeamId !== mappedTeamId) {
+        staleTeamIdUpdates.push({
+          updateOne: {
+            filter: { _id: user._id },
+            update: { $set: { teamId: mappedTeamId } },
+          },
+        });
+      }
+      const missingInstructor = !user.instructorId;
+
+      const warnings = [];
+
+      if (inAnotherSection) {
+        warnings.push({
+          code: 'DIFFERENT_SECTION',
+          message:
+            'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
+          blocksInvite: false,
+        });
+      }
+
+      if (alreadyInTeam) {
+        warnings.push({
+          code: 'ALREADY_IN_TEAM',
+          message: `${user.fullName || 'This student'} already has a team.`,
+          blocksInvite: true,
+        });
+      }
+
+      if (missingInstructor) {
+        warnings.push({
+          code: 'NO_INSTRUCTOR',
+          message:
+            'This student does not have an instructor yet. They should complete their profile before joining a team.',
+          blocksInvite: true,
+        });
+      }
+
+        return {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          canInvite: !warnings.some((warning) => warning.blocksInvite),
+          warnings,
+        };
+      })
+      .sort((a, b) => Number(b.canInvite) - Number(a.canInvite));
+
+    if (staleTeamIdUpdates.length > 0) {
+      await User.bulkWrite(staleTeamIdUpdates, { ordered: false });
+    }
 
     return { candidates };
   }
@@ -427,10 +728,6 @@ class TeamService {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
     }
 
-    if (user.teamId) {
-      throw new AppError('You are already a member of a team', 409, 'ALREADY_IN_TEAM');
-    }
-
     const team = await Team.findById(invite.teamId);
     if (!team) {
       throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
@@ -442,6 +739,11 @@ class TeamService {
     });
     if (isMemberOfAnotherTeam) {
       throw new AppError('You are already a member of a team', 409, 'ALREADY_IN_TEAM');
+    }
+
+    // Self-heal stale teamId value before claiming the invite.
+    if (user.teamId) {
+      await User.updateOne({ _id: user._id }, { $set: { teamId: null } });
     }
 
     if (team.members.length >= MAX_TEAM_MEMBERS) {

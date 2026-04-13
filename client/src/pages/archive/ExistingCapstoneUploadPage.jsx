@@ -91,7 +91,15 @@ const KEYWORD_SUGGESTIONS = [
   'Microservices',
 ];
 
-const INITIAL_FORM = { title: '', abstract: '', academicYear: '' };
+const INITIAL_FORM = {
+  title: '',
+  abstract: '',
+  authors: '',
+  publicationYear: '',
+  doi: '',
+  publicationVenue: '',
+  academicYear: '',
+};
 
 export default function ExistingCapstoneUploadPage() {
   const navigate = useNavigate();
@@ -102,20 +110,40 @@ export default function ExistingCapstoneUploadPage() {
   const [academicPaperFile, setAcademicPaperFile] = useState(null);
   const [academicJournalFile, setAcademicJournalFile] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [similarityReport, setSimilarityReport] = useState(null);
 
   const { mutateAsync, isPending } = useBulkUploadArchive();
   const { data: academicYears = [], isLoading: yearsLoading } = useAcademicYears();
 
   const currentYear = new Date().getFullYear();
   const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
+  const titleConflicts = similarityReport?.titleConflicts || [];
+  const abstractConflicts = similarityReport?.abstractConflicts || [];
+  const hasSimilarityConflicts = titleConflicts.length > 0 || abstractConflicts.length > 0;
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }, []);
 
+  const normalizeAuthors = useCallback((value) => {
+    if (!value) return [];
+
+    return value
+      .split(/[,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+  }, []);
+
+  const toAcademicYearRange = useCallback((publicationYear) => {
+    if (!publicationYear || Number.isNaN(Number(publicationYear))) return '';
+    const year = Number(publicationYear);
+    return `${year}-${year + 1}`;
+  }, []);
+
   /**
-   * Extracts title and abstract from a PDF file using the server API.
+   * Extracts title, abstract, publication year, and keywords from a PDF file using the server API.
    */
   const handlePdfExtraction = useCallback(
     async (file) => {
@@ -124,29 +152,67 @@ export default function ExistingCapstoneUploadPage() {
       setIsExtracting(true);
       try {
         const response = await documentService.extractPdfMetadata(file);
-        const { title, abstract, confidence } = response.data.data;
+        const {
+          title,
+          abstract,
+          publicationYear,
+          authors = [],
+          keywords: extractedKeywords = [],
+          confidence,
+        } = response.data.data;
 
-        // Only auto-fill if fields are empty or confidence is high
-        if (title && (!form.title || confidence.title > 0.7)) {
-          setForm((prev) => ({ ...prev, title }));
-          toast.success('Title extracted from PDF');
-        }
-        if (abstract && (!form.abstract || confidence.abstract > 0.7)) {
-          setForm((prev) => ({ ...prev, abstract }));
-          toast.success('Abstract extracted from PDF');
+        const extractedAcademicYear = toAcademicYearRange(publicationYear);
+
+        setForm((prev) => ({
+          ...prev,
+          title: title?.trim() || prev.title,
+          abstract: abstract?.trim() || prev.abstract,
+          authors: Array.isArray(authors) && authors.length > 0 ? authors.join(', ') : prev.authors,
+          publicationYear: publicationYear ? String(publicationYear) : prev.publicationYear,
+          academicYear: extractedAcademicYear || prev.academicYear,
+        }));
+
+        if (title || abstract || publicationYear || (Array.isArray(authors) && authors.length > 0)) {
+          toast.success('PDF metadata auto-filled in the form');
         }
 
-        if (!title && !abstract) {
-          toast.info('Could not extract title/abstract from this PDF format.');
+        if (Array.isArray(extractedKeywords) && extractedKeywords.length > 0 && keywords.length === 0) {
+          setKeywords(extractedKeywords.slice(0, 10));
+          toast.success('Keywords extracted from PDF');
         }
+
+        if (!title && !abstract && !publicationYear && (!Array.isArray(authors) || authors.length === 0)) {
+          toast.info('Could not extract metadata from this PDF format.');
+        }
+
+        return {
+          title: title?.trim() || '',
+          abstract: abstract?.trim() || '',
+          publicationYear: publicationYear || null,
+          authors,
+          keywords: extractedKeywords,
+        };
       } catch (err) {
-        // Silent fail - user can still fill manually
+        const apiMessage = err?.response?.data?.message;
+        const isTimeout =
+          err?.code === 'ECONNABORTED' ||
+          String(err?.message || '').toLowerCase().includes('timeout');
+        const isNetwork = !err?.response;
+
+        if (isTimeout) {
+          toast.error('PDF extraction timed out. Click Rescan or try a smaller PDF.');
+        } else if (isNetwork) {
+          toast.error('Could not reach the extraction endpoint. Check backend/proxy, then click Rescan.');
+        } else {
+          toast.error(apiMessage || 'Automatic PDF extraction failed. You can still fill the fields manually.');
+        }
         console.warn('PDF extraction failed:', err);
+        return { title: '', abstract: '', publicationYear: null, authors: [], keywords: [] };
       } finally {
         setIsExtracting(false);
       }
     },
-    [form.title, form.abstract],
+    [toAcademicYearRange, keywords.length],
   );
 
   /**
@@ -157,13 +223,22 @@ export default function ExistingCapstoneUploadPage() {
       const file = e.target.files?.[0] || null;
       setAcademicPaperFile(file);
 
-      // Auto-extract metadata when PDF is selected and fields are empty
-      if (file && (!form.title || !form.abstract)) {
+      // Always auto-extract metadata as soon as an academic paper PDF is selected.
+      if (file) {
         handlePdfExtraction(file);
       }
     },
-    [form.title, form.abstract, handlePdfExtraction],
+    [handlePdfExtraction],
   );
+
+  const handleRescanMetadata = useCallback(async () => {
+    if (!academicPaperFile) {
+      toast.error('Please select an Academic Paper PDF first.');
+      return;
+    }
+
+    await handlePdfExtraction(academicPaperFile);
+  }, [academicPaperFile, handlePdfExtraction]);
 
   const resetForm = useCallback(() => {
     setForm(INITIAL_FORM);
@@ -181,7 +256,34 @@ export default function ExistingCapstoneUploadPage() {
     async (e) => {
       e.preventDefault();
 
-      if (!form.title.trim() || !form.academicYear.trim()) {
+      let resolvedTitle = form.title.trim();
+      let resolvedAbstract = form.abstract.trim();
+      const normalizedAuthors = normalizeAuthors(form.authors);
+      const normalizedDoi = form.doi.trim();
+      const normalizedPublicationVenue = form.publicationVenue.trim();
+      const publicationYearValue = form.publicationYear.trim();
+      const normalizedPublicationYear = publicationYearValue ? Number(publicationYearValue) : undefined;
+
+      // Reliability fallback: attempt extraction again on submit when fields are missing.
+      if ((!resolvedTitle || !resolvedAbstract) && academicPaperFile?.type === 'application/pdf') {
+        const extracted = await handlePdfExtraction(academicPaperFile);
+        if (!resolvedTitle && extracted?.title) {
+          resolvedTitle = extracted.title;
+        }
+        if (!resolvedAbstract && extracted?.abstract) {
+          resolvedAbstract = extracted.abstract;
+        }
+
+        if (resolvedTitle || resolvedAbstract) {
+          setForm((prev) => ({
+            ...prev,
+            title: resolvedTitle || prev.title,
+            abstract: resolvedAbstract || prev.abstract,
+          }));
+        }
+      }
+
+      if (!resolvedTitle || !form.academicYear.trim()) {
         toast.error('Title and Academic Year are required.');
         return;
       }
@@ -202,14 +304,27 @@ export default function ExistingCapstoneUploadPage() {
       }
 
       try {
-        await mutateAsync({
-          title: form.title.trim(),
-          abstract: form.abstract.trim(),
+        const response = await mutateAsync({
+          title: resolvedTitle,
+          abstract: resolvedAbstract,
           keywords: keywords.join(', '),
+          authors: normalizedAuthors,
+          publicationYear: Number.isFinite(normalizedPublicationYear)
+            ? normalizedPublicationYear
+            : undefined,
+          doi: normalizedDoi,
+          publicationVenue: normalizedPublicationVenue,
           academicYear: form.academicYear.trim(),
           academicPaperFile,
           academicJournalFile,
         });
+
+        const similarity = response?.data?.similarity || null;
+        setSimilarityReport(similarity);
+
+        if (similarity?.warning) {
+          toast.warning(similarity.warning);
+        }
 
         toast.success('Archived capstone uploaded successfully.');
         resetForm();
@@ -217,7 +332,16 @@ export default function ExistingCapstoneUploadPage() {
         toast.error(err?.response?.data?.error?.message || err.message || 'Upload failed.');
       }
     },
-    [academicJournalFile, academicPaperFile, form, keywords, mutateAsync, resetForm],
+    [
+      academicJournalFile,
+      academicPaperFile,
+      form,
+      handlePdfExtraction,
+      keywords,
+      mutateAsync,
+      normalizeAuthors,
+      resetForm,
+    ],
   );
 
   if (user?.role !== ROLES.INSTRUCTOR) {
@@ -253,6 +377,40 @@ export default function ExistingCapstoneUploadPage() {
           </AlertDescription>
         </Alert>
 
+        {hasSimilarityConflicts && (
+          <Alert variant="destructive">
+            <AlertDescription className="space-y-2">
+              <p className="font-medium">Similarity warnings were detected for this upload.</p>
+
+              {titleConflicts.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Title conflicts</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+                    {titleConflicts.slice(0, 5).map((conflict) => (
+                      <li key={`title-${conflict.projectId}`}>
+                        {conflict.title} ({conflict.similarityPct}% similar)
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {abstractConflicts.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Abstract conflicts</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+                    {abstractConflicts.slice(0, 5).map((conflict) => (
+                      <li key={`abstract-${conflict.projectId}`}>
+                        {conflict.title} ({conflict.similarityPct}% similar)
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <form onSubmit={handleSubmit}>
             <CardHeader>
@@ -271,7 +429,6 @@ export default function ExistingCapstoneUploadPage() {
                   placeholder="Capstone title"
                   value={form.title}
                   onChange={handleChange}
-                  required
                 />
               </div>
 
@@ -283,6 +440,56 @@ export default function ExistingCapstoneUploadPage() {
                   placeholder="Brief description (optional)"
                   rows={4}
                   value={form.abstract}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="authors">Author(s)</Label>
+                <Textarea
+                  id="authors"
+                  name="authors"
+                  placeholder="Author names (comma or newline separated)"
+                  rows={2}
+                  value={form.authors}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="publicationYear">Publication Year</Label>
+                  <Input
+                    id="publicationYear"
+                    name="publicationYear"
+                    type="number"
+                    min="1900"
+                    max="2100"
+                    placeholder="e.g. 2025"
+                    value={form.publicationYear}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="doi">DOI</Label>
+                  <Input
+                    id="doi"
+                    name="doi"
+                    placeholder="e.g. 10.1000/xyz123"
+                    value={form.doi}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="publicationVenue">Publication Venue</Label>
+                <Input
+                  id="publicationVenue"
+                  name="publicationVenue"
+                  placeholder="Journal or conference name"
+                  value={form.publicationVenue}
                   onChange={handleChange}
                 />
               </div>
@@ -338,9 +545,28 @@ export default function ExistingCapstoneUploadPage() {
                   onChange={handleAcademicPaperChange}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Title and abstract will be auto-extracted when you select a PDF.
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Title, abstract, authors, publication year, and keywords will be auto-extracted when you select a PDF.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRescanMetadata}
+                    disabled={!academicPaperFile || isExtracting}
+                    className="shrink-0"
+                  >
+                    {isExtracting ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Rescanning...
+                      </>
+                    ) : (
+                      'Rescan'
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-1">

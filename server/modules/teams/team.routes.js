@@ -68,6 +68,7 @@ router.patch(
 );
 
 router.patch('/:id/lock', authorize(ROLES.STUDENT), teamController.lockTeam);
+router.delete('/:id/members/me', authorize(ROLES.STUDENT), teamController.leaveTeam);
 
 // --- Instructor/Adviser listing route ---
 router.get(

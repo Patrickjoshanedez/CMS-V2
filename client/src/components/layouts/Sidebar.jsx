@@ -6,7 +6,7 @@ import {
   Bell,
   Settings,
   LogOut,
-  X,
+  Menu,
   GraduationCap,
   FileText,
   Upload,
@@ -96,9 +96,10 @@ export default function Sidebar({ open, onClose }) {
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 ease-in-out
-        lg:static lg:translate-x-0
-        ${open ? 'translate-x-0' : '-translate-x-full'}
+        relative z-30 flex h-screen shrink-0 flex-col bg-card overflow-hidden
+        transition-[width,opacity,transform,border-color] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]
+        ${open ? 'w-64 border-r opacity-100 translate-x-0' : 'w-0 border-r-0 opacity-0 -translate-x-2'}
+        lg:w-64 lg:border-r lg:opacity-100 lg:translate-x-0
       `}
     >
       {/* Header */}
@@ -110,9 +111,9 @@ export default function Sidebar({ open, onClose }) {
         <button
           onClick={onClose}
           className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
-          aria-label="Close sidebar"
+          aria-label="Toggle sidebar"
         >
-          <X className="h-5 w-5" />
+          <Menu className="h-5 w-5" />
         </button>
       </div>
 
@@ -123,9 +124,8 @@ export default function Sidebar({ open, onClose }) {
             key={item.path}
             to={item.path}
             end
-            onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ease-out hover:translate-x-0.5 ${
                 isActive
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -143,9 +143,8 @@ export default function Sidebar({ open, onClose }) {
         <NavLink
           to="/settings"
           end
-          onClick={onClose}
           className={({ isActive }) =>
-            `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ease-out hover:translate-x-0.5 ${
               isActive
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'

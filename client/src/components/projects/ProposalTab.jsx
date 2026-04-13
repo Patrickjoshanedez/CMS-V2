@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, FileDown, Loader2 } from 'lucide-react';
+import { ChevronDown, FileDown, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -36,6 +36,8 @@ const PITCH_DECK_FIELDS = [
   },
 ];
 
+const PROPOSAL_DRAFT_STORAGE_PREFIX = 'cms:proposal-draft';
+
 function normalizeProposalItems(project) {
   const proposals = Array.isArray(project?.titleProposals) ? project.titleProposals : [];
   const metadata = Array.isArray(project?.titleProposalMetadata) ? project.titleProposalMetadata : [];
@@ -63,6 +65,10 @@ function emptyDeckData() {
     targetUsers: '',
     expectedImpact: '',
   };
+}
+
+function getDraftStorageKey(projectId, proposalId) {
+  return `${PROPOSAL_DRAFT_STORAGE_PREFIX}:${projectId}:${proposalId}`;
 }
 
 function sanitizeFilename(value) {
@@ -95,13 +101,28 @@ export default function ProposalTab({ project }) {
     setFormsByProposal((current) => {
       const next = { ...current };
       for (const proposal of proposalItems) {
+        const storageKey = getDraftStorageKey(project?._id, proposal.id);
+        const savedDraft = window.localStorage.getItem(storageKey);
+
         if (!next[proposal.id]) {
           next[proposal.id] = emptyDeckData();
+        }
+
+        if (savedDraft) {
+          try {
+            next[proposal.id] = {
+              ...emptyDeckData(),
+              ...next[proposal.id],
+              ...JSON.parse(savedDraft),
+            };
+          } catch {
+            window.localStorage.removeItem(storageKey);
+          }
         }
       }
       return next;
     });
-  }, [proposalItems]);
+  }, [proposalItems, project?._id]);
 
   const handleFieldChange = (proposalId, field, value) => {
     setFormsByProposal((current) => ({
@@ -111,6 +132,22 @@ export default function ProposalTab({ project }) {
         [field]: value,
       },
     }));
+  };
+
+  const handleSaveDraft = (proposal) => {
+    if (!project?._id) {
+      toast.error('Cannot save proposal draft without a project ID.');
+      return;
+    }
+
+    const draft = formsByProposal[proposal.id] || emptyDeckData();
+    const payload = {
+      ...emptyDeckData(),
+      ...draft,
+    };
+
+    window.localStorage.setItem(getDraftStorageKey(project._id, proposal.id), JSON.stringify(payload));
+    toast.success('Proposal draft saved locally.');
   };
 
   const toggleAccordion = (proposalId) => {
@@ -137,7 +174,15 @@ export default function ProposalTab({ project }) {
       });
 
       const filename = `${sanitizeFilename(proposal.title)}_PitchDeck.pdf`;
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob =
+        response.data instanceof Blob
+          ? response.data
+          : new Blob([response.data], { type: 'application/pdf' });
+
+      if (!blob.size) {
+        throw new Error('Generated PDF is empty. Please try again.');
+      }
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -145,8 +190,10 @@ export default function ProposalTab({ project }) {
       link.rel = 'noopener';
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        link.remove();
+      }, 1000);
 
       toast.success('Pitch deck generated successfully.');
     } catch (error) {
@@ -224,24 +271,36 @@ export default function ProposalTab({ project }) {
                       </div>
                     ))}
 
-                    <Button
-                      type="button"
-                      onClick={() => generateDeck(proposal)}
-                      disabled={isGenerating}
-                      className="w-full sm:w-auto"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FileDown className="mr-2 h-4 w-4" />
-                          Generate Presentation Deck (PDF)
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleSaveDraft(proposal)}
+                        className="w-full sm:w-auto"
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Draft
+                      </Button>
+
+                      <Button
+                        type="button"
+                        onClick={() => generateDeck(proposal)}
+                        disabled={isGenerating}
+                        className="w-full sm:w-auto"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Generate Presentation Deck (PDF)
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

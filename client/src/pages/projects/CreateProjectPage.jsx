@@ -7,15 +7,27 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAuthStore } from '@/stores/authStore';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
-import { AlertTriangle, X, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  X,
+  Plus,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  RefreshCw,
+  Download,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 
+import { cn } from '@/lib/utils';
 import { TagInput } from '@/components/ui/TagInput';
 import { projectService } from '@/services/authService';
 
@@ -135,8 +147,12 @@ export default function CreateProjectPage() {
     Array.from({ length: 3 }, () => createEmptyProposal()),
   );
   // Optional: keep track of which proposal is expanded
-  const [expandedProposalIndex, setExpandedProposalIndex] = useState(0);
+  const [activeProposalIndex, setActiveProposalIndex] = useState(0);
+  const [activeSubTab, setActiveSubTab] = useState('write');
   const [generatingProposalIndex, setGeneratingProposalIndex] = useState(null);
+  const [isScanningSimilarityIndex, setIsScanningSimilarityIndex] = useState(null);
+  const [proposalSimilarityResults, setProposalSimilarityResults] = useState({});
+  const [proposalPlagiarismResults, setProposalPlagiarismResults] = useState({});
   const [keywordList, setKeywordList] = useState([]);
   const [keywordInput, setKeywordInput] = useState('');
   const [sdgTagList, setSdgTagList] = useState([]);
@@ -269,8 +285,8 @@ export default function CreateProjectPage() {
     setTitleProposals((prev) => {
       if (prev.length <= 3) return prev;
       const next = prev.filter((_, idx) => idx !== index);
-      if (expandedProposalIndex >= next.length) {
-        setExpandedProposalIndex(next.length - 1);
+      if (activeProposalIndex >= next.length) {
+        setActiveProposalIndex(next.length - 1);
       }
       return next;
     });
@@ -297,7 +313,15 @@ export default function CreateProjectPage() {
         .replace(/[^a-zA-Z0-9\s-_]/g, '')
         .replace(/\s+/g, '_')
         .slice(0, 80)}_PitchDeck.pdf`;
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob =
+        response.data instanceof Blob
+          ? response.data
+          : new Blob([response.data], { type: 'application/pdf' });
+
+      if (!blob.size) {
+        throw new Error('Generated PDF is empty. Please try again.');
+      }
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -305,14 +329,43 @@ export default function CreateProjectPage() {
       link.rel = 'noopener';
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        link.remove();
+      }, 1000);
 
       toast.success('Pitch deck generated successfully.');
     } catch (error) {
       toast.error(error?.response?.data?.error?.message || 'Failed to generate presentation deck.');
     } finally {
       setGeneratingProposalIndex(null);
+    }
+  };
+
+  const scanSimilarity = async (index, proposal) => {
+    setIsScanningSimilarityIndex(index);
+    try {
+      const res = await projectService.checkProposalSimilarity({
+        title: proposal.title,
+        problemStatement: proposal.pitchDeck?.problemStatement,
+        proposedSolution: proposal.pitchDeck?.proposedSolution,
+        uniqueContribution: proposal.pitchDeck?.uniqueContribution,
+        expectedImpact: proposal.pitchDeck?.expectedImpact,
+        academicYear: form.academicYear,
+      });
+      setProposalSimilarityResults((prev) => ({
+        ...prev,
+        [index]: res.data?.data?.matches || res.data?.matches || res?.matches || [],
+      }));
+      setProposalPlagiarismResults((prev) => ({
+        ...prev,
+        [index]: res.data?.data?.plagiarism || null,
+      }));
+      toast.success('Similarity scan completed.');
+    } catch (error) {
+      toast.error('Failed to scan for similarity.');
+    } finally {
+      setIsScanningSimilarityIndex(null);
     }
   };
 
@@ -447,8 +500,23 @@ export default function CreateProjectPage() {
       return;
     }
 
-    if (sdgTagList.length === 0) {
-      toast.error('Select at least one SDG tag.');
+    const allSdgTags = [...new Set(normalizedTitleProposals.flatMap((p) => p.sdgTags))];
+    if (allSdgTags.length === 0) {
+      toast.error('Ensure at least one SDG tag is added across your proposals.');
+      return;
+    }
+
+    const resolvedAcademicYear = team?.academicYear || form.academicYear;
+    const resolvedSectionId =
+      typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id || form.sectionId;
+
+    if (!resolvedAcademicYear?.length) {
+      toast.error('Team academic year is missing. Make sure your team is finalized.');
+      return;
+    }
+
+    if (!resolvedSectionId?.length) {
+      toast.error('Team section is missing. Make sure your team is finalized.');
       return;
     }
 
@@ -460,11 +528,9 @@ export default function CreateProjectPage() {
     createProject.mutate({
       title: selectedTitle,
       titleProposals: normalizedTitleProposals,
-      abstract: form.abstract || undefined,
-      keywords: keywordList.length > 0 ? keywordList : undefined,
-      sdgTags: sdgTagList,
-      academicYear: form.academicYear,
-      sectionId: form.sectionId,
+      sdgTags: allSdgTags,
+      academicYear: resolvedAcademicYear,
+      sectionId: resolvedSectionId,
       memberRoleAssignments: [], // removed from UI
       allowSoloCapstone: false,
       soloCapstoneConfirmed: false,
@@ -477,16 +543,33 @@ export default function CreateProjectPage() {
   // Extract similar projects from server response (if any)
   const similarProjects =
     createProject.data?.data?.similarProjects ||
-    createProject.error?.response?.data?.data?.similarProjects;
+    createProject.data?.similarProjects ||
+    createProject.error?.response?.data?.data?.similarProjects ||
+    createProject.error?.response?.data?.similarProjects;
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight">Create Project</h3>
-          <p className="text-muted-foreground">
-            Start your capstone project by entering a title and optional details.
-          </p>
+      <div className="mx-auto max-w-4xl space-y-6 pb-16">
+        {/* Global Header */}
+        <div className="mb-6 flex flex-col justify-between space-y-2 border-b pb-4 sm:flex-row sm:items-center sm:space-y-0">
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight">Create Capstone Project</h3>
+            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                🟡 Draft (Auto-saves)
+              </Badge>
+              <span>System Note: Automatically using academic year and section.</span>
+            </div>
+          </div>
+          <div>
+            <Button
+              onClick={handleSubmit}
+              disabled={createProject.isPending || needsTeamFinalization}
+            >
+              {createProject.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit Project
+            </Button>
+          </div>
         </div>
 
         {createProject.error && (
@@ -519,411 +602,419 @@ export default function CreateProjectPage() {
           </Alert>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Details</CardTitle>
-            <CardDescription>
-              Your title can be modified later. It starts as a draft until you submit it for review.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {needsTeamFinalization && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Finalize and lock your team first. Proposal submission is only available after
-                    your team has been completed.
-                  </AlertDescription>
-                </Alert>
-              )}
+        {needsTeamFinalization && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Finalize and lock your team first. Proposal submission is only available after your
+              team has been completed.
+            </AlertDescription>
+          </Alert>
+        )}
 
-              {/* Title Proposals */}
-              <div className="space-y-2">
-                <Label>Title Proposals * (minimum 3)</Label>
-                <p className="text-xs text-muted-foreground">Proposal Pitch Deck Builder</p>
-                <div className="space-y-3">
-                  {titleProposals.map((proposal, index) => {
-                    const isExpanded = expandedProposalIndex === index;
-                    return (
-                      <div key={`title-proposal-${index}`} className="rounded-md border bg-card">
-                        {/* Header & Toggle */}
-                        <div
-                          className="flex cursor-pointer items-center justify-between p-3 hover:bg-accent/50 transition-colors"
-                          onClick={() => setExpandedProposalIndex(isExpanded ? -1 : index)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                              {index + 1}
-                            </span>
-                            <div className="font-medium text-sm">
-                              {proposal.title ? proposal.title : `Proposal ${index + 1}`}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {titleProposals.length > 3 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeTitleProposal(index);
-                                }}
-                                className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                Remove
-                              </Button>
-                            )}
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
+        {/* Global Details - Grouped at the top before proposals instead of the bottom 
+            Wait, prompt says "Main Navigation: Large tabs for Proposals..." 
+            so we jump right to the proposals, and we can keep Global fields nicely grouped below them. */}
+
+        {/* Main Navigation (Proposal Tabs) */}
+        <div className="flex flex-wrap items-center gap-2 border-b">
+          {titleProposals.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                setActiveProposalIndex(i);
+                setActiveSubTab('write');
+              }}
+              className={cn(
+                'px-4 py-3 border-b-2 font-medium text-sm transition-colors -mb-px',
+                activeProposalIndex === i
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+              )}
+            >
+              Proposal {i + 1}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={titleProposals.length >= 10}
+            onClick={() => {
+              addTitleProposal();
+              setActiveProposalIndex(titleProposals.length);
+              setActiveSubTab('write');
+            }}
+            className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 flex items-center -mb-px"
+          >
+            <Plus className="mr-1 h-4 w-4" /> Add Proposal
+          </button>
+        </div>
+
+        {/* Active Proposal View */}
+        {titleProposals[activeProposalIndex] &&
+          (() => {
+            const index = activeProposalIndex;
+            const proposal = titleProposals[index];
+
+            return (
+              <div className="bg-card border rounded-lg shadow-sm overflow-hidden">
+                {/* Sub-Navigation (Action Tabs) */}
+                <div className="flex gap-2 border-b bg-muted/20 p-2 overflow-x-auto w-full whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('write')}
+                    className={cn(
+                      'px-4 py-1.5 rounded-md text-sm font-medium transition-all',
+                      activeSubTab === 'write'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                    )}
+                  >
+                    📝 Write Proposal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('similarity')}
+                    className={cn(
+                      'px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2',
+                      activeSubTab === 'similarity'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                    )}
+                  >
+                    🔍 Similarity Report
+                    {proposalSimilarityResults[index]?.length > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
+                        {proposalSimilarityResults[index].length}
+                      </Badge>
+                    )}
+                    {proposalSimilarityResults[index]?.length === 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-1 h-5 px-1.5 text-[10px] bg-green-100 text-green-800 hover:bg-green-100"
+                      >
+                        0
+                      </Badge>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('pitch')}
+                    className={cn(
+                      'px-4 py-1.5 rounded-md text-sm font-medium transition-all',
+                      activeSubTab === 'pitch'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                    )}
+                  >
+                    📊 Pitch Deck Builder
+                  </button>
+
+                  <div className="ml-auto flex items-center pr-2">
+                    {titleProposals.length > 3 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTitleProposal(index)}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
+                      >
+                        Delete Proposal
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-0">
+                  {activeSubTab === 'write' && (
+                    <div className="max-w-2xl mx-auto space-y-8 py-8 px-4">
+                      {/* Basic Details */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg border-b pb-2 text-foreground/90">
+                          Basic Details
+                        </h4>
+                        <div className="space-y-2">
+                          <Label htmlFor={`proposal-${index}-title`}>Proposal Title *</Label>
+                          <Input
+                            id={`proposal-${index}-title`}
+                            placeholder="Enter a descriptive title for this proposal"
+                            value={proposal.title}
+                            onChange={(e) =>
+                              handleTitleProposalChange(index, 'title', e.target.value)
+                            }
+                            required={index < 3}
+                            minLength={10}
+                            maxLength={300}
+                            className="text-lg"
+                          />
                         </div>
 
-                        {/* Expanded Content */}
-                        {isExpanded && (
-                          <div className="border-t p-3 space-y-4 animate-in slide-in-from-top-1">
-                            <div className="space-y-2">
-                              <Label htmlFor={`proposal-${index}-title`} className="text-xs">
-                                Proposal Title *
-                              </Label>
-                              <Input
-                                id={`proposal-${index}-title`}
-                                placeholder="Enter a descriptive title for this proposal"
-                                value={proposal.title}
-                                onChange={(e) =>
-                                  handleTitleProposalChange(index, 'title', e.target.value)
-                                }
-                                required={index < 3}
-                                minLength={10}
-                                maxLength={300}
-                              />
-                            </div>
-
-                            <div className="space-y-3">
-                              {PROPOSAL_PITCH_DECK_FIELDS.map((field) => (
-                                <div key={`${index}-${field.key}`} className="space-y-1">
-                                  <Label
-                                    htmlFor={`proposal-${index}-${field.key}`}
-                                    className="text-xs"
-                                  >
-                                    {field.label} {index < 3 && '*'}
-                                  </Label>
-                                  <Textarea
-                                    id={`proposal-${index}-${field.key}`}
-                                    placeholder={field.placeholder}
-                                    value={proposal.pitchDeck?.[field.key] || ''}
-                                    onChange={(event) =>
-                                      handlePitchDeckFieldChange(
-                                        index,
-                                        field.key,
-                                        event.target.value,
-                                      )
-                                    }
-                                    required={index < 3}
-                                    minLength={20}
-                                    maxLength={1000}
-                                    rows={3}
-                                  />
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => generateDeck(index, proposal)}
-                                disabled={generatingProposalIndex === index}
-                              >
-                                {generatingProposalIndex === index ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating...
-                                  </>
-                                ) : (
-                                  'Generate Presentation Deck (PDF)'
-                                )}
-                              </Button>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor={`proposal-${index}-capstoneType`} className="text-xs">
-                                Capstone Type *
-                              </Label>
-                              <TagInput
-                                id={`proposal-${index}-capstoneType`}
-                                placeholder="Select or type capstone types"
-                                value={proposal.capstoneType || []}
-                                onChange={(newTags) =>
-                                  handleTitleProposalChange(index, 'capstoneType', newTags)
-                                }
-                                suggestions={CAPSTONE_TYPE_SUGGESTIONS}
-                                maxTags={5}
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label className="text-xs text-muted-foreground">
-                                SDG Tags {index < 3 && '*'}
-                              </Label>
-                              <div className="flex gap-2">
-                                <select
-                                  value=""
-                                  onChange={(e) => addProposalSdgTag(index, e.target.value)}
-                                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                                >
-                                  <option value="">Add SDG tag to this proposal</option>
-                                  {SDG_TAG_SUGGESTIONS.map((tag) => (
-                                    <option key={`${index}-${tag}`} value={tag}>
-                                      {tag}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              {proposal.sdgTags.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                  {proposal.sdgTags.map((tag) => (
-                                    <span
-                                      key={`${index}-${tag}`}
-                                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                                    >
-                                      {tag}
-                                      <button
-                                        type="button"
-                                        onClick={() => removeProposalSdgTag(index, tag)}
-                                        className="rounded-full p-0.5 hover:bg-primary/20"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                        {/* Real-time Title Similarity Checking mini-alert */}
+                        {proposal.title && (
+                          <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                            <p className="text-xs font-medium text-blue-900">
+                              Title Similarity Check
+                            </p>
+                            <TitleSimilarityChecker
+                              title={proposal.title}
+                              keywords={keywordList}
+                              debounceMs={500}
+                            />
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <p className="text-xs text-muted-foreground">
-                    You can add up to 10 proposals. (Required:{' '}
-                    {Math.max(0, 3 - titleProposals.length)} more)
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      addTitleProposal();
-                      setExpandedProposalIndex(titleProposals.length);
-                    }}
-                    className="font-semibold"
-                    disabled={titleProposals.length >= 10}
-                  >
-                    <Plus className="mr-1 h-3 w-3" />
-                    Add More Title Proposal
-                  </Button>
-                </div>
+                      {/* Core Pitch */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg border-b pb-2 text-foreground/90">
+                          The Core Pitch
+                        </h4>
+                        {PROPOSAL_PITCH_DECK_FIELDS.map((field) => (
+                          <div key={`${index}-${field.key}`} className="space-y-1">
+                            <Label htmlFor={`proposal-${index}-${field.key}`} className="text-sm">
+                              {field.label} {index < 3 && '*'}
+                            </Label>
+                            <Textarea
+                              id={`proposal-${index}-${field.key}`}
+                              placeholder={field.placeholder}
+                              value={proposal.pitchDeck?.[field.key] || ''}
+                              onChange={(event) =>
+                                handlePitchDeckFieldChange(index, field.key, event.target.value)
+                              }
+                              required={index < 3}
+                              minLength={20}
+                              maxLength={1000}
+                              rows={3}
+                              className="resize-y"
+                            />
+                          </div>
+                        ))}
+                      </div>
 
-                {/* Real-time Title Similarity Checking for expanded proposal */}
-                {titleProposals[expandedProposalIndex]?.title && (
-                  <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3 mt-4">
-                    <p className="text-xs font-medium text-blue-900">
-                      Title Similarity Check (Proposal {expandedProposalIndex + 1})
-                    </p>
-                    <TitleSimilarityChecker
-                      title={titleProposals[expandedProposalIndex].title}
-                      keywords={keywordList}
-                      debounceMs={500}
-                    />
-                  </div>
-                )}
-              </div>
+                      {/* Academic Classifications */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg border-b pb-2 text-foreground/90">
+                          Academic Classifications
+                        </h4>
+                        <div className="space-y-2">
+                          <Label htmlFor={`proposal-${index}-capstoneType`}>Capstone Type *</Label>
+                          <TagInput
+                            id={`proposal-${index}-capstoneType`}
+                            placeholder="Select or type capstone types"
+                            value={proposal.capstoneType || []}
+                            onChange={(newTags) =>
+                              handleTitleProposalChange(index, 'capstoneType', newTags)
+                            }
+                            suggestions={CAPSTONE_TYPE_SUGGESTIONS}
+                            maxTags={5}
+                          />
+                        </div>
 
-              {/* Abstract */}
-              <div className="space-y-2">
-                <Label htmlFor="abstract">Abstract</Label>
-                <Textarea
-                  id="abstract"
-                  name="abstract"
-                  placeholder="Brief description of your project (optional)"
-                  value={form.abstract}
-                  onChange={handleChange}
-                  maxLength={500}
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {form.abstract.length}/500 characters
-                </p>
-              </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">SDG Tags {index < 3 && '*'}</Label>
+                          <div className="flex gap-2">
+                            <select
+                              value=""
+                              onChange={(e) => addProposalSdgTag(index, e.target.value)}
+                              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            >
+                              <option value="">Add SDG tag to this proposal</option>
+                              {SDG_TAG_SUGGESTIONS.map((tag) => (
+                                <option key={`${index}-${tag}`} value={tag}>
+                                  {tag}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {proposal.sdgTags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {proposal.sdgTags.map((tag) => (
+                                <span
+                                  key={`${index}-${tag}`}
+                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                                >
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProposalSdgTag(index, tag)}
+                                    className="rounded-full p-0.5 hover:bg-primary/20"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-              {/* Keywords */}
-              <div className="space-y-2">
-                <Label htmlFor="keywords">Keywords</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="keywords"
-                    placeholder="Add a keyword and press Enter"
-                    value={keywordInput}
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    onKeyDown={handleKeywordKeyDown}
-                  />
-                  <Button type="button" variant="outline" size="icon" onClick={addKeyword}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {keywordList.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {keywordList.map((kw) => (
-                      <span
-                        key={kw}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                      >
-                        {kw}
-                        <button
+                      {/* Action Button */}
+                      <div className="flex justify-center pt-8 border-t mt-8">
+                        <Button
                           type="button"
-                          onClick={() => removeKeyword(kw)}
-                          className="rounded-full p-0.5 hover:bg-primary/20"
+                          size="lg"
+                          onClick={() => {
+                            scanSimilarity(index, proposal);
+                            setActiveSubTab('similarity');
+                          }}
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">{keywordList.length}/10 keywords</p>
-              </div>
-
-              {/* SDG Tags */}
-              <div className="space-y-2">
-                <Label htmlFor="sdgTagSelect">SDG Tags * (at least 1)</Label>
-                <div className="flex gap-2">
-                  <select
-                    id="sdgTagSelect"
-                    value={selectedSdgTag}
-                    onChange={(e) => setSelectedSdgTag(e.target.value)}
-                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  >
-                    <option value="">Select an SDG tag</option>
-                    {SDG_TAG_SUGGESTIONS.map((tag) => (
-                      <option key={tag} value={tag}>
-                        {tag}
-                      </option>
-                    ))}
-                  </select>
-                  <Button type="button" variant="outline" onClick={addSdgTag}>
-                    Add
-                  </Button>
-                </div>
-                {sdgTagList.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {sdgTagList.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                      >
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeSdgTag(tag)}
-                          className="rounded-full p-0.5 hover:bg-primary/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Academic Year */}
-              <div className="space-y-2">
-                <Label htmlFor="academicYear">Academic Year *</Label>
-                <select
-                  id="academicYear"
-                  name="academicYear"
-                  value={form.academicYear}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  {academicYears.length === 0 && (
-                    <option value={defaultAcademicYear}>{defaultAcademicYear}</option>
+                          Run Similarity Check
+                        </Button>
+                      </div>
+                    </div>
                   )}
-                  {academicYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Section */}
-              <div className="space-y-2">
-                <Label htmlFor="sectionId">Section *</Label>
-                {isAnySectionError ? (
-                  <Alert variant="destructive">
-                    <AlertDescription className="flex items-center justify-between">
-                      <span>Failed to load sections.</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => refetchSections()}
-                        disabled={isAnySectionLoading}
-                      >
-                        Retry
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                <select
-                  id="sectionId"
-                  name="sectionId"
-                  value={form.sectionId}
-                  onChange={handleChange}
-                  required
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  disabled={
-                    isAnySectionLoading || (isAnySectionError && sectionOptions.length === 0)
-                  }
-                >
-                  <option value="">
-                    {isAnySectionLoading
-                      ? 'Loading sections...'
-                      : isAnySectionError
-                        ? 'Error loading sections'
-                        : !form.academicYear
-                          ? 'Please select an academic year first'
-                          : sectionOptions.length === 0
-                            ? 'No active sections available. Contact your instructor to create one.'
-                            : 'Select a section'}
-                  </option>
-                  {sectionOptions.map((section) => (
-                    <option key={section._id} value={section._id}>
-                      {section.courseId?.code} - {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {activeSubTab === 'similarity' && (
+                    <div className="max-w-3xl mx-auto py-10 px-4 min-h-[400px]">
+                      {isScanningSimilarityIndex === index ? (
+                        <div className="flex flex-col items-center justify-center space-y-6 py-20">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                          <p className="text-muted-foreground font-medium text-lg">
+                            Scanning for similarity against past projects...
+                          </p>
+                        </div>
+                      ) : proposalSimilarityResults[index] ? (
+                        <div className="space-y-6">
+                          <div className="flex justify-between items-center bg-muted/20 p-5 rounded-lg border">
+                            <div>
+                              <h4 className="font-semibold text-lg flex items-center gap-2">
+                                <Search className="h-5 w-5 text-primary" /> Similarity Scan Results
+                              </h4>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Found {proposalSimilarityResults[index].length} highly similar
+                                projects based on your pitch.
+                              </p>
+                              {proposalPlagiarismResults[index] && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Originality: {proposalPlagiarismResults[index].originalityScore}% | Similarity:{' '}
+                                  {proposalPlagiarismResults[index].similarityScore}%
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => scanSimilarity(index, proposal)}
+                            >
+                              <RefreshCw className="mr-2 h-4 w-4" /> Rescan
+                            </Button>
+                          </div>
 
-              {/* Submit */}
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createProject.isPending || needsTeamFinalization}>
-                  {createProject.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Project
-                </Button>
+                          {proposalSimilarityResults[index].length > 0 ? (
+                            <div className="space-y-4 pt-2">
+                              {proposalSimilarityResults[index].map((match) => (
+                                <div
+                                  key={match._id}
+                                  className="bg-background p-4 rounded-lg border shadow-sm flex flex-col gap-2"
+                                >
+                                  <div className="font-medium flex justify-between">
+                                    <span className="text-base text-foreground">{match.title}</span>
+                                    <Badge
+                                      variant={match.score > 0.4 ? 'destructive' : 'secondary'}
+                                      className="h-6"
+                                    >
+                                      {Math.round(match.score * 100)}% Match
+                                    </Badge>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    <span className="font-semibold">Status:</span> {match.status}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-green-50 text-green-900 border border-green-200 p-8 rounded-lg text-center mt-8">
+                              <div className="mx-auto bg-green-100 h-16 w-16 rounded-full flex items-center justify-center mb-4">
+                                <span className="text-2xl">✨</span>
+                              </div>
+                              <h4 className="text-lg font-bold mb-2">Highly Unique Proposal!</h4>
+                              <p className="text-green-800">
+                                No significant matches were found in our database. You&apos;re good
+                                to go.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center space-y-6 py-20 border-2 border-dashed rounded-xl bg-muted/5">
+                          <div className="bg-muted p-4 rounded-full">
+                            <Search className="h-10 w-10 text-muted-foreground/60" />
+                          </div>
+                          <div className="text-center space-y-1">
+                            <h4 className="text-lg font-semibold">Ready for Analysis</h4>
+                            <p className="text-muted-foreground">
+                              Your proposal hasn&apos;t been scanned for similarity yet.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="lg"
+                            onClick={() => scanSimilarity(index, proposal)}
+                          >
+                            ▶ Run Similarity Scan
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeSubTab === 'pitch' && (
+                    <div className="max-w-3xl mx-auto py-10 px-4 space-y-8 min-h-[400px]">
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-8 text-center sm:text-left flex flex-col sm:flex-row items-center gap-6">
+                        <div className="bg-white p-4 rounded-full shadow-sm">
+                          <Download className="h-10 w-10 text-indigo-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-indigo-950 mb-2">
+                            Presentation Deck
+                          </h4>
+                          <p className="text-indigo-800 mb-0">
+                            Generate a beautifully formatted PDF representation of your proposal to
+                            use for your initial pitch presentation.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="lg"
+                          onClick={() => generateDeck(index, proposal)}
+                          disabled={generatingProposalIndex === index}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+                        >
+                          {generatingProposalIndex === index ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating PDF...
+                            </>
+                          ) : (
+                            'Generate PDF Deck'
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg border-b pb-2 pt-4">
+                          Proposal Summary Preview
+                        </h4>
+                        <div className="border rounded-xl p-6 bg-card text-sm space-y-6 shadow-sm">
+                          {PROPOSAL_PITCH_DECK_FIELDS.map((f) => (
+                            <div key={f.key} className="space-y-1">
+                              <div className="font-semibold text-foreground">{f.label}</div>
+                              <div className="text-muted-foreground leading-relaxed">
+                                {proposal.pitchDeck?.[f.key] ? (
+                                  proposal.pitchDeck[f.key]
+                                ) : (
+                                  <span className="italic opacity-60">Not provided</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            );
+          })()}
       </div>
     </DashboardLayout>
   );

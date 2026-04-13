@@ -92,7 +92,11 @@ export function useSocket() {
 
     /** Handle connection errors (auth failure, server down, etc.) */
     const handleConnectError = (err) => {
-      console.error('[Socket] Connection error:', err.message);
+      if (err?.message === 'xhr poll error') {
+        return;
+      }
+
+      console.warn('[Socket] Connection error:', err?.message || 'unknown error');
     };
 
     /** Handle exhausted reconnection attempts */

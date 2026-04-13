@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { YearInput } from '@/components/ui/YearInput';
 import {
   Users,
   UserPlus,
@@ -360,12 +361,10 @@ function HierarchyView() {
                 Add Academic Year
               </Label>
               <div className="grid gap-2">
-                <Input
+                <YearInput
                   value={newAcademicYear}
-                  onChange={(e) => setNewAcademicYear(e.target.value)}
-                  placeholder="2025-2026"
-                  pattern="\d{4}-\d{4}"
-                  title="Format: YYYY-YYYY"
+                  onChange={(e) => setNewAcademicYear(e)}
+                  placeholder="2025"
                   required
                 />
               </div>

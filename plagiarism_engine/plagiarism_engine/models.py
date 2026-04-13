@@ -273,6 +273,31 @@ class IndexResponse(BaseModel):
     message: str = "Document indexed successfully."
 
 
+class PreprocessRequest(BaseModel):
+    """Request body for ``POST /preprocess`` text cleaning/compression."""
+
+    text: str = Field(..., min_length=1, description="Raw extracted document text.")
+    max_chars: int = Field(default=9000, ge=500, le=50000)
+    max_segments: int = Field(default=12, ge=1, le=200)
+    min_words: int = Field(default=12, ge=1, le=100)
+
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, v: str) -> str:
+        return v.strip()
+
+
+class PreprocessResponse(BaseModel):
+    """Response body for ``POST /preprocess``."""
+
+    cleaned_text: str
+    compressed_text: str
+    original_characters: int
+    cleaned_characters: int
+    compressed_characters: int
+    segments_used: int
+
+
 class DeleteResponse(BaseModel):
     """Response body for ``DELETE /index/{document_id}``."""
 

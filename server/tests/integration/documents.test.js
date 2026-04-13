@@ -97,7 +97,17 @@ describe('Documents API — /api/documents', () => {
       .mockResolvedValue({
         title: 'Document Automation for Capstone Projects',
         abstract: 'This paper validates the document metadata pipeline.',
-        confidence: { title: 0.93, abstract: 0.88 },
+        publicationYear: 2025,
+        authors: ['Jane Doe', 'John Smith'],
+        keywords: ['document automation', 'metadata pipeline'],
+        extractionProvider: 'heuristic',
+        confidence: {
+          title: 0.93,
+          abstract: 0.88,
+          publicationYear: 0.82,
+          authors: 0.76,
+          keywords: 0.79,
+        },
       });
 
     const res = await agent
@@ -108,6 +118,10 @@ describe('Documents API — /api/documents', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.title).toBe('Document Automation for Capstone Projects');
     expect(res.body.data.abstract).toContain('document metadata pipeline');
+    expect(res.body.data.publicationYear).toBe(2025);
+    expect(res.body.data.authors).toEqual(['Jane Doe', 'John Smith']);
+    expect(res.body.data.keywords).toEqual(['document automation', 'metadata pipeline']);
+    expect(res.body.data.extractionProvider).toBe('heuristic');
     expect(metadataSpy).toHaveBeenCalledTimes(1);
   });
 

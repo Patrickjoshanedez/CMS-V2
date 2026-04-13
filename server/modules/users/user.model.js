@@ -92,6 +92,16 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    createProjectDraft: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+      select: false,
+    },
+    createProjectDraftUpdatedAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: true,

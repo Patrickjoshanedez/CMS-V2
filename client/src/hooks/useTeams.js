@@ -178,3 +178,14 @@ export function useLockTeam(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Leave current team (member action, not allowed when finalized).
+ * @param {Object} params — { teamId: string }
+ */
+export function useLeaveTeam(options = {}) {
+  return useTeamMutation(async ({ teamId }) => {
+    const res = await teamService.leaveTeam(teamId);
+    return res.data;
+  }, options);
+}

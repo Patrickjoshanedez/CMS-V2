@@ -1,0 +1,186 @@
+#!/usr/bin/env node
+
+/**
+ * Similarity Scan Integration - Test Runner
+ * 
+ * This file documents the test suite and provides helpers for running tests
+ */
+
+console.log(`
+╔════════════════════════════════════════════════════════════════╗
+║          Similarity Scan Integration Tests                      ║
+╚════════════════════════════════════════════════════════════════╝
+
+📌 TEST FILES
+=============
+1. server/tests/integration/proposal-similarity.test.js
+   - Basic similarity scan functionality
+   - JSON schema validation
+   
+2. server/tests/integration/proposal-similarity.comprehensive.test.js
+   - 11 comprehensive test suites with 20+ test cases
+   - Exact title matches
+   - Multi-field matching
+   - Partial field matching
+   - No matches scenario
+   - Threshold enforcement
+   - Large proposal text handling
+   - Stop words filtering
+   - Case insensitivity
+   - Special character handling
+   - Multiple candidate ranking
+   - Missing fields handling
+
+🔍 SEED DATA
+============
+server/seeders/similarity-test-data.js
+  - 16 diverse projects across multiple domains
+  - Capstone/Plagiarism (exact match candidate)
+  - Healthcare (exact + related matches)
+  - AI/ML (thematic matches)
+  - Blockchain, E-Learning, Supply Chain, etc.
+  
+📊 RUNNING TESTS
+
+Manual/Interactive Testing:
+─────────────────────────
+1. Start the dev server:
+   npm run dev:local
+
+2. Open Create Project page:
+   http://localhost:5173/project/create
+
+3. Fill in proposal fields with content from seed data
+
+4. Click "Scan for Similarity" button
+
+5. Check browser console for results
+
+Automated Test Suites:
+──────────────────────
+Run all similarity tests:
+  npm run test -- similarity
+
+Run specific test file:
+  npm run test -- proposal-similarity.comprehensive.test.js
+
+Run with watch mode:
+  npm run test -- --watch similarity
+
+Run with coverage:
+  npm run test -- --coverage similarity
+
+Seeding Test Database:
+──────────────────────
+Node: npm run seed:similarity
+
+🧪 EXPECTED RESULTS
+
+Test 1: Exact Title Match
+  Input: "Capstone Management and Plagiarism Checker"
+  Expected: Found match with score > 0.5
+  ✓ Title now included in similarity calculation
+
+Test 2: Multi-Field Matching
+  Input: "AI Smart Archive Discovery" + related text
+  Expected: Found with score > 0.6
+  ✓ Accumulates across all fields
+
+Test 3: Partial Matching
+  Input: "Traffic Optimization" (matches "Smart Traffic Management")
+  Expected: Found with score > 0.15
+  ✓ Above threshold
+
+Test 4: No Matches
+  Input: Completely unique project
+  Expected: Empty results array
+  ✓ Below 0.15 threshold filtered
+
+Test 5: Case Insensitivity
+  Input: UPPERCASE text matching lowercase
+  Expected: Perfect match despite case
+  ✓ Tokenization normalizes case
+
+Test 6: Multiple Candidates
+  Input: Health monitoring device
+  Expected: Ranked by relevance
+  ✓ Sorted by score descending
+
+🔧 KEY IMPLEMENTATION DETAILS
+
+Similarity Algorithm:
+  - Jaccard Similarity (set intersection/union)
+  - Stop word filtering (100+ common words)
+  - Case-insensitive comparison
+  - Fields compared: title, problemStatement, proposedSolution, uniqueContribution, expectedImpact
+  - Overall score = average of field scores
+  - Threshold: > 0.15 to include in results
+
+Score Formula:
+  score = (|Set A ∩ Set B|) / (|Set A ∪ Set B|)
+  overall = Σ(field_scores) / number_of_fields
+
+⚠️  IMPORTANT NOTES
+
+1. Title field NOW included (fixed April 13, 2026)
+   - Previously was ignored
+   - Now contributes equally to similarity score
+
+2. Stop words are filtered before comparison
+   - Reduces false positives
+   - Focuses on meaningful terms
+   - Example stop words: a, the, and, or, is, are, etc.
+
+3. Threshold of 0.15 prevents low-quality matches
+   - Can be adjusted in project.controller.js
+   - Current filter: matches.filter(p => p.score > 0.15)
+
+4. Limit: Returns top 10 matches sorted by score
+   - Prevents overwhelming results
+   - Can be adjusted with slice(0, N)
+
+💡 TEST SCENARIOS
+
+Scenario 1: Exact Copy
+  ✓ Student copy-pastes archived project title
+  ✓ Should find perfect match
+  
+Scenario 2: Similar but Not Identical
+  ✓ Same topic, different wording
+  ✓ Should still find match
+  
+Scenario 3: Unrelated Projects
+  ✓ Completely different domain
+  ✓ Should return empty results
+
+Scenario 4: Partial Overlap
+  ✓ Some matching keywords/concepts
+  ✓ Should find if above threshold
+
+📋 TROUBLESHOOTING
+
+Issue: No results found for exact title match
+Fix: Verify title is included in fields array ✓
+
+Issue: Too many false positives
+Fix: Increase threshold > 0.15
+
+Issue: Missing legitimate matches
+Fix: Decrease threshold < 0.15
+
+Issue: Stop words included in results
+Fix: Check STOP_WORDS set in proposalSimilarity.js
+
+📦 DEPLOYMENT CHECKLIST
+
+□ Run comprehensive test suite
+□ Verify all 20+ test cases pass
+□ Seed production-like data
+□ Manual QA with exact matches
+□ Monitor performance (500-project limit)
+□ Verify 0.15 threshold works for your data
+□ Check API response times < 500ms
+
+Next: Run the comprehensive test suite!
+  npm run test -- proposal-similarity.comprehensive.test.js
+`);

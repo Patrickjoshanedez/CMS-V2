@@ -9,6 +9,8 @@
     "shared"
   ],
   "scripts": {
+    "dev:local": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./start-local-dev.ps1",
+    "hotpatch:plagiarism-api": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/hotpatch-plagiarism-api.ps1",
     "dev:server": "npm run dev --workspace=server",
     "dev:client": "npm run dev --workspace=client",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",

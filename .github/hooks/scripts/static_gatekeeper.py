@@ -31,6 +31,13 @@ CODE_EXTS = {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".py"}
 ESLINT_EXTS = {".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"}
 TS_EXTS = {".ts", ".tsx"}
 
+ARCHIVE_ONLY_UI_TARGET = "client/src/pages/projects/CreateProjectPage.jsx"
+ARCHIVE_ONLY_FORBIDDEN_ADDITIONS = (
+    "proposal-pdf-autofill",
+    "Import From PDF (Similarity Helper)",
+    "extractPdfMetadata(",
+)
+
 
 def _normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", text.lower())
@@ -135,6 +142,52 @@ def _extract_patch_paths(text: str) -> list[str]:
     for match in re.finditer(r"^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+?)\s*$", text, flags=re.MULTILINE):
         paths.append(match.group(1).strip())
     return paths
+
+
+def _extract_patch_texts(payload: dict[str, Any]) -> list[str]:
+    patches: list[str] = []
+    for _, value in _iter_nodes(payload):
+        if isinstance(value, str) and "*** Begin Patch" in value:
+            patches.append(value)
+    return patches
+
+
+def _normalize_rel(path_text: str) -> str:
+    resolved = _resolve_path(path_text)
+    if resolved is None:
+        return ""
+    return resolved.relative_to(WORKSPACE_ROOT).as_posix()
+
+
+def _archive_scope_policy_violation(payload: dict[str, Any]) -> str | None:
+    patch_texts = _extract_patch_texts(payload)
+    if not patch_texts:
+        return None
+
+    for patch in patch_texts:
+        current_file = ""
+        for raw_line in patch.splitlines():
+            line = raw_line.rstrip("\n")
+
+            if line.startswith("*** Update File:"):
+                current_file = _normalize_rel(line.split(":", 1)[1].strip())
+                continue
+
+            if not current_file:
+                continue
+
+            # Guard only additions, never removals.
+            if line.startswith("+") and not line.startswith("+++"):
+                if current_file == ARCHIVE_ONLY_UI_TARGET and any(
+                    token in line for token in ARCHIVE_ONLY_FORBIDDEN_ADDITIONS
+                ):
+                    return (
+                        "Denied by archive scope policy: PDF metadata autofill UI is archive-only and "
+                        "must not be added to client/src/pages/projects/CreateProjectPage.jsx. "
+                        "Use client/src/pages/archive/ExistingCapstoneUploadPage.jsx instead."
+                    )
+
+    return None
 
 
 def _resolve_path(path_text: str) -> Path | None:
@@ -332,6 +385,11 @@ def main() -> int:
     if not _is_mutation_tool(tool):
         print(json.dumps(_result("allow", "Static gatekeeper skipped: tool is not a code-mutation tool.", tool), ensure_ascii=True))
         return 0
+
+    scope_violation = _archive_scope_policy_violation(payload)
+    if scope_violation:
+        print(json.dumps(_result("deny", scope_violation, tool), ensure_ascii=True))
+        return 2
 
     target_paths = _extract_target_paths(payload)
     code_targets = [path for path in target_paths if path.suffix.lower() in CODE_EXTS]

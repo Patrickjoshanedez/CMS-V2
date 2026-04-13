@@ -96,6 +96,8 @@ const mapSubmissionResult = (submission, collectionResult) => {
       processedAt: submission.plagiarismResult.processedAt || null,
       jobId: submission.plagiarismResult.jobId || null,
       error: submission.plagiarismResult.error || null,
+      detectedTitle: submission.documentTitle || null,
+      detectedAbstract: submission.documentAbstract || null,
       corpus,
     };
   }
@@ -112,6 +114,8 @@ const mapSubmissionResult = (submission, collectionResult) => {
       processedAt: collectionResult.checkedAt || collectionResult.completedAt || null,
       jobId: collectionResult.taskId || null,
       error: collectionResult.error || collectionResult.errorMessage || null,
+      detectedTitle: submission.documentTitle || null,
+      detectedAbstract: submission.documentAbstract || null,
       corpus,
     };
   }
@@ -124,6 +128,8 @@ const mapSubmissionResult = (submission, collectionResult) => {
     processedAt: null,
     jobId: null,
     error: null,
+    detectedTitle: submission?.documentTitle || null,
+    detectedAbstract: submission?.documentAbstract || null,
     corpus: {
       isIndexed: false,
       indexedAt: null,
@@ -140,7 +146,8 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     submissionId,
     req.user._id,
     {
-      submissionSelect: 'storageKey fileType projectId chapter plagiarismResult type',
+      submissionSelect:
+        'storageKey fileType projectId chapter plagiarismResult type documentTitle documentAbstract',
     },
   );
 
@@ -163,6 +170,8 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     fileType: submission.fileType,
     projectId: submission.projectId.toString(),
     chapter: submission.chapter,
+    title: submission.documentTitle || undefined,
+    abstract: submission.documentAbstract || undefined,
   };
 
   const jobId = await enqueuePlagiarismJob(payload);
@@ -213,7 +222,8 @@ export const getSubmissionPlagiarismResult = catchAsync(async (req, res) => {
     submissionId,
     req.user._id,
     {
-      submissionSelect: 'projectId type plagiarismResult originalityScore',
+      submissionSelect:
+        'projectId type plagiarismResult originalityScore documentTitle documentAbstract',
     },
   );
 

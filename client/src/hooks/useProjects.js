@@ -23,7 +23,7 @@ export const projectKeys = {
   archiveSearch: (filters) => [...projectKeys.archive(), 'search', filters],
   certificate: (id) => [...projectKeys.detail(id), 'certificate'],
   reports: (filters) => [...projectKeys.all, 'reports', filters],
-  titleCheck: (title) => [...projectKeys.all, 'title-check', title],
+  titleCheck: (title, extraParams = {}) => [...projectKeys.all, 'title-check', title, extraParams],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -40,7 +40,7 @@ export const projectKeys = {
  */
 export function useCheckTitleSimilarity(title, extraParams = {}, options = {}) {
   return useQuery({
-    queryKey: projectKeys.titleCheck(title),
+    queryKey: projectKeys.titleCheck(title, extraParams),
     queryFn: async () => {
       const { data } = await projectService.checkTitleSimilarity({
         title,
@@ -50,7 +50,7 @@ export function useCheckTitleSimilarity(title, extraParams = {}, options = {}) {
     },
     // Only fire the query when the title is at least 10 chars (matches server min)
     enabled: !!title && title.trim().length >= 10,
-    staleTime: 30 * 1000, // 30 s — titles rarely change that fast
+    staleTime: 0, // Real-time checker: always treat cached result as stale
     retry: false,
     ...options,
   });

@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { cloneElement, forwardRef, isValidElement } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,16 +24,38 @@ const buttonSizes = {
 };
 
 const Button = forwardRef(
-  ({ className, variant = 'default', size = 'default', disabled, children, ...props }, ref) => {
+  (
+    { className, variant = 'default', size = 'default', disabled, children, asChild = false, type = 'button', ...props },
+    ref,
+  ) => {
+    const buttonClassName = cn(
+      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+      buttonVariants[variant],
+      buttonSizes[size],
+      className,
+    );
+
+    if (asChild && isValidElement(children)) {
+      return cloneElement(children, {
+        ...props,
+        ref,
+        className: cn(buttonClassName, children.props.className),
+        'aria-disabled': disabled || undefined,
+        tabIndex: disabled ? -1 : children.props.tabIndex,
+        onClick: disabled
+          ? (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          : props.onClick,
+      });
+    }
+
     return (
       <button
-        className={cn(
-          'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-          buttonVariants[variant],
-          buttonSizes[size],
-          className,
-        )}
+        className={buttonClassName}
         ref={ref}
+        type={type}
         disabled={disabled}
         {...props}
       >

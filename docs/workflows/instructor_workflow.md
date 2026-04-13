@@ -34,6 +34,7 @@ The Instructor serves as the top-level academic administrator and coordinator wi
 *   **Content**: A master repository of all active Capstone proposals and ongoing pipelines.
 *   **Functionality**:
     *   View all teams' statuses (e.g., Phase 1 vs Phase 4).
+    *   Approve proposal submissions from `/submissions/:submissionId/review`.
     *   Approve title modification requests.
     *   Access internal file submissions if intervening is necessary.
 *   **Goal**: Allow the instructor to drill down into any individual team's metrics and ensure they are meeting phase completion targets. 

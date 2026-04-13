@@ -54,6 +54,44 @@ export const checkTitleSimilaritySchema = z.object({
   excludeProjectId: z.string().regex(objectIdPattern, 'Invalid ObjectId').optional(),
 });
 
+const createProjectDraftPayloadSchema = z
+  .object({
+    form: z
+      .object({
+        title: z.string().max(300).optional(),
+        abstract: z.string().max(5000).optional(),
+        keywords: z.string().max(500).optional(),
+        academicYear: z.string().max(20).optional(),
+        sectionId: z.string().max(64).optional(),
+      })
+      .partial()
+      .optional(),
+    titleProposals: z
+      .array(
+        z
+          .object({
+            title: z.string().max(300).optional(),
+            description: z.string().max(5000).optional(),
+            capstoneType: z.array(z.string().max(120)).max(10).optional(),
+            sdgTags: z.array(z.enum(SDG_TAG_SUGGESTIONS)).max(17).optional(),
+          })
+          .passthrough(),
+      )
+      .max(10)
+      .optional(),
+    keywordList: z.array(z.string().trim().max(120)).max(10).optional(),
+    sdgTagList: z.array(z.enum(SDG_TAG_SUGGESTIONS)).max(17).optional(),
+    expandedProposalIndex: z.number().int().min(-1).max(20).optional(),
+    source: z.string().max(50).optional(),
+    proposalIndex: z.number().int().min(0).max(20).nullable().optional(),
+    savedAt: z.string().max(100).optional(),
+  })
+  .passthrough();
+
+export const saveCreateProjectDraftSchema = z.object({
+  draft: createProjectDraftPayloadSchema.nullable(),
+});
+
 export const createProjectSchema = z.object({
   title: z
     .string()
@@ -295,19 +333,20 @@ export const searchArchiveQuerySchema = z.object({
 /* ───── Generate report query ───── */
 
 export const reportQuerySchema = z.object({
-  academicYear: z
-    .string()
-    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
-    .optional(),
-  adviserId: z
-    .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId')
-    .optional(),
+  academicYear: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format').optional(),
+  year: z.string().regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format').optional(),
+  adviserId: objectId.optional(),
+  title: z.string().trim().max(300, 'Title must not exceed 300 characters').optional(),
+  author: z.string().trim().max(200, 'Author must not exceed 200 characters').optional(),
+  courseId: objectId.optional(),
+  keyword: z.string().trim().max(100, 'Keyword must not exceed 100 characters').optional(),
+  sortBy: z.enum(['title', 'academicYear', 'archivedAt', 'status']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 /** Bulk-upload archived capstone bundle metadata (Instructor only). */
 export const bulkUploadSchema = z.object({
-  title: z.string().trim().min(10, 'Title must be at least 10 characters').max(300),
+  title: z.string().trim().max(300).optional().default(''),
   abstract: z.string().trim().max(500).optional().default(''),
   keywords: z.preprocess(
     (val) =>
@@ -319,5 +358,28 @@ export const bulkUploadSchema = z.object({
         : val,
     z.array(z.string().trim().min(1)).max(10).optional().default([]),
   ),
+  authors: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        return val
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+      return val;
+    },
+    z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+  ),
+  publicationYear: z
+    .preprocess(
+      (val) => {
+        if (val === '' || val == null) return undefined;
+        const parsed = Number(val);
+        return Number.isFinite(parsed) ? parsed : val;
+      },
+      z.number().int().min(1900).max(2100).optional(),
+    ),
+  doi: z.string().trim().max(255).optional().default(''),
+  publicationVenue: z.string().trim().max(255).optional().default(''),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
 });

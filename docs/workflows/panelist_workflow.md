@@ -24,7 +24,7 @@ The Panelist oversees Capstone groups from an external, critical lens rather tha
 
 ### 3. Review / Rubric Interfacing (Conditional `/submissions/:submissionId/review`)
 *   **Content**: A formal evaluation layout.
-*   **Functionality**: While an adviser fixes spelling strings, a Panelist fills out programmatic rubric forms mapping to the Capstone Title Proposal or Final Defense evaluations. 
+*   **Functionality**: Panelists can review and approve proposal submissions from `/submissions/:submissionId/review` (when assigned to the project), and fill out programmatic rubric forms mapping to Capstone Title Proposal or Final Defense evaluations.
 *   **Goal**: Enforce standardized final grading structures and ensure at least 2 of 3 panelists consent before a title modification or phase requirement passes unconditionally.
 *   **Design**: Relies on read-only previews augmented by high-level grading card interfaces that summarize their verdicts upward to the Instructor.
 

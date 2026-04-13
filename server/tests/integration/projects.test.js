@@ -1029,6 +1029,9 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.projectStatus).toBe('archived');
       expect(res.body.data.submissions.finalAcademic.type).toBe('final_academic');
       expect(res.body.data.submissions.finalJournal.type).toBe('final_journal');
+      expect(res.body.data.similarity).toBeTruthy();
+      expect(Array.isArray(res.body.data.similarity.titleConflicts)).toBe(true);
+      expect(Array.isArray(res.body.data.similarity.abstractConflicts)).toBe(true);
 
       const projectId = res.body.data.project._id;
       const linkedSubmissions = await Submission.find({ projectId }).sort({ type: 1 });

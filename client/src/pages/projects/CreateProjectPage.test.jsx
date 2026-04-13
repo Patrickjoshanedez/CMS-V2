@@ -117,14 +117,12 @@ describe('CreateProjectPage', () => {
     );
   });
 
-  it('hydrates academic year and section from team context', async () => {
+  it('uses team context for academic year and section without rendering inputs', async () => {
     const view = renderPage();
 
-    const yearSelect = view.container.querySelector('select[name="academicYear"]');
-    const sectionSelect = view.container.querySelector('select[name="sectionId"]');
-
-    expect(yearSelect?.value).toBe('2024-2025');
-    expect(sectionSelect?.value).toBe('section-1');
+    expect(view.container.textContent).toContain('Using your team\'s academic year and section automatically.');
+    expect(view.container.querySelector('select[name="sectionId"]')).toBeNull();
+    expect(view.container.querySelector('button[type="button"] span.flex-1.text-left.font-medium')).toBeNull();
 
     view.unmount();
   });

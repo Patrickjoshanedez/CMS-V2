@@ -10,7 +10,7 @@ import multer from 'multer';
 import env from '../config/env.js';
 
 const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-const pdfMetadataMaxBytes = Math.min(maxBytes, 10 * 1024 * 1024);
+const pdfMetadataMaxBytes = maxBytes;
 
 const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
   multer({

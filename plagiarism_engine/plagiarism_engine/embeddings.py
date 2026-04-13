@@ -48,6 +48,12 @@ _model_instance: "SentenceTransformer | None" = None
 _model_lock = threading.Lock()
 
 
+def get_loaded_embedding_model() -> "EmbeddingModel | None":
+    """Return the already-loaded embedding model without triggering load."""
+    global _model_instance  # noqa: PLW0603
+    return _model_instance
+
+
 def get_embedding_model(model_name: str = "all-MiniLM-L6-v2") -> "EmbeddingModel":
     """Return a cached :class:`EmbeddingModel` singleton.
 

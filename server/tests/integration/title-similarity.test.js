@@ -163,6 +163,25 @@ describe('Title Similarity & Lock — /api/projects', () => {
       expect(topMatch.score).toBeGreaterThanOrEqual(0.7);
       expect(topMatch.title).toContain('Capstone Management System');
     });
+
+    it('should detect similarity when a known title is repeated in a longer noisy string', async () => {
+      const repeatedNearDuplicate =
+        'Capstone Management System with Integrated Plagiarism CheckerCapstone Management System with Integrated Plagiarism Checker';
+
+      const res = await studentAgent.post('/api/projects/title-check').send({
+        title: repeatedNearDuplicate,
+        keywords: ['capstone', 'management', 'plagiarism'],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      const { similarProjects } = res.body.data;
+      expect(Array.isArray(similarProjects)).toBe(true);
+      expect(similarProjects.length).toBeGreaterThanOrEqual(1);
+      expect(similarProjects[0].score).toBeGreaterThanOrEqual(0.7);
+      expect(similarProjects[0].title).toContain('Capstone Management System');
+    });
   });
 
   /* ─────────────────────────────────────────────────────────────── */

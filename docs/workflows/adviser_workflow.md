@@ -35,7 +35,7 @@ The Adviser acts as the primary mentor and reviewer for assigned student capston
 
 ### 5. Document Revision Workspace (`/projects/:projectId/documents/:docId`)
 *   **Content**: An embedded interactive Google Docs UI alongside an annotation sidebar.
-*   **Functionality**: Advisers interact directly with student uploads, dropping margin notes, suggesting text revisions, and eventually marking a chapter version as `Accepted` or `Requires Revision`. 
+*   **Functionality**: Advisers interact directly with student uploads, dropping margin notes, suggesting text revisions, and eventually marking chapter versions as `Accepted` or `Requires Revision`. Proposal approval is not an adviser action.
 *   **Goal**: Prevent "email ping-pong" of `.docx` files by centralising collaboration securely within the application.
 *   **Design**: Leverages an iframe iframe-friendly split pane configuration granting the Adviser full `canEdit=true` boolean status contextually.
 

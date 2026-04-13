@@ -29,6 +29,7 @@ import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
+import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
 import {
   ROLES,
   SUBMISSION_STATUSES,
@@ -43,6 +44,26 @@ const logger = {
 };
 
 class SubmissionService {
+  async _extractUploadedPdfMetadata(file) {
+    const mime = file?.validatedMime || file?.mimetype;
+    if (mime !== 'application/pdf' || !file?.buffer) {
+      return { documentTitle: null, documentAbstract: null };
+    }
+
+    try {
+      const extracted = await extractPdfMetadata(file.buffer);
+      const documentTitle = extracted?.title?.trim() || null;
+      const documentAbstract = extracted?.abstract?.trim() || null;
+      return { documentTitle, documentAbstract };
+    } catch (error) {
+      logger.error(
+        { error: error?.message },
+        'Failed to extract PDF metadata for submission upload. Continuing without metadata.',
+      );
+      return { documentTitle: null, documentAbstract: null };
+    }
+  }
+
   _isTrustedSubmissionFallbackUrl(value) {
     if (typeof value !== 'string' || !value.trim()) {
       return false;
@@ -581,7 +602,8 @@ class SubmissionService {
    * @param {Object} user
    * @param {Object} project
    */
-  _assertCanModerateSubmission(user, project) {
+  _assertCanModerateSubmission(user, project, options = {}) {
+    const { allowPanelist = false } = options;
     const userId = user._id.toString();
 
     if (user.role === ROLES.INSTRUCTOR) {
@@ -596,6 +618,15 @@ class SubmissionService {
       return;
     }
 
+    if (
+      allowPanelist &&
+      user.role === ROLES.PANELIST &&
+      Array.isArray(project.panelistIds) &&
+      project.panelistIds.map((panelistId) => panelistId.toString()).includes(userId)
+    ) {
+      return;
+    }
+
     throw new AppError('You do not have permission to moderate this submission.', 403, 'FORBIDDEN');
   }
 
@@ -606,18 +637,18 @@ class SubmissionService {
    * @param {string} reviewerId
    * @returns {Promise<{ reviewer: Object, project: Object }>}
    */
-  async _getModerationContext(submission, reviewerId) {
+  async _getModerationContext(submission, reviewerId, options = {}) {
     const reviewer = await User.findById(reviewerId).select('role');
     if (!reviewer) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
-    const project = await Project.findById(submission.projectId).select('adviserId');
+    const project = await Project.findById(submission.projectId).select('adviserId panelistIds');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    this._assertCanModerateSubmission(reviewer, project);
+    this._assertCanModerateSubmission(reviewer, project, options);
 
     return { reviewer, project };
   }
@@ -808,6 +839,8 @@ class SubmissionService {
       type: 'chapter',
     });
 
+    const extractedMetadata = await this._extractUploadedPdfMetadata(file);
+
     // --- Create submission record ---
     const submission = await Submission.create({
       projectId,
@@ -832,6 +865,8 @@ class SubmissionService {
       googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
       googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
+      documentTitle: extractedMetadata.documentTitle,
+      documentAbstract: extractedMetadata.documentAbstract,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
@@ -978,6 +1013,8 @@ class SubmissionService {
       type: 'proposal',
     });
 
+    const extractedMetadata = await this._extractUploadedPdfMetadata(file);
+
     // --- Create submission record ---
     const submission = await Submission.create({
       projectId,
@@ -1002,6 +1039,8 @@ class SubmissionService {
       googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
       googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
+      documentTitle: extractedMetadata.documentTitle,
+      documentAbstract: extractedMetadata.documentAbstract,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
@@ -1147,6 +1186,8 @@ class SubmissionService {
       type,
     });
 
+    const extractedMetadata = await this._extractUploadedPdfMetadata(file);
+
     // --- Create submission record ---
     const submission = await Submission.create({
       projectId,
@@ -1171,6 +1212,8 @@ class SubmissionService {
       googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
       googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
+      documentTitle: extractedMetadata.documentTitle,
+      documentAbstract: extractedMetadata.documentAbstract,
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
@@ -1598,8 +1641,9 @@ class SubmissionService {
   /* ═══════════════════ Review Workflow ═══════════════════ */
 
   /**
-   * Review a submission — approve, request revisions, or reject.
-   * Only advisers assigned to the project or instructors can review.
+  * Review a submission — approve, request revisions, or reject.
+  * Instructors and assigned advisers can review submissions.
+  * Proposal approvals are restricted to instructors and assigned panelists.
    *
    * @param {string} submissionId
    * @param {string} reviewerId - The reviewing faculty member
@@ -1612,13 +1656,35 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    await this._getModerationContext(submission, reviewerId);
+    const { reviewer } = await this._getModerationContext(submission, reviewerId, {
+      allowPanelist: true,
+    });
+
+    if (reviewer.role === ROLES.PANELIST && submission.type !== 'proposal') {
+      throw new AppError(
+        'Panelists can only review proposal submissions.',
+        403,
+        'PANELIST_PROPOSAL_ONLY',
+      );
+    }
 
     if (submission.status === SUBMISSION_STATUSES.LOCKED) {
       throw new AppError('Cannot review a locked submission.', 400, 'SUBMISSION_LOCKED');
     }
 
     const { status, reviewNote } = data;
+
+    if (
+      submission.type === 'proposal' &&
+      status === SUBMISSION_STATUSES.APPROVED &&
+      ![ROLES.INSTRUCTOR, ROLES.PANELIST].includes(reviewer.role)
+    ) {
+      throw new AppError(
+        'Only instructors and assigned panelists can approve proposals.',
+        403,
+        'PROPOSAL_APPROVAL_FORBIDDEN_ROLE',
+      );
+    }
 
     submission.status = status;
     submission.reviewedBy = reviewerId;

@@ -1,0 +1,3 @@
+- When introducing `useSearchParams`, avoid naming the API query object `searchParams` in the same scope.
+- Prefer `urlParams` (router params) and `queryParams` (API filters) to prevent redeclaration errors caught during Vite build.
+- After multi-hunk UI refactors, always run `npm run build` in client to catch JSX/identifier collisions early.

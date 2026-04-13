@@ -25,7 +25,7 @@ import {
 } from '@cms/shared';
 
 describe('Submission Review with Plagiarism Check Integration', () => {
-  let studentUser, adviserUser, project, submission;
+  let studentUser, adviserUser, panelistUser, project, submission;
   const envKeysUnderTest = [
     'PLAGIARISM_REJECT_THRESHOLD',
     'AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD',
@@ -61,6 +61,14 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       role: 'adviser',
     });
 
+    panelistUser = await User.create({
+      firstName: 'Test',
+      lastName: 'Panelist',
+      email: 'panelist@test.com',
+      password: 'password',
+      role: 'panelist',
+    });
+
     // Create test project
     const selectedCapstoneTitle = CAPSTONE_TITLES.LEAD_DEVELOPER;
     const selectedRoleMapping = CAPSTONE_TITLE_MAPPING[selectedCapstoneTitle];
@@ -88,6 +96,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       ],
       projectStatus: PROJECT_STATUSES.ACTIVE,
       adviserId: adviserUser._id,
+      panelistIds: [panelistUser._id],
     });
 
     // Create test submission
@@ -402,12 +411,20 @@ describe('Submission Review with Plagiarism Check Integration', () => {
     });
 
     it('should transition project status when proposal approved', async () => {
-      await submissionService.reviewSubmission(submission._id, adviserUser._id, {
+      await submissionService.reviewSubmission(submission._id, panelistUser._id, {
         status: SUBMISSION_STATUSES.APPROVED,
       });
 
       const updatedProject = await Project.findById(project._id);
       expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
+    });
+
+    it('should block adviser from approving proposal', async () => {
+      await expect(
+        submissionService.reviewSubmission(submission._id, adviserUser._id, {
+          status: SUBMISSION_STATUSES.APPROVED,
+        }),
+      ).rejects.toThrow('Only instructors and assigned panelists can approve proposals.');
     });
 
     it('should not transition project if not proposal type', async () => {

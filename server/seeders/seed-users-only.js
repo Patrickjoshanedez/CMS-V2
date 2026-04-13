@@ -229,6 +229,7 @@ async function seed() {
             authProvider,
             isVerified: def.isVerified ?? true,
             isActive: def.isActive ?? true,
+            ...(def.role === 'student' ? { teamId: null } : {}),
             ...(isGoogle ? { googleId: def.googleId } : {}),
           },
           $setOnInsert: { email },

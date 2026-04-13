@@ -1,10 +1,151 @@
 import projectService from './project.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
+import { calculateProposalSimilarity, extractMatchingKeywords, tokenize } from '../../utils/proposalSimilarity.js';
+import { checkOriginality } from '../../services/plagiarism.service.js';
+import Project from './project.model.js';
+
+function buildProposalText({
+  title,
+  problemStatement,
+  proposedSolution,
+  uniqueContribution,
+  expectedImpact,
+}) {
+  return [title, problemStatement, proposedSolution, uniqueContribution, expectedImpact]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(' ');
+}
 
 /**
  * ProjectController — Thin handlers delegating to ProjectService.
  */
+
+/** POST /api/projects/similarity-scan — Compare proposals for similarity */
+export const checkProposalSimilarity = catchAsync(async (req, res) => {
+  const {
+    title,
+    problemStatement,
+    proposedSolution,
+    uniqueContribution,
+    expectedImpact,
+    academicYear,
+  } = req.body;
+  const tokenizedProjectInput = {
+    title: tokenize(title),
+    problemStatement: tokenize(problemStatement),
+    proposedSolution: tokenize(proposedSolution),
+    uniqueContribution: tokenize(uniqueContribution),
+    expectedImpact: tokenize(expectedImpact),
+  };
+
+  const matchFilter = {
+    status: { $in: ['APPROVED', 'PENDING', 'ARCHIVED'] },
+  };
+  if (academicYear) {
+    matchFilter.academicYear = academicYear;
+  }
+
+  // Find approved, pending, archived projects
+  // Limit to recent active projects or limit the scan pool to prevent DOS
+  // And use lean() with strict selected fields only to minimize memory loading.
+  const allProjects = await Project.find(matchFilter)
+    .sort({ createdAt: -1 })
+    .limit(500)
+    .select('title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status')
+    .lean();
+
+  const submittedProposalText = buildProposalText({
+    title,
+    problemStatement,
+    proposedSolution,
+    uniqueContribution,
+    expectedImpact,
+  });
+
+  const proposalCorpus = allProjects.map((project) => ({
+    id: String(project._id),
+    title: project.title,
+    chapter: 0,
+    text: buildProposalText(project),
+  }));
+
+  const plagiarismResult = await checkOriginality(submittedProposalText, proposalCorpus);
+
+  const results = allProjects
+    .map((p) => {
+      const similarity = calculateProposalSimilarity(tokenizedProjectInput, p);
+
+      // Only return if similarity score is high enough (e.g. > 0.15)
+      return {
+        _id: p._id,
+        title: p.title,
+        status: p.status,
+        score: similarity.overall,
+        keywords: {
+          problemStatement: extractMatchingKeywords(
+            tokenizedProjectInput.problemStatement,
+            p.problemStatement || '',
+          ),
+          proposedSolution: extractMatchingKeywords(
+            tokenizedProjectInput.proposedSolution,
+            p.proposedSolution || '',
+          ),
+        },
+      };
+    })
+    .filter((p) => p.score > 0.15)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: {
+      matches: results,
+      plagiarism: {
+        originalityScore: plagiarismResult.originalityScore,
+        similarityScore: Math.max(0, Math.min(100, 100 - plagiarismResult.originalityScore)),
+        matchedSources: plagiarismResult.matchedSources,
+      },
+    },
+  });
+});
+
+/** GET /api/projects/create-draft — Read the current user's create-project draft */
+export const getCreateProjectDraft = catchAsync(async (req, res) => {
+  const { draft, updatedAt } = await projectService.getCreateProjectDraft(req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { draft, updatedAt },
+  });
+});
+
+/** PUT /api/projects/create-draft — Save the current user's create-project draft */
+export const saveCreateProjectDraft = catchAsync(async (req, res) => {
+  const { draft, updatedAt } = await projectService.saveCreateProjectDraft(
+    req.user._id,
+    req.body.draft ?? null,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Create-project draft saved.',
+    data: { draft, updatedAt },
+  });
+});
+
+/** DELETE /api/projects/create-draft — Clear the current user's create-project draft */
+export const clearCreateProjectDraft = catchAsync(async (req, res) => {
+  await projectService.clearCreateProjectDraft(req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Create-project draft cleared.',
+    data: { draft: null, updatedAt: null },
+  });
+});
 
 /** POST /api/projects — Create a project (Team leader, student only) */
 export const createProject = catchAsync(async (req, res) => {
@@ -367,7 +508,7 @@ export const generateReport = catchAsync(async (req, res) => {
 
 /** POST /api/projects/archive/bulk — Bulk upload an archived capstone bundle (Instructor) */
 export const bulkUploadArchive = catchAsync(async (req, res) => {
-  const { project, submissions } = await projectService.bulkUploadArchive(req.user._id, req.body, {
+  const { project, submissions, similarity } = await projectService.bulkUploadArchive(req.user._id, req.body, {
     academicPaperFile: req.files?.academicPaperFile?.[0] || null,
     academicJournalFile: req.files?.academicJournalFile?.[0] || null,
   });
@@ -375,6 +516,6 @@ export const bulkUploadArchive = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
     message: 'Archived capstone bundle uploaded successfully.',
-    data: { project, submissions },
+    data: { project, submissions, similarity },
   });
 });

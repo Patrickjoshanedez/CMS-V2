@@ -11,18 +11,16 @@ import './index.css';
 const googleAuth = getGoogleAuthRuntimeConfig();
 
 const appTree = (
-  <React.StrictMode>
-    <QueryClientProvider client={appQueryClient}>
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>
+  <QueryClientProvider client={appQueryClient}>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <App />
+    </BrowserRouter>
+  </QueryClientProvider>
 );
 
 if (!googleAuth.hasClientId) {

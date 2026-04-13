@@ -1,6 +1,31 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
+const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+const resolveBaseApiUrl = () => {
+  const configuredUrl = import.meta.env.VITE_API_URL;
+
+  if (!configuredUrl) {
+    return '/api';
+  }
+
+  // In local browser sessions, force the Vite proxy path to avoid CORS drift
+  // when backend env CORS origins do not include localhost.
+  if (typeof window !== 'undefined' && LOCALHOST_HOSTNAMES.has(window.location.hostname)) {
+    try {
+      const parsedUrl = new URL(configuredUrl, window.location.origin);
+      if (LOCALHOST_HOSTNAMES.has(parsedUrl.hostname)) {
+        return '/api';
+      }
+    } catch {
+      // If parsing fails, fall through to the configured value.
+    }
+  }
+
+  return configuredUrl;
+};
+
 /**
  * Axios API client configured for the CMS backend.
  * - Base URL from Vite env or defaults to /api (handled by Vite proxy).
@@ -8,7 +33,7 @@ import { useAuthStore } from '../stores/authStore';
  * - 401 interceptor attempts token refresh once before logging out.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: resolveBaseApiUrl(),
   timeout: 15000,
   withCredentials: true,
   headers: {
