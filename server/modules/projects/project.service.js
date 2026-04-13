@@ -218,9 +218,9 @@ class ProjectService {
       throw new AppError('One or more SDG tags are invalid.', 400, 'INVALID_SDG_TAG');
     }
 
-    if (normalizedTitleProposals.length < 5) {
+    if (normalizedTitleProposals.length < 3) {
       throw new AppError(
-        'At least 5 unique title proposals are required.',
+        'At least 3 unique title proposals are required.',
         400,
         'MIN_TITLE_PROPOSALS',
       );
@@ -257,56 +257,58 @@ class ProjectService {
       );
     }
 
-    if (!data.memberRoleAssignments || !Array.isArray(data.memberRoleAssignments)) {
-      throw new AppError('Member role assignments are required.', 400, 'MISSING_ROLE_ASSIGNMENTS');
-    }
+    const requestedRoleAssignments = Array.isArray(data.memberRoleAssignments)
+      ? data.memberRoleAssignments
+      : [];
 
-    const teamMemberIds = team.members.map((memberId) => memberId.toString()).sort();
-    const assignedMemberIds = data.memberRoleAssignments
-      .map((assignment) => assignment.userId.toString())
-      .sort();
+    if (requestedRoleAssignments.length > 0) {
+      const teamMemberIds = team.members.map((memberId) => memberId.toString()).sort();
+      const assignedMemberIds = requestedRoleAssignments
+        .map((assignment) => assignment.userId.toString())
+        .sort();
 
-    if (teamMemberIds.length !== assignedMemberIds.length) {
-      throw new AppError(
-        'Every team member (including the leader) must have one assigned professional capstone title.',
-        400,
-        'INCOMPLETE_ROLE_ASSIGNMENTS',
-      );
-    }
-
-    const teamMemberSet = new Set(teamMemberIds);
-    for (const assignedId of assignedMemberIds) {
-      if (!teamMemberSet.has(assignedId)) {
+      if (teamMemberIds.length !== assignedMemberIds.length) {
         throw new AppError(
-          'Role assignments can only include members from your current team.',
-          403,
-          'INVALID_ASSIGNMENT_MEMBER',
+          'Every team member (including the leader) must have one assigned professional capstone title.',
+          400,
+          'INCOMPLETE_ROLE_ASSIGNMENTS',
+        );
+      }
+
+      const teamMemberSet = new Set(teamMemberIds);
+      for (const assignedId of assignedMemberIds) {
+        if (!teamMemberSet.has(assignedId)) {
+          throw new AppError(
+            'Role assignments can only include members from your current team.',
+            403,
+            'INVALID_ASSIGNMENT_MEMBER',
+          );
+        }
+      }
+
+      const uniqueAssignedMemberIds = new Set(assignedMemberIds);
+      if (uniqueAssignedMemberIds.size !== assignedMemberIds.length) {
+        throw new AppError(
+          'Each team member can only be assigned one professional capstone title.',
+          400,
+          'DUPLICATE_MEMBER_ASSIGNMENT',
+        );
+      }
+
+      const professionalTitles = requestedRoleAssignments.map(
+        (assignment) => assignment.professionalTitle,
+      );
+      const uniqueProfessionalTitles = new Set(professionalTitles);
+      if (uniqueProfessionalTitles.size !== professionalTitles.length) {
+        throw new AppError(
+          'Each professional capstone title can only be assigned once per project.',
+          400,
+          'DUPLICATE_PROFESSIONAL_TITLE',
         );
       }
     }
 
-    const uniqueAssignedMemberIds = new Set(assignedMemberIds);
-    if (uniqueAssignedMemberIds.size !== assignedMemberIds.length) {
-      throw new AppError(
-        'Each team member can only be assigned one professional capstone title.',
-        400,
-        'DUPLICATE_MEMBER_ASSIGNMENT',
-      );
-    }
-
-    const professionalTitles = data.memberRoleAssignments.map(
-      (assignment) => assignment.professionalTitle,
-    );
-    const uniqueProfessionalTitles = new Set(professionalTitles);
-    if (uniqueProfessionalTitles.size !== professionalTitles.length) {
-      throw new AppError(
-        'Each professional capstone title can only be assigned once per project.',
-        400,
-        'DUPLICATE_PROFESSIONAL_TITLE',
-      );
-    }
-
-    const memberRoleAssignments = data.memberRoleAssignments.map((assignment) => {
+    const memberRoleAssignments = requestedRoleAssignments.map((assignment) => {
       const mapping = CAPSTONE_TITLE_MAPPING[assignment.professionalTitle];
       return {
         userId: assignment.userId,
@@ -1757,7 +1759,7 @@ class ProjectService {
         if (typeof valueOf === 'number') return valueOf;
       }
       if (typeof value === 'string') return value.toLowerCase();
-      if (value == null) return '';
+      if (value === null || value === undefined) return '';
       return value;
     };
 

@@ -126,7 +126,8 @@ export const createProjectSchema = z.object({
         professionalTitle: z.enum(CAPSTONE_TITLE_VALUES),
       }),
     )
-    .min(1, 'At least one member role assignment is required'),
+    .optional()
+    .default([]),
   allowSoloCapstone: z.boolean().optional().default(false),
   soloCapstoneConfirmed: z.boolean().optional().default(false),
 });
@@ -373,7 +374,7 @@ export const bulkUploadSchema = z.object({
   publicationYear: z
     .preprocess(
       (val) => {
-        if (val === '' || val == null) return undefined;
+        if (val === '' || val === null || val === undefined) return undefined;
         const parsed = Number(val);
         return Number.isFinite(parsed) ? parsed : val;
       },

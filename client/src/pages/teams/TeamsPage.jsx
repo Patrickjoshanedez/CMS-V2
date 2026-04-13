@@ -1035,7 +1035,7 @@ function FacultyTeamDetail({ team }) {
 
 /* ────────── Faculty Team List View ────────── */
 
-function FacultyTeamsView() {
+function FacultyTeamsView({ canAssignCommittee }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({});
   const [selectedTeamId, setSelectedTeamId] = useState(null);
@@ -1152,7 +1152,9 @@ function FacultyTeamsView() {
         <EmptyTeamState role={ROLES.INSTRUCTOR} />
       ) : (
         <>
-          {selectedTeam && <FacultyTeamDetail team={selectedTeam} />}
+          {selectedTeam && (
+            <FacultyTeamDetail team={selectedTeam} canAssignCommittee={canAssignCommittee} />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {teams.map((team) => {
@@ -1298,6 +1300,7 @@ export default function TeamsPage() {
   }
 
   const isStudent = user.role === ROLES.STUDENT;
+  const isInstructor = user.role === ROLES.INSTRUCTOR;
   const pageTitle = isStudent ? 'My Team' : user.role === ROLES.ADVISER ? 'My Teams' : 'Teams';
 
   return (
@@ -1310,7 +1313,11 @@ export default function TeamsPage() {
           </p>
         </div>
 
-        {isStudent ? <StudentTeamView user={user} /> : <FacultyTeamsView />}
+        {isStudent ? (
+          <StudentTeamView user={user} />
+        ) : (
+          <FacultyTeamsView canAssignCommittee={isInstructor} />
+        )}
       </div>
     </DashboardLayout>
   );

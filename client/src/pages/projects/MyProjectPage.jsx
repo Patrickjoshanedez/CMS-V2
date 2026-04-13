@@ -23,7 +23,6 @@ import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressW
 import {
   useMyProject,
   useUpdateTitle,
-  useSubmitTitle,
   useReviseAndResubmit,
   useRequestTitleModification,
 } from '@/hooks/useProjects';
@@ -247,10 +246,6 @@ function EditTitleForm({ project }) {
     onSuccess: () => toast.success('Changes saved.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to save.'),
   });
-  const submitTitle = useSubmitTitle({
-    onSuccess: () => toast.success('Title submitted for approval!'),
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to submit title.'),
-  });
 
   const [title, setTitle] = useState(project.title);
   const [abstract, setAbstract] = useState(project.abstract || '');
@@ -273,29 +268,17 @@ function EditTitleForm({ project }) {
     );
   };
 
-  const handleSubmitForApproval = () => {
-    submitTitle.mutate(project._id);
-  };
-
   if (!editing) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Title Actions</CardTitle>
-          <CardDescription>Your title is in draft. Edit it or submit for review.</CardDescription>
+          <CardDescription>Your title is in draft. Edit your project details below.</CardDescription>
         </CardHeader>
         <CardContent className="flex gap-3">
           <Button variant="outline" onClick={() => setEditing(true)}>
             <Edit3 className="mr-2 h-4 w-4" />
             Edit Details
-          </Button>
-          <Button onClick={handleSubmitForApproval} disabled={submitTitle.isPending}>
-            {submitTitle.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="mr-2 h-4 w-4" />
-            )}
-            Submit for Approval
           </Button>
         </CardContent>
       </Card>

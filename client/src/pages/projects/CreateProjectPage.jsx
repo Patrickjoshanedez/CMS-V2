@@ -18,6 +18,7 @@ import {
   X,
   Plus,
   Loader2,
+  Save,
   ChevronDown,
   ChevronUp,
   Search,
@@ -118,6 +119,43 @@ const createEmptyProposal = () => ({
   sdgTags: [],
 });
 
+const normalizeDraftProposal = (proposal = {}) => ({
+  ...createEmptyProposal(),
+  ...proposal,
+  pitchDeck: {
+    ...createEmptyPitchDeck(),
+    ...(proposal?.pitchDeck || {}),
+  },
+  capstoneType: Array.isArray(proposal?.capstoneType) ? proposal.capstoneType : [],
+  sdgTags: Array.isArray(proposal?.sdgTags) ? proposal.sdgTags : [],
+});
+
+const getMissingRequiredProposalFields = (proposal) => {
+  const missingFields = [];
+
+  if (!proposal.title.trim()) {
+    missingFields.push('title');
+  }
+
+  const missingPitchLabels = PROPOSAL_PITCH_DECK_FIELDS.filter(
+    (field) => !(proposal.pitchDeck?.[field.key] || '').trim(),
+  ).map((field) => field.label);
+
+  if (missingPitchLabels.length > 0) {
+    missingFields.push(...missingPitchLabels);
+  }
+
+  if (!proposal.capstoneType || proposal.capstoneType.length === 0) {
+    missingFields.push('capstone type');
+  }
+
+  if (!proposal.sdgTags || proposal.sdgTags.length === 0) {
+    missingFields.push('at least one SDG tag');
+  }
+
+  return missingFields;
+};
+
 export default function CreateProjectPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -150,6 +188,7 @@ export default function CreateProjectPage() {
   const [activeProposalIndex, setActiveProposalIndex] = useState(0);
   const [activeSubTab, setActiveSubTab] = useState('write');
   const [generatingProposalIndex, setGeneratingProposalIndex] = useState(null);
+  const [savingDraftIndex, setSavingDraftIndex] = useState(null);
   const [isScanningSimilarityIndex, setIsScanningSimilarityIndex] = useState(null);
   const [proposalSimilarityResults, setProposalSimilarityResults] = useState({});
   const [proposalPlagiarismResults, setProposalPlagiarismResults] = useState({});
@@ -183,6 +222,64 @@ export default function CreateProjectPage() {
   const sectionOptions = sections;
   const isAnySectionLoading = isSectionsLoading;
   const isAnySectionError = isSectionsError;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateDraft = async () => {
+      try {
+        const res = await projectService.getCreateProjectDraft();
+        const draft = res?.data?.data?.draft;
+        if (!isMounted || !draft) return;
+
+        if (draft.form && typeof draft.form === 'object') {
+          setForm((prev) => ({
+            ...prev,
+            ...draft.form,
+          }));
+        }
+
+        if (Array.isArray(draft.titleProposals) && draft.titleProposals.length > 0) {
+          const normalizedDraftProposals = draft.titleProposals
+            .slice(0, 10)
+            .map((proposal) => normalizeDraftProposal(proposal));
+
+          while (normalizedDraftProposals.length < 3) {
+            normalizedDraftProposals.push(createEmptyProposal());
+          }
+
+          setTitleProposals(normalizedDraftProposals);
+
+          if (typeof draft.expandedProposalIndex === 'number') {
+            const nextIndex = Math.max(
+              0,
+              Math.min(draft.expandedProposalIndex, normalizedDraftProposals.length - 1),
+            );
+            setActiveProposalIndex(nextIndex);
+          }
+        }
+
+        if (Array.isArray(draft.keywordList)) {
+          setKeywordList(draft.keywordList.filter((item) => typeof item === 'string'));
+        }
+
+        if (Array.isArray(draft.sdgTagList)) {
+          setSdgTagList(draft.sdgTagList.filter((item) => typeof item === 'string'));
+        }
+
+        // Prevent team defaults from overwriting restored draft values.
+        teamDefaultsAppliedRef.current = true;
+      } catch {
+        // Silent fallback: draft restoration should not block page usage.
+      }
+    };
+
+    hydrateDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (academicYears.length === 0) {
@@ -272,6 +369,35 @@ export default function CreateProjectPage() {
 
       return next;
     });
+  };
+
+  const saveProposalDraft = async (index) => {
+    if (!titleProposals[index]) return;
+
+    setSavingDraftIndex(index);
+    try {
+      await projectService.saveCreateProjectDraft({
+        form: {
+          title: form.title,
+          abstract: form.abstract,
+          keywords: keywordList.join(', '),
+          academicYear: form.academicYear,
+          sectionId: form.sectionId,
+        },
+        titleProposals,
+        keywordList,
+        sdgTagList,
+        expandedProposalIndex: activeProposalIndex,
+        proposalIndex: index,
+        source: 'manual-proposal-save',
+        savedAt: new Date().toISOString(),
+      });
+      toast.success(`Proposal ${index + 1} draft saved.`);
+    } catch (error) {
+      toast.error(error?.response?.data?.error?.message || 'Failed to save proposal draft.');
+    } finally {
+      setSavingDraftIndex(null);
+    }
   };
 
   const addTitleProposal = () => {
@@ -442,20 +568,16 @@ export default function CreateProjectPage() {
 
     const members = teamMembers;
     const requiredProposals = titleProposals.slice(0, 3);
-    const hasIncompleteRequiredProposal = requiredProposals.some(
-      (proposal) =>
-        !proposal.title.trim() ||
-        PROPOSAL_PITCH_DECK_FIELDS.some(
-          (field) => !(proposal.pitchDeck?.[field.key] || '').trim(),
-        ) ||
-        !proposal.capstoneType ||
-        proposal.capstoneType.length === 0 ||
-        proposal.sdgTags.length === 0,
-    );
+    const invalidRequiredProposal = requiredProposals
+      .map((proposal, index) => ({
+        index,
+        missingFields: getMissingRequiredProposalFields(proposal),
+      }))
+      .find((item) => item.missingFields.length > 0);
 
-    if (hasIncompleteRequiredProposal) {
+    if (invalidRequiredProposal) {
       toast.error(
-        'Proposal 1 to Proposal 3 must each include title, description, capstone type, and at least one SDG tag.',
+        `Proposal ${invalidRequiredProposal.index + 1} is missing: ${invalidRequiredProposal.missingFields.join(', ')}.`,
       );
       return;
     }
@@ -711,6 +833,21 @@ export default function CreateProjectPage() {
                   </button>
 
                   <div className="ml-auto flex items-center pr-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => saveProposalDraft(index)}
+                      disabled={savingDraftIndex === index}
+                      className="mr-2 h-8"
+                    >
+                      {savingDraftIndex === index ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      Save Draft
+                    </Button>
                     {titleProposals.length > 3 && (
                       <Button
                         type="button"

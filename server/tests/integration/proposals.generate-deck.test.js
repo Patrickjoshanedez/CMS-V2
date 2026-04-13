@@ -51,7 +51,7 @@ describe('Proposals API - /api/proposals/generate-deck', () => {
 
   it('rejects invalid payloads with validation error', async () => {
     const payload = buildValidPayload();
-    payload.deckData.problemStatement = 'Too short';
+    payload.deckData.problemStatement = 'a'; // Less than minimum 2 characters
 
     const res = await studentAgent.post('/api/proposals/generate-deck').send(payload);
 

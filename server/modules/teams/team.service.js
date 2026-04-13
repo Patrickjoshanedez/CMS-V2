@@ -392,6 +392,7 @@ class TeamService {
 
     const teamObject = team.toObject();
     teamObject.assignment = {
+      projectId: currentProject?._id || null,
       instructor: teamObject.leaderId?.instructorId || null,
       adviser: currentProject?.adviserId || null,
       panelists: currentProject?.panelistIds || [],
@@ -1106,6 +1107,7 @@ class TeamService {
       const currentProject = projectByTeamId.get(team._id.toString());
 
       team.assignment = {
+        projectId: currentProject?._id || null,
         instructor: team.leaderId?.instructorId || null,
         adviser: currentProject?.adviserId || null,
         panelists: currentProject?.panelistIds || [],

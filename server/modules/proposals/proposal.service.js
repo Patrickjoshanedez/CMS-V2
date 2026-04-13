@@ -1,7 +1,9 @@
 import puppeteer from 'puppeteer-core';
 
-const SLIDE_WIDTH_IN = '13.333in';
-const SLIDE_HEIGHT_IN = '7.5in';
+// Slide dimensions: 16:9 aspect ratio
+// Width: 13.333in = 338.5mm, Height: 7.5in = 190.5mm
+const SLIDE_WIDTH_MM = 338.5;
+const SLIDE_HEIGHT_MM = 190.5;
 
 function escapeHtml(text = '') {
   return text
@@ -42,29 +44,27 @@ function buildDeckHtml({ title, deckData }) {
 
   const titleSafe = escapeHtml(title);
   const footerHtml = `
-    <footer class="mt-auto h-[15%] min-h-[100px] bg-[#F58220] flex items-center justify-end px-12 absolute bottom-0 w-full z-20">
-      <div class="text-right text-black font-bold text-xl leading-tight">
+    <footer>
+      <div class="text-right">
         <div>BUKIDNON STATE UNIVERSITY</div>
         <div>COLLEGE OF TECHNOLOGIES</div>
-        <div class="font-normal text-lg">Information Technology Department</div>
+        <div>Information Technology Department</div>
       </div>
-      <div class="w-20 h-20 bg-white rounded-full ml-4 flex flex-col items-center justify-center text-[10px] font-bold text-black border-2 border-black overflow-hidden bg-cover bg-center">
-        <span class="text-center px-1">BUKSU</span>
-      </div>
-      <div class="w-20 h-20 bg-[#F58220] ml-2 flex flex-col items-center justify-center text-xs font-bold text-black border-2 border-black">
-        <span class="text-center">COT/IT</span>
+      <div class="logo-container">
+        <div class="logo logo-white"><span>BUKSU</span></div>
+        <div class="logo logo-orange"><span>COT/IT</span></div>
       </div>
     </footer>
   `;
 
   const coverSlideHtml = `
-    <section class="slide relative flex min-h-full flex-col overflow-hidden bg-[#0A3254] font-sans">
-      <main class="flex flex-1 flex-col justify-center px-32 py-12 relative z-10 w-full mx-auto text-left">
-        <h1 class="text-[4rem] font-bold tracking-tight text-[#F58220] drop-shadow-sm leading-tight mb-8">Capstone Project<br/>Pitch Proposal</h1>
-        <div class="text-2xl text-white font-medium leading-relaxed">
+    <section class="slide cover-slide" style="background-color: #0A3254;">
+      <main>
+        <h1>Capstone Project<br/>Pitch Proposal</h1>
+        <div class="text-white">
           <p>Group Members / Authors / Team</p>
         </div>
-        <div class="mt-16 text-xl text-orange-200">
+        <div class="timestamp">
           1st Semester – AY 2025 – 2026
         </div>
       </main>
@@ -73,11 +73,9 @@ function buildDeckHtml({ title, deckData }) {
   `;
 
   const titleSlideHtml = `
-    <section class="slide relative flex min-h-full flex-col overflow-hidden bg-[#0A3254] font-sans text-center">
-      <main class="flex flex-1 flex-col justify-center items-center px-32 pt-12 pb-32 relative z-10 w-full mx-auto">
-        <h1 class="text-5xl font-bold tracking-tight text-[#F58220] drop-shadow-sm leading-tight uppercase max-w-[90%]">
-          ${titleSafe}
-        </h1>
+    <section class="slide title-slide" style="background-color: #0A3254;">
+      <main>
+        <h1>${titleSafe}</h1>
       </main>
       ${footerHtml}
     </section>
@@ -86,10 +84,10 @@ function buildDeckHtml({ title, deckData }) {
   const contentSlidesHtml = slides
     .map(
       (slide) => `
-      <section class="slide relative flex min-h-full flex-col overflow-hidden bg-white text-black font-sans">
-        <main class="flex flex-1 flex-col justify-start px-32 py-16 relative z-10 w-full mx-auto pb-40">
-          <h1 class="mb-10 text-[3.5rem] font-extrabold italic tracking-tight text-black">${slide.heading}</h1>
-          <ul class="text-[1.7rem] leading-[1.8] text-gray-800 list-disc pl-10 pr-12 marker:text-gray-500 font-medium">
+      <section class="slide content-slide">
+        <main>
+          <h1>${slide.heading}</h1>
+          <ul>
             ${formatSlideBody(slide.body).split('<br />').map(line => {
               const trimmed = line.replace(/^- /, '').replace(/^• /, '').trim();
               return trimmed ? `<li>${trimmed}</li>` : '';
@@ -108,29 +106,167 @@ function buildDeckHtml({ title, deckData }) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
       @page {
-        size: ${SLIDE_WIDTH_IN} ${SLIDE_HEIGHT_IN};
+        size: ${SLIDE_WIDTH_MM}mm ${SLIDE_HEIGHT_MM}mm;
         margin: 0;
       }
       html,
       body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
+        width: ${SLIDE_WIDTH_MM}mm;
+        height: ${SLIDE_HEIGHT_MM}mm;
         background-color: white;
         font-family: 'Arial', sans-serif;
       }
       .slide {
-        width: 100vw;
-        height: 100vh;
+        width: ${SLIDE_WIDTH_MM}mm;
+        height: ${SLIDE_HEIGHT_MM}mm;
         page-break-after: always;
-        box-sizing: border-box;
+        page-break-inside: avoid;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
       }
       .slide:last-child {
         page-break-after: auto;
+      }
+      footer {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 28.5mm;
+        background-color: #F58220;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 36mm;
+        z-index: 20;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 18mm 36mm;
+        position: relative;
+        z-index: 10;
+        width: 100%;
+      }
+      h1 {
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+      div.text-right {
+        text-align: right;
+        color: black;
+        font-weight: bold;
+        font-size: 6.35mm;
+      }
+      div.logo-container {
+        display: flex;
+        gap: 4.76mm;
+        margin-left: 9.52mm;
+      }
+      div.logo {
+        width: 19.05mm;
+        height: 19.05mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1.27mm solid black;
+        font-weight: bold;
+        font-size: 3.81mm;
+        flex-shrink: 0;
+      }
+      div.logo-white {
+        background-color: white;
+        border-radius: 50%;
+      }
+      div.logo-orange {
+        background-color: #F58220;
+      }
+      /* Title slide specific */
+      .title-slide main {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .title-slide h1 {
+        font-size: 19.05mm;
+        color: #F58220;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        max-width: 85%;
+        text-transform: uppercase;
+        margin-bottom: 19.05mm;
+      }
+      .title-slide .text-white {
+        color: white;
+        font-size: 8.47mm;
+        font-weight: 500;
+      }
+      .title-slide .timestamp {
+        margin-top: 38.1mm;
+        color: #FFD6A3;
+        font-size: 4.76mm;
+      }
+      /* Cover slide specific */
+      .cover-slide main {
+        justify-content: center;
+        padding-left: 75.4mm;
+      }
+      .cover-slide h1 {
+        font-size: 19.05mm;
+        color: #F58220;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        margin-bottom: 19.05mm;
+      }
+      .cover-slide .text-white {
+        color: white;
+        font-size: 8.47mm;
+        font-weight: 500;
+      }
+      /* Content slides specific */
+      .content-slide {
+        background-color: white;
+        color: black;
+      }
+      .content-slide main {
+        padding-bottom: 21.2mm;
+      }
+      .content-slide h1 {
+        font-size: 17.78mm;
+        color: black;
+        margin-bottom: 11.43mm;
+        font-style: italic;
+      }
+      .content-slide ul {
+        font-size: 7.62mm;
+        line-height: 1.75;
+        color: #4B5563;
+        list-style: disc;
+        padding-left: 7.62mm;
+        margin-right: 11.43mm;
+      }
+      .content-slide li {
+        margin-bottom: 3.81mm;
+        font-weight: 500;
+      }
+      .content-slide li::marker {
+        color: #999;
+      }
+      footer .text-right {
+        font-size: 5.08mm;
+      }
+      footer .text-right div:nth-child(3) {
+        font-size: 4.23mm;
+        font-weight: normal;
       }
     </style>
   </head>
@@ -154,15 +290,32 @@ class ProposalService {
 
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      await page.emulateMediaType('screen');
+      // Set viewport to match slide dimensions for consistent rendering
+      await page.setViewport({
+        width: Math.round((SLIDE_WIDTH_MM * 96) / 25.4), // Convert mm to pixels at 96 DPI
+        height: Math.round((SLIDE_HEIGHT_MM * 96) / 25.4),
+      });
 
-      return await page.pdf({
-        width: SLIDE_WIDTH_IN,
-        height: SLIDE_HEIGHT_IN,
+      await page.setContent(html, { waitUntil: 'load' });
+
+      const pdfBuffer = await page.pdf({
+        width: `${SLIDE_WIDTH_MM}mm`,
+        height: `${SLIDE_HEIGHT_MM}mm`,
         printBackground: true,
         preferCSSPageSize: true,
+        margin: {
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+        },
       });
+
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('PDF generation produced empty buffer');
+      }
+
+      return pdfBuffer;
     } finally {
       await browser.close();
     }

@@ -47,14 +47,47 @@ function normalizeProposalItems(project) {
       const proposalTitle = typeof proposal === 'string' ? proposal : proposal?.title;
       const details = metadata.find((entry) => entry?.title === proposalTitle);
       const proposalId = proposal?._id || `proposal-${index + 1}`;
+      const normalizedDescription = details?.description || '';
 
       return {
         id: proposalId,
         title: proposalTitle || `Untitled Proposal ${index + 1}`,
-        description: details?.description || '',
+        description: normalizedDescription,
+        pitchDeck: parsePitchDeckFromDescription(normalizedDescription),
       };
     })
     .filter((proposal) => Boolean(proposal.title));
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parsePitchDeckFromDescription(description = '') {
+  const normalizedDeck = emptyDeckData();
+  const source = String(description || '').trim();
+
+  if (!source) {
+    return normalizedDeck;
+  }
+
+  PITCH_DECK_FIELDS.forEach((field, index) => {
+    const nextFieldLabel = PITCH_DECK_FIELDS[index + 1]?.label;
+    const nextFieldBoundary = nextFieldLabel
+      ? `(?=\\s*${escapeRegex(nextFieldLabel)}\\s*:)`
+      : '$';
+    const matcher = new RegExp(
+      `${escapeRegex(field.label)}\\s*:\\s*([\\s\\S]*?)${nextFieldBoundary}`,
+      'i',
+    );
+    const matched = source.match(matcher);
+
+    if (matched?.[1]) {
+      normalizedDeck[field.key] = matched[1].trim();
+    }
+  });
+
+  return normalizedDeck;
 }
 
 function emptyDeckData() {
@@ -105,7 +138,10 @@ export default function ProposalTab({ project }) {
         const savedDraft = window.localStorage.getItem(storageKey);
 
         if (!next[proposal.id]) {
-          next[proposal.id] = emptyDeckData();
+          next[proposal.id] = {
+            ...emptyDeckData(),
+            ...(proposal.pitchDeck || {}),
+          };
         }
 
         if (savedDraft) {
@@ -251,10 +287,6 @@ export default function ProposalTab({ project }) {
 
               {expanded && (
                 <div className="border-t bg-background px-4 py-4">
-                  {proposal.description ? (
-                    <p className="mb-4 text-xs text-muted-foreground">{proposal.description}</p>
-                  ) : null}
-
                   <div className="space-y-4">
                     {PITCH_DECK_FIELDS.map((field) => (
                       <div key={field.key} className="space-y-2">

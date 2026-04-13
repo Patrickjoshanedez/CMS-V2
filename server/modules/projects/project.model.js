@@ -265,8 +265,8 @@ const projectSchema = new mongoose.Schema(
     titleProposals: {
       type: [String],
       validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length >= 5 && arr.length <= 10,
-        message: 'A project must include between 5 and 10 title proposals',
+        validator: (arr) => Array.isArray(arr) && arr.length >= 3 && arr.length <= 10,
+        message: 'A project must include between 3 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],
       default: [],
@@ -275,8 +275,8 @@ const projectSchema = new mongoose.Schema(
       type: [titleProposalMetadataSchema],
       validate: {
         validator: (arr) =>
-          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 5 && arr.length <= 10)),
-        message: 'Title proposal metadata must include between 5 and 10 entries',
+          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 3 && arr.length <= 10)),
+        message: 'Title proposal metadata must include between 3 and 10 entries',
       },
       default: [],
     },
@@ -455,11 +455,7 @@ const projectSchema = new mongoose.Schema(
     },
     memberRoleAssignments: {
       type: [memberRoleAssignmentSchema],
-      validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length > 0,
-        message: 'Member role assignments are required',
-      },
-      required: true,
+      default: [],
     },
     capstonePhase: {
       type: Number,

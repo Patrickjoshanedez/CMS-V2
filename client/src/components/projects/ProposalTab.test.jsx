@@ -40,6 +40,18 @@ const baseProject = {
   ],
 };
 
+const structuredDescriptionProject = {
+  _id: 'project-structured',
+  titleProposals: [{ _id: 'proposal-structured-1', title: 'LexiBridge Rural Literacy Assistant' }],
+  titleProposalMetadata: [
+    {
+      title: 'LexiBridge Rural Literacy Assistant',
+      description:
+        'Problem Statement: Administrative, legal, and medical documents are difficult for low-literacy and non-native readers. Proposed Solution: A mobile OCR plus LLM app that rewrites documents into simple language and dialect-ready variants. Unique Contribution / Innovation: Focuses on cognitive accessibility and supports offline mode for low-connectivity regions. Target Users / Beneficiaries: Rural community members, elderly citizens, and non-native speakers navigating government systems. Expected Impact / Value: Improves autonomy, lowers administrative errors, and increases access to healthcare and legal services.',
+    },
+  ],
+};
+
 const fieldText = {
   problemStatement:
     'High prevalence of manual incident logs and delayed routing leads to unresolved requests and poor visibility.',
@@ -100,7 +112,10 @@ describe('ProposalTab', () => {
   it('keeps only one accordion expanded at a time', () => {
     const view = renderProposalTab();
 
-    expect(view.container.textContent).toContain('Tracks incidents and response workflows');
+    expect(
+      view.container.querySelector('textarea#proposal-1-problemStatement'),
+    ).toBeTruthy();
+    expect(view.container.querySelector('textarea#proposal-2-problemStatement')).toBeFalsy();
 
     const secondAccordionButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Barangay Escalation Dashboard'),
@@ -112,8 +127,8 @@ describe('ProposalTab', () => {
       secondAccordionButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(view.container.textContent).toContain('Supports escalation pipelines and incident analytics.');
-    expect(view.container.textContent).not.toContain('Tracks incidents and response workflows');
+    expect(view.container.querySelector('textarea#proposal-2-problemStatement')).toBeTruthy();
+    expect(view.container.querySelector('textarea#proposal-1-problemStatement')).toBeFalsy();
 
     view.unmount();
   });
@@ -175,6 +190,23 @@ describe('ProposalTab', () => {
       expectedImpact: values[4],
     });
     expect(toastSuccess).toHaveBeenCalledWith('Proposal draft saved locally.');
+
+    view.unmount();
+  });
+
+  it('hydrates textarea fields from persisted proposal description metadata', () => {
+    const view = renderProposalTab(structuredDescriptionProject);
+
+    const textareas = view.container.querySelectorAll('textarea');
+    expect(textareas).toHaveLength(5);
+
+    const values = Array.from(textareas).map((textarea) => textarea.value);
+
+    expect(values[0]).toContain('difficult for low-literacy and non-native readers');
+    expect(values[1]).toContain('mobile OCR plus LLM app');
+    expect(values[2]).toContain('cognitive accessibility and supports offline mode');
+    expect(values[3]).toContain('Rural community members, elderly citizens');
+    expect(values[4]).toContain('Improves autonomy, lowers administrative errors');
 
     view.unmount();
   });
