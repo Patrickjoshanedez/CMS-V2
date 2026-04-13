@@ -9,6 +9,7 @@
     "dev": "node scripts/dev-preflight.js && node --watch server.js",
     "start": "node server.js",
     "seed": "node seeders/index.js",
+    "seed:similarity": "node seeders/seed-similarity.js",
     "seed:archive:pdfs": "node seeders/seed-archived-capstone-pdfs.js",
     "seed:orphans": "node seeders/seed-orphaned-users.js",
     "test": "vitest run",

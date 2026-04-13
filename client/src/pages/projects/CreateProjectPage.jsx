@@ -111,6 +111,69 @@ const buildProposalDescriptionFromPitchDeck = (pitchDeck = createEmptyPitchDeck(
   ).join('\n\n');
 };
 
+const PDF_SIGNATURE = '%PDF-';
+
+const hasPdfSignature = (bytes) => {
+  if (!(bytes instanceof Uint8Array) || bytes.length < PDF_SIGNATURE.length) {
+    return false;
+  }
+
+  const signature = String.fromCharCode(...bytes.slice(0, PDF_SIGNATURE.length));
+  return signature === PDF_SIGNATURE;
+};
+
+const isSerializedByteObject = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const keys = Object.keys(value);
+  if (keys.length < 8) {
+    return false;
+  }
+
+  return keys.every((key) => /^\d+$/.test(key));
+};
+
+const deserializeByteObject = (value) => {
+  const orderedKeys = Object.keys(value)
+    .map((key) => Number.parseInt(key, 10))
+    .filter((key) => Number.isInteger(key) && key >= 0)
+    .sort((a, b) => a - b);
+
+  const bytes = new Uint8Array(orderedKeys.length);
+  orderedKeys.forEach((index, position) => {
+    const raw = Number(value[index]);
+    bytes[position] = Number.isFinite(raw) ? raw & 0xff : 0;
+  });
+
+  return bytes;
+};
+
+const toPdfBytes = async (payload) => {
+  if (!payload) {
+    return new Uint8Array();
+  }
+
+  if (payload instanceof Blob) {
+    return new Uint8Array(await payload.arrayBuffer());
+  }
+
+  if (payload instanceof ArrayBuffer) {
+    return new Uint8Array(payload);
+  }
+
+  if (payload instanceof Uint8Array) {
+    return payload;
+  }
+
+  if (isSerializedByteObject(payload)) {
+    return deserializeByteObject(payload);
+  }
+
+  return new Uint8Array();
+};
+
 const createEmptyProposal = () => ({
   title: '',
   description: '',
@@ -456,14 +519,17 @@ export default function CreateProjectPage() {
         .replace(/[^a-zA-Z0-9\s-_]/g, '')
         .replace(/\s+/g, '_')
         .slice(0, 80)}_PitchDeck.pdf`;
-      const blob =
-        response.data instanceof Blob
-          ? response.data
-          : new Blob([response.data], { type: 'application/pdf' });
+      const bytes = await toPdfBytes(response.data);
 
-      if (!blob.size) {
+      if (!bytes.length) {
         throw new Error('Generated PDF is empty. Please try again.');
       }
+
+      if (!hasPdfSignature(bytes)) {
+        throw new Error('Generated file is not a valid PDF. Please retry.');
+      }
+
+      const blob = new Blob([bytes], { type: 'application/pdf' });
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

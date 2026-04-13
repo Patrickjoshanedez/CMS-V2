@@ -88,10 +88,13 @@ function buildDeckHtml({ title, deckData }) {
         <main>
           <h1>${slide.heading}</h1>
           <ul>
-            ${formatSlideBody(slide.body).split('<br />').map(line => {
-              const trimmed = line.replace(/^- /, '').replace(/^• /, '').trim();
-              return trimmed ? `<li>${trimmed}</li>` : '';
-            }).join('')}
+            ${formatSlideBody(slide.body)
+              .split('<br />')
+              .map((line) => {
+                const trimmed = line.replace(/^- /, '').replace(/^• /, '').trim();
+                return trimmed ? `<li>${trimmed}</li>` : '';
+              })
+              .join('')}
           </ul>
         </main>
         ${footerHtml}
@@ -315,7 +318,8 @@ class ProposalService {
         throw new Error('PDF generation produced empty buffer');
       }
 
-      return pdfBuffer;
+      // Puppeteer may return Uint8Array in some runtimes; normalize to Buffer for HTTP binary response.
+      return Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
     } finally {
       await browser.close();
     }
