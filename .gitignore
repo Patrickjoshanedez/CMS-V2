@@ -132,3 +132,6 @@ start-all-services-fixed.ps1
 start-all-services.ps1
 start-cms.ps1
 start-prod-test.ps1
+.github/hooks/state/agent_communication_dag.json
+.github/hooks/state/agent_prefetch_registry.json
+.github/hooks/state/decision_coherence_report.json
