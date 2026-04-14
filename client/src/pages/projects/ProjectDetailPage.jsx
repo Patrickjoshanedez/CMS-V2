@@ -365,10 +365,18 @@ function TitleProposalsSection({ project, userRole }) {
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
 function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
+  const phaseNumber = Number(project.capstonePhase);
+  const phaseLabel =
+    phaseNumber === CAPSTONE_PHASES.PHASE_1
+      ? 'Proposal'
+      : phaseNumber
+        ? `Capstone ${phaseNumber}`
+        : '—';
+
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
     ? capstoneRaw.join(', ')
-    : capstoneRaw || `Capstone ${project.capstonePhase}`;
+    : capstoneRaw || phaseLabel;
 
   return (
     <Card>
@@ -376,9 +384,7 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="space-y-1">
             <CardTitle className="text-xl">{project.title}</CardTitle>
-            <CardDescription>
-              {project.academicYear} · Capstone {project.capstonePhase}
-            </CardDescription>
+            <CardDescription>{project.academicYear || '—'} · {phaseLabel}</CardDescription>
           </div>
           <div className="flex gap-2">
             <TitleStatusBadge status={project.titleStatus} />
@@ -392,20 +398,6 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
           <div>
             <p className="mb-1 text-sm font-medium text-muted-foreground">Overview</p>
             <p className="text-sm leading-relaxed">{project.abstract}</p>
-          </div>
-        )}
-
-        {/* SDG tags */}
-        {project.sdgTags?.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">SDG Tags</p>
-            <div className="flex flex-wrap gap-1.5">
-              {project.sdgTags.map((tag, i) => (
-                <Badge key={`${tag}-${i}`} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
           </div>
         )}
 
