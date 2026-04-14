@@ -10,6 +10,7 @@
 import User from '../users/user.model.js';
 import Team from '../teams/team.model.js';
 import Project from '../projects/project.model.js';
+import AuditLog from '../audit/audit.model.js';
 import projectService from '../projects/project.service.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
@@ -57,19 +58,32 @@ class DashboardService {
     ]);
 
     let chapterProgress = [];
+    let submissionHistory = [];
+    let teamActivityTrail = [];
+    let progressReport = null;
     if (project) {
-      const latestSubmissions = await Submission.aggregate([
-        { $match: { projectId: project._id } },
-        { $sort: { chapter: 1, version: -1 } },
-        {
-          $group: {
-            _id: '$chapter',
-            status: { $first: '$status' },
-            version: { $first: '$version' },
-            updatedAt: { $first: '$updatedAt' },
+      const [latestSubmissions, projectSubmissions] = await Promise.all([
+        Submission.aggregate([
+          { $match: { projectId: project._id } },
+          { $sort: { chapter: 1, version: -1 } },
+          {
+            $group: {
+              _id: '$chapter',
+              status: { $first: '$status' },
+              version: { $first: '$version' },
+              updatedAt: { $first: '$updatedAt' },
+            },
           },
-        },
-        { $sort: { _id: 1 } },
+          { $sort: { _id: 1 } },
+        ]),
+        Submission.find({ projectId: project._id })
+          .select(
+            '_id chapter type version status submittedAt updatedAt fileName fileSize plagiarismResult originalityScore submittedBy',
+          )
+          .populate('submittedBy', 'firstName lastName role')
+          .sort({ submittedAt: -1, createdAt: -1 })
+          .limit(100)
+          .lean(),
       ]);
 
       chapterProgress = [1, 2, 3, 4, 5].map((ch) => {
@@ -81,6 +95,79 @@ class DashboardService {
           updatedAt: sub ? sub.updatedAt : null,
         };
       });
+
+      submissionHistory = projectSubmissions.map((item) => ({
+        _id: item._id,
+        chapter: item.chapter,
+        type: item.type,
+        version: item.version,
+        status: item.status,
+        fileName: item.fileName,
+        fileSize: item.fileSize,
+        submittedAt: item.submittedAt,
+        updatedAt: item.updatedAt,
+        originalityScore: item.originalityScore ?? null,
+        plagiarismStatus: item.plagiarismResult?.status || null,
+        submittedBy: item.submittedBy
+          ? {
+              _id: item.submittedBy._id,
+              firstName: item.submittedBy.firstName,
+              lastName: item.submittedBy.lastName,
+              role: item.submittedBy.role,
+            }
+          : null,
+      }));
+
+      const submissionIds = projectSubmissions.map((item) => item._id.toString());
+      const projectAuditLogs = await AuditLog.find({
+        $or: [
+          { targetType: 'Project', targetId: project._id.toString() },
+          { targetType: 'Submission', targetId: { $in: submissionIds } },
+        ],
+        action: {
+          $not: /^(user\.|settings\.|auth\.|system\.|audit\.)/i,
+        },
+      })
+        .populate('actor', 'firstName lastName role')
+        .sort({ createdAt: -1 })
+        .limit(150)
+        .lean();
+
+      teamActivityTrail = projectAuditLogs.map((entry) => ({
+        _id: entry._id,
+        action: entry.action,
+        actorRole: entry.actorRole,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        description: entry.description,
+        metadata: entry.metadata,
+        createdAt: entry.createdAt,
+        actor: entry.actor
+          ? {
+              _id: entry.actor._id,
+              firstName: entry.actor.firstName,
+              lastName: entry.actor.lastName,
+              role: entry.actor.role,
+            }
+          : null,
+      }));
+
+      const totalMilestones = chapterProgress.length;
+      const approvedMilestones = chapterProgress.filter(
+        (item) => item.status === 'approved',
+      ).length;
+      const inReviewMilestones = chapterProgress.filter((item) =>
+        [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW].includes(item.status),
+      ).length;
+
+      progressReport = {
+        totalMilestones,
+        approvedMilestones,
+        inReviewMilestones,
+        completionPercent: totalMilestones
+          ? Math.round((approvedMilestones / totalMilestones) * 100)
+          : 0,
+      };
     }
 
     return {
@@ -109,7 +196,10 @@ class DashboardService {
             deadlines: project.deadlines,
           }
         : null,
+      progressReport,
       chapterProgress,
+      submissionHistory,
+      teamActivityTrail,
       recentNotifications,
     };
   }
@@ -521,7 +611,10 @@ class DashboardService {
       };
     }
 
-    const { project: updatedProject } = await projectService.selectAsPanelist(projectId, panelistId);
+    const { project: updatedProject } = await projectService.selectAsPanelist(
+      projectId,
+      panelistId,
+    );
 
     return {
       alreadyAssigned: false,

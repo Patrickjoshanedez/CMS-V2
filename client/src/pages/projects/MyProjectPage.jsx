@@ -57,6 +57,7 @@ import {
   BookOpen,
   Lock,
   Info,
+  ExternalLink,
 } from 'lucide-react';
 
 /**
@@ -228,6 +229,27 @@ function ProjectInfoCard({ project }) {
             </div>
           )}
         </div>
+
+        {(project.teamId?.googleDocUrl || project.teamId?.githubUrl) && (
+          <div className="flex flex-wrap gap-2 border-t pt-3">
+            {project.teamId?.googleDocUrl ? (
+              <Button type="button" variant="secondary" size="sm" asChild>
+                <a href={project.teamId.googleDocUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Team Google Doc
+                </a>
+              </Button>
+            ) : null}
+            {project.teamId?.githubUrl ? (
+              <Button type="button" variant="secondary" size="sm" asChild>
+                <a href={project.teamId.githubUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Team GitHub
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        )}
 
         {/* Rejection reason */}
         {project.rejectionReason && (

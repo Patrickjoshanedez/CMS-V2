@@ -366,6 +366,34 @@ class StorageService {
   }
 
   /**
+   * Build a storage key for a system design document.
+   * Format: archives/projects/{projectId}/system-design/v{version}/{fileName}
+   *
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildSystemDesignKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/system-design/v${version}/${safeName}`;
+  }
+
+  /**
+   * Build a storage key for a test results document.
+   * Format: archives/projects/{projectId}/test-results/v{version}/{fileName}
+   *
+   * @param {string} projectId
+   * @param {number} version
+   * @param {string} fileName
+   * @returns {string} S3 object key
+   */
+  buildTestResultsKey(projectId, version, fileName) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    return `${STORAGE_ARCHIVE_PREFIXES.PROJECTS}/${projectId}/test-results/v${version}/${safeName}`;
+  }
+
+  /**
    * Build a storage key for a prototype media file (image or video).
    * Format: archives/projects/{projectId}/prototypes/{prototypeId}/{fileName}
    *

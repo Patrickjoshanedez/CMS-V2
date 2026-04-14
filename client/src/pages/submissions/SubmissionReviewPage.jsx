@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
+import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
 import {
   useAddAnnotation,
   useAddAnnotationReply,
@@ -285,6 +286,18 @@ export default function SubmissionReviewPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {!!activeSubmissionId && !isRoundPendingUpload && (
+              <PlagiarismChecker
+                submissionId={activeSubmissionId}
+                submissionTitle={activeRound?.fileName || `Round ${activeRound?.roundNumber || ''}`}
+                showMatchDetails={true}
+                onCheckComplete={() => {
+                  plagiarismQuery.refetch();
+                  workspaceQuery.refetch();
+                }}
+              />
+            )}
           </div>
 
           <div className="space-y-4">

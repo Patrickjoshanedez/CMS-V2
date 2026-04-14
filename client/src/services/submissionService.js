@@ -55,7 +55,9 @@ export const submissionService = {
   },
   /** Get version history for a specific chapter */
   getChapterHistory: (projectId, chapter) =>
-    api.get(`/submissions/project/${assertProjectId(projectId, 'getChapterHistory')}/chapters/${chapter}`),
+    api.get(
+      `/submissions/project/${assertProjectId(projectId, 'getChapterHistory')}/chapters/${chapter}`,
+    ),
 
   /** Get only the latest version of a specific chapter */
   getLatestChapter: (projectId, chapter) =>
@@ -128,6 +130,40 @@ export const submissionService = {
       onUploadProgress,
     }),
 
+  /**
+   * Upload system design document for adviser review.
+   * @param {string} projectId
+   * @param {FormData} formData - Must contain 'file' and optionally 'remarks'
+   * @param {Function} [onUploadProgress]
+   */
+  uploadSystemDesign: (projectId, formData, onUploadProgress) =>
+    api.post(
+      `/submissions/${assertProjectId(projectId, 'uploadSystemDesign')}/system-design`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+        onUploadProgress,
+      },
+    ),
+
+  /**
+   * Upload test results document for adviser review.
+   * @param {string} projectId
+   * @param {FormData} formData - Must contain 'file' and optionally 'remarks'
+   * @param {Function} [onUploadProgress]
+   */
+  uploadTestResults: (projectId, formData, onUploadProgress) =>
+    api.post(
+      `/submissions/${assertProjectId(projectId, 'uploadTestResults')}/test-results`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+        onUploadProgress,
+      },
+    ),
+
   /* ────── Student: final paper uploads (Capstone 4) ────── */
 
   /**
@@ -137,11 +173,15 @@ export const submissionService = {
    * @param {Function} [onUploadProgress]
    */
   uploadFinalAcademic: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${assertProjectId(projectId, 'uploadFinalAcademic')}/final-academic`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-      onUploadProgress,
-    }),
+    api.post(
+      `/submissions/${assertProjectId(projectId, 'uploadFinalAcademic')}/final-academic`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+        onUploadProgress,
+      },
+    ),
 
   /**
    * Upload the journal/publishable version of the final paper.
@@ -150,11 +190,15 @@ export const submissionService = {
    * @param {Function} [onUploadProgress]
    */
   uploadFinalJournal: (projectId, formData, onUploadProgress) =>
-    api.post(`/submissions/${assertProjectId(projectId, 'uploadFinalJournal')}/final-journal`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-      onUploadProgress,
-    }),
+    api.post(
+      `/submissions/${assertProjectId(projectId, 'uploadFinalJournal')}/final-journal`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+        onUploadProgress,
+      },
+    ),
 
   /* ────── Phase 1: Feedback & Versions ────── */
 

@@ -140,7 +140,7 @@ const ParagraphRow = React.memo(function ParagraphRow({
   return (
     <div
       style={style}
-      className="px-4 py-2 text-sm leading-relaxed text-gray-800 border-b border-gray-100"
+      className="px-4 py-2 text-sm leading-relaxed text-foreground border-b border-border/40"
     >
       {fragments.map((frag, idx) => {
         if (!frag.isMatch) {
@@ -162,8 +162,8 @@ const ParagraphRow = React.memo(function ParagraphRow({
               'cursor-pointer rounded px-0.5 transition-all',
               highlightClass(frag.match.similarity_score),
               isSelected
-                ? 'ring-2 ring-offset-1 ring-blue-500'
-                : 'hover:ring-1 hover:ring-offset-1 hover:ring-blue-300',
+                ? 'ring-2 ring-offset-1 ring-primary'
+                : 'hover:ring-1 hover:ring-offset-1 hover:ring-primary/50',
             ].join(' ')}
           >
             {frag.text}
@@ -223,16 +223,16 @@ export default function VirtualizedPlagiarismViewer({
 
   if (!text) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         No extracted text available for this submission.
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border border-border rounded-lg overflow-hidden bg-background/60">
       {/* Legend */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-gray-200 bg-gray-50 text-xs text-gray-600">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-border bg-muted/40 text-xs text-muted-foreground">
         <span className="font-medium">Highlight key:</span>
         <span className="inline-flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />

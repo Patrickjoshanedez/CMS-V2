@@ -618,6 +618,27 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
                 <span className="font-medium">{capstoneTypeOrPhase}</span>
               </div>
             </div>
+
+            {!isPeer && (project.teamId?.googleDocUrl || project.teamId?.githubUrl) ? (
+              <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">
+                {project.teamId?.googleDocUrl ? (
+                  <Button type="button" variant="secondary" size="sm" asChild>
+                    <a href={project.teamId.googleDocUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Team Google Doc
+                    </a>
+                  </Button>
+                ) : null}
+                {project.teamId?.githubUrl ? (
+                  <Button type="button" variant="secondary" size="sm" asChild>
+                    <a href={project.teamId.githubUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Team GitHub
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
           </section>
 
           {project.panelistIds?.length > 0 && (
@@ -1024,7 +1045,7 @@ const DEADLINE_KEYS = [
  * date inputs. Future-phase fields default to "No Deadline" and can be
  * toggled to "TBA" (To Be Announced) by the instructor.
  */
-function _DeadlinesCard({ project, isInstructor }) {
+function DeadlinesCard({ project, isInstructor }) {
   const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
   const existingTba = project.deadlines?.tba || [];
   const dateInputRefs = useRef({});
@@ -1810,6 +1831,11 @@ export default function ProjectDetailPage() {
                   showUploadButton={false}
                   showAllSubmissionsButton={false}
                 />
+
+                {/* Deadlines setter/viewer — instructors can apply section-wide updates */}
+                {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
+                  <DeadlinesCard project={project} isInstructor={isInstructor} />
+                )}
 
                 {/* Modification review — only when pending */}
                 {!isArchived &&

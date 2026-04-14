@@ -8,6 +8,7 @@ import Submission from '../submissions/submission.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
+import { extractText } from '../../utils/extractText.js';
 import { rankFuzzyConflicts } from '../../utils/similarityAudit.js';
 import storageService from '../../services/storage.index.js';
 import { emitToUser } from '../../services/socket.service.js';
@@ -32,6 +33,8 @@ const DEFAULT_SIMILARITY_THRESHOLD = 0.7;
 const DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD = 0.7;
 const MAX_ARCHIVE_SIMILARITY_CONFLICTS = 10;
 
+const MIN_CORPUS_TEXT_LENGTH = 50;
+
 function toBoundedThreshold(value, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -43,6 +46,29 @@ function toBoundedThreshold(value, fallback) {
  * Handles creation, title workflow, adviser/panelist assignment, and status transitions.
  */
 class ProjectService {
+  async _extractArchiveSubmissionText(file) {
+    if (!file?.buffer) {
+      return null;
+    }
+
+    const fileType = file.validatedMime || file.mimetype;
+    if (!fileType) {
+      return null;
+    }
+
+    try {
+      const text = await extractText(file.buffer, fileType);
+      if (typeof text !== 'string') {
+        return null;
+      }
+
+      const normalized = text.trim();
+      return normalized.length >= MIN_CORPUS_TEXT_LENGTH ? normalized : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
   async getCreateProjectDraft(userId) {
     const user = await User.findById(userId).select(
       '+createProjectDraft +createProjectDraftUpdatedAt',
@@ -2593,6 +2619,11 @@ class ProjectService {
         academicJournalFile.originalname,
       );
 
+      const [finalAcademicExtractedText, finalJournalExtractedText] = await Promise.all([
+        this._extractArchiveSubmissionText(academicPaperFile),
+        this._extractArchiveSubmissionText(academicJournalFile),
+      ]);
+
       try {
         await storageService.uploadFile(
           academicPaperFile.buffer,
@@ -2633,6 +2664,7 @@ class ProjectService {
           fileType: academicPaperFile.validatedMime || academicPaperFile.mimetype,
           fileSize: academicPaperFile.size,
           storageKey: finalAcademicStorageKey,
+          extractedText: finalAcademicExtractedText,
           status: 'approved',
         },
         {
@@ -2645,6 +2677,7 @@ class ProjectService {
           fileType: academicJournalFile.validatedMime || academicJournalFile.mimetype,
           fileSize: academicJournalFile.size,
           storageKey: finalJournalStorageKey,
+          extractedText: finalJournalExtractedText,
           status: 'approved',
         },
       ]);

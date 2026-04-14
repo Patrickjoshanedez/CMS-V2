@@ -91,6 +91,44 @@ router.post(
 );
 
 /**
+ * POST /:projectId/system-design
+ * Upload a system design document for adviser review.
+ */
+router.post(
+  '/:projectId/system-design',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.system_design_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded system design document for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadSystemDesign,
+);
+
+/**
+ * POST /:projectId/test-results
+ * Upload a test results document for adviser review.
+ */
+router.post(
+  '/:projectId/test-results',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.test_results_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded test results document for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadTestResults,
+);
+
+/**
  * POST /:projectId/final-academic
  * Upload the full academic version (Capstone 4 — restricted to faculty view).
  * Middleware chain: authenticate → authorize(student) → validate(params) →

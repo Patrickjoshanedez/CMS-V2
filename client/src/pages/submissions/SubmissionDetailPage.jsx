@@ -90,6 +90,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           <InfoRow label="Status">
             <SubmissionStatusBadge status={submission.status} />
           </InfoRow>
+          <InfoRow label="Deadline" value={formatDate(submission.deadlineAt)} />
           {submission.isLate && (
             <InfoRow label="Late Submission">
               <Badge variant="warning" className="font-medium">
@@ -121,7 +122,9 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
 
         {submission.remarks && (
           <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-            <p className="text-sm font-medium text-muted-foreground">Remarks</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {submission.isLate ? 'Late Justification Note' : 'Remarks'}
+            </p>
             <p className="text-sm text-foreground">{submission.remarks}</p>
           </div>
         )}

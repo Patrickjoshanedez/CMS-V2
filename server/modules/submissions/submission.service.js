@@ -6,8 +6,9 @@
  * StorageService handles S3 I/O; this service owns the workflow.
  *
  * ARCHITECTURE NOTE (refactored):
- * The four upload methods (uploadChapter, compileProposal, uploadFinalAcademic,
- * uploadFinalJournal) share a common pipeline extracted into private helpers:
+ * Upload methods (uploadChapter, compileProposal, uploadSystemDesign,
+ * uploadTestResults, uploadFinalAcademic, uploadFinalJournal) share pipelines
+ * extracted into private helpers:
  *   _authorizeStudentUpload()  — user lookup + role + team membership
  *   _detectLateSubmission()    — deadline lookup + remarks enforcement
  *   _enqueuePlagiarism()       — BullMQ enqueue with sync fallback
@@ -77,9 +78,7 @@ class SubmissionService {
 
       const host = parsed.hostname.toLowerCase();
       return (
-        host === 'drive.google.com' ||
-        host === 'docs.google.com' ||
-        host === 'www.googleapis.com'
+        host === 'drive.google.com' || host === 'docs.google.com' || host === 'www.googleapis.com'
       );
     } catch (_error) {
       return false;
@@ -223,13 +222,43 @@ class SubmissionService {
 
     if (isLate && (!remarks || remarks.trim().length === 0)) {
       throw new AppError(
-        'This submission is past the deadline. You must provide remarks explaining the delay.',
+        'This submission is past the deadline. You must provide a late-justification note explaining the delay.',
         400,
         'LATE_REMARKS_REQUIRED',
       );
     }
 
     return { isLate };
+  }
+
+  /**
+   * Resolve which project deadline applies to a specific submission.
+   *
+   * Chapter uploads for chapters 4-5 still map to the proposal deadline,
+   * matching existing late-submission rules.
+   *
+   * @param {Object} submission
+   * @param {Object} project
+   * @returns {{ deadlineField: string|null, deadlineAt: Date|null }}
+   */
+  _resolveSubmissionDeadlineInfo(submission, project) {
+    const deadlines = project?.deadlines || {};
+
+    let deadlineField = null;
+    if (submission?.type === 'chapter') {
+      deadlineField = submission.chapter <= 3 ? `chapter${submission.chapter}` : 'proposal';
+    } else if (submission?.type === 'proposal') {
+      deadlineField = 'proposal';
+    } else if (submission?.type === 'final_academic' || submission?.type === 'final_journal') {
+      deadlineField = 'defense';
+    }
+
+    const deadlineAt = deadlineField ? deadlines?.[deadlineField] || null : null;
+
+    return {
+      deadlineField,
+      deadlineAt,
+    };
   }
 
   /**
@@ -464,7 +493,7 @@ class SubmissionService {
    * @param {string} params.mimeType - Original file MIME type
    * @param {string} params.projectId - Project reference for audit
    * @param {number} params.version - Version number
-   * @param {'chapter'|'proposal'|'final_academic'|'final_journal'} params.type - Submission type
+   * @param {'chapter'|'proposal'|'system_design'|'test_results'|'final_academic'|'final_journal'} params.type - Submission type
    * @returns {Promise<{
    * userDriveFolderId: string|null,
    * driveFileId: string|null,
@@ -1069,6 +1098,224 @@ class SubmissionService {
     return { submission };
   }
 
+  /* ═══════════════════ Upload: Supporting Documents ═══════════════════ */
+
+  /**
+   * Shared pre-validation for supporting uploads (system design + test results).
+   * Requires active project, approved title, and assigned adviser.
+   *
+   * @param {Object} project
+   */
+  _assertSupportingDocumentEligible(project) {
+    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+      throw new AppError(
+        'Supporting document uploads are only allowed for active projects.',
+        400,
+        'PROJECT_NOT_ACTIVE',
+      );
+    }
+
+    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'Your project title must be approved before uploading supporting documents.',
+        400,
+        'TITLE_NOT_APPROVED',
+      );
+    }
+
+    if (!project.adviserId) {
+      throw new AppError(
+        'An assigned adviser is required before uploading supporting documents.',
+        400,
+        'MISSING_ADVISER',
+      );
+    }
+  }
+
+  /**
+   * Shared upload pipeline for supporting document types.
+   *
+   * @param {Object} params
+   * @param {string} params.userId
+   * @param {string} params.projectId
+   * @param {Object} params.user
+   * @param {Object} params.project
+   * @param {string} params.remarks
+   * @param {Object} params.file
+   * @param {'system_design'|'test_results'} params.type
+   * @param {Function} params.buildStorageKey
+   * @param {string} params.notifTitle
+   * @param {string} params.docLabelPrefix
+   * @returns {Promise<{ submission: Object }>}
+   */
+  async _uploadSupportingDocument({
+    userId,
+    projectId,
+    user,
+    project,
+    remarks,
+    file,
+    type,
+    buildStorageKey,
+    notifTitle,
+    docLabelPrefix,
+  }) {
+    const { isLate } = this._detectLateSubmission(project, 'proposal', remarks);
+
+    const latest = await Submission.findOne({ projectId, type }).sort({ version: -1 });
+    const nextVersion = latest ? latest.version + 1 : 1;
+
+    const storageKey = buildStorageKey(projectId, nextVersion, file.originalname);
+    try {
+      await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
+        projectId,
+        type,
+        version: String(nextVersion),
+        uploadedBy: userId,
+      });
+    } catch (error) {
+      if (error.isOperational) {
+        logger.error(
+          `[SubmissionService] Supporting document (${type}) upload failed:`,
+          error.code,
+          error.message,
+        );
+        throw error;
+      }
+      logger.error(
+        `[SubmissionService] Unexpected supporting document (${type}) upload error:`,
+        error,
+      );
+      throw new AppError(
+        'Failed to upload supporting document. Please try again later.',
+        500,
+        'SUPPORTING_DOCUMENT_UPLOAD_ERROR',
+      );
+    }
+
+    const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
+      user,
+      buffer: file.buffer,
+      fileName: file.originalname,
+      mimeType: file.validatedMime,
+      projectId,
+      version: nextVersion,
+      type,
+    });
+
+    const extractedMetadata = await this._extractUploadedPdfMetadata(file);
+
+    const submission = await Submission.create({
+      projectId,
+      type,
+      chapter: null,
+      version: nextVersion,
+      fileName: file.originalname,
+      fileType: file.validatedMime,
+      fileSize: file.size,
+      storageKey,
+      status: SUBMISSION_STATUSES.PENDING,
+      submittedBy: userId,
+      isLate,
+      remarks: remarks || null,
+      userDriveFolderId: driveSync.userDriveFolderId,
+      driveFileId: driveSync.driveFileId,
+      driveWebViewLink: driveSync.driveWebViewLink,
+      driveWebContentLink: driveSync.driveWebContentLink,
+      syncedGoogleDocId: driveSync.syncedGoogleDocId,
+      syncedGoogleDocUrl: driveSync.syncedGoogleDocUrl,
+      googleDocSyncStatus: driveSync.googleDocSyncStatus,
+      googleDocSyncErrorCode: driveSync.googleDocSyncErrorCode,
+      googleDocSyncErrorMessage: driveSync.googleDocSyncErrorMessage,
+      googleDocSyncedAt: driveSync.googleDocSyncedAt,
+      documentTitle: extractedMetadata.documentTitle,
+      documentAbstract: extractedMetadata.documentAbstract,
+      plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
+    });
+
+    await this._syncPendingRoundForUpload(submission);
+
+    await this._enqueuePlagiarism(submission, {
+      storageKey,
+      fileType: file.validatedMime,
+      projectId,
+      type,
+    });
+
+    await this._notifyAdviser({
+      project,
+      submission,
+      notifType: 'chapter_submitted',
+      notifTitle,
+      docLabel: `${docLabelPrefix} (v${nextVersion})`,
+      extraMetadata: { type },
+    });
+
+    return { submission };
+  }
+
+  /**
+   * Upload system design document for adviser review.
+   *
+   * @param {string} userId
+   * @param {string} projectId
+   * @param {Object} data - { remarks }
+   * @param {Object} file - multer file object
+   * @returns {Promise<{ submission: Object }>}
+   */
+  async uploadSystemDesign(userId, projectId, data, file) {
+    const { user, project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'upload supporting documents',
+    );
+    this._assertSupportingDocumentEligible(project);
+
+    return this._uploadSupportingDocument({
+      userId,
+      projectId,
+      user,
+      project,
+      remarks: data.remarks,
+      file,
+      type: 'system_design',
+      buildStorageKey: storageService.buildSystemDesignKey.bind(storageService),
+      notifTitle: 'System Design Submitted',
+      docLabelPrefix: 'The system design document',
+    });
+  }
+
+  /**
+   * Upload test results document for adviser review.
+   *
+   * @param {string} userId
+   * @param {string} projectId
+   * @param {Object} data - { remarks }
+   * @param {Object} file - multer file object
+   * @returns {Promise<{ submission: Object }>}
+   */
+  async uploadTestResults(userId, projectId, data, file) {
+    const { user, project } = await this._authorizeStudentUpload(
+      userId,
+      projectId,
+      'upload supporting documents',
+    );
+    this._assertSupportingDocumentEligible(project);
+
+    return this._uploadSupportingDocument({
+      userId,
+      projectId,
+      user,
+      project,
+      remarks: data.remarks,
+      file,
+      type: 'test_results',
+      buildStorageKey: storageService.buildTestResultsKey.bind(storageService),
+      notifTitle: 'Test Results Submitted',
+      docLabelPrefix: 'The test results document',
+    });
+  }
+
   /* ═══════════════════ Upload: Final Papers (Capstone 4) ═══════════════════ */
 
   /**
@@ -1334,7 +1581,12 @@ class SubmissionService {
 
     this._assertCanViewSubmission(user, project, submission);
 
-    return { submission };
+    const enrichedSubmission = submission.toObject();
+    const deadlineInfo = this._resolveSubmissionDeadlineInfo(enrichedSubmission, project);
+    enrichedSubmission.deadlineField = deadlineInfo.deadlineField;
+    enrichedSubmission.deadlineAt = deadlineInfo.deadlineAt;
+
+    return { submission: enrichedSubmission };
   }
 
   /**
@@ -1379,8 +1631,16 @@ class SubmissionService {
       Submission.countDocuments(filter),
     ]);
 
+    const enrichedSubmissions = submissions.map((item) => {
+      const submission = item.toObject();
+      const deadlineInfo = this._resolveSubmissionDeadlineInfo(submission, project);
+      submission.deadlineField = deadlineInfo.deadlineField;
+      submission.deadlineAt = deadlineInfo.deadlineAt;
+      return submission;
+    });
+
     return {
-      submissions,
+      submissions: enrichedSubmissions,
       pagination: {
         page,
         limit,
@@ -1634,16 +1894,18 @@ class SubmissionService {
       fullReport,
       matchedSources,
       processedAt:
-        plagiarismResult?.processedAt || collectionResult?.completedAt || collectionResult?.checkedAt,
+        plagiarismResult?.processedAt ||
+        collectionResult?.completedAt ||
+        collectionResult?.checkedAt,
     };
   }
 
   /* ═══════════════════ Review Workflow ═══════════════════ */
 
   /**
-  * Review a submission — approve, request revisions, or reject.
-  * Instructors and assigned advisers can review submissions.
-  * Proposal approvals are restricted to instructors and assigned panelists.
+   * Review a submission — approve, request revisions, or reject.
+   * Instructors and assigned advisers can review submissions.
+   * Proposal approvals are restricted to instructors and assigned panelists.
    *
    * @param {string} submissionId
    * @param {string} reviewerId - The reviewing faculty member
@@ -2081,8 +2343,7 @@ class SubmissionService {
       })),
       unaddressedCount: submission.annotations.filter((a) => !a.resolved).length,
       plagiarism: {
-        score:
-          submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
+        score: submission.originalityScore ?? submission.plagiarismResult?.originalityScore ?? null,
         status: submission.plagiarismResult?.status || 'not_checked',
       },
     };

@@ -217,12 +217,21 @@ const submissionSchema = new mongoose.Schema(
      * Submission type:
      *  - 'chapter'         — Individual chapter uploads (Ch. 1-5)
      *  - 'proposal'        — Compiled proposal document (Ch. 1-3 unified)
+     *  - 'system_design'   — System design document for adviser review
+     *  - 'test_results'    — Test results document for adviser review
      *  - 'final_academic'  — Full academic version (Capstone 4, restricted access)
      *  - 'final_journal'   — Journal/publishable version (Capstone 4, public archive)
      */
     type: {
       type: String,
-      enum: ['chapter', 'proposal', 'final_academic', 'final_journal'],
+      enum: [
+        'chapter',
+        'proposal',
+        'system_design',
+        'test_results',
+        'final_academic',
+        'final_journal',
+      ],
       default: 'chapter',
     },
     chapter: {
@@ -443,14 +452,16 @@ submissionSchema.index(
   { projectId: 1, chapter: 1, version: 1 },
   { unique: true, partialFilterExpression: { type: 'chapter' } },
 );
-// Ensure unique version per project+type for proposal, final_academic, and final_journal submissions
+// Ensure unique version per project+type for non-chapter submissions
 // (single index avoids Mongoose duplicate-key-pattern warnings)
 submissionSchema.index(
   { projectId: 1, type: 1, version: 1 },
   {
     unique: true,
     partialFilterExpression: {
-      type: { $in: ['proposal', 'final_academic', 'final_journal'] },
+      type: {
+        $in: ['proposal', 'system_design', 'test_results', 'final_academic', 'final_journal'],
+      },
     },
   },
 );

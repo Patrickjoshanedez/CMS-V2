@@ -29,7 +29,13 @@ import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsers, useCreateUser, useChangeRole, useDeleteUser } from '@/hooks/useUsers';
 import { useTeams, teamKeys } from '@/hooks/useTeams';
-import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
+import {
+  useAssignAdviser,
+  useAssignPanelist,
+  useRemovePanelist,
+  useProject,
+  useSetDeadlines,
+} from '@/hooks/useProjects';
 import {
   useAcademicHierarchy,
   useAcademicYears,
@@ -100,6 +106,14 @@ function TeamCommitteeAssignmentsView() {
   const [sectionId, setSectionId] = useState('');
   const [committeeFilter, setCommitteeFilter] = useState('all');
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [deadlineDraft, setDeadlineDraft] = useState({
+    chapter1: '',
+    chapter2: '',
+    chapter3: '',
+    proposal: '',
+    chapter4: '',
+    chapter5: '',
+  });
 
   const { data: years = [] } = useAcademicYears();
   const { data: sections = [] } = useSections(
@@ -148,9 +162,9 @@ function TeamCommitteeAssignmentsView() {
       toast.error(err?.response?.data?.error?.message || 'Failed to remove panelist.'),
   });
 
-  const allTeams = teamData?.teams || [];
-  const adviserOptions = adviserData?.users || [];
-  const panelistOptions = panelistData?.users || [];
+  const allTeams = useMemo(() => teamData?.teams || [], [teamData?.teams]);
+  const adviserOptions = useMemo(() => adviserData?.users || [], [adviserData?.users]);
+  const panelistOptions = useMemo(() => panelistData?.users || [], [panelistData?.users]);
 
   const filteredTeams = useMemo(() => {
     return allTeams.filter((team) => {
@@ -170,8 +184,24 @@ function TeamCommitteeAssignmentsView() {
 
   const selectedTeam = filteredTeams.find((team) => team._id === selectedTeamId) || null;
   const selectedAssignment = selectedTeam?.assignment || {};
-  const selectedPanelists = selectedAssignment.panelists || [];
+  const selectedPanelists = useMemo(
+    () => selectedAssignment.panelists || [],
+    [selectedAssignment.panelists],
+  );
   const selectedProjectId = selectedAssignment.projectId || null;
+
+  const { data: selectedProject } = useProject(selectedProjectId, {
+    enabled: Boolean(selectedProjectId),
+  });
+
+  const setDeadlines = useSetDeadlines({
+    onSuccess: () => {
+      toast.success('Project deadlines updated.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to update project deadlines.'),
+  });
 
   const adviserSuggestions = useMemo(
     () => adviserOptions.map(formatCommitteeOption),
@@ -191,6 +221,59 @@ function TeamCommitteeAssignmentsView() {
       setSelectedTeamId('');
     }
   }, [filteredTeams, selectedTeamId]);
+
+  useEffect(() => {
+    if (!selectedProjectId || !selectedProject) {
+      setDeadlineDraft({
+        chapter1: '',
+        chapter2: '',
+        chapter3: '',
+        proposal: '',
+        chapter4: '',
+        chapter5: '',
+      });
+      return;
+    }
+
+    setDeadlineDraft({
+      chapter1: selectedProject?.deadlines?.chapter1?.split('T')[0] || '',
+      chapter2: selectedProject?.deadlines?.chapter2?.split('T')[0] || '',
+      chapter3: selectedProject?.deadlines?.chapter3?.split('T')[0] || '',
+      proposal: selectedProject?.deadlines?.proposal?.split('T')[0] || '',
+      chapter4: selectedProject?.deadlines?.chapter4?.split('T')[0] || '',
+      chapter5: selectedProject?.deadlines?.chapter5?.split('T')[0] || '',
+    });
+  }, [selectedProjectId, selectedProject]);
+
+  const openSubmissionViewer = (docKey) => {
+    if (!selectedProjectId) return;
+
+    const base = `/project/submissions?mode=view&projectId=${encodeURIComponent(selectedProjectId)}`;
+    const chapterMatch = /^chapter(\d+)$/.exec(docKey);
+    const href = chapterMatch ? `${base}&chapter=${chapterMatch[1]}` : base;
+    window.open(href, '_blank', 'noopener,noreferrer');
+  };
+
+  const openProjectViewer = () => {
+    if (!selectedProjectId) return;
+    window.open(`/projects/${selectedProjectId}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleSaveDeadlines = () => {
+    if (!selectedProjectId) {
+      toast.error('Select a team with a linked project first.');
+      return;
+    }
+
+    const payload = { projectId: selectedProjectId };
+    Object.entries(deadlineDraft).forEach(([key, value]) => {
+      if (value) {
+        payload[key] = value;
+      }
+    });
+
+    setDeadlines.mutate(payload);
+  };
 
   const handleTeamSearch = (event) => {
     event.preventDefault();
@@ -485,6 +568,84 @@ function TeamCommitteeAssignmentsView() {
                 <p className="text-xs text-muted-foreground">
                   Create and approve the team project first before assigning adviser and panelists.
                 </p>
+              )}
+
+              {selectedProjectId && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">Deadline Setter</p>
+                      <p className="text-xs text-muted-foreground">
+                        Set proposal and chapter deadlines, then open the same submission/project
+                        viewers used by instructors and faculty.
+                      </p>
+                    </div>
+                    <Badge variant="outline">Project {selectedProjectId.slice(-6)}</Badge>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {[
+                      { key: 'proposal', label: 'Proposal' },
+                      { key: 'chapter1', label: 'Chapter 1' },
+                      { key: 'chapter2', label: 'Chapter 2' },
+                      { key: 'chapter3', label: 'Chapter 3' },
+                      { key: 'chapter4', label: 'Chapter 4' },
+                      { key: 'chapter5', label: 'Chapter 5' },
+                    ].map((entry) => (
+                      <div key={entry.key} className="space-y-2 rounded-md border p-2">
+                        <Label htmlFor={`deadline-${entry.key}`}>{entry.label}</Label>
+                        <Input
+                          id={`deadline-${entry.key}`}
+                          type="date"
+                          value={deadlineDraft[entry.key]}
+                          onChange={(event) =>
+                            setDeadlineDraft((prev) => ({
+                              ...prev,
+                              [entry.key]: event.target.value,
+                            }))
+                          }
+                        />
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openSubmissionViewer(entry.key)}
+                          >
+                            Submission Viewer
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={openProjectViewer}
+                          >
+                            Project Viewer
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openProjectViewer}
+                      disabled={!selectedProjectId}
+                    >
+                      Open Project Viewer
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveDeadlines}
+                      disabled={!selectedProjectId || setDeadlines.isPending}
+                    >
+                      {setDeadlines.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save Deadlines
+                    </Button>
+                  </div>
+                </div>
               )}
 
               <div>

@@ -50,6 +50,34 @@ function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function resolveDeadlineForSubmission(submission, deadlines = {}) {
+  if (!submission) return null;
+
+  if (submission.deadlineAt) {
+    return submission.deadlineAt;
+  }
+
+  if (submission.type === 'chapter') {
+    if (submission.chapter >= 1 && submission.chapter <= 3) {
+      return deadlines[`chapter${submission.chapter}`] || null;
+    }
+    return deadlines.proposal || null;
+  }
+
+  if (submission.type === DOCUMENT_TYPES.PROPOSAL) {
+    return deadlines.proposal || null;
+  }
+
+  if (
+    submission.type === DOCUMENT_TYPES.FINAL_ACADEMIC ||
+    submission.type === DOCUMENT_TYPES.FINAL_JOURNAL
+  ) {
+    return deadlines.defense || null;
+  }
+
+  return null;
+}
+
 /* ────────── Sub-components ────────── */
 
 function EmptyState({ canUpload, canCompileProposal }) {
@@ -89,7 +117,9 @@ function EmptyState({ canUpload, canCompileProposal }) {
   );
 }
 
-function SubmissionRow({ submission, searchSuffix = '' }) {
+function SubmissionRow({ submission, deadlines, searchSuffix = '' }) {
+  const applicableDeadline = resolveDeadlineForSubmission(submission, deadlines);
+
   return (
     <Link
       to={`/project/submissions/${submission._id}${searchSuffix}`}
@@ -119,6 +149,7 @@ function SubmissionRow({ submission, searchSuffix = '' }) {
               <Clock className="h-3 w-3" />
               {formatDate(submission.createdAt)}
             </span>
+            <span>Deadline: {formatDate(applicableDeadline)}</span>
             <span>{submission.fileName}</span>
             <span>{formatBytes(submission.fileSize)}</span>
           </div>
@@ -484,6 +515,7 @@ export default function ProjectSubmissionsPage() {
               <SubmissionRow
                 key={sub._id}
                 submission={sub}
+                deadlines={activeProject?.deadlines}
                 searchSuffix={
                   isReadOnlyMode
                     ? `?mode=view&projectId=${encodeURIComponent(activeProject._id)}`

@@ -43,13 +43,12 @@ const navItems = {
     { label: 'Upload Archived Capstone', icon: Upload, path: '/archive/upload/capstone' },
     { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
   ],
-  // Adviser-specific
-  adviser: [
-    { label: 'Team Review', icon: ClipboardCheck, path: '/adviser/team-review' },
-    { label: 'Projects', icon: FileText, path: '/projects' },
+  // Shared faculty-member navigation (adviser + panelist)
+  faculty: [
+    { label: 'Faculty Members Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { label: 'Faculty Team Review', icon: ClipboardCheck, path: '/adviser/team-review' },
+    { label: 'Faculty Projects', icon: FileText, path: '/projects' },
   ],
-  // Panelist-specific
-  panelist: [{ label: 'Projects', icon: FileText, path: '/projects' }],
 };
 
 function getNavItems(role) {
@@ -60,13 +59,13 @@ function getNavItems(role) {
       items.push(...navItems.instructor);
       break;
     case ROLES.ADVISER:
-      items.push(...navItems.adviser);
+      items.push(...navItems.faculty);
       break;
     case ROLES.STUDENT:
       items.push(...navItems.student);
       break;
     case ROLES.PANELIST:
-      items.push(...navItems.panelist);
+      items.push(...navItems.faculty);
       break;
     default:
       break;

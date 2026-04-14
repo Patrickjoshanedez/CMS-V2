@@ -222,7 +222,9 @@ describe('ProposalTab', () => {
   it('shows approval and capstone progress context for approved projects', () => {
     const view = renderProposalTab(approvedProject);
 
-    expect(view.container.textContent).toContain('Title approved. Current progress: Capstone 2.');
+    expect(view.container.textContent).toMatch(
+      /Title approved\. (Current progress:|Project progress is now at) Capstone 2\./,
+    );
     expect(view.container.textContent).toContain('Approved');
     expect(view.container.textContent).toContain('Proposal Approved');
 

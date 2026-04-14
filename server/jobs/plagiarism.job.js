@@ -30,8 +30,15 @@ import { PLAGIARISM_STATUSES } from '@cms/shared';
 
 /** @type {Worker|null} */
 let plagiarismWorker = null;
+const MAX_CORPUS_CANDIDATES = 120;
+const MAX_LAZY_CORPUS_EXTRACTIONS = 15;
+const MIN_CORPUS_TEXT_LENGTH = 50;
 
-const TRUSTED_FALLBACK_HOSTS = new Set(['drive.google.com', 'docs.google.com', 'www.googleapis.com']);
+const TRUSTED_FALLBACK_HOSTS = new Set([
+  'drive.google.com',
+  'docs.google.com',
+  'www.googleapis.com',
+]);
 
 function isTrustedFallbackUrl(value) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -152,24 +159,74 @@ async function readSubmissionFileWithFallback({ submissionId, storageKey, fileTy
  * @returns {Promise<Array<{ id: string, title: string, chapter: number, text: string }>>}
  */
 async function buildCorpus(excludeProjectId, excludeSubmissionId) {
-  // Find submissions that have extractedText stored and are not from the same project
+  // Include approved/locked documents from other projects. Archived uploads may not
+  // have extractedText yet, so we lazily backfill from storage when possible.
   const candidates = await Submission.find({
     projectId: { $ne: excludeProjectId },
     _id: { $ne: excludeSubmissionId },
-    extractedText: { $exists: true, $nin: [null, ''] },
+    $or: [
+      { extractedText: { $exists: true, $nin: [null, ''] } },
+      {
+        type: { $in: ['final_academic', 'final_journal'] },
+        storageKey: { $exists: true, $nin: [null, ''] },
+      },
+    ],
   })
-    .select('_id projectId chapter extractedText')
-    .limit(100) // Cap to prevent excessive memory usage
+    .select('_id projectId chapter extractedText storageKey fileType type')
+    .limit(MAX_CORPUS_CANDIDATES)
     .lean();
 
+  const corpusCandidates = [];
+  let lazyExtractions = 0;
+
+  for (const candidate of candidates) {
+    if (
+      candidate?.extractedText &&
+      candidate.extractedText.trim().length >= MIN_CORPUS_TEXT_LENGTH
+    ) {
+      corpusCandidates.push(candidate);
+      continue;
+    }
+
+    if (!candidate?.storageKey || lazyExtractions >= MAX_LAZY_CORPUS_EXTRACTIONS) {
+      continue;
+    }
+
+    try {
+      const fileBuffer = await storageService.downloadFile(candidate.storageKey);
+      const extractedText = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+      if (!extractedText || extractedText.trim().length < MIN_CORPUS_TEXT_LENGTH) {
+        continue;
+      }
+
+      const normalizedText = extractedText.trim();
+      corpusCandidates.push({
+        ...candidate,
+        extractedText: normalizedText,
+      });
+
+      lazyExtractions += 1;
+
+      // Persist backfill so future checks can use the fast path.
+      await Submission.updateOne(
+        { _id: candidate._id },
+        { $set: { extractedText: normalizedText } },
+      );
+    } catch (error) {
+      console.warn(
+        `[Plagiarism Worker] Failed lazy corpus extraction for submission ${candidate._id}: ${error.message}`,
+      );
+    }
+  }
+
   // Enrich with project titles
-  const projectIds = [...new Set(candidates.map((c) => c.projectId.toString()))];
+  const projectIds = [...new Set(corpusCandidates.map((c) => c.projectId.toString()))];
   const projects = await Project.find({ _id: { $in: projectIds } })
     .select('_id title')
     .lean();
   const projectMap = new Map(projects.map((p) => [p._id.toString(), p.title]));
 
-  return candidates.map((c) => ({
+  return corpusCandidates.map((c) => ({
     id: c._id.toString(),
     title: projectMap.get(c.projectId.toString()) || 'Unknown Project',
     chapter: c.chapter,

@@ -315,6 +315,30 @@ export function useCompileProposal(options = {}) {
 }
 
 /**
+ * Upload a system design document for adviser review (student).
+ *
+ * Expects { projectId, formData, onUploadProgress? }.
+ */
+export function useUploadSystemDesign(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.uploadSystemDesign(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Upload a test results document for adviser review (student).
+ *
+ * Expects { projectId, formData, onUploadProgress? }.
+ */
+export function useUploadTestResults(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.uploadTestResults(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}
+
+/**
  * Upload the full academic version for Capstone 4 (student).
  *
  * Expects { projectId, formData, onUploadProgress? }.

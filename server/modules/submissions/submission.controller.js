@@ -46,6 +46,38 @@ export const compileProposal = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/submissions/:projectId/system-design — Upload system design document */
+export const uploadSystemDesign = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadSystemDesign(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'System design document uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/test-results — Upload test results document */
+export const uploadTestResults = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadTestResults(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Test results document uploaded successfully.',
+    data: { submission },
+  });
+});
+
 /** POST /api/submissions/:projectId/final-academic — Upload full academic version (Capstone 4) */
 export const uploadFinalAcademic = catchAsync(async (req, res) => {
   const { submission } = await submissionService.uploadFinalAcademic(
