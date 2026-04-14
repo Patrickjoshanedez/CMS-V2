@@ -131,11 +131,11 @@ export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
     publicationYear,
     authors,
     keywords,
+    doi,
+    publicationVenue,
     confidence,
     extractionProvider,
-  } = await extractPdfMetadata(
-    req.file.buffer,
-  );
+  } = await extractPdfMetadata(req.file.buffer);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -145,6 +145,8 @@ export const extractPdfMetadataHandler = catchAsync(async (req, res) => {
       publicationYear,
       authors,
       keywords,
+      doi,
+      publicationVenue,
       confidence,
       extractionProvider,
     },

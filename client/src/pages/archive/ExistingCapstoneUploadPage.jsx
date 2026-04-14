@@ -111,6 +111,7 @@ export default function ExistingCapstoneUploadPage() {
   const [academicJournalFile, setAcademicJournalFile] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [similarityReport, setSimilarityReport] = useState(null);
+  const [extractionMetadata, setExtractionMetadata] = useState(null);
 
   const { mutateAsync, isPending } = useBulkUploadArchive();
   const { data: academicYears = [], isLoading: yearsLoading } = useAcademicYears();
@@ -158,10 +159,20 @@ export default function ExistingCapstoneUploadPage() {
           publicationYear,
           authors = [],
           keywords: extractedKeywords = [],
+          doi = '',
+          publicationVenue = '',
           confidence,
+          extractionProvider,
         } = response.data.data;
 
         const extractedAcademicYear = toAcademicYearRange(publicationYear);
+
+        // Store extraction metadata for display
+        setExtractionMetadata({
+          confidence,
+          provider: extractionProvider,
+          timestamp: new Date().toISOString(),
+        });
 
         setForm((prev) => ({
           ...prev,
@@ -169,19 +180,35 @@ export default function ExistingCapstoneUploadPage() {
           abstract: abstract?.trim() || prev.abstract,
           authors: Array.isArray(authors) && authors.length > 0 ? authors.join(', ') : prev.authors,
           publicationYear: publicationYear ? String(publicationYear) : prev.publicationYear,
+          doi: doi?.trim() || prev.doi,
+          publicationVenue: publicationVenue?.trim() || prev.publicationVenue,
           academicYear: extractedAcademicYear || prev.academicYear,
         }));
 
-        if (title || abstract || publicationYear || (Array.isArray(authors) && authors.length > 0)) {
+        if (
+          title ||
+          abstract ||
+          publicationYear ||
+          (Array.isArray(authors) && authors.length > 0)
+        ) {
           toast.success('PDF metadata auto-filled in the form');
         }
 
-        if (Array.isArray(extractedKeywords) && extractedKeywords.length > 0 && keywords.length === 0) {
+        if (
+          Array.isArray(extractedKeywords) &&
+          extractedKeywords.length > 0 &&
+          keywords.length === 0
+        ) {
           setKeywords(extractedKeywords.slice(0, 10));
           toast.success('Keywords extracted from PDF');
         }
 
-        if (!title && !abstract && !publicationYear && (!Array.isArray(authors) || authors.length === 0)) {
+        if (
+          !title &&
+          !abstract &&
+          !publicationYear &&
+          (!Array.isArray(authors) || authors.length === 0)
+        ) {
           toast.info('Could not extract metadata from this PDF format.');
         }
 
@@ -191,23 +218,40 @@ export default function ExistingCapstoneUploadPage() {
           publicationYear: publicationYear || null,
           authors,
           keywords: extractedKeywords,
+          doi: doi?.trim() || '',
+          publicationVenue: publicationVenue?.trim() || '',
         };
       } catch (err) {
         const apiMessage = err?.response?.data?.message;
         const isTimeout =
           err?.code === 'ECONNABORTED' ||
-          String(err?.message || '').toLowerCase().includes('timeout');
+          String(err?.message || '')
+            .toLowerCase()
+            .includes('timeout');
         const isNetwork = !err?.response;
 
         if (isTimeout) {
           toast.error('PDF extraction timed out. Click Rescan or try a smaller PDF.');
         } else if (isNetwork) {
-          toast.error('Could not reach the extraction endpoint. Check backend/proxy, then click Rescan.');
+          toast.error(
+            'Could not reach the extraction endpoint. Check backend/proxy, then click Rescan.',
+          );
         } else {
-          toast.error(apiMessage || 'Automatic PDF extraction failed. You can still fill the fields manually.');
+          toast.error(
+            apiMessage ||
+              'Automatic PDF extraction failed. You can still fill the fields manually.',
+          );
         }
         console.warn('PDF extraction failed:', err);
-        return { title: '', abstract: '', publicationYear: null, authors: [], keywords: [] };
+        return {
+          title: '',
+          abstract: '',
+          publicationYear: null,
+          authors: [],
+          keywords: [],
+          doi: '',
+          publicationVenue: '',
+        };
       } finally {
         setIsExtracting(false);
       }
@@ -245,6 +289,7 @@ export default function ExistingCapstoneUploadPage() {
     setKeywords([]);
     setAcademicPaperFile(null);
     setAcademicJournalFile(null);
+    setExtractionMetadata(null);
 
     const academicInput = document.getElementById('academic-paper-file');
     const journalInput = document.getElementById('academic-journal-file');
@@ -262,7 +307,9 @@ export default function ExistingCapstoneUploadPage() {
       const normalizedDoi = form.doi.trim();
       const normalizedPublicationVenue = form.publicationVenue.trim();
       const publicationYearValue = form.publicationYear.trim();
-      const normalizedPublicationYear = publicationYearValue ? Number(publicationYearValue) : undefined;
+      const normalizedPublicationYear = publicationYearValue
+        ? Number(publicationYearValue)
+        : undefined;
 
       // Reliability fallback: attempt extraction again on submit when fields are missing.
       if ((!resolvedTitle || !resolvedAbstract) && academicPaperFile?.type === 'application/pdf') {
@@ -547,7 +594,8 @@ export default function ExistingCapstoneUploadPage() {
                 />
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs text-muted-foreground">
-                    Title, abstract, authors, publication year, and keywords will be auto-extracted when you select a PDF.
+                    Title, abstract, authors, publication year, DOI, publication venue, and keywords
+                    will be auto-extracted when you select a PDF.
                   </p>
                   <Button
                     type="button"
@@ -567,6 +615,64 @@ export default function ExistingCapstoneUploadPage() {
                     )}
                   </Button>
                 </div>
+
+                {extractionMetadata && (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 h-4 w-4 rounded-full bg-green-500 flex-shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className="font-medium text-green-900">Extraction successful</div>
+                        <div className="text-xs text-green-800 space-y-0.5">
+                          {extractionMetadata.confidence?.title > 0 && (
+                            <div>
+                              ✓ Title extracted (
+                              {Math.round(extractionMetadata.confidence.title * 100)}%)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.abstract > 0 && (
+                            <div>
+                              ✓ Abstract extracted (
+                              {Math.round(extractionMetadata.confidence.abstract * 100)}%)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.authors > 0 && (
+                            <div>
+                              ✓ Authors extracted (
+                              {Math.round(extractionMetadata.confidence.authors * 100)}%)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.publicationYear > 0 && (
+                            <div>
+                              ✓ Publication year extracted (
+                              {Math.round(extractionMetadata.confidence.publicationYear * 100)}%)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.keywords > 0 && (
+                            <div>
+                              ✓ Keywords extracted (
+                              {Math.round(extractionMetadata.confidence.keywords * 100)}%)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.doi > 0 && (
+                            <div>
+                              ✓ DOI extracted ({Math.round(extractionMetadata.confidence.doi * 100)}
+                              %)
+                            </div>
+                          )}
+                          {extractionMetadata.confidence?.publicationVenue > 0 && (
+                            <div>
+                              ✓ Publication venue extracted (
+                              {Math.round(extractionMetadata.confidence.publicationVenue * 100)}%)
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-green-700 pt-1">
+                          Provider: {extractionMetadata.provider}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

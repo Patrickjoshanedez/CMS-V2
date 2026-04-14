@@ -14,7 +14,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 const GLM_METADATA_PROMPT = [
   'Extract the Title, Authors, and Abstract from this academic paper text snippet.',
-  "Return ONLY strict JSON with this exact schema: {\"title\":\"\",\"authors\":[],\"abstract\":\"\"}",
+  'Return ONLY strict JSON with this exact schema: {"title":"","authors":[],"abstract":""}',
   'Do not include markdown or extra keys. Use empty string/array when unknown.',
   'Text snippet:',
 ].join('\n');
@@ -88,21 +88,31 @@ async function buildGlmInputText(pdfText) {
   if (!fallback) return '';
 
   const shouldUsePlagiarismPreprocess =
-    String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true').trim().toLowerCase() ===
-    'true';
+    String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true')
+      .trim()
+      .toLowerCase() === 'true';
 
   if (!shouldUsePlagiarismPreprocess) {
     return fallback;
   }
 
-  const engineBaseUrl = (process.env.PLAGIARISM_ENGINE_URL || 'http://localhost:8001').replace(/\/+$/, '');
+  const engineBaseUrl = (process.env.PLAGIARISM_ENGINE_URL || 'http://localhost:8001').replace(
+    /\/+$/,
+    '',
+  );
   const maxChars = Math.min(
     20000,
-    Math.max(2000, Number.parseInt(process.env.PDF_METADATA_PREPROCESS_MAX_CHARS || '9000', 10) || 9000),
+    Math.max(
+      2000,
+      Number.parseInt(process.env.PDF_METADATA_PREPROCESS_MAX_CHARS || '9000', 10) || 9000,
+    ),
   );
   const timeoutMs = Math.min(
     10000,
-    Math.max(1000, Number.parseInt(process.env.PDF_METADATA_PREPROCESS_TIMEOUT_MS || '4000', 10) || 4000),
+    Math.max(
+      1000,
+      Number.parseInt(process.env.PDF_METADATA_PREPROCESS_TIMEOUT_MS || '4000', 10) || 4000,
+    ),
   );
 
   const controller = new AbortController();
@@ -133,7 +143,10 @@ async function buildGlmInputText(pdfText) {
 
     return compressedText;
   } catch (error) {
-    logger.debug({ err: error?.message }, 'Plagiarism preprocess unavailable; using local normalized text');
+    logger.debug(
+      { err: error?.message },
+      'Plagiarism preprocess unavailable; using local normalized text',
+    );
     return fallback;
   } finally {
     clearTimeout(timeoutHandle);
@@ -165,9 +178,11 @@ async function parsePdf(pdfBuffer) {
 }
 
 function parseBoolean(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase() === 'true';
+  return (
+    String(value || '')
+      .trim()
+      .toLowerCase() === 'true'
+  );
 }
 
 function safeParseJson(raw) {
@@ -228,7 +243,9 @@ async function extractWithGlmOcr(pdfText) {
     const OllamaClient = ollamaModule?.Ollama || ollamaModule?.default?.Ollama;
 
     if (typeof OllamaClient !== 'function') {
-      logger.warn('GLM dependency loaded but Ollama client constructor is unavailable; skipping model extraction');
+      logger.warn(
+        'GLM dependency loaded but Ollama client constructor is unavailable; skipping model extraction',
+      );
       return null;
     }
 
@@ -237,7 +254,9 @@ async function extractWithGlmOcr(pdfText) {
     });
 
     if (typeof ollamaClient?.generate !== 'function') {
-      logger.warn('GLM dependency loaded but generate API is unavailable; skipping model extraction');
+      logger.warn(
+        'GLM dependency loaded but generate API is unavailable; skipping model extraction',
+      );
       return null;
     }
 
@@ -271,7 +290,7 @@ async function extractWithGlmOcr(pdfText) {
  * Extracts title and abstract from a PDF file.
  *
  * @param {Buffer} pdfBuffer - PDF file buffer
- * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>} 
+ * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>}
  */
 export async function extractPdfMetadata(pdfBuffer) {
   const cacheKey = buildExtractionCacheKey(computeBufferHash(pdfBuffer));
@@ -341,6 +360,8 @@ export async function extractPdfMetadata(pdfBuffer) {
     publicationYear: baseResult.publicationYear,
     authors: ocrMetadata.authors.length > 0 ? ocrMetadata.authors : baseResult.authors,
     keywords: baseResult.keywords,
+    doi: baseResult.doi,
+    publicationVenue: baseResult.publicationVenue,
     confidence: {
       title: ocrMetadata.title ? ocrMetadata.confidence.title : baseResult.confidence.title,
       abstract: ocrMetadata.abstract
@@ -352,6 +373,8 @@ export async function extractPdfMetadata(pdfBuffer) {
           ? ocrMetadata.confidence.authors
           : baseResult.confidence.authors,
       keywords: baseResult.confidence.keywords,
+      doi: baseResult.confidence.doi,
+      publicationVenue: baseResult.confidence.publicationVenue,
     },
     extractionProvider: ocrMetadata.provider,
   };
@@ -551,7 +574,11 @@ function extractAuthors(text, pdfInfo) {
   const candidates = [];
   for (const line of candidateWindow) {
     if (line.length < 5 || line.length > 200) continue;
-    if (/\b(university|college|department|faculty|school|journal|conference|doi|abstract)\b/i.test(line)) {
+    if (
+      /\b(university|college|department|faculty|school|journal|conference|doi|abstract)\b/i.test(
+        line,
+      )
+    ) {
       continue;
     }
 
@@ -579,9 +606,7 @@ function extractAuthors(text, pdfInfo) {
  * Extracts keywords from a dedicated keywords section.
  */
 function extractKeywords(text) {
-  const match = text.match(
-    /(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([^\n]{3,400})/i,
-  );
+  const match = text.match(/(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([^\n]{3,400})/i);
   if (!match || !match[1]) {
     return { value: [], confidence: 0 };
   }
@@ -649,7 +674,10 @@ function normalizeAuthors(rawAuthor) {
 
 function sanitizeAuthorName(name) {
   return String(name || '')
-    .replace(/\b(ph\.?d\.?|m\.?s\.?|m\.?a\.?|m\.?eng\.?|b\.?s\.?|dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\b/gi, '')
+    .replace(
+      /\b(ph\.?d\.?|m\.?s\.?|m\.?a\.?|m\.?eng\.?|b\.?s\.?|dr\.?|prof\.?|mr\.?|mrs\.?|ms\.?)\b/gi,
+      '',
+    )
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -658,7 +686,9 @@ function isLikelyAuthorName(name) {
   if (!name) return false;
   if (name.length < 3 || name.length > 80) return false;
   if (/\d/.test(name)) return false;
-  if (/\b(university|college|department|faculty|school|research|journal|conference)\b/i.test(name)) {
+  if (
+    /\b(university|college|department|faculty|school|research|journal|conference)\b/i.test(name)
+  ) {
     return false;
   }
 

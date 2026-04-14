@@ -90,6 +90,36 @@ export function getProjectAuthors(project) {
   return teamName ? [teamName] : [];
 }
 
+function getProposalTitle(proposal) {
+  if (typeof proposal === 'string') return proposal.trim();
+  if (typeof proposal?.title === 'string') return proposal.title.trim();
+  return '';
+}
+
+function normalizeTitleKey(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function getUniqueProjectTitles(project) {
+  const proposalTitles = (project?.titleProposals || []).map(getProposalTitle).filter(Boolean);
+  const fallbackTitle = typeof project?.title === 'string' ? project.title.trim() : '';
+
+  const titles = fallbackTitle ? [fallbackTitle, ...proposalTitles] : proposalTitles;
+  const seen = new Set();
+
+  return titles.filter((title) => {
+    const key = normalizeTitleKey(title);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getApprovedProjectTitle(project) {
+  if (project?.titleStatus !== TITLE_STATUSES.APPROVED) return '';
+  return typeof project?.title === 'string' ? project.title.trim() : '';
+}
+
 export function formatCitation(project, style, authors) {
   const year = project?.academicYear?.split('-')?.[1] || new Date().getFullYear();
   const title = project?.title || 'Untitled project';
@@ -134,9 +164,10 @@ export function resolveArchiveBackContext(locationState, locationSearch) {
 /* ────────── Sub-components ────────── */
 
 function TitleProposalsSection({ project, userRole }) {
-  const canVoteOnTitles = userRole === ROLES.INSTRUCTOR || userRole === ROLES.PANELIST;
+  const canVoteOnTitles =
+    userRole === ROLES.INSTRUCTOR || userRole === ROLES.ADVISER || userRole === ROLES.PANELIST;
   const [voteForms, setVoteForms] = useState({});
-  const [openProposalIndex, setOpenProposalIndex] = useState(0);
+  const [openProposalKey, setOpenProposalKey] = useState(null);
 
   const voteOnTitle = useAddTitleComment({
     onSuccess: () => {
@@ -182,6 +213,39 @@ function TitleProposalsSection({ project, userRole }) {
     return null;
   }
 
+  const proposalEntries = (project.titleProposals || [])
+    .map((proposal, proposalIndex) => {
+      const title = getProposalTitle(proposal);
+      if (!title) return null;
+
+      return {
+        proposal,
+        proposalIndex,
+        proposalKey: `proposal-${proposalIndex}`,
+        title,
+        metadata: project.titleProposalMetadata?.find((entry) => entry?.title === title),
+      };
+    })
+    .filter(Boolean);
+
+  if (proposalEntries.length === 0) return null;
+
+  const approvedTitle = getApprovedProjectTitle(project);
+  const approvedTitleKey = normalizeTitleKey(approvedTitle);
+  const showApprovedOnly = Boolean(approvedTitleKey);
+
+  const visibleProposals = showApprovedOnly
+    ? (() => {
+        const matched = proposalEntries.filter(
+          (entry) => normalizeTitleKey(entry.title) === approvedTitleKey,
+        );
+        return matched.length > 0 ? matched : proposalEntries.slice(0, 1);
+      })()
+    : proposalEntries;
+
+  const resolvedOpenProposalKey = openProposalKey ?? visibleProposals[0]?.proposalKey ?? null;
+  const canSubmitVotesNow = project.titleStatus === TITLE_STATUSES.SUBMITTED;
+
   const submitVote = (proposalIndex) => {
     const current = voteForms[proposalIndex] || { vote: '', remarks: '' };
     const vote = current.vote?.trim();
@@ -207,17 +271,25 @@ function TitleProposalsSection({ project, userRole }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Title Proposals</CardTitle>
+        <CardTitle className="text-lg">
+          {showApprovedOnly ? 'Approved Title' : 'Title Proposals'}
+        </CardTitle>
         <CardDescription>
-          Review all submitted title options before final approval or revision decisions.
+          {showApprovedOnly
+            ? 'Proposal has been approved. This view now focuses on the approved title only.'
+            : 'Review all submitted title options before final approval or revision decisions.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {project.titleProposals.map((proposal, idx) => {
-          const title = typeof proposal === 'string' ? proposal : proposal?.title;
-          const metadata = project.titleProposalMetadata?.find((entry) => entry?.title === title);
+        {showApprovedOnly && (
+          <div className="rounded-md border border-emerald-400/40 bg-emerald-500/10 p-3 text-xs text-emerald-100">
+            Related proposals are hidden after approval so faculty can focus on the selected title.
+          </div>
+        )}
+
+        {visibleProposals.map(({ proposal, proposalIndex, proposalKey, title, metadata }) => {
           const commentThread = (project.titleProposalComments || []).find(
-            (thread) => Number(thread?.proposalIndex) === idx,
+            (thread) => Number(thread?.proposalIndex) === proposalIndex,
           );
           const voteEntries = (commentThread?.comments || [])
             .map((comment) => ({
@@ -225,24 +297,21 @@ function TitleProposalsSection({ project, userRole }) {
               ...parseVoteComment(comment?.text),
             }))
             .filter((entry) => Boolean(entry.vote));
-          const currentVoteForm = voteForms[idx] || { vote: '', remarks: '' };
+          const currentVoteForm = voteForms[proposalIndex] || { vote: '', remarks: '' };
           const canApproveProposal = userRole === ROLES.INSTRUCTOR;
           const canApproveNow = project.titleStatus === TITLE_STATUSES.SUBMITTED;
-          const isOpen = openProposalIndex === idx;
+          const isOpen = resolvedOpenProposalKey === proposalKey;
 
           return (
-            <div
-              key={proposal?._id || `${idx}-${title || 'proposal'}`}
-              className="rounded-md border"
-            >
+            <div key={proposal?._id || proposalKey} className="rounded-md border">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                onClick={() => setOpenProposalIndex(isOpen ? -1 : idx)}
+                onClick={() => setOpenProposalKey(isOpen ? null : proposalKey)}
               >
                 <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Proposal {idx + 1}
+                    Proposal {proposalIndex + 1}
                   </p>
                   <p className="text-sm font-medium">{title || 'Untitled proposal'}</p>
                 </div>
@@ -282,7 +351,7 @@ function TitleProposalsSection({ project, userRole }) {
                       </p>
                       {voteEntries.map((entry, voteIndex) => (
                         <div
-                          key={`${idx}-vote-${voteIndex}`}
+                          key={`${proposalIndex}-vote-${voteIndex}`}
                           className="space-y-1 rounded-md border bg-background p-2"
                         >
                           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -319,10 +388,13 @@ function TitleProposalsSection({ project, userRole }) {
                               disabled={approveTitle.isPending || !canApproveNow}
                               onClick={() => {
                                 const confirmed = window.confirm(
-                                  `Approve Proposal ${idx + 1}? This will set this proposal as the approved project title.`,
+                                  `Approve Proposal ${proposalIndex + 1}? This will set this proposal as the approved project title.`,
                                 );
                                 if (!confirmed) return;
-                                approveTitle.mutate({ projectId: project._id, proposalId: idx });
+                                approveTitle.mutate({
+                                  projectId: project._id,
+                                  proposalId: proposalIndex,
+                                });
                               }}
                             >
                               {approveTitle.isPending ? (
@@ -334,12 +406,13 @@ function TitleProposalsSection({ project, userRole }) {
                           <Button
                             type="button"
                             className="border border-orange-300 bg-orange-200 text-orange-950 hover:bg-orange-300"
+                            disabled={!canSubmitVotesNow}
                             onClick={() => {
                               const confirmed = window.confirm(
-                                `Set Proposal ${idx + 1} vote to Approve With Revision?`,
+                                `Set Proposal ${proposalIndex + 1} vote to Approve With Revision?`,
                               );
                               if (!confirmed) return;
-                              setVoteFormField(idx, 'vote', 'Needs Revision');
+                              setVoteFormField(proposalIndex, 'vote', 'Needs Revision');
                             }}
                           >
                             Approve With Revision
@@ -347,12 +420,13 @@ function TitleProposalsSection({ project, userRole }) {
                           <Button
                             type="button"
                             className="border border-rose-300 bg-rose-200 text-rose-950 hover:bg-rose-300"
+                            disabled={!canSubmitVotesNow}
                             onClick={() => {
                               const confirmed = window.confirm(
-                                `Set Proposal ${idx + 1} vote to Reject Proposal?`,
+                                `Set Proposal ${proposalIndex + 1} vote to Reject Proposal?`,
                               );
                               if (!confirmed) return;
-                              setVoteFormField(idx, 'vote', 'Reject');
+                              setVoteFormField(proposalIndex, 'vote', 'Reject');
                             }}
                           >
                             Reject Proposal
@@ -361,11 +435,13 @@ function TitleProposalsSection({ project, userRole }) {
                       </div>
 
                       <div className="space-y-1">
-                        <Label htmlFor={`proposal-remarks-${idx}`}>Remarks</Label>
+                        <Label htmlFor={`proposal-remarks-${proposalIndex}`}>Remarks</Label>
                         <Textarea
-                          id={`proposal-remarks-${idx}`}
+                          id={`proposal-remarks-${proposalIndex}`}
                           value={currentVoteForm.remarks}
-                          onChange={(event) => setVoteFormField(idx, 'remarks', event.target.value)}
+                          onChange={(event) =>
+                            setVoteFormField(proposalIndex, 'remarks', event.target.value)
+                          }
                           placeholder="Add your decision notes for this title proposal"
                           className="min-h-24"
                         />
@@ -374,8 +450,8 @@ function TitleProposalsSection({ project, userRole }) {
                       <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
-                          disabled={voteOnTitle.isPending}
-                          onClick={() => submitVote(idx)}
+                          disabled={voteOnTitle.isPending || !canSubmitVotesNow}
+                          onClick={() => submitVote(proposalIndex)}
                         >
                           {voteOnTitle.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -384,9 +460,9 @@ function TitleProposalsSection({ project, userRole }) {
                         </Button>
                       </div>
 
-                      {canApproveProposal && !canApproveNow ? (
+                      {!canSubmitVotesNow ? (
                         <p className="text-xs text-muted-foreground">
-                          Proposal approval is available only while title status is Submitted.
+                          Voting is available only while title status is Submitted.
                         </p>
                       ) : null}
                     </div>
@@ -413,21 +489,17 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
         ? `Capstone ${phaseNumber}`
         : '—';
 
-  const proposalTitles = (project.titleProposals || [])
-    .map((proposal) => (typeof proposal === 'string' ? proposal : proposal?.title))
-    .map((title) => (typeof title === 'string' ? title.trim() : ''))
-    .filter(Boolean);
+  const allProjectTitles = getUniqueProjectTitles(project);
+  const approvedProjectTitle = getApprovedProjectTitle(project);
+  const focusApprovedTitle = Boolean(approvedProjectTitle);
 
-  const allProjectTitles = proposalTitles
-    .map((title) => (typeof title === 'string' ? title.trim() : ''))
-    .filter(Boolean)
-    .filter((title, index, list) => {
-      const normalized = title.toLowerCase();
-      return list.findIndex((entry) => entry.toLowerCase() === normalized) === index;
-    });
-
-  const primaryTitle = allProjectTitles[0] || project.title || 'Untitled project';
-  const secondaryTitles = allProjectTitles.slice(1);
+  const primaryTitle =
+    (focusApprovedTitle ? approvedProjectTitle : allProjectTitles[0]) || 'Untitled project';
+  const secondaryTitles = focusApprovedTitle
+    ? []
+    : allProjectTitles.filter(
+        (title) => normalizeTitleKey(title) !== normalizeTitleKey(primaryTitle),
+      );
 
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
@@ -743,22 +815,34 @@ function ModificationReviewCard({ project }) {
 }
 
 /**
- * Assign adviser card — instructor only.
+ * Unified faculty committee card.
+ * Read-only for adviser/panelist roles, editable for instructors.
  */
-function AssignAdviserCard({ project }) {
+function FacultyCommitteeCard({ project, canManage }) {
   const [adviserId, setAdviserId] = useState('');
+  const [panelistId, setPanelistId] = useState('');
 
-  // Fetch available advisers
   const { data: advisers = [] } = useQuery({
     queryKey: ['users', 'advisers'],
     queryFn: async () => {
       const { data } = await userService.listUsers({ role: 'adviser' });
       return data.data?.users || [];
     },
+    enabled: canManage,
     staleTime: 5 * 60 * 1000,
   });
 
-  const assign = useAssignAdviser({
+  const { data: panelists = [] } = useQuery({
+    queryKey: ['users', 'panelists'],
+    queryFn: async () => {
+      const { data } = await userService.listUsers({ role: 'panelist' });
+      return data.data?.users || [];
+    },
+    enabled: canManage,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const assignAdviser = useAssignAdviser({
     onSuccess: () => {
       toast.success('Adviser assigned!');
       setAdviserId('');
@@ -767,68 +851,7 @@ function AssignAdviserCard({ project }) {
       toast.error(err.response?.data?.error?.message || 'Failed to assign adviser.'),
   });
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <UserPlus className="h-5 w-5" />
-          Assign Adviser
-        </CardTitle>
-        <CardDescription>
-          {project.adviserId
-            ? `Currently: ${project.adviserId.firstName || ''} ${project.adviserId.lastName || ''}`.trim() ||
-              'Assigned'
-            : 'No adviser assigned yet.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-3">
-          <div className="flex-1 space-y-1">
-            <Label htmlFor="adviser">Select Adviser</Label>
-            <select
-              id="adviser"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={adviserId}
-              onChange={(e) => setAdviserId(e.target.value)}
-            >
-              <option value="">Choose an adviser…</option>
-              {advisers.map((u) => (
-                <option key={u._id} value={u._id}>
-                  {u.firstName} {u.lastName} ({u.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            disabled={!adviserId || assign.isPending}
-            onClick={() => assign.mutate({ projectId: project._id, adviserId })}
-          >
-            {assign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Assign
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Manage panelists card — instructor only.
- */
-function ManagePanelistsCard({ project }) {
-  const [panelistId, setPanelistId] = useState('');
-
-  // Fetch available panelists
-  const { data: panelists = [] } = useQuery({
-    queryKey: ['users', 'panelists'],
-    queryFn: async () => {
-      const { data } = await userService.listUsers({ role: 'panelist' });
-      return data.data?.users || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const assign = useAssignPanelist({
+  const assignPanelist = useAssignPanelist({
     onSuccess: () => {
       toast.success('Panelist added!');
       setPanelistId('');
@@ -837,7 +860,7 @@ function ManagePanelistsCard({ project }) {
       toast.error(err.response?.data?.error?.message || 'Failed to assign panelist.'),
   });
 
-  const remove = useRemovePanelist({
+  const removePanelist = useRemovePanelist({
     onSuccess: () => toast.success('Panelist removed.'),
     onError: (err) =>
       toast.error(err.response?.data?.error?.message || 'Failed to remove panelist.'),
@@ -845,20 +868,67 @@ function ManagePanelistsCard({ project }) {
 
   const currentPanelists = project.panelistIds || [];
   const assignedIds = new Set(currentPanelists.map((p) => p._id || p));
+  const currentAdviser = project.adviserId
+    ? `${project.adviserId.firstName || ''} ${project.adviserId.lastName || ''}`.trim() ||
+      project.adviserId.email ||
+      'Assigned'
+    : 'Not assigned yet';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Users className="h-5 w-5" />
-          Panelists ({currentPanelists.length} / 3)
+          <UserPlus className="h-5 w-5" />
+          Faculty Committee
         </CardTitle>
+        <CardDescription>
+          Adviser and panel assignments are managed in one place for faculty workflows.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Current panelists */}
-        {currentPanelists.length > 0 && (
-          <div className="space-y-2">
-            {currentPanelists.map((p) => {
+        <div className="rounded-md border p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Adviser
+          </p>
+          <p className="mt-1 text-sm font-medium">{currentAdviser}</p>
+          <p className="text-xs text-muted-foreground">{project.adviserId?.email || '—'}</p>
+        </div>
+
+        {canManage && (
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="adviser">Select Adviser</Label>
+              <select
+                id="adviser"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={adviserId}
+                onChange={(e) => setAdviserId(e.target.value)}
+              >
+                <option value="">Choose an adviser…</option>
+                {advisers.map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.firstName} {u.lastName} ({u.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              disabled={!adviserId || assignAdviser.isPending}
+              onClick={() => assignAdviser.mutate({ projectId: project._id, adviserId })}
+            >
+              {assignAdviser.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Adviser
+            </Button>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Panelists ({currentPanelists.length} / 3)
+          </p>
+
+          {currentPanelists.length > 0 ? (
+            currentPanelists.map((p) => {
               const id = p._id || p;
               const name = p.firstName ? `${p.firstName} ${p.lastName}` : id;
               return (
@@ -867,22 +937,29 @@ function ManagePanelistsCard({ project }) {
                   className="flex items-center justify-between rounded-md border px-3 py-2"
                 >
                   <span className="text-sm font-medium">{name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate({ projectId: project._id, panelistId: id })}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {canManage ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removePanelist.isPending}
+                      onClick={() =>
+                        removePanelist.mutate({ projectId: project._id, panelistId: id })
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  ) : null}
                 </div>
               );
-            })}
-          </div>
-        )}
+            })
+          ) : (
+            <p className="text-sm text-muted-foreground">No panelists assigned yet.</p>
+          )}
+        </div>
 
+        {/* Current panelists */}
         {/* Add panelist */}
-        {currentPanelists.length < 3 && (
+        {canManage && currentPanelists.length < 3 && (
           <div className="flex items-end gap-3">
             <div className="flex-1 space-y-1">
               <Label htmlFor="panelist">Add Panelist</Label>
@@ -903,10 +980,10 @@ function ManagePanelistsCard({ project }) {
               </select>
             </div>
             <Button
-              disabled={!panelistId || assign.isPending}
-              onClick={() => assign.mutate({ projectId: project._id, panelistId })}
+              disabled={!panelistId || assignPanelist.isPending}
+              onClick={() => assignPanelist.mutate({ projectId: project._id, panelistId })}
             >
-              {assign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {assignPanelist.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Add
             </Button>
           </div>
@@ -1395,6 +1472,10 @@ export default function ProjectDetailPage() {
   const isOwnerOrAdmin = !isStudent || isAuthor;
   const isPeer = isStudent && !isAuthor;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const isFacultyMember =
+    user?.role === ROLES.INSTRUCTOR ||
+    user?.role === ROLES.ADVISER ||
+    user?.role === ROLES.PANELIST;
   const isArchived =
     Boolean(project?.isArchived) || project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
 
@@ -1699,11 +1780,10 @@ export default function ProjectDetailPage() {
                   project.titleModificationRequest?.proposedTitle &&
                   isInstructor && <ModificationReviewCard project={project} />}
 
-                {/* Assign adviser — instructor only */}
-                {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
-
-                {/* Panelists — instructor only */}
-                {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
+                {/* Faculty committee — shared card for adviser/panel, editable by instructor */}
+                {!isArchived && isFacultyMember && (
+                  <FacultyCommitteeCard project={project} canManage={isInstructor} />
+                )}
 
                 {/* Advance phase — instructor only */}
                 {!isArchived &&
