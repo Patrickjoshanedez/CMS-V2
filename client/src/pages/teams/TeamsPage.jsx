@@ -34,6 +34,7 @@ import {
   useAcceptInvite,
   useAssignMemberRole,
   useUpdateGoogleDocLink,
+  useUpdateGithubLink,
   useLockTeam,
   useLeaveTeam,
   teamKeys,
@@ -583,6 +584,7 @@ function StudentTeamDetail({ team, userId }) {
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
   const [googleDocUrlInput, setGoogleDocUrlInput] = useState(team.googleDocUrl || '');
+  const [githubUrlInput, setGithubUrlInput] = useState(team.githubUrl || '');
   const memberRoleAssignments = team.memberRoles || [];
   const memberRoleMap = new Map(
     memberRoleAssignments.map((item) => [item?.userId?._id || item?.userId, item?.role || '']),
@@ -611,6 +613,12 @@ function StudentTeamDetail({ team, userId }) {
       toast.error(err?.response?.data?.error?.message || 'Failed to update team Google Docs link.'),
   });
 
+  const updateGithubLink = useUpdateGithubLink({
+    onSuccess: () => toast.success('Team GitHub link updated.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to update team GitHub link.'),
+  });
+
   const lockTeam = useLockTeam({
     onSuccess: () => toast.success('Team finalized successfully.'),
     onError: (err) =>
@@ -624,7 +632,8 @@ function StudentTeamDetail({ team, userId }) {
 
   useEffect(() => {
     setGoogleDocUrlInput(team.googleDocUrl || '');
-  }, [team.googleDocUrl]);
+    setGithubUrlInput(team.githubUrl || '');
+  }, [team.googleDocUrl, team.githubUrl]);
 
   return (
     <div className="space-y-4">
@@ -659,10 +668,10 @@ function StudentTeamDetail({ team, userId }) {
 
           {/* Members List */}
           <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Team Document</p>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">Team Resources</p>
             {isLeader ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 md:flex-row">
                   <Input
                     type="url"
                     placeholder="https://docs.google.com/document/d/..."
@@ -686,10 +695,66 @@ function StudentTeamDetail({ team, userId }) {
                     ) : (
                       <LinkIcon className="mr-2 h-4 w-4" />
                     )}
-                    Attach Link
+                    Attach Google Docs
                   </Button>
                 </div>
 
+                <div className="flex flex-col gap-2 md:flex-row">
+                  <Input
+                    type="url"
+                    placeholder="https://github.com/org/repository"
+                    value={githubUrlInput}
+                    onChange={(event) => setGithubUrlInput(event.target.value)}
+                    disabled={updateGithubLink.isPending}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      updateGithubLink.mutate({
+                        teamId: team._id,
+                        githubUrl: githubUrlInput.trim(),
+                      })
+                    }
+                    disabled={updateGithubLink.isPending}
+                  >
+                    {updateGithubLink.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                    )}
+                    Attach GitHub
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {team.googleDocUrl ? (
+                    <Button type="button" variant="secondary" asChild>
+                      <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Open Team Google Doc
+                      </a>
+                    </Button>
+                  ) : null}
+
+                  {team.githubUrl ? (
+                    <Button type="button" variant="secondary" asChild>
+                      <a href={team.githubUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Open Team GitHub
+                      </a>
+                    </Button>
+                  ) : null}
+
+                  {!team.googleDocUrl && !team.githubUrl ? (
+                    <p className="text-xs text-muted-foreground">
+                      No team resource links attached yet.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
                 {team.googleDocUrl ? (
                   <Button type="button" variant="secondary" asChild>
                     <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
@@ -697,23 +762,23 @@ function StudentTeamDetail({ team, userId }) {
                       Open Team Google Doc
                     </a>
                   </Button>
-                ) : (
+                ) : null}
+
+                {team.githubUrl ? (
+                  <Button type="button" variant="secondary" asChild>
+                    <a href={team.githubUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Open Team GitHub
+                    </a>
+                  </Button>
+                ) : null}
+
+                {!team.googleDocUrl && !team.githubUrl ? (
                   <p className="text-xs text-muted-foreground">
-                    No team Google Docs link attached yet.
+                    No team resource links attached yet.
                   </p>
-                )}
+                ) : null}
               </div>
-            ) : team.googleDocUrl ? (
-              <Button type="button" variant="secondary" asChild>
-                <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open Team Google Doc
-                </a>
-              </Button>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No team Google Docs link attached yet.
-              </p>
             )}
           </div>
 
