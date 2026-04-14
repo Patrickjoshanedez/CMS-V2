@@ -2,7 +2,7 @@
  * VirtualizedPlagiarismViewer
  *
  * Renders a long plain-text document with matched plagiarism spans highlighted
- * in-place.  Uses react-window's FixedSizeList to efficiently handle documents
+ * in-place.  Uses react-window's List to efficiently handle documents
  * with hundreds of paragraphs without DOM bloat.
  *
  * Props
@@ -27,9 +27,8 @@
  * Highlighted spans carry aria-label + role="mark" so screen readers announce
  * the similarity score alongside the matched excerpt.
  */
-import React, { useMemo, useRef, useCallback } from 'react';
-import * as ReactWindow from 'react-window';
-const { FixedSizeList: List } = ReactWindow;
+import React, { useMemo, useRef } from 'react';
+import { List } from 'react-window';
 import PropTypes from 'prop-types';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
@@ -123,16 +122,20 @@ function highlightClass(score) {
 /* ─── ParagraphRow ───────────────────────────────────────────────────────── */
 
 const ParagraphRow = React.memo(function ParagraphRow({
+  index,
   style,
-  para,
+  paragraphs,
   sortedMatches,
   selectedMatchId,
   onSelectMatch,
 }) {
-  const fragments = useMemo(
-    () => buildFragments(para.text, para.start, para.end, sortedMatches),
-    [para, sortedMatches],
-  );
+  const para = paragraphs[index];
+
+  if (!para) {
+    return null;
+  }
+
+  const fragments = buildFragments(para.text, para.start, para.end, sortedMatches);
 
   return (
     <div
@@ -172,12 +175,15 @@ const ParagraphRow = React.memo(function ParagraphRow({
 });
 
 ParagraphRow.propTypes = {
+  index: PropTypes.number.isRequired,
   style: PropTypes.object.isRequired,
-  para: PropTypes.shape({
-    text: PropTypes.string.isRequired,
-    start: PropTypes.number.isRequired,
-    end: PropTypes.number.isRequired,
-  }).isRequired,
+  paragraphs: PropTypes.arrayOf(
+    PropTypes.shape({
+      text: PropTypes.string.isRequired,
+      start: PropTypes.number.isRequired,
+      end: PropTypes.number.isRequired,
+    }),
+  ).isRequired,
   sortedMatches: PropTypes.array.isRequired,
   selectedMatchId: PropTypes.string,
   onSelectMatch: PropTypes.func.isRequired,
@@ -201,19 +207,6 @@ export default function VirtualizedPlagiarismViewer({
     [matches],
   );
 
-  const renderRow = useCallback(
-    ({ index, style }) => (
-      <ParagraphRow
-        style={style}
-        para={paragraphs[index]}
-        sortedMatches={sortedMatches}
-        selectedMatchId={selectedMatchId}
-        onSelectMatch={onSelectMatch}
-      />
-    ),
-    [paragraphs, sortedMatches, selectedMatchId, onSelectMatch],
-  );
-
   // Scroll to the first paragraph containing the selected match
   React.useEffect(() => {
     if (!selectedMatchId || !listRef.current) return;
@@ -224,7 +217,7 @@ export default function VirtualizedPlagiarismViewer({
       (p) => p.start <= match.start_index && p.end >= match.start_index,
     );
     if (rowIndex >= 0) {
-      listRef.current.scrollToItem(rowIndex, 'center');
+      listRef.current.scrollToRow({ index: rowIndex, align: 'center', behavior: 'auto' });
     }
   }, [selectedMatchId, paragraphs, sortedMatches]);
 
@@ -256,15 +249,15 @@ export default function VirtualizedPlagiarismViewer({
       </div>
 
       <List
-        ref={listRef}
-        height={VIEWER_HEIGHT}
-        itemCount={paragraphs.length}
-        itemSize={ROW_HEIGHT}
-        width="100%"
+        listRef={listRef}
+        rowComponent={ParagraphRow}
+        rowCount={paragraphs.length}
+        rowHeight={ROW_HEIGHT}
+        rowProps={{ paragraphs, sortedMatches, selectedMatchId, onSelectMatch }}
+        defaultHeight={VIEWER_HEIGHT}
+        className="h-[640px] w-full"
         overscanCount={8}
-      >
-        {renderRow}
-      </List>
+      />
     </div>
   );
 }

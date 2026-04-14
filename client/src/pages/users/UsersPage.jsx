@@ -1,10 +1,12 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
+import { TagInput } from '@/components/ui/TagInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { YearInput } from '@/components/ui/YearInput';
 import {
@@ -21,10 +23,13 @@ import {
   BookOpen,
   Layers,
   CalendarDays,
+  Crown,
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { useUsers, useCreateUser, useChangeRole, useDeleteUser } from '@/hooks/useUsers';
+import { useTeams, teamKeys } from '@/hooks/useTeams';
+import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
 import {
   useAcademicHierarchy,
   useAcademicYears,
@@ -74,6 +79,450 @@ function HierarchyBreadcrumb({ course, academicYear, section }) {
           {idx < crumbs.length - 1 && <ChevronRight className="h-3 w-3" />}
         </div>
       ))}
+    </div>
+  );
+}
+
+function formatFullName(user) {
+  if (!user) return 'Unknown';
+  return [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ') || user.email;
+}
+
+function formatCommitteeOption(user) {
+  return `${formatFullName(user)} • ${user?.email || 'No email provided'}`;
+}
+
+function TeamCommitteeAssignmentsView() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({});
+  const [academicYear, setAcademicYear] = useState('');
+  const [sectionId, setSectionId] = useState('');
+  const [committeeFilter, setCommitteeFilter] = useState('all');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+
+  const { data: years = [] } = useAcademicYears();
+  const { data: sections = [] } = useSections(
+    { academicYear: academicYear || undefined },
+    { enabled: Boolean(academicYear) },
+  );
+
+  const { data: teamData, isLoading, isError, error } = useTeams(filters);
+  const { data: adviserData, isLoading: isAdvisersLoading } = useUsers({
+    role: ROLES.ADVISER,
+    isActive: true,
+    page: 1,
+    limit: 200,
+  });
+  const { data: panelistData, isLoading: isPanelistsLoading } = useUsers({
+    role: ROLES.PANELIST,
+    isActive: true,
+    page: 1,
+    limit: 200,
+  });
+
+  const assignAdviser = useAssignAdviser({
+    onSuccess: () => {
+      toast.success('Adviser assigned successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to assign adviser.'),
+  });
+
+  const assignPanelist = useAssignPanelist({
+    onSuccess: () => {
+      toast.success('Panelist assigned successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to assign panelist.'),
+  });
+
+  const removePanelist = useRemovePanelist({
+    onSuccess: () => {
+      toast.success('Panelist removed successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to remove panelist.'),
+  });
+
+  const allTeams = teamData?.teams || [];
+  const adviserOptions = adviserData?.users || [];
+  const panelistOptions = panelistData?.users || [];
+
+  const filteredTeams = useMemo(() => {
+    return allTeams.filter((team) => {
+      if (committeeFilter === 'all') return true;
+
+      const assignment = team.assignment || {};
+      const panelists = assignment.panelists || [];
+
+      if (committeeFilter === 'no-adviser') return !assignment.adviser;
+      if (committeeFilter === 'needs-panelists') return panelists.length < 3;
+      if (committeeFilter === 'complete')
+        return Boolean(assignment.adviser) && panelists.length >= 3;
+
+      return true;
+    });
+  }, [allTeams, committeeFilter]);
+
+  const selectedTeam = filteredTeams.find((team) => team._id === selectedTeamId) || null;
+  const selectedAssignment = selectedTeam?.assignment || {};
+  const selectedPanelists = selectedAssignment.panelists || [];
+  const selectedProjectId = selectedAssignment.projectId || null;
+
+  const adviserSuggestions = useMemo(
+    () => adviserOptions.map(formatCommitteeOption),
+    [adviserOptions],
+  );
+
+  const panelistSuggestions = useMemo(
+    () =>
+      panelistOptions
+        .filter((panelist) => !selectedPanelists.some((existing) => existing?._id === panelist._id))
+        .map(formatCommitteeOption),
+    [panelistOptions, selectedPanelists],
+  );
+
+  useEffect(() => {
+    if (selectedTeamId && !filteredTeams.some((team) => team._id === selectedTeamId)) {
+      setSelectedTeamId('');
+    }
+  }, [filteredTeams, selectedTeamId]);
+
+  const handleTeamSearch = (event) => {
+    event.preventDefault();
+    setFilters({
+      search: search.trim() || undefined,
+      academicYear: academicYear || undefined,
+      sectionId: sectionId || undefined,
+      page: 1,
+    });
+  };
+
+  const handleAdviserSelect = (selectedTags) => {
+    const selectedLabel = selectedTags.at(-1);
+    if (!selectedLabel || !selectedProjectId || !selectedTeam) {
+      return;
+    }
+
+    const adviser = adviserOptions.find(
+      (option) => formatCommitteeOption(option) === selectedLabel,
+    );
+    if (!adviser) {
+      toast.error('Select a valid adviser from the suggestions.');
+      return;
+    }
+
+    if (selectedAssignment.adviser?._id === adviser._id) {
+      toast.error('This adviser is already assigned.');
+      return;
+    }
+
+    assignAdviser.mutate({ projectId: selectedProjectId, adviserId: adviser._id });
+  };
+
+  const handlePanelistSelect = (selectedTags) => {
+    const selectedLabel = selectedTags.at(-1);
+    if (!selectedLabel || !selectedProjectId || !selectedTeam) {
+      return;
+    }
+
+    if (selectedPanelists.length >= 3) {
+      toast.error('Only a maximum of 3 panelists can be assigned per team.');
+      return;
+    }
+
+    const panelist = panelistOptions.find(
+      (option) => formatCommitteeOption(option) === selectedLabel,
+    );
+    if (!panelist) {
+      toast.error('Select a valid panelist from the suggestions.');
+      return;
+    }
+
+    if (selectedPanelists.some((existing) => existing?._id === panelist._id)) {
+      toast.error('This panelist is already assigned to the team.');
+      return;
+    }
+
+    assignPanelist.mutate({ projectId: selectedProjectId, panelistId: panelist._id });
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Committee Assignment</CardTitle>
+          <CardDescription>
+            Assign exactly one adviser and up to three panelists per team.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleTeamSearch} className="grid gap-2 md:grid-cols-5">
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search teams..."
+                className="pl-9"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <select
+              value={academicYear}
+              onChange={(event) => {
+                setAcademicYear(event.target.value);
+                setSectionId('');
+              }}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">All years</option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sectionId}
+              disabled={!academicYear}
+              onChange={(event) => setSectionId(event.target.value)}
+              className="h-10 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">All sections</option>
+              {sections.map((section) => (
+                <option key={section._id} value={section._id}>
+                  {section.courseId?.code} - {section.name}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" variant="outline">
+              Search
+            </Button>
+          </form>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="committeeFilter">Committee Filter</Label>
+              <select
+                id="committeeFilter"
+                value={committeeFilter}
+                onChange={(event) => setCommitteeFilter(event.target.value)}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="all">All teams</option>
+                <option value="no-adviser">No adviser assigned</option>
+                <option value="needs-panelists">Needs panelists (&lt;3)</option>
+                <option value="complete">Complete committee</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="teamQuickSelect">Quick Team Select</Label>
+              <select
+                id="teamQuickSelect"
+                value={selectedTeamId}
+                onChange={(event) => setSelectedTeamId(event.target.value)}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Select a team</option>
+                {filteredTeams.map((team) => (
+                  <option key={team._id} value={team._id}>
+                    {team.name || 'Untitled Team'}
+                    {team.academicYear ? ` • ${team.academicYear}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading teams...
+            </div>
+          )}
+
+          {isError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {error?.response?.data?.error?.message || 'Failed to load teams.'}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!isLoading && !isError && filteredTeams.length === 0 && (
+            <p className="rounded-md border border-dashed bg-muted/40 px-3 py-8 text-center text-sm text-muted-foreground">
+              No teams found for the selected criteria.
+            </p>
+          )}
+
+          {selectedTeam && (
+            <div className="space-y-3 rounded-md border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-base font-semibold">{selectedTeam.name || 'Untitled Team'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTeam.academicYear || 'No academic year'} •{' '}
+                    {(selectedTeam.members || []).length} members
+                  </p>
+                </div>
+                <Badge variant="outline">
+                  {selectedProjectId ? 'Project Linked' : 'No Project Yet'}
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-3">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Team Leader
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {formatFullName(selectedTeam.leaderId)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTeam.leaderId?.email || 'No email available'}
+                  </p>
+                </div>
+
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Adviser
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedAssignment.adviser
+                      ? formatFullName(selectedAssignment.adviser)
+                      : 'Not assigned yet'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedAssignment.adviser?.email || 'No adviser assigned'}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Search and assign adviser
+                    </p>
+                    <TagInput
+                      value={[]}
+                      onChange={handleAdviserSelect}
+                      suggestions={adviserSuggestions}
+                      placeholder={
+                        isAdvisersLoading ? 'Loading advisers...' : 'Type to search advisers'
+                      }
+                      maxTags={1}
+                      disabled={!selectedProjectId || isAdvisersLoading || assignAdviser.isPending}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Panelists ({selectedPanelists.length}/3)
+                  </p>
+                  {selectedPanelists.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {selectedPanelists.map((panelist) => (
+                        <div
+                          key={panelist._id}
+                          className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 px-2 py-2"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{formatFullName(panelist)}</p>
+                            <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!selectedProjectId || removePanelist.isPending}
+                            onClick={() =>
+                              removePanelist.mutate({
+                                projectId: selectedProjectId,
+                                panelistId: panelist._id,
+                              })
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
+                  )}
+
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Search and add panelist
+                    </p>
+                    <TagInput
+                      value={[]}
+                      onChange={handlePanelistSelect}
+                      suggestions={panelistSuggestions}
+                      placeholder={
+                        isPanelistsLoading ? 'Loading panelists...' : 'Type to search panelists'
+                      }
+                      maxTags={3}
+                      disabled={
+                        !selectedProjectId ||
+                        isPanelistsLoading ||
+                        assignPanelist.isPending ||
+                        selectedPanelists.length >= 3
+                      }
+                    />
+                    {selectedPanelists.length >= 3 && (
+                      <p className="text-xs text-muted-foreground">
+                        Maximum reached: only 3 panelists are allowed per team.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {!selectedProjectId && (
+                <p className="text-xs text-muted-foreground">
+                  Create and approve the team project first before assigning adviser and panelists.
+                </p>
+              )}
+
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Team Members
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(selectedTeam.members || []).map((member) => {
+                    const isLeader =
+                      (selectedTeam.leaderId?._id || selectedTeam.leaderId) === member._id;
+
+                    return (
+                      <div
+                        key={member._id}
+                        className="flex items-center gap-2 rounded-md border p-2"
+                      >
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {member.firstName?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{formatFullName(member)}</p>
+                          <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                        </div>
+                        {isLeader && (
+                          <Badge variant="outline" className="gap-1">
+                            <Crown className="h-3 w-3" />
+                            Leader
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1019,7 +1468,7 @@ export default function UsersPage() {
             <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
             <p className="text-sm text-muted-foreground">
               Manage hierarchy (Course {'>'} Year {'>'} Section {'>'} Teams {'>'} Students) and
-              RBAC.
+              RBAC, plus committee assignments.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-md border p-1">
@@ -1039,10 +1488,20 @@ export default function UsersPage() {
             >
               RBAC
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activePanel === 'committee' ? 'default' : 'ghost'}
+              onClick={() => setActivePanel('committee')}
+            >
+              Committee
+            </Button>
           </div>
         </div>
 
         {activePanel === 'hierarchy' && <HierarchyView />}
+
+        {activePanel === 'committee' && <TeamCommitteeAssignmentsView />}
 
         {activePanel === 'rbac' && (
           <>

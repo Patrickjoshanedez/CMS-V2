@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -12,24 +11,38 @@ import { ROLES } from '@cms/shared';
 import {
   Loader2,
   FileText,
-  ChevronDown,
-  ChevronUp,
   BarChart3,
   Search,
-  Upload,
   Download,
   RefreshCcw,
+  Users,
+  ShieldAlert,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 
 /**
  * ReportsPage — Instructor-only reporting dashboard.
  *
- * Displays filtered capstone reports with year-based breakdowns
- * and expandable project lists per academic year.
+ * Layout flow: Filters -> KPI summary cards -> Charts -> Paginated data table.
  */
 export default function ReportsPage() {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const CHART_COLORS = ['#0ea5e9', '#22c55e', '#f97316', '#eab308', '#a855f7', '#ef4444'];
 
   const [filters, setFilters] = useState({
     author: '',
@@ -39,19 +52,22 @@ export default function ReportsPage() {
     courseId: '',
     keyword: '',
   });
+
   const [appliedFilters, setAppliedFilters] = useState({});
+  const [hasGenerated, setHasGenerated] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [sortBy, setSortBy] = useState('archivedAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [expanded, setExpanded] = useState({});
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const queryFilters = useMemo(
-    () => ({ ...appliedFilters, sortBy, sortOrder }),
-    [appliedFilters, sortBy, sortOrder],
+    () => ({ ...appliedFilters, sortBy, sortOrder, page, limit }),
+    [appliedFilters, sortBy, sortOrder, page, limit],
   );
 
   const { data, isLoading, error } = useProjectReports(queryFilters, {
-    enabled: Object.values(appliedFilters).some(Boolean),
+    enabled: hasGenerated,
   });
 
   const buildCleanFilters = useCallback((source) => {
@@ -67,6 +83,8 @@ export default function ReportsPage() {
 
   const handleGenerate = useCallback(() => {
     setAppliedFilters(buildCleanFilters(filters));
+    setPage(1);
+    setHasGenerated(true);
   }, [buildCleanFilters, filters]);
 
   const handleReset = useCallback(() => {
@@ -78,28 +96,35 @@ export default function ReportsPage() {
       courseId: '',
       keyword: '',
     };
+
     setFilters(cleared);
     setAppliedFilters({});
+    setHasGenerated(false);
     setSortBy('archivedAt');
     setSortOrder('desc');
+    setPage(1);
+    setLimit(10);
   }, []);
 
-  const toggleExpand = useCallback((yearId) => {
-    setExpanded((prev) => ({ ...prev, [yearId]: !prev[yearId] }));
-  }, []);
+  const summary = data?.summary || {
+    totalCapstonesArchived: 0,
+    mostActiveYear: null,
+    totalAuthorsStudents: 0,
+    flaggedByPlagiarism: 0,
+  };
 
-  if (user?.role !== ROLES.INSTRUCTOR) {
-    return (
-      <DashboardLayout>
-        <Alert variant="destructive">
-          <AlertDescription>You do not have permission to view this page.</AlertDescription>
-        </Alert>
-      </DashboardLayout>
-    );
-  }
+  const trend = data?.trend || [];
+  const categoryBreakdown = data?.categoryBreakdown || [];
 
-  const reports = data?.byYear || [];
-  const records = data?.records || [];
+  const table = data?.table || {
+    rows: [],
+    page,
+    limit,
+    total: 0,
+    totalPages: 1,
+  };
+
+  const records = table.rows || [];
   const filterOptions = data?.filterOptions || {
     academicYears: [],
     authors: [],
@@ -107,11 +132,11 @@ export default function ReportsPage() {
     programs: [],
     keywords: [],
   };
-  const totalCount = data?.totalProjects ?? 0;
-  const matchingCount = data?.matchingCount ?? totalCount;
-  const hasResults = Object.values(appliedFilters).some(Boolean);
 
+  const hasResults = hasGenerated;
   const hasLiveFilters = Object.values(buildCleanFilters(filters)).some(Boolean);
+  const canGoPrev = table.page > 1;
+  const canGoNext = table.page < table.totalPages;
 
   const exportCsv = useCallback(() => {
     if (!records.length) return;
@@ -124,9 +149,7 @@ export default function ReportsPage() {
       'Academic Year',
       'Keywords',
       'Status',
-      'Archived At',
     ];
-
     const lines = records.map((record) => [
       record.title || '',
       record.authors?.map((authorItem) => authorItem.fullName).join('; ') || '',
@@ -135,7 +158,6 @@ export default function ReportsPage() {
       record.academicYear || '',
       (record.keywords || []).join('; '),
       record.status || '',
-      record.archivedAt ? new Date(record.archivedAt).toISOString() : '',
     ]);
 
     const csv = [
@@ -156,7 +178,15 @@ export default function ReportsPage() {
   const exportExcel = useCallback(() => {
     if (!records.length) return;
 
-    const headers = ['Title', 'Authors', 'Adviser', 'Program', 'Academic Year', 'Keywords', 'Status'];
+    const headers = [
+      'Title',
+      'Authors',
+      'Adviser',
+      'Program',
+      'Academic Year',
+      'Keywords',
+      'Status',
+    ];
     const rows = records.map((record) => [
       record.title || '',
       record.authors?.map((authorItem) => authorItem.fullName).join('; ') || '',
@@ -231,48 +261,64 @@ export default function ReportsPage() {
     popup.print();
   }, [records]);
 
+  const exportRecordInfo = useCallback((record) => {
+    const blob = new Blob([JSON.stringify(record, null, 2)], {
+      type: 'application/json;charset=utf-8;',
+    });
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${(record.title || 'capstone').replace(/\s+/g, '-').toLowerCase()}-info.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, []);
+
+  if (!isInstructor) {
+    return (
+      <DashboardLayout>
+        <Alert variant="destructive">
+          <AlertDescription>You do not have permission to view this page.</AlertDescription>
+        </Alert>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Capstone Reports</h1>
             <p className="text-muted-foreground">
-              Generate and view archived capstone analytics with filters and export actions.
+              Analyze archived capstones with summary metrics, trend insights, and detailed records.
             </p>
-          </div>
-          <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <Button variant="outline" onClick={() => navigate('/archive/upload/capstone')}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Archived Capstone
-            </Button>
           </div>
         </div>
 
-        {/* Filter Bar */}
         <Card>
           <CardContent className="pt-6">
-            <div className="grid gap-4 sm:grid-cols-4">
-              <div className="space-y-1">
+            <div className="grid gap-4 lg:grid-cols-12">
+              <div className="space-y-1 lg:col-span-3">
                 <Label htmlFor="author">Author</Label>
                 <Input
                   id="author"
-                  placeholder="Search by author…"
+                  placeholder="Search by author..."
                   value={filters.author}
                   onChange={(e) => setFilters((f) => ({ ...f, author: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+
+              <div className="space-y-1 lg:col-span-4">
                 <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
-                  placeholder="Search by title…"
+                  placeholder="Search by title..."
                   value={filters.title}
                   onChange={(e) => setFilters((f) => ({ ...f, title: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1">
+
+              <div className="space-y-1 lg:col-span-2">
                 <Label htmlFor="year">Year</Label>
                 <Input
                   id="year"
@@ -281,8 +327,23 @@ export default function ReportsPage() {
                   onChange={(e) => setFilters((f) => ({ ...f, year: e.target.value }))}
                 />
               </div>
-              <div className="flex items-end">
-                <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+
+              <div className="flex flex-wrap items-end justify-end gap-2 lg:col-span-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdvanced((prev) => !prev)}
+                >
+                  {showAdvanced ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+                </Button>
+
+                <Button type="button" variant="ghost" size="sm" onClick={handleReset}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Reset
+                </Button>
+
+                <Button onClick={handleGenerate} disabled={isLoading}>
                   {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -293,26 +354,57 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdvanced((prev) => !prev)}
-              >
-                {showAdvanced ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={handleReset}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Reset
-              </Button>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
                 Live filter status: {hasLiveFilters ? 'ready' : 'waiting for input'}
               </span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Sort:</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={sortBy === 'archivedAt' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSortBy('archivedAt');
+                    setSortOrder((prev) =>
+                      sortBy === 'archivedAt' && prev === 'desc' ? 'asc' : 'desc',
+                    );
+                  }}
+                >
+                  Archived At
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={sortBy === 'title' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSortBy('title');
+                    setSortOrder((prev) => (sortBy === 'title' && prev === 'asc' ? 'desc' : 'asc'));
+                  }}
+                >
+                  Title
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={sortBy === 'academicYear' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSortBy('academicYear');
+                    setSortOrder((prev) =>
+                      sortBy === 'academicYear' && prev === 'asc' ? 'desc' : 'asc',
+                    );
+                  }}
+                >
+                  Academic Year
+                </Button>
+              </div>
             </div>
 
             {showAdvanced && (
-              <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3">
+              <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-4">
                 <div className="space-y-1">
                   <Label htmlFor="adviserId">Adviser</Label>
                   <select
@@ -362,27 +454,41 @@ export default function ReportsPage() {
                     ))}
                   </datalist>
                 </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="limit">Rows per page</Label>
+                  <select
+                    id="limit"
+                    value={String(limit)}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Loading */}
         {isLoading && (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error.message || 'Failed to load reports.'}</AlertDescription>
           </Alert>
         )}
 
-        {/* Empty */}
-        {!isLoading && !error && hasResults && reports.length === 0 && (
+        {!isLoading && !error && hasResults && records.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <FileText className="mb-3 h-10 w-10 text-muted-foreground" />
@@ -391,220 +497,213 @@ export default function ReportsPage() {
           </Card>
         )}
 
-        {/* Summary + Details */}
-        {!isLoading && !error && reports.length > 0 && (
+        {!isLoading && !error && records.length > 0 && (
           <>
-            {/* Total count card */}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="flex items-center gap-4 py-6">
                   <BarChart3 className="h-10 w-10 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Capstones</p>
-                    <p className="text-3xl font-bold">{totalCount}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Capstones Archived
+                    </p>
+                    <p className="text-3xl font-bold">{summary.totalCapstonesArchived}</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="flex items-center gap-4 py-6">
-                  <Search className="h-10 w-10 text-primary" />
+                  <CalendarRange className="h-10 w-10 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Matching Results</p>
-                    <p className="text-3xl font-bold">{matchingCount}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Most Active Year</p>
+                    <p className="text-3xl font-bold">{summary.mostActiveYear || 'N/A'}</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="flex items-center gap-4 py-6">
-                  <Download className="h-10 w-10 text-primary" />
+                  <Users className="h-10 w-10 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Quick Export</p>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={exportCsv}>
-                        CSV
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={exportExcel}>
-                        Excel
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={exportPdf}>
-                        PDF
-                      </Button>
-                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Authors / Students
+                    </p>
+                    <p className="text-3xl font-bold">{summary.totalAuthorsStudents}</p>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="flex items-center gap-4 py-6">
+                  <ShieldAlert className="h-10 w-10 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Plagiarism-Flagged Documents
+                    </p>
+                    <p className="text-3xl font-bold">{summary.flaggedByPlagiarism}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Capstone Submission Trend</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trend} margin={{ top: 8, right: 8, left: -12, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" angle={-25} textAnchor="end" interval={0} height={60} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Project Category Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryBreakdown}
+                        dataKey="count"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={98}
+                        label
+                      >
+                        {categoryBreakdown.map((entry, index) => (
+                          <Cell
+                            key={`${entry.category}-${index}`}
+                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
-              <CardContent className="flex items-center gap-4 py-6">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>Sort:</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={sortBy === 'archivedAt' ? 'default' : 'outline'}
-                    onClick={() => {
-                      setSortBy('archivedAt');
-                      setSortOrder((prev) => (sortBy === 'archivedAt' && prev === 'desc' ? 'asc' : 'desc'));
-                    }}
-                  >
-                    Archived At
+              <CardContent className="flex items-center justify-between gap-3 py-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(table.page - 1) * table.limit + 1} to{' '}
+                  {Math.min(table.page * table.limit, table.total)} of {table.total} records
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={exportCsv}>
+                    <Download className="mr-2 h-4 w-4" /> CSV
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={sortBy === 'title' ? 'default' : 'outline'}
-                    onClick={() => {
-                      setSortBy('title');
-                      setSortOrder((prev) => (sortBy === 'title' && prev === 'asc' ? 'desc' : 'asc'));
-                    }}
-                  >
-                    Title
+                  <Button size="sm" variant="outline" onClick={exportExcel}>
+                    <Download className="mr-2 h-4 w-4" /> Excel
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={sortBy === 'academicYear' ? 'default' : 'outline'}
-                    onClick={() => {
-                      setSortBy('academicYear');
-                      setSortOrder((prev) =>
-                        sortBy === 'academicYear' && prev === 'asc' ? 'desc' : 'asc',
-                      );
-                    }}
-                  >
-                    Academic Year
+                  <Button size="sm" variant="outline" onClick={exportPdf}>
+                    <Download className="mr-2 h-4 w-4" /> PDF
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Year breakdown */}
-            <div className="space-y-3">
-              {reports.map((group) => (
-                <Card key={group._id || group.academicYear}>
-                  <CardHeader
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleExpand(group._id || group.academicYear)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">
-                        AY {group.academicYear}
-                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                          ({group.count} project{group.count !== 1 ? 's' : ''})
-                        </span>
-                      </CardTitle>
-                      {expanded[group._id || group.academicYear] ? (
-                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </CardHeader>
-
-                  {expanded[group._id || group.academicYear] && (
-                    <CardContent className="pt-0">
-                      {group.projects?.length > 0 ? (
-                        <ul className="divide-y">
-                          {group.projects.map((p) => (
-                            <li
-                              key={p._id}
-                              className="grid gap-2 py-3 text-sm sm:grid-cols-5"
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Detailed Capstone Table</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] table-auto border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 pr-3">Title</th>
+                        <th className="py-2 pr-3">Authors</th>
+                        <th className="py-2 pr-3">Year</th>
+                        <th className="py-2 pr-3">Advisor</th>
+                        <th className="py-2 pr-3">Program</th>
+                        <th className="py-2 pr-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map((record) => (
+                        <tr key={record._id} className="border-b align-top">
+                          <td className="py-2 pr-3 font-medium">{record.title || '—'}</td>
+                          <td className="py-2 pr-3 text-muted-foreground">
+                            {record.authors?.map((item) => item.fullName).join(', ') || '—'}
+                          </td>
+                          <td className="py-2 pr-3 text-muted-foreground">
+                            {record.academicYear || '—'}
+                          </td>
+                          <td className="py-2 pr-3 text-muted-foreground">
+                            {record.adviser?.fullName || '—'}
+                          </td>
+                          <td className="py-2 pr-3 text-muted-foreground">
+                            {record.course?.label ||
+                              record.course?.name ||
+                              record.course?.code ||
+                              '—'}
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => exportRecordInfo(record)}
                             >
-                              <span className="sm:col-span-2">
-                                <span className="font-medium">{p.title}</span>
-                                {p.keywords?.length > 0 && (
-                                  <span className="mt-1 block text-xs text-muted-foreground">
-                                    {p.keywords.join(', ')}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {p.authors?.map((a) => a.fullName).join(', ') || '—'}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {p.adviser?.fullName || '—'}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {p.course?.label || p.course?.name || p.course?.code || '—'}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No project details available.
-                        </p>
-                      )}
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
-            </div>
-
-            {records.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Detailed Results</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[860px] table-auto border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b text-left">
-                          <th className="py-2 pr-3">Title</th>
-                          <th className="py-2 pr-3">Authors</th>
-                          <th className="py-2 pr-3">Adviser</th>
-                          <th className="py-2 pr-3">Program</th>
-                          <th className="py-2 pr-3">Year</th>
-                          <th className="py-2 pr-3">Keywords</th>
-                          <th className="py-2 pr-3">Archived</th>
+                              Export Info
+                            </Button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {records.map((record) => (
-                          <tr key={record._id} className="border-b align-top">
-                            <td className="py-2 pr-3 font-medium">{record.title || '—'}</td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.authors?.map((item) => item.fullName).join(', ') || '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.adviser?.fullName || '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.course?.label || record.course?.name || record.course?.code || '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.academicYear || '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.keywords?.join(', ') || '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {record.archivedAt
-                                ? new Date(record.archivedAt).toLocaleDateString()
-                                : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canGoPrev}
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    <ChevronLeft className="mr-1 h-4 w-4" /> Prev
+                  </Button>
+
+                  <span className="text-xs text-muted-foreground">
+                    Page {table.page} of {table.totalPages}
+                  </span>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canGoNext}
+                    onClick={() => setPage((prev) => prev + 1)}
+                  >
+                    Next <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
 
-        {/* Prompt before first search */}
         {!isLoading && !error && !hasResults && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
               <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground" />
               <p className="font-medium">Ready to generate a report</p>
               <p className="text-sm text-muted-foreground">
-                Use the filters above and click &ldquo;Generate Report&rdquo; to begin.
+                Use the filters above and click Generate to populate KPI cards, charts, and table.
               </p>
             </CardContent>
           </Card>

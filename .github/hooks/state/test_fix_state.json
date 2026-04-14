@@ -116,7 +116,7 @@
       "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
       "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
       "firstFailedAt": "2026-04-13T04:45:45+00:00",
-      "lastFailedAt": "2026-04-13T04:45:48+00:00",
+      "lastFailedAt": "2026-04-14T19:45:26+00:00",
       "fixAttempts": 0,
       "lastExitCode": 1
     },
@@ -138,7 +138,7 @@
     }
   ],
   "observedTestActivity": true,
-  "updatedAt": "2026-04-13T04:50:08+00:00",
+  "updatedAt": "2026-04-14T19:45:26+00:00",
   "integrityAnomaly": null,
   "publicExposureGate": {
     "pending": false,

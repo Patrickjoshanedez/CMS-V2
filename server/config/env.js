@@ -4,7 +4,10 @@ import { STORAGE_BUCKETS } from '@cms/shared';
 
 dotenv.config();
 
-const currentNodeEnv = process.env.NODE_ENV || 'development';
+const isServerDevScriptRun =
+  process.env.npm_package_name === 'server' && process.env.npm_lifecycle_event === 'dev';
+
+const currentNodeEnv = isServerDevScriptRun ? 'development' : process.env.NODE_ENV || 'development';
 const isDevelopmentEnv = currentNodeEnv === 'development';
 const isProductionEnv = currentNodeEnv === 'production';
 
@@ -636,7 +639,7 @@ if (isProductionEnv) {
 }
 
 const env = Object.freeze({
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: currentNodeEnv,
   PORT: parseInt(process.env.PORT, 10) || 5000,
 
   // Database

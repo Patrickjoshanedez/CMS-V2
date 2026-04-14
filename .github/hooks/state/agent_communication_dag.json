@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-04-14T15:29:58.482935Z",
+  "generated_at": "2026-04-14T20:02:02.203237Z",
   "metadata": {
     "agent_count": 10,
     "edges_count": 8,
@@ -13,36 +13,28 @@
       "name": "100x Code Reviewer",
       "tools_count": 13,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "coder": {
       "name": "coder",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "context-manager": {
       "name": "context-manager",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "logic-debugger": {
       "name": "logic-debugger",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "orchestrator": {
@@ -65,9 +57,7 @@
       "name": "product-design-handoff",
       "tools_count": 18,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "project-manager": {
@@ -81,39 +71,33 @@
       "name": "researcher",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "test-automation": {
       "name": "test-automation",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     },
     "thinker pro": {
       "name": "Thinker pro",
       "tools_count": 19,
       "can_delegate_to": [],
-      "can_receive_from": [
-        "orchestrator"
-      ],
+      "can_receive_from": ["orchestrator"],
       "errors": []
     }
   },
   "edges": [
     {
       "source": "orchestrator",
-      "target": "logic-debugger",
+      "target": "100x code reviewer",
       "bidirectional": false
     },
     {
       "source": "orchestrator",
-      "target": "context-manager",
+      "target": "logic-debugger",
       "bidirectional": false
     },
     {
@@ -123,17 +107,12 @@
     },
     {
       "source": "orchestrator",
-      "target": "100x code reviewer",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "researcher",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "test-automation",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "context-manager",
       "bidirectional": false
     },
     {
@@ -144,6 +123,11 @@
     {
       "source": "orchestrator",
       "target": "product-design-handoff",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "researcher",
       "bidirectional": false
     }
   ],

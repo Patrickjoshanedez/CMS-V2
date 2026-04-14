@@ -328,6 +328,7 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
   const [lineStart, setLineStart] = useState('');
   const [lineEnd, setLineEnd] = useState('');
   const [selectedText, setSelectedText] = useState('');
+  const [commentFilter, setCommentFilter] = useState('all');
 
   const addMutation = useAddAnnotation({
     onSuccess: () => toast.success('Annotation added.'),
@@ -376,6 +377,14 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
   };
 
   const annotations = submission.annotations || [];
+  const openCommentsCount = annotations.filter((ann) => !ann?.resolved).length;
+  const resolvedCommentsCount = annotations.filter((ann) => !!ann?.resolved).length;
+  const filteredAnnotations = annotations.filter((ann) => {
+    if (commentFilter === 'open') return !ann?.resolved;
+    if (commentFilter === 'resolved') return !!ann?.resolved;
+    return true;
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -388,23 +397,60 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2 rounded-lg border border-border/70 bg-muted/15 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <MessageSquare className="h-4 w-4 text-primary" />
-            <span>File Comments</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-foreground">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span>File Comments</span>
+              <Badge variant="outline" className="font-medium">
+                {annotations.length}
+              </Badge>
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/60 p-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={commentFilter === 'all' ? 'secondary' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setCommentFilter('all')}
+              >
+                All ({annotations.length})
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={commentFilter === 'open' ? 'secondary' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setCommentFilter('open')}
+              >
+                Open ({openCommentsCount})
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={commentFilter === 'resolved' ? 'secondary' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setCommentFilter('resolved')}
+              >
+                Resolved ({resolvedCommentsCount})
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Google Docs comments are disabled. Open/download the submission file to read attached
-            comments.
+            Review comments embedded in this submission and filter them by status.
           </p>
         </div>
 
-        {/* Existing annotations */}
         {annotations.length === 0 && (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
-            No annotations yet.
+            No file comments yet.
           </div>
         )}
-        {annotations.map((ann) => (
+        {annotations.length > 0 && filteredAnnotations.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+            No comments in the selected filter.
+          </div>
+        )}
+        {filteredAnnotations.map((ann) => (
           <div
             key={ann._id}
             className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/70 p-4"
@@ -426,6 +472,10 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
                 )}
                 <span>&middot;</span>
                 <span>{formatDate(ann.createdAt)}</span>
+                <span>&middot;</span>
+                <span className={ann.resolved ? 'text-success' : 'text-warning'}>
+                  {ann.resolved ? 'Resolved' : 'Open'}
+                </span>
               </div>
               {ann.selectedText && (
                 <blockquote className="text-xs text-muted-foreground border-l-2 border-primary/40 pl-2 italic">
