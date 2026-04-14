@@ -671,7 +671,7 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
 /**
  * Approve / Reject title card — shown when titleStatus === SUBMITTED
  */
-function TitleReviewCard({ project }) {
+function _TitleReviewCard({ project }) {
   const [reason, setReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
@@ -1024,7 +1024,7 @@ const DEADLINE_KEYS = [
  * date inputs. Future-phase fields default to "No Deadline" and can be
  * toggled to "TBA" (To Be Announced) by the instructor.
  */
-function DeadlinesCard({ project, isInstructor }) {
+function _DeadlinesCard({ project, isInstructor }) {
   const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
   const existingTba = project.deadlines?.tba || [];
   const dateInputRefs = useRef({});
@@ -1302,7 +1302,7 @@ function ArchiveProjectCard({ project }) {
 /**
  * Reject entire project card — instructor only, destructive action.
  */
-function RejectProjectCard({ project }) {
+function _RejectProjectCard({ project }) {
   const [reason, setReason] = useState('');
   const [confirm, setConfirm] = useState(false);
 
@@ -1757,6 +1757,44 @@ export default function ProjectDetailPage() {
 
             {!isPeer && (
               <>
+                {/* Faculty/student owner can open submissions; faculty access is view-only */}
+                {!isArchived && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Student Submissions</CardTitle>
+                      <CardDescription>
+                        {isFacultyMember
+                          ? 'Open the student submissions page in read-only mode.'
+                          : 'Open your submissions workspace.'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          navigate(
+                            isFacultyMember
+                              ? `/project/submissions?mode=view&projectId=${project._id}`
+                              : '/project/submissions',
+                          )
+                        }
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        {isFacultyMember
+                          ? 'View Student Submissions (Read-Only)'
+                          : 'View Submissions'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Advance phase — instructor only */}
+                {!isArchived &&
+                  isInstructor &&
+                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
+                    <AdvancePhaseCard project={project} />
+                  )}
+
                 {/* History tab with audit trail */}
                 <ProjectHistoryCard projectId={project._id} />
 
@@ -1784,13 +1822,6 @@ export default function ProjectDetailPage() {
                 {!isArchived && isFacultyMember && (
                   <FacultyCommitteeCard project={project} canManage={isInstructor} />
                 )}
-
-                {/* Advance phase — instructor only */}
-                {!isArchived &&
-                  isInstructor &&
-                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-                    <AdvancePhaseCard project={project} />
-                  )}
 
                 {/* Archive transition — instructor only (Capstone 4) */}
                 {!isArchived &&

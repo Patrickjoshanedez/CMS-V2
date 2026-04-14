@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
-import { useMyProject } from '@/hooks/useProjects';
+import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
 import { DOCUMENT_TYPES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
@@ -89,10 +89,10 @@ function EmptyState({ canUpload, canCompileProposal }) {
   );
 }
 
-function SubmissionRow({ submission }) {
+function SubmissionRow({ submission, searchSuffix = '' }) {
   return (
     <Link
-      to={`/project/submissions/${submission._id}`}
+      to={`/project/submissions/${submission._id}${searchSuffix}`}
       className="flex items-center justify-between rounded-lg border bg-card p-4 transition hover:bg-accent/50"
     >
       <div className="flex items-start gap-4">
@@ -142,6 +142,10 @@ export default function ProjectSubmissionsPage() {
   const [searchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === ROLES.STUDENT;
+  const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(user?.role);
+  const mode = searchParams.get('mode');
+  const targetProjectId = searchParams.get('projectId') || '';
+  const isReadOnlyMode = mode === 'view' && Boolean(targetProjectId);
   const hasTeam = Boolean(user?.teamId);
 
   const [chapterFilter, setChapterFilter] = useState('');
@@ -162,6 +166,17 @@ export default function ProjectSubmissionsPage() {
     refetch: refetchProject,
   } = useMyProject({ enabled: isStudent });
 
+  const {
+    data: targetProject,
+    isLoading: targetProjectLoading,
+    error: targetProjectError,
+    refetch: refetchTargetProject,
+  } = useProject(targetProjectId, {
+    enabled: isReadOnlyMode && isFaculty,
+  });
+
+  const activeProject = isReadOnlyMode ? targetProject : project;
+
   const filters = {};
   if (chapterFilter) filters.chapter = chapterFilter;
 
@@ -170,22 +185,22 @@ export default function ProjectSubmissionsPage() {
     isLoading: subsLoading,
     error: subsError,
     refetch: refetchSubs,
-  } = useProjectSubmissions(project?._id, filters, {
-    enabled: !!project?._id,
+  } = useProjectSubmissions(activeProject?._id, filters, {
+    enabled: !!activeProject?._id,
   });
 
   const { data: allSubmissionsData } = useProjectSubmissions(
-    project?._id,
+    activeProject?._id,
     { limit: 100 },
     {
-      enabled: !!project?._id,
+      enabled: !!activeProject?._id,
     },
   );
 
   const submissions = submissionsData?.submissions || [];
   const allSubmissions = allSubmissionsData?.submissions || submissions;
-  const isLoading = projectLoading || subsLoading;
-  const error = projectError || subsError;
+  const isLoading = (isReadOnlyMode ? targetProjectLoading : projectLoading) || subsLoading;
+  const error = (isReadOnlyMode ? targetProjectError : projectError) || subsError;
   const lateCount = submissions.filter((item) => item.isLate).length;
   const lockedCount = submissions.filter(
     (item) => item.status === SUBMISSION_STATUSES.LOCKED,
@@ -209,11 +224,11 @@ export default function ProjectSubmissionsPage() {
     return map;
   }, new Map());
 
-  const titleApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
+  const titleApproved = activeProject?.titleStatus === TITLE_STATUSES.APPROVED;
   const hasProposal = allSubmissions.some(
     (submission) => submission.type === DOCUMENT_TYPES.PROPOSAL,
   );
-  const canUpload = isStudent && titleApproved;
+  const canUpload = isStudent && !isReadOnlyMode && titleApproved;
   const chaptersReadyForProposal = [1, 2, 3].every((chapter) => {
     const chapterSubmission = latestChapterSubmissions.get(chapter);
     return (
@@ -225,7 +240,8 @@ export default function ProjectSubmissionsPage() {
       ].includes(chapterSubmission.status)
     );
   });
-  const canCompileProposal = isStudent && titleApproved && chaptersReadyForProposal && !hasProposal;
+  const canCompileProposal =
+    isStudent && !isReadOnlyMode && titleApproved && chaptersReadyForProposal && !hasProposal;
 
   /* ────── Loading ────── */
   if (isLoading) {
@@ -240,7 +256,7 @@ export default function ProjectSubmissionsPage() {
 
   /* ────── Non-Student Redirect ────── */
   // Advisers, instructors, and panelists should view submissions via the Projects page
-  if (!isStudent) {
+  if (!isStudent && !isReadOnlyMode) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
@@ -260,6 +276,28 @@ export default function ProjectSubmissionsPage() {
 
   /* ────── Error ────── */
   if (error || !project) {
+    if (isReadOnlyMode && isFaculty && !activeProject) {
+      return (
+        <DashboardLayout>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>Could not load student project submissions.</AlertDescription>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => {
+                refetchTargetProject();
+                refetchSubs();
+              }}
+            >
+              Retry
+            </Button>
+          </Alert>
+        </DashboardLayout>
+      );
+    }
+
     // Distinguish between "no team/project" (expected for new students) vs actual errors
     const errorCode = projectError?.response?.data?.error?.code;
     const isNoTeam = errorCode === 'NO_TEAM' || (!hasTeam && !projectError);
@@ -331,18 +369,29 @@ export default function ProjectSubmissionsPage() {
               variant="ghost"
               size="sm"
               className="mb-2 -ml-2 text-muted-foreground"
-              onClick={() => navigate('/project')}
+              onClick={() => {
+                if (isReadOnlyMode) {
+                  navigate(`/projects/${activeProject?._id}`);
+                  return;
+                }
+                navigate('/project');
+              }}
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
-              Back to Project
+              {isReadOnlyMode ? 'Back to Project Detail' : 'Back to Project'}
             </Button>
             <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Document submissions for&nbsp;
-              <span className="font-medium">{project.title}</span>
+              <span className="font-medium">{activeProject.title}</span>
             </p>
+            {isReadOnlyMode && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Read-only mode: viewing student submissions without edit/upload actions.
+              </p>
+            )}
           </div>
-          {isStudent && (
+          {isStudent && !isReadOnlyMode && (
             <div className="flex flex-wrap items-center gap-2">
               {canCompileProposal && (
                 <Button onClick={() => navigate('/project/proposal')}>
@@ -364,7 +413,7 @@ export default function ProjectSubmissionsPage() {
         </div>
 
         {/* Deadline alerts — compact warnings for approaching/overdue deadlines */}
-        {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+        {activeProject.deadlines && <DeadlineWarning deadlines={activeProject.deadlines} compact />}
 
         {/* Quick summary */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -432,7 +481,15 @@ export default function ProjectSubmissionsPage() {
         ) : (
           <div className="space-y-3">
             {submissions.map((sub) => (
-              <SubmissionRow key={sub._id} submission={sub} />
+              <SubmissionRow
+                key={sub._id}
+                submission={sub}
+                searchSuffix={
+                  isReadOnlyMode
+                    ? `?mode=view&projectId=${encodeURIComponent(activeProject._id)}`
+                    : ''
+                }
+              />
             ))}
           </div>
         )}

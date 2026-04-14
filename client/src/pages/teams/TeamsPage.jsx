@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -6,9 +7,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { TagInput } from '@/components/ui/TagInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import { TagInput } from '@/components/ui/TagInput';
 import {
   UsersRound,
   UserPlus,
@@ -35,10 +36,11 @@ import {
   useUpdateGoogleDocLink,
   useLockTeam,
   useLeaveTeam,
+  teamKeys,
 } from '@/hooks/useTeams';
+import { useUsers } from '@/hooks/useUsers';
 import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
-import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
 
 /**
@@ -56,6 +58,11 @@ function formatName(userObj) {
   if (!userObj) return 'Unknown';
   const parts = [userObj.firstName, userObj.middleName, userObj.lastName].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : userObj.email || 'Unknown';
+}
+
+function formatCommitteeOption(userObj) {
+  if (!userObj) return '';
+  return `${formatName(userObj)} • ${userObj.email || 'No email provided'}`;
 }
 
 /* ────────── Empty State (no team yet) ────────── */
@@ -922,80 +929,114 @@ function TeamCard({ team }) {
   );
 }
 
-function FacultyTeamDetail({ team, canAssignCommittee = false }) {
+function FacultyTeamDetail({ team, canAssignCommittee }) {
+  const queryClient = useQueryClient();
   const leader = team.leaderId;
   const members = team.members || [];
   const assignment = team.assignment || {};
-  const panelists = assignment.panelists || [];
-  const [adviserSelection, setAdviserSelection] = useState([]);
-  const [panelistSelection, setPanelistSelection] = useState([]);
+  const panelists = useMemo(() => assignment.panelists || [], [assignment.panelists]);
+  const projectId = assignment.projectId || null;
 
-  const { data: adviserData = {} } = useUsers(
-    { role: ROLES.ADVISER, limit: 100 },
-    {
-      enabled: canAssignCommittee,
-    },
+  const { data: adviserData, isLoading: isAdvisersLoading } = useUsers(
+    { role: ROLES.ADVISER, isActive: true, page: 1, limit: 200 },
+    { enabled: canAssignCommittee },
   );
-  const { data: panelistData = {} } = useUsers(
-    { role: ROLES.PANELIST, limit: 100 },
-    {
-      enabled: canAssignCommittee,
-    },
+
+  const { data: panelistData, isLoading: isPanelistsLoading } = useUsers(
+    { role: ROLES.PANELIST, isActive: true, page: 1, limit: 200 },
+    { enabled: canAssignCommittee },
+  );
+
+  const adviserOptions = useMemo(() => adviserData?.users || [], [adviserData?.users]);
+  const panelistOptions = useMemo(() => panelistData?.users || [], [panelistData?.users]);
+
+  const adviserSuggestions = useMemo(
+    () => adviserOptions.map(formatCommitteeOption),
+    [adviserOptions],
+  );
+
+  const panelistSuggestions = useMemo(
+    () =>
+      panelistOptions
+        .filter(
+          (panelist) => !panelists.some((currentPanelist) => currentPanelist?._id === panelist._id),
+        )
+        .map(formatCommitteeOption),
+    [panelistOptions, panelists],
   );
 
   const assignAdviser = useAssignAdviser({
     onSuccess: () => {
-      toast.success('Adviser assigned.');
-      setAdviserSelection([]);
+      toast.success('Adviser assigned successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
     },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to assign adviser.'),
+    onError: (error) => {
+      toast.error(error?.response?.data?.error?.message || 'Failed to assign adviser.');
+    },
   });
 
-  const addPanelist = useAssignPanelist({
+  const assignPanelist = useAssignPanelist({
     onSuccess: () => {
-      toast.success('Panelist added.');
-      setPanelistSelection([]);
+      toast.success('Panelist assigned successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
     },
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to add panelist.'),
+    onError: (error) => {
+      toast.error(error?.response?.data?.error?.message || 'Failed to assign panelist.');
+    },
   });
 
   const removePanelist = useRemovePanelist({
-    onSuccess: () => toast.success('Panelist removed.'),
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to remove panelist.'),
+    onSuccess: () => {
+      toast.success('Panelist removed successfully.');
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.error?.message || 'Failed to remove panelist.');
+    },
   });
 
-  const getUserLabel = (user) => `${formatName(user)}${user.email ? ` (${user.email})` : ''}`;
-  const advisers = adviserData.users || [];
-  const panelistCandidates = panelistData.users || [];
-  const adviserSuggestions = advisers.map(getUserLabel);
-  const panelistSuggestions = panelistCandidates
-    .filter(
-      (candidate) => !panelists.some((panelist) => (panelist._id || panelist) === candidate._id),
-    )
-    .map(getUserLabel);
-  const panelistSelectionLabel = panelistSelection[0] || '';
-  const adviserSelectionLabel = adviserSelection[0] || '';
+  const handleAdviserSelect = (selectedTags) => {
+    const selectedLabel = selectedTags.at(-1);
+    if (!selectedLabel || !projectId) {
+      return;
+    }
 
-  const handleAssignAdviser = () => {
-    const selectedAdviser = advisers.find((user) => getUserLabel(user) === adviserSelectionLabel);
-    if (!selectedAdviser) return;
-    assignAdviser.mutate({
-      projectId: assignment.projectId || team.projectId || team._id,
-      adviserId: selectedAdviser._id,
-    });
+    const selectedAdviser = adviserOptions.find(
+      (adviser) => formatCommitteeOption(adviser) === selectedLabel,
+    );
+    if (!selectedAdviser) {
+      toast.error('Select a valid adviser from the suggestions.');
+      return;
+    }
+
+    if (assignment.adviser?._id === selectedAdviser._id) {
+      toast.error('This adviser is already assigned.');
+      return;
+    }
+
+    assignAdviser.mutate({ projectId, adviserId: selectedAdviser._id });
   };
 
-  const handleAddPanelist = () => {
-    const selectedPanelist = panelistCandidates.find(
-      (user) => getUserLabel(user) === panelistSelectionLabel,
+  const handlePanelistSelect = (selectedTags) => {
+    const selectedLabel = selectedTags.at(-1);
+    if (!selectedLabel || !projectId) {
+      return;
+    }
+
+    const selectedPanelist = panelistOptions.find(
+      (panelist) => formatCommitteeOption(panelist) === selectedLabel,
     );
-    if (!selectedPanelist) return;
-    addPanelist.mutate({
-      projectId: assignment.projectId || team.projectId || team._id,
-      panelistId: selectedPanelist._id,
-    });
+    if (!selectedPanelist) {
+      toast.error('Select a valid panelist from the suggestions.');
+      return;
+    }
+
+    if (panelists.some((panelist) => panelist?._id === selectedPanelist._id)) {
+      toast.error('This panelist is already assigned to the team.');
+      return;
+    }
+
+    assignPanelist.mutate({ projectId, panelistId: selectedPanelist._id });
   };
 
   return (
@@ -1050,6 +1091,25 @@ function FacultyTeamDetail({ team, canAssignCommittee = false }) {
               <p className="text-xs text-muted-foreground">
                 {assignment.adviser?.email || 'No adviser assigned yet'}
               </p>
+
+              {canAssignCommittee && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Search and assign adviser
+                  </p>
+                  <TagInput
+                    value={[]}
+                    onChange={handleAdviserSelect}
+                    suggestions={adviserSuggestions}
+                    placeholder={
+                      isAdvisersLoading ? 'Loading advisers...' : 'Type to search advisers'
+                    }
+                    maxTags={1}
+                    disabled={!projectId || isAdvisersLoading || assignAdviser.isPending}
+                    className="w-full"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="rounded-md border p-3">
@@ -1059,100 +1119,69 @@ function FacultyTeamDetail({ team, canAssignCommittee = false }) {
               {panelists.length > 0 ? (
                 <div className="mt-1 space-y-1">
                   {panelists.map((panelist) => (
-                    <div key={panelist._id} className="text-sm">
-                      <p className="font-medium">{formatName(panelist)}</p>
-                      <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                    <div
+                      key={panelist._id}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <div>
+                        <p className="font-medium">{formatName(panelist)}</p>
+                        <p className="text-xs text-muted-foreground">{panelist.email}</p>
+                      </div>
+                      {canAssignCommittee && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!projectId || removePanelist.isPending}
+                          onClick={() =>
+                            removePanelist.mutate({ projectId, panelistId: panelist._id })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
               )}
-            </div>
 
-            {canAssignCommittee && (
-              <div className="space-y-3 rounded-md border bg-muted/20 p-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Assign Adviser
-                  </Label>
+              {canAssignCommittee && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Search and add panelist
+                  </p>
                   <TagInput
-                    value={adviserSelection}
-                    onChange={setAdviserSelection}
-                    suggestions={adviserSuggestions}
-                    placeholder="Type to search advisers"
-                    maxTags={1}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-2"
-                    disabled={!adviserSelectionLabel || assignAdviser.isPending}
-                    onClick={handleAssignAdviser}
-                  >
-                    {assignAdviser.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Save Adviser
-                  </Button>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Add Panelist
-                  </Label>
-                  <TagInput
-                    value={panelistSelection}
-                    onChange={setPanelistSelection}
+                    value={[]}
+                    onChange={handlePanelistSelect}
                     suggestions={panelistSuggestions}
-                    placeholder="Type to search panelists"
-                    maxTags={1}
+                    placeholder={
+                      isPanelistsLoading ? 'Loading panelists...' : 'Type to search panelists'
+                    }
+                    maxTags={3}
+                    disabled={
+                      !projectId ||
+                      isPanelistsLoading ||
+                      assignPanelist.isPending ||
+                      panelists.length >= 3
+                    }
+                    className="w-full"
                   />
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-2"
-                    disabled={!panelistSelectionLabel || addPanelist.isPending}
-                    onClick={handleAddPanelist}
-                  >
-                    {addPanelist.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Add Panelist
-                  </Button>
+                  {panelists.length >= 3 && (
+                    <p className="text-xs text-muted-foreground">
+                      This project already has the maximum number of panelists.
+                    </p>
+                  )}
                 </div>
+              )}
 
-                {panelists.length > 0 && (
-                  <div className="space-y-2">
-                    {panelists.map((panelist) => {
-                      const panelistId = panelist._id || panelist;
-                      return (
-                        <div
-                          key={panelistId}
-                          className="flex items-center justify-between rounded-md border bg-background px-3 py-2 text-sm"
-                        >
-                          <span>{formatName(panelist)}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={removePanelist.isPending}
-                            onClick={() =>
-                              removePanelist.mutate({
-                                projectId: assignment.projectId || team.projectId || team._id,
-                                panelistId,
-                              })
-                            }
-                          >
-                            <X className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+              {canAssignCommittee && !projectId && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Create and approve the team project first before assigning adviser and panelists.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

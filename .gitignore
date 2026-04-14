@@ -84,11 +84,6 @@ scripts/token.json
 # LocalStack cache artifacts (contains local test keys/certs)
 .localstack/cache/
 
-# Generated hook runtime artifacts
-.github/hooks/state/
-.github/hooks/scripts/__pycache__/
-*.pyc
-
 # Local context and checkpoint files
 context/
 .probe
@@ -132,10 +127,4 @@ start-all-services-fixed.ps1
 start-all-services.ps1
 start-cms.ps1
 start-prod-test.ps1
-.github/hooks/state/agent_communication_dag.json
-.github/hooks/state/agent_prefetch_registry.json
-.github/hooks/state/decision_coherence_report.json
-.github/hooks/copilot-runtime-hooks.json
-.github/hooks/orchestrator-automation.json
-.github/hooks/state/agent_communication_dag.json
-.github/hooks/state/decision_coherence_report.json
+

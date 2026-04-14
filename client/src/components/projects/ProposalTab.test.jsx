@@ -52,6 +52,13 @@ const structuredDescriptionProject = {
   ],
 };
 
+const approvedProject = {
+  ...baseProject,
+  titleStatus: 'approved',
+  projectStatus: 'proposal_approved',
+  capstonePhase: 2,
+};
+
 const fieldText = {
   problemStatement:
     'High prevalence of manual incident logs and delayed routing leads to unresolved requests and poor visibility.',
@@ -112,13 +119,11 @@ describe('ProposalTab', () => {
   it('keeps only one accordion expanded at a time', () => {
     const view = renderProposalTab();
 
-    expect(
-      view.container.querySelector('textarea#proposal-1-problemStatement'),
-    ).toBeTruthy();
+    expect(view.container.querySelector('textarea#proposal-1-problemStatement')).toBeTruthy();
     expect(view.container.querySelector('textarea#proposal-2-problemStatement')).toBeFalsy();
 
-    const secondAccordionButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Barangay Escalation Dashboard'),
+    const secondAccordionButton = Array.from(view.container.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Barangay Escalation Dashboard'),
     );
 
     expect(secondAccordionButton).toBeTruthy();
@@ -158,7 +163,10 @@ describe('ProposalTab', () => {
     const view = renderProposalTab();
 
     const textareas = view.container.querySelectorAll('textarea');
-    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value',
+    ).set;
     const values = Object.values(fieldText);
 
     for (let index = 0; index < textareas.length; index += 1) {
@@ -211,6 +219,16 @@ describe('ProposalTab', () => {
     view.unmount();
   });
 
+  it('shows approval and capstone progress context for approved projects', () => {
+    const view = renderProposalTab(approvedProject);
+
+    expect(view.container.textContent).toContain('Title approved. Current progress: Capstone 2.');
+    expect(view.container.textContent).toContain('Approved');
+    expect(view.container.textContent).toContain('Proposal Approved');
+
+    view.unmount();
+  });
+
   it('submits deck data and triggers a sanitized PDF download filename', async () => {
     vi.useFakeTimers();
     mockGenerateProposalDeck.mockResolvedValue({ data: new Uint8Array([1, 2, 3]) });
@@ -221,17 +239,19 @@ describe('ProposalTab', () => {
     const linkClick = vi.fn();
     const linkRemove = vi.fn();
 
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
-      const element = originalCreateElement(tagName, options);
-      if (tagName === 'a') {
-        element.click = linkClick;
-        Object.defineProperty(element, 'remove', {
-          value: linkRemove,
-          configurable: true,
-        });
-      }
-      return element;
-    });
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName, options) => {
+        const element = originalCreateElement(tagName, options);
+        if (tagName === 'a') {
+          element.click = linkClick;
+          Object.defineProperty(element, 'remove', {
+            value: linkRemove,
+            configurable: true,
+          });
+        }
+        return element;
+      });
 
     for (const placeholder of placeholders) {
       const textarea = view.container.querySelector(`textarea[placeholder="${placeholder}"]`);
@@ -250,7 +270,10 @@ describe('ProposalTab', () => {
     const textareas = view.container.querySelectorAll('textarea');
     expect(textareas).toHaveLength(5);
 
-    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value',
+    ).set;
     const values = Object.values(fieldText);
     for (let index = 0; index < textareas.length; index += 1) {
       await act(async () => {

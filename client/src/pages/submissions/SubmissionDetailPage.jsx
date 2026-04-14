@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -559,7 +559,10 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
 export default function SubmissionDetailPage() {
   const { submissionId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
+  const isReadOnlyMode = searchParams.get('mode') === 'view';
+  const sourceProjectId = searchParams.get('projectId') || '';
 
   const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(user?.role);
 
@@ -602,7 +605,8 @@ export default function SubmissionDetailPage() {
             Back
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">Submission Detail</h1>
-          {isFaculty && (
+          {isReadOnlyMode && <Badge variant="outline">View Only</Badge>}
+          {isFaculty && !isReadOnlyMode && (
             <Button
               variant="outline"
               size="sm"
@@ -611,12 +615,23 @@ export default function SubmissionDetailPage() {
               Open Review Workspace
             </Button>
           )}
+          {isReadOnlyMode && sourceProjectId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigate(`/project/submissions?mode=view&projectId=${sourceProjectId}`)
+              }
+            >
+              Back to Student Submissions
+            </Button>
+          )}
         </div>
 
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />
         {/* Faculty: plagiarism checker */}
-        {isFaculty && (
+        {isFaculty && !isReadOnlyMode && (
           <PlagiarismChecker
             submissionId={submission._id}
             submissionTitle={`${CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`} v${submission.version}`}
@@ -626,17 +641,21 @@ export default function SubmissionDetailPage() {
           />
         )}
         {/* Faculty: review controls */}
-        {isFaculty && (
+        {isFaculty && !isReadOnlyMode && (
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
 
         {/* Faculty: unlock locked submissions */}
-        {isFaculty && (
+        {isFaculty && !isReadOnlyMode && (
           <UnlockPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
 
         {/* Annotations */}
-        <AnnotationsPanel submission={submission} isFaculty={isFaculty} userId={user?._id} />
+        <AnnotationsPanel
+          submission={submission}
+          isFaculty={isFaculty && !isReadOnlyMode}
+          userId={user?._id}
+        />
       </div>
     </DashboardLayout>
   );

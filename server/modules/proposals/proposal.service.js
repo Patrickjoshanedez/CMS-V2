@@ -298,9 +298,7 @@ class ProposalService {
         width: Math.round((SLIDE_WIDTH_MM * 96) / 25.4), // Convert mm to pixels at 96 DPI
         height: Math.round((SLIDE_HEIGHT_MM * 96) / 25.4),
       });
-
       await page.setContent(html, { waitUntil: 'load' });
-
       const pdfBuffer = await page.pdf({
         width: `${SLIDE_WIDTH_MM}mm`,
         height: `${SLIDE_HEIGHT_MM}mm`,

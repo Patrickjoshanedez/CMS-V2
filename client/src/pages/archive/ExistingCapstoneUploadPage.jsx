@@ -21,7 +21,16 @@ import { useAcademicYears } from '@/hooks/useAcademics';
 import { documentService } from '@/services/authService';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
-import { Loader2, Upload, ArrowLeft, Info, Sparkles } from 'lucide-react';
+import {
+  Loader2,
+  Upload,
+  ArrowLeft,
+  Info,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+} from 'lucide-react';
 
 const KEYWORD_SUGGESTIONS = [
   'IoT',
@@ -110,6 +119,7 @@ export default function ExistingCapstoneUploadPage() {
   const [academicPaperFile, setAcademicPaperFile] = useState(null);
   const [academicJournalFile, setAcademicJournalFile] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [scanStatus, setScanStatus] = useState('idle');
   const [similarityReport, setSimilarityReport] = useState(null);
   const [extractionMetadata, setExtractionMetadata] = useState(null);
 
@@ -121,6 +131,38 @@ export default function ExistingCapstoneUploadPage() {
   const titleConflicts = similarityReport?.titleConflicts || [];
   const abstractConflicts = similarityReport?.abstractConflicts || [];
   const hasSimilarityConflicts = titleConflicts.length > 0 || abstractConflicts.length > 0;
+  const scanStatusConfig =
+    scanStatus === 'scanning'
+      ? {
+          label: 'OCR scanner is reading the PDF and extracting metadata',
+          detail: 'This can take a few moments for larger files.',
+          icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
+          className:
+            'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-100',
+        }
+      : scanStatus === 'complete'
+        ? {
+            label: 'OCR scan complete',
+            detail: 'Metadata was extracted and applied to the form.',
+            icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+            className:
+              'border-green-200 bg-green-50 text-green-900 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-100',
+          }
+        : scanStatus === 'error'
+          ? {
+              label: 'OCR scan interrupted',
+              detail: 'You can retry with Rescan or fill the fields manually.',
+              icon: <AlertCircle className="h-3.5 w-3.5" />,
+              className:
+                'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
+            }
+          : {
+              label: 'Waiting for a PDF upload',
+              detail: 'Select the academic paper PDF to start OCR metadata extraction.',
+              icon: <FileText className="h-3.5 w-3.5" />,
+              className:
+                'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200',
+            };
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -151,6 +193,7 @@ export default function ExistingCapstoneUploadPage() {
       if (!file || file.type !== 'application/pdf') return;
 
       setIsExtracting(true);
+      setScanStatus('scanning');
       try {
         const response = await documentService.extractPdfMetadata(file);
         const {
@@ -212,6 +255,8 @@ export default function ExistingCapstoneUploadPage() {
           toast.info('Could not extract metadata from this PDF format.');
         }
 
+        setScanStatus('complete');
+
         return {
           title: title?.trim() || '',
           abstract: abstract?.trim() || '',
@@ -242,6 +287,7 @@ export default function ExistingCapstoneUploadPage() {
               'Automatic PDF extraction failed. You can still fill the fields manually.',
           );
         }
+        setScanStatus('error');
         console.warn('PDF extraction failed:', err);
         return {
           title: '',
@@ -290,6 +336,7 @@ export default function ExistingCapstoneUploadPage() {
     setAcademicPaperFile(null);
     setAcademicJournalFile(null);
     setExtractionMetadata(null);
+    setScanStatus('idle');
 
     const academicInput = document.getElementById('academic-paper-file');
     const journalInput = document.getElementById('academic-journal-file');
@@ -585,6 +632,19 @@ export default function ExistingCapstoneUploadPage() {
                     </span>
                   )}
                 </Label>
+                <div
+                  className={`flex items-start gap-3 rounded-md border px-3 py-2 text-xs ${scanStatusConfig.className}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/20 bg-background/80">
+                    {scanStatusConfig.icon}
+                  </span>
+                  <div className="space-y-0.5">
+                    <div className="font-medium">{scanStatusConfig.label}</div>
+                    <div className="opacity-80">{scanStatusConfig.detail}</div>
+                  </div>
+                </div>
                 <Input
                   id="academic-paper-file"
                   type="file"
