@@ -94,9 +94,9 @@ function EmptyProjectState({ team }) {
                 Finalize and lock your team first before creating a project.
               </AlertDescription>
             </Alert>
-            <Button onClick={() => navigate('/team')}>
+            <Button onClick={() => navigate('/dashboard')}>
               <Users className="mr-2 h-4 w-4" />
-              Go to My Team
+              Go to Dashboard
             </Button>
           </div>
         ) : (

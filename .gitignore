@@ -135,3 +135,7 @@ start-prod-test.ps1
 .github/hooks/state/agent_communication_dag.json
 .github/hooks/state/agent_prefetch_registry.json
 .github/hooks/state/decision_coherence_report.json
+.github/hooks/copilot-runtime-hooks.json
+.github/hooks/orchestrator-automation.json
+.github/hooks/state/agent_communication_dag.json
+.github/hooks/state/decision_coherence_report.json

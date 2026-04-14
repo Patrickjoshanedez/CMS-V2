@@ -163,15 +163,43 @@ function TitleProposalsSection({ project, currentUser }) {
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
 function ProjectInfoPanel({ project }) {
+  const proposalTitles = (project.titleProposals || [])
+    .map((proposal) => (typeof proposal === 'string' ? proposal : proposal?.title))
+    .map((title) => (typeof title === 'string' ? title.trim() : ''))
+    .filter(Boolean);
+
+  const allProjectTitles = proposalTitles
+    .map((title) => (typeof title === 'string' ? title.trim() : ''))
+    .filter(Boolean)
+    .filter((title, index, list) => {
+      const normalized = title.toLowerCase();
+      return list.findIndex((entry) => entry.toLowerCase() === normalized) === index;
+    });
+
+  const primaryTitle = allProjectTitles[0] || project.title || 'Untitled project';
+  const secondaryTitles = allProjectTitles.slice(1);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="space-y-1">
-            <CardTitle className="text-xl">{project.title}</CardTitle>
+            <CardTitle className="text-xl font-semibold tracking-tight">{primaryTitle}</CardTitle>
             <CardDescription>
               {project.academicYear} · Capstone {project.capstonePhase}
             </CardDescription>
+            {secondaryTitles.length > 0 ? (
+              <div className="pt-1 space-y-1">
+                {secondaryTitles.map((title, index) => (
+                  <p
+                    key={`${title}-${index}`}
+                    className="text-xl font-semibold tracking-tight text-foreground"
+                  >
+                    {title}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-2">
             <TitleStatusBadge status={project.titleStatus} />
@@ -202,39 +230,77 @@ function ProjectInfoPanel({ project }) {
           </div>
         )}
 
-        {/* Meta grid */}
-        <div className="grid gap-4 border-t pt-4 sm:grid-cols-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Team:</span>
-            <span className="font-medium">{project.teamId?.name || '—'}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Adviser:</span>
-            <span className="font-medium">
-              {project.adviserId?.firstName
-                ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                : 'Not assigned'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Panelists:</span>
-            <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
-          </div>
-        </div>
+        {/* Project details */}
+        <div className="space-y-4 border-t pt-4">
+          <section className="rounded-md border bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              People
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Team:</span>
+                <span className="font-medium">{project.teamId?.name || '—'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Adviser:</span>
+                <span className="font-medium">
+                  {project.adviserId?.firstName
+                    ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
+                    : 'Not assigned'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Panelists:</span>
+                <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
+              </div>
+            </div>
+          </section>
 
-        {/* Panelist names */}
-        {project.panelistIds?.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {project.panelistIds.map((p) => (
-              <Badge key={p._id || p} variant="outline">
-                {p.firstName ? `${p.firstName} ${p.lastName}` : p._id || p}
-              </Badge>
-            ))}
-          </div>
-        )}
+          <section className="rounded-md border bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Project Context
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Academic Year:</span>
+                <span className="font-medium">{project.academicYear || '—'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm sm:col-span-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Program / Department:</span>
+                <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Capstone Type/Phase:</span>
+                <span className="font-medium">
+                  {project.capstoneType ||
+                    project.projectType ||
+                    `Capstone ${project.capstonePhase}`}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {project.panelistIds?.length > 0 && (
+            <section className="rounded-md border bg-muted/10 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Panelist Roster
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {project.panelistIds.map((p) => (
+                  <Badge key={p._id || p} variant="outline">
+                    {p.firstName ? `${p.firstName} ${p.lastName}` : p._id || p}
+                  </Badge>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
 
         {/* Rejection reason */}
         {project.rejectionReason && (
@@ -945,11 +1011,6 @@ export default function ProjectDetailPage() {
               showAllSubmissionsButton={false}
             />
 
-            {/* Title review — only when submitted */}
-            {!isArchived && project.titleStatus === TITLE_STATUSES.SUBMITTED && isInstructor && (
-              <TitleReviewCard project={project} />
-            )}
-
             {/* Modification review — only when pending */}
             {!isArchived &&
               project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
@@ -962,11 +1023,6 @@ export default function ProjectDetailPage() {
 
             {/* Panelists — instructor only */}
             {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
-
-            {/* Deadlines — instructor or adviser */}
-            {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
-              <DeadlinesCard project={project} />
-            )}
 
             {/* Advance phase — instructor only */}
             {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
@@ -1022,11 +1078,6 @@ export default function ProjectDetailPage() {
                   </Button>
                 </CardContent>
               </Card>
-            )}
-
-            {/* Reject project — instructor only */}
-            {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
-              <RejectProjectCard project={project} />
             )}
           </>
         )}

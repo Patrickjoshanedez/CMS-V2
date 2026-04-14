@@ -61,6 +61,7 @@ import {
   BookmarkCheck,
   Copy,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -135,6 +136,7 @@ export function resolveArchiveBackContext(locationState, locationSearch) {
 function TitleProposalsSection({ project, userRole }) {
   const canVoteOnTitles = userRole === ROLES.INSTRUCTOR || userRole === ROLES.PANELIST;
   const [voteForms, setVoteForms] = useState({});
+  const [openProposalIndex, setOpenProposalIndex] = useState(0);
 
   const voteOnTitle = useAddTitleComment({
     onSuccess: () => {
@@ -226,131 +228,169 @@ function TitleProposalsSection({ project, userRole }) {
           const currentVoteForm = voteForms[idx] || { vote: '', remarks: '' };
           const canApproveProposal = userRole === ROLES.INSTRUCTOR;
           const canApproveNow = project.titleStatus === TITLE_STATUSES.SUBMITTED;
+          const isOpen = openProposalIndex === idx;
 
           return (
             <div
               key={proposal?._id || `${idx}-${title || 'proposal'}`}
-              className="rounded-md border p-3 space-y-2"
+              className="rounded-md border"
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Proposal {idx + 1}
-              </p>
-              <p className="mt-1 text-sm font-medium">{title || 'Untitled proposal'}</p>
-              {metadata?.description ? (
-                <p className="text-xs text-muted-foreground">{metadata.description}</p>
-              ) : null}
-              <div className="flex flex-wrap gap-1.5">
-                {metadata?.capstoneType ? (
-                  <Badge variant="secondary">
-                    {Array.isArray(metadata.capstoneType)
-                      ? metadata.capstoneType.join(', ')
-                      : metadata.capstoneType}
-                  </Badge>
-                ) : null}
-                {metadata?.sdgTags?.map((tag, tagIdx) => (
-                  <Badge key={`${title}-sdg-${tagIdx}`} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-
-              {voteEntries.length > 0 && (
-                <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 p-3 text-left"
+                onClick={() => setOpenProposalIndex(isOpen ? -1 : idx)}
+              >
+                <div className="space-y-1">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Votes & Remarks
+                    Proposal {idx + 1}
                   </p>
-                  {voteEntries.map((entry, voteIndex) => (
-                    <div
-                      key={`${idx}-vote-${voteIndex}`}
-                      className="space-y-1 rounded-md border bg-background p-2"
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          {entry.name || 'Reviewer'}
-                        </span>
-                        <Badge variant="outline">{entry.vote}</Badge>
-                        {entry.createdAt ? (
-                          <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                        ) : null}
-                      </div>
-                      {entry.remarks ? (
-                        <p className="text-sm text-muted-foreground">{entry.remarks}</p>
-                      ) : null}
-                    </div>
-                  ))}
+                  <p className="text-sm font-medium">{title || 'Untitled proposal'}</p>
                 </div>
-              )}
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${
+                    isOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
 
-              {canVoteOnTitles && (
-                <div className="space-y-3 rounded-md border bg-background/80 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Cast Vote
-                  </p>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`proposal-vote-${idx}`}>Vote</Label>
-                    <select
-                      id={`proposal-vote-${idx}`}
-                      value={currentVoteForm.vote}
-                      onChange={(event) => setVoteFormField(idx, 'vote', event.target.value)}
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="">Select vote</option>
-                      <option value="Approve">Approve</option>
-                      <option value="Needs Revision">Needs Revision</option>
-                      <option value="Reject">Reject</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor={`proposal-remarks-${idx}`}>Remarks</Label>
-                    <Textarea
-                      id={`proposal-remarks-${idx}`}
-                      value={currentVoteForm.remarks}
-                      onChange={(event) => setVoteFormField(idx, 'remarks', event.target.value)}
-                      placeholder="Add your decision notes for this title proposal"
-                      className="min-h-24"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      disabled={voteOnTitle.isPending}
-                      onClick={() => submitVote(idx)}
-                    >
-                      {voteOnTitle.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Submit Vote
-                    </Button>
-
-                    {canApproveProposal && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        disabled={approveTitle.isPending || !canApproveNow}
-                        onClick={() => {
-                          const confirmed = window.confirm(
-                            `Approve Proposal ${idx + 1}? This will set this proposal as the approved project title.`,
-                          );
-                          if (!confirmed) return;
-                          approveTitle.mutate({ projectId: project._id, proposalId: idx });
-                        }}
-                      >
-                        {approveTitle.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : null}
-                        Approve Proposal
-                      </Button>
-                    )}
-                  </div>
-
-                  {canApproveProposal && !canApproveNow ? (
-                    <p className="text-xs text-muted-foreground">
-                      Proposal approval is available only while title status is Submitted.
+              {isOpen && (
+                <div className="space-y-2 border-t p-3">
+                  {metadata?.description ? (
+                    <p className="text-xs text-muted-foreground whitespace-pre-line">
+                      {metadata.description}
                     </p>
                   ) : null}
+                  <div className="flex flex-wrap gap-1.5">
+                    {metadata?.capstoneType ? (
+                      <Badge variant="secondary">
+                        {Array.isArray(metadata.capstoneType)
+                          ? metadata.capstoneType.join(', ')
+                          : metadata.capstoneType}
+                      </Badge>
+                    ) : null}
+                    {metadata?.sdgTags?.map((tag, tagIdx) => (
+                      <Badge key={`${title}-sdg-${tagIdx}`} variant="outline">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {voteEntries.length > 0 && (
+                    <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Votes & Remarks
+                      </p>
+                      {voteEntries.map((entry, voteIndex) => (
+                        <div
+                          key={`${idx}-vote-${voteIndex}`}
+                          className="space-y-1 rounded-md border bg-background p-2"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {entry.name || 'Reviewer'}
+                            </span>
+                            <Badge variant="outline">{entry.vote}</Badge>
+                            {entry.createdAt ? (
+                              <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                            ) : null}
+                          </div>
+                          {entry.remarks ? (
+                            <p className="text-sm text-muted-foreground">{entry.remarks}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {canVoteOnTitles && (
+                    <div className="space-y-3 rounded-md border bg-background/80 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Cast Vote
+                      </p>
+
+                      <div className="space-y-1">
+                        <Label>Vote</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {canApproveProposal && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="border border-emerald-300 bg-emerald-100 text-emerald-950 hover:bg-emerald-200"
+                              disabled={approveTitle.isPending || !canApproveNow}
+                              onClick={() => {
+                                const confirmed = window.confirm(
+                                  `Approve Proposal ${idx + 1}? This will set this proposal as the approved project title.`,
+                                );
+                                if (!confirmed) return;
+                                approveTitle.mutate({ projectId: project._id, proposalId: idx });
+                              }}
+                            >
+                              {approveTitle.isPending ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
+                              Approve Proposal
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            className="border border-orange-300 bg-orange-200 text-orange-950 hover:bg-orange-300"
+                            onClick={() => {
+                              const confirmed = window.confirm(
+                                `Set Proposal ${idx + 1} vote to Approve With Revision?`,
+                              );
+                              if (!confirmed) return;
+                              setVoteFormField(idx, 'vote', 'Needs Revision');
+                            }}
+                          >
+                            Approve With Revision
+                          </Button>
+                          <Button
+                            type="button"
+                            className="border border-rose-300 bg-rose-200 text-rose-950 hover:bg-rose-300"
+                            onClick={() => {
+                              const confirmed = window.confirm(
+                                `Set Proposal ${idx + 1} vote to Reject Proposal?`,
+                              );
+                              if (!confirmed) return;
+                              setVoteFormField(idx, 'vote', 'Reject');
+                            }}
+                          >
+                            Reject Proposal
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label htmlFor={`proposal-remarks-${idx}`}>Remarks</Label>
+                        <Textarea
+                          id={`proposal-remarks-${idx}`}
+                          value={currentVoteForm.remarks}
+                          onChange={(event) => setVoteFormField(idx, 'remarks', event.target.value)}
+                          placeholder="Add your decision notes for this title proposal"
+                          className="min-h-24"
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          disabled={voteOnTitle.isPending}
+                          onClick={() => submitVote(idx)}
+                        >
+                          {voteOnTitle.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Submit Remarks
+                        </Button>
+                      </div>
+
+                      {canApproveProposal && !canApproveNow ? (
+                        <p className="text-xs text-muted-foreground">
+                          Proposal approval is available only while title status is Submitted.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -373,6 +413,22 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
         ? `Capstone ${phaseNumber}`
         : '—';
 
+  const proposalTitles = (project.titleProposals || [])
+    .map((proposal) => (typeof proposal === 'string' ? proposal : proposal?.title))
+    .map((title) => (typeof title === 'string' ? title.trim() : ''))
+    .filter(Boolean);
+
+  const allProjectTitles = proposalTitles
+    .map((title) => (typeof title === 'string' ? title.trim() : ''))
+    .filter(Boolean)
+    .filter((title, index, list) => {
+      const normalized = title.toLowerCase();
+      return list.findIndex((entry) => entry.toLowerCase() === normalized) === index;
+    });
+
+  const primaryTitle = allProjectTitles[0] || project.title || 'Untitled project';
+  const secondaryTitles = allProjectTitles.slice(1);
+
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
     ? capstoneRaw.join(', ')
@@ -383,8 +439,22 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="space-y-1">
-            <CardTitle className="text-xl">{project.title}</CardTitle>
-            <CardDescription>{project.academicYear || '—'} · {phaseLabel}</CardDescription>
+            <CardTitle className="text-xl font-semibold tracking-tight">{primaryTitle}</CardTitle>
+            <CardDescription>
+              {project.academicYear || '—'} · {phaseLabel}
+            </CardDescription>
+            {secondaryTitles.length > 0 ? (
+              <div className="pt-1 space-y-1">
+                {secondaryTitles.map((title, index) => (
+                  <p
+                    key={`${title}-${index}`}
+                    className="text-xl font-semibold tracking-tight text-foreground"
+                  >
+                    {title}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="flex gap-2">
             <TitleStatusBadge status={project.titleStatus} />
@@ -417,61 +487,82 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
           </div>
         )}
 
-        {/* Meta grid */}
-        <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex items-start gap-2 text-sm sm:col-span-2 lg:col-span-3">
-            <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Authors:</span>
-            <span className="font-medium">
-              {authors.length ? authors.join(', ') : 'Not available'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Team:</span>
-            <span className="font-medium">{project.teamId?.name || '—'}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Adviser:</span>
-            <span className="font-medium">
-              {project.adviserId?.firstName
-                ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                : 'Not assigned'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Panelists:</span>
-            <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Academic Year:</span>
-            <span className="font-medium">{project.academicYear || '—'}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm sm:col-span-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Program / Department:</span>
-            <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm sm:col-span-3">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Capstone Type/Phase:</span>
-            <span className="font-medium">{capstoneTypeOrPhase}</span>
-          </div>
-        </div>
+        {/* Project details */}
+        <div className="space-y-4 border-t pt-4">
+          <section className="rounded-md border bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              People
+            </p>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-start gap-2 text-sm">
+                <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Authors:</span>
+                <span className="font-medium">
+                  {authors.length ? authors.join(', ') : 'Not available'}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Team:</span>
+                  <span className="font-medium">{project.teamId?.name || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Adviser:</span>
+                  <span className="font-medium">
+                    {project.adviserId?.firstName
+                      ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
+                      : 'Not assigned'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Panelists:</span>
+                  <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
+                </div>
+              </div>
+            </div>
+          </section>
 
-        {/* Panelist names */}
-        {project.panelistIds?.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {project.panelistIds.map((p) => (
-              <Badge key={p._id || p} variant="outline">
-                {p.firstName ? `${p.firstName} ${p.lastName}` : p._id || p}
-              </Badge>
-            ))}
-          </div>
-        )}
+          <section className="rounded-md border bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Project Context
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Academic Year:</span>
+                <span className="font-medium">{project.academicYear || '—'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm sm:col-span-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Program / Department:</span>
+                <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Capstone Type/Phase:</span>
+                <span className="font-medium">{capstoneTypeOrPhase}</span>
+              </div>
+            </div>
+          </section>
+
+          {project.panelistIds?.length > 0 && (
+            <section className="rounded-md border bg-muted/10 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Panelist Roster
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {project.panelistIds.map((p) => (
+                  <Badge key={p._id || p} variant="outline">
+                    {p.firstName ? `${p.firstName} ${p.lastName}` : p._id || p}
+                  </Badge>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
 
         {/* Rejection reason */}
         {project.rejectionReason && (
@@ -1601,11 +1692,6 @@ export default function ProjectDetailPage() {
                   showAllSubmissionsButton={false}
                 />
 
-                {/* Title review — only when submitted */}
-                {!isArchived &&
-                  project.titleStatus === TITLE_STATUSES.SUBMITTED &&
-                  isInstructor && <TitleReviewCard project={project} />}
-
                 {/* Modification review — only when pending */}
                 {!isArchived &&
                   project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
@@ -1618,11 +1704,6 @@ export default function ProjectDetailPage() {
 
                 {/* Panelists — instructor only */}
                 {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
-
-                {/* Deadlines — instructor or adviser */}
-                {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (
-                  <DeadlinesCard project={project} isInstructor={isInstructor} />
-                )}
 
                 {/* Advance phase — instructor only */}
                 {!isArchived &&
@@ -1661,28 +1742,6 @@ export default function ProjectDetailPage() {
                     <FinalPaperUpload projectId={project._id} />
                   )}
 
-                {/* Documents workspace quick action */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Documents Workspace
-                    </CardTitle>
-                    <CardDescription>
-                      Open the manuscript workspace with this project pre-selected.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Open Documents Workspace
-                    </Button>
-                  </CardContent>
-                </Card>
-
                 {/* Certificate link — archived projects only */}
                 {isArchived && (
                   <Card>
@@ -1706,13 +1765,6 @@ export default function ProjectDetailPage() {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Reject project — instructor only */}
-                {!isArchived &&
-                  isInstructor &&
-                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-                    <RejectProjectCard project={project} />
-                  )}
               </>
             )}
           </>

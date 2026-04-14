@@ -21,8 +21,6 @@ const PAGE_TITLES = [
   { path: '/archive/upload/academic-journal', title: 'Upload Archived Capstone' },
   { path: '/reports/bulk-upload', title: 'Upload Archived Capstone' },
   { path: '/archive', title: 'Archive' },
-  { path: '/team', title: 'My Team' },
-  { path: '/teams', title: 'Teams' },
   { path: '/users', title: 'Users' },
   { path: '/projects', title: 'Projects' },
   { path: '/reports', title: 'Reports' },

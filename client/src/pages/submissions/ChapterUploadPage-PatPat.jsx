@@ -220,8 +220,8 @@ export default function ChapterUploadPage() {
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               You need to join or create a team before uploading chapters.
             </p>
-            <Button className="mt-6" onClick={() => navigate('/teams')}>
-              Go to Teams
+            <Button className="mt-6" onClick={() => navigate('/dashboard')}>
+              Go to Dashboard
             </Button>
           </div>
         </DashboardLayout>

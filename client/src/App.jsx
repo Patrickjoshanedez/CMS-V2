@@ -13,7 +13,6 @@ const VerifyOtpPage = lazy(() => import('./pages/auth/VerifyOtpPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
-const TeamsPage = lazy(() => import('./pages/teams/TeamsPage'));
 const UsersPage = lazy(() => import('./pages/users/UsersPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
@@ -102,9 +101,6 @@ const GUEST_ROUTES = [
 const PROTECTED_ROUTES = [
   // General
   { path: '/dashboard', Component: DashboardPage },
-  { path: '/teams', Component: TeamsPage },
-  { path: '/teams/invites/:token/:action', Component: TeamsPage },
-  { path: '/team', Component: TeamsPage },
   { path: '/users', Component: UsersPage },
   { path: '/admin/users', Component: UsersPage, allowedRoles: [ROLES.INSTRUCTOR] },
   { path: '/profile', Component: ProfilePage },
