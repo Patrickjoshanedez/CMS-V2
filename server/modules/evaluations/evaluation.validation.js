@@ -24,6 +24,14 @@ export const evaluationIdParamSchema = z.object({
   evaluationId: objectIdField,
 });
 
+export const unlockEvaluationSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(10, 'Unlock reason must be at least 10 characters')
+    .max(1000, 'Unlock reason must not exceed 1000 characters'),
+});
+
 export const projectIdParamSchema = z.object({
   projectId: objectIdField,
 });

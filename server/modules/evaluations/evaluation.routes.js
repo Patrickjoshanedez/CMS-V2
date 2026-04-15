@@ -18,6 +18,7 @@ import { ROLES } from '@cms/shared';
 import {
   projectDefenseParamSchema,
   evaluationIdParamSchema,
+  unlockEvaluationSchema,
   updateEvaluationSchema,
 } from './evaluation.validation.js';
 
@@ -94,6 +95,23 @@ router.post(
   evaluationController.submitEvaluation,
 );
 
+/**
+ * POST /:evaluationId/unlock
+ * Reopen a submitted or released evaluation for editing.
+ */
+router.post(
+  '/:evaluationId/unlock',
+  authorize(ROLES.INSTRUCTOR),
+  validate(evaluationIdParamSchema, 'params'),
+  validate(unlockEvaluationSchema),
+  auditLog('evaluation.unlocked', 'Evaluation', {
+    getTargetId: (req) => req.params.evaluationId,
+    getDescription: (req) => `Unlocked evaluation ${req.params.evaluationId}`,
+    getMetadata: (req) => ({ reason: req.body.reason }),
+  }),
+  evaluationController.unlockEvaluation,
+);
+
 /* ────── Instructor routes ────── */
 
 /**
@@ -106,7 +124,8 @@ router.post(
   validate(projectDefenseParamSchema, 'params'),
   auditLog('evaluation.released', 'Evaluation', {
     getTargetId: (req) => req.params.projectId,
-    getDescription: (req) => `Released ${req.params.defenseType} evaluations for project ${req.params.projectId}`,
+    getDescription: (req) =>
+      `Released ${req.params.defenseType} evaluations for project ${req.params.projectId}`,
     getMetadata: (req) => ({ defenseType: req.params.defenseType }),
   }),
   evaluationController.releaseEvaluations,

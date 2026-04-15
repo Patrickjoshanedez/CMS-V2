@@ -114,6 +114,17 @@ export function useSubmitEvaluation(options = {}) {
 }
 
 /**
+ * Unlock a submitted evaluation for editing (instructor only).
+ * Expects: { evaluationId, reason }
+ */
+export function useUnlockEvaluation(options = {}) {
+  return useEvaluationMutation(async ({ evaluationId, ...data }) => {
+    const res = await evaluationService.unlockEvaluation(evaluationId, data);
+    return res.data;
+  }, options);
+}
+
+/**
  * Release evaluations for a project + defense type (instructor only).
  * Expects: { projectId, defenseType }
  */

@@ -5,6 +5,7 @@ import {
   useProjectEvaluations,
   useUpdateEvaluation,
   useSubmitEvaluation,
+  useUnlockEvaluation,
   useReleaseEvaluations,
 } from '@/hooks/useEvaluations';
 import { ROLES, EVALUATION_STATUSES } from '@cms/shared';
@@ -256,10 +257,11 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
 // ─── Collapsible Panelist Section ────────────────────────────────────────────
 
-function PanelistSection({ evaluation }) {
+function PanelistSection({ evaluation, role }) {
   const [open, setOpen] = useState(false);
   const total = evaluation.criteria.reduce((s, c) => s + (Number(c.score) || 0), 0);
   const max = evaluation.criteria.reduce((s, c) => s + c.maxScore, 0);
+  const unlockEvaluation = useUnlockEvaluation();
   const explicitName =
     typeof evaluation.panelistName === 'string' ? evaluation.panelistName.trim() : '';
   const derivedName = [evaluation.panelistId?.firstName, evaluation.panelistId?.lastName]
@@ -270,6 +272,19 @@ function PanelistSection({ evaluation }) {
   const emailName =
     typeof evaluation.panelistId?.email === 'string' ? evaluation.panelistId.email.trim() : '';
   const panelistName = explicitName || derivedName || emailName || 'Panelist';
+  const canUnlock = role === ROLES.INSTRUCTOR && evaluation.status !== EVALUATION_STATUSES.DRAFT;
+
+  const handleUnlock = async () => {
+    const reason = window.prompt('Enter a reason for unlocking this evaluation:');
+    if (!reason?.trim()) return;
+
+    try {
+      await unlockEvaluation.mutateAsync({ evaluationId: evaluation._id, reason: reason.trim() });
+      toast.success('Evaluation unlocked successfully.');
+    } catch (err) {
+      toast.error(err?.message ?? 'Failed to unlock evaluation.');
+    }
+  };
 
   return (
     <div className="rounded-md border">
@@ -283,9 +298,26 @@ function PanelistSection({ evaluation }) {
           <span className="font-medium">{panelistName || 'Panelist'}</span>
           <StatusBadge status={evaluation.status} />
         </div>
-        <span className="text-sm font-semibold text-muted-foreground">
-          {total} / {max}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-muted-foreground">
+            {total} / {max}
+          </span>
+          {canUnlock && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUnlock}
+              disabled={unlockEvaluation.isPending}
+            >
+              {unlockEvaluation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unlock className="mr-2 h-4 w-4" />
+              )}
+              Unlock
+            </Button>
+          )}
+        </div>
       </button>
 
       {open && (
@@ -418,7 +450,7 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       {/* Panelist Evaluations */}
       <div className="space-y-3">
         {visibleEvaluations.map((ev) => (
-          <PanelistSection key={ev._id} evaluation={ev} />
+          <PanelistSection key={ev._id} evaluation={ev} role={role} />
         ))}
       </div>
 

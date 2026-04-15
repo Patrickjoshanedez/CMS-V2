@@ -197,7 +197,7 @@ router.post(
  */
 router.post(
   '/:submissionId/request-revision-round',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(requestRevisionRoundSchema),
   submissionController.requestRevisionRound,
@@ -209,7 +209,7 @@ router.post(
  */
 router.post(
   '/:submissionId/accept',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(markAcceptedSchema),
   submissionController.markSubmissionAccepted,
@@ -218,11 +218,11 @@ router.post(
 /**
  * POST /:submissionId/unlock
  * Unlock a locked submission so the student can upload a new version.
- * Only advisers and instructors can unlock.
+ * Only advisers, instructors, and panelists can unlock.
  */
 router.post(
   '/:submissionId/unlock',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(unlockRequestSchema),
   auditLog('submission.unlocked', 'Submission', {
@@ -235,11 +235,11 @@ router.post(
 /**
  * POST /:submissionId/annotations
  * Add a highlight & comment annotation to a submission.
- * Only advisers and instructors can annotate.
+ * Instructors, advisers, and panelists can annotate.
  */
 router.post(
   '/:submissionId/annotations',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(addAnnotationSchema),
   submissionController.addAnnotation,
@@ -251,7 +251,7 @@ router.post(
  */
 router.post(
   '/:submissionId/annotations/:annotationId/replies',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
   validate(submissionAnnotationParamSchema, 'params'),
   validate(addAnnotationReplySchema),
   submissionController.addAnnotationReply,
@@ -259,22 +259,22 @@ router.post(
 
 /**
  * DELETE /:submissionId/annotations/:annotationId
- * Remove an annotation. Only the annotation author or an instructor can remove.
+ * Remove an annotation. Only the annotation author, adviser, instructor, or panelist can remove.
  */
 router.delete(
   '/:submissionId/annotations/:annotationId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionAnnotationParamSchema, 'params'),
   submissionController.removeAnnotation,
 );
 
 /**
  * POST /:submissionId/annotations/:annotationId/resolve
- * Mark an annotation as resolved/addressed. Only adviser and instructor.
+ * Mark an annotation as resolved/addressed. Only adviser, instructor, and panelist.
  */
 router.post(
   '/:submissionId/annotations/:annotationId/resolve',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionAnnotationParamSchema, 'params'),
   submissionController.markAnnotationResolved,
 );

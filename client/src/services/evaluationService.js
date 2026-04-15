@@ -8,16 +8,16 @@ import api from './api';
 
 export const evaluationService = {
   /** Get or create the current panelist's evaluation (panelist only). */
-  getMyEvaluation: (projectId, defenseType) =>
-    api.get(`/evaluations/${projectId}/${defenseType}`),
+  getMyEvaluation: (projectId, defenseType) => api.get(`/evaluations/${projectId}/${defenseType}`),
 
   /** Update evaluation scores/comments (panelist only, draft status). */
-  updateEvaluation: (evaluationId, data) =>
-    api.patch(`/evaluations/${evaluationId}`, data),
+  updateEvaluation: (evaluationId, data) => api.patch(`/evaluations/${evaluationId}`, data),
 
   /** Submit a completed evaluation (panelist only). */
-  submitEvaluation: (evaluationId) =>
-    api.post(`/evaluations/${evaluationId}/submit`),
+  submitEvaluation: (evaluationId) => api.post(`/evaluations/${evaluationId}/submit`),
+
+  /** Reopen a submitted evaluation for editing (instructor only). */
+  unlockEvaluation: (evaluationId, data) => api.post(`/evaluations/${evaluationId}/unlock`, data),
 
   /** Release all evaluations for a project + defense type (instructor only). */
   releaseEvaluations: (projectId, defenseType) =>
@@ -28,6 +28,5 @@ export const evaluationService = {
     api.get(`/evaluations/project/${projectId}/${defenseType}`),
 
   /** Get a single evaluation by ID. */
-  getEvaluation: (evaluationId) =>
-    api.get(`/evaluations/detail/${evaluationId}`),
+  getEvaluation: (evaluationId) => api.get(`/evaluations/detail/${evaluationId}`),
 };

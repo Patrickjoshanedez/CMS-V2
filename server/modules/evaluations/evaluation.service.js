@@ -223,6 +223,53 @@ class EvaluationService {
     return { evaluation };
   }
 
+  /* ═══════════════════ Unlock Evaluation (Instructor) ═══════════════════ */
+
+  /**
+   * Reopen a submitted or released evaluation for editing.
+   *
+   * @param {string} instructorId
+   * @param {string} evaluationId
+   * @param {string} reason
+   * @returns {Object} { evaluation }
+   */
+  async unlockEvaluation(instructorId, evaluationId, reason) {
+    const evaluation = await Evaluation.findById(evaluationId);
+    if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+
+    if (!reason || !reason.trim()) {
+      throw new AppError('Unlock reason is required.', 400, 'UNLOCK_REASON_REQUIRED');
+    }
+
+    if (evaluation.status === EVALUATION_STATUSES.DRAFT) {
+      throw new AppError('Draft evaluations do not need to be unlocked.', 400, 'ALREADY_DRAFT');
+    }
+
+    evaluation.status = EVALUATION_STATUSES.DRAFT;
+    evaluation.totalScore = null;
+    evaluation.maxTotalScore = null;
+    evaluation.submittedAt = null;
+    evaluation.releasedAt = null;
+    await evaluation.save();
+
+    const notification = await Notification.create({
+      userId: evaluation.panelistId,
+      type: 'evaluation_unlocked',
+      title: 'Evaluation Unlocked',
+      message: `Your ${evaluation.defenseType} evaluation was unlocked for revision. Reason: ${reason}`,
+      metadata: {
+        projectId: evaluation.projectId,
+        evaluationId: evaluation._id,
+        defenseType: evaluation.defenseType,
+        reason,
+        unlockedBy: instructorId,
+      },
+    });
+    emitToUser(evaluation.panelistId, 'notification:new', notification);
+
+    return { evaluation };
+  }
+
   /* ═══════════════════ Release Evaluations (Instructor) ═══════════════════ */
 
   /**

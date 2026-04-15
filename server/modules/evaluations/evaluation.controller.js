@@ -55,6 +55,21 @@ export const submitEvaluation = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/evaluations/:evaluationId/unlock — Reopen an evaluation for editing */
+export const unlockEvaluation = catchAsync(async (req, res) => {
+  const { evaluation } = await evaluationService.unlockEvaluation(
+    req.user._id,
+    req.params.evaluationId,
+    req.body.reason,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Evaluation unlocked successfully.',
+    data: { evaluation },
+  });
+});
+
 /* ═══════════════════ Instructor ═══════════════════ */
 
 /** POST /api/evaluations/:projectId/:defenseType/release — Release evaluations to students */
