@@ -44,6 +44,9 @@ import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 
+const TEAM_TEMPLATE_URL =
+  'https://docs.google.com/document/d/1n49COZvzKnqDaxv8hT0EFLHsINpv4RkF/edit';
+
 /**
  * TeamsPage — team management page.
  *
@@ -728,6 +731,13 @@ function StudentTeamDetail({ team, userId }) {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" asChild>
+                    <a href={TEAM_TEMPLATE_URL} target="_blank" rel="noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Generate Template
+                    </a>
+                  </Button>
+
                   {team.googleDocUrl ? (
                     <Button type="button" variant="secondary" asChild>
                       <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
@@ -755,6 +765,13 @@ function StudentTeamDetail({ team, userId }) {
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" asChild>
+                  <a href={TEAM_TEMPLATE_URL} target="_blank" rel="noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Generate Template
+                  </a>
+                </Button>
+
                 {team.googleDocUrl ? (
                   <Button type="button" variant="secondary" asChild>
                     <a href={team.googleDocUrl} target="_blank" rel="noreferrer">

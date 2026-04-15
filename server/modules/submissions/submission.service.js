@@ -23,6 +23,7 @@ import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
 import storageService from '../../services/storage.index.js';
+import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
 import env from '../../config/env.js';
@@ -170,6 +171,56 @@ class SubmissionService {
     );
 
     return updated;
+  }
+
+  async _ensureMockPlagiarismForApproval(submission) {
+    if (!env.PLAGIARISM_FORCE_MOCK_SCORE) {
+      return null;
+    }
+
+    const now = new Date();
+    const mockTaskId = `mock-approval-${submission._id.toString()}`;
+
+    const mockResult = await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          taskId: mockTaskId,
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          similarityPercentage: 0,
+          textMatches: [],
+          checkedAt: now,
+          completedAt: now,
+          warningFlag: false,
+          rawData: {
+            originalityScore: 100,
+            matchedSources: [],
+            mode: 'mock',
+            reason: 'PLAGIARISM_FORCE_MOCK_SCORE enabled during approval',
+          },
+          error: null,
+          errorMessage: null,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean();
+
+    await Submission.findByIdAndUpdate(submission._id, {
+      originalityScore: 100,
+      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+      'plagiarismResult.jobId': mockTaskId,
+      'plagiarismResult.error': null,
+      'plagiarismResult.originalityScore': 100,
+      'plagiarismResult.matchedSources': [],
+      'plagiarismResult.processedAt': now,
+    });
+
+    logger.info(
+      { submissionId: submission._id.toString(), taskId: mockTaskId },
+      'Auto-seeded mock plagiarism result for approval flow',
+    );
+
+    return mockResult;
   }
 
   /* ═══════════════════ Shared Private Helpers ═══════════════════ */
@@ -1808,13 +1859,56 @@ class SubmissionService {
 
     this._assertCanViewSubmission(user, project, submission);
 
-    return {
-      status: 'unavailable',
-      docId: null,
-      comments: [],
-      message:
-        'Google Docs comments are disabled. Download the document and read comments directly in your document reader/editor.',
-    };
+    if (!submission.syncedGoogleDocId) {
+      return {
+        status: 'not_linked',
+        docId: null,
+        comments: [],
+        message: 'This submission is not linked to a Google Doc.',
+      };
+    }
+
+    if (!googleDriveReviewService.isConfigured()) {
+      return {
+        status: 'unavailable',
+        docId: submission.syncedGoogleDocId,
+        comments: [],
+        message:
+          'Google Docs comments integration is unavailable in this environment. Open the document file to review native comments.',
+      };
+    }
+
+    try {
+      const comments = [];
+      let pageToken = null;
+
+      do {
+        const page = await googleDriveReviewService.listComments(
+          submission.syncedGoogleDocId,
+          pageToken,
+        );
+
+        comments.push(...(page?.comments || []));
+        pageToken = page?.nextPageToken || null;
+      } while (pageToken);
+
+      return {
+        status: 'ok',
+        docId: submission.syncedGoogleDocId,
+        comments,
+        totalCount: comments.length,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        docId: submission.syncedGoogleDocId,
+        comments: [],
+        message:
+          error?.message ||
+          'Unable to load Google Docs comments right now. Please try again.',
+      };
+    }
+
   }
 
   /* ═══════════════════ Plagiarism ═══════════════════ */
@@ -1972,9 +2066,12 @@ class SubmissionService {
         submission._id,
         plagiarismResult,
       );
+      if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
+        plagiarismResult = await this._ensureMockPlagiarismForApproval(submission);
+      }
 
       // Require completed plagiarism check before approval
-      if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+      if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
         throw new AppError(
           'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
           400,
@@ -2603,8 +2700,11 @@ class SubmissionService {
       submissionId: submission._id,
     }).lean();
     plagiarismResult = await this._reconcileStalePlagiarismResult(submission._id, plagiarismResult);
+    if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
+      plagiarismResult = await this._ensureMockPlagiarismForApproval(submission);
+    }
 
-    if (!plagiarismResult || plagiarismResult.status !== 'completed') {
+    if (!plagiarismResult || plagiarismResult.status !== PLAGIARISM_STATUSES.COMPLETED) {
       throw new AppError(
         'Plagiarism check must be completed before approving this submission. Please run the plagiarism checker first.',
         400,

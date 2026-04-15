@@ -88,6 +88,10 @@ scripts/token.json
 context/
 .probe
 
+# Generated orchestrator hook state (runtime artifacts)
+.github/hooks/state/*.json
+!.github/hooks/state/.gitkeep
+
 # Test results and artifacts
 test-results/
 

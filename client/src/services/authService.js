@@ -52,6 +52,7 @@ export const teamService = {
   assignMemberRole: (teamId, memberId, data) =>
     api.patch(`/teams/${teamId}/members/${memberId}/role`, data),
   updateGoogleDocLink: (teamId, data) => api.patch(`/teams/${teamId}/google-doc-link`, data),
+  updateGithubLink: (teamId, data) => api.patch(`/teams/${teamId}/github-link`, data),
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
   leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
@@ -144,7 +145,7 @@ export const projectService = {
       } else if (payload.authors) {
         formData.append('authors', payload.authors);
       }
-      if (payload.publicationYear != null) {
+      if (payload.publicationYear !== null && payload.publicationYear !== undefined) {
         formData.append('publicationYear', String(payload.publicationYear));
       }
       if (payload.doi) formData.append('doi', payload.doi);
@@ -192,9 +193,9 @@ export const academicService = {
  */
 export const documentService = {
   /**
-    * Extract title, abstract, publication year, authors, and keywords metadata from a PDF file.
+   * Extract title, abstract, publication year, authors, and keywords metadata from a PDF file.
    * @param {File} file - The PDF file to extract metadata from
-    * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>} 
+   * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>}
    */
   extractPdfMetadata: (file) => {
     const formData = new FormData();

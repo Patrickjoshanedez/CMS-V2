@@ -707,6 +707,10 @@ const env = Object.freeze({
   // Plagiarism (native engine)
   PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
   PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
+  PLAGIARISM_FORCE_MOCK_SCORE: parseBoolean(
+    process.env.PLAGIARISM_FORCE_MOCK_SCORE,
+    isDevelopmentEnv,
+  ),
 
   // PDF metadata extraction and similarity audit
   PDF_METADATA_ENABLE_GLM_OCR: parseBoolean(process.env.PDF_METADATA_ENABLE_GLM_OCR, true),

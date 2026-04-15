@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
+  UsersRound,
   Bell,
   Settings,
   LogOut,
@@ -32,6 +33,7 @@ const navItems = {
   ],
   // Student-specific
   student: [
+    { label: 'My Team', icon: UsersRound, path: '/teams' },
     { label: 'My Capstone', icon: FileText, path: '/project' },
     { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
   ],

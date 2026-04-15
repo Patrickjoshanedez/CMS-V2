@@ -169,6 +169,17 @@ export function useUpdateGoogleDocLink(options = {}) {
 }
 
 /**
+ * Attach or clear team-level GitHub repository link (leader only).
+ * @param {Object} params — { teamId: string, githubUrl: string }
+ */
+export function useUpdateGithubLink(options = {}) {
+  return useTeamMutation(async ({ teamId, githubUrl }) => {
+    const res = await teamService.updateGithubLink(teamId, { githubUrl });
+    return res.data;
+  }, options);
+}
+
+/**
  * Finalize a team by locking it.
  * @param {Object} params — { teamId: string }
  */

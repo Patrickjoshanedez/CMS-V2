@@ -14,6 +14,7 @@ import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
 import {
   useAddAnnotation,
   useAddAnnotationReply,
+  useGoogleDocComments,
   useMarkSubmissionAccepted,
   usePlagiarismReport,
   useRequestRevisionRound,
@@ -33,6 +34,17 @@ function formatBytes(bytes) {
 
 function normalizeWorkspace(data) {
   return data?.data?.workspace || data?.workspace || data || null;
+}
+
+function formatCommentAuthor(author) {
+  return author?.displayName || author?.emailAddress || 'Unknown reviewer';
+}
+
+function formatCommentTimestamp(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString();
 }
 
 function ThreadedComments({ round, canComment, onAddReply, replyMutationPending }) {
@@ -139,6 +151,10 @@ export default function SubmissionReviewPage() {
 
   const activeSubmissionId = activeRound?.sourceSubmissionId || null;
 
+  const googleDocCommentsQuery = useGoogleDocComments(activeSubmissionId, {
+    enabled: !!activeSubmissionId,
+  });
+
   const viewUrlQuery = useViewUrl(activeSubmissionId, {
     enabled: !!activeSubmissionId,
   });
@@ -206,6 +222,11 @@ export default function SubmissionReviewPage() {
   const isSubmissionFileUnavailable = viewUrlErrorCode === 'SUBMISSION_FILE_UNAVAILABLE';
   const extractedText = plagiarismQuery.data?.extractedText || '';
   const originalityScore = activeRound?.originalityScore;
+  const googleCommentsData = googleDocCommentsQuery.data || {};
+  const googleComments = Array.isArray(googleCommentsData.comments)
+    ? googleCommentsData.comments
+    : [];
+  const canShowGoogleComments = googleCommentsData.status === 'ok';
 
   const isRoundPendingUpload = activeRound?.status === SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD;
   const canModerate = [ROLES.ADVISER, ROLES.INSTRUCTOR].includes(user?.role);
@@ -436,7 +457,81 @@ export default function SubmissionReviewPage() {
                     Threaded Comments
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Document Comments (MS Word / Google Docs style)
+                    </p>
+
+                    {!activeSubmissionId ? (
+                      <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                        Upload or select a submission round to load document comments.
+                      </div>
+                    ) : googleDocCommentsQuery.isLoading ? (
+                      <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                        Loading document comments...
+                      </div>
+                    ) : canShowGoogleComments ? (
+                      googleComments.length > 0 ? (
+                        <div className="max-h-80 space-y-2 overflow-auto rounded-md border border-border/70 bg-card/60 p-2">
+                          {googleComments.map((comment) => {
+                            const createdAt = formatCommentTimestamp(comment.createdTime);
+                            const modifiedAt = formatCommentTimestamp(comment.modifiedTime);
+                            const replies = Array.isArray(comment.replies) ? comment.replies : [];
+
+                            return (
+                              <div
+                                key={comment.id}
+                                className="rounded-md border border-border/70 bg-background p-2"
+                              >
+                                <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                                  <span className="font-medium text-foreground">
+                                    {formatCommentAuthor(comment.author)}
+                                  </span>
+                                  <span>{modifiedAt || createdAt || 'Unknown time'}</span>
+                                </div>
+
+                                {comment.quotedFileContent?.value ? (
+                                  <blockquote className="mt-1 border-l-2 border-primary/40 pl-2 text-xs italic text-muted-foreground">
+                                    {comment.quotedFileContent.value}
+                                  </blockquote>
+                                ) : null}
+
+                                <p className="mt-1 text-sm text-foreground">{comment.content || 'No comment text'}</p>
+
+                                {replies.length > 0 ? (
+                                  <div className="mt-2 space-y-1">
+                                    {replies.map((reply) => (
+                                      <div key={reply.id} className="rounded bg-muted/40 px-2 py-1 text-xs">
+                                        <p className="text-muted-foreground">
+                                          {formatCommentAuthor(reply.author)}
+                                          {' · '}
+                                          {formatCommentTimestamp(reply.modifiedTime) ||
+                                            formatCommentTimestamp(reply.createdTime) ||
+                                            'Unknown time'}
+                                        </p>
+                                        <p className="text-foreground">{reply.content || 'No reply text'}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                          No document comments found for this round.
+                        </div>
+                      )
+                    ) : (
+                      <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                        {googleCommentsData.message ||
+                          'Document comments are not available for this submission.'}
+                      </div>
+                    )}
+                  </div>
+
                   <ThreadedComments
                     round={activeRound}
                     canComment={canModerate}

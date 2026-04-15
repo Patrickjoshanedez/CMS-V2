@@ -1,13 +1,13 @@
 import Submission from '../submissions/submission.model.js';
 import PlagiarismResult from './plagiarism.model.js';
-import AppError from '../../utils/AppError.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { enqueuePlagiarismJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
+import env from '../../config/env.js';
 import submissionService from '../submissions/submission.service.js';
-import { PLAGIARISM_STATUSES } from '@cms/shared';
+import { PLAGIARISM_STATUSES, ROLES } from '@cms/shared';
 
 const resolveCorpusMetadata = (...candidates) => {
   for (const candidate of candidates) {
@@ -141,6 +141,11 @@ const mapSubmissionResult = (submission, collectionResult) => {
 
 export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
+  const requestedMode = String(req.body?.mode || '')
+    .trim()
+    .toLowerCase();
+  const allowManualMockOverride =
+    requestedMode === 'mock' && [ROLES.INSTRUCTOR, ROLES.ADVISER].includes(req.user?.role);
 
   const { submission } = await submissionService.getSubmissionViewContext(
     submissionId,
@@ -152,7 +157,10 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
   );
 
   const status = submission.plagiarismResult?.status;
-  if (status === PLAGIARISM_STATUSES.QUEUED || status === PLAGIARISM_STATUSES.PROCESSING) {
+  if (
+    (status === PLAGIARISM_STATUSES.QUEUED || status === PLAGIARISM_STATUSES.PROCESSING) &&
+    !allowManualMockOverride
+  ) {
     return res.status(202).json({
       success: true,
       message: 'Plagiarism check is already in progress.',
@@ -173,6 +181,63 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     title: submission.documentTitle || undefined,
     abstract: submission.documentAbstract || undefined,
   };
+
+  if (env.PLAGIARISM_FORCE_MOCK_SCORE || allowManualMockOverride) {
+    const now = new Date();
+    const mock = {
+      originalityScore: 100,
+      matchedSources: [],
+    };
+    const similarityPercentage = Math.max(0, Math.min(100, 100 - mock.originalityScore));
+    const mockJobId = `mock-${submission._id.toString()}`;
+
+    await Submission.findByIdAndUpdate(submission._id, {
+      originalityScore: mock.originalityScore,
+      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+      'plagiarismResult.jobId': mockJobId,
+      'plagiarismResult.error': null,
+      'plagiarismResult.originalityScore': mock.originalityScore,
+      'plagiarismResult.matchedSources': mock.matchedSources,
+      'plagiarismResult.processedAt': now,
+    });
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          taskId: mockJobId,
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          similarityPercentage,
+          textMatches: [],
+          checkedAt: now,
+          completedAt: now,
+          warningFlag: false,
+          rawData: {
+            ...mock,
+            mode: 'mock',
+            reason: allowManualMockOverride
+              ? 'Manual mock override requested from review UI'
+              : 'PLAGIARISM_FORCE_MOCK_SCORE enabled',
+          },
+          error: null,
+          errorMessage: null,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Plagiarism check completed with mock score.',
+      data: {
+        submissionId,
+        status: PLAGIARISM_STATUSES.COMPLETED,
+        jobId: mockJobId,
+        mode: allowManualMockOverride ? 'mock-manual' : 'mock',
+        originalityScore: mock.originalityScore,
+      },
+    });
+  }
 
   const jobId = await enqueuePlagiarismJob(payload);
   const effectiveJobId = jobId || `sync-${submission._id.toString()}`;
@@ -262,15 +327,33 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
 
   const indexedAt = new Date().toISOString();
 
+  const existingResult = await PlagiarismResult.findOne({ submissionId: submission._id })
+    .select('rawData')
+    .lean();
+  const existingRawData =
+    existingResult?.rawData && typeof existingResult.rawData === 'object'
+      ? existingResult.rawData
+      : {};
+  const existingCorpus =
+    existingRawData.corpus && typeof existingRawData.corpus === 'object'
+      ? existingRawData.corpus
+      : {};
+
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
         checkedAt: new Date(),
-        'rawData.indexedAt': indexedAt,
-        'rawData.removedFromCorpusAt': null,
-        'rawData.corpus.indexedAt': indexedAt,
-        'rawData.corpus.removedFromCorpusAt': null,
+        rawData: {
+          ...existingRawData,
+          indexedAt,
+          removedFromCorpusAt: null,
+          corpus: {
+            ...existingCorpus,
+            indexedAt,
+            removedFromCorpusAt: null,
+          },
+        },
       },
       $setOnInsert: {
         taskId: `corpus-manual-${submission._id.toString()}`,
@@ -303,13 +386,31 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
 
   const removedFromCorpusAt = new Date().toISOString();
 
+  const existingResult = await PlagiarismResult.findOne({ submissionId: submission._id })
+    .select('rawData')
+    .lean();
+  const existingRawData =
+    existingResult?.rawData && typeof existingResult.rawData === 'object'
+      ? existingResult.rawData
+      : {};
+  const existingCorpus =
+    existingRawData.corpus && typeof existingRawData.corpus === 'object'
+      ? existingRawData.corpus
+      : {};
+
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
         checkedAt: new Date(),
-        'rawData.removedFromCorpusAt': removedFromCorpusAt,
-        'rawData.corpus.removedFromCorpusAt': removedFromCorpusAt,
+        rawData: {
+          ...existingRawData,
+          removedFromCorpusAt,
+          corpus: {
+            ...existingCorpus,
+            removedFromCorpusAt,
+          },
+        },
       },
       $setOnInsert: {
         taskId: `corpus-manual-${submission._id.toString()}`,

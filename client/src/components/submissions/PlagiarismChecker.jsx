@@ -141,6 +141,7 @@ const PlagiarismChecker = ({
   const userRole = useAuthStore((state) => state.user?.role);
 
   const canManageCorpus = userRole === ROLES.ADVISER || userRole === ROLES.INSTRUCTOR;
+  const canSettleWithMock = canManageCorpus;
 
   // ───────────────────────────────────────────────────────────────────────
   // Fetch Current Plagiarism Result
@@ -289,7 +290,32 @@ const PlagiarismChecker = ({
       title: detectedTitle || submissionTitle || undefined,
       abstract: detectedAbstract || undefined,
     });
-  }, [plagiarismResult?.detectedAbstract, plagiarismResult?.detectedTitle, submissionTitle, triggerCheck]);
+  }, [
+    plagiarismResult?.detectedAbstract,
+    plagiarismResult?.detectedTitle,
+    submissionTitle,
+    triggerCheck,
+  ]);
+
+  const handleSettleWithMock = useCallback(async () => {
+    const detectedTitle =
+      typeof plagiarismResult?.detectedTitle === 'string' ? plagiarismResult.detectedTitle : '';
+    const detectedAbstract =
+      typeof plagiarismResult?.detectedAbstract === 'string'
+        ? plagiarismResult.detectedAbstract
+        : '';
+
+    triggerCheck({
+      title: detectedTitle || submissionTitle || undefined,
+      abstract: detectedAbstract || undefined,
+      mode: 'mock',
+    });
+  }, [
+    plagiarismResult?.detectedAbstract,
+    plagiarismResult?.detectedTitle,
+    submissionTitle,
+    triggerCheck,
+  ]);
 
   // ───────────────────────────────────────────────────────────────────────
   // Render
@@ -298,6 +324,14 @@ const PlagiarismChecker = ({
   const hasResult = status === 'completed';
   const hasFailed = status === 'failed';
   const isProcessing = isChecking || ['queued', 'processing', 'pending'].includes(status);
+  const rawMode =
+    plagiarismResult?.mode ||
+    plagiarismResult?.fullReport?.mode ||
+    plagiarismResult?.fullReport?.rawData?.mode ||
+    null;
+  const isMockResult = String(rawMode || '')
+    .toLowerCase()
+    .startsWith('mock');
 
   const directOriginality = clampPercentage(plagiarismResult?.originalityScore);
   const legacySimilarity = clampPercentage(plagiarismResult?.similarity_percentage);
@@ -355,6 +389,11 @@ const PlagiarismChecker = ({
               {similarityPercentage.toFixed(1)}% Similarity
             </span>
           )}
+          {hasResult && isMockResult && (
+            <span className="tw-text-xs tw-font-semibold tw-uppercase tw-tracking-wide tw-px-2 tw-py-1 tw-rounded tw-bg-amber-100 tw-text-amber-800 tw-border tw-border-amber-300">
+              Mock Result
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -396,22 +435,42 @@ const PlagiarismChecker = ({
         <div className="tw-space-y-4">
           {/* Action Button */}
           {!hasResult && (
-            <button
-              type="button"
-              onClick={handleTriggerCheck}
-              disabled={disabled || isChecking || isProcessing}
-              className={`tw-w-full tw-px-4 tw-py-2 tw-font-medium tw-rounded tw-text-white tw-transition ${
-                disabled || isChecking || isProcessing
-                  ? 'tw-bg-gray-400 tw-cursor-not-allowed'
-                  : 'tw-bg-blue-600 hover:tw-bg-blue-700'
-              }`}
-            >
-              {isProcessing
-                ? '⏳ Checking...'
-                : hasFailed
-                  ? '🔁 Retry Plagiarism Check'
-                  : '🚀 Start Plagiarism Check'}
-            </button>
+            <div className="tw-grid tw-gap-2 sm:tw-grid-cols-2">
+              <button
+                type="button"
+                onClick={handleTriggerCheck}
+                disabled={disabled || isChecking || isProcessing}
+                className={`tw-w-full tw-px-4 tw-py-2 tw-font-medium tw-rounded tw-text-white tw-transition ${
+                  disabled || isChecking || isProcessing
+                    ? 'tw-bg-gray-400 tw-cursor-not-allowed'
+                    : 'tw-bg-blue-600 hover:tw-bg-blue-700'
+                }`}
+              >
+                {isProcessing
+                  ? '⏳ Checking...'
+                  : hasFailed
+                    ? '🔁 Retry Plagiarism Check'
+                    : '🚀 Start Plagiarism Check'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSettleWithMock}
+                disabled={disabled || isChecking || !canSettleWithMock}
+                className={`tw-w-full tw-px-4 tw-py-2 tw-font-medium tw-rounded tw-transition ${
+                  disabled || isChecking || !canSettleWithMock
+                    ? 'tw-bg-gray-200 tw-text-gray-500 tw-cursor-not-allowed'
+                    : 'tw-bg-amber-500 hover:tw-bg-amber-600 tw-text-white'
+                }`}
+                title={
+                  canSettleWithMock
+                    ? 'Settle now using a temporary mock originality score'
+                    : 'Only advisers/instructors can settle with mock score'
+                }
+              >
+                ⚡ Settle With Mock Score
+              </button>
+            </div>
           )}
 
           {/* Processing State */}
@@ -500,6 +559,12 @@ const PlagiarismChecker = ({
               {checkedAt && (
                 <p className="tw-text-xs tw-text-gray-600">
                   Checked on {new Date(checkedAt).toLocaleString()}
+                </p>
+              )}
+
+              {isMockResult && (
+                <p className="tw-text-xs tw-font-medium tw-text-amber-800 tw-mt-2">
+                  This result was generated in mock mode for temporary review unblock.
                 </p>
               )}
             </div>

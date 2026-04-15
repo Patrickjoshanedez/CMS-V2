@@ -468,9 +468,9 @@ This System Requirements Specification (SRS) defines the Project Workspace: Caps
 |  | FR-AD-06 | The system shall allow advisers to approve or reject submissions. |
 | Monitoring | FR-AD-07 | The system shall notify advisers when students submit or resubmit documents. |
 
-**Table 4\. Adviser** Functional Requirements
+Table 4. Adviser Functional Requirements
 
-**Adviser Non \- Functional Requirements**
+Adviser Non - Functional Requirements
 
 | Req ID | Non-Functional Requirement (System shall…) | Category |
 | ----- | :---: | :---: |
@@ -482,7 +482,7 @@ This System Requirements Specification (SRS) defines the Project Workspace: Caps
 | NFR-AD-06 | provide organized viewing of student submissions. | Usability |
 | NFR-AD-07 |  be available during academic working hours with minimal downtime. | Availability |
 
-**Table 4.1. Adviser** Non-functional Requirements
+Table 4.1. Adviser Non-functional Requirements
 
 **Panel Functional Requirements**
 
@@ -502,13 +502,13 @@ This System Requirements Specification (SRS) defines the Project Workspace: Caps
 
 | Req ID | Non-Functional Requirement (System shall…) | Category |
 | :---: | :---: | :---: |
-| NFR- PA-01 | load evaluation forms within 3 seconds. | Performance |
-| NFR- PA-02 | automatically compute evaluation totals without delay. | Performance |
-| NFR- PA-03 | ensure that panelists can only evaluate assigned projects. | Security |
-| NFR- PA-04 | prevent modification of submitted evaluation results unless authorized. | Security |
-| NFR- PA-05 | follow consistent evaluation criteria format. | Usability |
-| NFR- PA-06 | allow panelists to review comments before final submission. | Usability |
-| NFR- PA-07 | automatically save evaluation inputs to prevent data loss. | Reliability |
+| NFR-PA-01 | load evaluation forms within 3 seconds. | Performance |
+| NFR-PA-02 | automatically compute evaluation totals without delay. | Performance |
+| NFR-PA-03 | ensure that panelists can only evaluate assigned projects. | Security |
+| NFR-PA-04 | prevent modification of submitted evaluation results unless authorized. | Security |
+| NFR-PA-05 | follow consistent evaluation criteria format. | Usability |
+| NFR-PA-06 | allow panelists to review comments before final submission. | Usability |
+| NFR-PA-07 | automatically save evaluation inputs to prevent data loss. | Reliability |
 
 **Table 5.1. Panel** Non-functional Requirements
 
