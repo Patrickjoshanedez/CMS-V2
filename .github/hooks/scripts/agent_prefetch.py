@@ -36,6 +36,7 @@ STATE_FILE = STATE_DIR / "agent_prefetch_registry.json"
 VSCODE_DIR = WORKSPACE_ROOT / ".vscode"
 MCP_CONFIG_FILE = VSCODE_DIR / "mcp.json"
 ORCHESTRATOR_AGENT_FILE = AGENTS_DIR / "orchestrator.agent.md"
+SERENA_PROJECT_FILE = WORKSPACE_ROOT / ".serena" / "project.yml"
 
 REQUIRED_ORCHESTRATOR_TOOLS = {
     "vscode/askQuestions",
@@ -57,6 +58,12 @@ REQUIRED_MCP_SERVERS = {
     "microsoftdocs/mcp",
     "oraios/serena",
 }
+
+INLINE_SECRET_PATTERNS = [
+    re.compile(r"ghp_[A-Za-z0-9]{20,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"(?:api[_-]?key|token|secret)\s*=\s*(?!\$\{(?:input|env):)[^\s\"']+", re.IGNORECASE),
+]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -334,6 +341,44 @@ def _normalize_tokens(values: list[str] | set[str]) -> set[str]:
     }
 
 
+def _extract_yaml_list_values(content: str, key: str) -> list[str]:
+    """Extract top-level YAML list values for a given key with a lightweight parser."""
+    lines = content.splitlines()
+    key_index = -1
+
+    for i, line in enumerate(lines):
+        if line.strip() == f"{key}:":
+            key_index = i
+            break
+
+    if key_index == -1:
+        return []
+
+    values: list[str] = []
+    for line in lines[key_index + 1:]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("- "):
+            value = stripped[2:].strip().strip('"').strip("'")
+            if value:
+                values.append(value)
+            continue
+        break
+
+    return values
+
+
+def _contains_inline_secret(value: str) -> bool:
+    """Detect likely inline secrets in config strings."""
+    if not value:
+        return False
+    for pattern in INLINE_SECRET_PATTERNS:
+        if pattern.search(value):
+            return True
+    return False
+
+
 def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
     """Validate preflight dependencies: agents, instructions, skills, hooks, directories."""
     checks: dict[str, Any] = {
@@ -370,6 +415,12 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
             "mcp_registry_parse_ok": False,
             "required_mcp_servers": sorted(REQUIRED_MCP_SERVERS),
             "missing_mcp_servers": [],
+        },
+        "serena_activation": {
+            "project_file_present": SERENA_PROJECT_FILE.exists(),
+            "project_name_present": False,
+            "base_modes": [],
+            "default_modes": [],
         },
         "errors": [],
         "warnings": [],
@@ -521,6 +572,65 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
                         "Tool activation preflight failed: missing required MCP server registrations: "
                         f"{missing_servers}"
                     )
+
+                # Secret hygiene: block inline secrets in MCP server definitions.
+                for server_name, server_cfg in servers.items():
+                    if not isinstance(server_cfg, dict):
+                        continue
+                    args = server_cfg.get("args", [])
+                    env = server_cfg.get("env", {})
+
+                    if isinstance(args, list):
+                        for arg in args:
+                            if isinstance(arg, str) and _contains_inline_secret(arg):
+                                checks["errors"].append(
+                                    "Tool activation preflight failed: inline credential detected in "
+                                    f".vscode/mcp.json server '{server_name}' args"
+                                )
+
+                    if isinstance(env, dict):
+                        for env_value in env.values():
+                            if isinstance(env_value, str) and _contains_inline_secret(env_value):
+                                checks["errors"].append(
+                                    "Tool activation preflight failed: inline credential detected in "
+                                    f".vscode/mcp.json server '{server_name}' env"
+                                )
+
+    # Serena activation readiness guard
+    if not checks["serena_activation"]["project_file_present"]:
+        checks["errors"].append(
+            "Serena activation preflight failed: missing .serena/project.yml"
+        )
+    else:
+        try:
+            serena_project = SERENA_PROJECT_FILE.read_text(encoding="utf-8")
+        except Exception as exc:
+            checks["errors"].append(
+                f"Serena activation preflight failed: unable to read .serena/project.yml ({exc})"
+            )
+            serena_project = ""
+
+        if serena_project:
+            project_name_match = re.search(r"^project_name\s*:\s*.+$", serena_project, re.MULTILINE)
+            checks["serena_activation"]["project_name_present"] = project_name_match is not None
+
+            base_modes = _extract_yaml_list_values(serena_project, "base_modes")
+            default_modes = _extract_yaml_list_values(serena_project, "default_modes")
+            checks["serena_activation"]["base_modes"] = base_modes
+            checks["serena_activation"]["default_modes"] = default_modes
+
+            if not checks["serena_activation"]["project_name_present"]:
+                checks["errors"].append(
+                    "Serena activation preflight failed: .serena/project.yml must define project_name"
+                )
+            if not base_modes:
+                checks["errors"].append(
+                    "Serena activation preflight failed: .serena/project.yml must define non-empty base_modes"
+                )
+            if not default_modes:
+                checks["errors"].append(
+                    "Serena activation preflight failed: .serena/project.yml must define non-empty default_modes"
+                )
 
     is_valid = len(checks["errors"]) == 0
     return is_valid, checks

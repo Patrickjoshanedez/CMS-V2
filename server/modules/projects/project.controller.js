@@ -2,7 +2,7 @@ import projectService from './project.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
 import {
-  calculateProposalSimilarity,
+  calculateProposalSimilarityDetailed,
   extractMatchingKeywords,
   tokenize,
 } from '../../utils/proposalSimilarity.js';
@@ -81,7 +81,7 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
 
   const results = allProjects
     .map((p) => {
-      const similarity = calculateProposalSimilarity(tokenizedProjectInput, p);
+      const similarity = calculateProposalSimilarityDetailed(tokenizedProjectInput, p);
 
       // Only return if similarity score is high enough (e.g. > 0.15)
       return {

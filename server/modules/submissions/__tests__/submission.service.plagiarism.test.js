@@ -419,12 +419,13 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
 
-    it('should block adviser from approving proposal', async () => {
-      await expect(
-        submissionService.reviewSubmission(submission._id, adviserUser._id, {
-          status: SUBMISSION_STATUSES.APPROVED,
-        }),
-      ).rejects.toThrow('Only instructors and assigned panelists can approve proposals.');
+    it('should allow adviser to approve proposal', async () => {
+      await submissionService.reviewSubmission(submission._id, adviserUser._id, {
+        status: SUBMISSION_STATUSES.APPROVED,
+      });
+
+      const updatedProject = await Project.findById(project._id);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
 
     it('should not transition project if not proposal type', async () => {

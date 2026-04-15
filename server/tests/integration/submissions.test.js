@@ -341,7 +341,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
     });
 
-    it('should reject chapter 1 upload when no adviser is assigned', async () => {
+    it('should allow chapter 1 upload when no adviser is assigned', async () => {
       await Project.findByIdAndUpdate(project._id, { adviserId: null });
 
       const res = await studentAgent
@@ -349,8 +349,8 @@ describe('Submissions API — /api/submissions', () => {
         .field('chapter', '1')
         .attach('file', createPdfBuffer(), 'chapter1.pdf');
 
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('ADVISER_REQUIRED_FOR_CHAPTER_1');
+      expect(res.status).toBe(201);
+      expect(res.body.data.submission.chapter).toBe(1);
     });
 
     it('should reject upload when team is not finalized', async () => {

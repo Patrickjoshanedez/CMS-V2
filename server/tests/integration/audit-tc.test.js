@@ -88,11 +88,10 @@ describe('Audit TC integration coverage', () => {
     expect(res.body.data.every((log) => log.targetId === projectId.toString())).toBe(true);
   });
 
-  it('TC-AUDIT-004: student can view project entity history for History tab support', async () => {
+  it('TC-AUDIT-004: student is denied project entity history access', async () => {
     const res = await studentAgent.get(`/api/audit/Project/${projectId}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBe(2);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
   });
 });

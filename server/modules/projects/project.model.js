@@ -263,9 +263,17 @@ const projectSchema = new mongoose.Schema(
       maxlength: [300, 'Project title must not exceed 300 characters'],
     },
     titleProposals: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length >= 3 && arr.length <= 10,
+        validator: (arr) =>
+          Array.isArray(arr) &&
+          arr.length >= 3 &&
+          arr.length <= 10 &&
+          arr.every(
+            (proposal) =>
+              typeof proposal === 'string' ||
+              (proposal && typeof proposal === 'object' && typeof proposal.title === 'string'),
+          ),
         message: 'A project must include between 3 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],

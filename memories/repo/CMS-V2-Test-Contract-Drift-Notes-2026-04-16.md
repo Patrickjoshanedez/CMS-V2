@@ -1,0 +1,3 @@
+- Keep audit entity-history policy synchronized across route guards and both audit integration suites; student access is forbidden unless policy changes explicitly.
+- For proposal similarity utility changes, preserve compatibility contract expected by tests and controllers: export `calculateJaccardSimilarity`, keep a numeric overall API, and provide a detailed API for endpoint scoring payloads.
+- Invite-candidate tests must seed `instructorId` for student fixtures when profile completeness gates are active; otherwise candidates are correctly blocked with `NO_INSTRUCTOR` warnings.

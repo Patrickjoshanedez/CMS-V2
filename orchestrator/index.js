@@ -19,6 +19,7 @@ import {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 } from './token-optimizer.js';
 
@@ -146,6 +147,7 @@ export {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 
   // HLLM
@@ -209,6 +211,7 @@ export default {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 
   // HLLM

@@ -824,12 +824,17 @@ class SubmissionService {
       );
     }
 
-    if (Number(chapter) === 1 && !project.adviserId) {
-      throw new AppError(
-        'Chapter 1 submission requires an assigned adviser.',
-        400,
-        'ADVISER_REQUIRED_FOR_CHAPTER_1',
-      );
+    if (Number(chapter) === 1) {
+      const panelistsAssigned =
+        Array.isArray(project.panelistIds) && project.panelistIds.length > 0;
+
+      if (!panelistsAssigned) {
+        throw new AppError(
+          'Chapter 1 submission requires at least one assigned panelist.',
+          400,
+          'PANELISTS_NOT_ASSIGNED',
+        );
+      }
     }
 
     if (Number(chapter) >= 4) {
@@ -1904,11 +1909,9 @@ class SubmissionService {
         docId: submission.syncedGoogleDocId,
         comments: [],
         message:
-          error?.message ||
-          'Unable to load Google Docs comments right now. Please try again.',
+          error?.message || 'Unable to load Google Docs comments right now. Please try again.',
       };
     }
-
   }
 
   /* ═══════════════════ Plagiarism ═══════════════════ */
@@ -2033,10 +2036,10 @@ class SubmissionService {
     if (
       submission.type === 'proposal' &&
       status === SUBMISSION_STATUSES.APPROVED &&
-      ![ROLES.INSTRUCTOR, ROLES.PANELIST].includes(reviewer.role)
+      ![ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(reviewer.role)
     ) {
       throw new AppError(
-        'Only instructors and assigned panelists can approve proposals.',
+        'Only instructors, assigned advisers, and assigned panelists can approve proposals.',
         403,
         'PROPOSAL_APPROVAL_FORBIDDEN_ROLE',
       );

@@ -162,6 +162,11 @@ Extremely strict operational protocol preventing hallucinations and guaranteeing
    - **Directory Integrity Preflight**: Verify required orchestration directories exist (`.github/agents`, `.github/instructions`, `.github/skills`, `.github/hooks`, `.github/hooks/scripts`, `.github/hooks/state`).
    - **MCP Preflight**: Verify MCPs needed per use-case from Routing Decision Tree above.
    - **Tool Activation Preflight**: Verify required orchestrator core tools are activated in agent metadata and required MCP server registrations exist in `.vscode/mcp.json`.
+    - **Serena Activation Gate (Mandatory at Session Start)**:
+       - Call `oraios/serena/get_current_config` first.
+       - If `active_project` is empty/None, call `oraios/serena/activate_project` with `CMS-V2`.
+       - If active modes are missing `editing`, `interactive`, `planning`, or `query-projects`, call `oraios/serena/switch_modes` to include them.
+       - If activation fails, stop before planning and report a concrete blocker with evidence.
    - **Complexity Assessment**: If task involves architectural complexity, scaling problems, data flow redesigns, or "impossible" bugs → route to `Thinker pro` FIRST before implementation.
    - **Domain Routing**: Identify if work is frontend (→ `product-design-handoff`), backend (→ `coder`), or devops/infrastructure.
    - **Public Exposure Gate**: If Docker/ngrok exposure is in scope, verify gate before proceeding.
@@ -207,6 +212,18 @@ Extremely strict operational protocol preventing hallucinations and guaranteeing
    - ON TEST PASS:
      - Mark debug todo `completed`
      - Advance to Phase 6
+
+8. **Global Circuit Breaker (Deadlock Prevention)**
+    - Hard cap: maximum 3 full `test -> fix -> retest` cycles per failing command.
+    - If still failing after cycle 3 + `logic-debugger` intervention, stop autonomous retries.
+    - Escalate with evidence bundle: failing command, traces, attempted patches, and last known good state.
+    - Mark as blocked and request human decision rather than burning additional tokens.
+
+9. **Low-Complexity Fast Path (Latency Control)**
+    - For clearly low-complexity changes (for example: text copy edits, minor style-only UI tweaks, single-file non-behavioral updates):
+       - Skip Phase 1.5 (`Thinker pro`) and Phase 2 (`researcher`) unless uncertainty is detected.
+       - Route directly to implementation agent + verification loop.
+    - Fast path is allowed only when no architecture/data-flow/security impact is detected.
 
 6. **Phase 6: Code Quality Review (FINAL GATE)**
    - Only invoke `100x Code Reviewer` when tests are green and code is sound
@@ -258,6 +275,7 @@ The orchestrator now integrates with the enhanced `orchestrator/` module for:
 - Session context: 8000 tokens (durable within session)
 - Long-term memory: 4000 tokens (persistent)
 - Automatic eviction when budgets exceeded
+- Adaptive policy: scale budgets by task complexity (`low`, `normal`, `high`) before deep implementation loops.
 
 ### Context Compaction
 - When approaching context limits, automatically create checkpoint

@@ -255,7 +255,9 @@ describe('Teams API — /api/teams', () => {
       expect(inviteRes.status).toBe(201);
       const inviteToken = inviteRes.body.data.invite.token;
 
-      const acceptRes = await inviteeAgent.post(`/api/teams/invites/${inviteToken}/accept`).send({});
+      const acceptRes = await inviteeAgent
+        .post(`/api/teams/invites/${inviteToken}/accept`)
+        .send({});
 
       expect(acceptRes.status).toBe(200);
       expect(acceptRes.body.success).toBe(true);
@@ -301,7 +303,9 @@ describe('Teams API — /api/teams', () => {
       expect(inviteRes.status).toBe(201);
       const inviteToken = inviteRes.body.data.invite.token;
 
-      const declineRes = await inviteeAgent.post(`/api/teams/invites/${inviteToken}/decline`).send({});
+      const declineRes = await inviteeAgent
+        .post(`/api/teams/invites/${inviteToken}/decline`)
+        .send({});
 
       expect(declineRes.status).toBe(200);
       expect(declineRes.body.success).toBe(true);
@@ -358,7 +362,9 @@ describe('Teams API — /api/teams', () => {
 
       expect(transferRes.status).toBe(200);
       expect(transferRes.body.success).toBe(true);
-      expect(transferRes.body.data.team.leaderId._id.toString()).toBe(selectedMember._id.toString());
+      expect(transferRes.body.data.team.leaderId._id.toString()).toBe(
+        selectedMember._id.toString(),
+      );
 
       const refreshedTeam = await Team.findById(teamId).select('leaderId members');
       const refreshedMemberIds = refreshedTeam.members.map((memberId) => memberId.toString());
@@ -412,7 +418,9 @@ describe('Teams API — /api/teams', () => {
       expect(inviteRes.body.error.code).toBe('ALREADY_IN_TEAM');
       expect(inviteRes.body.error.message).toContain('already has a team');
 
-      const refreshedOccupiedUser = await User.findOne({ email: 'tc-team-010-occupied@example.com' });
+      const refreshedOccupiedUser = await User.findOne({
+        email: 'tc-team-010-occupied@example.com',
+      });
       expect(refreshedOccupiedUser.teamId.toString()).toBe(originalTeamId.toString());
 
       const refreshedOriginalTeam = await Team.findById(originalTeamId).select('members');
@@ -504,11 +512,13 @@ describe('Teams API — /api/teams', () => {
       await createAuthenticatedUserWithRole('student', {
         email: 'invite-candidate-same-section@example.com',
         sectionId: leaderSection._id,
+        instructorId: leaderUser._id,
       });
 
       await createAuthenticatedUserWithRole('student', {
         email: 'invite-candidate-other-section@example.com',
         sectionId: otherSection._id,
+        instructorId: leaderUser._id,
       });
 
       const teamRes = await leaderAgent.post('/api/teams').send({
@@ -554,11 +564,13 @@ describe('Teams API — /api/teams', () => {
       await createAuthenticatedUserWithRole('student', {
         email: 'tc-team-009-eligible@example.com',
         sectionId: section._id,
+        instructorId: leaderUser._id,
       });
 
       const { agent: occupiedAgent } = await createAuthenticatedUserWithRole('student', {
         email: 'tc-team-009-occupied@example.com',
         sectionId: section._id,
+        instructorId: leaderUser._id,
       });
 
       const leaderTeamRes = await leaderAgent.post('/api/teams').send({
@@ -612,12 +624,14 @@ describe('Teams API — /api/teams', () => {
         email: 'searchinvariant.eligible@example.com',
         firstName: 'SearchInvariant',
         sectionId: section._id,
+        instructorId: leaderUser._id,
       });
 
       const { agent: occupiedAgent } = await createAuthenticatedUserWithRole('student', {
         email: 'searchinvariant.occupied@example.com',
         firstName: 'SearchInvariant',
         sectionId: section._id,
+        instructorId: leaderUser._id,
       });
 
       const leaderTeamRes = await leaderAgent.post('/api/teams').send({

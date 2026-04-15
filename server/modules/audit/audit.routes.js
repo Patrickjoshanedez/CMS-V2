@@ -28,7 +28,7 @@ router.get(
 // Entity history — available to faculty roles
 router.get(
   '/:targetType/:targetId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   auditController.getEntityHistory,
 );
 

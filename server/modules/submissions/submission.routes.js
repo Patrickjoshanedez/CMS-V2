@@ -16,6 +16,7 @@ import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
+import { validatePdfFile } from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
 import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
@@ -57,7 +58,7 @@ router.post(
   validate(projectIdParamSchema, 'params'),
   uploadLimiter,
   upload.single('file'),
-  validateFile,
+  validatePdfFile,
   validate(uploadChapterSchema),
   auditLog('submission.chapter_uploaded', 'Submission', {
     getTargetId: (_req, body) => body?.data?._id,
@@ -81,7 +82,7 @@ router.post(
   validate(projectIdParamSchema, 'params'),
   uploadLimiter,
   upload.single('file'),
-  validateFile,
+  validatePdfFile,
   validate(compileProposalSchema),
   auditLog('submission.proposal_compiled', 'Submission', {
     getTargetId: (_req, body) => body?.data?._id,

@@ -27,6 +27,8 @@ project_name: "CMS-V2"
 # Note that when using the JetBrains backend, language servers are not used and this list is correspondingly ignored.
 languages:
 - typescript
+- python
+- markdown
 
 # the encoding used by text files in the project
 # For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
@@ -121,6 +123,8 @@ fixed_tools: []
 # Set this to [] to disable base modes for this project.
 # Set this to a list of mode names to always include the respective modes for this project.
 base_modes:
+- editing
+- interactive
 
 # list of mode names that are to be activated by default.
 # The full set of modes to be activated is base_modes + default_modes.
@@ -128,6 +132,8 @@ base_modes:
 # Otherwise, this overrides the setting from the global configuration (serena_config.yml).
 # This setting can, in turn, be overridden by CLI parameters (--mode).
 default_modes:
+- planning
+- query-projects
 
 # initial prompt for the project. It will always be given to the LLM upon activating the project
 # (contrary to the memories, which are loaded on demand).
