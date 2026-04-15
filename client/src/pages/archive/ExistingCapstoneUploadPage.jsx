@@ -677,60 +677,90 @@ export default function ExistingCapstoneUploadPage() {
                 </div>
 
                 {extractionMetadata && (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-                    <div className="flex items-start gap-2">
-                      <div className="mt-0.5 h-4 w-4 rounded-full bg-green-500 flex-shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="font-medium text-green-900">Extraction successful</div>
-                        <div className="text-xs text-green-800 space-y-0.5">
-                          {extractionMetadata.confidence?.title > 0 && (
-                            <div>
-                              ✓ Title extracted (
-                              {Math.round(extractionMetadata.confidence.title * 100)}%)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.abstract > 0 && (
-                            <div>
-                              ✓ Abstract extracted (
-                              {Math.round(extractionMetadata.confidence.abstract * 100)}%)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.authors > 0 && (
-                            <div>
-                              ✓ Authors extracted (
-                              {Math.round(extractionMetadata.confidence.authors * 100)}%)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.publicationYear > 0 && (
-                            <div>
-                              ✓ Publication year extracted (
-                              {Math.round(extractionMetadata.confidence.publicationYear * 100)}%)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.keywords > 0 && (
-                            <div>
-                              ✓ Keywords extracted (
-                              {Math.round(extractionMetadata.confidence.keywords * 100)}%)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.doi > 0 && (
-                            <div>
-                              ✓ DOI extracted ({Math.round(extractionMetadata.confidence.doi * 100)}
-                              %)
-                            </div>
-                          )}
-                          {extractionMetadata.confidence?.publicationVenue > 0 && (
-                            <div>
-                              ✓ Publication venue extracted (
-                              {Math.round(extractionMetadata.confidence.publicationVenue * 100)}%)
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-xs text-green-700 pt-1">
-                          Provider: {extractionMetadata.provider}
+                  <div className="space-y-2">
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+                      <div className="flex items-start gap-2">
+                        <div className="mt-0.5 h-4 w-4 rounded-full bg-green-500 flex-shrink-0" />
+                        <div className="flex-1 space-y-1">
+                          <div className="font-medium text-green-900">Extraction successful</div>
+                          <div className="text-xs text-green-800 space-y-0.5">
+                            {extractionMetadata.confidence?.title > 0 && (
+                              <div>
+                                ✓ Title extracted (
+                                {Math.round(extractionMetadata.confidence.title * 100)}%)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.abstract > 0 && (
+                              <div>
+                                ✓ Abstract extracted (
+                                {Math.round(extractionMetadata.confidence.abstract * 100)}%)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.authors > 0 && (
+                              <div>
+                                ✓ Authors extracted (
+                                {Math.round(extractionMetadata.confidence.authors * 100)}%)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.publicationYear > 0 && (
+                              <div>
+                                ✓ Publication year extracted (
+                                {Math.round(extractionMetadata.confidence.publicationYear * 100)}%)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.keywords > 0 && (
+                              <div>
+                                ✓ Keywords extracted (
+                                {Math.round(extractionMetadata.confidence.keywords * 100)}%)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.doi > 0 && (
+                              <div>
+                                ✓ DOI extracted (
+                                {Math.round(extractionMetadata.confidence.doi * 100)}
+                                %)
+                              </div>
+                            )}
+                            {extractionMetadata.confidence?.publicationVenue > 0 && (
+                              <div>
+                                ✓ Publication venue extracted (
+                                {Math.round(extractionMetadata.confidence.publicationVenue * 100)}%)
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-green-700 pt-1">
+                            Provider: {extractionMetadata.provider}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* Confidence warnings for suspicious data */}
+                    {extractionMetadata.confidence?.authors > 0 &&
+                      extractionMetadata.confidence.authors < 0.7 && (
+                        <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            <strong>Author confidence is low:</strong> The extracted authors field
+                            may contain institutional data or affiliations. Please review the
+                            &quot;Authors&quot; field and remove any non-name entries like
+                            &quot;Ltd&quot;, company names, or locations. Click Rescan if you see
+                            data corruption.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                    {form.authors && form.authors.length > 200 && (
+                      <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          <strong>Author field unusually long:</strong> The authors field is longer
+                          than typical ({form.authors.length} characters). This often indicates
+                          institutional or affiliation data mixed in. Please manually edit to keep
+                          only author names.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 )}
               </div>

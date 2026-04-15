@@ -24,9 +24,17 @@
  *                  source_metadata, source_snippet
  *   - originality_score, plagiarism_score, total_characters, matched_characters
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ArrowLeft,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+} from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -103,6 +111,54 @@ function normalizeMatch(match, index) {
   };
 }
 
+function extractSubmittedExcerpt(submittedText, match) {
+  if (!submittedText || typeof submittedText !== 'string') return '';
+
+  const spans = Array.isArray(match?.spans) ? match.spans : [];
+  if (spans.length > 0) {
+    const firstSpan = spans[0];
+    const spanStart = Number(firstSpan?.start ?? firstSpan?.start_index);
+    const spanEnd = Number(firstSpan?.end ?? firstSpan?.end_index);
+    if (Number.isFinite(spanStart) && Number.isFinite(spanEnd) && spanEnd > spanStart) {
+      return submittedText.slice(Math.max(0, spanStart), Math.min(submittedText.length, spanEnd));
+    }
+  }
+
+  const start = Number(match?.start_index);
+  const end = Number(match?.end_index);
+  if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+    return submittedText.slice(Math.max(0, start), Math.min(submittedText.length, end));
+  }
+
+  return '';
+}
+
+function similarityBand(unitScore) {
+  const pct = Math.round((unitScore ?? 0) * 100);
+  if (pct >= 90) {
+    return {
+      label: 'High',
+      textClass: 'text-red-700',
+      borderClass: 'border-red-400',
+      donutClass: 'stroke-red-500',
+    };
+  }
+  if (pct >= 70) {
+    return {
+      label: 'Medium',
+      textClass: 'text-orange-700',
+      borderClass: 'border-orange-400',
+      donutClass: 'stroke-orange-500',
+    };
+  }
+  return {
+    label: 'Low',
+    textClass: 'text-yellow-700',
+    borderClass: 'border-yellow-300',
+    donutClass: 'stroke-yellow-500',
+  };
+}
+
 function ScoreBadge({ score }) {
   const pct = Math.round(score ?? 0);
 
@@ -113,9 +169,38 @@ function ScoreBadge({ score }) {
   return <Badge variant={variant}>{pct}% Original</Badge>;
 }
 
+function SimilarityDonut({ similarityPercent }) {
+  const value = Math.max(0, Math.min(100, Math.round(similarityPercent ?? 0)));
+  const band = similarityBand(value / 100);
+
+  return (
+    <div className="flex items-center gap-3">
+      <svg viewBox="0 0 42 42" className="h-16 w-16 -rotate-90" aria-label="Overall similarity">
+        <circle cx="21" cy="21" r="16" fill="none" className="stroke-muted" strokeWidth="4" />
+        <circle
+          cx="21"
+          cy="21"
+          r="16"
+          fill="none"
+          strokeWidth="4"
+          strokeDasharray={`${value} 100`}
+          strokeLinecap="round"
+          className={band.donutClass}
+        />
+      </svg>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Overall Similarity
+        </p>
+        <p className={`text-2xl font-bold ${band.textClass}`}>{value}%</p>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Match card in the right pane ──────────────────────────────────────── */
 
-function MatchCard({ match, isSelected, onSelect }) {
+function MatchCard({ match, isSelected, onSelect, submittedText, panelRef }) {
   const [expanded, setExpanded] = useState(false);
   const pct = Math.round((match.similarity_score ?? 0) * 100);
   const title = match.source_metadata?.title || 'Unknown source';
@@ -123,13 +208,14 @@ function MatchCard({ match, isSelected, onSelect }) {
   const chapter = match.source_metadata?.chapter
     ? `Chapter ${match.source_metadata.chapter}`
     : null;
+  const submittedExcerpt = extractSubmittedExcerpt(submittedText, match);
+  const band = similarityBand((match.similarity_score ?? 0) * 1);
 
-  let borderColor = 'border-yellow-300';
-  if (pct >= 85) borderColor = 'border-red-400';
-  else if (pct >= 65) borderColor = 'border-orange-400';
+  const borderColor = band.borderClass;
 
   return (
     <div
+      ref={panelRef}
       className={[
         'border-l-4 rounded-lg border border-border bg-card shadow-sm overflow-hidden transition-shadow',
         borderColor,
@@ -139,20 +225,16 @@ function MatchCard({ match, isSelected, onSelect }) {
       {/* Header row */}
       <div className="w-full text-left px-4 py-3 flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+          <p className="text-sm font-semibold text-foreground truncate">
+            {pct}% - Archived Document: {title}
+          </p>
           {(author || chapter) && (
             <p className="text-xs text-muted-foreground mt-0.5">
               {[author, chapter].filter(Boolean).join(' · ')}
             </p>
           )}
           <div className="mt-1 flex items-center gap-2">
-            <span
-              className={`text-xs font-bold ${
-                pct >= 85 ? 'text-red-700' : pct >= 65 ? 'text-orange-700' : 'text-yellow-700'
-              }`}
-            >
-              {pct}% similarity
-            </span>
+            <span className={`text-xs font-bold ${band.textClass}`}>{pct}% similarity</span>
             {match.winnow_score !== null && match.winnow_score !== undefined && (
               <span className="text-xs text-gray-400">
                 W:{Math.round(match.winnow_score * 100)}% S:
@@ -182,12 +264,22 @@ function MatchCard({ match, isSelected, onSelect }) {
       </div>
 
       {/* Expandable snippet */}
-      {expanded && match.source_snippet && (
+      {expanded && (
         <div className="px-4 pb-3 border-t border-border">
-          <p className="text-xs text-muted-foreground mt-2 mb-1 font-medium">Source excerpt:</p>
-          <blockquote className="text-xs text-foreground/80 italic bg-muted/40 rounded p-2 border-l-2 border-border line-clamp-5">
-            {match.source_snippet}
-          </blockquote>
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium">Submitted sentence</p>
+              <blockquote className="text-xs text-foreground/80 bg-muted/30 rounded p-2 border-l-2 border-border">
+                {submittedExcerpt || 'No character-level span available for this match.'}
+              </blockquote>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium">Archived sentence</p>
+              <blockquote className="text-xs text-foreground/80 italic bg-muted/40 rounded p-2 border-l-2 border-border">
+                {match.source_snippet || 'No archived source snippet available for this match.'}
+              </blockquote>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -200,6 +292,7 @@ export default function PlagiarismReportPage() {
   const { submissionId } = useParams();
   const navigate = useNavigate();
   const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const sourceItemRefs = useRef(new Map());
 
   const { data, isLoading, isError, error } = usePlagiarismReport(submissionId);
 
@@ -220,6 +313,14 @@ export default function PlagiarismReportPage() {
   const handleSelectMatch = useCallback((match) => {
     setSelectedMatchId((prev) => (prev === match.match_id ? null : match.match_id));
   }, []);
+
+  useEffect(() => {
+    if (!selectedMatchId) return;
+    const node = sourceItemRefs.current.get(selectedMatchId);
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedMatchId]);
 
   /* ── Loading state ── */
   if (isLoading) {
@@ -261,6 +362,7 @@ export default function PlagiarismReportPage() {
   const plagiarismPct =
     data?.fullReport?.plagiarism_score ??
     (originality !== null && originality !== undefined ? 100 - originality : null);
+  const overallSimilarity = Math.max(0, Math.min(100, Math.round(plagiarismPct ?? 0)));
   const processedAt = data?.processedAt ? new Date(data.processedAt).toLocaleDateString() : null;
 
   return (
@@ -327,7 +429,7 @@ export default function PlagiarismReportPage() {
           )}
         </Card>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem] gap-4 min-h-[60vh]">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,7fr)_minmax(18rem,3fr)] gap-4 min-h-[60vh]">
           <section aria-label="Submission text with highlighted matches">
             <Card className="h-full border-border/70 bg-card/80">
               <CardHeader className="pb-3">
@@ -360,7 +462,10 @@ export default function PlagiarismReportPage() {
           <aside aria-label="Detected plagiarism sources">
             <Card className="h-full border-border/70 bg-card/80">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Detected Sources</CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm">Match Overview</CardTitle>
+                  <SimilarityDonut similarityPercent={overallSimilarity} />
+                </div>
                 <CardDescription>
                   Select a source to focus the matching section in the submission text.
                 </CardDescription>
@@ -382,15 +487,27 @@ export default function PlagiarismReportPage() {
                         match={match}
                         isSelected={selectedMatchId === match.match_id}
                         onSelect={handleSelectMatch}
+                        submittedText={data?.extractedText ?? ''}
+                        panelRef={(node) => {
+                          if (node) {
+                            sourceItemRefs.current.set(match.match_id, node);
+                          } else {
+                            sourceItemRefs.current.delete(match.match_id);
+                          }
+                        }}
                       />
                     ))
                   )}
                 </div>
 
                 <div className="mt-3 border-t border-border pt-2">
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground mb-1">
+                    <FileText size={12} className="flex-shrink-0 mt-0.5" />
+                    Red highlights are 90%+, orange highlights are 70-89% match overlap.
+                  </p>
                   <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                     <Info size={12} className="flex-shrink-0 mt-0.5" />
-                    Scores combine lexical fingerprinting (70%) and semantic similarity (30%).
+                    Expanded cards show submitted-vs-archived evidence for reviewer comparison.
                   </p>
                 </div>
               </CardContent>

@@ -114,8 +114,8 @@ function buildFragments(paraText, paraStart, paraEnd, sortedMatches) {
  * Map a 0-1 similarity_score to a Tailwind  highlight colour class.
  */
 function highlightClass(score) {
-  if (score >= 0.85) return 'bg-red-200 text-red-900';
-  if (score >= 0.65) return 'bg-orange-200 text-orange-900';
+  if (score >= 0.9) return 'bg-red-200 text-red-900';
+  if (score >= 0.7) return 'bg-orange-200 text-orange-900';
   return 'bg-yellow-200 text-yellow-900';
 }
 
@@ -236,15 +236,15 @@ export default function VirtualizedPlagiarismViewer({
         <span className="font-medium">Highlight key:</span>
         <span className="inline-flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />
-          Low (50–64%)
+          Low (&lt;70%)
         </span>
         <span className="inline-flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-orange-200 border border-orange-300" />
-          Medium (65–84%)
+          Medium (70–89%)
         </span>
         <span className="inline-flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-red-200 border border-red-300" />
-          High (≥85%)
+          High (≥90%)
         </span>
       </div>
 

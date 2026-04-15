@@ -1,5 +1,9 @@
 // Isolated local AI provider for Ollama-backed execution loops.
 
+import { EventEmitter } from 'events';
+
+export const aosTelemetry = new EventEmitter();
+
 const HARDWARE_LIMITS = {
   MAX_OLLAMA_CONTEXT: 8192,
   WORKING_BUDGET: 3000,
@@ -25,6 +29,17 @@ function enforceHardwareCap(contextString) {
   return safeContext;
 }
 
+function emitSystemAlert(level, rolePrompt, message, feedback, attempt) {
+  aosTelemetry.emit('system_alert', {
+    level,
+    agent: String(rolePrompt ?? '').substring(0, 20),
+    message,
+    feedback,
+    attempt,
+    timestamp: Date.now(),
+  });
+}
+
 /**
  * Isolated provider for the local Qwen 2.5 Coder swarm.
  *
@@ -34,6 +49,23 @@ function enforceHardwareCap(contextString) {
  */
 export async function callLocalSwarm(rolePrompt, taskContext) {
   const safeContext = enforceHardwareCap(taskContext);
+  const agent = String(rolePrompt ?? '').substring(0, 20);
+
+  if (safeContext !== String(taskContext ?? '')) {
+    emitSystemAlert(
+      'warning',
+      rolePrompt,
+      'Context truncated to protect local RAM budget.',
+      `Approximated ${Math.round(String(taskContext ?? '').length / 4)} tokens, capped at ${HARDWARE_LIMITS.MAX_OLLAMA_CONTEXT}`,
+    );
+  }
+
+  aosTelemetry.emit('llm_stream', {
+    type: 'request',
+    agent,
+    payload: safeContext,
+    timestamp: Date.now(),
+  });
 
   const payload = {
     model: 'qwen2.5-coder:7b',
@@ -57,12 +89,30 @@ export async function callLocalSwarm(rolePrompt, taskContext) {
     });
 
     if (!response.ok) {
-      throw new Error(`[Local AI] Ollama API Error: ${response.status} ${response.statusText}`);
+      const error = new Error(
+        `[Local AI] Ollama API Error: ${response.status} ${response.statusText}`,
+      );
+      emitSystemAlert('critical', rolePrompt, 'Local Ollama request failed.', error.message);
+      throw error;
     }
 
     const data = await response.json();
+
+    aosTelemetry.emit('llm_stream', {
+      type: 'response',
+      agent,
+      payload: data?.message?.content ?? '',
+      timestamp: Date.now(),
+    });
+
     return data?.message?.content ?? '';
   } catch (error) {
+    emitSystemAlert(
+      'critical',
+      rolePrompt,
+      'Local Ollama execution failed.',
+      error instanceof Error ? error.stack || error.message : String(error),
+    );
     console.error(
       `[Local AI] Execution Failed for role [${String(rolePrompt ?? '').substring(0, 30)}...]`,
     );

@@ -320,6 +320,66 @@ async function processJob(job) {
 
   // Step 4: Run originality check
   const result = await checkOriginality(extractedText, corpus);
+  const similarityPercentage = Math.max(0, Math.min(100, 100 - result.originalityScore));
+
+  const normalizedMatches = (result.matchedSources || []).map((match, index) => {
+    const spans = Array.isArray(match.spans)
+      ? match.spans
+          .filter(
+            (span) =>
+              Number.isFinite(span?.start) && Number.isFinite(span?.end) && span.end > span.start,
+          )
+          .map((span) => ({ start: span.start, end: span.end }))
+      : [];
+    const firstSpan = spans[0] || null;
+
+    return {
+      match_id: match.match_id || `match-${index}-${match.submissionId || 'source'}`,
+      start_index:
+        Number.isFinite(match.start_index) && Number.isFinite(match.end_index)
+          ? match.start_index
+          : (firstSpan?.start ?? null),
+      end_index:
+        Number.isFinite(match.start_index) && Number.isFinite(match.end_index)
+          ? match.end_index
+          : (firstSpan?.end ?? null),
+      spans,
+      similarity_score:
+        Number.isFinite(match.matchPercentage) && match.matchPercentage !== null
+          ? Math.max(0, Math.min(1, match.matchPercentage / 100))
+          : null,
+      winnow_score: Number.isFinite(match.winnowScore) ? match.winnowScore : null,
+      semantic_score: Number.isFinite(match.semanticScore) ? match.semanticScore : null,
+      source_metadata: {
+        document_id: match.submissionId || null,
+        title: match.projectTitle || 'Unknown Project',
+        chapter: match.chapter ?? null,
+      },
+      source_snippet: match.sourceSnippet || '',
+    };
+  });
+
+  const fullReport = {
+    document_id: submissionId,
+    originality_score: result.originalityScore,
+    plagiarism_score: similarityPercentage,
+    total_characters: extractedText.length,
+    matched_characters: normalizedMatches.reduce((sum, item) => {
+      if (!Array.isArray(item.spans)) return sum;
+      return (
+        sum +
+        item.spans.reduce((spanSum, span) => {
+          const start = Number(span?.start);
+          const end = Number(span?.end);
+          if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return spanSum;
+          return spanSum + (end - start);
+        }, 0)
+      );
+    }, 0),
+    matches: normalizedMatches,
+    candidates_evaluated: corpus.length,
+    processing_time_ms: null,
+  };
 
   // Step 5: Update submission with results
   await Submission.findByIdAndUpdate(submissionId, {
@@ -327,10 +387,9 @@ async function processJob(job) {
     'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
     'plagiarismResult.originalityScore': result.originalityScore,
     'plagiarismResult.matchedSources': result.matchedSources,
+    'plagiarismResult.fullReport': fullReport,
     'plagiarismResult.processedAt': new Date(),
   });
-
-  const similarityPercentage = Math.max(0, Math.min(100, 100 - result.originalityScore));
 
   await PlagiarismResult.findOneAndUpdate(
     { submissionId },
@@ -352,7 +411,10 @@ async function processJob(job) {
         checkedAt: new Date(),
         completedAt: new Date(),
         warningFlag: similarityPercentage >= 50,
-        rawData: result,
+        rawData: {
+          ...result,
+          ...fullReport,
+        },
         error: null,
         errorMessage: null,
       },
