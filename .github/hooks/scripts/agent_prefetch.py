@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 AGENTS_DIR = WORKSPACE_ROOT / ".github" / "agents"
@@ -37,6 +39,8 @@ VSCODE_DIR = WORKSPACE_ROOT / ".vscode"
 MCP_CONFIG_FILE = VSCODE_DIR / "mcp.json"
 ORCHESTRATOR_AGENT_FILE = AGENTS_DIR / "orchestrator.agent.md"
 SERENA_PROJECT_FILE = WORKSPACE_ROOT / ".serena" / "project.yml"
+LOCAL_AI_BASE_URL = "http://localhost:11434"
+LOCAL_AI_MODEL = "qwen2.5-coder:7b"
 
 REQUIRED_ORCHESTRATOR_TOOLS = {
     "vscode/askQuestions",
@@ -379,9 +383,71 @@ def _contains_inline_secret(value: str) -> bool:
     return False
 
 
+def check_local_ai_health() -> tuple[bool, dict[str, Any]]:
+    """Verify the local Ollama server is online and the target model is available."""
+    status: dict[str, Any] = {
+        "base_url": LOCAL_AI_BASE_URL,
+        "model": LOCAL_AI_MODEL,
+        "online": False,
+        "model_available": False,
+        "status_code": None,
+        "available_models": [],
+    }
+
+    logger.info("Checking local AI server (Ollama)...")
+
+    try:
+        with urllib_request.urlopen(f"{LOCAL_AI_BASE_URL}/", timeout=5) as response:
+            status_code = response.getcode()
+            status["status_code"] = status_code
+            if status_code != 200:
+                raise ConnectionError(f"Unexpected Ollama status code: {status_code}")
+
+        with urllib_request.urlopen(f"{LOCAL_AI_BASE_URL}/api/tags", timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        models: list[str] = []
+        if isinstance(payload, dict):
+            for model in payload.get("models", []):
+                if isinstance(model, dict):
+                    name = model.get("name")
+                    if isinstance(name, str) and name.strip():
+                        models.append(name)
+
+        status["available_models"] = models
+        if LOCAL_AI_MODEL not in models:
+            status["error"] = (
+                f"CRITICAL: {LOCAL_AI_MODEL} not found. Run 'ollama pull {LOCAL_AI_MODEL}'"
+            )
+            logger.error(status["error"])
+            return False, status
+
+        status["online"] = True
+        status["model_available"] = True
+        logger.info("Local AI Server: ONLINE and model verified.")
+        return True, status
+
+    except urllib_error.URLError:
+        status["error"] = "CRITICAL: Ollama is offline. Start Ollama before running the orchestrator."
+        logger.error(status["error"])
+        return False, status
+    except (json.JSONDecodeError, ConnectionError) as exc:
+        status["error"] = f"CRITICAL: Local AI health check failed: {exc}"
+        logger.error(status["error"])
+        return False, status
+
+
 def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
     """Validate preflight dependencies: agents, instructions, skills, hooks, directories."""
     checks: dict[str, Any] = {
+        "local_ai": {
+            "base_url": LOCAL_AI_BASE_URL,
+            "model": LOCAL_AI_MODEL,
+            "online": False,
+            "model_available": False,
+            "status_code": None,
+            "available_models": [],
+        },
         "directories": {
             "required": [
                 str(AGENTS_DIR.relative_to(WORKSPACE_ROOT)),
@@ -425,6 +491,11 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
         "errors": [],
         "warnings": [],
     }
+
+    local_ai_valid, local_ai_status = check_local_ai_health()
+    checks["local_ai"].update(local_ai_status)
+    if not local_ai_valid:
+        checks["errors"].append(local_ai_status.get("error", "Local AI health check failed"))
 
     # Required directory validation (fail-closed)
     required_dirs = [

@@ -77,6 +77,13 @@ import {
   SerenaDispatcherRouter,
 } from './serena-integration.js';
 
+// Local AI fast-path - isolated opt-in route for low-complexity tasks
+import {
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
+} from './local-fast-path.js';
+
 /**
  * Initialize the orchestrator module.
  * Creates required directories, loads existing lessons,
@@ -195,6 +202,11 @@ export {
   SerenaIntegrationManager,
   SerenaAbilityDiscovery,
   SerenaDispatcherRouter,
+
+  // Local AI fast-path
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
 };
 
 // Default export with all functionality
@@ -259,4 +271,9 @@ export default {
   SerenaIntegrationManager,
   SerenaAbilityDiscovery,
   SerenaDispatcherRouter,
+
+  // Local AI fast-path
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
 };
