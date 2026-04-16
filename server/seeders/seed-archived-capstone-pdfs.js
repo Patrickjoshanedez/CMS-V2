@@ -181,7 +181,9 @@ const readTemplatePdfBuffer = () => {
   const templateBuffer = fs.readFileSync(TEMPLATE_PATH);
   const head = templateBuffer.subarray(0, 5).toString('ascii');
   if (!head.startsWith('%PDF-')) {
-    console.warn(`Template file has invalid PDF header, using generated fallback: ${TEMPLATE_PATH}`);
+    console.warn(
+      `Template file has invalid PDF header, using generated fallback: ${TEMPLATE_PATH}`,
+    );
     return null;
   }
 
@@ -212,7 +214,6 @@ const ensureFixtureStudents = async (count = FIXTURE_STUDENT_COUNT) => {
       continue;
     }
 
-    // eslint-disable-next-line no-await-in-loop
     await User.create({
       firstName: 'Archive',
       middleName: '',
@@ -262,7 +263,7 @@ const getSeedContext = async () => {
         createdBy: createdBy._id,
       },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   ).lean();
 
   await AcademicYear.findOneAndUpdate(
@@ -289,7 +290,7 @@ const getSeedContext = async () => {
         createdBy: createdBy._id,
       },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   ).lean();
 
   return { adviser, panelist, students, course, section };

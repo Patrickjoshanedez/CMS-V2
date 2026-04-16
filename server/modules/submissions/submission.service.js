@@ -42,7 +42,7 @@ import {
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
-  error: (...args) => console.error(...args), // eslint-disable-line no-console
+  error: (...args) => console.error(...args),
 };
 
 class SubmissionService {
@@ -156,7 +156,7 @@ class SubmissionService {
           checkedAt: new Date(),
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean();
 
     await Submission.findByIdAndUpdate(submissionId, {
@@ -202,7 +202,7 @@ class SubmissionService {
           errorMessage: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean();
 
     await Submission.findByIdAndUpdate(submission._id, {
@@ -2664,7 +2664,7 @@ class SubmissionService {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: 'after',
       },
     ).lean();
 

@@ -135,7 +135,7 @@ class TeamService {
   async generateUniqueInviteCode() {
     for (let attempts = 0; attempts < 10; attempts += 1) {
       const candidateCode = generateInviteCodeValue();
-      // eslint-disable-next-line no-await-in-loop
+
       const existingInvite = await TeamInvite.exists({ inviteCode: candidateCode });
       if (!existingInvite) {
         return candidateCode;
@@ -276,12 +276,16 @@ class TeamService {
       );
     }
 
-    const isMember = (team.members || []).some((memberId) => memberId.toString() === userId.toString());
+    const isMember = (team.members || []).some(
+      (memberId) => memberId.toString() === userId.toString(),
+    );
     if (!isMember) {
       throw new AppError('You are not a member of this team.', 403, 'FORBIDDEN');
     }
 
-    team.members = (team.members || []).filter((memberId) => memberId.toString() !== userId.toString());
+    team.members = (team.members || []).filter(
+      (memberId) => memberId.toString() !== userId.toString(),
+    );
     team.memberRoles = (team.memberRoles || []).filter(
       (assignment) => assignment?.userId?.toString() !== userId.toString(),
     );
@@ -290,10 +294,7 @@ class TeamService {
     const wasLeader = team.leaderId?.toString() === userId.toString();
 
     if (remainingMemberIds.length === 0) {
-      await User.updateOne(
-        { _id: userId, teamId: team._id },
-        { $set: { teamId: null } },
-      );
+      await User.updateOne({ _id: userId, teamId: team._id }, { $set: { teamId: null } });
       await TeamInvite.deleteMany({ teamId: team._id, status: 'pending' });
       await team.deleteOne();
       return { team: null };
@@ -305,10 +306,7 @@ class TeamService {
 
     await team.save();
 
-    await User.updateOne(
-      { _id: userId, teamId: team._id },
-      { $set: { teamId: null } },
-    );
+    await User.updateOne({ _id: userId, teamId: team._id }, { $set: { teamId: null } });
 
     const populatedTeam = await Team.findById(team._id)
       .populate('leaderId', 'firstName middleName lastName email profilePicture')
@@ -518,8 +516,8 @@ class TeamService {
 
     const isCrossSectionInvite = Boolean(
       inviter?.sectionId &&
-        invitedUser?.sectionId &&
-        inviter.sectionId.toString() !== invitedUser.sectionId.toString(),
+      invitedUser?.sectionId &&
+      inviter.sectionId.toString() !== invitedUser.sectionId.toString(),
     );
 
     if (isCrossSectionInvite) {
@@ -630,51 +628,53 @@ class TeamService {
 
     const candidates = users
       .map((user) => {
-      const userId = user._id.toString();
-      const inAnotherSection = Boolean(
-        scopedSectionId && user.sectionId && user.sectionId.toString() !== scopedSectionId.toString(),
-      );
-      // Rely on current team membership records instead of user.teamId, which can be stale.
-      const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
-      const mappedTeamId = memberTeamMap.get(userId);
-      const currentTeamId = user.teamId ? user.teamId.toString() : null;
-      if (alreadyInTeam && mappedTeamId && currentTeamId !== mappedTeamId) {
-        staleTeamIdUpdates.push({
-          updateOne: {
-            filter: { _id: user._id },
-            update: { $set: { teamId: mappedTeamId } },
-          },
-        });
-      }
-      const missingInstructor = !user.instructorId;
+        const userId = user._id.toString();
+        const inAnotherSection = Boolean(
+          scopedSectionId &&
+          user.sectionId &&
+          user.sectionId.toString() !== scopedSectionId.toString(),
+        );
+        // Rely on current team membership records instead of user.teamId, which can be stale.
+        const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
+        const mappedTeamId = memberTeamMap.get(userId);
+        const currentTeamId = user.teamId ? user.teamId.toString() : null;
+        if (alreadyInTeam && mappedTeamId && currentTeamId !== mappedTeamId) {
+          staleTeamIdUpdates.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: { teamId: mappedTeamId } },
+            },
+          });
+        }
+        const missingInstructor = !user.instructorId;
 
-      const warnings = [];
+        const warnings = [];
 
-      if (inAnotherSection) {
-        warnings.push({
-          code: 'DIFFERENT_SECTION',
-          message:
-            'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
-          blocksInvite: false,
-        });
-      }
+        if (inAnotherSection) {
+          warnings.push({
+            code: 'DIFFERENT_SECTION',
+            message:
+              'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
+            blocksInvite: false,
+          });
+        }
 
-      if (alreadyInTeam) {
-        warnings.push({
-          code: 'ALREADY_IN_TEAM',
-          message: `${user.fullName || 'This student'} already has a team.`,
-          blocksInvite: true,
-        });
-      }
+        if (alreadyInTeam) {
+          warnings.push({
+            code: 'ALREADY_IN_TEAM',
+            message: `${user.fullName || 'This student'} already has a team.`,
+            blocksInvite: true,
+          });
+        }
 
-      if (missingInstructor) {
-        warnings.push({
-          code: 'NO_INSTRUCTOR',
-          message:
-            'This student does not have an instructor yet. They should complete their profile before joining a team.',
-          blocksInvite: true,
-        });
-      }
+        if (missingInstructor) {
+          warnings.push({
+            code: 'NO_INSTRUCTOR',
+            message:
+              'This student does not have an instructor yet. They should complete their profile before joining a team.',
+            blocksInvite: true,
+          });
+        }
 
         return {
           _id: user._id,
@@ -763,7 +763,7 @@ class TeamService {
       {
         $set: { teamId: team._id },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!claimedUser) {
@@ -779,14 +779,11 @@ class TeamService {
       {
         $addToSet: { members: user._id },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!updatedTeam) {
-      await User.updateOne(
-        { _id: user._id, teamId: team._id },
-        { $set: { teamId: null } },
-      );
+      await User.updateOne({ _id: user._id, teamId: team._id }, { $set: { teamId: null } });
 
       const freshTeam = await Team.findById(team._id).select('members');
       if (!freshTeam) {
@@ -950,9 +947,15 @@ class TeamService {
       throw new AppError('The selected member is already the team leader.', 400, 'ALREADY_LEADER');
     }
 
-    const isTeamMember = team.members?.some((member) => member?._id?.toString() === memberId.toString());
+    const isTeamMember = team.members?.some(
+      (member) => member?._id?.toString() === memberId.toString(),
+    );
     if (!isTeamMember) {
-      throw new AppError('The selected user is not a member of this team.', 404, 'MEMBER_NOT_FOUND');
+      throw new AppError(
+        'The selected user is not a member of this team.',
+        404,
+        'MEMBER_NOT_FOUND',
+      );
     }
 
     team.leaderId = memberId;

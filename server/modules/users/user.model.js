@@ -145,17 +145,12 @@ userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 userSchema.index({ role: 1, isActive: 1, firstName: 1, lastName: 1 });
 
 // --- Pre-save hook: hash password ---
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   // Skip hashing for Google OAuth users (no password) or unmodified passwords
-  if (!this.password || !this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // --- Instance methods ---

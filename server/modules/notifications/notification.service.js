@@ -17,10 +17,7 @@ class NotificationService {
     const skip = (page - 1) * limit;
 
     const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find({ userId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+      Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
       Notification.countDocuments({ userId }),
       Notification.countDocuments({ userId, isRead: false }),
     ]);
@@ -47,7 +44,7 @@ class NotificationService {
     const notification = await Notification.findOneAndUpdate(
       { _id: notificationId, userId },
       { isRead: true },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!notification) {
@@ -63,10 +60,7 @@ class NotificationService {
    * @returns {Object} { modifiedCount }
    */
   async markAllAsRead(userId) {
-    const result = await Notification.updateMany(
-      { userId, isRead: false },
-      { isRead: true },
-    );
+    const result = await Notification.updateMany({ userId, isRead: false }, { isRead: true });
 
     return { modifiedCount: result.modifiedCount };
   }

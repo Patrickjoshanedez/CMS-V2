@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { STRICT_EMAIL_REGEX } from '@cms/shared';
 
 /**
  * Zod validation schemas for all auth endpoints.
@@ -26,6 +27,7 @@ export const registerSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
   password: z
     .string({ required_error: 'Password is required' })
@@ -42,6 +44,7 @@ export const loginSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
   password: z.string({ required_error: 'Password is required' }).min(1, 'Password is required'),
 });
@@ -58,6 +61,7 @@ export const verifyOtpSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
   code: z
     .string({ required_error: 'OTP code is required' })
@@ -73,6 +77,7 @@ export const resendOtpSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
   type: z.enum(['verification', 'password_reset'], {
     required_error: 'OTP type is required',
@@ -84,6 +89,7 @@ export const forgotPasswordSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
 });
 
@@ -92,6 +98,7 @@ export const resetPasswordSchema = z.object({
     .string({ required_error: 'Email is required' })
     .trim()
     .email('Please provide a valid email address')
+    .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
     .toLowerCase(),
   newPassword: z
     .string({ required_error: 'New password is required' })

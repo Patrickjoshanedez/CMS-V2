@@ -1,3 +1,5 @@
+@config "../tailwind.config.js";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -173,6 +175,7 @@ input::-webkit-credentials-auto-fill-button {
 
 /* --- Hover: Gradient button shimmer --- */
 .landing-btn-gradient {
+  background: linear-gradient(135deg, #ff5722, #e91e63, #673ab7);
   background-size: 200% 200% !important;
   background-position: 0% 50%;
   transition:

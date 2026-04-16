@@ -79,7 +79,7 @@ systemSettingsSchema.statics.getSettings = async function () {
   const settings = await this.findOneAndUpdate(
     { key: 'global' },
     { $setOnInsert: { key: 'global' } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
   return settings;
 };

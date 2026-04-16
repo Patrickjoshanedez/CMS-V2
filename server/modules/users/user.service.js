@@ -106,7 +106,7 @@ class UserService {
     }
 
     const user = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -183,7 +183,7 @@ class UserService {
    */
   async updateUser(userId, data) {
     const user = await User.findByIdAndUpdate(userId, data, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -201,7 +201,11 @@ class UserService {
    * @returns {Object} { user }
    */
   async changeRole(userId, role) {
-    const user = await User.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { returnDocument: 'after', runValidators: true },
+    );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
@@ -250,7 +254,11 @@ class UserService {
       );
     }
 
-    const userDoc = await User.findByIdAndUpdate(userId, { profilePicture: key }, { new: true });
+    const userDoc = await User.findByIdAndUpdate(
+      userId,
+      { profilePicture: key },
+      { returnDocument: 'after' },
+    );
     if (!userDoc) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
@@ -354,7 +362,11 @@ class UserService {
    * @returns {Object} { user }
    */
   async deleteUser(userId) {
-    const user = await User.findByIdAndUpdate(userId, { isActive: false }, { new: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: false },
+      { returnDocument: 'after' },
+    );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');

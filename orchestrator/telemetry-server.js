@@ -196,6 +196,10 @@ function attachTelemetryStreams() {
 }
 
 async function ensureDashboardRunning() {
+  if (process.env.AOS_CONTROL_PLANE_SKIP_DASHBOARD_BOOTSTRAP === 'true') {
+    return { started: false, ready: true, skipped: true };
+  }
+
   if (await isPortOpen(DASHBOARD_PORT)) {
     await openDashboard(DASHBOARD_URL);
     return { started: false, ready: true };

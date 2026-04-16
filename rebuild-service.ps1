@@ -2,7 +2,9 @@ param(
     [string[]]$Services = @("server", "client"),
     [switch]$IncludeDependencies,
     [switch]$NoCache,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$BuildOnly,
+    [switch]$ForceRecreate
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,6 +73,10 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Fail -Message "docker command not found in PATH"
 }
 
+# Prefer BuildKit for faster incremental/parallel builds.
+$env:DOCKER_BUILDKIT = "1"
+$env:COMPOSE_DOCKER_CLI_BUILD = "1"
+
 if ($null -eq $Services -or $Services.Count -eq 0) {
     Fail -Message "No services requested. Use -Services server,client"
 }
@@ -124,7 +130,7 @@ $serviceList = $requestedServices -join ", "
 Write-Host "[INFO] Target services: $serviceList"
 
 if (-not $SkipBuild) {
-    $buildArgs = @("build")
+    $buildArgs = @("build", "--parallel")
     if ($NoCache) {
         $buildArgs += "--no-cache"
     }
@@ -137,7 +143,15 @@ else {
     Write-Host "[STEP] Skipping build (-SkipBuild)"
 }
 
-$upArgs = @("up", "-d", "--force-recreate")
+if ($BuildOnly) {
+    Write-Host "[DONE] Build completed (build-only mode)." -ForegroundColor Green
+    exit 0
+}
+
+$upArgs = @("up", "-d")
+if ($ForceRecreate) {
+    $upArgs += "--force-recreate"
+}
 if (-not $IncludeDependencies) {
     $upArgs += "--no-deps"
 }

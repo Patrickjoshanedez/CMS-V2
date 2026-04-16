@@ -1,7 +1,7 @@
 /**
  * Storage file serving middleware — Serve uploaded files from local filesystem
  *
- * Mounts at /storage/:* to serve files uploaded via filesystem storage service
+ * Mounts at /storage/* to serve files uploaded via filesystem storage service
  * Example: /storage/archives/projects/xxx/chapters/1/v1/file.pdf
  *
  * Security:
@@ -24,10 +24,10 @@ const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uplo
  * Serve file from filesystem storage
  * GET /storage/archives/projects/{projectId}/chapters/1/v1/file.pdf
  */
-router.get('/*', (req, res, _next) => {
+router.get('/*filepath', (req, res, _next) => {
   try {
     // Sanitize path — prevent path traversal attacks
-    const requestedPath = req.params[0];
+    const requestedPath = req.params.filepath;
 
     if (requestedPath.includes('..')) {
       return res.status(400).json({ error: 'Invalid path' });

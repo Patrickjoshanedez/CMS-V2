@@ -51,7 +51,7 @@ class SettingsService {
     const settings = await SystemSettings.findOneAndUpdate(
       { key: 'global' },
       { $set: sanitized },
-      { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true },
     );
 
     return {

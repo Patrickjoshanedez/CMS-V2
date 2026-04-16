@@ -644,11 +644,6 @@ function HeroSection({ heroRef }) {
           <Link
             to="/register"
             className="landing-btn-gradient inline-flex items-center justify-center rounded-lg px-7 py-3 text-sm font-semibold uppercase tracking-wider text-white shadow-lg transition-all duration-300"
-            style={{
-              background:
-                'linear-gradient(135deg, hsl(var(--brand-orange)), hsl(var(--brand-pink)), hsl(var(--brand-deep-purple)))',
-              backgroundSize: '200% 200%',
-            }}
           >
             Get Started
           </Link>

@@ -649,20 +649,9 @@ function HeroSection({ heroRef }) {
         </p>
 
         <div className="landing-buttons mt-10 flex flex-wrap gap-4">
-          {/* Get Started button - inline style required for complex gradient animation
-              Brand color mapping:
-              - #ff5722 = brand-orange (hsl(var(--brand-orange)))
-              - #e91e63 = brand-pink (hsl(var(--brand-pink)))
-              - #673ab7 = brand-deep-purple (hsl(var(--brand-deep-purple)))
-          */}
           <Link
             to="/register"
             className="landing-btn-gradient inline-flex items-center justify-center rounded-lg px-7 py-3 text-sm font-semibold uppercase tracking-wider text-white shadow-lg transition-all duration-300"
-            style={{
-              background:
-                'linear-gradient(135deg, hsl(var(--brand-orange)), hsl(var(--brand-pink)), hsl(var(--brand-deep-purple)))',
-              backgroundSize: '200% 200%',
-            }}
           >
             Get Started
           </Link>

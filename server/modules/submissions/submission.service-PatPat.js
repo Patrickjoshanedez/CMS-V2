@@ -39,7 +39,7 @@ import {
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
-  error: (...args) => console.error(...args), // eslint-disable-line no-console
+  error: (...args) => console.error(...args),
 };
 
 class SubmissionService {
@@ -1624,7 +1624,7 @@ class SubmissionService {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: 'after',
       },
     ).lean();
 

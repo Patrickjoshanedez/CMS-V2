@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,6 +43,9 @@ export default function LoginPage() {
   const recaptchaRef = useRef(null);
   const { theme } = useTheme();
 
+  const readCaptchaToken = useCallback(() => recaptchaRef.current?.getValue(), []);
+  const resetCaptcha = useCallback(() => recaptchaRef.current?.reset(), []);
+
   useEffect(() => {
     clearError();
   }, [clearError]);
@@ -56,31 +59,34 @@ export default function LoginPage() {
     defaultValues: { email: '', password: '' },
   });
 
-  const onSubmit = async (data) => {
-    try {
-      setCaptchaError('');
-      setGoogleError('');
-      clearError();
+  const onSubmit = useCallback(
+    async (data) => {
+      try {
+        setCaptchaError('');
+        setGoogleError('');
+        clearError();
 
-      let captchaToken;
+        let captchaToken;
 
-      if (isRecaptchaEnabled) {
-        captchaToken = recaptchaRef.current?.getValue();
-        if (!captchaToken) {
-          setCaptchaError('Please complete the reCAPTCHA verification.');
-          return;
+        if (isRecaptchaEnabled) {
+          captchaToken = readCaptchaToken();
+          if (!captchaToken) {
+            setCaptchaError('Please complete the reCAPTCHA verification.');
+            return;
+          }
+        }
+
+        await login({ ...data, ...(isRecaptchaEnabled ? { captchaToken } : {}) });
+        navigate('/dashboard', { replace: true });
+      } catch {
+        // Error is handled by the store
+        if (isRecaptchaEnabled) {
+          resetCaptcha();
         }
       }
-
-      await login({ ...data, ...(isRecaptchaEnabled ? { captchaToken } : {}) });
-      navigate('/dashboard', { replace: true });
-    } catch {
-      // Error is handled by the store
-      if (isRecaptchaEnabled) {
-        recaptchaRef.current?.reset();
-      }
-    }
-  };
+    },
+    [clearError, isRecaptchaEnabled, login, navigate, readCaptchaToken, resetCaptcha],
+  );
 
   const handleGoogleSuccess = useCallback(
     async (credentialResponse) => {
@@ -94,8 +100,8 @@ export default function LoginPage() {
         clearError();
         await googleLogin(credentialResponse.credential);
         navigate('/dashboard', { replace: true });
-      } catch (error) {
-        // Backend errors or network timeouts during credential exchange 
+      } catch {
+        // Backend errors or network timeouts during credential exchange
         // are already captured in the authStore `error` state and displayed via AuthStatusAlert.
         // No need to set googleError here unless we want to override the default display.
       }
@@ -107,19 +113,11 @@ export default function LoginPage() {
     setGoogleError(getGoogleOriginMismatchMessage());
   }, []);
 
-  const googleLoginButton = useMemo(
-    () => (
-      <GoogleLogin
-        onSuccess={handleGoogleSuccess}
-        onError={handleGoogleError}
-        theme={theme === 'dark' ? 'filled_black' : 'outline'}
-        size="large"
-        width={360}
-        text="signin_with"
-        shape="rectangular"
-      />
-    ),
-    [handleGoogleError, handleGoogleSuccess, theme],
+  const handleFormSubmit = useCallback(
+    (event) => {
+      void handleSubmit(onSubmit)(event);
+    },
+    [handleSubmit, onSubmit],
   );
 
   return (
@@ -127,7 +125,7 @@ export default function LoginPage() {
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleFormSubmit}>
         {/* Email */}
         <div className="auth-item mb-4">
           <Controller
@@ -225,13 +223,27 @@ export default function LoginPage() {
 
       {/* Google Sign-In */}
       {isGoogleLoginConfigured ? (
-        <div className="auth-item flex justify-center">{googleLoginButton}</div>
+        <div className="auth-item flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme={theme === 'dark' ? 'filled_black' : 'outline'}
+            size="large"
+            width={360}
+            text="signin_with"
+            shape="rectangular"
+          />
+        </div>
       ) : (
         <div className="auth-item">
           <p className="text-sm text-destructive text-center">
             {googleAuth.isDisabledByDevPolicy
               ? 'Google Sign-In is disabled in local development. Set VITE_ENABLE_GOOGLE_LOGIN=true after whitelisting your origin in Google Cloud Console.'
-              : 'Google Sign-In is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
+              : !googleAuth.isOriginAllowed
+                ? `Google Sign-In is unavailable for ${window.location.origin}. Configured VITE_GOOGLE_ALLOWED_ORIGINS: ${googleAuth.allowedOrigins.length ? googleAuth.allowedOrigins.join(', ') : '(none configured)'}. Also add this origin to Google OAuth Authorized JavaScript origins.`
+                : googleAuth.isMissingAllowedOriginsInDev
+                  ? 'Google Sign-In is currently using the local loopback fallback because VITE_GOOGLE_ALLOWED_ORIGINS is not set. Set VITE_GOOGLE_ALLOWED_ORIGINS explicitly to keep strict origin checks.'
+                  : 'Google Sign-In is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
           </p>
         </div>
       )}

@@ -116,7 +116,7 @@ app.use('/api/agent-runtime', agentRuntimeRoutes);
 
 // ---------- 404 Handler ----------
 
-app.all('*', (req, res, next) => {
+app.all('/{*path}', (req, res, next) => {
   next(new AppError(`Cannot ${req.method} ${req.originalUrl}`, 404, 'NOT_FOUND'));
 });
 

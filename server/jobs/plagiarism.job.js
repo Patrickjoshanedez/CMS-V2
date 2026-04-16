@@ -51,7 +51,7 @@ function isTrustedFallbackUrl(value) {
       return false;
     }
     return TRUSTED_FALLBACK_HOSTS.has(parsed.hostname.toLowerCase());
-  } catch (_error) {
+  } catch {
     return false;
   }
 }
@@ -73,7 +73,7 @@ function buildGoogleDocExportUrl(url) {
     }
 
     return `https://docs.google.com/document/d/${match[1]}/export?format=txt`;
-  } catch (_error) {
+  } catch {
     return null;
   }
 }
@@ -266,7 +266,7 @@ async function processJob(job) {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Step 1: Download file from storage (with trusted fallback URLs when needed)
@@ -305,7 +305,7 @@ async function processJob(job) {
           errorMessage: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     console.log(`[Plagiarism Worker] Submission ${submissionId}: too little text, scored 100%.`);
@@ -419,7 +419,7 @@ async function processJob(job) {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Step 6: Notify student
@@ -477,7 +477,7 @@ async function handleFailedJob(job, err) {
           checkedAt: new Date(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
   } catch (updateErr) {
     console.error(`[Plagiarism Worker] Failed to update submission status: ${updateErr.message}`);

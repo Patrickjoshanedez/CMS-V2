@@ -13,6 +13,14 @@ const TABS = [
 const PIPELINE = ['Orchestrator', 'Thinker Pro', 'Architect', 'Coder', '100x Reviewer'];
 const TELEMETRY_LIMIT = 240;
 const ALERT_LIMIT = 120;
+const THEME_KEY = 'aos-control-plane-theme';
+
+function getInitialTheme() {
+  if (typeof window === 'undefined') return 'light';
+  const stored = window.localStorage.getItem(THEME_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 function formatTime(timestamp) {
   if (!timestamp) return '00:00:00';
@@ -49,23 +57,18 @@ function normalizePayload(payload) {
 }
 
 function clamp(list, limit) {
-  if (list.length <= limit) {
-    return list;
-  }
-
+  if (list.length <= limit) return list;
   return list.slice(list.length - limit);
 }
 
 function AlertPill({ level, children }) {
-  const base =
-    level === 'critical'
-      ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-      : 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+  const isCritical = level === 'critical';
+  const base = isCritical
+    ? 'bg-rose-100 text-rose-700 border-rose-200'
+    : 'bg-amber-100 text-amber-700 border-amber-200';
 
   return (
-    <span
-      className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-[0.24em] ${base}`}
-    >
+    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${base}`}>
       {children}
     </span>
   );
@@ -74,33 +77,32 @@ function AlertPill({ level, children }) {
 function PanelShell({ title, subtitle, children, className = '' }) {
   return (
     <section
-      className={`rounded-3xl border border-control-edge bg-control-panel/92 shadow-panel ${className}`}
+      className={`bg-white rounded-2xl shadow-soft border border-slate-200/60 overflow-hidden ${className}`}
     >
-      <header className="flex items-end justify-between gap-4 border-b border-white/5 px-5 py-4">
+      <header className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.34em] text-control-slate">{subtitle}</p>
-          <h2 className="mt-1 text-sm font-semibold tracking-[0.22em] text-white">{title}</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
         </div>
       </header>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </section>
   );
 }
 
 function StatBar({ label, value, max, accentClass }) {
   const ratio = Math.min(value / max, 1);
-
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.22em] text-control-slate">
+      <div className="flex justify-between text-sm font-medium text-slate-700">
         <span>{label}</span>
-        <span>
+        <span className="text-slate-500">
           {value} / {max}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-black/30">
+      <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
         <div
-          className={`h-full rounded-full ${accentClass}`}
+          className={`h-full rounded-full transition-all duration-500 ${accentClass}`}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>
@@ -108,42 +110,53 @@ function StatBar({ label, value, max, accentClass }) {
   );
 }
 
+function StatCard({ label, value, accent, isAlert }) {
+  return (
+    <div
+      className={`p-4 rounded-xl border ${isAlert ? 'bg-rose-50 border-rose-100' : 'bg-white shadow-sm border-slate-200/60'}`}
+    >
+      <div className="text-sm text-slate-500 font-medium mb-1">{label}</div>
+      <div className={`text-lg md:text-xl font-semibold ${accent}`}>{value}</div>
+    </div>
+  );
+}
+
 function PipelineStepper({ activeAgent, socketStatus }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-control-slate">
-        <span>Agent DAG</span>
-        <span className={socketStatus === 'connected' ? 'text-emerald-300' : 'text-rose-300'}>
-          {socketStatus === 'connected' ? 'Socket Online' : 'Socket Offline'}
-        </span>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center text-sm font-medium">
+        <span className="text-slate-900">Active Pipeline</span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full ${socketStatus === 'connected' ? 'bg-emerald-400' : 'bg-rose-400'}`}
+          ></span>
+          <span className={socketStatus === 'connected' ? 'text-emerald-600' : 'text-rose-600'}>
+            {socketStatus === 'connected' ? 'Socket Online' : 'Socket Offline'}
+          </span>
+        </div>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {PIPELINE.map((step, index) => {
           const active = step === activeAgent;
           return (
-            <div key={step} className="flex items-center gap-3">
+            <div
+              key={step}
+              className={`flex items-center gap-4 p-4 rounded-xl transition border ${active ? 'bg-indigo-50 border-indigo-100 shadow-sm' : 'bg-white border-slate-100 text-slate-400'}`}
+            >
               <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full border text-[10px] font-semibold uppercase tracking-[0.28em] ${
-                  active
-                    ? 'border-amber-300 bg-amber-300/20 text-amber-100'
-                    : 'border-control-edge bg-black/20 text-control-slate'
-                }`}
+                className={`flex-shrink-0 w-8 h-8 flex justify-center items-center rounded-full text-sm font-bold ${active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}
               >
                 {index + 1}
               </div>
-              <div
-                className={`flex-1 rounded-2xl border px-4 py-3 text-sm transition ${
-                  active
-                    ? 'border-amber-300/40 bg-amber-300/10 text-white'
-                    : 'border-white/5 bg-black/15 text-control-slate'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-medium tracking-[0.12em]">{step}</span>
-                  <span className="text-[11px] uppercase tracking-[0.28em]">
-                    {active ? 'Active' : 'Idle'}
+              <div className="flex-1 flex justify-between items-center text-sm">
+                <span className={`font-medium ${active ? 'text-indigo-900' : 'text-slate-600'}`}>
+                  {step}
+                </span>
+                {active && (
+                  <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                    Active
                   </span>
-                </div>
+                )}
               </div>
             </div>
           );
@@ -155,272 +168,217 @@ function PipelineStepper({ activeAgent, socketStatus }) {
 
 function TelemetryEntry({ item }) {
   const isRequest = item.type === 'request';
-  const tone = isRequest ? 'text-amber-200' : 'text-emerald-200';
-  const border = isRequest ? 'border-amber-400/20' : 'border-emerald-400/20';
-  const label = isRequest ? 'request' : 'response';
+  const headerBg = isRequest ? 'bg-indigo-50' : 'bg-emerald-50';
+  const headerText = isRequest ? 'text-indigo-700' : 'text-emerald-700';
+  const label = isRequest ? 'Request' : 'Response';
 
   return (
-    <article className={`rounded-2xl border ${border} bg-black/25 p-4`}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-[10px] uppercase tracking-[0.3em] text-control-slate">
-        <span>{formatTime(item.timestamp)}</span>
-        <span className={tone}>{item.agent || 'orchestrator'}</span>
-        <span className={tone}>{label}</span>
-      </div>
-      <pre
-        className={`overflow-x-auto whitespace-pre-wrap break-words text-[12px] leading-6 ${tone}`}
+    <article className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm mb-4">
+      <div
+        className={`px-4 py-2.5 flex items-center justify-between text-xs font-medium ${headerBg} ${headerText} border-b border-slate-100`}
       >
-        {normalizePayload(item.payload)}
-      </pre>
+        <div className="flex gap-4 items-center">
+          <span className="font-mono text-[11px] opacity-80">{formatTime(item.timestamp)}</span>
+          <span className="uppercase tracking-wider">{item.agent || 'Orchestrator'}</span>
+        </div>
+        <span className="bg-white/50 px-2 py-0.5 rounded-md uppercase tracking-wider">{label}</span>
+      </div>
+      <div className="p-4 bg-slate-900 overflow-x-auto text-slate-300 font-mono text-[13px] leading-relaxed">
+        <pre>{normalizePayload(item.payload)}</pre>
+      </div>
     </article>
   );
 }
 
 function AlertCard({ item, index }) {
   const isCritical = item.level === 'critical';
-  const border = isCritical ? 'border-rose-500/30' : 'border-amber-500/30';
-  const tone = isCritical ? 'text-rose-200' : 'text-amber-200';
 
   return (
-    <article className={`rounded-2xl border ${border} bg-black/25 p-4`}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <article
+      className={`p-5 rounded-xl border shadow-sm mb-4 ${isCritical ? 'bg-rose-50 border-rose-200/60' : 'bg-amber-50 border-amber-200/60'}`}
+    >
+      <div className="flex flex-wrap items-center gap-3 mb-3">
         <AlertPill level={item.level}>{item.level}</AlertPill>
-        <span className="text-[10px] uppercase tracking-[0.28em] text-control-slate">
+        <span className="text-xs font-mono text-slate-500">{formatTime(item.timestamp)}</span>
+        <span className="text-xs font-medium text-slate-600 rounded-md bg-white/60 px-2 py-0.5">
           #{index + 1}
         </span>
-        <span className="text-[10px] uppercase tracking-[0.28em] text-control-slate">
-          {formatTime(item.timestamp)}
-        </span>
       </div>
-      <div className={`text-sm font-medium tracking-[0.08em] ${tone}`}>{item.message}</div>
-      <div className="mt-2 text-[12px] leading-6 text-control-slate">
-        <span className="text-white/70">Agent:</span> {item.agent || 'unknown'}
+      <div
+        className={`text-base font-medium mb-3 ${isCritical ? 'text-rose-900' : 'text-amber-900'}`}
+      >
+        {item.message}
       </div>
-      <div className="mt-2 rounded-xl border border-white/5 bg-black/25 p-3 text-[12px] leading-6 text-zinc-200">
+      <div className="text-sm font-medium text-slate-600 mb-3">
+        Agent: <span className="text-slate-900">{item.agent || 'unknown'}</span>
+      </div>
+      <div className="bg-white rounded-lg border border-slate-200/60 p-4 text-sm text-slate-700 leading-relaxed shadow-sm">
         {item.feedback}
       </div>
-      {item.level === 'warning' ? (
-        <div className="mt-3 text-[10px] uppercase tracking-[0.24em] text-amber-200">
-          Fix-loop attempt {item.attempt ?? index + 1}
-        </div>
-      ) : null}
     </article>
   );
 }
 
-function StatCard({ label, value, accent }) {
-  return (
-    <div className="rounded-2xl border border-white/5 bg-black/25 px-4 py-3">
-      <div className="text-[10px] uppercase tracking-[0.28em] text-control-slate">{label}</div>
-      <div className={`mt-2 text-lg font-semibold tracking-[0.08em] ${accent}`}>{value}</div>
-    </div>
-  );
-}
-
 export default function App() {
-  const [activeTab, setActiveTab] = useState('telemetry');
-  const [socketStatus, setSocketStatus] = useState('connecting');
-  const [activeAgent, setActiveAgent] = useState('Orchestrator');
+  const [theme, setTheme] = useState(getInitialTheme);
+  const [socketStatus, setSocketStatus] = useState('disconnected');
   const [telemetry, setTelemetry] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [paused, setPaused] = useState(false);
   const [criticalHalt, setCriticalHalt] = useState(null);
-  const [logs, setLogs] = useState({ file: null, count: 0, lines: [] });
-  const [logsQuery, setLogsQuery] = useState('');
+
+  const [activeTab, setActiveTab] = useState('telemetry');
+  const [paused, setPaused] = useState(false);
+  const telemetryRef = useRef(null);
+
+  const [logs, setLogs] = useState({ file: null, lines: [], count: 0 });
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsQuery, setLogsQuery] = useState('');
+
   const [memories, setMemories] = useState([]);
   const [memoriesLoading, setMemoriesLoading] = useState(false);
   const [memoryQuery, setMemoryQuery] = useState('');
-  const telemetryRef = useRef(null);
-  const pausedQueueRef = useRef([]);
-  const pausedRef = useRef(false);
-  const logsLoadedRef = useRef(false);
-  const memoriesLoadedRef = useRef(false);
+
+  const activeAgent = useMemo(() => {
+    if (telemetry.length === 0) return 'Orchestrator';
+    return normalizeAgent(telemetry[telemetry.length - 1].agent);
+  }, [telemetry]);
+
+  const filteredLogs = useMemo(() => {
+    if (!logsQuery.trim()) return logs.lines;
+    const lower = logsQuery.toLowerCase();
+    return logs.lines.filter((line) => String(line).toLowerCase().includes(lower));
+  }, [logs.lines, logsQuery]);
+
+  const filteredMemories = useMemo(() => {
+    if (!memoryQuery.trim()) return memories;
+    const lower = memoryQuery.toLowerCase();
+    return memories.filter(
+      (m) =>
+        String(m.filename).toLowerCase().includes(lower) ||
+        String(m.snippet).toLowerCase().includes(lower),
+    );
+  }, [memories, memoryQuery]);
 
   useEffect(() => {
-    pausedRef.current = paused;
-    if (!paused && pausedQueueRef.current.length > 0) {
-      setTelemetry((current) => clamp([...current, ...pausedQueueRef.current], TELEMETRY_LIMIT));
-      pausedQueueRef.current = [];
-    }
-  }, [paused]);
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    root.dataset.theme = theme;
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 500,
-      reconnectionAttempts: Infinity,
+      reconnectionDelayMax: 2000,
+      transports: ['websocket', 'polling'],
     });
 
     socket.on('connect', () => setSocketStatus('connected'));
     socket.on('disconnect', () => setSocketStatus('disconnected'));
 
-    socket.on('llm_stream', (event) => {
-      const mappedAgent = normalizeAgent(event?.agent);
-      setActiveAgent(mappedAgent);
-
-      if (pausedRef.current) {
-        pausedQueueRef.current.push(event);
-        return;
-      }
-
-      setTelemetry((current) => clamp([...current, event], TELEMETRY_LIMIT));
+    socket.on('telemetry', (data) => {
+      setTelemetry((prev) => {
+        if (paused) return prev;
+        return clamp([...prev, data], TELEMETRY_LIMIT);
+      });
     });
 
-    socket.on('system_alert', (event) => {
-      const normalized = {
-        ...event,
-        agent: normalizeAgent(event?.agent),
-        timestamp: event?.timestamp ?? Date.now(),
-      };
-
-      setAlerts((current) => clamp([...current, normalized], ALERT_LIMIT));
-      setActiveAgent(normalized.agent);
-
-      if (normalized.level === 'critical') {
-        setCriticalHalt(normalized);
+    socket.on('alert', (alert) => {
+      setAlerts((prev) => clamp([...prev, alert], ALERT_LIMIT));
+      if (alert.level === 'critical') {
+        setCriticalHalt({ message: alert.message, feedback: alert.feedback });
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [paused]);
 
   useEffect(() => {
-    if (telemetryRef.current && !paused) {
-      telemetryRef.current.scrollTop = telemetryRef.current.scrollHeight;
-    }
-  }, [telemetry, paused]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLogs() {
-      if (logsLoadedRef.current || activeTab !== 'logs') {
-        return;
+    if (activeTab === 'telemetry' && telemetryRef.current && !paused) {
+      const el = telemetryRef.current;
+      if (el.scrollHeight - el.scrollTop < el.clientHeight + 300) {
+        el.scrollTo({ top: el.scrollHeight });
       }
+    }
+  }, [telemetry, activeTab, paused]);
 
-      logsLoadedRef.current = true;
+  useEffect(() => {
+    if (activeTab === 'logs') {
       setLogsLoading(true);
-
-      try {
-        const response = await fetch(`${API_BASE}/api/logs`);
-        const data = await response.json();
-        if (!cancelled) {
-          setLogs({
-            file: data.file ?? null,
-            count: data.count ?? 0,
-            lines: Array.isArray(data.lines) ? data.lines : [],
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setLogs({ file: null, count: 0, lines: ['Unable to load logs.'] });
-        }
-      } finally {
-        if (!cancelled) {
+      fetch(`${API_BASE}/api/logs`)
+        .then((res) => res.json())
+        .then((data) => {
+          setLogs(data);
           setLogsLoading(false);
-        }
-      }
+        })
+        .catch(() => setLogsLoading(false));
     }
-
-    loadLogs();
-
-    return () => {
-      cancelled = true;
-    };
   }, [activeTab]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadMemories() {
-      if (memoriesLoadedRef.current || activeTab !== 'memories') {
-        return;
-      }
-
-      memoriesLoadedRef.current = true;
+    if (activeTab === 'memories') {
       setMemoriesLoading(true);
-
-      try {
-        const response = await fetch(`${API_BASE}/api/memories`);
-        const data = await response.json();
-        if (!cancelled) {
-          setMemories(Array.isArray(data.items) ? data.items : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setMemories([]);
-        }
-      } finally {
-        if (!cancelled) {
+      fetch(`${API_BASE}/api/memories`)
+        .then((res) => res.json())
+        .then((data) => {
+          setMemories(data.memories || []);
           setMemoriesLoading(false);
-        }
-      }
+        })
+        .catch(() => setMemoriesLoading(false));
     }
-
-    loadMemories();
-
-    return () => {
-      cancelled = true;
-    };
   }, [activeTab]);
-
-  const filteredLogs = useMemo(() => {
-    const query = logsQuery.trim().toLowerCase();
-    if (!query) {
-      return logs.lines;
-    }
-
-    return logs.lines.filter((line) => String(line).toLowerCase().includes(query));
-  }, [logs.lines, logsQuery]);
-
-  const filteredMemories = useMemo(() => {
-    const query = memoryQuery.trim().toLowerCase();
-    if (!query) {
-      return memories;
-    }
-
-    return memories.filter((item) => {
-      const haystack = `${item.filename ?? ''} ${item.snippet ?? ''}`.toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [memories, memoryQuery]);
-
-  const systemBusy = Boolean(criticalHalt);
 
   return (
-    <div className="min-h-full bg-[radial-gradient(circle_at_top,_rgba(215,178,76,0.09),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(93,187,116,0.08),_transparent_20%),linear-gradient(180deg,_#07110f_0%,_#040807_100%)] text-zinc-100">
-      <main
-        className={`mx-auto flex min-h-full max-w-[1600px] flex-col px-4 pb-6 pt-4 sm:px-6 lg:px-8 ${systemBusy ? 'pointer-events-none select-none opacity-85' : ''}`}
-      >
-        <header className="mb-5 flex flex-col gap-4 rounded-[28px] border border-white/5 bg-black/25 px-5 py-4 shadow-panel backdrop-blur-sm lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.42em] text-control-slate">
-              AOS Control Plane
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-[0.18em] text-white sm:text-3xl">
-              Fail-Closed Telemetry, Memory, and Fix-Loop Oversight
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-control-slate">
-              Real-time request/response capture, historical state retrieval, and continual learning
-              snapshots for the local Qwen-backed AOS.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <StatCard
-              label="Telemetry"
-              value={socketStatus === 'connected' ? 'ONLINE' : 'OFFLINE'}
-              accent={socketStatus === 'connected' ? 'text-emerald-200' : 'text-rose-200'}
-            />
-            <StatCard label="Ollama Node" value="ONLINE" accent="text-emerald-200" />
-            <StatCard label="RAM Ceiling" value="16GB" accent="text-amber-200" />
-            <StatCard label="Auto-Launch" value="ARMED" accent="text-amber-200" />
-          </div>
-        </header>
+    <div className="aos-shell min-h-screen pb-20 font-sans">
+      {/* Header */}
+      <header className="aos-topbar sticky top-0 z-40 flex-none">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                <p className="text-xs font-bold tracking-widest text-slate-500 uppercase">
+                  AOS Control Plane
+                </p>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                System Oversight
+              </h1>
+              <p className="max-w-xl text-sm text-slate-600 mt-2 font-medium">
+                Real-time request processing, historic states, and continual learning insights.
+              </p>
+            </div>
 
-        <nav className="mb-5 flex flex-wrap gap-2 rounded-3xl border border-white/5 bg-black/20 p-2 shadow-panel">
+            <div className="flex flex-col gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                className="aos-theme-toggle"
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span className="aos-theme-dot" />
+                {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+              </button>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard
+                  label="Telemetry"
+                  value={socketStatus === 'connected' ? 'ONLINE' : 'OFFLINE'}
+                  accent={socketStatus === 'connected' ? 'text-emerald-600' : 'text-rose-600'}
+                  isAlert={socketStatus !== 'connected'}
+                />
+                <StatCard label="Ollama Node" value="ONLINE" accent="text-emerald-600" />
+                <StatCard label="RAM Ceiling" value="16GB" accent="text-slate-900" />
+                <StatCard label="Auto-Launch" value="ARMED" accent="text-indigo-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8 flex-auto">
+        {/* Navigation */}
+        <nav className="aos-nav flex flex-wrap gap-2 p-1.5 rounded-2xl w-fit">
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -428,10 +386,10 @@ export default function App() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-2xl px-4 py-3 text-[11px] uppercase tracking-[0.3em] transition ${
+                className={`px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 ${
                   active
-                    ? 'bg-amber-300/15 text-amber-100 ring-1 ring-amber-300/30'
-                    : 'text-control-slate hover:bg-white/5 hover:text-white'
+                    ? 'aos-tab-active shadow-sm border'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 flex-1'
                 }`}
               >
                 {tab.label}
@@ -440,61 +398,86 @@ export default function App() {
           })}
         </nav>
 
-        {activeTab === 'telemetry' ? (
-          <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-            <div className="space-y-5">
-              <PanelShell title="System Health" subtitle="hardware envelope">
-                <div className="space-y-4 text-sm text-control-slate">
-                  <div className="rounded-2xl border border-white/5 bg-black/25 p-4">
-                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-control-slate">
-                      <span>Node</span>
-                      <span className="text-emerald-300">ONLINE</span>
+        {activeTab === 'telemetry' && (
+          <div className="grid gap-8 xl:grid-cols-[380px_1fr] items-start">
+            <div className="space-y-8 sticky top-36">
+              <PanelShell title="System Health" subtitle="Current hardware allocation">
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                    <div className="flex justify-between text-sm font-medium mb-1">
+                      <span className="text-slate-500">Node Status</span>
                     </div>
-                    <div className="mt-2 text-xl font-semibold tracking-[0.08em] text-white">
-                      Ollama Node: ONLINE
+                    <div className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                      Ollama Process{' '}
+                      <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md text-sm border border-emerald-100">
+                        ONLINE
+                      </span>
                     </div>
                   </div>
                   <StatBar
                     label="Working Budget"
                     value={3000}
                     max={8192}
-                    accentClass="bg-gradient-to-r from-amber-300 to-amber-200"
+                    accentClass="bg-indigo-500"
                   />
                   <StatBar
                     label="Session Budget"
                     value={5000}
                     max={8192}
-                    accentClass="bg-gradient-to-r from-emerald-300 to-emerald-200"
+                    accentClass="bg-emerald-500"
                   />
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <StatCard label="Max Context" value="8192" accent="text-amber-200" />
-                    <StatCard label="Browser" value="AUTO" accent="text-emerald-200" />
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
+                        Max Context
+                      </div>
+                      <div className="text-lg font-bold text-slate-900">
+                        8192<span className="text-sm font-normal text-slate-500 ml-1">tokens</span>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
+                        Browser Mode
+                      </div>
+                      <div className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        AUTO
+                      </div>
+                    </div>
                   </div>
                 </div>
               </PanelShell>
 
-              <PanelShell title="Agent DAG" subtitle="active pipeline">
+              <PanelShell title="Agent Workflow" subtitle="Task orchestration state">
                 <PipelineStepper activeAgent={activeAgent} socketStatus={socketStatus} />
               </PanelShell>
             </div>
 
-            <PanelShell title="Live Telemetry Terminal" subtitle="streaming debate">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-[11px] uppercase tracking-[0.28em] text-control-slate">
+            <PanelShell
+              title="Log Stream"
+              subtitle="Live requests & responses"
+              className="flex flex-col h-[calc(100vh-14rem)] min-h-[600px]"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <span
+                    className={`w-2 h-2 rounded-full ${paused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}
+                  ></span>
                   {paused ? 'Stream paused' : 'Stream live'}
                 </div>
                 <div className="flex gap-2">
                   <button
-                    type="button"
                     onClick={() => setTelemetry([])}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-white transition hover:bg-white/10"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-sm"
                   >
-                    Clear Logs
+                    Clear Stream
                   </button>
                   <button
-                    type="button"
-                    onClick={() => setPaused((value) => !value)}
-                    className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-amber-100 transition hover:bg-amber-300/15"
+                    onClick={() => setPaused(!paused)}
+                    className={`px-4 py-2 text-xs font-semibold rounded-lg transition shadow-sm ${
+                      paused
+                        ? 'bg-amber-100 text-amber-800 border focus:ring-2 border-amber-200'
+                        : 'bg-white border text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
                   >
                     {paused ? 'Resume Stream' : 'Pause Stream'}
                   </button>
@@ -503,182 +486,245 @@ export default function App() {
 
               <div
                 ref={telemetryRef}
-                className="h-[70vh] min-h-[540px] overflow-y-auto rounded-[24px] border border-white/5 bg-[#050b0a] p-4 shadow-inner shadow-black/40"
+                className="flex-1 overflow-y-auto bg-slate-50 p-5 rounded-2xl border border-slate-200/80 shadow-inner scroll-smooth"
               >
-                <div className="space-y-3">
-                  {telemetry.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-sm leading-7 text-control-slate">
-                      Waiting for telemetry events from the local provider. Requests and responses
-                      will render here in chronological order.
-                    </div>
-                  ) : null}
-                  {telemetry.map((item, index) => (
+                {telemetry.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center h-full text-slate-400 space-y-4 min-h-[400px]">
+                    <svg
+                      className="w-12 h-12 text-slate-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    <p className="text-sm font-medium">Waiting for node events...</p>
+                  </div>
+                ) : (
+                  telemetry.map((item, index) => (
                     <TelemetryEntry key={`${item.timestamp ?? index}-${index}`} item={item} />
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
             </PanelShell>
           </div>
-        ) : null}
+        )}
 
-        {activeTab === 'errors' ? (
-          <PanelShell title="Error Console" subtitle="system alerts and halt states">
-            <div className="mb-4 flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.28em] text-control-slate">
-              <span>{alerts.length} queued alerts</span>
-              <span className={criticalHalt ? 'text-rose-300' : 'text-emerald-300'}>
-                {criticalHalt ? 'Fail-Closed Halt' : 'Operational'}
+        {/* Other Tabs Content */}
+        {activeTab === 'errors' && (
+          <PanelShell
+            title="Alert Console"
+            subtitle="System halt states & feedback"
+            className="max-w-4xl"
+          >
+            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6">
+              <span className="text-sm font-semibold text-slate-700">
+                {alerts.length} logged alerts
+              </span>
+              <span
+                className={`px-3 py-1 text-xs font-bold rounded-lg ${criticalHalt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
+              >
+                {criticalHalt ? 'System Halted' : 'Operational'}
               </span>
             </div>
-            <div className="grid gap-3">
-              {alerts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-sm leading-7 text-control-slate">
-                  Alerts will appear here when the reviewer emits warnings or when a critical system
-                  fault is broadcast.
-                </div>
-              ) : null}
-              {alerts.map((alert, index) => (
-                <AlertCard
-                  key={`${alert.timestamp ?? index}-${index}`}
-                  item={alert}
-                  index={index}
-                />
-              ))}
-            </div>
-          </PanelShell>
-        ) : null}
-
-        {activeTab === 'logs' ? (
-          <PanelShell title="System Logs" subtitle="historical state window">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div className="space-y-1 text-sm text-control-slate">
-                <div className="text-[11px] uppercase tracking-[0.28em] text-white/70">
-                  {logs.file ? logs.file : 'No log source selected'}
-                </div>
-                <div>
-                  {logsLoading ? 'Loading last 100 lines...' : `${logs.count} lines cached`}
-                </div>
+            {alerts.length === 0 ? (
+              <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 font-medium">
+                No active threats or review faults detected.
               </div>
-              <label className="flex items-center gap-3 rounded-2xl border border-white/5 bg-black/25 px-4 py-3 text-sm text-control-slate">
-                <span className="text-[10px] uppercase tracking-[0.28em] text-white/70">
-                  Search
-                </span>
+            ) : (
+              <div className="space-y-4">
+                {alerts.map((alert, index) => (
+                  <AlertCard
+                    key={`${alert.timestamp ?? index}-${index}`}
+                    item={alert}
+                    index={index}
+                  />
+                ))}
+              </div>
+            )}
+          </PanelShell>
+        )}
+
+        {activeTab === 'logs' && (
+          <PanelShell title="System Logs" subtitle="Historical audit logs">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {logs.file || 'No log source'}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {logsLoading ? 'Fetching log slice...' : `${logs.count} lines loaded`}
+                </p>
+              </div>
+              <div className="relative">
+                <svg
+                  className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
                 <input
+                  type="text"
                   value={logsQuery}
-                  onChange={(event) => setLogsQuery(event.target.value)}
-                  placeholder="Filter log lines"
-                  className="w-64 bg-transparent text-sm text-white outline-none placeholder:text-control-slate/70"
+                  onChange={(e) => setLogsQuery(e.target.value)}
+                  placeholder="Search logs..."
+                  className="pl-9 pr-4 py-2 w-full sm:w-64 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
                 />
-              </label>
+              </div>
             </div>
-            <div className="overflow-hidden rounded-[24px] border border-white/5 bg-[#050b0a]">
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse text-left text-sm">
-                  <thead className="sticky top-0 bg-[#050b0a] text-[10px] uppercase tracking-[0.28em] text-control-slate">
+
+            <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-soft">
+              <div className="overflow-x-auto max-h-[800px] overflow-y-auto">
+                <table className="min-w-full text-left border-collapse">
+                  <thead className="bg-[#0b111e] sticky top-0 border-b border-slate-800/60 z-10">
                     <tr>
-                      <th className="border-b border-white/5 px-4 py-3">#</th>
-                      <th className="border-b border-white/5 px-4 py-3">Line</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider w-16">
+                        No
+                      </th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        Message
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-800/40 text-[13px] font-mono text-slate-300">
                     {filteredLogs.length === 0 ? (
                       <tr>
-                        <td colSpan="2" className="px-4 py-8 text-center text-control-slate">
-                          No matching lines.
+                        <td
+                          colSpan="2"
+                          className="px-4 py-8 text-center text-slate-500 font-sans text-sm"
+                        >
+                          No matches found.
                         </td>
                       </tr>
-                    ) : null}
-                    {filteredLogs.map((line, index) => (
-                      <tr
-                        key={`${index}-${String(line).slice(0, 24)}`}
-                        className="odd:bg-white/[0.02] even:bg-black/10"
-                      >
-                        <td className="border-b border-white/5 px-4 py-3 text-[10px] uppercase tracking-[0.24em] text-control-slate">
-                          {index + 1}
-                        </td>
-                        <td className="border-b border-white/5 px-4 py-3 font-mono text-[12px] leading-6 text-zinc-100">
-                          {String(line)}
-                        </td>
-                      </tr>
-                    ))}
+                    ) : (
+                      filteredLogs.map((line, idx) => (
+                        <tr
+                          key={`${idx}-${String(line).slice(0, 10)}`}
+                          className="hover:bg-slate-800/50 transition"
+                        >
+                          <td className="px-4 py-2.5 text-slate-500 opacity-80">{idx + 1}</td>
+                          <td className="px-4 py-2.5 whitespace-pre-wrap break-all">
+                            {String(line)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           </PanelShell>
-        ) : null}
+        )}
 
-        {activeTab === 'memories' ? (
-          <PanelShell title="Continual Learning" subtitle="repository lessons">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="text-sm text-control-slate">
+        {activeTab === 'memories' && (
+          <PanelShell title="Machine Memory" subtitle="Insights & learned patterns">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 relative">
+              <span className="text-sm font-semibold text-slate-700 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
                 {memoriesLoading
-                  ? 'Scanning lessons...'
-                  : `${filteredMemories.length} lesson cards available`}
-              </div>
-              <label className="flex items-center gap-3 rounded-2xl border border-white/5 bg-black/25 px-4 py-3 text-sm text-control-slate">
-                <span className="text-[10px] uppercase tracking-[0.28em] text-white/70">
-                  Filter
-                </span>
+                  ? 'Indexing memories...'
+                  : `${filteredMemories.length} rules loaded`}
+              </span>
+              <div className="relative">
                 <input
+                  type="text"
                   value={memoryQuery}
-                  onChange={(event) => setMemoryQuery(event.target.value)}
-                  placeholder="Search lessons"
-                  className="w-64 bg-transparent text-sm text-white outline-none placeholder:text-control-slate/70"
+                  onChange={(e) => setMemoryQuery(e.target.value)}
+                  placeholder="Filter lessons..."
+                  className="pl-4 pr-4 py-2 w-full sm:w-64 bg-white border border-slate-300 shadow-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
                 />
-              </label>
+              </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredMemories.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-8 text-sm leading-7 text-control-slate md:col-span-2 xl:col-span-3">
-                  Lesson cards appear here when the control plane scans{' '}
-                  <span className="text-white">memories/repo/lessons</span>.
+                <div className="col-span-full p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 font-medium">
+                  Memory cluster empty. The agent uses{' '}
+                  <span className="text-indigo-600 font-mono text-xs bg-indigo-50 px-1 py-0.5 rounded">
+                    memories/repo/lessons
+                  </span>
+                  .
                 </div>
-              ) : null}
-              {filteredMemories.map((lesson) => (
-                <article
-                  key={lesson.filename}
-                  className="rounded-[24px] border border-white/5 bg-black/25 p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-amber-300/20"
-                >
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-[0.3em] text-control-slate">
-                        Lesson
+              ) : (
+                filteredMemories.map((lesson) => (
+                  <article
+                    key={lesson.filename}
+                    className="bg-white rounded-2xl p-6 border border-slate-200 shadow-soft hover:shadow-md transition"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div>
+                        <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1.5">
+                          Rule
+                        </div>
+                        <h3 className="font-semibold text-slate-900 break-words leading-snug">
+                          {lesson.filename}
+                        </h3>
                       </div>
-                      <h3 className="mt-2 text-sm font-semibold tracking-[0.12em] text-white">
-                        {lesson.filename}
-                      </h3>
+                      <span className="shrink-0 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-emerald-100">
+                        Active
+                      </span>
                     </div>
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] uppercase tracking-[0.24em] text-emerald-200">
-                      Learned
-                    </span>
-                  </div>
-                  <p className="text-sm leading-7 text-control-slate">{lesson.snippet}</p>
-                </article>
-              ))}
+                    <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                      {lesson.snippet}
+                    </p>
+                  </article>
+                ))
+              )}
             </div>
           </PanelShell>
-        ) : null}
+        )}
       </main>
 
-      {criticalHalt ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-rose-950/80 px-6 backdrop-blur-sm">
-          <div className="max-w-2xl rounded-[32px] border border-rose-300/30 bg-[#1b090a] p-8 text-center shadow-panel">
-            <div className="text-[10px] uppercase tracking-[0.42em] text-rose-200">
-              Fail-Closed System Halt
+      {/* Critical Error Modal */}
+      {criticalHalt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 flex items-center justify-center rounded-full mb-4">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
             </div>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[0.12em] text-white">
-              Critical alert received
+            <h2 className="text-2xl font-bold text-center text-slate-900">
+              Critical Fault Detected
             </h2>
-            <p className="mt-4 text-sm leading-7 text-rose-100/80">{criticalHalt.message}</p>
-            <div className="mt-6 rounded-2xl border border-rose-300/20 bg-black/25 p-4 text-left text-sm text-rose-100/90">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-rose-200">Feedback</div>
-              <pre className="mt-2 whitespace-pre-wrap break-words font-mono leading-6">
+            <p className="text-center text-slate-600 mt-2 font-medium">{criticalHalt.message}</p>
+
+            <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                Diagnostic Feedback
+              </div>
+              <pre className="text-sm font-mono text-slate-800 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
                 {criticalHalt.feedback}
               </pre>
             </div>
+
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setCriticalHalt(null)}
+                className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-sm transition"
+              >
+                Acknowledge & Proceed
+              </button>
+            </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

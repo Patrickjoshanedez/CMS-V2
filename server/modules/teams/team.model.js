@@ -97,7 +97,7 @@ teamSchema.virtual('isFull').get(function () {
 });
 
 // --- Pre-validate: enforce max members ---
-teamSchema.pre('validate', function (next) {
+teamSchema.pre('validate', function () {
   if (this.members && this.members.length > MAX_TEAM_MEMBERS) {
     this.invalidate('members', `Team cannot have more than ${MAX_TEAM_MEMBERS} members`);
   }
@@ -120,8 +120,6 @@ teamSchema.pre('validate', function (next) {
       roleOwnerSet.add(targetId);
     });
   }
-
-  next();
 });
 
 // --- Statics ---

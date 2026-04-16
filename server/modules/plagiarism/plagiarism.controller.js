@@ -223,7 +223,7 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
           errorMessage: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     return res.status(200).json({
@@ -258,7 +258,7 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Fallback for environments without Redis.
@@ -362,7 +362,7 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({
@@ -419,7 +419,7 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({

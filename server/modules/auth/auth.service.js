@@ -78,7 +78,11 @@ class AuthService {
 
     if (type === 'verification') {
       // Mark user as verified
-      const user = await User.findOneAndUpdate({ email }, { isVerified: true }, { new: true });
+      const user = await User.findOneAndUpdate(
+        { email },
+        { isVerified: true },
+        { returnDocument: 'after' },
+      );
 
       if (!user) {
         throw new AppError('User not found.', 404, 'USER_NOT_FOUND');

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Test Suite: OCR Metadata Sanitization
  *
@@ -48,7 +49,7 @@ function isLikelyAuthorName(name) {
   }
 
   // Reject special characters EXCEPT periods and hyphens (for initials and compound names)
-  if (/[/@#$%^&*()+=[\]{}|\\:;"'<>,/]/.test(name)) {
+  if (/[/@#$%^&*()+=[\]{}|\\:;"'<>,?/]/.test(name)) {
     return false;
   }
 

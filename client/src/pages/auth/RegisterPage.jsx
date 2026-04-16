@@ -1,11 +1,12 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { GoogleLogin } from '@react-oauth/google';
+import { STRICT_EMAIL_REGEX } from '@cms/shared';
 
 import AuthLayout from '@/components/layouts/AuthLayout';
 import { FloatingInput } from '@/components/ui/FloatingInput';
@@ -30,7 +31,11 @@ const registerSchema = z
       .string()
       .min(2, 'Last name must be at least 2 characters.')
       .max(50, 'Last name must not exceed 50 characters.'),
-    email: z.string().email('Please enter a valid email address.'),
+    email: z
+      .string()
+      .trim()
+      .email('Please enter a valid email address.')
+      .regex(STRICT_EMAIL_REGEX, 'Please enter a valid email address.'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters.')
@@ -121,7 +126,6 @@ export default function RegisterPage() {
   const {
     control,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
@@ -135,7 +139,11 @@ export default function RegisterPage() {
     },
   });
 
-  const passwordValue = watch('password');
+  const passwordValue = useWatch({
+    control,
+    name: 'password',
+    defaultValue: '',
+  });
 
   /* ─── Google OAuth Handlers ─── */
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -150,7 +158,7 @@ export default function RegisterPage() {
       await googleLogin(credentialResponse.credential);
       navigate('/dashboard', { replace: true });
     } catch {
-      // Backend errors or network timeouts during credential exchange 
+      // Backend errors or network timeouts during credential exchange
       // are already captured in the authStore `error` state and displayed via AuthStatusAlert.
       // No need to set googleError here.
     }
@@ -160,41 +168,51 @@ export default function RegisterPage() {
     setGoogleError(getGoogleOriginMismatchMessage());
   };
 
-  const onSubmit = async (data) => {
-    try {
-      setCaptchaError('');
-      setGoogleError('');
-      clearError();
+  const onSubmit = useCallback(
+    async (data) => {
+      try {
+        setCaptchaError('');
+        setGoogleError('');
+        clearError();
 
-      let captchaToken;
+        let captchaToken;
 
-      if (isRecaptchaEnabled) {
-        captchaToken = recaptchaRef.current?.getValue();
-        if (!captchaToken) {
-          setCaptchaError('Please complete the reCAPTCHA verification.');
-          return;
+        if (isRecaptchaEnabled) {
+          captchaToken = recaptchaRef.current?.getValue();
+          if (!captchaToken) {
+            setCaptchaError('Please complete the reCAPTCHA verification.');
+            return;
+          }
+        }
+
+        await registerUser({
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
+          email: data.email,
+          password: data.password,
+          ...(isRecaptchaEnabled ? { captchaToken } : {}),
+        });
+        navigate('/verify-otp', {
+          state: { email: data.email, type: 'verification' },
+          replace: true,
+        });
+      } catch {
+        // Error is handled by the store
+        if (isRecaptchaEnabled) {
+          recaptchaRef.current?.reset();
         }
       }
+    },
+    [clearError, isRecaptchaEnabled, navigate, registerUser],
+  );
 
-      await registerUser({
-        firstName: data.firstName,
-        middleName: data.middleName,
-        lastName: data.lastName,
-        email: data.email,
-        password: data.password,
-        ...(isRecaptchaEnabled ? { captchaToken } : {}),
-      });
-      navigate('/verify-otp', {
-        state: { email: data.email, type: 'verification' },
-        replace: true,
-      });
-    } catch {
-      // Error is handled by the store
-      if (isRecaptchaEnabled) {
-        recaptchaRef.current?.reset();
-      }
-    }
-  };
+  const handleFormSubmit = useCallback(
+    (event) => {
+      void handleSubmit(onSubmit)(event);
+    },
+    [handleSubmit, onSubmit],
+  );
 
   return (
     <AuthLayout
@@ -205,7 +223,7 @@ export default function RegisterPage() {
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleFormSubmit}>
         {/* First name + Last name */}
         <div className="auth-item mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Controller
@@ -377,7 +395,11 @@ export default function RegisterPage() {
           <p className="text-sm text-destructive text-center">
             {googleAuth.isDisabledByDevPolicy
               ? 'Google Sign-Up is disabled in local development. Set VITE_ENABLE_GOOGLE_LOGIN=true after whitelisting your origin in Google Cloud Console.'
-              : 'Google Sign-Up is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
+              : !googleAuth.isOriginAllowed
+                ? `Google Sign-Up is unavailable for ${window.location.origin}. Configured VITE_GOOGLE_ALLOWED_ORIGINS: ${googleAuth.allowedOrigins.length ? googleAuth.allowedOrigins.join(', ') : '(none configured)'}. Also add this origin to Google OAuth Authorized JavaScript origins.`
+                : googleAuth.isMissingAllowedOriginsInDev
+                  ? 'Google Sign-Up is currently using the local loopback fallback because VITE_GOOGLE_ALLOWED_ORIGINS is not set. Set VITE_GOOGLE_ALLOWED_ORIGINS explicitly to keep strict origin checks.'
+                  : 'Google Sign-Up is unavailable for this environment. Check VITE_GOOGLE_CLIENT_ID and Google OAuth authorized origins.'}
           </p>
         </div>
       )}

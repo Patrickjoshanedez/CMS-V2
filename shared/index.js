@@ -20,3 +20,4 @@ export {
   CAPSTONE_TITLE_MAPPING,
 } from './constants/capstoneTitles.js';
 export { SDG_GOALS, SDG_TAG_SUGGESTIONS, getSDGById, parseSDGTag } from './constants/sdg.js';
+export { STRICT_EMAIL_REGEX } from './constants/validation.js';

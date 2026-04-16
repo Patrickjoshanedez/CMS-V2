@@ -132,14 +132,14 @@ function parseJsonArrayResponse(rawText) {
   try {
     const parsed = JSON.parse(trimmed);
     return Array.isArray(parsed) ? parsed : [];
-  } catch (_error) {
+  } catch {
     const start = trimmed.indexOf('[');
     const end = trimmed.lastIndexOf(']');
     if (start >= 0 && end > start) {
       try {
         const recovered = JSON.parse(trimmed.slice(start, end + 1));
         return Array.isArray(recovered) ? recovered : [];
-      } catch (_innerError) {
+      } catch {
         return [];
       }
     }

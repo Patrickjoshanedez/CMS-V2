@@ -796,7 +796,7 @@ function isLikelyAuthorName(name) {
   }
 
   // Reject special characters EXCEPT periods and hyphens (needed for initials like "S." and compound names like "von")
-  if (/[/@#$%^&*()+=[\]{}|\\:;"'<>,/]/.test(name)) {
+  if (/[/@#$%^&*()+=[\]{}|\\:;"'<>,?/]/.test(name)) {
     return false;
   }
 

@@ -3,19 +3,12 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
-      boxShadow: {
-        panel: '0 24px 80px rgba(0, 0, 0, 0.35)',
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['Fira Code', 'Monaco', 'monospace'],
       },
-      colors: {
-        control: {
-          ink: '#07110f',
-          panel: '#0d1715',
-          edge: '#1f302d',
-          amber: '#d7b24c',
-          emerald: '#5dbb74',
-          rose: '#e36a6a',
-          slate: '#92a4a0',
-        },
+      boxShadow: {
+        soft: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
       },
     },
   },

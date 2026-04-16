@@ -106,7 +106,7 @@ async function processJob(job) {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Step 1: Download file from S3
@@ -141,7 +141,7 @@ async function processJob(job) {
           errorMessage: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     console.log(`[Plagiarism Worker] Submission ${submissionId}: too little text, scored 100%.`);
@@ -193,7 +193,7 @@ async function processJob(job) {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Step 6: Notify student
@@ -266,7 +266,7 @@ async function handleFailedJob(job, err) {
           checkedAt: new Date(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     // Route to Dead-Letter Queue for administrative inspection
