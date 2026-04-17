@@ -5,6 +5,11 @@ import { MemoryRouter } from 'react-router-dom';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 if (!window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation(() => ({
     matches: false,
@@ -76,7 +81,7 @@ const renderAppAtPath = async (AppComponent, path) => {
 
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={[path]}>
         <AppComponent />
       </MemoryRouter>,
     );

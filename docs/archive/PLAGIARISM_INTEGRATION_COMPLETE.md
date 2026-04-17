@@ -548,7 +548,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale pl
 4. ✅ **Production deployment configuration** (`docker-compose.prod.yml`)
 
 **Existing Documentation (from Phase 1):**
-- ✅ PLAGIARISM_INTEGRATION_GUIDE.md (API reference)
+- ✅ docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md (API reference)
 - ✅ QUICK_START.md (setup instructions)
 - ✅ Frontend component documentation (inline comments)
 

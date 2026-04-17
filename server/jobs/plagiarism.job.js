@@ -20,6 +20,11 @@ import { getRedisConnectionOpts, isRedisAvailable } from '../config/redis.js';
 import { QUEUE_NAMES } from './queue.js';
 import { extractText } from '../utils/extractText.js';
 import { checkOriginality } from '../services/plagiarism.service.js';
+import {
+  findFingerprintCandidates,
+  getFingerprintLookup,
+  upsertSubmissionFingerprints,
+} from '../services/fingerprintIndex.service.js';
 import storageService from '../services/storage.index.js';
 import Submission from '../modules/submissions/submission.model.js';
 import Project from '../modules/projects/project.model.js';
@@ -33,6 +38,9 @@ let plagiarismWorker = null;
 const MAX_CORPUS_CANDIDATES = 120;
 const MAX_LAZY_CORPUS_EXTRACTIONS = 15;
 const MIN_CORPUS_TEXT_LENGTH = 50;
+const MAX_FINGERPRINT_CANDIDATES = Number(process.env.PLAGIARISM_FINGERPRINT_CANDIDATE_LIMIT || 80);
+const MIN_SHARED_FINGERPRINTS = Number(process.env.PLAGIARISM_MIN_SHARED_FINGERPRINTS || 2);
+const MAX_FALLBACK_REINDEX_COUNT = Number(process.env.PLAGIARISM_FALLBACK_REINDEX_COUNT || 25);
 
 const TRUSTED_FALLBACK_HOSTS = new Set([
   'drive.google.com',
@@ -228,10 +236,129 @@ async function buildCorpus(excludeProjectId, excludeSubmissionId) {
 
   return corpusCandidates.map((c) => ({
     id: c._id.toString(),
+    projectId: c.projectId.toString(),
     title: projectMap.get(c.projectId.toString()) || 'Unknown Project',
     chapter: c.chapter,
     text: c.extractedText,
   }));
+}
+
+/**
+ * Build a corpus from the fingerprint inverted index first, falling back to
+ * extracted text retrieval only for shortlisted candidates.
+ *
+ * @param {{ submissionId: string, projectId: string, submittedText: string }} params
+ * @returns {Promise<{ corpus: Array, submittedFingerprints: Array }>}
+ */
+async function buildCorpusFromFingerprintIndex({ submissionId, projectId, submittedText }) {
+  const { submittedFingerprints, uniqueHashes, candidates } = await findFingerprintCandidates({
+    submissionId,
+    projectId,
+    text: submittedText,
+    limit: MAX_FINGERPRINT_CANDIDATES,
+  });
+
+  const filteredCandidates = (Array.isArray(candidates) ? candidates : []).filter(
+    (item) => Number(item?.sharedFingerprintCount || 0) >= MIN_SHARED_FINGERPRINTS,
+  );
+
+  if (filteredCandidates.length === 0) {
+    return { corpus: [], submittedFingerprints };
+  }
+
+  const candidateIds = filteredCandidates
+    .map((item) => item?.submissionId)
+    .filter((value) => typeof value === 'string' && value.length > 0);
+
+  if (candidateIds.length === 0) {
+    return { corpus: [], submittedFingerprints };
+  }
+
+  const sharedCountMap = new Map(
+    filteredCandidates.map((item) => [item.submissionId, Number(item.sharedFingerprintCount || 0)]),
+  );
+
+  const submissions = await Submission.find({ _id: { $in: candidateIds } })
+    .select('_id projectId chapter extractedText storageKey fileType type')
+    .lean();
+
+  const normalizedCandidates = [];
+  let lazyExtractions = 0;
+
+  for (const candidate of submissions) {
+    let normalizedText =
+      typeof candidate?.extractedText === 'string' ? candidate.extractedText.trim() : '';
+
+    if (
+      (!normalizedText || normalizedText.length < MIN_CORPUS_TEXT_LENGTH) &&
+      candidate?.storageKey &&
+      lazyExtractions < MAX_LAZY_CORPUS_EXTRACTIONS
+    ) {
+      try {
+        const fileBuffer = await storageService.downloadFile(candidate.storageKey);
+        const extracted = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+        normalizedText = typeof extracted === 'string' ? extracted.trim() : '';
+
+        if (normalizedText.length >= MIN_CORPUS_TEXT_LENGTH) {
+          await Submission.updateOne(
+            { _id: candidate._id },
+            { $set: { extractedText: normalizedText } },
+          );
+          lazyExtractions += 1;
+        }
+      } catch (error) {
+        console.warn(
+          `[Plagiarism Worker] Indexed candidate extraction failed for ${candidate._id}: ${error.message}`,
+        );
+      }
+    }
+
+    if (!normalizedText || normalizedText.length < MIN_CORPUS_TEXT_LENGTH) {
+      continue;
+    }
+
+    normalizedCandidates.push({
+      ...candidate,
+      extractedText: normalizedText,
+    });
+  }
+
+  if (normalizedCandidates.length === 0) {
+    return { corpus: [], submittedFingerprints };
+  }
+
+  const projectIds = [...new Set(normalizedCandidates.map((item) => item.projectId.toString()))];
+  const projects = await Project.find({ _id: { $in: projectIds } })
+    .select('_id title')
+    .lean();
+  const projectMap = new Map(projects.map((project) => [project._id.toString(), project.title]));
+
+  const fingerprintLookup = await getFingerprintLookup(
+    normalizedCandidates.map((item) => item._id.toString()),
+    uniqueHashes,
+  );
+
+  const corpus = normalizedCandidates
+    .map((candidate) => {
+      const candidateId = candidate._id.toString();
+      const fingerprintEntry = fingerprintLookup.get(candidateId);
+
+      return {
+        id: candidateId,
+        projectId: candidate.projectId.toString(),
+        title: projectMap.get(candidate.projectId.toString()) || 'Unknown Project',
+        chapter: candidate.chapter,
+        text: candidate.extractedText,
+        fingerprintHashes: fingerprintEntry ? [...fingerprintEntry.hashes] : [],
+        sharedFingerprintCount: sharedCountMap.get(candidateId) || 0,
+      };
+    })
+    .sort((a, b) => (b.sharedFingerprintCount || 0) - (a.sharedFingerprintCount || 0));
+
+  return {
+    corpus,
+    submittedFingerprints,
+  };
 }
 
 /**
@@ -246,7 +373,8 @@ async function buildCorpus(excludeProjectId, excludeSubmissionId) {
  * @param {number} job.data.chapter
  */
 async function processJob(job) {
-  const { submissionId, storageKey, fileType, projectId, chapter } = job.data;
+  const { submissionId, storageKey, fileType, projectId, chapter, type } = job.data;
+  const startedAt = Date.now();
 
   console.log(`[Plagiarism Worker] Processing job ${job.id} for submission ${submissionId}`);
 
@@ -278,11 +406,12 @@ async function processJob(job) {
 
   // Step 2: Extract text
   const extractedText = await extractText(fileBuffer, effectiveFileType);
+  const normalizedExtractedText = typeof extractedText === 'string' ? extractedText.trim() : '';
 
-  if (!extractedText || extractedText.trim().length < 50) {
+  if (!normalizedExtractedText || normalizedExtractedText.length < 50) {
     // Too little text to meaningfully compare — mark as completed with 100% originality
     await Submission.findByIdAndUpdate(submissionId, {
-      extractedText: extractedText || '',
+      extractedText: normalizedExtractedText || '',
       originalityScore: 100,
       'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
       'plagiarismResult.originalityScore': 100,
@@ -301,6 +430,16 @@ async function processJob(job) {
           checkedAt: new Date(),
           completedAt: new Date(),
           warningFlag: false,
+          rawData: {
+            document_id: submissionId,
+            originality_score: 100,
+            plagiarism_score: 0,
+            total_characters: normalizedExtractedText.length,
+            matched_characters: 0,
+            matches: [],
+            candidates_evaluated: 0,
+            processing_time_ms: Date.now() - startedAt,
+          },
           error: null,
           errorMessage: null,
         },
@@ -308,19 +447,60 @@ async function processJob(job) {
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
+    try {
+      await upsertSubmissionFingerprints({
+        submissionId,
+        projectId,
+        chapter,
+        type,
+        text: normalizedExtractedText,
+      });
+    } catch (error) {
+      console.warn(
+        `[Plagiarism Worker] Fingerprint index update skipped for short submission ${submissionId}: ${error.message}`,
+      );
+    }
+
     console.log(`[Plagiarism Worker] Submission ${submissionId}: too little text, scored 100%.`);
     return { originalityScore: 100, matchedSources: [] };
   }
 
   // Store extracted text for future corpus building
-  await Submission.findByIdAndUpdate(submissionId, { extractedText });
+  await Submission.findByIdAndUpdate(submissionId, { extractedText: normalizedExtractedText });
 
-  // Step 3: Build corpus of existing documents
-  const corpus = await buildCorpus(projectId, submissionId);
+  // Step 3: Build candidate corpus from fingerprint index first
+  const { corpus: indexedCorpus, submittedFingerprints } = await buildCorpusFromFingerprintIndex({
+    submissionId,
+    projectId,
+    submittedText: normalizedExtractedText,
+  });
+
+  let corpus = indexedCorpus;
+
+  if (!Array.isArray(corpus) || corpus.length === 0) {
+    corpus = await buildCorpus(projectId, submissionId);
+
+    // Incrementally backfill index from fallback path to reduce future scans.
+    const backfillCandidates = corpus.slice(0, Math.max(0, MAX_FALLBACK_REINDEX_COUNT));
+    await Promise.allSettled(
+      backfillCandidates.map((candidate) =>
+        upsertSubmissionFingerprints({
+          submissionId: candidate.id,
+          projectId: candidate.projectId,
+          chapter: candidate.chapter,
+          text: candidate.text,
+        }),
+      ),
+    );
+  }
 
   // Step 4: Run originality check
-  const result = await checkOriginality(extractedText, corpus);
-  const similarityPercentage = Math.max(0, Math.min(100, 100 - result.originalityScore));
+  const result = await checkOriginality(normalizedExtractedText, corpus, {
+    submittedFingerprints,
+  });
+  const similarityPercentage = Number.isFinite(result?.similarityPercentage)
+    ? Math.max(0, Math.min(100, result.similarityPercentage))
+    : Math.max(0, Math.min(100, 100 - result.originalityScore));
 
   const normalizedMatches = (result.matchedSources || []).map((match, index) => {
     const spans = Array.isArray(match.spans)
@@ -363,23 +543,32 @@ async function processJob(job) {
     document_id: submissionId,
     originality_score: result.originalityScore,
     plagiarism_score: similarityPercentage,
-    total_characters: extractedText.length,
-    matched_characters: normalizedMatches.reduce((sum, item) => {
-      if (!Array.isArray(item.spans)) return sum;
-      return (
-        sum +
-        item.spans.reduce((spanSum, span) => {
-          const start = Number(span?.start);
-          const end = Number(span?.end);
-          if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return spanSum;
-          return spanSum + (end - start);
-        }, 0)
-      );
-    }, 0),
+    total_characters: Number.isFinite(result?.totalCharacters)
+      ? result.totalCharacters
+      : normalizedExtractedText.length,
+    matched_characters: Number.isFinite(result?.matchedCharacterCount)
+      ? result.matchedCharacterCount
+      : normalizedMatches.reduce((sum, item) => {
+          if (!Array.isArray(item.spans)) return sum;
+          return (
+            sum +
+            item.spans.reduce((spanSum, span) => {
+              const start = Number(span?.start);
+              const end = Number(span?.end);
+              if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return spanSum;
+              return spanSum + (end - start);
+            }, 0)
+          );
+        }, 0),
     matches: normalizedMatches,
     candidates_evaluated: corpus.length,
-    processing_time_ms: null,
+    processing_time_ms: Date.now() - startedAt,
   };
+
+  if (result?.aiWritingSignal) {
+    fullReport.ai_writing_probability = result.aiWritingSignal.probability;
+    fullReport.ai_writing_rationale = result.aiWritingSignal.rationale || null;
+  }
 
   // Step 5: Update submission with results
   await Submission.findByIdAndUpdate(submissionId, {
@@ -421,6 +610,20 @@ async function processJob(job) {
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
+
+  try {
+    await upsertSubmissionFingerprints({
+      submissionId,
+      projectId,
+      chapter,
+      type,
+      text: normalizedExtractedText,
+    });
+  } catch (error) {
+    console.warn(
+      `[Plagiarism Worker] Failed to refresh fingerprint index for submission ${submissionId}: ${error.message}`,
+    );
+  }
 
   // Step 6: Notify student
   const submission = await Submission.findById(submissionId).populate('submittedBy', 'email');

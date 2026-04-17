@@ -12,28 +12,34 @@ This directory contains a complete, production-ready plagiarism detection system
 
 ```
 server/modules/plagiarism/
-├── plagiarism.controller.ts  ⭐ CORE FILE
+├── plagiarism.controller.js  ⭐ CORE FILE
 │   └── 4 endpoint handlers:
 │       • checkSubmissionPlagiarism() - Start check
 │       • getSubmissionPlagiarismResult() - Get result
 │       • indexSubmissionInCorpus() - Index after approval
 │       • removeSubmissionFromCorpus() - Remove from corpus
 │
-├── plagiarism.routes.ts      ⭐ CORE FILE
+├── plagiarism.routes.js      ⭐ CORE FILE
 │   └── Route definitions:
 │       • POST /:submissionId/plagiarism/check
 │       • GET /:submissionId/plagiarism/result
 │       • POST /:submissionId/plagiarism/index
 │       • DELETE /:submissionId/plagiarism/index
 │
-├── plagiarism.model.ts       ⭐ CORE FILE
+├── plagiarism.model.js       ⭐ CORE FILE
 │   └── MongoDB Schema:
 │       • PlagiarismResult collection
 │       • Fields: taskId, status, similarity%, textMatches
 │       • Indexes on submissionId + status, checkedAt
 │
-└── plagiarism.service.ts     ✓ (Already exists)
-    └── Business logic for engine communication
+└── documentFingerprint.model.js  ⭐ INDEX FILE
+  └── Inverted fingerprint index storage
+
+server/services/
+├── plagiarism.service.js      ⭐ CORE FILE
+│   └── Winnowing + span-union scoring logic
+└── fingerprintIndex.service.js ⭐ CORE FILE
+  └── Candidate retrieval + incremental index updates
 ```
 
 **Status:** ✅ **COMPLETE** — Ready to mount in Express app
@@ -73,19 +79,8 @@ client/src/
 
 ```
 docs/
-└── PLAGIARISM_INTEGRATION_GUIDE.md  ⭐ COMPREHENSIVE GUIDE
-    ├── Architecture diagram
-    ├── 4 API endpoint specs with examples
-    ├── Frontend integration patterns
-    ├── Backend integration patterns
-    ├── Complete workflow cycle
-    ├── Configuration reference
-    ├── Testing procedures
-    ├── Error handling guide
-    ├── Performance tuning
-    └── Security & privacy notes
-    
-├─ PLAGIARISM_IMPLEMENTATION_SUMMARY.md  ⭐ QUICK OVERVIEW
+└── archive/
+  ├─ PLAGIARISM_IMPLEMENTATION_SUMMARY.md  ⭐ QUICK OVERVIEW
 │  ├── Architecture summary
 │  ├── File manifest
 │  ├── API endpoints quick reference
@@ -93,7 +88,7 @@ docs/
 │  ├── Integration checklist
 │  └── Key features list
 
-└─ NEXT_STEPS.md                        ⭐ ACTION PLAN
+  └─ NEXT_STEPS.md                        ⭐ ACTION PLAN
    ├── Phase 1: Backend Setup (30m)
    ├── Phase 2: Frontend Setup (20m)
    ├── Phase 3: Backend Integration (45m)
@@ -164,15 +159,15 @@ docs/
             │ HTTP REST API
             ▼
 ┌─ Express.js Backend ──────────┐
-│ plagiarism.controller.ts       │
-│ plagiarism.routes.ts           │
-│ plagiarism.model.ts            │
+│ plagiarism.controller.js       │
+│ plagiarism.routes.js           │
+│ plagiarism.model.js            │
 └───────────┬────────────────────┘
-            │ Service Call
+            │ BullMQ Worker Job
             ▼
 ┌─ Plagiarism Engine ───────────┐
-│ Python gRPC/HTTP Server       │
-│ (docker-compose)              │
+│ Node.js Worker + Services     │
+│ (Winnowing + Fingerprint IDX) │
 └───────────┬────────────────────┘
             │ Database Query
             ▼
@@ -242,12 +237,6 @@ function SubmissionReview({ submission }) {
 ## 🧪 Quick Test Commands
 
 ```bash
-# Start plagiarism engine
-docker-compose up plagiarism-engine -d
-
-# Check if running
-docker ps | grep plagiarism
-
 # Test check endpoint
 curl -X POST http://localhost:3000/api/submissions/test-123/plagiarism/check \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -270,9 +259,8 @@ curl -X GET http://localhost:3000/api/submissions/test-123/plagiarism/result \
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| `PLAGIARISM_INTEGRATION_GUIDE.md` | Comprehensive technical reference | Developers |
-| `PLAGIARISM_IMPLEMENTATION_SUMMARY.md` | High-level overview + checklist | Managers, Developers |
-| `NEXT_STEPS.md` | Step-by-step action plan with timelines | Developers implementing |
+| `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md` | High-level overview + checklist | Managers, Developers |
+| `docs/archive/NEXT_STEPS.md` | Step-by-step action plan with timelines | Developers implementing |
 | Source code comments | Implementation details | Developers reading code |
 
 ---
@@ -312,10 +300,10 @@ curl -X GET http://localhost:3000/api/submissions/test-123/plagiarism/result \
 → See step 2.1 in `NEXT_STEPS.md`
 
 **Issue: Plagiarism engine errors?**
-→ See "Common Errors & Solutions" in `PLAGIARISM_INTEGRATION_GUIDE.md`
+→ See `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md`
 
 **Issue: Need more details?**
-→ Full API specs in `PLAGIARISM_INTEGRATION_GUIDE.md`
+→ Review `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md`
 
 ---
 
@@ -336,7 +324,7 @@ When you see this on your submission review page, integration is complete:
 
 ## 📞 Questions?
 
-**Read this first:** `docs/PLAGIARISM_INTEGRATION_GUIDE.md` (complete reference)
+**Read this first:** `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md` (reference)
 
 **Then check:** `NEXT_STEPS.md` (step-by-step guide)
 

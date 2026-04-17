@@ -441,7 +441,7 @@ mongo cms-prod collections plagiarism_results --count
 | Frontend Component | ✅ Complete | PlagiarismChecker.jsx |
 | Frontend Service | ✅ Complete | plagiarism.service.js |
 | Data Model | ✅ Complete | plagiarism.model.ts |
-| Documentation | ✅ Complete | PLAGIARISM_INTEGRATION_GUIDE.md |
+| Documentation | ✅ Complete | docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md |
 | Routes Mounting | ⏳ TODO | server/app.js |
 | Approval Integration | ⏳ TODO | submissions.service.js |
 | Environment Config | ⏳ TODO | .env |
@@ -501,4 +501,4 @@ When you see this, integration is complete:
 
 **Ready to integrate? Start with Phase 1, Step 1.1!** 🚀
 
-For detailed reference, see `docs/PLAGIARISM_INTEGRATION_GUIDE.md`
+For detailed reference, see `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md`

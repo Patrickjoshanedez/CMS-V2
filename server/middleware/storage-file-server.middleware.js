@@ -24,10 +24,16 @@ const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uplo
  * Serve file from filesystem storage
  * GET /storage/archives/projects/{projectId}/chapters/1/v1/file.pdf
  */
-router.get('/*filepath', (req, res, _next) => {
+// Use a RegExp catch-all to avoid path-to-regexp wildcard parsing differences.
+router.get(/.*/, (req, res, _next) => {
   try {
     // Sanitize path — prevent path traversal attacks
-    const requestedPath = req.params.filepath;
+    let requestedPath = req.path;
+
+    // Remove leading slash if present
+    if (requestedPath.startsWith('/')) {
+      requestedPath = requestedPath.slice(1);
+    }
 
     if (requestedPath.includes('..')) {
       return res.status(400).json({ error: 'Invalid path' });

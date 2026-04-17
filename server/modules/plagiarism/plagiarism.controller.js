@@ -7,6 +7,10 @@ import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
 import env from '../../config/env.js';
 import submissionService from '../submissions/submission.service.js';
+import {
+  removeSubmissionFingerprints,
+  upsertSubmissionFingerprints,
+} from '../../services/fingerprintIndex.service.js';
 import { PLAGIARISM_STATUSES, ROLES } from '@cms/shared';
 
 const resolveCorpusMetadata = (...candidates) => {
@@ -312,18 +316,30 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
     submissionId,
     req.user._id,
     {
-      submissionSelect: 'storageKey fileType extractedText projectId type',
+      submissionSelect: 'storageKey fileType extractedText projectId type chapter',
     },
   );
 
-  if (!submission.extractedText || submission.extractedText.trim().length === 0) {
+  let extractedText =
+    typeof submission.extractedText === 'string' ? submission.extractedText.trim() : '';
+
+  if (!extractedText) {
     const fileBuffer = await storageService.downloadFile(submission.storageKey);
     const text = await extractText(fileBuffer, submission.fileType);
+    extractedText = typeof text === 'string' ? text.trim() : '';
 
     await Submission.findByIdAndUpdate(submission._id, {
-      extractedText: text,
+      extractedText,
     });
   }
+
+  await upsertSubmissionFingerprints({
+    submissionId: submission._id.toString(),
+    projectId: submission.projectId.toString(),
+    chapter: submission.chapter,
+    type: submission.type,
+    text: extractedText,
+  });
 
   const indexedAt = new Date().toISOString();
 
@@ -383,6 +399,7 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
   );
 
   await Submission.findByIdAndUpdate(submission._id, { extractedText: null });
+  await removeSubmissionFingerprints(submission._id.toString());
 
   const removedFromCorpusAt = new Date().toISOString();
 

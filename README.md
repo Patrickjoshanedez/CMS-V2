@@ -16,6 +16,19 @@ A full-stack **Capstone Management and Archiving System** with plagiarism checki
 
 ---
 
+## Plagiarism Pipeline
+
+The plagiarism checker now runs as a native Node.js workflow in this monorepo.
+
+- Queue + worker orchestration: `server/jobs/plagiarism.job.js` (BullMQ + Redis)
+- Core scoring engine: `server/services/plagiarism.service.js` (winnowing fingerprints + span-union scoring)
+- Inverted index candidate retrieval: `server/services/fingerprintIndex.service.js`
+- Fingerprint persistence model: `server/modules/plagiarism/documentFingerprint.model.js`
+
+This architecture avoids full corpus scans for each request and does not require an external Python plagiarism microservice for the active check path.
+
+---
+
 ## Project Structure
 
 ```text

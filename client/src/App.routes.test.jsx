@@ -7,6 +7,11 @@ import { RoleRoute } from './App';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 const mockState = {
   user: { _id: 'student-1', role: ROLES.STUDENT },
   isAuthenticated: true,
@@ -31,7 +36,7 @@ const renderRoleRoute = () => {
 
   act(() => {
     root.render(
-      <MemoryRouter initialEntries={['/admin/users']}>
+      <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/admin/users']}>
         <Routes>
           <Route
             path="/admin/users"

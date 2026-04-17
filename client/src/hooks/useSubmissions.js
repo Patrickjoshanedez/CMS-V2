@@ -16,6 +16,220 @@ const isValidProjectId = (projectId) => {
   return normalized.length > 0 && normalized !== 'undefined' && normalized !== 'null';
 };
 
+const clampUnitRange = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(1, parsed));
+};
+
+const toUnitSimilarity = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed > 1 ? clampUnitRange(parsed / 100) : clampUnitRange(parsed);
+};
+
+const toValidSpan = (span = {}) => {
+  const start = Number(span?.start ?? span?.start_index);
+  const end = Number(span?.end ?? span?.end_index);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return null;
+  }
+
+  return {
+    start,
+    end,
+    length: end - start,
+  };
+};
+
+const toSourceKey = (match = {}, fallbackIndex = 0) => {
+  const metadata =
+    match?.source_metadata && typeof match.source_metadata === 'object'
+      ? match.source_metadata
+      : {};
+
+  const keyCandidate =
+    metadata.document_id ||
+    match.submissionId ||
+    match.id ||
+    metadata.title ||
+    match.projectTitle ||
+    match.title;
+
+  if (typeof keyCandidate === 'string' && keyCandidate.trim()) {
+    return keyCandidate.trim();
+  }
+
+  if (Number.isFinite(keyCandidate)) {
+    return String(keyCandidate);
+  }
+
+  return `source-${fallbackIndex}`;
+};
+
+const toSourceLabel = (match = {}) => {
+  const metadata =
+    match?.source_metadata && typeof match.source_metadata === 'object'
+      ? match.source_metadata
+      : {};
+
+  return (
+    metadata.title ||
+    match.projectTitle ||
+    match.title ||
+    metadata.document_id ||
+    match.submissionId ||
+    'Unknown source'
+  );
+};
+
+/**
+ * Top-10 color palette used for source numbering across report views.
+ * Each item includes a hex token plus Tailwind utility classes for UI surfaces.
+ */
+export const PLAGIARISM_SOURCE_PALETTE = [
+  {
+    hex: '#DC2626',
+    badgeClass: 'border-red-300 bg-red-100 text-red-800',
+    dotClass: 'bg-red-500',
+    highlightClass: 'bg-red-200 text-red-950',
+  },
+  {
+    hex: '#EA580C',
+    badgeClass: 'border-orange-300 bg-orange-100 text-orange-800',
+    dotClass: 'bg-orange-500',
+    highlightClass: 'bg-orange-200 text-orange-950',
+  },
+  {
+    hex: '#D97706',
+    badgeClass: 'border-amber-300 bg-amber-100 text-amber-800',
+    dotClass: 'bg-amber-500',
+    highlightClass: 'bg-amber-200 text-amber-950',
+  },
+  {
+    hex: '#65A30D',
+    badgeClass: 'border-lime-300 bg-lime-100 text-lime-800',
+    dotClass: 'bg-lime-500',
+    highlightClass: 'bg-lime-200 text-lime-950',
+  },
+  {
+    hex: '#059669',
+    badgeClass: 'border-emerald-300 bg-emerald-100 text-emerald-800',
+    dotClass: 'bg-emerald-500',
+    highlightClass: 'bg-emerald-200 text-emerald-950',
+  },
+  {
+    hex: '#0D9488',
+    badgeClass: 'border-teal-300 bg-teal-100 text-teal-800',
+    dotClass: 'bg-teal-500',
+    highlightClass: 'bg-teal-200 text-teal-950',
+  },
+  {
+    hex: '#0891B2',
+    badgeClass: 'border-cyan-300 bg-cyan-100 text-cyan-800',
+    dotClass: 'bg-cyan-500',
+    highlightClass: 'bg-cyan-200 text-cyan-950',
+  },
+  {
+    hex: '#2563EB',
+    badgeClass: 'border-blue-300 bg-blue-100 text-blue-800',
+    dotClass: 'bg-blue-500',
+    highlightClass: 'bg-blue-200 text-blue-950',
+  },
+  {
+    hex: '#7C3AED',
+    badgeClass: 'border-violet-300 bg-violet-100 text-violet-800',
+    dotClass: 'bg-violet-500',
+    highlightClass: 'bg-violet-200 text-violet-950',
+  },
+  {
+    hex: '#DB2777',
+    badgeClass: 'border-pink-300 bg-pink-100 text-pink-800',
+    dotClass: 'bg-pink-500',
+    highlightClass: 'bg-pink-200 text-pink-950',
+  },
+];
+
+/**
+ * Build deterministic source-number and color assignments for plagiarism matches.
+ *
+ * @param {Array} matches
+ * @param {number} limit
+ * @returns {{ sourceMap: Map<string, any>, rankedSources: Array }}
+ */
+export const buildTopSourceColorMap = (matches = [], limit = 10) => {
+  const normalizedMatches = Array.isArray(matches) ? matches : [];
+  const aggregate = new Map();
+
+  normalizedMatches.forEach((match, index) => {
+    const sourceKey = toSourceKey(match, index);
+    const sourceLabel = toSourceLabel(match);
+
+    const spans = Array.isArray(match?.spans)
+      ? match.spans.map((span) => toValidSpan(span)).filter(Boolean)
+      : [];
+
+    const directSpan = toValidSpan({
+      start: match?.start_index,
+      end: match?.end_index,
+    });
+
+    if (directSpan && spans.length === 0) {
+      spans.push(directSpan);
+    }
+
+    const spanCoverage = spans.reduce((sum, span) => sum + span.length, 0);
+    const similarity = toUnitSimilarity(
+      match?.similarity_score ?? match?.similarity ?? match?.matchPercentage,
+    );
+
+    if (!aggregate.has(sourceKey)) {
+      aggregate.set(sourceKey, {
+        sourceKey,
+        sourceLabel,
+        totalCoverage: 0,
+        maxSimilarity: 0,
+        mentions: 0,
+      });
+    }
+
+    const current = aggregate.get(sourceKey);
+    current.totalCoverage += spanCoverage;
+    current.maxSimilarity = Math.max(current.maxSimilarity, similarity);
+    current.mentions += 1;
+  });
+
+  const rankedSources = [...aggregate.values()].sort((left, right) => {
+    if (right.maxSimilarity !== left.maxSimilarity) {
+      return right.maxSimilarity - left.maxSimilarity;
+    }
+    if (right.totalCoverage !== left.totalCoverage) {
+      return right.totalCoverage - left.totalCoverage;
+    }
+    return right.mentions - left.mentions;
+  });
+
+  const topSources = rankedSources.slice(0, Math.max(0, limit));
+  const sourceMap = new Map();
+
+  topSources.forEach((source, index) => {
+    const palette = PLAGIARISM_SOURCE_PALETTE[index % PLAGIARISM_SOURCE_PALETTE.length];
+    sourceMap.set(source.sourceKey, {
+      ...source,
+      sourceNumber: index + 1,
+      colorHex: palette.hex,
+      badgeClass: palette.badgeClass,
+      dotClass: palette.dotClass,
+      highlightClass: palette.highlightClass,
+    });
+  });
+
+  return {
+    sourceMap,
+    rankedSources,
+  };
+};
+
 /* ────────── Query Keys ────────── */
 
 export const submissionKeys = {
