@@ -266,6 +266,9 @@ services:
       - cms_network
 
   client:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: cms-v2-dev-base
     container_name: cms-client
     restart: unless-stopped

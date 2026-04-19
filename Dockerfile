@@ -7,4 +7,4 @@ COPY server/package*.json ./server/
 COPY client/package*.json ./client/
 COPY shared/package*.json ./shared/
 
-RUN npm ci --ignore-scripts
+RUN npm ci

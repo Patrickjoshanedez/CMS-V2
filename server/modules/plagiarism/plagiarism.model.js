@@ -1,7 +1,28 @@
 import mongoose from 'mongoose';
 
+const matchedBlockSchema = new mongoose.Schema(
+  {
+    studentStart: { type: Number, required: true, min: 0 },
+    studentEnd: { type: Number, required: true, min: 0 },
+    sourceStart: { type: Number, required: true, min: 0 },
+    sourceEnd: { type: Number, required: true, min: 0 },
+    matchedText: { type: String, default: '' },
+  },
+  { _id: false },
+);
+
 const textMatchSchema = new mongoose.Schema(
   {
+    sourceId: { type: String, default: null },
+    sourceTitle: { type: String, default: 'Unknown source' },
+    similarityPercentage: { type: Number, min: 0, max: 100, default: null },
+    colorCode: { type: String, default: '#ef4444' },
+    matchedBlocks: {
+      type: [matchedBlockSchema],
+      default: [],
+    },
+
+    // Backward-compatible aliases used by older API payloads.
     submissionId: { type: String, default: null },
     documentId: { type: String, default: null },
     id: { type: String, default: null },
@@ -46,6 +67,12 @@ const plagiarismResultSchema = new mongoose.Schema(
       enum: ['queued', 'processing', 'pending', 'completed', 'failed'],
       default: 'queued',
       index: true,
+    },
+    overallScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
     },
     similarityPercentage: {
       type: Number,

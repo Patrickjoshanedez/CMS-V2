@@ -81,7 +81,7 @@ class SubmissionService {
       return (
         host === 'drive.google.com' || host === 'docs.google.com' || host === 'www.googleapis.com'
       );
-    } catch (_error) {
+    } catch {
       return false;
     }
   }
@@ -108,12 +108,28 @@ class SubmissionService {
       : [];
 
     return textMatches.map((match) => ({
-      submissionId: match?.submissionId || match?.id || null,
-      projectTitle: match?.title || 'Unknown Project',
+      submissionId: match?.sourceId || match?.submissionId || match?.id || null,
+      projectTitle: match?.sourceTitle || match?.title || 'Unknown source',
       chapter: match?.chapter ?? null,
-      matchPercentage: match?.matchPercentage ?? match?.similarity ?? null,
-      spans: Array.isArray(match?.spans) ? match.spans : [],
-      sourceSnippet: match?.sourceSnippet || '',
+      matchPercentage:
+        match?.similarityPercentage ?? match?.matchPercentage ?? match?.similarity ?? null,
+      spans: Array.isArray(match?.matchedBlocks)
+        ? match.matchedBlocks
+            .map((block) => ({
+              start: block?.studentStart,
+              end: block?.studentEnd,
+            }))
+            .filter(
+              (span) =>
+                Number.isFinite(span.start) && Number.isFinite(span.end) && span.end > span.start,
+            )
+        : Array.isArray(match?.spans)
+          ? match.spans
+          : [],
+      sourceSnippet:
+        (Array.isArray(match?.matchedBlocks) && match.matchedBlocks[0]?.matchedText) ||
+        match?.sourceSnippet ||
+        '',
     }));
   }
 
@@ -1818,7 +1834,7 @@ class SubmissionService {
     try {
       const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
       return { url, expiresIn, source: 's3' };
-    } catch (_error) {
+    } catch {
       if (fallbackUrl) {
         return { url: fallbackUrl, expiresIn, source: 'google_drive' };
       }

@@ -3,7 +3,6 @@ import {
   createAuthenticatedUserWithRole,
   createCourseAndSection,
   createValidProjectPayload,
-  request,
 } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
@@ -115,13 +114,48 @@ describe('Documents API — /api/documents', () => {
       .attach('file', createPdfBuffer(), 'paper.pdf');
 
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.title).toBe('Document Automation for Capstone Projects');
-    expect(res.body.data.abstract).toContain('document metadata pipeline');
-    expect(res.body.data.publicationYear).toBe(2025);
-    expect(res.body.data.authors).toEqual(['Jane Doe', 'John Smith']);
-    expect(res.body.data.keywords).toEqual(['document automation', 'metadata pipeline']);
-    expect(['heuristic', 'glm-ocr']).toContain(res.body.data.extractionProvider);
+    expect(res.body.metadata.title).toBe('Document Automation for Capstone Projects');
+    expect(res.body.metadata.abstract).toContain('document metadata pipeline');
+    expect(res.body.metadata.year).toBe('2025');
+    expect(res.body.metadata.authors).toBe('Jane Doe, John Smith');
+    expect(res.body.metadata.keywords).toBe('document automation, metadata pipeline');
+    expect(res.body.metadata.venue).toBe('');
+    expect(res.body.confidence.title).toBe(93);
+    expect(res.body.confidence.abstract).toBe(88);
+    expect(res.body.confidence.year).toBe(82);
+    expect(res.body.confidence.authors).toBe(76);
+    expect(res.body.confidence.keywords).toBe(79);
+    expect(metadataSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to filename title when extractor returns empty metadata', async () => {
+    const { agent } = await createAuthenticatedUserWithRole('student', {
+      email: 'documents-metadata-fallback@test.com',
+    });
+
+    const metadataSpy = vi.spyOn(pdfMetadataExtractor, 'extractPdfMetadata').mockResolvedValue({
+      title: '',
+      abstract: '',
+      publicationYear: null,
+      authors: [],
+      keywords: [],
+      extractionProvider: 'heuristic',
+      confidence: {
+        title: 0,
+        abstract: 0,
+        publicationYear: 0,
+        authors: 0,
+        keywords: 0,
+      },
+    });
+
+    const res = await agent
+      .post('/api/documents/extract-pdf-metadata')
+      .attach('file', createPdfBuffer(), 'Project Workspace_ Capstone Management System.pdf');
+
+    expect(res.status).toBe(200);
+    expect(res.body.metadata.title).toBe('Project Workspace Capstone Management System');
+    expect(res.body.confidence.title).toBe(35);
     expect(metadataSpy).toHaveBeenCalledTimes(1);
   });
 

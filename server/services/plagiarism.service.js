@@ -1,59 +1,70 @@
-/**
- * Plagiarism / Originality Checking Service.
- *
- * Active engine design:
- *   1. Winnowing fingerprints over configurable k-grams for robust matching.
- *   2. Score as union of unique matched spans over total submission length.
- *   3. Optional Ollama AI-writing signal as a separate metric.
- *
- * @module services/plagiarism.service
- */
+import crypto from 'crypto';
+import mongoose from 'mongoose';
+import Fingerprint from '../models/fingerprint.model.js';
+import Project from '../modules/projects/project.model.js';
+import Submission from '../modules/submissions/submission.model.js';
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
-const OLLAMA_GENERATE_MODEL = process.env.PLAGIARISM_OLLAMA_GENERATE_MODEL || 'llama3';
-const OLLAMA_TIMEOUT_MS = Number(process.env.PLAGIARISM_OLLAMA_TIMEOUT_MS || 12000);
-const ENABLE_OLLAMA_AI_DETECTION =
-  String(process.env.PLAGIARISM_OLLAMA_AI_DETECTION_ENABLED || 'false') === 'true';
+export const K_GRAM_SIZE = 7;
+export const WINDOW_SIZE = 4;
 
-const FINGERPRINT_KGRAM_SIZE = Number(process.env.PLAGIARISM_KGRAM_SIZE || 6);
-const FINGERPRINT_WINDOW_SIZE = Number(process.env.PLAGIARISM_WINNOW_WINDOW_SIZE || 4);
-const MIN_REPORTED_MATCH_PERCENT = Number(process.env.PLAGIARISM_MIN_MATCH_PERCENT || 5);
-const MAX_MATCHED_SOURCES = Number(process.env.PLAGIARISM_MAX_MATCHED_SOURCES || 10);
+const COLOR_PALETTE = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#84cc16',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+];
 
 function clampPercent(value) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, value));
 }
 
-function sumSpanLength(spans) {
-  if (!Array.isArray(spans)) return 0;
-  return spans.reduce((sum, span) => {
-    const start = Number(span?.start);
-    const end = Number(span?.end);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return sum;
-    return sum + (end - start);
-  }, 0);
+function toObjectId(value) {
+  if (!value) return null;
+  try {
+    return new mongoose.Types.ObjectId(value);
+  } catch {
+    return null;
+  }
 }
 
-function mergeOverlappingSpans(spans) {
-  if (!Array.isArray(spans) || spans.length === 0) return [];
+function toRounded(value, digits = 2) {
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
 
-  const sorted = spans
-    .filter(
-      (span) => Number.isFinite(span?.start) && Number.isFinite(span?.end) && span.end > span.start,
-    )
-    .sort((a, b) => a.start - b.start);
+function countWords(text) {
+  const matches = String(text || '').match(/\b[a-zA-Z0-9]+\b/g);
+  return Array.isArray(matches) ? matches.length : 0;
+}
 
-  if (sorted.length === 0) return [];
+function mergeIntervals(intervals = []) {
+  const normalized = intervals
+    .map((interval) => ({
+      start: Number(interval?.start),
+      end: Number(interval?.end),
+    }))
+    .filter((interval) => Number.isFinite(interval.start) && Number.isFinite(interval.end))
+    .filter((interval) => interval.end > interval.start)
+    .sort((left, right) => left.start - right.start || left.end - right.end);
 
-  const merged = [sorted[0]];
+  if (normalized.length === 0) return [];
 
-  for (let i = 1; i < sorted.length; i += 1) {
-    const current = sorted[i];
-    const last = merged[merged.length - 1];
+  const merged = [normalized[0]];
 
-    if (current.start <= last.end) {
-      last.end = Math.max(last.end, current.end);
+  for (let index = 1; index < normalized.length; index += 1) {
+    const current = normalized[index];
+    const previous = merged[merged.length - 1];
+
+    if (current.start <= previous.end) {
+      previous.end = Math.max(previous.end, current.end);
     } else {
       merged.push({ ...current });
     }
@@ -62,252 +73,358 @@ function mergeOverlappingSpans(spans) {
   return merged;
 }
 
-function hashFNV1a(input) {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-  return (hash >>> 0).toString(16);
+function countWordsInIntervals(text, intervals = []) {
+  return mergeIntervals(intervals).reduce((sum, interval) => {
+    const excerpt = String(text || '').slice(interval.start, interval.end);
+    return sum + countWords(excerpt);
+  }, 0);
+}
+
+function md5Hash(input) {
+  return crypto.createHash('md5').update(input).digest('hex').slice(0, 8);
 }
 
 function tokenizeWithRanges(text) {
-  if (!text || typeof text !== 'string') return [];
-
+  const normalizedText = String(text || '');
+  const regex = /[a-z0-9]+/g;
   const rows = [];
-  const regex = /[A-Za-z0-9_]+/g;
-  let match = regex.exec(text);
+  let match = regex.exec(normalizedText);
 
   while (match) {
-    const token = String(match[0] || '').toLowerCase();
-    if (token.length >= 3) {
-      rows.push({
-        token,
-        start: match.index,
-        end: match.index + token.length,
-      });
-    }
-    match = regex.exec(text);
+    rows.push({
+      token: match[0],
+      startIndex: match.index,
+      endIndex: match.index + match[0].length,
+    });
+    match = regex.exec(normalizedText);
   }
 
   return rows;
 }
 
-function buildKGramFingerprints(tokenRows, kGramSize) {
-  if (!Array.isArray(tokenRows) || tokenRows.length < kGramSize) {
+function buildKGrams(tokens, kGramSize = K_GRAM_SIZE) {
+  if (!Array.isArray(tokens) || tokens.length < kGramSize) {
     return [];
   }
 
-  const entries = [];
+  const kgrams = [];
+  for (let index = 0; index <= tokens.length - kGramSize; index += 1) {
+    const group = tokens.slice(index, index + kGramSize);
+    const phrase = group.map((item) => item.token).join(' ');
 
-  for (let index = 0; index <= tokenRows.length - kGramSize; index += 1) {
-    const kGram = tokenRows.slice(index, index + kGramSize);
-    const phrase = kGram.map((row) => row.token).join(' ');
-    const hash = hashFNV1a(phrase);
-
-    entries.push({
-      hash,
+    kgrams.push({
+      hash: md5Hash(phrase),
       phrase,
-      start: kGram[0].start,
-      end: kGram[kGram.length - 1].end,
-      tokenStart: index,
-      tokenEnd: index + kGramSize - 1,
+      startIndex: group[0].startIndex,
+      endIndex: group[group.length - 1].endIndex,
     });
   }
 
-  return entries;
+  return kgrams;
 }
 
-function winnowFingerprints(kGramFingerprints, windowSize) {
-  if (!Array.isArray(kGramFingerprints) || kGramFingerprints.length === 0) {
+function winnowKGrams(kgrams, windowSize = WINDOW_SIZE) {
+  if (!Array.isArray(kgrams) || kgrams.length === 0) {
     return [];
   }
 
-  const normalizedWindow = Math.max(1, Number(windowSize) || FINGERPRINT_WINDOW_SIZE);
+  const normalizedWindow = Math.max(1, Number(windowSize) || WINDOW_SIZE);
 
-  if (kGramFingerprints.length <= normalizedWindow) {
-    const minFingerprint = [...kGramFingerprints].sort((a, b) => a.hash.localeCompare(b.hash))[0];
-    return minFingerprint ? [minFingerprint] : [];
+  if (kgrams.length <= normalizedWindow) {
+    const min = [...kgrams].sort((left, right) => left.hash.localeCompare(right.hash))[0];
+    return min ? [min] : [];
   }
 
   const selected = new Set();
 
-  for (
-    let windowStart = 0;
-    windowStart <= kGramFingerprints.length - normalizedWindow;
-    windowStart += 1
-  ) {
-    let minIdx = windowStart;
+  for (let windowStart = 0; windowStart <= kgrams.length - normalizedWindow; windowStart += 1) {
+    let minIndex = windowStart;
+
     for (let offset = 1; offset < normalizedWindow; offset += 1) {
-      const currentIdx = windowStart + offset;
-      if (kGramFingerprints[currentIdx].hash <= kGramFingerprints[minIdx].hash) {
-        minIdx = currentIdx;
+      const currentIndex = windowStart + offset;
+      if (kgrams[currentIndex].hash <= kgrams[minIndex].hash) {
+        minIndex = currentIndex;
       }
     }
-    selected.add(minIdx);
+
+    selected.add(minIndex);
   }
 
-  return [...selected].sort((a, b) => a - b).map((idx) => kGramFingerprints[idx]);
+  return [...selected].sort((left, right) => left - right).map((index) => kgrams[index]);
 }
 
-function buildSubmittedHashLookup(fingerprints) {
-  const lookup = new Map();
+function buildStudentLookup(fingerprints) {
+  const map = new Map();
 
   for (const item of fingerprints) {
-    if (!item?.hash) continue;
-    const key = String(item.hash);
-    const existing = lookup.get(key) || [];
-    existing.push(item);
-    lookup.set(key, existing);
-  }
+    const hash = String(item?.hash || '');
+    if (!hash) continue;
 
-  return lookup;
-}
-
-function resolveSourceHashSet(doc) {
-  if (Array.isArray(doc?.fingerprintHashes)) {
-    return new Set(doc.fingerprintHashes.map((value) => String(value)));
-  }
-
-  if (Array.isArray(doc?.fingerprints) && doc.fingerprints.length > 0) {
-    const first = doc.fingerprints[0];
-    if (typeof first === 'string') {
-      return new Set(doc.fingerprints.map((value) => String(value)));
-    }
-    if (typeof first === 'object' && first !== null && first.hash) {
-      return new Set(doc.fingerprints.map((value) => String(value.hash)));
-    }
-  }
-
-  if (typeof doc?.text === 'string' && doc.text.trim()) {
-    const derived = computeWinnowFingerprints(doc.text).map((item) => String(item.hash));
-    return new Set(derived);
-  }
-
-  return new Set();
-}
-
-function deriveSourceSnippet(sourceText, phrase) {
-  if (!sourceText || typeof sourceText !== 'string') return '';
-  if (!phrase || typeof phrase !== 'string') {
-    return sourceText.slice(0, 280);
-  }
-
-  const at = sourceText.toLowerCase().indexOf(phrase.toLowerCase());
-  if (at < 0) {
-    return sourceText.slice(0, 280);
-  }
-
-  const from = Math.max(0, at - 80);
-  const to = Math.min(sourceText.length, at + phrase.length + 120);
-  return sourceText.slice(from, to).trim();
-}
-
-async function postToOllama(endpoint, payload) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`${OLLAMA_HOST}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
+    const existing = map.get(hash) || [];
+    existing.push({
+      startIndex: Number(item.startIndex),
+      endIndex: Number(item.endIndex),
+      phrase: item.phrase || '',
     });
-
-    if (!response.ok) {
-      throw new Error(`Ollama request failed (${response.status})`);
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeout);
+    map.set(hash, existing);
   }
+
+  return map;
 }
 
-function parseJsonObjectResponse(rawText) {
-  if (typeof rawText !== 'string' || !rawText.trim()) {
-    return null;
+function resolveSourceTitle(submission, project, fallbackChapter) {
+  const projectTitle = project?.title || 'Unknown Project';
+  const chapterLabel =
+    submission?.chapter ??
+    (typeof fallbackChapter === 'string' && fallbackChapter.trim() ? fallbackChapter : null);
+
+  const explicitTitle = submission?.documentTitle || submission?.fileName || null;
+  if (explicitTitle) {
+    return explicitTitle;
   }
 
-  const trimmed = rawText.trim();
-
-  try {
-    const parsed = JSON.parse(trimmed);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start < 0 || end <= start) return null;
-
-    try {
-      const recovered = JSON.parse(trimmed.slice(start, end + 1));
-      return recovered && typeof recovered === 'object' ? recovered : null;
-    } catch {
-      return null;
-    }
-  }
-}
-
-async function getAiWritingSignal(text) {
-  if (!ENABLE_OLLAMA_AI_DETECTION || typeof text !== 'string' || text.trim().length < 300) {
-    return null;
-  }
-
-  try {
-    const response = await postToOllama('/api/generate', {
-      model: OLLAMA_GENERATE_MODEL,
-      format: 'json',
-      stream: false,
-      system:
-        'You detect likely AI-authored academic writing. Return strict JSON with ai_probability (0-1) and rationale.',
-      prompt: [
-        'Analyze the following academic text and estimate whether it was AI-generated.',
-        'Return JSON only.',
-        '{"ai_probability": number between 0 and 1, "rationale": "short reason"}',
-        '',
-        text.slice(0, 4500),
-      ].join('\n'),
-      options: { temperature: 0 },
-    });
-
-    const parsed = parseJsonObjectResponse(response?.response || '');
-    if (!parsed) return null;
-
-    const probability = Number(parsed.ai_probability);
-    if (!Number.isFinite(probability)) return null;
-
-    return {
-      probability: Math.max(0, Math.min(1, probability)),
-      rationale:
-        typeof parsed.rationale === 'string' && parsed.rationale.trim()
-          ? parsed.rationale.trim().slice(0, 300)
-          : null,
-    };
-  } catch (error) {
-    console.warn(`[Plagiarism] AI-writing signal unavailable: ${error.message}`);
-    return null;
-  }
+  return chapterLabel ? `${projectTitle} - Chapter ${chapterLabel}` : projectTitle;
 }
 
 /**
- * Tokenize text: lowercase, strip punctuation, split on whitespace.
- * Removes tokens shorter than 3 characters to reduce noise.
+ * Exclude quoted text and bibliography sections while preserving character offsets.
+ * Replaced ranges are padded with spaces so all downstream indices still map to raw text.
+ */
+export function applyExclusions(text) {
+  const raw = String(text || '');
+  if (!raw) return '';
+
+  let output = raw;
+
+  output = output.replace(/"[\s\S]*?"/g, (segment) => ' '.repeat(segment.length));
+
+  const bibliographyMatch = /(^|\n)\s*(references|bibliography|works\s+cited)\b/i.exec(output);
+  if (bibliographyMatch) {
+    const prefixLength = bibliographyMatch[1] ? bibliographyMatch[1].length : 0;
+    const cutoffStart = bibliographyMatch.index + prefixLength;
+    output = `${output.slice(0, cutoffStart)}${' '.repeat(output.length - cutoffStart)}`;
+  }
+
+  return output;
+}
+
+/**
+ * Build Winnowing fingerprints from input text.
  *
- * @param {string} text
- * @returns {string[]} Array of normalized tokens
+ * Output indices are aligned to the raw text coordinates.
+ */
+export function generateFingerprints(text) {
+  const raw = String(text || '');
+  if (!raw.trim()) return [];
+
+  const excluded = applyExclusions(raw);
+  const normalized = excluded.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const tokenRows = tokenizeWithRanges(normalized);
+
+  if (tokenRows.length < K_GRAM_SIZE) {
+    return [];
+  }
+
+  const kgrams = buildKGrams(tokenRows, K_GRAM_SIZE);
+  const fingerprints = winnowKGrams(kgrams, WINDOW_SIZE);
+
+  return fingerprints.map((item) => ({
+    hash: item.hash,
+    phrase: item.phrase,
+    startIndex: item.startIndex,
+    endIndex: item.endIndex,
+
+    // Backward-compatible aliases for existing call sites.
+    start: item.startIndex,
+    end: item.endIndex,
+  }));
+}
+
+/**
+ * Core deterministic plagiarism calculation using MongoDB inverted index lookups.
+ */
+export async function calculatePlagiarism(studentText, submissionId) {
+  const rawStudentText = String(studentText || '');
+  const cleanedStudentText = applyExclusions(rawStudentText);
+  const totalDocumentWords = countWords(cleanedStudentText);
+
+  if (totalDocumentWords === 0) {
+    return {
+      overallScore: 0,
+      textMatches: [],
+      totalDocumentWords: 0,
+      matchedWords: 0,
+      submissionFingerprintCount: 0,
+    };
+  }
+
+  const studentFingerprints = generateFingerprints(rawStudentText);
+  if (studentFingerprints.length === 0) {
+    return {
+      overallScore: 0,
+      textMatches: [],
+      totalDocumentWords,
+      matchedWords: 0,
+      submissionFingerprintCount: 0,
+    };
+  }
+
+  const uniqueHashes = [...new Set(studentFingerprints.map((item) => String(item.hash)))];
+  const submissionObjectId = toObjectId(submissionId);
+
+  const candidateQuery = {
+    'hashes.hash': { $in: uniqueHashes },
+  };
+
+  if (submissionObjectId) {
+    candidateQuery.submissionId = { $ne: submissionObjectId };
+  }
+
+  const candidates = await Fingerprint.find(candidateQuery)
+    .select('submissionId chapter hashes')
+    .lean();
+
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    return {
+      overallScore: 0,
+      textMatches: [],
+      totalDocumentWords,
+      matchedWords: 0,
+      submissionFingerprintCount: studentFingerprints.length,
+    };
+  }
+
+  const sourceSubmissionIds = candidates
+    .map((item) => item?.submissionId)
+    .filter((value) => value)
+    .map((value) => value.toString());
+
+  const sourceSubmissions = await Submission.find({ _id: { $in: sourceSubmissionIds } })
+    .select('_id projectId chapter documentTitle fileName')
+    .lean();
+
+  const projectIds = [...new Set(sourceSubmissions.map((item) => item?.projectId).filter(Boolean))];
+  const projects = await Project.find({ _id: { $in: projectIds } })
+    .select('_id title')
+    .lean();
+
+  const projectMap = new Map(projects.map((item) => [item._id.toString(), item]));
+  const submissionMap = new Map(sourceSubmissions.map((item) => [item._id.toString(), item]));
+
+  const studentLookup = buildStudentLookup(studentFingerprints);
+  const allMatchedIntervals = [];
+  const textMatches = [];
+
+  for (const source of candidates) {
+    const sourceId = source?.submissionId?.toString();
+    if (!sourceId) continue;
+
+    const sourceHashes = Array.isArray(source?.hashes) ? source.hashes : [];
+    const matchedBlocks = [];
+    const sourceIntervals = [];
+    const seen = new Set();
+
+    for (const sourceHash of sourceHashes) {
+      const hash = String(sourceHash?.hash || '');
+      if (!hash || !studentLookup.has(hash)) continue;
+
+      const studentOccurrences = studentLookup.get(hash) || [];
+      for (const studentOccurrence of studentOccurrences) {
+        const studentStart = Number(studentOccurrence.startIndex);
+        const studentEnd = Number(studentOccurrence.endIndex);
+        const sourceStart = Number(sourceHash?.startIndex);
+        const sourceEnd = Number(sourceHash?.endIndex);
+
+        if (
+          !Number.isFinite(studentStart) ||
+          !Number.isFinite(studentEnd) ||
+          studentEnd <= studentStart
+        ) {
+          continue;
+        }
+
+        if (
+          !Number.isFinite(sourceStart) ||
+          !Number.isFinite(sourceEnd) ||
+          sourceEnd <= sourceStart
+        ) {
+          continue;
+        }
+
+        const dedupeKey = `${studentStart}:${studentEnd}:${sourceStart}:${sourceEnd}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        matchedBlocks.push({
+          studentStart,
+          studentEnd,
+          sourceStart,
+          sourceEnd,
+          matchedText: rawStudentText.slice(studentStart, studentEnd),
+        });
+
+        sourceIntervals.push({ start: studentStart, end: studentEnd });
+      }
+    }
+
+    if (matchedBlocks.length === 0) {
+      continue;
+    }
+
+    const mergedSourceIntervals = mergeIntervals(sourceIntervals);
+    const matchedWordsForSource = countWordsInIntervals(rawStudentText, mergedSourceIntervals);
+    const similarityPercentage = clampPercent((matchedWordsForSource / totalDocumentWords) * 100);
+
+    if (similarityPercentage <= 0) {
+      continue;
+    }
+
+    const sourceSubmission = submissionMap.get(sourceId) || null;
+    const sourceProject = sourceSubmission?.projectId
+      ? projectMap.get(sourceSubmission.projectId.toString())
+      : null;
+
+    textMatches.push({
+      sourceId,
+      sourceTitle: resolveSourceTitle(sourceSubmission, sourceProject, source?.chapter),
+      similarityPercentage: toRounded(similarityPercentage),
+      colorCode: COLOR_PALETTE[(textMatches.length || 0) % COLOR_PALETTE.length],
+      matchedBlocks,
+    });
+
+    allMatchedIntervals.push(...mergedSourceIntervals);
+  }
+
+  textMatches.sort((left, right) => right.similarityPercentage - left.similarityPercentage);
+  textMatches.forEach((match, index) => {
+    match.colorCode = COLOR_PALETTE[index % COLOR_PALETTE.length];
+  });
+
+  const matchedWords = countWordsInIntervals(rawStudentText, allMatchedIntervals);
+  const overallScore = clampPercent((matchedWords / totalDocumentWords) * 100);
+
+  return {
+    overallScore: toRounded(overallScore),
+    textMatches,
+    totalDocumentWords,
+    matchedWords,
+    submissionFingerprintCount: studentFingerprints.length,
+  };
+}
+
+/**
+ * Backward-compatible tokenization helper.
  */
 export function tokenize(text) {
   return String(text || '')
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter((token) => token.length >= 3);
 }
 
 /**
- * Compute Jaccard similarity coefficient between two token sets.
- * Returns a value between 0 (no overlap) and 1 (identical).
+ * Backward-compatible Jaccard helper.
  */
 export function jaccardSimilarity(setA, setB) {
   if (setA.size === 0 && setB.size === 0) return 1;
@@ -323,199 +440,177 @@ export function jaccardSimilarity(setA, setB) {
 }
 
 /**
- * Build n-gram shingles from a token array.
+ * Backward-compatible shingle helper.
  */
-export function buildShingles(tokens, n = FINGERPRINT_KGRAM_SIZE) {
+export function buildShingles(tokens, n = K_GRAM_SIZE) {
+  const normalizedN = Math.max(1, Number(n) || K_GRAM_SIZE);
   const shingles = new Set();
-  const normalizedN = Math.max(1, Number(n) || FINGERPRINT_KGRAM_SIZE);
 
-  for (let i = 0; i <= tokens.length - normalizedN; i += 1) {
-    shingles.add(tokens.slice(i, i + normalizedN).join(' '));
+  for (let index = 0; index <= tokens.length - normalizedN; index += 1) {
+    shingles.add(tokens.slice(index, index + normalizedN).join(' '));
   }
 
   return shingles;
 }
 
 /**
- * Build Winnowing fingerprints for a document.
- *
- * @param {string} text
- * @param {{ kGramSize?: number, windowSize?: number }} options
- * @returns {Array<{ hash: string, phrase: string, start: number, end: number, tokenStart: number, tokenEnd: number }>}
+ * Backward-compatible alias used by existing job/service imports.
  */
 export function computeWinnowFingerprints(text, options = {}) {
-  const tokenRows = tokenizeWithRanges(text);
-  const kGramSize = Math.max(2, Number(options.kGramSize) || FINGERPRINT_KGRAM_SIZE);
-  const windowSize = Math.max(1, Number(options.windowSize) || FINGERPRINT_WINDOW_SIZE);
-
-  if (tokenRows.length < kGramSize) {
-    return [];
+  if (options?.kGramSize && Number(options.kGramSize) !== K_GRAM_SIZE) {
+    // The new engine intentionally standardizes k-gram and window sizes.
+    // options are ignored to enforce deterministic scoring.
   }
 
-  const kGramFingerprints = buildKGramFingerprints(tokenRows, kGramSize);
-  return winnowFingerprints(kGramFingerprints, windowSize);
+  return generateFingerprints(text);
 }
 
 /**
- * Compare submitted text against a corpus of indexed candidate documents.
- * Score is computed by unique matched span coverage over total document size.
+ * Backward-compatible corpus comparison helper used in proposal similarity checks.
  */
-export function compareAgainstCorpus(submittedText, corpus, options = {}) {
-  if (!Array.isArray(corpus) || corpus.length === 0) {
+export function compareAgainstCorpus(submittedText, corpus = [], options = {}) {
+  const sourceCorpus = Array.isArray(corpus) ? corpus : [];
+  const submittedFingerprints = Array.isArray(options?.submittedFingerprints)
+    ? options.submittedFingerprints
+    : generateFingerprints(submittedText);
+
+  const totalDocumentWords = countWords(applyExclusions(submittedText));
+  if (totalDocumentWords === 0 || submittedFingerprints.length === 0) {
     return {
       originalityScore: 100,
       similarityPercentage: 0,
-      matchedCharacterCount: 0,
-      totalCharacters: String(submittedText || '').length,
       matchedSources: [],
-      submittedFingerprintCount: 0,
+      submittedFingerprintCount: submittedFingerprints.length,
+      totalDocumentWords,
+      matchedWords: 0,
     };
   }
 
-  const submittedFingerprints =
-    Array.isArray(options.submittedFingerprints) && options.submittedFingerprints.length > 0
-      ? options.submittedFingerprints
-      : computeWinnowFingerprints(submittedText);
-
-  const submittedHashLookup = buildSubmittedHashLookup(submittedFingerprints);
-  const totalCharacters = Math.max(1, String(submittedText || '').length);
-
-  if (submittedHashLookup.size === 0) {
-    return {
-      originalityScore: 100,
-      similarityPercentage: 0,
-      matchedCharacterCount: 0,
-      totalCharacters,
-      matchedSources: [],
-      submittedFingerprintCount: 0,
-    };
-  }
-
-  const allMatchedSpans = [];
+  const submittedLookup = buildStudentLookup(submittedFingerprints);
+  const submittedHashSet = new Set(submittedFingerprints.map((item) => String(item.hash)));
+  const allIntervals = [];
   const matchedSources = [];
 
-  for (const doc of corpus) {
-    const sourceHashSet = resolveSourceHashSet(doc);
-    if (sourceHashSet.size === 0) continue;
+  for (const source of sourceCorpus) {
+    const sourceFingerprints = Array.isArray(source?.fingerprints)
+      ? source.fingerprints
+      : generateFingerprints(source?.text || '');
 
-    const sharedHashes = [];
-    for (const hash of submittedHashLookup.keys()) {
-      if (sourceHashSet.has(hash)) {
-        sharedHashes.push(hash);
-      }
-    }
-
-    if (sharedHashes.length === 0) continue;
-
-    const sourceSpans = mergeOverlappingSpans(
-      sharedHashes.flatMap((hash) =>
-        (submittedHashLookup.get(hash) || []).map((fingerprint) => ({
-          start: fingerprint.start,
-          end: fingerprint.end,
-        })),
-      ),
-    );
-
-    if (sourceSpans.length === 0) continue;
-
-    const coveredCharacters = sumSpanLength(sourceSpans);
-    const spanCoveragePercent = (coveredCharacters / totalCharacters) * 100;
-    const submittedCoveragePercent = (sharedHashes.length / submittedHashLookup.size) * 100;
-    const sourceCoveragePercent = (sharedHashes.length / sourceHashSet.size) * 100;
-    const matchPercentage = clampPercent(
-      Math.max(spanCoveragePercent, submittedCoveragePercent, sourceCoveragePercent),
-    );
-
-    if (matchPercentage < MIN_REPORTED_MATCH_PERCENT) {
+    if (!Array.isArray(sourceFingerprints) || sourceFingerprints.length === 0) {
       continue;
     }
 
-    const firstSpan = sourceSpans[0];
-    const phrase =
-      typeof submittedText === 'string' && Number.isFinite(firstSpan?.start)
-        ? submittedText.slice(firstSpan.start, firstSpan.end)
-        : '';
+    const sourceHashes = new Set(sourceFingerprints.map((item) => String(item.hash)));
+    const sourceIntervals = [];
+    let sharedHashCount = 0;
 
-    allMatchedSpans.push(...sourceSpans);
+    for (const hash of sourceHashes) {
+      const studentOccurrences = submittedLookup.get(hash) || [];
+      if (studentOccurrences.length > 0) {
+        sharedHashCount += 1;
+      }
+      for (const occurrence of studentOccurrences) {
+        sourceIntervals.push({
+          start: Number(occurrence.startIndex),
+          end: Number(occurrence.endIndex),
+        });
+      }
+    }
+
+    const merged = mergeIntervals(sourceIntervals);
+    if (merged.length === 0) continue;
+
+    const matchedWordsForSource = countWordsInIntervals(submittedText, merged);
+    const wordCoveragePercent = clampPercent((matchedWordsForSource / totalDocumentWords) * 100);
+    const submittedHashCoverage =
+      submittedHashSet.size > 0 ? (sharedHashCount / submittedHashSet.size) * 100 : 0;
+    const sourceHashCoverage =
+      sourceHashes.size > 0 ? (sharedHashCount / sourceHashes.size) * 100 : 0;
+    const matchPercentage = clampPercent(
+      Math.max(wordCoveragePercent, submittedHashCoverage, sourceHashCoverage),
+    );
 
     matchedSources.push({
-      submissionId: doc.id,
-      projectTitle: doc.title || 'Unknown Project',
-      chapter: doc.chapter ?? null,
-      matchPercentage: Number(matchPercentage.toFixed(1)),
-      spans: sourceSpans,
-      start_index: firstSpan?.start ?? null,
-      end_index: firstSpan?.end ?? null,
-      sourceSnippet: deriveSourceSnippet(doc.text || '', phrase),
-      winnowScore: sharedHashes.length / submittedHashLookup.size,
-      semanticScore: null,
-      sharedFingerprintCount: sharedHashes.length,
+      submissionId: source?.id || null,
+      projectTitle: source?.title || 'Unknown source',
+      chapter: source?.chapter ?? null,
+      matchPercentage: toRounded(matchPercentage),
+      spans: merged,
+      sourceSnippet: String(source?.text || '').slice(0, 280),
     });
+
+    allIntervals.push(...merged);
   }
 
-  matchedSources.sort((a, b) => {
-    if (b.matchPercentage !== a.matchPercentage) {
-      return b.matchPercentage - a.matchPercentage;
-    }
-    return (b.sharedFingerprintCount || 0) - (a.sharedFingerprintCount || 0);
-  });
-
-  const mergedDocumentSpans = mergeOverlappingSpans(allMatchedSpans);
-  const matchedCharacterCount = sumSpanLength(mergedDocumentSpans);
-  const similarityPercentage = clampPercent((matchedCharacterCount / totalCharacters) * 100);
+  const matchedWords = countWordsInIntervals(submittedText, allIntervals);
+  const similarityPercentage = clampPercent((matchedWords / totalDocumentWords) * 100);
   const originalityScore = clampPercent(100 - similarityPercentage);
 
   return {
-    originalityScore: Number(originalityScore.toFixed(1)),
-    similarityPercentage: Number(similarityPercentage.toFixed(1)),
-    matchedCharacterCount,
-    totalCharacters,
-    matchedSources: matchedSources.slice(0, MAX_MATCHED_SOURCES),
+    originalityScore: toRounded(originalityScore),
+    similarityPercentage: toRounded(similarityPercentage),
+    matchedSources: matchedSources
+      .sort((left, right) => right.matchPercentage - left.matchPercentage)
+      .slice(0, 10),
     submittedFingerprintCount: submittedFingerprints.length,
-    uniqueMatchedSpans: mergedDocumentSpans,
+    totalDocumentWords,
+    matchedWords,
   };
 }
 
 /**
- * Generate a mock plagiarism result for development/testing.
+ * Deterministic fallback for callers that expect a non-error response.
  */
 export function generateMockResult() {
-  const originalityScore = Math.floor(Math.random() * 31) + 70;
-  const similarityPercentage = clampPercent(100 - originalityScore);
-
   return {
-    originalityScore,
-    similarityPercentage,
-    matchedCharacterCount: 0,
-    totalCharacters: 0,
+    originalityScore: 100,
+    similarityPercentage: 0,
     matchedSources: [],
     submittedFingerprintCount: 0,
+    totalDocumentWords: 0,
+    matchedWords: 0,
   };
 }
 
 /**
- * Run an originality check on extracted text.
+ * Backward-compatible public API used by legacy call sites.
  */
 export async function checkOriginality(text, corpus = [], options = {}) {
-  const normalizedText = typeof text === 'string' ? text : '';
-
-  const baseResult =
-    Array.isArray(corpus) && corpus.length > 0
-      ? compareAgainstCorpus(normalizedText, corpus, options)
-      : generateMockResult();
-
-  const aiWritingSignal = await getAiWritingSignal(normalizedText);
-  if (!aiWritingSignal) {
-    return baseResult;
+  if (Array.isArray(corpus) && corpus.length > 0) {
+    return compareAgainstCorpus(text, corpus, options);
   }
 
-  return {
-    ...baseResult,
-    aiWritingSignal,
-  };
+  if (options?.submissionId) {
+    const result = await calculatePlagiarism(text, options.submissionId);
+    return {
+      originalityScore: toRounded(100 - result.overallScore),
+      similarityPercentage: result.overallScore,
+      matchedSources: result.textMatches.map((match) => ({
+        submissionId: match.sourceId,
+        projectTitle: match.sourceTitle,
+        chapter: null,
+        matchPercentage: match.similarityPercentage,
+        spans: (match.matchedBlocks || []).map((block) => ({
+          start: block.studentStart,
+          end: block.studentEnd,
+        })),
+        sourceSnippet: (match.matchedBlocks || [])[0]?.matchedText || '',
+      })),
+      submittedFingerprintCount: result.submissionFingerprintCount,
+      totalDocumentWords: result.totalDocumentWords,
+      matchedWords: result.matchedWords,
+    };
+  }
+
+  return generateMockResult();
 }
 
 export default {
+  K_GRAM_SIZE,
+  WINDOW_SIZE,
+  applyExclusions,
+  generateFingerprints,
+  calculatePlagiarism,
   tokenize,
   jaccardSimilarity,
   buildShingles,

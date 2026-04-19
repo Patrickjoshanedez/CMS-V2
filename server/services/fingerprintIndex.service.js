@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
-import DocumentFingerprint from '../modules/plagiarism/documentFingerprint.model.js';
-import { computeWinnowFingerprints } from './plagiarism.service.js';
+import Fingerprint from '../models/fingerprint.model.js';
+import { generateFingerprints } from './plagiarism.service.js';
 
-const MAX_STORED_POSITIONS = Number(process.env.PLAGIARISM_MAX_STORED_FINGERPRINT_POSITIONS || 24);
 const DEFAULT_CANDIDATE_LIMIT = Number(process.env.PLAGIARISM_FINGERPRINT_CANDIDATE_LIMIT || 80);
 
 const toObjectId = (value) => {
   if (!value) return null;
+
   try {
     return new mongoose.Types.ObjectId(value);
   } catch {
@@ -14,89 +14,85 @@ const toObjectId = (value) => {
   }
 };
 
-const buildHashBuckets = (fingerprints) => {
-  const byHash = new Map();
-  for (const fingerprint of fingerprints) {
-    if (!fingerprint?.hash) continue;
-    const key = String(fingerprint.hash);
-    const existing = byHash.get(key) || [];
-    if (Number.isFinite(fingerprint.start)) {
-      existing.push(Math.max(0, Math.floor(fingerprint.start)));
-    }
-    byHash.set(key, existing);
+const toNormalizedChapter = (chapter = null, type = null) => {
+  if (chapter !== null && chapter !== undefined && String(chapter).trim()) {
+    return String(chapter).trim();
   }
 
-  return byHash;
+  if (type !== null && type !== undefined && String(type).trim()) {
+    return String(type).trim();
+  }
+
+  return null;
 };
+
+const toFingerprintRows = (fingerprints = []) =>
+  (Array.isArray(fingerprints) ? fingerprints : [])
+    .filter((item) => item?.hash)
+    .map((item) => ({
+      hash: String(item.hash),
+      startIndex: Number(item.startIndex ?? item.start),
+      endIndex: Number(item.endIndex ?? item.end),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.startIndex) &&
+        Number.isFinite(item.endIndex) &&
+        item.endIndex > item.startIndex,
+    );
 
 export async function upsertSubmissionFingerprints({
   submissionId,
-  projectId,
   chapter = null,
   type = null,
   text,
+  fingerprints = null,
 }) {
   const submissionObjectId = toObjectId(submissionId);
-  const projectObjectId = toObjectId(projectId);
-
-  if (!submissionObjectId || !projectObjectId || typeof text !== 'string') {
+  if (!submissionObjectId) {
     return {
       fingerprintCount: 0,
       uniqueHashCount: 0,
     };
   }
 
-  const fingerprints = computeWinnowFingerprints(text);
-  const byHash = buildHashBuckets(fingerprints);
+  const resolvedFingerprints = Array.isArray(fingerprints)
+    ? fingerprints
+    : generateFingerprints(String(text || ''));
 
-  await DocumentFingerprint.deleteMany({ submissionId: submissionObjectId });
+  const hashes = toFingerprintRows(resolvedFingerprints);
 
-  if (byHash.size === 0) {
-    return {
-      fingerprintCount: 0,
-      uniqueHashCount: 0,
-    };
-  }
-
-  const now = new Date();
-  const operations = Array.from(byHash.entries()).map(([hash, positions]) => ({
-    updateOne: {
-      filter: { submissionId: submissionObjectId, hash },
-      update: {
-        $set: {
-          projectId: projectObjectId,
-          chapter,
-          type,
-          hash,
-          positions: positions.slice(0, MAX_STORED_POSITIONS),
-          updatedAt: now,
-        },
+  await Fingerprint.findOneAndUpdate(
+    { submissionId: submissionObjectId },
+    {
+      $set: {
+        submissionId: submissionObjectId,
+        chapter: toNormalizedChapter(chapter, type),
+        hashes,
       },
-      upsert: true,
     },
-  }));
-
-  await DocumentFingerprint.bulkWrite(operations, { ordered: false });
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
 
   return {
-    fingerprintCount: fingerprints.length,
-    uniqueHashCount: byHash.size,
+    fingerprintCount: hashes.length,
+    uniqueHashCount: new Set(hashes.map((item) => item.hash)).size,
   };
 }
 
 export async function removeSubmissionFingerprints(submissionId) {
   const submissionObjectId = toObjectId(submissionId);
   if (!submissionObjectId) return;
-  await DocumentFingerprint.deleteMany({ submissionId: submissionObjectId });
+
+  await Fingerprint.deleteOne({ submissionId: submissionObjectId });
 }
 
 export async function findFingerprintCandidates({
   submissionId,
-  projectId,
   text,
   limit = DEFAULT_CANDIDATE_LIMIT,
 }) {
-  const submittedFingerprints = computeWinnowFingerprints(text || '');
+  const submittedFingerprints = generateFingerprints(text || '');
   const uniqueHashes = [...new Set(submittedFingerprints.map((item) => String(item.hash)))];
 
   if (uniqueHashes.length === 0) {
@@ -108,29 +104,32 @@ export async function findFingerprintCandidates({
   }
 
   const submissionObjectId = toObjectId(submissionId);
-  const projectObjectId = toObjectId(projectId);
-
   const matchStage = {
-    hash: { $in: uniqueHashes },
+    'hashes.hash': { $in: uniqueHashes },
   };
 
   if (submissionObjectId) {
     matchStage.submissionId = { $ne: submissionObjectId };
   }
 
-  if (projectObjectId) {
-    matchStage.projectId = { $ne: projectObjectId };
-  }
-
-  const candidates = await DocumentFingerprint.aggregate([
+  const candidates = await Fingerprint.aggregate([
     { $match: matchStage },
     {
-      $group: {
-        _id: '$submissionId',
-        sharedFingerprintCount: { $sum: 1 },
-        matchingHashes: { $addToSet: '$hash' },
+      $project: {
+        submissionId: 1,
+        matchingHashes: {
+          $setIntersection: [uniqueHashes, '$hashes.hash'],
+        },
       },
     },
+    {
+      $project: {
+        submissionId: 1,
+        matchingHashes: 1,
+        sharedFingerprintCount: { $size: '$matchingHashes' },
+      },
+    },
+    { $match: { sharedFingerprintCount: { $gt: 0 } } },
     { $sort: { sharedFingerprintCount: -1 } },
     { $limit: Math.max(1, Number(limit) || DEFAULT_CANDIDATE_LIMIT) },
   ]);
@@ -139,8 +138,8 @@ export async function findFingerprintCandidates({
     submittedFingerprints,
     uniqueHashes,
     candidates: candidates.map((row) => ({
-      submissionId: row._id?.toString(),
-      sharedFingerprintCount: row.sharedFingerprintCount || 0,
+      submissionId: row.submissionId?.toString(),
+      sharedFingerprintCount: Number(row.sharedFingerprintCount || 0),
       matchingHashes: Array.isArray(row.matchingHashes) ? row.matchingHashes : [],
     })),
   };
@@ -152,39 +151,49 @@ export async function getFingerprintLookup(submissionIds, hashFilter = null) {
   }
 
   const objectIds = submissionIds.map((id) => toObjectId(id)).filter((id) => id !== null);
-
   if (objectIds.length === 0) {
     return new Map();
   }
 
-  const query = { submissionId: { $in: objectIds } };
-  if (Array.isArray(hashFilter) && hashFilter.length > 0) {
-    query.hash = { $in: hashFilter.map((value) => String(value)) };
-  }
+  const rows = await Fingerprint.find({ submissionId: { $in: objectIds } })
+    .select('submissionId hashes')
+    .lean();
 
-  const rows = await DocumentFingerprint.find(query).select('submissionId hash positions').lean();
+  const allowedHashes =
+    Array.isArray(hashFilter) && hashFilter.length > 0
+      ? new Set(hashFilter.map((value) => String(value)))
+      : null;
 
   const lookup = new Map();
 
   for (const row of rows) {
-    const key = row.submissionId.toString();
-    const entry = lookup.get(key) || {
-      hashes: new Set(),
-      hashToPositions: new Map(),
-    };
+    const submissionId = row?.submissionId?.toString();
+    if (!submissionId) continue;
 
-    const hash = String(row.hash);
-    entry.hashes.add(hash);
-    entry.hashToPositions.set(
-      hash,
-      Array.isArray(row.positions)
-        ? row.positions
-            .filter((position) => Number.isFinite(position))
-            .map((position) => Math.max(0, Math.floor(position)))
-        : [],
-    );
+    const hashEntries = Array.isArray(row?.hashes) ? row.hashes : [];
+    const filteredHashes = hashEntries
+      .map((item) => String(item?.hash || ''))
+      .filter((hash) => hash)
+      .filter((hash) => !allowedHashes || allowedHashes.has(hash));
 
-    lookup.set(key, entry);
+    const hashToPositions = new Map();
+    for (const item of hashEntries) {
+      const hash = String(item?.hash || '');
+      if (!hash) continue;
+      if (allowedHashes && !allowedHashes.has(hash)) continue;
+
+      const startIndex = Number(item?.startIndex);
+      if (!Number.isFinite(startIndex)) continue;
+
+      const existing = hashToPositions.get(hash) || [];
+      existing.push(startIndex);
+      hashToPositions.set(hash, existing);
+    }
+
+    lookup.set(submissionId, {
+      hashes: new Set(filteredHashes),
+      hashToPositions,
+    });
   }
 
   return lookup;

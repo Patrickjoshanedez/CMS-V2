@@ -193,9 +193,9 @@ export const academicService = {
  */
 export const documentService = {
   /**
-   * Extract title, abstract, publication year, authors, and keywords metadata from a PDF file.
+   * Extract capstone metadata and confidence scores from a PDF file.
    * @param {File} file - The PDF file to extract metadata from
-   * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>}
+   * @returns {Promise<{metadata: {title: string, abstract: string, authors: string, year: string, doi: string, venue: string, keywords: string}, confidence: Record<string, number>}>}
    */
   extractPdfMetadata: (file) => {
     const formData = new FormData();

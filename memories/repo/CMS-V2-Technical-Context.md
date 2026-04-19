@@ -15,6 +15,8 @@
 - Express 5 request.query is getter-only; validation middleware must not assign `req.query = ...` directly. Use `Object.defineProperty(req, 'query', { value: parsed, ... })` or a validated payload container to avoid `TypeError: Cannot set property query`.
 - Mongoose 9 document middleware should use promise-style pre hooks (`schema.pre('save', async function () { ... })` / `schema.pre('validate', function () { ... })`); callback-style `next` can be undefined and trigger `TypeError: next is not a function`.
 - Express 5 catch-all routes must not use bare `*` (for example `app.all('*', ...)`), because path-to-regexp v8 throws `Missing parameter name`; use `app.all('/{*path}', ...)` (or equivalent named wildcard) for 404 fallbacks.
+- For archive OCR UX, always keep a client-side fallback that derives metadata from filename and keyword inference when extraction is empty/unavailable; never leave the metadata form blank after a PDF selection.
+- When hot-patching large JSX files, run a quick tail check to ensure no detached statements were appended outside the component scope.
 
 ## Test Fixture Notes
 - Submission chapter-upload integration fixtures must include at least one assigned panelist on the project in Capstone phase 1, otherwise uploads fail with PANELISTS_NOT_ASSIGNED before other assertions.

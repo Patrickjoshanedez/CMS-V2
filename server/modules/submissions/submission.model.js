@@ -75,6 +75,67 @@ const matchedSourceSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const matchedBlockSchema = new mongoose.Schema(
+  {
+    studentStart: {
+      type: Number,
+      min: 0,
+      required: true,
+    },
+    studentEnd: {
+      type: Number,
+      min: 0,
+      required: true,
+    },
+    sourceStart: {
+      type: Number,
+      min: 0,
+      required: true,
+    },
+    sourceEnd: {
+      type: Number,
+      min: 0,
+      required: true,
+    },
+    matchedText: {
+      type: String,
+      default: '',
+    },
+  },
+  { _id: false },
+);
+
+const textMatchSchema = new mongoose.Schema(
+  {
+    sourceId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    sourceTitle: {
+      type: String,
+      default: 'Unknown source',
+      trim: true,
+    },
+    similarityPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    colorCode: {
+      type: String,
+      default: '#ef4444',
+      trim: true,
+    },
+    matchedBlocks: {
+      type: [matchedBlockSchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
 /**
  * Embedded schema for the plagiarism/originality check result.
  * Populated asynchronously by the plagiarism job worker.
@@ -94,6 +155,16 @@ const plagiarismResultSchema = new mongoose.Schema(
       default: null,
       min: 0,
       max: 100,
+    },
+    overallScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    textMatches: {
+      type: [textMatchSchema],
+      default: [],
     },
     matchedSources: {
       type: [matchedSourceSchema],

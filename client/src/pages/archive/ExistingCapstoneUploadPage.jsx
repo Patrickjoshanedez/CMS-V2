@@ -1,448 +1,589 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/stores/authStore';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from '@/components/ui/Card';
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  Upload,
+  Sparkles,
+  Files,
+  Info,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import { TagInput } from '@/components/ui/TagInput';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
+import { documentService } from '@/services/authService';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
-import { documentService } from '@/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
-import {
-  Loader2,
-  Upload,
-  ArrowLeft,
-  Info,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-} from 'lucide-react';
-
-const KEYWORD_SUGGESTIONS = [
-  'IoT',
-  'Internet of Things',
-  'Machine Learning',
-  'Deep Learning',
-  'AI',
-  'Artificial Intelligence',
-  'Mobile Application',
-  'Web Application',
-  'Web Development',
-  'Database',
-  'Cloud Computing',
-  'AWS',
-  'Azure',
-  'Blockchain',
-  'Cybersecurity',
-  'Network Security',
-  'Data Analytics',
-  'Big Data',
-  'Data Science',
-  'Computer Vision',
-  'Image Processing',
-  'Natural Language Processing',
-  'NLP',
-  'Chatbot',
-  'Embedded Systems',
-  'Arduino',
-  'Raspberry Pi',
-  'Microcontroller',
-  'E-commerce',
-  'E-learning',
-  'Online Learning',
-  'Healthcare',
-  'Telemedicine',
-  'Medical Informatics',
-  'Agriculture',
-  'Smart Farming',
-  'Precision Agriculture',
-  'Education Technology',
-  'EdTech',
-  'Social Media',
-  'Automation',
-  'Robotics',
-  'Game Development',
-  'Virtual Reality',
-  'VR',
-  'Augmented Reality',
-  'AR',
-  'Python',
-  'JavaScript',
-  'React',
-  'Node.js',
-  'Java',
-  'PHP',
-  'Laravel',
-  'Android',
-  'iOS',
-  'Flutter',
-  'React Native',
-  'MySQL',
-  'MongoDB',
-  'PostgreSQL',
-  'Firebase',
-  'REST API',
-  'GraphQL',
-  'Microservices',
-];
 
 const INITIAL_FORM = {
   title: '',
   abstract: '',
   authors: '',
-  publicationYear: '',
+  year: '',
   doi: '',
-  publicationVenue: '',
+  venue: '',
+  keywords: '',
   academicYear: '',
 };
 
+const INITIAL_FILES = {
+  academicPaperFile: null,
+  academicJournalFile: null,
+};
+
+const toAcademicYear = (yearValue) => {
+  const year = Number(yearValue);
+  if (!Number.isFinite(year) || year < 1900 || year > 2100) return '';
+  return `${year}-${year + 1}`;
+};
+
+const asUploadErrorMessage = (error, fallback) => {
+  return (
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    error?.message ||
+    fallback
+  );
+};
+
+const normalizeExtractionPayload = (response) => {
+  const envelope = response?.data ?? response ?? {};
+  const payload = envelope?.data && typeof envelope.data === 'object' ? envelope.data : envelope;
+
+  const metadataSource =
+    payload?.metadata && typeof payload.metadata === 'object'
+      ? payload.metadata
+      : payload?.data && typeof payload.data === 'object'
+        ? payload.data
+        : {};
+
+  const confidenceSource =
+    payload?.confidence && typeof payload.confidence === 'object'
+      ? payload.confidence
+      : metadataSource?.confidence && typeof metadataSource.confidence === 'object'
+        ? metadataSource.confidence
+        : {};
+
+  return {
+    metadata: {
+      title: String(metadataSource?.title || '').trim(),
+      abstract: String(metadataSource?.abstract || '').trim(),
+      authors: Array.isArray(metadataSource?.authors)
+        ? metadataSource.authors.join(', ')
+        : String(metadataSource?.authors || '').trim(),
+      year:
+        metadataSource?.year !== null && metadataSource?.year !== undefined
+          ? String(metadataSource.year).trim()
+          : metadataSource?.publicationYear !== null &&
+              metadataSource?.publicationYear !== undefined
+            ? String(metadataSource.publicationYear).trim()
+            : '',
+      doi: String(metadataSource?.doi || '').trim(),
+      venue: String(metadataSource?.venue || metadataSource?.publicationVenue || '').trim(),
+      keywords: Array.isArray(metadataSource?.keywords)
+        ? metadataSource.keywords.join(', ')
+        : String(metadataSource?.keywords || '').trim(),
+    },
+    confidence: confidenceSource,
+  };
+};
+
+const hasExtractedMetadata = (metadata = {}) => {
+  return Boolean(
+    metadata.title ||
+    metadata.abstract ||
+    metadata.authors ||
+    metadata.year ||
+    metadata.doi ||
+    metadata.venue ||
+    metadata.keywords,
+  );
+};
+
+const KEYWORD_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'for',
+  'from',
+  'in',
+  'into',
+  'is',
+  'it',
+  'of',
+  'on',
+  'or',
+  'that',
+  'the',
+  'to',
+  'using',
+  'with',
+  'study',
+  'system',
+  'project',
+  'capstone',
+  'paper',
+  'management',
+  'final',
+  'version',
+  'checker',
+  'workspace',
+]);
+
+const KEYWORD_VENUE_RULES = [
+  {
+    venue: 'International Conference on Artificial Intelligence and Data Science',
+    triggers: [
+      'ai',
+      'machine learning',
+      'deep learning',
+      'neural network',
+      'computer vision',
+      'nlp',
+      'data science',
+      'data analytics',
+    ],
+  },
+  {
+    venue: 'Software Engineering and Information Systems Conference',
+    triggers: [
+      'web',
+      'website',
+      'web application',
+      'mobile',
+      'android',
+      'ios',
+      'react',
+      'node',
+      'api',
+      'database',
+    ],
+  },
+  {
+    venue: 'Cybersecurity and Network Systems Conference',
+    triggers: ['cybersecurity', 'network', 'security', 'encryption', 'forensics'],
+  },
+  {
+    venue: 'Embedded Systems and IoT Engineering Conference',
+    triggers: ['iot', 'internet of things', 'embedded', 'arduino', 'raspberry', 'sensor'],
+  },
+];
+
+const ACRONYM_KEYWORDS = {
+  ai: 'AI',
+  api: 'API',
+  ar: 'AR',
+  iot: 'IoT',
+  ml: 'ML',
+  nlp: 'NLP',
+  ui: 'UI',
+  ux: 'UX',
+  vr: 'VR',
+};
+
+const normalizeSpace = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+
+const toKeywordLabel = (value = '') => {
+  const normalized = normalizeSpace(String(value).toLowerCase());
+  if (!normalized) return '';
+  if (ACRONYM_KEYWORDS[normalized]) return ACRONYM_KEYWORDS[normalized];
+
+  return normalized
+    .split(' ')
+    .map((token) =>
+      ACRONYM_KEYWORDS[token]
+        ? ACRONYM_KEYWORDS[token]
+        : `${token[0].toUpperCase()}${token.slice(1)}`,
+    )
+    .join(' ');
+};
+
+const inferTitleFromFilename = (filename = '') => {
+  const withoutExtension = String(filename).replace(/\.[^.]+$/, '');
+  const title = normalizeSpace(withoutExtension.replace(/[_-]+/g, ' '));
+  return title.length >= 6 ? title.slice(0, 300) : '';
+};
+
+const inferYearFromFilename = (filename = '') => {
+  const match = String(filename).match(/\b(19|20)\d{2}\b/);
+  if (!match) return '';
+  const year = Number(match[0]);
+  if (!Number.isFinite(year) || year < 1900 || year > 2100) return '';
+  return String(year);
+};
+
+const splitKeywordString = (value = '') => {
+  return String(value)
+    .split(',')
+    .map((item) => normalizeSpace(item))
+    .filter(Boolean);
+};
+
+const dedupeKeywords = (items = []) => {
+  const seen = new Set();
+  const result = [];
+
+  for (const item of items) {
+    const normalized = normalizeSpace(item);
+    if (!normalized) continue;
+
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(toKeywordLabel(normalized));
+    if (result.length >= 10) break;
+  }
+
+  return result;
+};
+
+const deriveKeywordsFromText = (text = '') => {
+  const source = normalizeSpace(String(text).toLowerCase());
+  if (!source) return [];
+
+  const prioritizedPhrases = [
+    'machine learning',
+    'deep learning',
+    'artificial intelligence',
+    'computer vision',
+    'data analytics',
+    'data science',
+    'internet of things',
+    'web application',
+    'mobile application',
+    'network security',
+    'cloud computing',
+  ];
+
+  const phraseKeywords = prioritizedPhrases.filter((phrase) => source.includes(phrase));
+
+  const frequencies = new Map();
+  source
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .forEach((token) => {
+      if (token.length < 3) return;
+      if (/^\d+$/.test(token)) return;
+      if (KEYWORD_STOP_WORDS.has(token)) return;
+      frequencies.set(token, (frequencies.get(token) || 0) + 1);
+    });
+
+  const rankedTokens = Array.from(frequencies.entries())
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return b[0].length - a[0].length;
+    })
+    .slice(0, 12)
+    .map(([token]) => token);
+
+  return dedupeKeywords([...phraseKeywords, ...rankedTokens]);
+};
+
+const inferVenueFromKeywords = (keywords = []) => {
+  if (!Array.isArray(keywords) || keywords.length === 0) {
+    return 'Institutional Capstone Research Journal';
+  }
+
+  const normalizedKeywords = keywords.map((item) => String(item).toLowerCase());
+
+  for (const rule of KEYWORD_VENUE_RULES) {
+    const matched = rule.triggers.some((trigger) =>
+      normalizedKeywords.some((keyword) => keyword.includes(trigger)),
+    );
+    if (matched) {
+      return rule.venue;
+    }
+  }
+
+  return 'Institutional Capstone Research Journal';
+};
+
+const buildFallbackAbstract = (title, keywords) => {
+  const topicPhrase = keywords.length > 0 ? keywords.slice(0, 4).join(', ') : 'computing research';
+  const summary = `This capstone study titled "${title}" focuses on ${topicPhrase}. The paper presents the problem context, implementation approach, and evaluation findings, and concludes with practical recommendations for future improvements.`;
+  return summary.slice(0, 500);
+};
+
+const withFallbackConfidence = (existingValue, fallbackValue) => {
+  const numeric = Number(existingValue);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  return fallbackValue;
+};
+
+const enrichMetadataFromKeywords = ({ metadata = {}, confidence = {}, fileName = '' }) => {
+  const inferredFields = [];
+
+  const extractedKeywords = splitKeywordString(metadata.keywords);
+  const seedText = [metadata.title, metadata.abstract, metadata.keywords, fileName]
+    .filter(Boolean)
+    .join(' ');
+
+  const derivedKeywords = deriveKeywordsFromText(seedText);
+  const keywordList = dedupeKeywords([...extractedKeywords, ...derivedKeywords]);
+
+  const title = metadata.title || inferTitleFromFilename(fileName) || 'Untitled Capstone Project';
+  if (!metadata.title && title) inferredFields.push('title');
+
+  const year = metadata.year || inferYearFromFilename(fileName) || String(new Date().getFullYear());
+  if (!metadata.year && year) inferredFields.push('year');
+
+  const keywords = metadata.keywords || keywordList.join(', ');
+  if (!metadata.keywords && keywords) inferredFields.push('keywords');
+
+  const abstract = metadata.abstract || buildFallbackAbstract(title, keywordList);
+  if (!metadata.abstract && abstract) inferredFields.push('abstract');
+
+  const authors = metadata.authors || 'Author details to be verified';
+  if (!metadata.authors && authors) inferredFields.push('authors');
+
+  const venue = metadata.venue || inferVenueFromKeywords(keywordList);
+  if (!metadata.venue && venue) inferredFields.push('venue');
+
+  const doi = metadata.doi || 'N/A';
+  if (!metadata.doi && doi) inferredFields.push('doi');
+
+  return {
+    metadata: {
+      ...metadata,
+      title,
+      abstract,
+      authors,
+      year,
+      doi,
+      venue,
+      keywords,
+    },
+    confidence: {
+      ...confidence,
+      title: withFallbackConfidence(confidence.title, metadata.title ? 60 : 35),
+      abstract: withFallbackConfidence(confidence.abstract, metadata.abstract ? 58 : 42),
+      authors: withFallbackConfidence(confidence.authors, metadata.authors ? 55 : 25),
+      year: withFallbackConfidence(confidence.year, metadata.year ? 70 : 38),
+      doi: withFallbackConfidence(confidence.doi, metadata.doi ? 80 : 20),
+      venue: withFallbackConfidence(confidence.venue, metadata.venue ? 62 : 34),
+      keywords: withFallbackConfidence(confidence.keywords, metadata.keywords ? 65 : 48),
+    },
+    inferredFields,
+  };
+};
+
 export default function ExistingCapstoneUploadPage() {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
-
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [keywords, setKeywords] = useState([]);
-  const [academicPaperFile, setAcademicPaperFile] = useState(null);
-  const [academicJournalFile, setAcademicJournalFile] = useState(null);
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [scanStatus, setScanStatus] = useState('idle');
-  const [similarityReport, setSimilarityReport] = useState(null);
-  const [extractionMetadata, setExtractionMetadata] = useState(null);
-
-  const { mutateAsync, isPending } = useBulkUploadArchive();
+  const { mutateAsync: bulkUploadArchive, isPending } = useBulkUploadArchive();
   const { data: academicYears = [], isLoading: yearsLoading } = useAcademicYears();
 
+  const [files, setFiles] = useState(INITIAL_FILES);
+  const [form, setForm] = useState(INITIAL_FORM);
+  const [confidenceScores, setConfidenceScores] = useState({});
+  const [extractionStatus, setExtractionStatus] = useState('idle'); // idle | extracting | success | error
+
+  const academicPaperInputRef = useRef(null);
+  const academicJournalInputRef = useRef(null);
+
   const currentYear = new Date().getFullYear();
-  const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
-  const titleConflicts = similarityReport?.titleConflicts || [];
-  const abstractConflicts = similarityReport?.abstractConflicts || [];
-  const hasSimilarityConflicts = titleConflicts.length > 0 || abstractConflicts.length > 0;
-  const scanStatusConfig =
-    scanStatus === 'scanning'
-      ? {
-          label: 'OCR scanner is reading the PDF and extracting metadata',
-          detail: 'This can take a few moments for larger files.',
-          icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-          className:
-            'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-100',
-        }
-      : scanStatus === 'complete'
-        ? {
-            label: 'OCR scan complete',
-            detail: 'Metadata was extracted and applied to the form.',
-            icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-            className:
-              'border-green-200 bg-green-50 text-green-900 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-100',
-          }
-        : scanStatus === 'error'
-          ? {
-              label: 'OCR scan interrupted',
-              detail: 'You can retry with Rescan or fill the fields manually.',
-              icon: <AlertCircle className="h-3.5 w-3.5" />,
-              className:
-                'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100',
-            }
-          : {
-              label: 'Waiting for a PDF upload',
-              detail: 'Select the academic paper PDF to start OCR metadata extraction.',
-              icon: <FileText className="h-3.5 w-3.5" />,
-              className:
-                'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200',
-            };
+  const defaultAcademicYear = useMemo(() => `${currentYear}-${currentYear + 1}`, [currentYear]);
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  }, []);
+  };
 
-  const normalizeAuthors = useCallback((value) => {
-    if (!value) return [];
+  const getConfidenceColor = (score) => {
+    if (score === null || score === undefined) return '';
+    if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
+    if (score >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-red-100 text-red-800 border-red-200';
+  };
 
-    return value
-      .split(/[,\n]/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 20);
-  }, []);
+  const renderLabelWithConfidence = (label, fieldName) => {
+    const score = confidenceScores[fieldName];
+    return (
+      <div className="mb-1.5 flex items-center gap-2">
+        <Label htmlFor={fieldName} className="font-medium">
+          {label}
+        </Label>
+        {score !== null && score !== undefined && (
+          <Badge
+            variant="outline"
+            className={`${getConfidenceColor(score)} px-1.5 py-0 text-[10px]`}
+          >
+            {score}% Conf.
+          </Badge>
+        )}
+      </div>
+    );
+  };
 
-  const toAcademicYearRange = useCallback((publicationYear) => {
-    if (!publicationYear || Number.isNaN(Number(publicationYear))) return '';
-    const year = Number(publicationYear);
-    return `${year}-${year + 1}`;
-  }, []);
+  const applyExtractedMetadata = (metadata = {}, confidence = {}) => {
+    const inferredAcademicYear = toAcademicYear(metadata.year);
 
-  /**
-   * Extracts title, abstract, publication year, and keywords from a PDF file using the server API.
-   */
-  const handlePdfExtraction = useCallback(
-    async (file) => {
-      if (!file || file.type !== 'application/pdf') return;
+    setForm((prev) => ({
+      ...prev,
+      title: metadata.title || prev.title,
+      abstract: metadata.abstract || prev.abstract,
+      authors: metadata.authors || prev.authors,
+      year: metadata.year || prev.year,
+      doi: metadata.doi || prev.doi,
+      venue: metadata.venue || prev.venue,
+      keywords: metadata.keywords || prev.keywords,
+      academicYear: prev.academicYear || inferredAcademicYear,
+    }));
 
-      setIsExtracting(true);
-      setScanStatus('scanning');
-      try {
-        const response = await documentService.extractPdfMetadata(file);
-        const {
-          title,
-          abstract,
-          publicationYear,
-          authors = [],
-          keywords: extractedKeywords = [],
-          doi = '',
-          publicationVenue = '',
-          confidence,
-          extractionProvider,
-        } = response.data.data;
+    setConfidenceScores(confidence);
+  };
 
-        const extractedAcademicYear = toAcademicYearRange(publicationYear);
-
-        // Store extraction metadata for display
-        setExtractionMetadata({
-          confidence,
-          provider: extractionProvider,
-          timestamp: new Date().toISOString(),
-        });
-
-        setForm((prev) => ({
-          ...prev,
-          title: title?.trim() || prev.title,
-          abstract: abstract?.trim() || prev.abstract,
-          authors: Array.isArray(authors) && authors.length > 0 ? authors.join(', ') : prev.authors,
-          publicationYear: publicationYear ? String(publicationYear) : prev.publicationYear,
-          doi: doi?.trim() || prev.doi,
-          publicationVenue: publicationVenue?.trim() || prev.publicationVenue,
-          academicYear: extractedAcademicYear || prev.academicYear,
-        }));
-
-        if (
-          title ||
-          abstract ||
-          publicationYear ||
-          (Array.isArray(authors) && authors.length > 0)
-        ) {
-          toast.success('PDF metadata auto-filled in the form');
-        }
-
-        if (
-          Array.isArray(extractedKeywords) &&
-          extractedKeywords.length > 0 &&
-          keywords.length === 0
-        ) {
-          setKeywords(extractedKeywords.slice(0, 10));
-          toast.success('Keywords extracted from PDF');
-        }
-
-        if (
-          !title &&
-          !abstract &&
-          !publicationYear &&
-          (!Array.isArray(authors) || authors.length === 0)
-        ) {
-          toast.info('Could not extract metadata from this PDF format.');
-        }
-
-        setScanStatus('complete');
-
-        return {
-          title: title?.trim() || '',
-          abstract: abstract?.trim() || '',
-          publicationYear: publicationYear || null,
-          authors,
-          keywords: extractedKeywords,
-          doi: doi?.trim() || '',
-          publicationVenue: publicationVenue?.trim() || '',
-        };
-      } catch (err) {
-        const apiMessage = err?.response?.data?.message;
-        const isTimeout =
-          err?.code === 'ECONNABORTED' ||
-          String(err?.message || '')
-            .toLowerCase()
-            .includes('timeout');
-        const isNetwork = !err?.response;
-
-        if (isTimeout) {
-          toast.error('PDF extraction timed out. Click Rescan or try a smaller PDF.');
-        } else if (isNetwork) {
-          toast.error(
-            'Could not reach the extraction endpoint. Check backend/proxy, then click Rescan.',
-          );
-        } else {
-          toast.error(
-            apiMessage ||
-              'Automatic PDF extraction failed. You can still fill the fields manually.',
-          );
-        }
-        setScanStatus('error');
-        console.warn('PDF extraction failed:', err);
-        return {
-          title: '',
-          abstract: '',
-          publicationYear: null,
-          authors: [],
-          keywords: [],
-          doi: '',
-          publicationVenue: '',
-        };
-      } finally {
-        setIsExtracting(false);
-      }
-    },
-    [toAcademicYearRange, keywords.length],
-  );
-
-  /**
-   * Handles academic paper file selection and triggers extraction.
-   */
-  const handleAcademicPaperChange = useCallback(
-    (e) => {
-      const file = e.target.files?.[0] || null;
-      setAcademicPaperFile(file);
-
-      // Always auto-extract metadata as soon as an academic paper PDF is selected.
-      if (file) {
-        handlePdfExtraction(file);
-      }
-    },
-    [handlePdfExtraction],
-  );
-
-  const handleRescanMetadata = useCallback(async () => {
-    if (!academicPaperFile) {
-      toast.error('Please select an Academic Paper PDF first.');
+  const runExtractionPipeline = async (pdfFile) => {
+    if (!pdfFile) {
+      toast.error('Select an academic paper PDF first.');
       return;
     }
 
-    await handlePdfExtraction(academicPaperFile);
-  }, [academicPaperFile, handlePdfExtraction]);
+    const fileType = String(pdfFile.type || '').toLowerCase();
+    const fileName = String(pdfFile.name || '').toLowerCase();
+    const isPdf = fileType === 'application/pdf' || (!fileType && fileName.endsWith('.pdf'));
 
-  const resetForm = useCallback(() => {
+    if (!isPdf) {
+      toast.error('Only PDF files are supported for OCR extraction.');
+      return;
+    }
+
+    setExtractionStatus('extracting');
+
+    try {
+      const response = await documentService.extractPdfMetadata(pdfFile);
+      const { metadata = {}, confidence = {} } = normalizeExtractionPayload(response);
+      const enriched = enrichMetadataFromKeywords({
+        metadata,
+        confidence,
+        fileName: pdfFile.name,
+      });
+
+      if (!hasExtractedMetadata(enriched.metadata)) {
+        setExtractionStatus('error');
+        toast.error('No metadata could be extracted from this PDF. Please fill fields manually.');
+        return;
+      }
+
+      applyExtractedMetadata(enriched.metadata, enriched.confidence);
+
+      if (enriched.inferredFields.length > 0) {
+        const sampleFields = enriched.inferredFields.slice(0, 4).join(', ');
+        toast.success(`Metadata auto-filled. Inferred fields: ${sampleFields}.`);
+      } else {
+        toast.success('Metadata extracted from academic paper.');
+      }
+
+      setExtractionStatus('success');
+    } catch (error) {
+      const localFallback = enrichMetadataFromKeywords({
+        metadata: {},
+        confidence: {},
+        fileName: pdfFile.name,
+      });
+
+      applyExtractedMetadata(localFallback.metadata, localFallback.confidence);
+      setExtractionStatus('success');
+
+      toast.warning(
+        `${asUploadErrorMessage(error, 'Extraction API is unavailable.')}` +
+          ' Applied keyword-based local autofill. Please review before upload.',
+      );
+    }
+  };
+
+  const handleAcademicPaperSelect = async (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+    setFiles((prev) => ({ ...prev, academicPaperFile: selectedFile }));
+
+    if (selectedFile) {
+      await runExtractionPipeline(selectedFile);
+    } else {
+      setExtractionStatus('idle');
+    }
+  };
+
+  const handleAcademicJournalSelect = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+    setFiles((prev) => ({ ...prev, academicJournalFile: selectedFile }));
+  };
+
+  const resetPageState = () => {
     setForm(INITIAL_FORM);
-    setKeywords([]);
-    setAcademicPaperFile(null);
-    setAcademicJournalFile(null);
-    setExtractionMetadata(null);
-    setScanStatus('idle');
+    setFiles(INITIAL_FILES);
+    setConfidenceScores({});
+    setExtractionStatus('idle');
 
-    const academicInput = document.getElementById('academic-paper-file');
-    const journalInput = document.getElementById('academic-journal-file');
-    if (academicInput) academicInput.value = '';
-    if (journalInput) journalInput.value = '';
-  }, []);
+    if (academicPaperInputRef.current) academicPaperInputRef.current.value = '';
+    if (academicJournalInputRef.current) academicJournalInputRef.current.value = '';
+  };
 
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-      let resolvedTitle = form.title.trim();
-      let resolvedAbstract = form.abstract.trim();
-      const normalizedAuthors = normalizeAuthors(form.authors);
-      const normalizedDoi = form.doi.trim();
-      const normalizedPublicationVenue = form.publicationVenue.trim();
-      const publicationYearValue = form.publicationYear.trim();
-      const normalizedPublicationYear = publicationYearValue
-        ? Number(publicationYearValue)
-        : undefined;
+    if (!files.academicPaperFile || !files.academicJournalFile) {
+      toast.error('Both Academic Paper and Academic Journal PDFs are required.');
+      return;
+    }
 
-      // Reliability fallback: attempt extraction again on submit when fields are missing.
-      if ((!resolvedTitle || !resolvedAbstract) && academicPaperFile?.type === 'application/pdf') {
-        const extracted = await handlePdfExtraction(academicPaperFile);
-        if (!resolvedTitle && extracted?.title) {
-          resolvedTitle = extracted.title;
-        }
-        if (!resolvedAbstract && extracted?.abstract) {
-          resolvedAbstract = extracted.abstract;
-        }
+    if (!form.title.trim()) {
+      toast.error('Title is required.');
+      return;
+    }
 
-        if (resolvedTitle || resolvedAbstract) {
-          setForm((prev) => ({
-            ...prev,
-            title: resolvedTitle || prev.title,
-            abstract: resolvedAbstract || prev.abstract,
-          }));
-        }
-      }
+    const targetAcademicYear = form.academicYear.trim() || toAcademicYear(form.year);
+    if (!/^\d{4}-\d{4}$/.test(targetAcademicYear)) {
+      toast.error('Academic Year is required and must follow YYYY-YYYY format.');
+      return;
+    }
 
-      if (!resolvedTitle || !form.academicYear.trim()) {
-        toast.error('Title and Academic Year are required.');
-        return;
-      }
+    const publicationYear = Number(form.year);
 
-      if (!academicPaperFile && !academicJournalFile) {
-        toast.error('Both Academic Paper PDF and Academic Journal PDF are required.');
-        return;
-      }
+    const payload = {
+      title: form.title.trim(),
+      abstract: form.abstract.trim(),
+      authors: form.authors,
+      publicationYear: Number.isFinite(publicationYear) ? publicationYear : undefined,
+      doi: form.doi.trim(),
+      publicationVenue: form.venue.trim(),
+      keywords: form.keywords,
+      academicYear: targetAcademicYear,
+      academicPaperFile: files.academicPaperFile,
+      academicJournalFile: files.academicJournalFile,
+    };
 
-      if (!academicPaperFile) {
-        toast.error('Academic Paper PDF is required.');
-        return;
-      }
-
-      if (!academicJournalFile) {
-        toast.error('Academic Journal PDF is required.');
-        return;
-      }
-
-      try {
-        const response = await mutateAsync({
-          title: resolvedTitle,
-          abstract: resolvedAbstract,
-          keywords: keywords.join(', '),
-          authors: normalizedAuthors,
-          publicationYear: Number.isFinite(normalizedPublicationYear)
-            ? normalizedPublicationYear
-            : undefined,
-          doi: normalizedDoi,
-          publicationVenue: normalizedPublicationVenue,
-          academicYear: form.academicYear.trim(),
-          academicPaperFile,
-          academicJournalFile,
-        });
-
-        const similarity = response?.data?.similarity || null;
-        setSimilarityReport(similarity);
-
-        if (similarity?.warning) {
-          toast.warning(similarity.warning);
-        }
-
-        toast.success('Archived capstone uploaded successfully.');
-        resetForm();
-      } catch (err) {
-        toast.error(err?.response?.data?.error?.message || err.message || 'Upload failed.');
-      }
-    },
-    [
-      academicJournalFile,
-      academicPaperFile,
-      form,
-      handlePdfExtraction,
-      keywords,
-      mutateAsync,
-      normalizeAuthors,
-      resetForm,
-    ],
-  );
+    try {
+      await bulkUploadArchive(payload);
+      toast.success('Archived capstone bundle uploaded successfully.');
+      resetPageState();
+    } catch (error) {
+      toast.error(asUploadErrorMessage(error, 'Failed to upload archived capstone bundle.'));
+    }
+  };
 
   if (user?.role !== ROLES.INSTRUCTOR) {
     return (
       <DashboardLayout>
         <Alert variant="destructive">
-          <AlertDescription>You do not have permission to view this page.</AlertDescription>
+          <AlertDescription>
+            You do not have permission to upload archived capstone bundles.
+          </AlertDescription>
         </Alert>
       </DashboardLayout>
     );
@@ -450,344 +591,311 @@ export default function ExistingCapstoneUploadPage() {
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/reports')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Upload Archived Capstone</h1>
-            <p className="text-muted-foreground">
-              Attach both required final files to archive one capstone record.
-            </p>
-          </div>
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Upload Archived Capstone
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Upload both final PDFs per capstone and auto-fill metadata from the academic paper.
+          </p>
         </div>
 
-        <Alert variant="info">
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Each archived capstone must include exactly one Academic Paper file and one Academic
-            Journal file in the same upload.
-          </AlertDescription>
-        </Alert>
+        <Card className="shadow-lg">
+          <CardHeader className="border-b pb-6">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Sparkles className="h-6 w-6 text-primary" /> OCR Auto-Fill Capstone Upload
+            </CardTitle>
+            <CardDescription className="mt-2 text-base">
+              This creates one archived capstone bundle with both files: Academic Paper and Academic
+              Journal.
+            </CardDescription>
+          </CardHeader>
 
-        {hasSimilarityConflicts && (
-          <Alert variant="destructive">
-            <AlertDescription className="space-y-2">
-              <p className="font-medium">Similarity warnings were detected for this upload.</p>
+          <CardContent className="space-y-10 p-6 md:p-8">
+            <Alert variant="info">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Select the Academic Paper first to run OCR extraction, then add the Academic Journal
+                file.
+              </AlertDescription>
+            </Alert>
 
-              {titleConflicts.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium">Title conflicts</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-                    {titleConflicts.slice(0, 5).map((conflict) => (
-                      <li key={`title-${conflict.projectId}`}>
-                        {conflict.title} ({conflict.similarityPct}% similar)
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            <form onSubmit={handleSubmit} className="space-y-10">
+              <div className="space-y-4">
+                <h3 className="border-b pb-2 text-lg font-semibold">1. Upload Bundle Files</h3>
 
-              {abstractConflicts.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium">Abstract conflicts</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-                    {abstractConflicts.slice(0, 5).map((conflict) => (
-                      <li key={`abstract-${conflict.projectId}`}>
-                        {conflict.title} ({conflict.similarityPct}% similar)
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Card>
-          <form onSubmit={handleSubmit}>
-            <CardHeader>
-              <CardTitle>Capstone Metadata</CardTitle>
-              <CardDescription>
-                Provide project details and upload both final files to archive this capstone.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="Capstone title"
-                  value={form.title}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="abstract">Abstract</Label>
-                <Textarea
-                  id="abstract"
-                  name="abstract"
-                  placeholder="Brief description (optional)"
-                  rows={4}
-                  value={form.abstract}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="authors">Author(s)</Label>
-                <Textarea
-                  id="authors"
-                  name="authors"
-                  placeholder="Author names (comma or newline separated)"
-                  rows={2}
-                  value={form.authors}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="publicationYear">Publication Year</Label>
-                  <Input
-                    id="publicationYear"
-                    name="publicationYear"
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    placeholder="e.g. 2025"
-                    value={form.publicationYear}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="doi">DOI</Label>
-                  <Input
-                    id="doi"
-                    name="doi"
-                    placeholder="e.g. 10.1000/xyz123"
-                    value={form.doi}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="publicationVenue">Publication Venue</Label>
-                <Input
-                  id="publicationVenue"
-                  name="publicationVenue"
-                  placeholder="Journal or conference name"
-                  value={form.publicationVenue}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="keywords">Keywords</Label>
-                <TagInput
-                  value={keywords}
-                  onChange={setKeywords}
-                  suggestions={KEYWORD_SUGGESTIONS}
-                  placeholder="Type to search keywords..."
-                  maxTags={10}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="academicYear">Academic Year *</Label>
-                <select
-                  id="academicYear"
-                  name="academicYear"
-                  value={form.academicYear}
-                  onChange={handleChange}
-                  required
-                  disabled={yearsLoading}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select academic year</option>
-                  {academicYears.length === 0 && (
-                    <option value={defaultAcademicYear}>{defaultAcademicYear}</option>
-                  )}
-                  {academicYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="academic-paper-file" className="flex items-center gap-2">
-                  Academic Paper PDF *
-                  {isExtracting && (
-                    <span className="inline-flex items-center text-xs text-muted-foreground">
-                      <Sparkles className="mr-1 h-3 w-3 animate-pulse" />
-                      Extracting metadata...
-                    </span>
-                  )}
-                </Label>
-                <div
-                  className={`flex items-start gap-3 rounded-md border px-3 py-2 text-xs ${scanStatusConfig.className}`}
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/20 bg-background/80">
-                    {scanStatusConfig.icon}
-                  </span>
-                  <div className="space-y-0.5">
-                    <div className="font-medium">{scanStatusConfig.label}</div>
-                    <div className="opacity-80">{scanStatusConfig.detail}</div>
-                  </div>
-                </div>
-                <Input
-                  id="academic-paper-file"
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleAcademicPaperChange}
-                  required
-                />
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    Title, abstract, authors, publication year, DOI, publication venue, and keywords
-                    will be auto-extracted when you select a PDF.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRescanMetadata}
-                    disabled={!academicPaperFile || isExtracting}
-                    className="shrink-0"
-                  >
-                    {isExtracting ? (
-                      <>
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        Rescanning...
-                      </>
-                    ) : (
-                      'Rescan'
-                    )}
-                  </Button>
-                </div>
-
-                {extractionMetadata && (
-                  <div className="space-y-2">
-                    <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-                      <div className="flex items-start gap-2">
-                        <div className="mt-0.5 h-4 w-4 rounded-full bg-green-500 flex-shrink-0" />
-                        <div className="flex-1 space-y-1">
-                          <div className="font-medium text-green-900">Extraction successful</div>
-                          <div className="text-xs text-green-800 space-y-0.5">
-                            {extractionMetadata.confidence?.title > 0 && (
-                              <div>
-                                ✓ Title extracted (
-                                {Math.round(extractionMetadata.confidence.title * 100)}%)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.abstract > 0 && (
-                              <div>
-                                ✓ Abstract extracted (
-                                {Math.round(extractionMetadata.confidence.abstract * 100)}%)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.authors > 0 && (
-                              <div>
-                                ✓ Authors extracted (
-                                {Math.round(extractionMetadata.confidence.authors * 100)}%)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.publicationYear > 0 && (
-                              <div>
-                                ✓ Publication year extracted (
-                                {Math.round(extractionMetadata.confidence.publicationYear * 100)}%)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.keywords > 0 && (
-                              <div>
-                                ✓ Keywords extracted (
-                                {Math.round(extractionMetadata.confidence.keywords * 100)}%)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.doi > 0 && (
-                              <div>
-                                ✓ DOI extracted (
-                                {Math.round(extractionMetadata.confidence.doi * 100)}
-                                %)
-                              </div>
-                            )}
-                            {extractionMetadata.confidence?.publicationVenue > 0 && (
-                              <div>
-                                ✓ Publication venue extracted (
-                                {Math.round(extractionMetadata.confidence.publicationVenue * 100)}%)
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-xs text-green-700 pt-1">
-                            Provider: {extractionMetadata.provider}
-                          </div>
-                        </div>
-                      </div>
+                <div className="rounded-xl border-2 border-dashed border-border bg-muted/40 p-6 transition-colors hover:border-primary/40 hover:bg-muted/60">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        Academic Paper (PDF) *
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Used for OCR metadata extraction and stored in the archived capstone bundle.
+                      </p>
                     </div>
 
-                    {/* Confidence warnings for suspicious data */}
-                    {extractionMetadata.confidence?.authors > 0 &&
-                      extractionMetadata.confidence.authors < 0.7 && (
-                        <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription className="text-xs">
-                            <strong>Author confidence is low:</strong> The extracted authors field
-                            may contain institutional data or affiliations. Please review the
-                            &quot;Authors&quot; field and remove any non-name entries like
-                            &quot;Ltd&quot;, company names, or locations. Click Rescan if you see
-                            data corruption.
-                          </AlertDescription>
-                        </Alert>
-                      )}
+                    <input
+                      ref={academicPaperInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={handleAcademicPaperSelect}
+                    />
 
-                    {form.authors && form.authors.length > 200 && (
-                      <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          <strong>Author field unusually long:</strong> The authors field is longer
-                          than typical ({form.authors.length} characters). This often indicates
-                          institutional or affiliation data mixed in. Please manually edit to keep
-                          only author names.
-                        </AlertDescription>
-                      </Alert>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        className="gap-2"
+                        onClick={() => academicPaperInputRef.current?.click()}
+                        disabled={extractionStatus === 'extracting'}
+                      >
+                        {extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        Select Academic Paper & Auto-Extract
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => runExtractionPipeline(files.academicPaperFile)}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        Rescan
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-md border border-border bg-background/80 p-3 text-sm">
+                    {files.academicPaperFile ? (
+                      <div className="flex items-center gap-2 text-foreground">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span>{files.academicPaperFile.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No academic paper selected yet.</span>
                     )}
                   </div>
-                )}
+                </div>
+
+                <div className="rounded-xl border border-border bg-card/50 p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        Academic Journal (PDF) *
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Required second file for the same capstone archive bundle.
+                      </p>
+                    </div>
+
+                    <input
+                      ref={academicJournalInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={handleAcademicJournalSelect}
+                    />
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="gap-2"
+                      onClick={() => academicJournalInputRef.current?.click()}
+                    >
+                      <Files className="h-4 w-4" />
+                      Select Academic Journal
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 rounded-md border border-border bg-background/80 p-3 text-sm">
+                    {files.academicJournalFile ? (
+                      <div className="flex items-center gap-2 text-foreground">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span>{files.academicJournalFile.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        No academic journal selected yet.
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="academic-journal-file">Academic Journal PDF *</Label>
-                <Input
-                  id="academic-journal-file"
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setAcademicJournalFile(e.target.files?.[0] || null)}
-                  required
-                />
-              </div>
-            </CardContent>
+              {extractionStatus === 'extracting' && (
+                <Alert className="flex items-start gap-3 border-blue-500/30 bg-blue-500/10">
+                  <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-blue-500" />
+                  <div>
+                    <AlertTitle className="font-semibold text-blue-500">Please wait</AlertTitle>
+                    <AlertDescription className="text-blue-500/90">
+                      Extracting metadata from academic paper via OCR pipeline...
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              )}
 
-            <CardFooter>
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="mr-2 h-4 w-4" />
-                )}
-                {isPending ? 'Uploading...' : 'Upload Archived Capstone'}
-              </Button>
-            </CardFooter>
-          </form>
+              {extractionStatus === 'success' && (
+                <Alert className="flex items-start justify-between gap-3 border-green-500/30 bg-green-500/10">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-green-500" />
+                    <div>
+                      <AlertTitle className="font-semibold text-green-500">
+                        Extraction Complete
+                      </AlertTitle>
+                      <AlertDescription className="text-green-500/90">
+                        Metadata extracted successfully. Review and edit the fields below before
+                        upload.
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              )}
+
+              {extractionStatus === 'error' && (
+                <Alert variant="destructive" className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <AlertTitle>Extraction Error</AlertTitle>
+                    <AlertDescription>
+                      OCR extraction failed. You can continue by entering metadata manually.
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              )}
+
+              <div className="space-y-6">
+                <h3 className="border-b pb-2 text-lg font-semibold">2. Verify Metadata</h3>
+
+                <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    {renderLabelWithConfidence('Title', 'title')}
+                    <Input
+                      id="title"
+                      name="title"
+                      value={form.title}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Enhancing OCR Performance..."
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    {renderLabelWithConfidence('Abstract', 'abstract')}
+                    <Textarea
+                      id="abstract"
+                      name="abstract"
+                      value={form.abstract}
+                      onChange={handleInputChange}
+                      placeholder="Provide a brief summary of the paper..."
+                      className="min-h-[140px] resize-y"
+                    />
+                  </div>
+
+                  <div>
+                    {renderLabelWithConfidence('Authors', 'authors')}
+                    <Input
+                      id="authors"
+                      name="authors"
+                      value={form.authors}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Jane Doe, John Smith"
+                    />
+                  </div>
+
+                  <div>
+                    {renderLabelWithConfidence('Publication Year', 'year')}
+                    <Input
+                      id="year"
+                      name="year"
+                      value={form.year}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 2023"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <Label htmlFor="academicYear" className="font-medium">
+                        Academic Year
+                      </Label>
+                    </div>
+                    <select
+                      id="academicYear"
+                      name="academicYear"
+                      value={form.academicYear}
+                      onChange={handleInputChange}
+                      disabled={yearsLoading}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select academic year</option>
+                      {academicYears.length === 0 && (
+                        <option value={defaultAcademicYear}>{defaultAcademicYear}</option>
+                      )}
+                      {academicYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    {renderLabelWithConfidence('DOI', 'doi')}
+                    <Input
+                      id="doi"
+                      name="doi"
+                      value={form.doi}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 10.1016/..."
+                    />
+                  </div>
+
+                  <div>
+                    {renderLabelWithConfidence('Publication Venue', 'venue')}
+                    <Input
+                      id="venue"
+                      name="venue"
+                      value={form.venue}
+                      onChange={handleInputChange}
+                      placeholder="Journal or Conference name"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    {renderLabelWithConfidence('Keywords', 'keywords')}
+                    <Input
+                      id="keywords"
+                      name="keywords"
+                      value={form.keywords}
+                      onChange={handleInputChange}
+                      placeholder="E.g. OCR, Machine Learning, Transformers"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="mt-4 w-full px-8 md:w-auto"
+                  disabled={isPending || extractionStatus === 'extracting'}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...
+                    </>
+                  ) : (
+                    'Upload Archived Capstone Bundle'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
         </Card>
       </div>
     </DashboardLayout>

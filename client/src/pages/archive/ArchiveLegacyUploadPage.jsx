@@ -93,6 +93,13 @@ const KEYWORD_SUGGESTIONS = [
 
 const INITIAL_FORM = { title: '', abstract: '', academicYear: '' };
 
+const toConfidenceRatio = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  if (num <= 1) return num;
+  return num / 100;
+};
+
 function formatArchiveTypeLabel(archiveType) {
   if (!archiveType) return null;
 
@@ -151,21 +158,34 @@ export default function ArchiveLegacyUploadPage({
       setIsExtracting(true);
       try {
         const response = await documentService.extractPdfMetadata(pdfFile);
-        const {
-          title,
-          abstract,
-          publicationYear,
-          authors = [],
-          keywords: extractedKeywords = [],
-          confidence,
-        } = response.data.data;
+        const payload = response?.data || {};
+        const metadata = payload?.metadata || payload?.data || {};
+        const confidence = payload?.confidence || metadata?.confidence || {};
+
+        const title = metadata?.title || '';
+        const abstract = metadata?.abstract || '';
+        const publicationYear = metadata?.year
+          ? Number(metadata.year)
+          : metadata?.publicationYear || null;
+        const authors = Array.isArray(metadata?.authors)
+          ? metadata.authors
+          : String(metadata?.authors || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
+        const extractedKeywords = Array.isArray(metadata?.keywords)
+          ? metadata.keywords
+          : String(metadata?.keywords || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
 
         // Only auto-fill if fields are empty or confidence is high
-        if (title && (!form.title || confidence.title > 0.7)) {
+        if (title && (!form.title || toConfidenceRatio(confidence.title) > 0.7)) {
           setForm((prev) => ({ ...prev, title }));
           toast.success('Title extracted from PDF');
         }
-        if (abstract && (!form.abstract || confidence.abstract > 0.7)) {
+        if (abstract && (!form.abstract || toConfidenceRatio(confidence.abstract) > 0.7)) {
           setForm((prev) => ({ ...prev, abstract }));
           toast.success('Abstract extracted from PDF');
         }
@@ -173,13 +193,17 @@ export default function ArchiveLegacyUploadPage({
         const extractedAcademicYear = toAcademicYearRange(publicationYear);
         if (
           extractedAcademicYear &&
-          (!form.academicYear || confidence.publicationYear > 0.7)
+          (!form.academicYear || toConfidenceRatio(confidence.year) > 0.7)
         ) {
           setForm((prev) => ({ ...prev, academicYear: extractedAcademicYear }));
           toast.success('Academic year inferred from PDF publication year');
         }
 
-        if (Array.isArray(extractedKeywords) && extractedKeywords.length > 0 && keywords.length === 0) {
+        if (
+          Array.isArray(extractedKeywords) &&
+          extractedKeywords.length > 0 &&
+          keywords.length === 0
+        ) {
           setKeywords(extractedKeywords.slice(0, 10));
           toast.success('Keywords extracted from PDF');
         }
@@ -193,7 +217,9 @@ export default function ArchiveLegacyUploadPage({
         }
       } catch (err) {
         const apiMessage = err?.response?.data?.message;
-        toast.error(apiMessage || 'Automatic PDF extraction failed. You can still fill the fields manually.');
+        toast.error(
+          apiMessage || 'Automatic PDF extraction failed. You can still fill the fields manually.',
+        );
         console.warn('PDF extraction failed:', err);
       } finally {
         setIsExtracting(false);
@@ -373,7 +399,8 @@ export default function ArchiveLegacyUploadPage({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Title, abstract, publication year, and keywords will be auto-extracted when you select a PDF.
+                  Title, abstract, publication year, and keywords will be auto-extracted when you
+                  select a PDF.
                 </p>
               </div>
             </CardContent>

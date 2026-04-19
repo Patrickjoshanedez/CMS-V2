@@ -98,7 +98,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     customLogger: customViteLogger,
-    plugins: [react()],
+    plugins: [
+      react({
+        jsxRuntime: 'automatic',
+        fastRefresh: true,
+        // Explicit module detection for better plugin compatibility
+        include: /src\/.*\.[jt]sx?$/,
+        exclude: /node_modules/,
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -146,6 +154,10 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: './src/setupTests.js',
       include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    },
+    define: {
+      // Ensure moduleType is defined at transform time
+      __VITE_MODULE_TYPE__: '"module"',
     },
   };
 });

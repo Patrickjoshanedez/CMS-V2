@@ -1,0 +1,33 @@
+{
+  "name": "CMS-V2 Full Dev Stack",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "server",
+  "runServices": [
+    "mongodb",
+    "redis",
+    "localstack",
+    "plagiarism_redis",
+    "plagiarism_worker",
+    "plagiarism_api",
+    "server",
+    "client"
+  ],
+  "workspaceFolder": "/app",
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
+  "remoteUser": "root",
+  "forwardPorts": [5000, 5173, 27017, 6379, 4566, 8001],
+  "postCreateCommand": "npm ci --ignore-scripts",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}

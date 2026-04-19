@@ -19,7 +19,11 @@ import { Worker } from 'bullmq';
 import { getRedisConnectionOpts, isRedisAvailable } from '../config/redis.js';
 import { QUEUE_NAMES } from './queue.js';
 import { extractText } from '../utils/extractText.js';
-import { checkOriginality } from '../services/plagiarism.service.js';
+import {
+  calculatePlagiarism,
+  compareAgainstCorpus,
+  generateFingerprints,
+} from '../services/plagiarism.service.js';
 import {
   findFingerprintCandidates,
   getFingerprintLookup,
@@ -40,7 +44,63 @@ const MAX_LAZY_CORPUS_EXTRACTIONS = 15;
 const MIN_CORPUS_TEXT_LENGTH = 50;
 const MAX_FINGERPRINT_CANDIDATES = Number(process.env.PLAGIARISM_FINGERPRINT_CANDIDATE_LIMIT || 80);
 const MIN_SHARED_FINGERPRINTS = Number(process.env.PLAGIARISM_MIN_SHARED_FINGERPRINTS || 2);
-const MAX_FALLBACK_REINDEX_COUNT = Number(process.env.PLAGIARISM_FALLBACK_REINDEX_COUNT || 25);
+const _MAX_FALLBACK_REINDEX_COUNT = Number(process.env.PLAGIARISM_FALLBACK_REINDEX_COUNT || 25);
+
+function toLegacyMatchedSources(textMatches = []) {
+  if (!Array.isArray(textMatches)) return [];
+
+  return textMatches.map((match) => ({
+    submissionId: match?.sourceId || null,
+    projectTitle: match?.sourceTitle || 'Unknown source',
+    chapter: null,
+    matchPercentage: Number(match?.similarityPercentage || 0),
+    spans: Array.isArray(match?.matchedBlocks)
+      ? match.matchedBlocks
+          .map((block) => ({
+            start: Number(block?.studentStart),
+            end: Number(block?.studentEnd),
+          }))
+          .filter(
+            (block) =>
+              Number.isFinite(block.start) && Number.isFinite(block.end) && block.end > block.start,
+          )
+      : [],
+    sourceSnippet:
+      Array.isArray(match?.matchedBlocks) && match.matchedBlocks.length > 0
+        ? match.matchedBlocks[0]?.matchedText || ''
+        : '',
+  }));
+}
+
+function fallbackMatchedSourcesToTextMatches(matchedSources = [], submissionText = '') {
+  const rows = Array.isArray(matchedSources) ? matchedSources : [];
+
+  return rows.map((source, index) => ({
+    sourceId: source?.submissionId || null,
+    sourceTitle: source?.projectTitle || 'Unknown source',
+    similarityPercentage: Number(source?.matchPercentage || 0),
+    colorCode: `fallback-${index + 1}`,
+    matchedBlocks: Array.isArray(source?.spans)
+      ? source.spans
+          .map((span) => ({
+            studentStart: Number(span?.start),
+            studentEnd: Number(span?.end),
+            sourceStart: null,
+            sourceEnd: null,
+            matchedText:
+              Number.isFinite(Number(span?.start)) && Number.isFinite(Number(span?.end))
+                ? String(submissionText || '').slice(Number(span.start), Number(span.end))
+                : '',
+          }))
+          .filter(
+            (block) =>
+              Number.isFinite(block.studentStart) &&
+              Number.isFinite(block.studentEnd) &&
+              block.studentEnd > block.studentStart,
+          )
+      : [],
+  }));
+}
 
 const TRUSTED_FALLBACK_HOSTS = new Set([
   'drive.google.com',
@@ -166,7 +226,7 @@ async function readSubmissionFileWithFallback({ submissionId, storageKey, fileTy
  * @param {string} excludeSubmissionId - Exclude this specific submission
  * @returns {Promise<Array<{ id: string, title: string, chapter: number, text: string }>>}
  */
-async function buildCorpus(excludeProjectId, excludeSubmissionId) {
+async function _buildCorpus(excludeProjectId, excludeSubmissionId) {
   // Include approved/locked documents from other projects. Archived uploads may not
   // have extractedText yet, so we lazily backfill from storage when possible.
   const candidates = await Submission.find({
@@ -250,7 +310,7 @@ async function buildCorpus(excludeProjectId, excludeSubmissionId) {
  * @param {{ submissionId: string, projectId: string, submittedText: string }} params
  * @returns {Promise<{ corpus: Array, submittedFingerprints: Array }>}
  */
-async function buildCorpusFromFingerprintIndex({ submissionId, projectId, submittedText }) {
+async function _buildCorpusFromFingerprintIndex({ submissionId, projectId, submittedText }) {
   const { submittedFingerprints, uniqueHashes, candidates } = await findFingerprintCandidates({
     submissionId,
     projectId,
@@ -468,114 +528,91 @@ async function processJob(job) {
   // Store extracted text for future corpus building
   await Submission.findByIdAndUpdate(submissionId, { extractedText: normalizedExtractedText });
 
-  // Step 3: Build candidate corpus from fingerprint index first
-  const { corpus: indexedCorpus, submittedFingerprints } = await buildCorpusFromFingerprintIndex({
-    submissionId,
-    projectId,
-    submittedText: normalizedExtractedText,
-  });
+  // Step 3: Deterministic database-backed plagiarism check
+  let result = await calculatePlagiarism(normalizedExtractedText, submissionId);
+  let effectiveTextMatches = Array.isArray(result?.textMatches) ? result.textMatches : [];
+  let similarityPercentage = Number.isFinite(result?.overallScore)
+    ? Math.max(0, Math.min(100, Number(result.overallScore)))
+    : 0;
+  let originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
+  let legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
 
-  let corpus = indexedCorpus;
+  const shouldUseCorpusFallback =
+    (effectiveTextMatches.length === 0 || similarityPercentage === 0) &&
+    !job.data?.disableLegacyCorpusFallback;
 
-  if (!Array.isArray(corpus) || corpus.length === 0) {
-    corpus = await buildCorpus(projectId, submissionId);
+  if (shouldUseCorpusFallback) {
+    const fallbackCorpus = await _buildCorpus(projectId, submissionId);
+    const fallbackResult = compareAgainstCorpus(normalizedExtractedText, fallbackCorpus);
 
-    // Incrementally backfill index from fallback path to reduce future scans.
-    const backfillCandidates = corpus.slice(0, Math.max(0, MAX_FALLBACK_REINDEX_COUNT));
-    await Promise.allSettled(
-      backfillCandidates.map((candidate) =>
-        upsertSubmissionFingerprints({
-          submissionId: candidate.id,
-          projectId: candidate.projectId,
-          chapter: candidate.chapter,
-          text: candidate.text,
-        }),
-      ),
-    );
+    if (
+      Number.isFinite(fallbackResult?.similarityPercentage) &&
+      fallbackResult.similarityPercentage > similarityPercentage &&
+      Array.isArray(fallbackResult?.matchedSources) &&
+      fallbackResult.matchedSources.length > 0
+    ) {
+      similarityPercentage = Math.max(
+        0,
+        Math.min(100, Number(fallbackResult.similarityPercentage)),
+      );
+      originalityScore = Number.isFinite(fallbackResult?.originalityScore)
+        ? Math.max(0, Math.min(100, Number(fallbackResult.originalityScore)))
+        : Math.max(0, Math.min(100, 100 - similarityPercentage));
+
+      legacyMatchedSources = fallbackResult.matchedSources;
+      effectiveTextMatches = fallbackMatchedSourcesToTextMatches(
+        fallbackResult.matchedSources,
+        normalizedExtractedText,
+      );
+
+      result = {
+        ...result,
+        overallScore: similarityPercentage,
+        textMatches: effectiveTextMatches,
+        totalDocumentWords:
+          result?.totalDocumentWords || normalizedExtractedText.split(/\s+/).filter(Boolean).length,
+        matchedWords: result?.matchedWords || 0,
+      };
+    }
   }
 
-  // Step 4: Run originality check
-  const result = await checkOriginality(normalizedExtractedText, corpus, {
-    submittedFingerprints,
-  });
-  const similarityPercentage = Number.isFinite(result?.similarityPercentage)
-    ? Math.max(0, Math.min(100, result.similarityPercentage))
-    : Math.max(0, Math.min(100, 100 - result.originalityScore));
-
-  const normalizedMatches = (result.matchedSources || []).map((match, index) => {
-    const spans = Array.isArray(match.spans)
-      ? match.spans
-          .filter(
-            (span) =>
-              Number.isFinite(span?.start) && Number.isFinite(span?.end) && span.end > span.start,
-          )
-          .map((span) => ({ start: span.start, end: span.end }))
-      : [];
-    const firstSpan = spans[0] || null;
+  const normalizedMatches = effectiveTextMatches.map((match, index) => {
+    const matchedBlocks = Array.isArray(match?.matchedBlocks) ? match.matchedBlocks : [];
+    const first = matchedBlocks[0] || null;
 
     return {
-      match_id: match.match_id || `match-${index}-${match.submissionId || 'source'}`,
-      start_index:
-        Number.isFinite(match.start_index) && Number.isFinite(match.end_index)
-          ? match.start_index
-          : (firstSpan?.start ?? null),
-      end_index:
-        Number.isFinite(match.start_index) && Number.isFinite(match.end_index)
-          ? match.end_index
-          : (firstSpan?.end ?? null),
-      spans,
-      similarity_score:
-        Number.isFinite(match.matchPercentage) && match.matchPercentage !== null
-          ? Math.max(0, Math.min(1, match.matchPercentage / 100))
-          : null,
-      winnow_score: Number.isFinite(match.winnowScore) ? match.winnowScore : null,
-      semantic_score: Number.isFinite(match.semanticScore) ? match.semanticScore : null,
-      source_metadata: {
-        document_id: match.submissionId || null,
-        title: match.projectTitle || 'Unknown Project',
-        chapter: match.chapter ?? null,
-      },
-      source_snippet: match.sourceSnippet || '',
+      match_id: `match-${index}-${match?.sourceId || 'source'}`,
+      source_id: match?.sourceId || null,
+      source_title: match?.sourceTitle || 'Unknown source',
+      color_code: match?.colorCode || '#ef4444',
+      start_index: Number.isFinite(first?.studentStart) ? Number(first.studentStart) : null,
+      end_index: Number.isFinite(first?.studentEnd) ? Number(first.studentEnd) : null,
+      similarity_score: Number.isFinite(match?.similarityPercentage)
+        ? Math.max(0, Math.min(1, Number(match.similarityPercentage) / 100))
+        : null,
+      matched_blocks: matchedBlocks,
     };
   });
 
   const fullReport = {
-    document_id: submissionId,
-    originality_score: result.originalityScore,
-    plagiarism_score: similarityPercentage,
-    total_characters: Number.isFinite(result?.totalCharacters)
-      ? result.totalCharacters
-      : normalizedExtractedText.length,
-    matched_characters: Number.isFinite(result?.matchedCharacterCount)
-      ? result.matchedCharacterCount
-      : normalizedMatches.reduce((sum, item) => {
-          if (!Array.isArray(item.spans)) return sum;
-          return (
-            sum +
-            item.spans.reduce((spanSum, span) => {
-              const start = Number(span?.start);
-              const end = Number(span?.end);
-              if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return spanSum;
-              return spanSum + (end - start);
-            }, 0)
-          );
-        }, 0),
+    submissionId,
+    overallScore: similarityPercentage,
+    originalityScore,
+    totalDocumentWords: Number(result?.totalDocumentWords || 0),
+    matchedWords: Number(result?.matchedWords || 0),
+    textMatches: effectiveTextMatches,
     matches: normalizedMatches,
-    candidates_evaluated: corpus.length,
     processing_time_ms: Date.now() - startedAt,
   };
 
-  if (result?.aiWritingSignal) {
-    fullReport.ai_writing_probability = result.aiWritingSignal.probability;
-    fullReport.ai_writing_rationale = result.aiWritingSignal.rationale || null;
-  }
-
-  // Step 5: Update submission with results
+  // Step 4: Persist result payload
   await Submission.findByIdAndUpdate(submissionId, {
-    originalityScore: result.originalityScore,
+    originalityScore,
     'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
-    'plagiarismResult.originalityScore': result.originalityScore,
-    'plagiarismResult.matchedSources': result.matchedSources,
+    'plagiarismResult.originalityScore': originalityScore,
+    'plagiarismResult.overallScore': similarityPercentage,
+    'plagiarismResult.textMatches': effectiveTextMatches,
+    'plagiarismResult.matchedSources': legacyMatchedSources,
     'plagiarismResult.fullReport': fullReport,
     'plagiarismResult.processedAt': new Date(),
   });
@@ -586,24 +623,13 @@ async function processJob(job) {
       $set: {
         taskId: String(job.id),
         status: PLAGIARISM_STATUSES.COMPLETED,
+        overallScore: similarityPercentage,
         similarityPercentage,
-        textMatches: (result.matchedSources || []).map((match) => ({
-          submissionId: match.submissionId || null,
-          id: match.submissionId || null,
-          title: match.projectTitle || 'Unknown Project',
-          chapter: match.chapter ?? null,
-          matchPercentage: match.matchPercentage ?? null,
-          similarity: match.matchPercentage ?? null,
-          sourceSnippet: match.sourceSnippet || '',
-          spans: match.spans || [],
-        })),
+        textMatches: effectiveTextMatches,
         checkedAt: new Date(),
         completedAt: new Date(),
         warningFlag: similarityPercentage >= 50,
-        rawData: {
-          ...result,
-          ...fullReport,
-        },
+        rawData: fullReport,
         error: null,
         errorMessage: null,
       },
@@ -611,18 +637,28 @@ async function processJob(job) {
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
-  try {
-    await upsertSubmissionFingerprints({
-      submissionId,
-      projectId,
-      chapter,
-      type,
-      text: normalizedExtractedText,
-    });
-  } catch (error) {
-    console.warn(
-      `[Plagiarism Worker] Failed to refresh fingerprint index for submission ${submissionId}: ${error.message}`,
-    );
+  // Step 5: Index final/approved submissions into inverted-index corpus.
+  const shouldIndexSubmission =
+    Boolean(job.data?.isFinalSubmission) ||
+    Boolean(job.data?.indexInCorpus) ||
+    ['final_academic', 'final_journal'].includes(String(type || '').toLowerCase());
+
+  if (shouldIndexSubmission) {
+    try {
+      const fingerprints = generateFingerprints(normalizedExtractedText);
+      await upsertSubmissionFingerprints({
+        submissionId,
+        projectId,
+        chapter,
+        type,
+        text: normalizedExtractedText,
+        fingerprints,
+      });
+    } catch (error) {
+      console.warn(
+        `[Plagiarism Worker] Failed to index submission ${submissionId} into fingerprint corpus: ${error.message}`,
+      );
+    }
   }
 
   // Step 6: Notify student
@@ -637,17 +673,22 @@ async function processJob(job) {
         submissionId,
         projectId,
         chapter,
-        originalityScore: result.originalityScore,
+        originalityScore,
       },
     });
     emitToUser(submission.submittedBy._id || submission.submittedBy, 'notification:new', plagNotif);
   }
 
   console.log(
-    `[Plagiarism Worker] Submission ${submissionId}: originality ${result.originalityScore}% (${result.matchedSources.length} matches found).`,
+    `[Plagiarism Worker] Submission ${submissionId}: originality ${originalityScore}% (${effectiveTextMatches.length} sources matched).`,
   );
 
-  return result;
+  return {
+    ...result,
+    originalityScore,
+    similarityPercentage,
+    matchedSources: legacyMatchedSources,
+  };
 }
 
 /**

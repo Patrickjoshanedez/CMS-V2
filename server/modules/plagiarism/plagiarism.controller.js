@@ -156,7 +156,7 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     req.user._id,
     {
       submissionSelect:
-        'storageKey fileType projectId chapter plagiarismResult type documentTitle documentAbstract',
+        'storageKey fileType projectId chapter plagiarismResult type status documentTitle documentAbstract',
     },
   );
 
@@ -182,6 +182,11 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     fileType: submission.fileType,
     projectId: submission.projectId.toString(),
     chapter: submission.chapter,
+    type: submission.type,
+    isFinalSubmission: ['final_academic', 'final_journal'].includes(
+      String(submission.type || '').toLowerCase(),
+    ),
+    indexInCorpus: ['approved', 'locked'].includes(String(submission.status || '').toLowerCase()),
     title: submission.documentTitle || undefined,
     abstract: submission.documentAbstract || undefined,
   };
