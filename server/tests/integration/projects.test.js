@@ -231,6 +231,43 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.sectionId).toBe(section._id.toString());
     });
 
+    it('should prefer canonical team context over stale payload section and academic year', async () => {
+      const { user: student5, agent: agentStudent5 } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'student5@test.com',
+          name: 'Student Five',
+        },
+      );
+
+      const { course: altCourse, section: staleSection } = await createCourseAndSection(
+        instructorUser._id,
+      );
+      await staleSection.updateOne({ academicYear: '2025-2026' });
+
+      const team5 = await Team.create({
+        name: 'Epsilon Team',
+        leaderId: student5._id,
+        members: [student5._id],
+        isLocked: true,
+        academicYear: '2024-2025',
+        sectionId: section._id,
+        courseId: course._id,
+      });
+      await User.findByIdAndUpdate(student5._id, { teamId: team5._id });
+
+      const stalePayload = createValidProjectPayload(team5._id, altCourse._id, staleSection._id, [
+        student5._id,
+      ]);
+      stalePayload.academicYear = '2025-2026';
+
+      const res = await agentStudent5.post('/api/projects').send(stalePayload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.project.sectionId).toBe(section._id.toString());
+      expect(res.body.data.project.academicYear).toBe('2024-2025');
+    });
+
     it('should fail when sectionId cannot be resolved from payload or team context', async () => {
       // Create a team WITHOUT sectionId and ensure user also has no section
       const { user: student4, agent: agentStudent4 } = await createAuthenticatedUserWithRole(
@@ -1006,7 +1043,7 @@ describe('Projects API — /api/projects', () => {
     const endpoint = '/api/projects/archive/bulk';
     const basePayload = {
       title: 'Archived Capstone Bundle for CMS Validation',
-      abstract: 'Legacy project brought into the archive with both final papers.',
+      abstract: 'Legacy project brought into the archive with final paper uploads.',
       keywords: 'archive,bulk-upload,legacy',
       academicYear: '2024-2025',
     };
@@ -1070,10 +1107,12 @@ describe('Projects API — /api/projects', () => {
         .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
 
       expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('DUAL_ARCHIVE_FILES_REQUIRED');
+      expect(res.body.error.code).toBe('ACADEMIC_PAPER_REQUIRED');
     });
 
-    it('should reject the request when academic journal file is missing', async () => {
+    it('should allow the request when academic journal file is missing', async () => {
+      storageService.uploadFile.mockClear();
+
       const res = await instructorAgent
         .post(endpoint)
         .field('title', basePayload.title)
@@ -1082,8 +1121,26 @@ describe('Projects API — /api/projects', () => {
         .field('academicYear', basePayload.academicYear)
         .attach('academicPaperFile', createPdfBuffer(), 'academic-paper.pdf');
 
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('DUAL_ARCHIVE_FILES_REQUIRED');
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.project.isArchived).toBe(true);
+      expect(res.body.data.submissions.finalAcademic.type).toBe('final_academic');
+      expect(res.body.data.submissions.finalJournal).toBeNull();
+
+      const projectId = res.body.data.project._id;
+      const linkedSubmissions = await Submission.find({ projectId }).sort({ type: 1 });
+
+      expect(linkedSubmissions).toHaveLength(1);
+      expect(linkedSubmissions[0].type).toBe('final_academic');
+
+      const archiveUploadCalls = storageService.uploadFile.mock.calls.filter(
+        ([, key]) => typeof key === 'string' && key.startsWith(`archives/projects/${projectId}/`),
+      );
+
+      expect(archiveUploadCalls).toHaveLength(1);
+      expect(
+        archiveUploadCalls[0][1].startsWith(`archives/projects/${projectId}/final-academic/v1/`),
+      ).toBe(true);
     });
 
     it('should reject duplicate files in the same archive field', async () => {

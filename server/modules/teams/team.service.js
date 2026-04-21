@@ -246,6 +246,12 @@ class TeamService {
     team.isLocked = true;
     await team.save();
 
+    // Invalidate outstanding invites so finalized teams cannot add members via stale invite links.
+    await TeamInvite.updateMany(
+      { teamId: team._id, status: 'pending' },
+      { $set: { status: 'expired' } },
+    );
+
     const populatedTeam = await Team.findById(team._id)
       .populate('leaderId', 'firstName middleName lastName email profilePicture')
       .populate('members', 'firstName middleName lastName email profilePicture role');
@@ -428,6 +434,14 @@ class TeamService {
       throw new AppError('Only the team leader can send invitations.', 403, 'FORBIDDEN');
     }
 
+    if (team.isLocked) {
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
     if (team.members.length >= MAX_TEAM_MEMBERS) {
       throw new AppError(
         `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,
@@ -578,6 +592,14 @@ class TeamService {
       throw new AppError('Only the team leader can search invite candidates.', 403, 'FORBIDDEN');
     }
 
+    if (team.isLocked) {
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
     const search = typeof query.search === 'string' ? query.search.trim() : '';
     const limit = Number.isFinite(query.limit) ? query.limit : 8;
     const memberIds = team.members.map((id) => id.toString());
@@ -706,7 +728,29 @@ class TeamService {
     const invite = await TeamInvite.findOne({
       $or: [{ token: normalizedInput }, { inviteCode: normalizedCode }],
     });
-    if (!invite || !invite.isValid()) {
+    if (!invite) {
+      throw new AppError('This invitation is invalid or has expired.', 400, 'INVALID_INVITE');
+    }
+
+    const team = await Team.findById(invite.teamId);
+    if (!team) {
+      throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.isLocked) {
+      if (invite.status === 'pending') {
+        invite.status = 'expired';
+        await invite.save();
+      }
+
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
+    if (!invite.isValid()) {
       throw new AppError('This invitation is invalid or has expired.', 400, 'INVALID_INVITE');
     }
 
@@ -727,11 +771,6 @@ class TeamService {
 
     if (user.email !== invite.email) {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
-    }
-
-    const team = await Team.findById(invite.teamId);
-    if (!team) {
-      throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
     }
 
     const isMemberOfAnotherTeam = await Team.exists({
@@ -773,6 +812,7 @@ class TeamService {
     const updatedTeam = await Team.findOneAndUpdate(
       {
         _id: team._id,
+        isLocked: false,
         members: { $ne: user._id },
         $expr: { $lt: [{ $size: '$members' }, MAX_TEAM_MEMBERS] },
       },
@@ -785,10 +825,24 @@ class TeamService {
     if (!updatedTeam) {
       await User.updateOne({ _id: user._id, teamId: team._id }, { $set: { teamId: null } });
 
-      const freshTeam = await Team.findById(team._id).select('members');
+      const freshTeam = await Team.findById(team._id).select('members isLocked');
       if (!freshTeam) {
         throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
       }
+
+      if (freshTeam.isLocked) {
+        if (invite.status === 'pending') {
+          invite.status = 'expired';
+          await invite.save();
+        }
+
+        throw new AppError(
+          'This team is already finalized and can no longer add members.',
+          409,
+          'TEAM_ALREADY_LOCKED',
+        );
+      }
+
       if (freshTeam.members.length >= MAX_TEAM_MEMBERS) {
         throw new AppError(
           `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,

@@ -15,8 +15,7 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
-import ReadonlyPDFViewer from '@/components/projects/ReadonlyPDFViewer';
-import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
+import { submissionService } from '@/services/submissionService';
 import {
   useProject,
   useApproveTitle,
@@ -60,6 +59,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Copy,
+  Download,
   ExternalLink,
   ChevronDown,
 } from 'lucide-react';
@@ -501,11 +501,6 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
         (title) => normalizeTitleKey(title) !== normalizeTitleKey(primaryTitle),
       );
 
-  const capstoneRaw = project.capstoneType || project.projectType;
-  const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
-    ? capstoneRaw.join(', ')
-    : capstoneRaw || phaseLabel;
-
   return (
     <Card>
       <CardHeader>
@@ -612,11 +607,6 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
                 <span className="text-muted-foreground">Program / Department:</span>
                 <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Capstone Type/Phase:</span>
-                <span className="font-medium">{capstoneTypeOrPhase}</span>
-              </div>
             </div>
 
             {!isPeer && (project.teamId?.googleDocUrl || project.teamId?.githubUrl) ? (
@@ -692,7 +682,7 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
 /**
  * Approve / Reject title card — shown when titleStatus === SUBMITTED
  */
-function _TitleReviewCard({ project }) {
+function TitleReviewCard({ project }) {
   const [reason, setReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
@@ -1323,7 +1313,7 @@ function ArchiveProjectCard({ project }) {
 /**
  * Reject entire project card — instructor only, destructive action.
  */
-function _RejectProjectCard({ project }) {
+function RejectProjectCard({ project }) {
   const [reason, setReason] = useState('');
   const [confirm, setConfirm] = useState(false);
 
@@ -1468,6 +1458,7 @@ export default function ProjectDetailPage() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const [citationStyle, setCitationStyle] = useState('apa');
+  const [downloadingManuscriptType, setDownloadingManuscriptType] = useState(null);
   const [bookmarkedIds, setBookmarkedIds] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -1490,7 +1481,6 @@ export default function ProjectDetailPage() {
   const userTeamId = user?.teamId?._id || user?.teamId;
   const isAuthor =
     isStudent && userTeamId && projectTeamId && String(userTeamId) === String(projectTeamId);
-  const isOwnerOrAdmin = !isStudent || isAuthor;
   const isPeer = isStudent && !isAuthor;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const isFacultyMember =
@@ -1500,20 +1490,20 @@ export default function ProjectDetailPage() {
   const isArchived =
     Boolean(project?.isArchived) || project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
 
-  const { data: chapterSubmissions } = useProjectSubmissions(
-    project?._id,
-    { limit: 200, type: 'chapter' },
-    { enabled: !!project?._id && isOwnerOrAdmin },
-  );
-
-  const { data: finalAcademicData } = useProjectSubmissions(
+  const { data: finalAcademicData, isLoading: isFinalAcademicLoading } = useProjectSubmissions(
     project?._id,
     { limit: 1, type: 'final_academic' },
     { enabled: !!project?._id && isArchived },
   );
 
-  const finalManuscriptUrl =
-    finalAcademicData?.[0]?.fileUrl || finalAcademicData?.submissions?.[0]?.fileUrl;
+  const { data: finalJournalData, isLoading: isFinalJournalLoading } = useProjectSubmissions(
+    project?._id,
+    { limit: 1, type: 'final_journal' },
+    { enabled: !!project?._id && isArchived },
+  );
+
+  const finalAcademicSubmission = finalAcademicData?.[0] || finalAcademicData?.submissions?.[0];
+  const finalJournalSubmission = finalJournalData?.[0] || finalJournalData?.submissions?.[0];
 
   const { backDestination, backLabel } = resolveArchiveBackContext(location.state, location.search);
 
@@ -1600,6 +1590,30 @@ export default function ProjectDetailPage() {
 
   const requestFullAccess = () => {
     toast.success('Access request submitted. Your instructor/adviser will be notified.');
+  };
+
+  const handleDownloadManuscript = async (submissionId, manuscriptType) => {
+    if (!submissionId) {
+      toast.error(`${manuscriptType} is not available for this project.`);
+      return;
+    }
+
+    setDownloadingManuscriptType(manuscriptType);
+    try {
+      const { data } = await submissionService.getViewUrl(submissionId);
+      const viewUrl = data?.data?.url;
+      if (!viewUrl) {
+        throw new Error('Missing manuscript view URL');
+      }
+
+      window.open(viewUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || `Failed to download ${manuscriptType.toLowerCase()}.`,
+      );
+    } finally {
+      setDownloadingManuscriptType(null);
+    }
   };
 
   return (
@@ -1707,27 +1721,53 @@ export default function ProjectDetailPage() {
             )}
 
             {isArchived && canViewAcademic && (
-              <>
-                <ReadonlyPDFViewer fileUrl={finalManuscriptUrl} title="Approved Manuscript" />
-                {finalManuscriptUrl && (
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button asChild variant="outline" size="sm">
-                          <a href={finalManuscriptUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open Manuscript
-                          </a>
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          Faculty/admin downloads are audit-logged. Student peer access remains
-                          restricted by policy.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Archived Manuscripts</CardTitle>
+                  <CardDescription>
+                    Download the academic and journal versions for this archived project.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!finalAcademicSubmission?._id || isFinalAcademicLoading}
+                      onClick={() =>
+                        handleDownloadManuscript(finalAcademicSubmission?._id, 'Academic Paper')
+                      }
+                    >
+                      {downloadingManuscriptType === 'Academic Paper' ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Download Academic Paper
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!finalJournalSubmission?._id || isFinalJournalLoading}
+                      onClick={() =>
+                        handleDownloadManuscript(finalJournalSubmission?._id, 'Journal Paper')
+                      }
+                    >
+                      {downloadingManuscriptType === 'Journal Paper' ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Download Journal Paper
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {isFinalAcademicLoading || isFinalJournalLoading
+                      ? 'Checking manuscript availability...'
+                      : 'Manuscript downloads are audit-logged and governed by access policy.'}
+                  </p>
+                </CardContent>
+              </Card>
             )}
 
             {isArchived && relatedProjects.length > 0 && (
@@ -1820,17 +1860,6 @@ export default function ProjectDetailPage() {
                 <ProjectHistoryCard projectId={project._id} />
 
                 {!isArchived && <TitleProposalsSection project={project} userRole={user?.role} />}
-
-                {/* Chapter progress + rounds (faculty visibility) */}
-                <ChapterProgressWithRounds
-                  project={project}
-                  submissions={chapterSubmissions}
-                  chapters={[1, 2, 3, 4, 5]}
-                  title="Chapter Progress & Rounds"
-                  description="Per chapter status with round tabs including adviser review comments, document, and date."
-                  showUploadButton={false}
-                  showAllSubmissionsButton={false}
-                />
 
                 {/* Deadlines setter/viewer — instructors can apply section-wide updates */}
                 {!isArchived && (isInstructor || user?.role === ROLES.ADVISER) && (

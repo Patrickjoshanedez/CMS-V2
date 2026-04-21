@@ -7,7 +7,7 @@ import {
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
-import Manuscript from '../../modules/documents/document.model.js';
+import Manuscript, { MetadataExtractionFeedback } from '../../modules/documents/document.model.js';
 import storageService from '../../services/storage.service.js';
 import * as pdfMetadataExtractor from '../../utils/pdfMetadataExtractor.js';
 import { DOCUMENT_TYPES } from '@cms/shared';
@@ -157,6 +157,38 @@ describe('Documents API — /api/documents', () => {
     expect(res.body.metadata.title).toBe('Project Workspace Capstone Management System');
     expect(res.body.confidence.title).toBe(35);
     expect(metadataSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('records field-level metadata feedback for OCR learning', async () => {
+    const { agent, user } = await createAuthenticatedUserWithRole('instructor', {
+      email: 'documents-feedback@test.com',
+    });
+
+    const res = await agent.post('/api/documents/metadata-feedback').send({
+      fieldName: 'title',
+      extractedValue: 'Abstract:',
+      correctedValue: 'Interstellar Wormhole Visualization',
+      confidence: 42,
+      sourceFileName: 'interstellar-capstone.pdf',
+      context: 'archive/capstone-upload',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.feedbackId).toBeTruthy();
+
+    const savedFeedback = await MetadataExtractionFeedback.findById(
+      res.body.data.feedbackId,
+    ).lean();
+
+    expect(savedFeedback).toBeTruthy();
+    expect(savedFeedback.fieldName).toBe('title');
+    expect(savedFeedback.extractedValue).toBe('Abstract:');
+    expect(savedFeedback.correctedValue).toBe('Interstellar Wormhole Visualization');
+    expect(savedFeedback.confidence).toBe(42);
+    expect(savedFeedback.sourceFileName).toBe('interstellar-capstone.pdf');
+    expect(savedFeedback.context).toBe('archive/capstone-upload');
+    expect(savedFeedback.submittedBy.toString()).toBe(user._id.toString());
   });
 
   it('uploads a manuscript and lists it with a resolved edit link', async () => {

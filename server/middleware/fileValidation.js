@@ -103,22 +103,23 @@ const validateFile = async (req, _res, next) => {
 };
 
 /**
- * Validate the dual-file archive bundle payload.
- * Requires exactly one file for each field:
- * - academicPaperFile
- * - academicJournalFile
+ * Validate the archive bundle payload.
+ * Requires:
+ * - exactly one academicPaperFile
+ * Allows:
+ * - zero or one academicJournalFile
  */
 const validateDualArchiveFiles = async (req, _res, next) => {
   try {
     const academicPaperFiles = req.files?.academicPaperFile || [];
     const academicJournalFiles = req.files?.academicJournalFile || [];
 
-    if (academicPaperFiles.length !== 1 || academicJournalFiles.length !== 1) {
+    if (academicPaperFiles.length !== 1 || academicJournalFiles.length > 1) {
       return next(
         new AppError(
-          'Exactly one Academic Paper file and one Academic Journal file are required.',
+          'Exactly one Academic Paper file is required. Academic Journal is optional (max one).',
           400,
-          'DUAL_ARCHIVE_FILES_REQUIRED',
+          'ACADEMIC_PAPER_REQUIRED',
         ),
       );
     }
@@ -130,10 +131,13 @@ const validateDualArchiveFiles = async (req, _res, next) => {
       academicPaperFile,
       'Academic Paper',
     );
-    academicJournalFile.validatedMime = await assertValidDocumentFile(
-      academicJournalFile,
-      'Academic Journal',
-    );
+
+    if (academicJournalFile) {
+      academicJournalFile.validatedMime = await assertValidDocumentFile(
+        academicJournalFile,
+        'Academic Journal',
+      );
+    }
 
     next();
   } catch (error) {
@@ -164,9 +168,7 @@ export const validatePdfFile = async (req, _res, next) => {
 
     const detectedMime = await detectDocumentMime(req.file.buffer, req.file.originalname);
     if (detectedMime !== 'application/pdf') {
-      return next(
-        new AppError('Invalid file type. Only PDF allowed.', 400, 'INVALID_FILE_TYPE'),
-      );
+      return next(new AppError('Invalid file type. Only PDF allowed.', 400, 'INVALID_FILE_TYPE'));
     }
 
     req.file.validatedMime = detectedMime;

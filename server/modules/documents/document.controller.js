@@ -4,6 +4,7 @@ import { HTTP_STATUS } from '@cms/shared';
 import { extractPdfMetadata as extractMetadataFromPdf } from '../../utils/pdfMetadataExtractor.js';
 import AppError from '../../utils/AppError.js';
 import crypto from 'crypto';
+import { MetadataExtractionFeedback } from './document.model.js';
 
 const OCR_CACHE_TTL_MS = 10 * 60 * 1000;
 const ocrExtractionCache = new Map();
@@ -224,6 +225,35 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
       'PDF_METADATA_EXTRACTION_FAILED',
     );
   }
+});
+
+/**
+ * POST /api/documents/metadata-feedback
+ * Persist per-field OCR correction feedback for future extraction tuning.
+ */
+export const submitMetadataFeedback = catchAsync(async (req, res) => {
+  const feedbackRecord = await MetadataExtractionFeedback.create({
+    fieldName: req.body.fieldName,
+    extractedValue: req.body.extractedValue || '',
+    correctedValue: req.body.correctedValue,
+    confidence:
+      req.body.confidence === null || req.body.confidence === undefined
+        ? null
+        : Number(req.body.confidence),
+    sourceFileName: req.body.sourceFileName || '',
+    sourceHash: req.body.sourceHash || '',
+    feedbackNotes: req.body.feedbackNotes || '',
+    context: req.body.context || 'archive/capstone-upload',
+    submittedBy: req.user._id,
+  });
+
+  return res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Metadata feedback recorded successfully.',
+    data: {
+      feedbackId: feedbackRecord._id,
+    },
+  });
 });
 
 export const extractPdfMetadataHandler = extractPdfMetadata;

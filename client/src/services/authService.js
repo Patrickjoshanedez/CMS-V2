@@ -152,7 +152,9 @@ export const projectService = {
       if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
       formData.append('academicYear', payload.academicYear);
       formData.append('academicPaperFile', payload.academicPaperFile);
-      formData.append('academicJournalFile', payload.academicJournalFile);
+      if (payload.academicJournalFile) {
+        formData.append('academicJournalFile', payload.academicJournalFile);
+      }
     }
 
     return api.post('/projects/archive/bulk', formData, {
@@ -203,5 +205,12 @@ export const documentService = {
     return api.post('/documents/extract-pdf-metadata', formData, {
       timeout: 120000,
     });
+  },
+
+  /**
+   * Store OCR field correction feedback for future extraction improvements.
+   */
+  submitMetadataFeedback: (payload) => {
+    return api.post('/documents/metadata-feedback', payload);
   },
 };

@@ -170,20 +170,24 @@ class ProjectService {
       throw new AppError('Only students can create projects.', 403, 'FORBIDDEN');
     }
 
-    // Resolve section ID: explicit payload > team > user
+    let team = null;
+    if (user.teamId) {
+      team = await Team.findById(user.teamId).select(
+        'leaderId members isLocked sectionId academicYear courseId',
+      );
+    }
+
+    const payloadAcademicYear =
+      typeof data.academicYear === 'string' ? data.academicYear.trim() : data.academicYear;
+    const effectiveAcademicYear = team?.academicYear || payloadAcademicYear;
+
+    // Resolve section ID: canonical team > explicit payload > user profile
     let effectiveSectionId = data.sectionId;
-    if (!effectiveSectionId) {
-      // Try to get from team context
-      if (user.teamId) {
-        const team = await Team.findById(user.teamId).select('sectionId');
-        if (team?.sectionId) {
-          effectiveSectionId = team.sectionId;
-        }
-      }
+    if (team?.sectionId) {
+      effectiveSectionId = team.sectionId;
+    } else if (!effectiveSectionId && user.sectionId) {
       // Fall back to user section if available
-      if (!effectiveSectionId && user.sectionId) {
-        effectiveSectionId = user.sectionId;
-      }
+      effectiveSectionId = user.sectionId;
     }
 
     if (!effectiveSectionId) {
@@ -199,7 +203,11 @@ class ProjectService {
       throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
     }
 
-    if (section.academicYear !== data.academicYear) {
+    if (!effectiveAcademicYear) {
+      throw new AppError('Academic year is required.', 400, 'ACADEMIC_YEAR_REQUIRED');
+    }
+
+    if (section.academicYear !== effectiveAcademicYear) {
       throw new AppError(
         'Selected section does not belong to the selected academic year.',
         400,
@@ -207,7 +215,6 @@ class ProjectService {
       );
     }
 
-    let team = null;
     if (!user.teamId) {
       if (!data.allowSoloCapstone || !data.soloCapstoneConfirmed) {
         throw new AppError(
@@ -217,7 +224,7 @@ class ProjectService {
         );
       }
 
-      team = await this._createSoloTeamForStudent(user, data.academicYear);
+      team = await this._createSoloTeamForStudent(user, effectiveAcademicYear);
     }
 
     if (!team) {
@@ -381,7 +388,7 @@ class ProjectService {
       abstract: data.abstract || '',
       keywords: data.keywords || [],
       sdgTags: normalizedSdgTags,
-      academicYear: data.academicYear,
+      academicYear: effectiveAcademicYear,
       courseId: section.courseId._id,
       sectionId: section._id,
       memberRoleAssignments,
@@ -2445,24 +2452,24 @@ class ProjectService {
 
   /**
    * Bulk-upload an archived capstone bundle in one request.
-   * Creates one archived project record linked to exactly two final submissions:
-   * - final_academic (academic paper)
-   * - final_journal (journal paper)
+   * Creates one archived project record linked to:
+   * - required final_academic (academic paper)
+   * - optional final_journal (journal paper)
    *
    * @param {string} instructorId - The instructor performing the bulk upload
    * @param {Object} data - { title, abstract?, keywords?, academicYear }
-   * @param {Object} files - { academicPaperFile, academicJournalFile }
+   * @param {Object} files - { academicPaperFile, academicJournalFile? }
    * @returns {Object} { project, submissions }
    */
   async bulkUploadArchive(instructorId, data, files) {
     const academicPaperFile = files?.academicPaperFile;
     const academicJournalFile = files?.academicJournalFile;
 
-    if (!academicPaperFile || !academicJournalFile) {
+    if (!academicPaperFile) {
       throw new AppError(
-        'Exactly one Academic Paper file and one Academic Journal file are required.',
+        'Academic Paper file is required. Academic Journal is optional.',
         400,
-        'DUAL_ARCHIVE_FILES_REQUIRED',
+        'ACADEMIC_PAPER_REQUIRED',
       );
     }
 
@@ -2613,16 +2620,18 @@ class ProjectService {
         1,
         academicPaperFile.originalname,
       );
-      const finalJournalStorageKey = storageService.buildFinalJournalKey(
-        project._id,
-        1,
-        academicJournalFile.originalname,
-      );
+      const finalJournalStorageKey = academicJournalFile
+        ? storageService.buildFinalJournalKey(project._id, 1, academicJournalFile.originalname)
+        : null;
 
-      const [finalAcademicExtractedText, finalJournalExtractedText] = await Promise.all([
-        this._extractArchiveSubmissionText(academicPaperFile),
-        this._extractArchiveSubmissionText(academicJournalFile),
-      ]);
+      const extractionTasks = [this._extractArchiveSubmissionText(academicPaperFile)];
+      if (academicJournalFile) {
+        extractionTasks.push(this._extractArchiveSubmissionText(academicJournalFile));
+      }
+
+      const [finalAcademicExtractedText, maybeFinalJournalExtractedText] =
+        await Promise.all(extractionTasks);
+      const finalJournalExtractedText = academicJournalFile ? maybeFinalJournalExtractedText : null;
 
       try {
         await storageService.uploadFile(
@@ -2632,12 +2641,14 @@ class ProjectService {
         );
         uploadedKeys.push(finalAcademicStorageKey);
 
-        await storageService.uploadFile(
-          academicJournalFile.buffer,
-          finalJournalStorageKey,
-          academicJournalFile.validatedMime || academicJournalFile.mimetype,
-        );
-        uploadedKeys.push(finalJournalStorageKey);
+        if (academicJournalFile && finalJournalStorageKey) {
+          await storageService.uploadFile(
+            academicJournalFile.buffer,
+            finalJournalStorageKey,
+            academicJournalFile.validatedMime || academicJournalFile.mimetype,
+          );
+          uploadedKeys.push(finalJournalStorageKey);
+        }
       } catch (error) {
         // Clean up the project record if upload failed
         await Project.findByIdAndDelete(project._id);
@@ -2653,7 +2664,7 @@ class ProjectService {
         );
       }
 
-      const [finalAcademicSubmission, finalJournalSubmission] = await Submission.create([
+      const submissionsToCreate = [
         {
           projectId: project._id,
           submittedBy: instructorObjectId,
@@ -2667,7 +2678,10 @@ class ProjectService {
           extractedText: finalAcademicExtractedText,
           status: 'approved',
         },
-        {
+      ];
+
+      if (academicJournalFile && finalJournalStorageKey) {
+        submissionsToCreate.push({
           projectId: project._id,
           submittedBy: instructorObjectId,
           type: 'final_journal',
@@ -2679,8 +2693,14 @@ class ProjectService {
           storageKey: finalJournalStorageKey,
           extractedText: finalJournalExtractedText,
           status: 'approved',
-        },
-      ]);
+        });
+      }
+
+      const createdSubmissions = await Submission.create(submissionsToCreate);
+      const finalAcademicSubmission =
+        createdSubmissions.find((entry) => entry.type === 'final_academic') || null;
+      const finalJournalSubmission =
+        createdSubmissions.find((entry) => entry.type === 'final_journal') || null;
 
       return {
         project,

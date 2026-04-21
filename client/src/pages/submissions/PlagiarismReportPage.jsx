@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCcw, X } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
@@ -375,7 +375,7 @@ function SourceRow({ source, isActive, onSelect }) {
   );
 }
 
-function PlagiarismReportPage({ reportData = null, originalText = '' }) {
+function PlagiarismReportPage({ reportData = null, originalText = '', onReset = null }) {
   const { submissionId } = useParams();
   const navigate = useNavigate();
   const highlightRefs = useRef(new Map());
@@ -522,6 +522,12 @@ function PlagiarismReportPage({ reportData = null, originalText = '' }) {
                     <ArrowLeft className="mr-1 h-4 w-4" />
                     Back
                   </Button>
+                  {typeof onReset === 'function' && (
+                    <Button variant="outline" size="sm" onClick={onReset}>
+                      <RefreshCcw className="mr-1 h-4 w-4" />
+                      Scan Another PDF
+                    </Button>
+                  )}
                   <CardTitle className="text-lg">Plagiarism Report</CardTitle>
                 </div>
                 <CardDescription>

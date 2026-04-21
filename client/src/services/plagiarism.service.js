@@ -12,6 +12,26 @@ export const plagiarismService = {
   startPlagiarismCheck: (submissionId, payload) =>
     api.post(`/submissions/${submissionId}/plagiarism/check`, payload),
   getPlagiarismResult: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism/result`),
+  scanArchivedPdf: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/submissions/plagiarism/checker/scan', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000,
+    });
+  },
+  scanArchive: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/submissions/plagiarism/checker/scan', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000,
+    });
+  },
   indexSubmissionInCorpus: (submissionId, payload) =>
     api.post(`/submissions/${submissionId}/plagiarism/index`, payload),
   removeFromCorpus: (submissionId) => api.delete(`/submissions/${submissionId}/plagiarism/index`),
@@ -32,6 +52,12 @@ export const indexSubmissionInCorpus = (submissionId, payload) =>
 
 export const removeFromCorpus = (submissionId) =>
   plagiarismService.removeFromCorpus(submissionId).then((response) => response.data);
+
+export const scanArchivedPdf = (file) =>
+  plagiarismService.scanArchivedPdf(file).then((response) => response.data?.data || response.data);
+
+export const scanArchive = (file) =>
+  plagiarismService.scanArchive(file).then((response) => response.data?.data || response.data);
 
 export async function pollPlagiarismResult(submissionId, maxAttempts = 60, intervalMs = 2000) {
   let attempts = 0;

@@ -27,4 +27,20 @@ export const plagiarismService = {
    *     extractedText, fullReport, matchedSources, processedAt } } }`
    */
   getPlagiarismReport: basePlagiarismService.getPlagiarismReport,
+
+  /**
+   * Upload a PDF and run an immediate plagiarism scan against archived corpus sources.
+   *
+   * @param {File|Blob} file
+   * @returns {Promise<import('axios').AxiosResponse>}
+   */
+  scanArchivedPdf: basePlagiarismService.scanArchivedPdf,
+
+  /**
+   * Alias for scanArchivedPdf used by newer archive checker UIs.
+   *
+   * @param {File|Blob} file
+   * @returns {Promise<import('axios').AxiosResponse>}
+   */
+  scanArchive: basePlagiarismService.scanArchive || basePlagiarismService.scanArchivedPdf,
 };

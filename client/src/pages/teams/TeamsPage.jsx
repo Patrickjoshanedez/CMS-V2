@@ -30,6 +30,7 @@ import {
   useTeams,
   useCreateTeam,
   useInviteMember,
+  useCreateTeamInviteCandidates,
   useInviteCandidates,
   useAcceptInvite,
   useAssignMemberRole,
@@ -105,22 +106,67 @@ function EmptyTeamState({ role, onCreateClick, onAcceptClick }) {
 
 function CreateTeamForm({ onCancel }) {
   const [name, setName] = useState('');
-  const [academicYear, setAcademicYear] = useState('');
+  const [inviteQuery, setInviteQuery] = useState('');
+  const [debouncedInviteQuery, setDebouncedInviteQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
 
-  const { data: years = [], isLoading: yearsLoading } = useAcademicYears();
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedInviteQuery(inviteQuery.trim());
+    }, 220);
+
+    return () => window.clearTimeout(timerId);
+  }, [inviteQuery]);
+
+  const { data: candidates = [], isFetching: isFetchingCandidates } =
+    useCreateTeamInviteCandidates(debouncedInviteQuery);
+
+  const inviteMember = useInviteMember({
+    onSuccess: (result) => {
+      const invitedName = result?.data?.invitedUser?.fullName || result?.data?.invitedUser?.email;
+      toast.success(
+        invitedName
+          ? `Team created and invite sent to ${invitedName}.`
+          : 'Team created and invitation sent.',
+      );
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          'Team was created, but sending invitation failed. You can invite from My Team.',
+      );
+    },
+  });
 
   const createTeam = useCreateTeam({
-    onSuccess: () => {
-      toast.success('Team created successfully!');
+    onSuccess: (result) => {
+      const teamId = result?.data?.team?._id;
+      const shouldInvite = Boolean(
+        teamId &&
+        selectedCandidate?.canInvite !== false &&
+        selectedCandidate?.email &&
+        selectedCandidate.email.toLowerCase() === inviteQuery.trim().toLowerCase(),
+      );
+
+      if (shouldInvite) {
+        inviteMember.mutate({ teamId, email: selectedCandidate.email });
+      } else {
+        toast.success('Team created successfully!');
+      }
+
       setName('');
-      setAcademicYear('');
+      setInviteQuery('');
+      setDebouncedInviteQuery('');
+      setShowSuggestions(false);
+      setSelectedCandidate(null);
     },
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to create team.'),
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createTeam.mutate({ name: name.trim(), academicYear });
+    createTeam.mutate({ name: name.trim() });
   };
 
   return (
@@ -156,28 +202,91 @@ function CreateTeamForm({ onCancel }) {
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="academicYear">Academic Year *</Label>
-            <select
-              id="academicYear"
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
-              value={academicYear}
-              onChange={(e) => setAcademicYear(e.target.value)}
-              required
-              disabled={createTeam.isPending || yearsLoading}
-            >
-              <option value="">
-                {yearsLoading
-                  ? 'Loading...'
-                  : years.length === 0
-                    ? 'No academic years available'
-                    : 'Select academic year'}
-              </option>
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor="createTeamInvite">Team Invitation (Optional)</Label>
+            <div className="relative">
+              <Input
+                id="createTeamInvite"
+                placeholder="Type a name (e.g. Leon) or email"
+                type="text"
+                value={inviteQuery}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setInviteQuery(value);
+                  setShowSuggestions(true);
+                  if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
+                    setSelectedCandidate(null);
+                  }
+                }}
+                onFocus={() => {
+                  if ((debouncedInviteQuery || inviteQuery).length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setShowSuggestions(false), 120);
+                }}
+                disabled={createTeam.isPending}
+                autoComplete="off"
+              />
+
+              {showSuggestions &&
+                (debouncedInviteQuery.length >= 2 || inviteQuery.trim().length >= 2) && (
+                  <div className="absolute left-0 right-0 top-11 z-20 rounded-md border bg-popover shadow-md">
+                    {isFetchingCandidates ? (
+                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Searching students...
+                      </div>
+                    ) : candidates.length > 0 ? (
+                      <ul className="max-h-56 overflow-auto py-1">
+                        {candidates.map((candidate) => (
+                          <li key={candidate._id}>
+                            <button
+                              type="button"
+                              className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                setInviteQuery(candidate.email);
+                                setDebouncedInviteQuery(candidate.email);
+                                setShowSuggestions(false);
+                                setSelectedCandidate(candidate);
+                              }}
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium">
+                                  {candidate.fullName}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {candidate.email}
+                                </span>
+                                {candidate.canInvite === false && (
+                                  <span className="mt-0.5 block text-[11px] font-medium text-destructive">
+                                    Cannot invite yet
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        No matching students found.
+                      </div>
+                    )}
+                  </div>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Academic year is auto-assigned from your section. Select one student and the system
+              will send an invite after team creation.
+            </p>
+            {selectedCandidate?.canInvite === false && (
+              <p className="text-xs text-destructive">
+                Selected student cannot be invited yet. Team creation will continue without an
+                invite.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button
@@ -188,7 +297,7 @@ function CreateTeamForm({ onCancel }) {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTeam.isPending || !academicYear}>
+            <Button type="submit" disabled={createTeam.isPending}>
               {createTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Team
             </Button>
@@ -633,11 +742,6 @@ function StudentTeamDetail({ team, userId }) {
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
 
-  useEffect(() => {
-    setGoogleDocUrlInput(team.googleDocUrl || '');
-    setGithubUrlInput(team.githubUrl || '');
-  }, [team.googleDocUrl, team.githubUrl]);
-
   return (
     <div className="space-y-4">
       <Card>
@@ -903,7 +1007,7 @@ function StudentTeamDetail({ team, userId }) {
           </div>
 
           {/* Invite Form (leader only) */}
-          {isLeader && (
+          {isLeader && !team.isLocked && (
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
               <InviteMemberForm teamId={team._id} />

@@ -12,6 +12,7 @@ import {
   upsertSubmissionFingerprints,
 } from '../../services/fingerprintIndex.service.js';
 import { PLAGIARISM_STATUSES, ROLES } from '@cms/shared';
+import { runArchivePdfPlagiarismScan } from '../../services/archivePlagiarismScan.service.js';
 
 const resolveCorpusMetadata = (...candidates) => {
   for (const candidate of candidates) {
@@ -447,5 +448,21 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Submission removed from corpus comparison set.',
+  });
+});
+
+export const scanArchivedPdfPlagiarism = catchAsync(async (req, res) => {
+  const file = req.file;
+
+  const result = await runArchivePdfPlagiarismScan({
+    fileBuffer: file?.buffer,
+    fileType: file?.validatedMime || file?.mimetype || 'application/pdf',
+    fileName: file?.originalname || null,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Archive plagiarism scan completed.',
+    data: result,
   });
 });

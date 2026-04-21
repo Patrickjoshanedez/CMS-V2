@@ -3,6 +3,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  RotateCcw,
+  MessageSquarePlus,
   FileText,
   Upload,
   Sparkles,
@@ -38,6 +40,18 @@ const INITIAL_FORM = {
 const INITIAL_FILES = {
   academicPaperFile: null,
   academicJournalFile: null,
+};
+
+const METADATA_FIELD_NAMES = ['title', 'abstract', 'authors', 'year', 'doi', 'venue', 'keywords'];
+
+const METADATA_FIELD_LABELS = {
+  title: 'Title',
+  abstract: 'Abstract',
+  authors: 'Authors',
+  year: 'Publication Year',
+  doi: 'DOI',
+  venue: 'Publication Venue',
+  keywords: 'Keywords',
 };
 
 const toAcademicYear = (yearValue) => {
@@ -393,6 +407,8 @@ export default function ExistingCapstoneUploadPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [confidenceScores, setConfidenceScores] = useState({});
   const [extractionStatus, setExtractionStatus] = useState('idle'); // idle | extracting | success | error
+  const [activeRescanField, setActiveRescanField] = useState('');
+  const [feedbackBusyByField, setFeedbackBusyByField] = useState({});
 
   const academicPaperInputRef = useRef(null);
   const academicJournalInputRef = useRef(null);
@@ -431,25 +447,56 @@ export default function ExistingCapstoneUploadPage() {
     );
   };
 
-  const applyExtractedMetadata = (metadata = {}, confidence = {}) => {
+  const applyExtractedMetadata = (metadata = {}, confidence = {}, targetFields = null) => {
+    const fieldsToApply =
+      Array.isArray(targetFields) && targetFields.length > 0 ? targetFields : METADATA_FIELD_NAMES;
+    const isFullApply = fieldsToApply.length === METADATA_FIELD_NAMES.length;
     const inferredAcademicYear = toAcademicYear(metadata.year);
 
-    setForm((prev) => ({
-      ...prev,
-      title: metadata.title || prev.title,
-      abstract: metadata.abstract || prev.abstract,
-      authors: metadata.authors || prev.authors,
-      year: metadata.year || prev.year,
-      doi: metadata.doi || prev.doi,
-      venue: metadata.venue || prev.venue,
-      keywords: metadata.keywords || prev.keywords,
-      academicYear: prev.academicYear || inferredAcademicYear,
-    }));
+    setForm((prev) => {
+      const next = { ...prev };
 
-    setConfidenceScores(confidence);
+      for (const fieldName of fieldsToApply) {
+        const incomingValue = String(metadata?.[fieldName] || '').trim();
+        if (incomingValue) {
+          next[fieldName] = incomingValue;
+        }
+      }
+
+      if (
+        (!prev.academicYear || isFullApply) &&
+        inferredAcademicYear &&
+        (isFullApply || fieldsToApply.includes('year'))
+      ) {
+        next.academicYear = inferredAcademicYear;
+      }
+
+      return next;
+    });
+
+    setConfidenceScores((prev) => {
+      if (isFullApply) {
+        return confidence;
+      }
+
+      const next = { ...prev };
+      for (const fieldName of fieldsToApply) {
+        const incomingScore = confidence?.[fieldName];
+        if (incomingScore !== null && incomingScore !== undefined) {
+          next[fieldName] = incomingScore;
+        }
+      }
+      return next;
+    });
   };
 
-  const runExtractionPipeline = async (pdfFile) => {
+  const runExtractionPipeline = async (pdfFile, options = {}) => {
+    const targetFields =
+      Array.isArray(options.targetFields) && options.targetFields.length > 0
+        ? options.targetFields
+        : null;
+    const targetFieldName = targetFields?.[0] || '';
+
     if (!pdfFile) {
       toast.error('Select an academic paper PDF first.');
       return;
@@ -464,6 +511,7 @@ export default function ExistingCapstoneUploadPage() {
       return;
     }
 
+    setActiveRescanField(targetFieldName || 'all');
     setExtractionStatus('extracting');
 
     try {
@@ -481,7 +529,19 @@ export default function ExistingCapstoneUploadPage() {
         return;
       }
 
-      applyExtractedMetadata(enriched.metadata, enriched.confidence);
+      applyExtractedMetadata(enriched.metadata, enriched.confidence, targetFields);
+
+      if (targetFieldName) {
+        const refreshedValue = String(enriched.metadata?.[targetFieldName] || '').trim();
+        if (refreshedValue) {
+          toast.success(`${METADATA_FIELD_LABELS[targetFieldName]} rescanned.`);
+        } else {
+          toast.warning(`No new ${METADATA_FIELD_LABELS[targetFieldName]} value was detected.`);
+        }
+
+        setExtractionStatus('success');
+        return;
+      }
 
       if (enriched.inferredFields.length > 0) {
         const sampleFields = enriched.inferredFields.slice(0, 4).join(', ');
@@ -492,6 +552,17 @@ export default function ExistingCapstoneUploadPage() {
 
       setExtractionStatus('success');
     } catch (error) {
+      if (targetFieldName) {
+        setExtractionStatus('error');
+        toast.error(
+          asUploadErrorMessage(
+            error,
+            `Failed to rescan ${METADATA_FIELD_LABELS[targetFieldName]}.`,
+          ),
+        );
+        return;
+      }
+
       const localFallback = enrichMetadataFromKeywords({
         metadata: {},
         confidence: {},
@@ -505,6 +576,52 @@ export default function ExistingCapstoneUploadPage() {
         `${asUploadErrorMessage(error, 'Extraction API is unavailable.')}` +
           ' Applied keyword-based local autofill. Please review before upload.',
       );
+    } finally {
+      setActiveRescanField('');
+    }
+  };
+
+  const handleRescanField = async (fieldName) => {
+    await runExtractionPipeline(files.academicPaperFile, { targetFields: [fieldName] });
+  };
+
+  const handleFeedbackForField = async (fieldName) => {
+    const fieldLabel = METADATA_FIELD_LABELS[fieldName] || fieldName;
+    const extractedValue = String(form[fieldName] || '').trim();
+
+    const correctedValue = window.prompt(
+      `Enter the corrected ${fieldLabel} value to improve extraction patterns:`,
+      extractedValue,
+    );
+
+    if (correctedValue === null) return;
+
+    const normalizedCorrection = String(correctedValue).trim();
+    if (!normalizedCorrection) {
+      toast.info('Feedback not submitted because the corrected value is empty.');
+      return;
+    }
+
+    setFeedbackBusyByField((prev) => ({ ...prev, [fieldName]: true }));
+
+    try {
+      await documentService.submitMetadataFeedback({
+        fieldName,
+        extractedValue,
+        correctedValue: normalizedCorrection,
+        confidence: confidenceScores[fieldName],
+        sourceFileName: files.academicPaperFile?.name || '',
+        context: 'archive/capstone-upload',
+      });
+
+      setForm((prev) => ({ ...prev, [fieldName]: normalizedCorrection }));
+      toast.success(`${fieldLabel} feedback submitted.`);
+    } catch (error) {
+      toast.error(
+        asUploadErrorMessage(error, `Failed to submit feedback for ${fieldLabel.toLowerCase()}.`),
+      );
+    } finally {
+      setFeedbackBusyByField((prev) => ({ ...prev, [fieldName]: false }));
     }
   };
 
@@ -529,6 +646,8 @@ export default function ExistingCapstoneUploadPage() {
     setFiles(INITIAL_FILES);
     setConfidenceScores({});
     setExtractionStatus('idle');
+    setActiveRescanField('');
+    setFeedbackBusyByField({});
 
     if (academicPaperInputRef.current) academicPaperInputRef.current.value = '';
     if (academicJournalInputRef.current) academicJournalInputRef.current.value = '';
@@ -537,8 +656,8 @@ export default function ExistingCapstoneUploadPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!files.academicPaperFile || !files.academicJournalFile) {
-      toast.error('Both Academic Paper and Academic Journal PDFs are required.');
+    if (!files.academicPaperFile) {
+      toast.error('Academic Paper PDF is required.');
       return;
     }
 
@@ -597,7 +716,7 @@ export default function ExistingCapstoneUploadPage() {
             Upload Archived Capstone
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Upload both final PDFs per capstone and auto-fill metadata from the academic paper.
+            Upload archived capstones and auto-fill metadata from the academic paper.
           </p>
         </div>
 
@@ -607,8 +726,8 @@ export default function ExistingCapstoneUploadPage() {
               <Sparkles className="h-6 w-6 text-primary" /> OCR Auto-Fill Capstone Upload
             </CardTitle>
             <CardDescription className="mt-2 text-base">
-              This creates one archived capstone bundle with both files: Academic Paper and Academic
-              Journal.
+              Academic Paper is required. Academic Journal is optional and can be added for
+              plagiarism cross-checking against new submissions.
             </CardDescription>
           </CardHeader>
 
@@ -616,8 +735,8 @@ export default function ExistingCapstoneUploadPage() {
             <Alert variant="info">
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Select the Academic Paper first to run OCR extraction, then add the Academic Journal
-                file.
+                Select the Academic Paper first to run OCR extraction. Academic Journal is optional
+                and can be added for plagiarism cross-checking.
               </AlertDescription>
             </Alert>
 
@@ -665,7 +784,13 @@ export default function ExistingCapstoneUploadPage() {
                         onClick={() => runExtractionPipeline(files.academicPaperFile)}
                         disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
                       >
-                        Rescan
+                        {activeRescanField === 'all' && extractionStatus === 'extracting' ? (
+                          <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Rescanning All...
+                          </>
+                        ) : (
+                          'Rescan All'
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -686,10 +811,10 @@ export default function ExistingCapstoneUploadPage() {
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-foreground">
-                        Academic Journal (PDF) *
+                        Academic Journal (PDF) (Optional)
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Required second file for the same capstone archive bundle.
+                        Optional source used by plagiarism checker cross-checking.
                       </p>
                     </div>
 
@@ -708,7 +833,7 @@ export default function ExistingCapstoneUploadPage() {
                       onClick={() => academicJournalInputRef.current?.click()}
                     >
                       <Files className="h-4 w-4" />
-                      Select Academic Journal
+                      Select Academic Journal (Optional)
                     </Button>
                   </div>
 
@@ -771,8 +896,8 @@ export default function ExistingCapstoneUploadPage() {
               <div className="space-y-6">
                 <h3 className="border-b pb-2 text-lg font-semibold">2. Verify Metadata</h3>
 
-                <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
-                  <div className="md:col-span-2">
+                <div className="space-y-5">
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Title', 'title')}
                     <Input
                       id="title"
@@ -781,9 +906,41 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="e.g. Enhancing OCR Performance..."
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('title')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'title' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Title Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('title')}
+                        disabled={Boolean(feedbackBusyByField.title)}
+                      >
+                        {feedbackBusyByField.title ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Title Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Abstract', 'abstract')}
                     <Textarea
                       id="abstract"
@@ -793,9 +950,41 @@ export default function ExistingCapstoneUploadPage() {
                       placeholder="Provide a brief summary of the paper..."
                       className="min-h-[140px] resize-y"
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('abstract')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'abstract' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Abstract Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('abstract')}
+                        disabled={Boolean(feedbackBusyByField.abstract)}
+                      >
+                        {feedbackBusyByField.abstract ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Abstract Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Authors', 'authors')}
                     <Input
                       id="authors"
@@ -804,9 +993,41 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="e.g. Jane Doe, John Smith"
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('authors')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'authors' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Authors Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('authors')}
+                        disabled={Boolean(feedbackBusyByField.authors)}
+                      >
+                        {feedbackBusyByField.authors ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Authors Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Publication Year', 'year')}
                     <Input
                       id="year"
@@ -815,9 +1036,41 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="e.g. 2023"
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('year')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'year' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Year Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('year')}
+                        disabled={Boolean(feedbackBusyByField.year)}
+                      >
+                        {feedbackBusyByField.year ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Year Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     <div className="mb-1.5 flex items-center gap-2">
                       <Label htmlFor="academicYear" className="font-medium">
                         Academic Year
@@ -843,7 +1096,7 @@ export default function ExistingCapstoneUploadPage() {
                     </select>
                   </div>
 
-                  <div>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('DOI', 'doi')}
                     <Input
                       id="doi"
@@ -852,9 +1105,41 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="e.g. 10.1016/..."
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('doi')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'doi' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan DOI Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('doi')}
+                        disabled={Boolean(feedbackBusyByField.doi)}
+                      >
+                        {feedbackBusyByField.doi ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send DOI Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Publication Venue', 'venue')}
                     <Input
                       id="venue"
@@ -863,9 +1148,41 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="Journal or Conference name"
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('venue')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'venue' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Venue Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('venue')}
+                        disabled={Boolean(feedbackBusyByField.venue)}
+                      >
+                        {feedbackBusyByField.venue ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Venue Feedback
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
                     {renderLabelWithConfidence('Keywords', 'keywords')}
                     <Input
                       id="keywords"
@@ -874,6 +1191,38 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleInputChange}
                       placeholder="E.g. OCR, Machine Learning, Transformers"
                     />
+                    <div className="flex flex-col gap-2 pt-1 sm:max-w-xs">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleRescanField('keywords')}
+                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'keywords' && extractionStatus === 'extracting' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Rescan Keywords Only
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="justify-start gap-2"
+                        onClick={() => handleFeedbackForField('keywords')}
+                        disabled={Boolean(feedbackBusyByField.keywords)}
+                      >
+                        {feedbackBusyByField.keywords ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageSquarePlus className="h-3.5 w-3.5" />
+                        )}
+                        Send Keywords Feedback
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

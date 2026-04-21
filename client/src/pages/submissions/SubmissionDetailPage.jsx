@@ -21,6 +21,7 @@ import {
 import { ROLES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 import {
   BarChart2,
+  ClipboardCheck,
   FileText,
   ExternalLink,
   ArrowLeft,
@@ -145,6 +146,14 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               </a>
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => navigate('/plagiarism-checker')}
+            className="sm:w-auto"
+          >
+            <ClipboardCheck className="mr-2 h-4 w-4" />
+            Open Archive Checker
+          </Button>
           {submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED && (
             <Button
               variant="outline"

@@ -171,6 +171,33 @@ describe('Teams API — /api/teams', () => {
       expect(res.body.success).toBe(true);
     });
 
+    it('should reject invite when the team is already finalized', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'locked-invite-leader@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Locked Invite Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      const lockRes = await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+      expect(lockRes.status).toBe(200);
+
+      await createAuthenticatedUserWithRole('student', {
+        email: 'locked-invite-candidate@example.com',
+      });
+
+      const inviteRes = await leaderAgent.post(`/api/teams/${teamId}/invite`).send({
+        email: 'locked-invite-candidate@example.com',
+      });
+
+      expect(inviteRes.status).toBe(409);
+      expect(inviteRes.body.success).toBe(false);
+      expect(inviteRes.body.error.code).toBe('TEAM_ALREADY_LOCKED');
+    });
+
     it('should reject invite from non-student role', async () => {
       const { agent: adviserAgent } = await createAuthenticatedUserWithRole('adviser', {
         email: 'adviser-invite@example.com',
@@ -276,6 +303,63 @@ describe('Teams API — /api/teams', () => {
 
       // Keep linter quiet for intentionally created auth principal used as adviser reference.
       expect(instructorAgent).toBeDefined();
+    });
+
+    it('should reject accepting an invite after the team is finalized', async () => {
+      const { user: instructor } = await createAuthenticatedUserWithRole('instructor', {
+        email: 'locked-accept-instructor@example.com',
+      });
+
+      const { section } = await createCourseAndSection(instructor._id);
+
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'locked-accept-leader@example.com',
+      });
+
+      const { agent: inviteeAgent, user: invitee } = await createAuthenticatedUserWithRole(
+        'student',
+        {
+          email: 'locked-accept-invitee@example.com',
+          sectionId: section._id,
+          instructorId: instructor._id,
+        },
+      );
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Locked Accept Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      const inviteRes = await leaderAgent.post(`/api/teams/${teamId}/invite`).send({
+        email: 'locked-accept-invitee@example.com',
+      });
+
+      expect(inviteRes.status).toBe(201);
+      const inviteId = inviteRes.body.data.invite._id;
+      const inviteToken = inviteRes.body.data.invite.token;
+
+      const lockRes = await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+      expect(lockRes.status).toBe(200);
+
+      const acceptRes = await inviteeAgent
+        .post(`/api/teams/invites/${inviteToken}/accept`)
+        .send({});
+
+      expect(acceptRes.status).toBe(409);
+      expect(acceptRes.body.success).toBe(false);
+      expect(acceptRes.body.error.code).toBe('TEAM_ALREADY_LOCKED');
+
+      const refreshedInvite = await TeamInvite.findById(inviteId).select('status');
+      expect(refreshedInvite.status).toBe('expired');
+
+      const refreshedInvitee = await User.findById(invitee._id).select('teamId');
+      expect(refreshedInvitee.teamId).toBeNull();
+
+      const refreshedTeam = await Team.findById(teamId).select('members');
+      expect(refreshedTeam.members.map((memberId) => memberId.toString())).not.toContain(
+        invitee._id.toString(),
+      );
     });
 
     it('TC-TEAM-004 should allow invited student to decline invite without joining team', async () => {

@@ -30,6 +30,7 @@ const navItems = {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
     { label: 'Archive', icon: Archive, path: '/archive' },
+    { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
   ],
   // Student-specific
   student: [

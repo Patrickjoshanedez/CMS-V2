@@ -711,9 +711,16 @@ export default function CreateProjectPage() {
       return;
     }
 
-    const resolvedAcademicYear = team?.academicYear || form.academicYear;
-    const resolvedSectionId =
-      typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id || form.sectionId;
+    const normalizedTeamAcademicYear =
+      typeof team?.academicYear === 'string' ? team.academicYear.trim() : '';
+    const normalizedFormAcademicYear =
+      typeof form.academicYear === 'string' ? form.academicYear.trim() : '';
+    const resolvedAcademicYear = normalizedTeamAcademicYear || normalizedFormAcademicYear;
+
+    const normalizedTeamSectionId =
+      typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id;
+    const normalizedFormSectionId = typeof form.sectionId === 'string' ? form.sectionId.trim() : '';
+    const resolvedSectionId = team ? normalizedTeamSectionId || '' : normalizedFormSectionId;
 
     if (!resolvedAcademicYear?.length) {
       toast.error('Team academic year is missing. Make sure your team is finalized.');

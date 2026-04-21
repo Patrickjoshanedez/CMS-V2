@@ -31,8 +31,8 @@ const pdfMetadataUpload = createMemoryUpload(pdfMetadataMaxBytes, 1);
 const avatarUpload = createMemoryUpload(5 * 1024 * 1024, 1);
 
 /**
- * Multer instance for archive bundle uploads requiring two files:
- * one academic paper and one journal paper.
+ * Multer instance for archive bundle uploads:
+ * one required academic paper and one optional journal paper.
  */
 const archiveDualUpload = createMemoryUpload(maxBytes, 2);
 
