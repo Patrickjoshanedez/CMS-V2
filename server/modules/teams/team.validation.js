@@ -12,8 +12,9 @@ export const createTeamSchema = z.object({
     .optional()
     .or(z.literal('')),
   academicYear: z
-    .string({ required_error: 'Academic year is required' })
-    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY (e.g. 2024-2025)'),
+    .string()
+    .regex(/^[0-9]{4}-[0-9]{4}$/, 'Academic year must follow the format YYYY-YYYY')
+    .optional(),
 });
 
 export const inviteMemberSchema = z.object({
@@ -36,7 +37,10 @@ export const listTeamsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY')
     .optional(),
-  sectionId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId').optional(),
+  sectionId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId')
+    .optional(),
   search: z.string().trim().max(100).optional(),
 });
 
@@ -64,10 +68,5 @@ export const transferTeamLeadershipSchema = z.object({
 });
 
 export const updateTeamGoogleDocLinkSchema = z.object({
-  googleDocUrl: z
-    .string()
-    .trim()
-    .max(2000, 'Google Docs URL is too long')
-    .optional()
-    .default(''),
+  googleDocUrl: z.string().trim().max(2000, 'Google Docs URL is too long').optional().default(''),
 });

@@ -41,7 +41,7 @@ const navItems = {
   // Instructor/admin-specific
   instructor: [
     { label: 'Users', icon: Users, path: '/users' },
-    { label: 'Projects', icon: FileText, path: '/projects' },
+    { label: 'Instructor Review', icon: ClipboardCheck, path: '/projects' },
     { label: 'Reports', icon: BarChart3, path: '/reports' },
     { label: 'Upload Archived Capstone', icon: Upload, path: '/archive/upload/capstone' },
     { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
@@ -50,7 +50,7 @@ const navItems = {
   faculty: [
     { label: 'Faculty Members Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Faculty Team Review', icon: ClipboardCheck, path: '/adviser/team-review' },
-    { label: 'Faculty Projects', icon: FileText, path: '/projects' },
+    { label: 'Instructor Review', icon: ClipboardCheck, path: '/projects' },
   ],
 };
 

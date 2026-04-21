@@ -4,6 +4,8 @@ import puppeteer from 'puppeteer-core';
 // Width: 13.333in = 338.5mm, Height: 7.5in = 190.5mm
 const SLIDE_WIDTH_MM = 338.5;
 const SLIDE_HEIGHT_MM = 190.5;
+const MAX_CONTENT_LINE_LENGTH = 90;
+const MAX_LINES_PER_CONTENT_SLIDE = 6;
 
 function escapeHtml(text = '') {
   return text
@@ -16,6 +18,62 @@ function escapeHtml(text = '') {
 
 function formatSlideBody(text = '') {
   return escapeHtml(text).replace(/\n/g, '<br />');
+}
+
+function wrapLine(line = '', maxChars = MAX_CONTENT_LINE_LENGTH) {
+  const normalizedLine = line.replace(/^[-•]\s*/, '').trim();
+  if (!normalizedLine) {
+    return [];
+  }
+
+  const words = normalizedLine.split(/\s+/);
+  const wrapped = [];
+  let current = '';
+
+  words.forEach((word) => {
+    if (!current) {
+      current = word;
+      return;
+    }
+
+    const candidate = `${current} ${word}`;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+      return;
+    }
+
+    wrapped.push(current);
+    current = word;
+  });
+
+  if (current) {
+    wrapped.push(current);
+  }
+
+  return wrapped;
+}
+
+function chunkBySize(items = [], size = MAX_LINES_PER_CONTENT_SLIDE) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function buildBodyChunks(text = '') {
+  const rawLines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const wrappedLines = rawLines.flatMap((line) => wrapLine(line, MAX_CONTENT_LINE_LENGTH));
+
+  if (wrappedLines.length === 0) {
+    return [['No details provided.']];
+  }
+
+  return chunkBySize(wrappedLines, MAX_LINES_PER_CONTENT_SLIDE);
 }
 
 function buildDeckHtml({ title, deckData }) {
@@ -82,25 +140,25 @@ function buildDeckHtml({ title, deckData }) {
   `;
 
   const contentSlidesHtml = slides
-    .map(
-      (slide) => `
+    .flatMap((slide) => {
+      const bodyChunks = buildBodyChunks(slide.body);
+
+      return bodyChunks.map((chunk, chunkIndex) => {
+        const heading = chunkIndex === 0 ? slide.heading : `${slide.heading} (continued)`;
+
+        return `
       <section class="slide content-slide">
         <main>
-          <h1>${slide.heading}</h1>
+          <h1>${escapeHtml(heading)}</h1>
           <ul>
-            ${formatSlideBody(slide.body)
-              .split('<br />')
-              .map((line) => {
-                const trimmed = line.replace(/^- /, '').replace(/^• /, '').trim();
-                return trimmed ? `<li>${trimmed}</li>` : '';
-              })
-              .join('')}
+            ${chunk.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}
           </ul>
         </main>
         ${footerHtml}
       </section>
-    `,
-    )
+    `;
+      });
+    })
     .join('');
 
   return `
@@ -260,6 +318,8 @@ function buildDeckHtml({ title, deckData }) {
       .content-slide li {
         margin-bottom: 3.81mm;
         font-weight: 500;
+        word-break: break-word;
+        overflow-wrap: anywhere;
       }
       .content-slide li::marker {
         color: #999;

@@ -221,7 +221,6 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: [20, 'Title proposal description must be at least 20 characters'],
-      maxlength: [1000, 'Title proposal description must not exceed 1000 characters'],
     },
     capstoneType: {
       type: [String],

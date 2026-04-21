@@ -386,8 +386,16 @@ const buildArchivedCorpus = async () => {
       lazyExtractions < ARCHIVE_SCAN_MAX_LAZY_EXTRACTIONS
     ) {
       try {
-        const fileBuffer = await storageService.downloadFile(candidate.storageKey);
-        const extracted = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+        let extracted = null;
+        if (typeof storageService.downloadTextSidecar === 'function') {
+          extracted = await storageService.downloadTextSidecar(candidate.storageKey);
+        }
+
+        if (!extracted) {
+          const fileBuffer = await storageService.downloadFile(candidate.storageKey);
+          extracted = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+        }
+
         sourceText = normalizeWhitespace(extracted || '');
 
         if (sourceText) {

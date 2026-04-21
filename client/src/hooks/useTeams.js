@@ -16,6 +16,7 @@ export const teamKeys = {
   my: (userId) => [...teamKeys.all, 'my', userId],
   lists: () => [...teamKeys.all, 'list'],
   list: (filters) => [...teamKeys.lists(), filters],
+  createInviteCandidates: (search) => [...teamKeys.all, 'create-invite-candidates', search],
   inviteCandidates: (teamId, search) => [...teamKeys.all, 'invite-candidates', teamId, search],
 };
 
@@ -79,6 +80,25 @@ export function useInviteCandidates(teamId, search, options = {}) {
   });
 }
 
+/**
+ * Search student invite candidates before a team is created.
+ */
+export function useCreateTeamInviteCandidates(search, options = {}) {
+  return useQuery({
+    queryKey: teamKeys.createInviteCandidates(search),
+    queryFn: async () => {
+      const { data } = await teamService.listCreateTeamInviteCandidates({
+        search,
+        limit: 8,
+      });
+      return data.data.candidates;
+    },
+    enabled: (search?.trim()?.length ?? 0) >= 2,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+}
+
 /* ────────── Mutation Helper ────────── */
 
 /**
@@ -104,7 +124,7 @@ function useTeamMutation(mutationFn, options = {}) {
 
 /**
  * Create a new team.
- * @param {Object} data — { name: string, academicYear: string }
+ * @param {Object} data — { name: string }
  */
 export function useCreateTeam(options = {}) {
   return useTeamMutation(async (data) => {

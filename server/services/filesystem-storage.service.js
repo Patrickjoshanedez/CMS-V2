@@ -10,9 +10,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import zlib from 'zlib';
+import { promisify } from 'util';
 import AppError from '../utils/AppError.js';
 import env from '../config/env.js';
 import { STORAGE_ARCHIVE_PREFIXES, STORAGE_ROOT_PREFIXES } from '@cms/shared';
+import { extractText } from '../utils/extractText.js';
+
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,6 +197,20 @@ class FilesystemStorageService {
       // Write the file
       await fs.writeFile(key, buffer);
 
+      if (contentType === 'application/pdf') {
+        try {
+          const text = await extractText(buffer, contentType);
+          if (text) {
+            const compressed = await gzipAsync(Buffer.from(text, 'utf-8'));
+            const sidecarPath = `${key}.txt.gz`;
+            await fs.writeFile(sidecarPath, compressed);
+            metadata.hasTextSidecar = true;
+          }
+        } catch (err) {
+          console.warn('[FilesystemStorageService] Failed to extract text sidecar:', err.message);
+        }
+      }
+
       // Store metadata alongside the file
       const metadataPath = `${key}.meta.json`;
       const metadataContent = {
@@ -255,20 +275,20 @@ class FilesystemStorageService {
    * In development, this returns a relative URL that can be served by Express.
    * For public access, configure a static file middleware on /storage route.
    *
-  * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
+   * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
    * @returns {Promise<string>} Public URL or local path
    * @throws {AppError} If file doesn't exist
    */
   async getSignedUrl(key) {
     try {
-    const resolvedPath = this._resolveStoragePath(key);
+      const resolvedPath = this._resolveStoragePath(key);
 
       // Check if file exists
-    await fs.access(resolvedPath);
+      await fs.access(resolvedPath);
 
       // Return a URL path relative to the base uploads directory
       // This expects a static middleware mounted at /storage in Express
-    const relativePath = path.relative(path.resolve(this.baseDir), resolvedPath);
+      const relativePath = path.relative(path.resolve(this.baseDir), resolvedPath);
       const url = `/storage/${relativePath.replace(/\\/g, '/')}`;
 
       return url;
@@ -309,6 +329,25 @@ class FilesystemStorageService {
   }
 
   /**
+   * Download a text sidecar from the filesystem as a Buffer, and uncompress it.
+   */
+  async downloadTextSidecar(key) {
+    try {
+      const resolvedPath = this._resolveStoragePath(key);
+      const sidecarPath = `${resolvedPath}.txt.gz`;
+      const compressed = await fs.readFile(sidecarPath);
+      const textBuffer = await gunzipAsync(compressed);
+      return textBuffer.toString('utf-8');
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return null;
+      }
+      console.warn('[FilesystemStorageService] Failed to download sidecar:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Delete a file from the filesystem.
    *
    * @param {string} key - Storage key (absolute path, relative path, or /storage URL)
@@ -327,6 +366,14 @@ class FilesystemStorageService {
         await fs.unlink(metadataPath);
       } catch {
         // Metadata file may not exist, that's fine
+      }
+
+      // Also delete the text sidecar if it exists
+      const sidecarPath = `${resolvedPath}.txt.gz`;
+      try {
+        await fs.unlink(sidecarPath);
+      } catch {
+        // text sidecar may not exist
       }
     } catch (error) {
       if (error.isOperational) {

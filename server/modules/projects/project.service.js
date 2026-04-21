@@ -363,11 +363,28 @@ class ProjectService {
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
     });
     if (existingProject) {
-      throw new AppError(
-        'Your team already has an active project. Only one active project per team is allowed.',
-        409,
-        'PROJECT_EXISTS',
-      );
+      const isPendingReview = existingProject.titleStatus === TITLE_STATUSES.SUBMITTED;
+      const isDraft = existingProject.titleStatus === TITLE_STATUSES.DRAFT;
+      const isRevisionRequired = existingProject.titleStatus === TITLE_STATUSES.REVISION_REQUIRED;
+      const proposalCount = Array.isArray(existingProject.titleProposals)
+        ? existingProject.titleProposals.length
+        : 0;
+
+      let errorMessage;
+      if (isPendingReview) {
+        errorMessage = `Your team already has ${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} pending instructor review. You cannot submit another set of proposals until the current ones are reviewed. Please wait for the instructor's decision.`;
+      } else if (isDraft) {
+        errorMessage =
+          'Your team already has a project in draft status. Please go to My Capstone to edit and submit your existing proposals instead of creating a new project.';
+      } else if (isRevisionRequired) {
+        errorMessage =
+          'Your team has proposals that require revision. Please go to My Capstone to address the instructor feedback and resubmit instead of creating a new project.';
+      } else {
+        errorMessage =
+          'Your team already has an active project. Only one active project per team is allowed.';
+      }
+
+      throw new AppError(errorMessage, 409, 'PROJECT_EXISTS');
     }
 
     // Similarity check against all non-rejected projects

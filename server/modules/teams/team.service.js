@@ -152,7 +152,7 @@ class TeamService {
   /**
    * Create a new project team. The requesting student becomes the leader.
    * @param {string} userId - The ID of the student creating the team.
-   * @param {Object} data - { name?, academicYear }
+   * @param {Object} data - { name? }
    * @returns {Object} { team }
    */
   async createTeam(userId, data) {
@@ -192,16 +192,26 @@ class TeamService {
 
     let sectionId = null;
     let courseId = null;
+    let academicYear = typeof data.academicYear === 'string' ? data.academicYear.trim() : '';
 
     if (user.sectionId) {
+      const section = await Section.findById(user.sectionId).select('courseId academicYear').lean();
       sectionId = user.sectionId;
-      const section = await Section.findById(user.sectionId).select('courseId').lean();
       courseId = section?.courseId || null;
+      academicYear = section?.academicYear || academicYear;
+    }
+
+    if (!academicYear) {
+      throw new AppError(
+        'Please complete your profile section before creating a team.',
+        400,
+        'PROFILE_SECTION_REQUIRED',
+      );
     }
 
     const team = await Team.create({
       name: teamName,
-      academicYear: data.academicYear,
+      academicYear,
       leaderId: userId,
       members: [userId],
       sectionId,
@@ -711,6 +721,107 @@ class TeamService {
     if (staleTeamIdUpdates.length > 0) {
       await User.bulkWrite(staleTeamIdUpdates, { ordered: false });
     }
+
+    return { candidates };
+  }
+
+  /**
+   * Search student invite candidates before creating a team.
+   * @param {string} leaderId
+   * @param {Object} query - { search?, limit? }
+   * @returns {Object} { candidates }
+   */
+  async listCreateTeamInviteCandidates(leaderId, query) {
+    const leader = await User.findById(leaderId).select('sectionId');
+    if (!leader) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const search = typeof query.search === 'string' ? query.search.trim() : '';
+    const limit = Number.isFinite(query.limit) ? query.limit : 8;
+
+    const filter = {
+      role: ROLES.STUDENT,
+      isActive: true,
+      _id: { $ne: leaderId },
+    };
+
+    if (search) {
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select('firstName middleName lastName email sectionId instructorId teamId')
+      .sort({ firstName: 1, lastName: 1 })
+      .limit(limit);
+
+    const candidateIds = users.map((user) => user._id);
+    const teamsContainingCandidates = await Team.find({ members: { $in: candidateIds } })
+      .select('members')
+      .lean();
+
+    const memberOfAnotherTeamSet = new Set();
+    for (const existingTeam of teamsContainingCandidates) {
+      for (const memberId of existingTeam.members || []) {
+        memberOfAnotherTeamSet.add(memberId.toString());
+      }
+    }
+
+    const scopedSectionId = leader?.sectionId || null;
+
+    const candidates = users
+      .map((user) => {
+        const userId = user._id.toString();
+        const inAnotherSection = Boolean(
+          scopedSectionId &&
+          user.sectionId &&
+          user.sectionId.toString() !== scopedSectionId.toString(),
+        );
+        const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
+        const missingInstructor = !user.instructorId;
+
+        const warnings = [];
+
+        if (inAnotherSection) {
+          warnings.push({
+            code: 'DIFFERENT_SECTION',
+            message:
+              'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
+            blocksInvite: false,
+          });
+        }
+
+        if (alreadyInTeam) {
+          warnings.push({
+            code: 'ALREADY_IN_TEAM',
+            message: `${user.fullName || 'This student'} already has a team.`,
+            blocksInvite: true,
+          });
+        }
+
+        if (missingInstructor) {
+          warnings.push({
+            code: 'NO_INSTRUCTOR',
+            message:
+              'This student does not have an instructor yet. They should complete their profile before joining a team.',
+            blocksInvite: true,
+          });
+        }
+
+        return {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          canInvite: !warnings.some((warning) => warning.blocksInvite),
+          warnings,
+        };
+      })
+      .sort((a, b) => Number(b.canInvite) - Number(a.canInvite));
 
     return { candidates };
   }

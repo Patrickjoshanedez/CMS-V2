@@ -156,12 +156,22 @@ function ProjectInfoCard({ project }) {
     ? capstoneRaw.join(', ')
     : capstoneRaw || `Capstone ${project.capstonePhase}`;
 
+  const isProposalPhase = project.titleStatus !== TITLE_STATUSES.APPROVED;
+  const teamName = project.teamId?.name || 'Team';
+  const proposalTitles = Array.isArray(project.titleProposals)
+    ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
+    : [];
+  const proposalCount = proposalTitles.length;
+
+  // During proposal phase, show "{team name} Title Proposal" instead of first proposal title
+  const displayTitle = isProposalPhase ? `${teamName} Title Proposal` : project.title;
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-xl">{project.title}</CardTitle>
+            <CardTitle className="text-xl">{displayTitle}</CardTitle>
             <CardDescription className="flex flex-wrap items-center gap-2">
               <TitleStatusBadge status={project.titleStatus} />
               <ProjectStatusBadge status={project.projectStatus} />
@@ -170,11 +180,19 @@ function ProjectInfoCard({ project }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Abstract */}
-        {project.abstract && (
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Overview</p>
-            <p className="mt-1 text-sm">{project.abstract}</p>
+        {/* Show submitted proposals during proposal phase */}
+        {isProposalPhase && proposalCount > 0 && (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Submitted Proposals ({proposalCount})
+            </p>
+            <div className="space-y-1">
+              {proposalTitles.map((title, idx) => (
+                <p key={`proposal-${idx}`} className="text-sm text-foreground/80">
+                  {idx + 1}. {title}
+                </p>
+              ))}
+            </div>
           </div>
         )}
 
@@ -562,15 +580,40 @@ function PendingModificationCard({ project }) {
   );
 }
 
-function SubmittedCard() {
+function SubmittedCard({ project }) {
+  const proposalTitles = Array.isArray(project?.titleProposals)
+    ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
+    : [];
+  const proposalCount = proposalTitles.length;
+
   return (
-    <Card>
+    <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30">
       <CardHeader>
-        <CardTitle className="text-base">Under Review</CardTitle>
-        <CardDescription>
-          Your title has been submitted and is awaiting instructor review.
+        <CardTitle className="flex items-center gap-2 text-base text-green-800 dark:text-green-200">
+          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+          Proposals Submitted Successfully
+        </CardTitle>
+        <CardDescription className="text-green-700 dark:text-green-300">
+          {proposalCount > 0
+            ? `Your ${proposalCount} proposal${proposalCount !== 1 ? 's have' : ' has'} been submitted and ${proposalCount !== 1 ? 'are' : 'is'} awaiting instructor review. You will be notified once the instructor makes a decision.`
+            : 'Your proposals have been submitted and are awaiting instructor review.'}
         </CardDescription>
       </CardHeader>
+      {proposalCount > 0 && (
+        <CardContent className="pt-0">
+          <div className="rounded-md border border-green-300/50 bg-white/60 dark:border-green-700/50 dark:bg-black/20 p-3 space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-400">
+              Proposals Under Review
+            </p>
+            {proposalTitles.map((title, idx) => (
+              <div key={`submitted-${idx}`} className="flex items-center gap-2 text-sm">
+                <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span className="text-green-800 dark:text-green-200">{title}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -751,7 +794,7 @@ function TitleActionsSection({ project }) {
     case TITLE_STATUSES.DRAFT:
       return <EditTitleForm project={project} />;
     case TITLE_STATUSES.SUBMITTED:
-      return <SubmittedCard />;
+      return <SubmittedCard project={project} />;
     case TITLE_STATUSES.APPROVED:
       return <RequestModificationForm project={project} />;
     case TITLE_STATUSES.REVISION_REQUIRED:

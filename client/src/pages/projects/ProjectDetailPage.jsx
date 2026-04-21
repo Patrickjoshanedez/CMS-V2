@@ -146,7 +146,7 @@ export function resolveArchiveBackContext(locationState, locationSearch) {
   return {
     fromArchive,
     backDestination: locationState?.returnTo || (fromArchive ? '/archive' : '/projects'),
-    backLabel: fromArchive ? 'Back to Search Results' : 'Back to Projects',
+    backLabel: fromArchive ? 'Back to Research Archive' : 'Back to Instructor Review',
   };
 }
 
@@ -481,25 +481,28 @@ function TitleProposalsSection({ project, userRole }) {
  * Reusable project info panel — title, badges, abstract, keywords, meta.
  */
 function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
+  const isArchived =
+    Boolean(project.isArchived) || project.projectStatus === PROJECT_STATUSES.ARCHIVED;
   const phaseNumber = Number(project.capstonePhase);
-  const phaseLabel =
-    phaseNumber === CAPSTONE_PHASES.PHASE_1
+  const phaseLabel = isArchived
+    ? 'Archived Research'
+    : phaseNumber === CAPSTONE_PHASES.PHASE_1
       ? 'Proposal'
       : phaseNumber
         ? `Capstone ${phaseNumber}`
         : '—';
 
-  const allProjectTitles = getUniqueProjectTitles(project);
-  const approvedProjectTitle = getApprovedProjectTitle(project);
-  const focusApprovedTitle = Boolean(approvedProjectTitle);
+  const isProposalPhase = project.titleStatus !== TITLE_STATUSES.APPROVED;
+  const teamName = project.teamId?.name || 'Team';
+  const proposalCount = Array.isArray(project.titleProposals) ? project.titleProposals.length : 0;
 
-  const primaryTitle =
-    (focusApprovedTitle ? approvedProjectTitle : allProjectTitles[0]) || 'Untitled project';
-  const secondaryTitles = focusApprovedTitle
-    ? []
-    : allProjectTitles.filter(
-        (title) => normalizeTitleKey(title) !== normalizeTitleKey(primaryTitle),
-      );
+  // During proposal phase, show "{team name} Title Proposal" as the primary title
+  const primaryTitle = isProposalPhase
+    ? `${teamName} Title Proposal`
+    : getApprovedProjectTitle(project) || getUniqueProjectTitles(project)[0] || 'Untitled project';
+
+  // Show individual proposal titles as secondary items during proposal phase
+  const proposalTitles = isProposalPhase ? getUniqueProjectTitles(project) : [];
 
   return (
     <Card>
@@ -510,21 +513,46 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
             <CardDescription>
               {project.academicYear || '—'} · {phaseLabel}
             </CardDescription>
-            {secondaryTitles.length > 0 ? (
-              <div className="pt-1 space-y-1">
-                {secondaryTitles.map((title, index) => (
-                  <p
-                    key={`${title}-${index}`}
-                    className="text-xl font-semibold tracking-tight text-foreground"
-                  >
-                    {title}
+            {/* Show pending proposals status prominently */}
+            {isProposalPhase && proposalCount > 0 && (
+              <div className="pt-2">
+                <div
+                  className={`rounded-md px-3 py-2 text-sm ${
+                    project.titleStatus === TITLE_STATUSES.SUBMITTED
+                      ? 'border border-amber-300/50 bg-amber-50 text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300'
+                      : project.titleStatus === TITLE_STATUSES.REVISION_REQUIRED
+                        ? 'border border-orange-300/50 bg-orange-50 text-orange-800 dark:border-orange-700/50 dark:bg-orange-950/30 dark:text-orange-300'
+                        : 'border border-blue-300/50 bg-blue-50 text-blue-800 dark:border-blue-700/50 dark:bg-blue-950/30 dark:text-blue-300'
+                  }`}
+                >
+                  <p className="font-medium">
+                    {project.titleStatus === TITLE_STATUSES.SUBMITTED
+                      ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} pending instructor review`
+                      : project.titleStatus === TITLE_STATUSES.REVISION_REQUIRED
+                        ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} — revision required`
+                        : project.titleStatus === TITLE_STATUSES.DRAFT
+                          ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} in draft`
+                          : `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''}`}
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* List individual proposal titles during proposal phase */}
+            {proposalTitles.length > 0 && (
+              <div className="pt-2 space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Submitted Proposals
+                </p>
+                {proposalTitles.map((title, index) => (
+                  <p key={`${title}-${index}`} className="text-sm text-foreground/80">
+                    {index + 1}. {title}
                   </p>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
           <div className="flex gap-2">
-            <TitleStatusBadge status={project.titleStatus} />
+            {!isArchived && <TitleStatusBadge status={project.titleStatus} />}
             <ProjectStatusBadge status={project.projectStatus} />
           </div>
         </div>
@@ -533,7 +561,7 @@ function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
         {/* Abstract */}
         {project.abstract && (
           <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Overview</p>
+            <p className="mb-1 text-sm font-medium text-muted-foreground">Abstract</p>
             <p className="text-sm leading-relaxed">{project.abstract}</p>
           </div>
         )}

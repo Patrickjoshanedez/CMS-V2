@@ -75,8 +75,7 @@ describe('Teams API — /api/teams', () => {
       });
 
       const res = await agent.post('/api/teams').send({
-        name: 'AB', // too short (min 3)
-        academicYear: '2025', // wrong format (must be YYYY-YYYY)
+        name: 'A'.repeat(101), // exceeds max length
       });
 
       expect(res.status).toBe(400);

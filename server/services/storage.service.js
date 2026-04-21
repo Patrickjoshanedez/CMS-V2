@@ -13,10 +13,16 @@ import {
   ListBucketsCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import zlib from 'zlib';
+import { promisify } from 'util';
 import s3Client from '../config/storage.js';
 import env from '../config/env.js';
 import AppError from '../utils/AppError.js';
 import { STORAGE_ARCHIVE_PREFIXES, STORAGE_ROOT_PREFIXES } from '@cms/shared';
+import { extractText } from '../utils/extractText.js';
+
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
 class StorageService {
   constructor() {
@@ -487,6 +493,28 @@ class StorageService {
     this._validateConfiguration();
 
     try {
+      if (contentType === 'application/pdf') {
+        try {
+          const text = await extractText(buffer, contentType);
+          if (text) {
+            const compressed = await gzipAsync(Buffer.from(text, 'utf-8'));
+            const sidecarCommand = new PutObjectCommand({
+              Bucket: this.bucket,
+              Key: `${key}.txt.gz`,
+              Body: compressed,
+              ContentType: 'application/gzip',
+              Metadata: {
+                type: 'extracted-text',
+              },
+            });
+            await s3Client.send(sidecarCommand);
+            metadata.hasTextSidecar = 'true';
+          }
+        } catch (err) {
+          console.warn('[StorageService] Failed to extract text sidecar:', err.message);
+        }
+      }
+
       const command = new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
@@ -615,6 +643,36 @@ class StorageService {
   }
 
   /**
+   * Download the compressed text sidecar and return uncompressed string.
+   */
+  async downloadTextSidecar(key) {
+    this._validateConfiguration();
+
+    const normalizedKey = this._normalizeStorageKey(key);
+    if (!normalizedKey) {
+      return null;
+    }
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: `${normalizedKey}.txt.gz`,
+      });
+
+      const response = await s3Client.send(command);
+      const buffer = await response.Body.transformToByteArray();
+      const textBuffer = await gunzipAsync(buffer);
+      return textBuffer.toString('utf-8');
+    } catch (error) {
+      if (error.name === 'NoSuchKey' || error.name === 'NotFound') {
+        return null;
+      }
+      console.warn('[StorageService] Failed to download sidecar:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Delete a file from cloud storage.
    *
    * @param {string} key - S3 object key
@@ -636,6 +694,16 @@ class StorageService {
       });
 
       await s3Client.send(command);
+
+      try {
+        const sidecarCommand = new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: `${normalizedKey}.txt.gz`,
+        });
+        await s3Client.send(sidecarCommand);
+      } catch (err) {
+        // Ignored
+      }
     } catch (error) {
       if (error.isOperational) {
         throw error;

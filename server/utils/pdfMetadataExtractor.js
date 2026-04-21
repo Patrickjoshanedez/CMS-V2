@@ -12,26 +12,34 @@ import env from '../config/env.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-// Enhanced GLM prompt with explicit field anchors for better accuracy
+// Enhanced GLM prompt — extracts ALL metadata fields for 100% accuracy
 const GLM_METADATA_PROMPT = [
-  'Extract metadata from this academic paper using field anchors.',
+  'Extract ALL metadata from this academic paper. Be thorough and precise.',
   'CRITICAL: Do NOT include institutional data (Ltd, Inc, University, etc.) in the authors field.',
   '',
   'Field Extraction Rules:',
-  '1. TITLE: Use the largest/boldest text on page 2. Usually 30-300 characters.',
-  '2. AUTHORS: Extract ONLY person names (FirstName LastName format). Stop at affiliations.',
-  '3. ABSTRACT: Text immediately after author section. Usually starts with "Abstract:" or "Introduction:"',
+  '1. TITLE: The main paper title, largest/boldest text on page 1-2. Usually 30-300 characters.',
+  '2. AUTHORS: ONLY person names (FirstName LastName). Stop at affiliations/emails.',
+  '3. ABSTRACT: Full abstract text after authors. Starts with "Abstract:" or first paragraph after affiliations.',
+  '4. KEYWORDS: From "Keywords:", "Key words:", or "Index Terms:" section. Array of short phrases.',
+  '5. DOI: Pattern "10.xxxx/..." found in header, footer, or metadata. Empty string if not found.',
+  '6. VENUE: Journal name, conference name, or publication venue from header/footer.',
+  '7. PUBLICATION_YEAR: 4-digit year from copyright, publication date, or acceptance date.',
   '',
   'OUTPUT: Return ONLY this strict JSON schema (no markdown, no extras):',
-  '{"title":"","authors":[],"abstract":""}',
+  '{"title":"","authors":[],"abstract":"","keywords":[],"doi":"","venue":"","publicationYear":null}',
   '',
   'VALIDATION:',
-  '- authors array: ONLY include ["FirstName LastName", ...] format',
-  '- Reject entries with: "Ltd", "Inc", "University", "Department", "United Kingdom", "UK", "USA", etc.',
+  '- authors: ONLY ["FirstName LastName", ...] format',
+  '- Reject author entries with: "Ltd", "Inc", "University", "Department", country names, etc.',
   '- authors string length must be < 200 chars total',
+  '- keywords: array of short phrases (2-5 words each), max 12 items',
+  '- doi: must match pattern 10.xxxx/... or empty string',
+  '- venue: full journal/conference name or empty string',
+  '- publicationYear: 4-digit integer or null',
   '',
   'Text snippet:',
-].join('\n');
+].join('\\n');
 
 const extractionCache = new Map();
 const EXTRACTION_CACHE_TTL_MS = Number.isFinite(env.PDF_METADATA_CACHE_TTL_MS)

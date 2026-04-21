@@ -20,8 +20,7 @@ const titleProposalSchema = z.object({
   description: z
     .string()
     .trim()
-    .min(20, 'Each proposal description must be at least 20 characters')
-    .max(1000, 'Each proposal description must not exceed 1000 characters'),
+    .min(20, 'Each proposal description must be at least 20 characters'),
   capstoneType: z
     .array(
       z

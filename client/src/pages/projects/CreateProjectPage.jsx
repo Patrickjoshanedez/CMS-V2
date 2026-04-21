@@ -225,29 +225,48 @@ export default function CreateProjectPage() {
   const createProject = useCreateProject({
     onSuccess: async (result) => {
       const createdProjectId = result?.data?.project?._id || result?.project?._id;
+      const createdProject = result?.data?.project || result?.project;
+      const proposalCount = Array.isArray(createdProject?.titleProposals)
+        ? createdProject.titleProposals.length
+        : 0;
 
       if (!createdProjectId) {
-        toast.success('Project created successfully.');
+        toast.success(
+          proposalCount > 0
+            ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} created successfully.`
+            : 'Project created successfully.',
+        );
         navigate('/project');
         return;
       }
 
       try {
         await projectService.submitTitle(createdProjectId);
-        toast.success('Project submitted for instructor approval.');
+        toast.success(
+          `${proposalCount > 0 ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''}` : 'Your proposals'} submitted successfully for instructor review. You will be notified once the instructor makes a decision.`,
+          { duration: 6000 },
+        );
       } catch (submitError) {
         toast.error(
           submitError?.response?.data?.error?.message ||
-            'Project created, but automatic submission failed. Please submit from My Capstone.',
+            'Project created, but automatic submission failed. Please go to My Capstone to submit manually.',
+          { duration: 8000 },
         );
       }
 
       navigate('/project');
     },
     onError: (err) => {
-      toast.error(
-        err?.response?.data?.error?.message || err?.message || 'Failed to create project.',
-      );
+      const errorCode = err?.response?.data?.error?.code;
+      const errorMessage =
+        err?.response?.data?.error?.message || err?.message || 'Failed to create project.';
+
+      // Show specific error messages for known error codes
+      if (errorCode === 'PROJECT_EXISTS') {
+        toast.error(errorMessage, { duration: 8000 });
+      } else {
+        toast.error(errorMessage);
+      }
     },
   });
 
@@ -1010,7 +1029,6 @@ export default function CreateProjectPage() {
                               }
                               required={index < 3}
                               minLength={20}
-                              maxLength={1000}
                               rows={3}
                               className="resize-y"
                             />

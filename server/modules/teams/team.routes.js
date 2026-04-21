@@ -35,6 +35,13 @@ router.post(
 );
 
 router.get(
+  '/invite-candidates/preview',
+  authorize(ROLES.STUDENT),
+  validate(inviteCandidatesQuerySchema, 'query'),
+  teamController.listCreateTeamInviteCandidates,
+);
+
+router.get(
   '/:id/invite-candidates',
   authorize(ROLES.STUDENT),
   validate(inviteCandidatesQuerySchema, 'query'),

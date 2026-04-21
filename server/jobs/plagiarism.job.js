@@ -261,8 +261,14 @@ async function _buildCorpus(excludeProjectId, excludeSubmissionId) {
     }
 
     try {
-      const fileBuffer = await storageService.downloadFile(candidate.storageKey);
-      const extractedText = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+      let extractedText = null;
+      if (typeof storageService.downloadTextSidecar === 'function') {
+        extractedText = await storageService.downloadTextSidecar(candidate.storageKey);
+      }
+      if (!extractedText) {
+        const fileBuffer = await storageService.downloadFile(candidate.storageKey);
+        extractedText = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+      }
       if (!extractedText || extractedText.trim().length < MIN_CORPUS_TEXT_LENGTH) {
         continue;
       }
@@ -355,8 +361,14 @@ async function _buildCorpusFromFingerprintIndex({ submissionId, projectId, submi
       lazyExtractions < MAX_LAZY_CORPUS_EXTRACTIONS
     ) {
       try {
-        const fileBuffer = await storageService.downloadFile(candidate.storageKey);
-        const extracted = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+        let extracted = null;
+        if (typeof storageService.downloadTextSidecar === 'function') {
+          extracted = await storageService.downloadTextSidecar(candidate.storageKey);
+        }
+        if (!extracted) {
+          const fileBuffer = await storageService.downloadFile(candidate.storageKey);
+          extracted = await extractText(fileBuffer, candidate.fileType || 'application/pdf');
+        }
         normalizedText = typeof extracted === 'string' ? extracted.trim() : '';
 
         if (normalizedText.length >= MIN_CORPUS_TEXT_LENGTH) {
@@ -457,15 +469,22 @@ async function processJob(job) {
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
-  // Step 1: Download file from storage (with trusted fallback URLs when needed)
-  const { fileBuffer, effectiveFileType } = await readSubmissionFileWithFallback({
-    submissionId,
-    storageKey,
-    fileType,
-  });
+  // Step 1: Try reading sidecar text first
+  let extractedText = null;
+  if (storageKey && typeof storageService.downloadTextSidecar === 'function') {
+    extractedText = await storageService.downloadTextSidecar(storageKey);
+  }
 
-  // Step 2: Extract text
-  const extractedText = await extractText(fileBuffer, effectiveFileType);
+  // Step 2: Fallback to downloading file and extracting
+  if (!extractedText) {
+    const { fileBuffer, effectiveFileType } = await readSubmissionFileWithFallback({
+      submissionId,
+      storageKey,
+      fileType,
+    });
+    extractedText = await extractText(fileBuffer, effectiveFileType);
+  }
+
   const normalizedExtractedText = typeof extractedText === 'string' ? extractedText.trim() : '';
 
   if (!normalizedExtractedText || normalizedExtractedText.length < 50) {

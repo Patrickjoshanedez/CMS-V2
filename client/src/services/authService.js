@@ -44,6 +44,8 @@ export const userService = {
 export const teamService = {
   createTeam: (data) => api.post('/teams', data),
   getMyTeam: () => api.get('/teams/me'),
+  listCreateTeamInviteCandidates: (params) =>
+    api.get('/teams/invite-candidates/preview', { params }),
   listInviteCandidates: (teamId, params) =>
     api.get(`/teams/${teamId}/invite-candidates`, { params }),
   inviteMember: (teamId, data) => api.post(`/teams/${teamId}/invite`, data),

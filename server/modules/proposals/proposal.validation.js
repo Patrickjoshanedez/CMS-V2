@@ -3,8 +3,7 @@ import { z } from 'zod';
 const deckSectionSchema = z
   .string()
   .trim()
-  .min(2, 'Each deck section must be at least 2 characters long')
-  .max(5000, 'Each deck section must not exceed 5000 characters');
+  .min(2, 'Each deck section must be at least 2 characters long');
 
 export const generateDeckSchema = z.object({
   proposalId: z.string().trim().min(1, 'Proposal ID is required'),
