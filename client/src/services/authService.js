@@ -81,7 +81,7 @@ export const projectService = {
   createProject: (data) => api.post('/projects', data),
   getMyProject: () => api.get('/projects/me'),
   updateTitle: (id, data) => api.patch(`/projects/${id}/title`, data),
-  submitTitle: (id) => api.post(`/projects/${id}/title/submit`),
+  submitTitle: (id) => api.post(`/projects/${id}/title/submit`, {}),
   reviseAndResubmit: (id, data) => api.patch(`/projects/${id}/title/revise`, data),
   requestTitleModification: (id, data) => api.post(`/projects/${id}/title/modification`, data),
   generateProposalDeck: (payload) =>
@@ -99,7 +99,7 @@ export const projectService = {
   clearCreateProjectDraft: () => api.delete('/projects/create-draft'),
 
   // Instructor routes
-  approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
+  approveTitle: (id, data = {}) => api.post(`/projects/${id}/title/approve`, data),
   rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),
   addTitleComment: (projectId, proposalId, data) =>
     api.post(`/projects/${projectId}/title-proposals/${proposalId}/comments`, data),

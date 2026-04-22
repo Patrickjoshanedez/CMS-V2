@@ -23,6 +23,7 @@ import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressW
 import {
   useMyProject,
   useUpdateTitle,
+  useSubmitTitle,
   useReviseAndResubmit,
   useRequestTitleModification,
 } from '@/hooks/useProjects';
@@ -286,6 +287,11 @@ function EditTitleForm({ project }) {
     onSuccess: () => toast.success('Changes saved.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to save.'),
   });
+  const submitTitle = useSubmitTitle({
+    onSuccess: () => toast.success('Title submitted for review.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to submit title for review.'),
+  });
 
   const [title, setTitle] = useState(project.title);
   const [abstract, setAbstract] = useState(project.abstract || '');
@@ -395,6 +401,14 @@ function EditTitleForm({ project }) {
           <Button variant="outline" onClick={() => setEditing(false)}>
             Cancel
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => submitTitle.mutate(project._id)}
+            disabled={submitTitle.isPending}
+          >
+            {submitTitle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Submit for Review
+          </Button>
           <Button onClick={handleSave} disabled={updateTitle.isPending}>
             {updateTitle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
@@ -475,45 +489,22 @@ function ReviseAndResubmitForm({ project }) {
 
 function RequestModificationForm({ project }) {
   const requestMod = useRequestTitleModification({
-    onSuccess: () => toast.success('Modification request submitted!'),
+    onSuccess: () => toast.success('Revision submitted for instructor review.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Request failed.'),
   });
-  const [proposedTitle, setProposedTitle] = useState('');
+  const [proposedTitle, setProposedTitle] = useState(project.title || '');
   const [justification, setJustification] = useState('');
-  const [show, setShow] = useState(false);
 
   const handleSubmit = () => {
-    requestMod.mutate(
-      { projectId: project._id, proposedTitle, justification },
-      { onSuccess: () => setShow(false) },
-    );
+    requestMod.mutate({ projectId: project._id, proposedTitle, justification });
   };
-
-  if (!show) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Title Approved</CardTitle>
-          <CardDescription>
-            Your title has been approved. You can request a modification if needed.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={() => setShow(true)}>
-            <PenLine className="mr-2 h-4 w-4" />
-            Request Title Modification
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Request Title Modification</CardTitle>
+        <CardTitle className="text-base">Approved With Revision</CardTitle>
         <CardDescription>
-          This requires instructor approval. Provide a justification.
+          Edit the approved title and submit your revision for instructor review.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -540,12 +531,9 @@ function RequestModificationForm({ project }) {
           />
         </div>
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShow(false)}>
-            Cancel
-          </Button>
           <Button onClick={handleSubmit} disabled={requestMod.isPending}>
             {requestMod.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Submit Request
+            Submit Revision
           </Button>
         </div>
         {requestMod.error && (
@@ -1113,18 +1101,6 @@ export default function MyProjectPage() {
               Track your capstone project progress and manage your submissions.
             </p>
           </div>
-          {project?._id &&
-            project.projectStatus !== PROJECT_STATUSES.REJECTED &&
-            !isArchivedProject && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/documents/manuscripts?projectId=${project._id}`)}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Documents Workspace
-              </Button>
-            )}
         </div>
 
         {isLoading && (

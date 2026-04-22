@@ -20,13 +20,15 @@ const PHASES = [
     key: 'chapters',
     label: 'Chapters 1–3',
     isComplete: (project) =>
-      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_SUBMITTED ||
-      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
+      getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2 ||
+      (getCapstonePhase(project) === CAPSTONE_PHASES.PHASE_1 &&
+        (getProjectStatus(project) === PROJECT_STATUSES.PENDING_IN_REVIEW ||
+         getProjectStatus(project) === PROJECT_STATUSES.REVISION_NEEDED)),
   },
   {
     key: 'proposal',
     label: 'Full Proposal',
-    isComplete: (project) => getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
+    isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2,
   },
   {
     key: 'development',

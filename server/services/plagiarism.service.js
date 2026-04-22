@@ -4,8 +4,31 @@ import Fingerprint from '../models/fingerprint.model.js';
 import Project from '../modules/projects/project.model.js';
 import Submission from '../modules/submissions/submission.model.js';
 
-export const K_GRAM_SIZE = 7;
-export const WINDOW_SIZE = 4;
+const DEFAULT_K_GRAM_SIZE = 7;
+const DEFAULT_WINDOW_SIZE = 4;
+const MIN_K_GRAM_SIZE = 3;
+const MAX_K_GRAM_SIZE = 128;
+const MIN_WINDOW_SIZE = 2;
+const MAX_WINDOW_SIZE = 256;
+
+function toBoundedInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+export const K_GRAM_SIZE = toBoundedInt(
+  process.env.PLAGIARISM_K_GRAM_SIZE,
+  DEFAULT_K_GRAM_SIZE,
+  MIN_K_GRAM_SIZE,
+  MAX_K_GRAM_SIZE,
+);
+export const WINDOW_SIZE = toBoundedInt(
+  process.env.PLAGIARISM_WINDOW_SIZE,
+  DEFAULT_WINDOW_SIZE,
+  MIN_WINDOW_SIZE,
+  MAX_WINDOW_SIZE,
+);
 
 const COLOR_PALETTE = [
   '#ef4444',
@@ -19,6 +42,13 @@ const COLOR_PALETTE = [
   '#8b5cf6',
   '#ec4899',
 ];
+
+function resolveWinnowTuning(options = {}) {
+  return {
+    kGramSize: toBoundedInt(options?.kGramSize, K_GRAM_SIZE, MIN_K_GRAM_SIZE, MAX_K_GRAM_SIZE),
+    windowSize: toBoundedInt(options?.windowSize, WINDOW_SIZE, MIN_WINDOW_SIZE, MAX_WINDOW_SIZE),
+  };
+}
 
 function clampPercent(value) {
   if (!Number.isFinite(value)) return 0;
@@ -213,20 +243,22 @@ export function applyExclusions(text) {
  *
  * Output indices are aligned to the raw text coordinates.
  */
-export function generateFingerprints(text) {
+export function generateFingerprints(text, options = {}) {
   const raw = String(text || '');
   if (!raw.trim()) return [];
+
+  const tuning = resolveWinnowTuning(options);
 
   const excluded = applyExclusions(raw);
   const normalized = excluded.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
   const tokenRows = tokenizeWithRanges(normalized);
 
-  if (tokenRows.length < K_GRAM_SIZE) {
+  if (tokenRows.length < tuning.kGramSize) {
     return [];
   }
 
-  const kgrams = buildKGrams(tokenRows, K_GRAM_SIZE);
-  const fingerprints = winnowKGrams(kgrams, WINDOW_SIZE);
+  const kgrams = buildKGrams(tokenRows, tuning.kGramSize);
+  const fingerprints = winnowKGrams(kgrams, tuning.windowSize);
 
   return fingerprints.map((item) => ({
     hash: item.hash,
@@ -457,12 +489,8 @@ export function buildShingles(tokens, n = K_GRAM_SIZE) {
  * Backward-compatible alias used by existing job/service imports.
  */
 export function computeWinnowFingerprints(text, options = {}) {
-  if (options?.kGramSize && Number(options.kGramSize) !== K_GRAM_SIZE) {
-    // The new engine intentionally standardizes k-gram and window sizes.
-    // options are ignored to enforce deterministic scoring.
-  }
-
-  return generateFingerprints(text);
+  const tuning = resolveWinnowTuning(options);
+  return generateFingerprints(text, tuning);
 }
 
 /**
@@ -470,9 +498,10 @@ export function computeWinnowFingerprints(text, options = {}) {
  */
 export function compareAgainstCorpus(submittedText, corpus = [], options = {}) {
   const sourceCorpus = Array.isArray(corpus) ? corpus : [];
+  const tuning = resolveWinnowTuning(options);
   const submittedFingerprints = Array.isArray(options?.submittedFingerprints)
     ? options.submittedFingerprints
-    : generateFingerprints(submittedText);
+    : generateFingerprints(submittedText, tuning);
 
   const totalDocumentWords = countWords(applyExclusions(submittedText));
   if (totalDocumentWords === 0 || submittedFingerprints.length === 0) {
@@ -494,7 +523,7 @@ export function compareAgainstCorpus(submittedText, corpus = [], options = {}) {
   for (const source of sourceCorpus) {
     const sourceFingerprints = Array.isArray(source?.fingerprints)
       ? source.fingerprints
-      : generateFingerprints(source?.text || '');
+      : generateFingerprints(source?.text || '', tuning);
 
     if (!Array.isArray(sourceFingerprints) || sourceFingerprints.length === 0) {
       continue;

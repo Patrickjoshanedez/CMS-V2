@@ -306,6 +306,15 @@ function sanitizeOcrResult(ocrOutput) {
     title,
     abstract,
     authors,
+    keywords: Array.isArray(ocrOutput.keywords)
+      ? ocrOutput.keywords.map((k) => cleanText(String(k || ''))).filter((k) => k.length >= 2 && k.length <= 64).slice(0, 12)
+      : [],
+    doi: cleanText(String(ocrOutput.doi || '')).slice(0, 200),
+    venue: cleanText(String(ocrOutput.venue || '')).slice(0, 300),
+    publicationYear: (() => {
+      const y = Number(ocrOutput.publicationYear);
+      return Number.isInteger(y) && y >= 1900 && y <= new Date().getFullYear() + 1 ? y : null;
+    })(),
     confidence: {
       title: title ? 0.88 : 0,
       abstract: abstract ? 0.86 : 0,
@@ -441,24 +450,24 @@ export async function extractPdfMetadata(pdfBuffer) {
   const mergedResult = {
     title: ocrMetadata.title || baseResult.title,
     abstract: ocrMetadata.abstract || baseResult.abstract,
-    publicationYear: baseResult.publicationYear,
+    publicationYear: ocrMetadata.publicationYear || baseResult.publicationYear,
     authors: ocrMetadata.authors.length > 0 ? ocrMetadata.authors : baseResult.authors,
-    keywords: baseResult.keywords,
-    doi: baseResult.doi,
-    publicationVenue: baseResult.publicationVenue,
+    keywords: ocrMetadata.keywords?.length > 0 ? ocrMetadata.keywords : baseResult.keywords,
+    doi: ocrMetadata.doi || baseResult.doi,
+    publicationVenue: ocrMetadata.venue || baseResult.publicationVenue,
     confidence: {
       title: ocrMetadata.title ? ocrMetadata.confidence.title : baseResult.confidence.title,
       abstract: ocrMetadata.abstract
         ? ocrMetadata.confidence.abstract
         : baseResult.confidence.abstract,
-      publicationYear: baseResult.confidence.publicationYear,
+      publicationYear: ocrMetadata.publicationYear ? 0.88 : baseResult.confidence.publicationYear,
       authors:
         ocrMetadata.authors.length > 0
           ? ocrMetadata.confidence.authors
           : baseResult.confidence.authors,
-      keywords: baseResult.confidence.keywords,
-      doi: baseResult.confidence.doi,
-      publicationVenue: baseResult.confidence.publicationVenue,
+      keywords: ocrMetadata.keywords?.length > 0 ? 0.85 : baseResult.confidence.keywords,
+      doi: ocrMetadata.doi ? 0.90 : baseResult.confidence.doi,
+      publicationVenue: ocrMetadata.venue ? 0.85 : baseResult.confidence.publicationVenue,
     },
     extractionProvider: ocrMetadata.provider,
   };

@@ -135,7 +135,7 @@ export default function ProposalTab({ project }) {
   const [formsByProposal, setFormsByProposal] = useState({});
   const [loadingProposalId, setLoadingProposalId] = useState(null);
   const titleApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
-  const projectApproved = project?.projectStatus === PROJECT_STATUSES.PROPOSAL_APPROVED;
+  const projectApproved = getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2;
   const capstoneProgressLabel = getCapstoneProgressLabel(project);
 
   useEffect(() => {

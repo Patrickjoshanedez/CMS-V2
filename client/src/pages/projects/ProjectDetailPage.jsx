@@ -342,6 +342,23 @@ function TitleProposalsSection({ project, userRole }) {
                         {tag}
                       </Badge>
                     ))}
+                    {metadata?.status ? (
+                      <Badge
+                        variant={
+                          metadata.status === 'approved'
+                            ? 'secondary'
+                            : metadata.status === 'rejected'
+                              ? 'destructive'
+                              : 'outline'
+                        }
+                      >
+                        {metadata.status === 'approved'
+                          ? 'Approved'
+                          : metadata.status === 'rejected'
+                            ? 'Rejected'
+                            : 'Pending'}
+                      </Badge>
+                    ) : null}
                   </div>
 
                   {voteEntries.length > 0 && (

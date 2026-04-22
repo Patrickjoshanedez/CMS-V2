@@ -7,8 +7,9 @@ import { PROJECT_STATUSES } from '@cms/shared';
 
 const statusConfig = {
   [PROJECT_STATUSES.ACTIVE]: { label: 'Active', variant: 'info' },
-  [PROJECT_STATUSES.PROPOSAL_SUBMITTED]: { label: 'Proposal Submitted', variant: 'info' },
-  [PROJECT_STATUSES.PROPOSAL_APPROVED]: { label: 'Proposal Approved', variant: 'success' },
+  [PROJECT_STATUSES.PENDING_FOR_SUBMISSION]: { label: 'Pending for Submission', variant: 'warning' },
+  [PROJECT_STATUSES.PENDING_IN_REVIEW]: { label: 'Pending in Review', variant: 'warning' },
+  [PROJECT_STATUSES.REVISION_NEEDED]: { label: 'Revision Needed', variant: 'destructive' },
   [PROJECT_STATUSES.REJECTED]: { label: 'Rejected', variant: 'destructive' },
   [PROJECT_STATUSES.ARCHIVED]: { label: 'Archived', variant: 'secondary' },
 };

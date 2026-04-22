@@ -156,6 +156,67 @@ const KEYWORD_STOP_WORDS = new Set([
   'version',
   'checker',
   'workspace',
+  // File extensions and structural noise
+  'pdf',
+  'doc',
+  'docx',
+  'txt',
+  'file',
+  'page',
+  'pages',
+  'figure',
+  'table',
+  'chapter',
+  'section',
+  'appendix',
+  'reference',
+  'references',
+  'bibliography',
+  'acknowledgment',
+  'abstract',
+  'introduction',
+  'conclusion',
+  'results',
+  'discussion',
+  'methodology',
+  'method',
+  'methods',
+  'review',
+  'literature',
+  'based',
+  'approach',
+  'proposed',
+  'existing',
+  'new',
+  'also',
+  'can',
+  'use',
+  'used',
+  'will',
+  'may',
+  'has',
+  'have',
+  'been',
+  'would',
+  'could',
+  'should',
+  'their',
+  'this',
+  'these',
+  'those',
+  'which',
+  'were',
+  'was',
+  'not',
+  'but',
+  'more',
+  'than',
+  'each',
+  'other',
+  'such',
+  'only',
+  'its',
+  'about',
 ]);
 
 const KEYWORD_VENUE_RULES = [
@@ -352,26 +413,26 @@ const enrichMetadataFromKeywords = ({ metadata = {}, confidence = {}, fileName =
   const derivedKeywords = deriveKeywordsFromText(seedText);
   const keywordList = dedupeKeywords([...extractedKeywords, ...derivedKeywords]);
 
-  const title = metadata.title || inferTitleFromFilename(fileName) || 'Untitled Capstone Project';
+  const title = metadata.title || inferTitleFromFilename(fileName) || '';
   if (!metadata.title && title) inferredFields.push('title');
 
-  const year = metadata.year || inferYearFromFilename(fileName) || String(new Date().getFullYear());
+  const year = metadata.year || inferYearFromFilename(fileName) || '';
   if (!metadata.year && year) inferredFields.push('year');
 
-  const keywords = metadata.keywords || keywordList.join(', ');
+  const keywords = metadata.keywords || (keywordList.length > 0 ? keywordList.join(', ') : '');
   if (!metadata.keywords && keywords) inferredFields.push('keywords');
 
-  const abstract = metadata.abstract || buildFallbackAbstract(title, keywordList);
-  if (!metadata.abstract && abstract) inferredFields.push('abstract');
+  // No fabricated abstracts — leave empty if OCR didn't extract one
+  const abstract = metadata.abstract || '';
 
-  const authors = metadata.authors || 'Author details to be verified';
-  if (!metadata.authors && authors) inferredFields.push('authors');
+  // No placeholder authors — leave empty if OCR didn't extract them
+  const authors = metadata.authors || '';
 
-  const venue = metadata.venue || inferVenueFromKeywords(keywordList);
-  if (!metadata.venue && venue) inferredFields.push('venue');
+  // No fabricated venues — leave empty if OCR didn't extract one
+  const venue = metadata.venue || '';
 
-  const doi = metadata.doi || 'N/A';
-  if (!metadata.doi && doi) inferredFields.push('doi');
+  // No "N/A" DOI — leave empty if not found
+  const doi = metadata.doi || '';
 
   return {
     metadata: {
@@ -386,13 +447,13 @@ const enrichMetadataFromKeywords = ({ metadata = {}, confidence = {}, fileName =
     },
     confidence: {
       ...confidence,
-      title: withFallbackConfidence(confidence.title, metadata.title ? 60 : 35),
-      abstract: withFallbackConfidence(confidence.abstract, metadata.abstract ? 58 : 42),
-      authors: withFallbackConfidence(confidence.authors, metadata.authors ? 55 : 25),
-      year: withFallbackConfidence(confidence.year, metadata.year ? 70 : 38),
-      doi: withFallbackConfidence(confidence.doi, metadata.doi ? 80 : 20),
-      venue: withFallbackConfidence(confidence.venue, metadata.venue ? 62 : 34),
-      keywords: withFallbackConfidence(confidence.keywords, metadata.keywords ? 65 : 48),
+      title: withFallbackConfidence(confidence.title, metadata.title ? 60 : title ? 30 : 0),
+      abstract: withFallbackConfidence(confidence.abstract, metadata.abstract ? 58 : 0),
+      authors: withFallbackConfidence(confidence.authors, metadata.authors ? 55 : 0),
+      year: withFallbackConfidence(confidence.year, metadata.year ? 70 : year ? 30 : 0),
+      doi: withFallbackConfidence(confidence.doi, metadata.doi ? 80 : 0),
+      venue: withFallbackConfidence(confidence.venue, metadata.venue ? 62 : 0),
+      keywords: withFallbackConfidence(confidence.keywords, metadata.keywords ? 65 : keywords ? 40 : 0),
     },
     inferredFields,
   };
@@ -423,24 +484,34 @@ export default function ExistingCapstoneUploadPage() {
 
   const getConfidenceColor = (score) => {
     if (score === null || score === undefined) return '';
+    if (score === 0) return 'bg-muted text-muted-foreground border-border';
     if (score >= 80) return 'bg-green-100 text-green-800 border-green-200';
     if (score >= 50) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (score > 0) return 'bg-orange-100 text-orange-800 border-orange-200';
     return 'bg-red-100 text-red-800 border-red-200';
+  };
+
+  const getConfidenceLabel = (score) => {
+    if (score === null || score === undefined) return '';
+    if (score === 0) return 'Not extracted';
+    if (score < 40) return 'Inferred';
+    return `${score}% Conf.`;
   };
 
   const renderLabelWithConfidence = (label, fieldName) => {
     const score = confidenceScores[fieldName];
+    const confidenceLabel = getConfidenceLabel(score);
     return (
       <div className="mb-1.5 flex items-center gap-2">
         <Label htmlFor={fieldName} className="font-medium">
           {label}
         </Label>
-        {score !== null && score !== undefined && (
+        {confidenceLabel && (
           <Badge
             variant="outline"
             className={`${getConfidenceColor(score)} px-1.5 py-0 text-[10px]`}
           >
-            {score}% Conf.
+            {confidenceLabel}
           </Badge>
         )}
       </div>

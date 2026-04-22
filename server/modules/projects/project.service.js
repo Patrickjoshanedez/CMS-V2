@@ -35,6 +35,12 @@ const MAX_ARCHIVE_SIMILARITY_CONFLICTS = 10;
 
 const MIN_CORPUS_TEXT_LENGTH = 50;
 
+function normalizeAcademicYearValue(value) {
+  if (typeof value !== 'string') return '';
+  // Normalize unicode dashes so values like "2024–2025" match "2024-2025".
+  return value.trim().replace(/[\u2012\u2013\u2014\u2015]/g, '-');
+}
+
 function toBoundedThreshold(value, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -177,9 +183,9 @@ class ProjectService {
       );
     }
 
-    const payloadAcademicYear =
-      typeof data.academicYear === 'string' ? data.academicYear.trim() : data.academicYear;
-    const effectiveAcademicYear = team?.academicYear || payloadAcademicYear;
+    const payloadAcademicYear = normalizeAcademicYearValue(data.academicYear);
+    const teamAcademicYear = normalizeAcademicYearValue(team?.academicYear);
+    let effectiveAcademicYear = teamAcademicYear || payloadAcademicYear;
 
     // Resolve section ID: canonical team > explicit payload > user profile
     let effectiveSectionId = data.sectionId;
@@ -203,16 +209,28 @@ class ProjectService {
       throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
     }
 
+    const sectionAcademicYear = normalizeAcademicYearValue(section.academicYear);
+
+    if (!effectiveAcademicYear && sectionAcademicYear) {
+      effectiveAcademicYear = sectionAcademicYear;
+    }
+
     if (!effectiveAcademicYear) {
       throw new AppError('Academic year is required.', 400, 'ACADEMIC_YEAR_REQUIRED');
     }
 
-    if (section.academicYear !== effectiveAcademicYear) {
+    const hasCanonicalTeamSection = Boolean(team?.sectionId);
+
+    if (!hasCanonicalTeamSection && sectionAcademicYear && sectionAcademicYear !== effectiveAcademicYear) {
       throw new AppError(
         'Selected section does not belong to the selected academic year.',
         400,
         'SECTION_YEAR_MISMATCH',
       );
+    }
+
+    if (sectionAcademicYear) {
+      effectiveAcademicYear = sectionAcademicYear;
     }
 
     if (!user.teamId) {
@@ -748,8 +766,17 @@ class ProjectService {
       );
     }
 
+    const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+    const metadataEntries = Array.isArray(project.titleProposalMetadata)
+      ? project.titleProposalMetadata
+      : [];
+    const proposalComments = Array.isArray(project.titleProposalComments)
+      ? project.titleProposalComments
+      : [];
+
+    let selectedProposalIndex = -1;
+
     if (data?.proposalId !== undefined && data?.proposalId !== null && data?.proposalId !== '') {
-      const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
       let proposalIndex = -1;
 
       if (typeof data.proposalId === 'number' && Number.isInteger(data.proposalId)) {
@@ -774,11 +801,37 @@ class ProjectService {
         throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
       }
 
+      selectedProposalIndex = proposalIndex;
       project.title = selectedTitle;
+    }
+
+    const approvedTitle = typeof project.title === 'string' ? project.title.trim() : '';
+    if (approvedTitle) {
+      if (selectedProposalIndex === -1 && proposals.length > 0) {
+        selectedProposalIndex = proposals.findIndex((proposal) => {
+          const proposalTitle =
+            typeof proposal === 'string'
+              ? proposal.trim()
+              : typeof proposal?.title === 'string'
+                ? proposal.title.trim()
+                : '';
+          return proposalTitle === approvedTitle;
+        });
+      }
+
+      project.titleProposals = proposals;
+      project.titleProposalMetadata = metadataEntries.map((entry, index) => ({
+        ...entry,
+        status: index === selectedProposalIndex ? 'approved' : 'rejected',
+        reviewedBy: instructorId,
+        reviewedAt: new Date(),
+      }));
     }
 
     project.titleStatus = TITLE_STATUSES.APPROVED;
     project.driveFolderId = null;
+    project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+    project.capstonePhase = 1;
 
     await project.save();
 

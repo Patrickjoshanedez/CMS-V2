@@ -990,6 +990,9 @@ class SubmissionService {
       extraMetadata: { chapter },
     });
 
+    project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
+    await project.save();
+
     return { submission };
   }
 
@@ -1039,7 +1042,14 @@ class SubmissionService {
     }
 
     // --- Project state checks (proposal-specific) ---
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus)
+    ) {
       throw new AppError(
         'Cannot submit proposal for a non-active project.',
         400,
@@ -1155,8 +1165,8 @@ class SubmissionService {
       type: 'proposal',
     });
 
-    // --- Transition project status to PROPOSAL_SUBMITTED ---
-    project.projectStatus = PROJECT_STATUSES.PROPOSAL_SUBMITTED;
+    // --- Transition project status to PENDING_IN_REVIEW ---
+    project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
     await project.save();
 
     await this._notifyAdviser({
@@ -1179,7 +1189,14 @@ class SubmissionService {
    * @param {Object} project
    */
   _assertSupportingDocumentEligible(project) {
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus)
+    ) {
       throw new AppError(
         'Supporting document uploads are only allowed for active projects.',
         400,
@@ -1397,7 +1414,14 @@ class SubmissionService {
    * @param {Object} project
    */
   _assertFinalPaperEligible(project) {
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus)
+    ) {
       throw new AppError(
         'Final paper uploads are only allowed for active projects.',
         400,
@@ -2148,14 +2172,17 @@ class SubmissionService {
       }
     }
 
-    // --- If this is a proposal submission being approved, transition project status ---
-    if (
-      submission.type === 'proposal' &&
-      (status === SUBMISSION_STATUSES.APPROVED || status === 'approved')
-    ) {
-      const project = await Project.findById(submission.projectId);
-      if (project && project.projectStatus === PROJECT_STATUSES.PROPOSAL_SUBMITTED) {
-        project.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
+    // --- Project status transition based on submission review ---
+    const project = await Project.findById(submission.projectId);
+    if (project) {
+      if (status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+        project.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
+        await project.save();
+      } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
+        if (submission.type === 'proposal' && project.capstonePhase === 1) {
+          project.capstonePhase = 2;
+        }
+        project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         await project.save();
       }
     }
