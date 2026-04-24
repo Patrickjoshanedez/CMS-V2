@@ -567,6 +567,8 @@ class ProjectService {
       projectStatus,
       search,
       adviserId,
+      panelistId,
+      excludeArchived,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -575,6 +577,14 @@ class ProjectService {
     if (titleStatus) filter.titleStatus = titleStatus;
     if (projectStatus) filter.projectStatus = projectStatus;
     if (adviserId) filter.adviserId = adviserId;
+    if (panelistId) filter.panelistIds = panelistId;
+
+    if (excludeArchived === 'true' || excludeArchived === true) {
+      filter.isArchived = { $ne: true };
+      if (!filter.projectStatus) {
+        filter.projectStatus = { $ne: PROJECT_STATUSES.ARCHIVED };
+      }
+    }
 
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2566,9 +2576,14 @@ class ProjectService {
     let resolvedPublicationYear = Number.isInteger(data.publicationYear)
       ? data.publicationYear
       : null;
-    const resolvedDoi = (data.doi || '').trim();
-    const resolvedPublicationVenue = (data.publicationVenue || '').trim();
+    let resolvedDoi = (data.doi || '').trim();
+    let resolvedPublicationVenue = (data.publicationVenue || '').trim();
     let metadataExtractedAt = null;
+    let metadataReview = {
+      required: false,
+      reasons: [],
+      fieldSources: {},
+    };
     let similarityAudit = {
       checkedAt: null,
       titleThreshold: DEFAULT_SIMILARITY_THRESHOLD,
@@ -2614,6 +2629,22 @@ class ProjectService {
               .map((item) => item?.trim())
               .filter(Boolean)
               .slice(0, 10);
+          }
+          if (!resolvedDoi && extracted?.doi) {
+            resolvedDoi = String(extracted.doi).trim();
+          }
+          if (!resolvedPublicationVenue && extracted?.publicationVenue) {
+            resolvedPublicationVenue = String(extracted.publicationVenue).trim();
+          }
+          if (extracted?.review && typeof extracted.review === 'object') {
+            metadataReview = {
+              required: Boolean(extracted.review.required),
+              reasons: Array.isArray(extracted.review.reasons) ? extracted.review.reasons : [],
+              fieldSources:
+                extracted.fieldSources && typeof extracted.fieldSources === 'object'
+                  ? extracted.fieldSources
+                  : {},
+            };
           }
           metadataExtractedAt = new Date();
         } catch (error) {
@@ -2664,6 +2695,7 @@ class ProjectService {
           doi: resolvedDoi,
           publicationVenue: resolvedPublicationVenue,
           extractedAt: metadataExtractedAt,
+          review: metadataReview,
           similarityAudit,
         },
         academicYear: data.academicYear,

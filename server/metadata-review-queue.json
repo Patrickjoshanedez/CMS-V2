@@ -1,0 +1,600 @@
+{
+  "generatedAt": "2026-04-24T06:30:55.804Z",
+  "required": true,
+  "items": [
+    {
+      "fileName": "336597.336667.pdf",
+      "failedFields": [
+        "title",
+        "authors",
+        "publicationYear",
+        "doi"
+      ],
+      "expected": {
+        "fileName": "336597.336667.pdf",
+        "title": "Document Overlap Detection System for Distributed Digital Libraries",
+        "authors": [
+          "Saad A. Khan",
+          "Mumtaz Ali Memon",
+          "Sadiq M. Sait"
+        ],
+        "publicationYear": 2005,
+        "doi": "10.1145/336597.336667",
+        "publicationVenue": "",
+        "keywords": []
+      },
+      "extracted": {
+        "title": "Document Overlap Detection System for Distributed",
+        "abstract": "In this paper we introduce the MatchDetectReveal(MDR) system, which is capable of identifying overlapping and plagiarised documents. Each component of the system is briefly described. The matching-engine component uses a modified suffix tree representation, which is able to identify the exact overlapping chunks and its performance is also presented.",
+        "publicationYear": 2000,
+        "authors": [
+          "Digital Libraries",
+          "Krisztián Monostori",
+          "Arkady Zaslavsky",
+          "Heinz Schmidt",
+          "Caulfield East"
+        ],
+        "keywords": [
+          "overlap detection",
+          "string-matching",
+          "suffix"
+        ],
+        "doi": "",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.8,
+          "authors": 0.65,
+          "keywords": 0.8,
+          "doi": 0,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "none",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_authors_confidence",
+            "missing_doi"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.8,
+        "authors": 0.65,
+        "keywords": 0.8,
+        "doi": 0,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "none",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_authors_confidence",
+          "missing_doi"
+        ]
+      }
+    },
+    {
+      "fileName": "1066677.1066753.pdf",
+      "failedFields": [
+        "title",
+        "authors",
+        "publicationYear",
+        "doi"
+      ],
+      "expected": {
+        "fileName": "1066677.1066753.pdf",
+        "title": "ROB Using Semantic Meaning to Recognize Paraphrases",
+        "authors": [
+          "Rob van der Goot",
+          "Gertjan van Noord"
+        ],
+        "publicationYear": 2015,
+        "doi": "10.1145/1066677.1066753",
+        "publicationVenue": "",
+        "keywords": []
+      },
+      "extracted": {
+        "title": "k-gram Based Software Birthmarks",
+        "abstract": "Software birthmarking relies on unique characteristics that are inherent to a program to identify the program in the event of suspected theft. In this paper we present and empirically evaluate a novel birthmarking technique which uniquely identifies a program through instruction sequences. To evaluate the strength of the birthmarking technique we examine two properties: credibility and resilience to seman-tics-preserving transformations. We show that the technique provides both high credibility and resilience. Additionally, it complements previously proposed static birthmarking tech-niques. Categories and Subject Descriptors K.5.1 [Legal Aspects of Computing]: Hardware/Soft-ware Protection—Proprietary rights General Terms Legal Aspects Keywords Software theft detection, Software birthmarking",
+        "publicationYear": 2005,
+        "authors": [
+          "Ginger Myles Christian Collberg"
+        ],
+        "keywords": [
+          "Software theft detection",
+          "Software birthmarking"
+        ],
+        "doi": "",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.8,
+          "authors": 0.65,
+          "keywords": 0.8,
+          "doi": 0,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "none",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_authors_confidence",
+            "missing_doi"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.8,
+        "authors": 0.65,
+        "keywords": 0.8,
+        "doi": 0,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "none",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_authors_confidence",
+          "missing_doi"
+        ]
+      }
+    },
+    {
+      "fileName": "Deblina Mazumder Setu - A comprehensive strategy for identifying plagiarism in academic submissions [2025].pdf",
+      "failedFields": [
+        "title",
+        "authors"
+      ],
+      "expected": {
+        "fileName": "Deblina Mazumder Setu - A comprehensive strategy for identifying plagiarism in academic submissions [2025].pdf",
+        "title": "A comprehensive strategy for identifying plagiarism in academic submissions",
+        "authors": [
+          "Deblina Mazumder Setu"
+        ],
+        "publicationYear": 2025,
+        "doi": "",
+        "publicationVenue": "",
+        "keywords": []
+      },
+      "extracted": {
+        "title": "A comprehensive strategy for identifying plagiarism in academic",
+        "abstract": "Plagiarism is a major problem in education, especially in higher education environments. To address this problem, a com-prehensive detection method is proposed, utilizing cutting-edge models like Bidirectional Encoder Representations from Transformers (BERT) and cosine similarity for detecting direct copy and semantic changes. The methodology involves evaluating the BERT model and cosine similarity first, then performing pairwise comparisons to determine how similar a student’s work is to a reference text. If the semantic changes are higher, the content is classified as paraphrased; otherwise, it is considered direct copy in cases where the similarity threshold is greater than 30%. When the similarity threshold is less than or equal to 30%, the method moves to online plagiarism detection. This includes web scraping, generating search queries, and employing Term Frequency-Inverse Document Frequency (TF-IDF) vectorization with cosine similarity to assess the similarities between students’ content and online content. As a result, the study detects online plagiarism and distinguishes between plagiarizing and authentic content. The purpose is to provide an effective method to maintain academic integrity and enhance originality in student work. In similarity testing on MIT plagiarism detection datasets, this study demonstrated an average recall of 80%, precision of 68%, accuracy of 71%, and f1-score of 74%. With a threshold of 0.2, the average precision for online plagiarism detection reached 65%, accompanied by a 56% recall, an accuracy of 60%, and an f1-score of 60%. The results of the study demonstrate the efficiency of the strategy in enhancing plagiarism detection accuracy while reducing false positives.",
+        "publicationYear": 2025,
+        "authors": [],
+        "keywords": [],
+        "doi": "10.1007/s43995-025-00108-1",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.62,
+          "authors": 0,
+          "keywords": 0,
+          "doi": 0.8,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "heuristic",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "missing_authors"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.62,
+        "authors": 0,
+        "keywords": 0,
+        "doi": 0.8,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "heuristic",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "missing_authors"
+        ]
+      }
+    },
+    {
+      "fileName": "Jenna Kanerva - Semantic search as extractive paraphrase span detection [2021].pdf",
+      "failedFields": [
+        "title",
+        "authors",
+        "publicationYear"
+      ],
+      "expected": {
+        "fileName": "Jenna Kanerva - Semantic search as extractive paraphrase span detection [2021].pdf",
+        "title": "Semantic search as extractive paraphrase span detection",
+        "authors": [
+          "Jenna Kanerva"
+        ],
+        "publicationYear": 2021,
+        "doi": "",
+        "publicationVenue": "",
+        "keywords": []
+      },
+      "extracted": {
+        "title": "Semantic search as extractive paraphrase span detection Jenna Kanerva1 · Hanna Kitti1 · Li‑Hsin Chang1 · Teemu Vahtola2 · Mathias Creutz2 · Filip Ginter1",
+        "abstract": "In this paper, we approach the problem of semantic search by introducing a task of paraphrase span detection, i.e. given a segment of text as a query phrase, the task is to identify its paraphrase in a given document, the same modelling setup as typi-cally used in extractive question answering. While current work in paraphrasing has almost uniquely focused on sentence-level approaches, the novel span detec-tion approach gives a possibility to retrieve a segment of arbitrary length. On the Turku Paraphrase Corpus of 100,000 manually extracted Finnish paraphrase pairs including their original document context, we find that by achieving an exact match of 88.73 our paraphrase span detection approach outperforms widely adopted sen-tence-level retrieval baselines (lexical similarity as well as BERT and SBERT sen-tence embeddings) by more than 20pp in terms of exact match, and 11pp in terms of token-level F-score. This demonstrates a strong advantage of modelling the par-aphrase retrieval in terms of span extraction rather than commonly used sentence similarity, the sentence-level approaches being clearly suboptimal for applications where the retrieval targets are not guaranteed to be full sentences. Even when limit-ing the evaluation to sentence-level retrieval targets only, the span detection model still outperforms the sentence-level baselines by more than 4 pp in terms of exact match, and almost 6pp F-score. Additionally, we introduce a method for creating artificial paraphrase data through back-translation, suitable for languages where manually annotated paraphrase resources for training the span detection model are not available.",
+        "publicationYear": 2020,
+        "authors": [
+          "Language Resources"
+        ],
+        "keywords": [
+          "Paraphrase retrieval · Finnish · Semantic search · Paraphrasing"
+        ],
+        "doi": "10.1007/s10579-023-09715-7",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.62,
+          "authors": 0.65,
+          "keywords": 0.8,
+          "doi": 0.8,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "heuristic",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_authors_confidence"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.62,
+        "authors": 0.65,
+        "keywords": 0.8,
+        "doi": 0.8,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "heuristic",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_authors_confidence"
+        ]
+      }
+    },
+    {
+      "fileName": "Rob van der Goot - ROB Using Semantic Meaning to Recognize Paraphrases [2015].pdf",
+      "failedFields": [
+        "title"
+      ],
+      "expected": {
+        "fileName": "Rob van der Goot - ROB Using Semantic Meaning to Recognize Paraphrases [2015].pdf",
+        "title": "ROB Using Semantic Meaning to Recognize Paraphrases",
+        "authors": [
+          "Rob van der Goot"
+        ],
+        "publicationYear": 2015,
+        "doi": "",
+        "publicationVenue": "",
+        "keywords": []
+      },
+      "extracted": {
+        "title": "ROB: Using Semantic Meaning to Recognize Paraphrases",
+        "abstract": "Paraphrase recognition is the task of iden-tifying whether two pieces of natural lan-guage represent similar meanings. This pa-per describes a system participating in the shared task 1 of SemEval 2015, which is about paraphrase detection and semantic similarity in twitter. Our approach is to exploit se-mantically meaningful features to detect para-phrases. An existing state-of-the-art model for predicting semantic similarity is adapted to this task. A wide variety of features is used, ranging from different types of models, to lexical over-lap and synset overlap. A maximum entropy classifier is then trained on these features. In addition to the detection of paraphrases, a sim-ilarity score is also predicted, using the proba-bilities of the classifier. To improve the results, normalization is used as preprocessing step. Our final system achieves a F1 score of 0.620 (10th out of 18 teams), and a Pearson correla-tion of 0.515 (6th out of 13 teams). 1 Introduction A good paraphrase detection system can be useful in many natural language processing tasks, like search-ing, translating or summarization. For clean texts, F1 scores as high as 0.84 have been reported on para-phrase detection (Madnani et al., 2012). However, previous research focused almost solely on clean text. Thanks to the Twitter Paraphrase Cor-pus (Xu et al., 2014), this has now changed. Car-rying out this task on noisy texts is a new chal-lenge. The abundant availability of social media data and the high redundancy that naturally exists in this data makes this task highly relevant (Zanzotto et al., 2011). Our approach is based on the model described by Bjerva et al. (2014). This model has proved to achieve state-of-the-art results at predicting se-mantic similarity (Marelli et al., 2014). It is based on overlaps of semantically meaningful properties of sentences. A random forest regression model (Breiman, 2001) combines these features to predict a semantic similarity score. We rely heavily on the as-sumption that semantically meaningful features can also be used to identify paraphrases. The features of the existing system are also used in the new system. However, the old system used a regression model, while the new task demands class-based output. Hence, the machine learning model model is changed to a maximum entropy model. 2 Data The Twitter Paraphrase Corpus consists of two dis-tinct parts, the training data differs significantly from the test data. The 17,790 tweet pairs for training are collected between April 24th and May 3rd, 2014. These tweets are selected based on the trending topics of that period. Annotation of the training data is done by human annotators from Amazon Mechan-ical Turk. Every sentence pair is annotated by 5 dif-ferent annotators, resulting in a score of 0-5. Based on this score we create a binary paraphrase judge-ment. If 0, 1 or 2 annotators judged positively, we treat the sentence pair as not being a paraphrase, for 3, 4 or 5 positive judgements we treat ...",
+        "publicationYear": 2015,
+        "authors": [
+          "Rob van der Goot",
+          "Gertjan van Noord"
+        ],
+        "keywords": [],
+        "doi": "",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.8,
+          "authors": 0.65,
+          "keywords": 0,
+          "doi": 0,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "none",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_authors_confidence",
+            "missing_doi"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.8,
+        "authors": 0.65,
+        "keywords": 0,
+        "doi": 0,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "none",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_authors_confidence",
+          "missing_doi"
+        ]
+      }
+    },
+    {
+      "fileName": "S. Schleimer - Winnowing local algorithms for document fingerprinting [2003].pdf",
+      "failedFields": [
+        "doi"
+      ],
+      "expected": {
+        "fileName": "S. Schleimer - Winnowing local algorithms for document fingerprinting [2003].pdf",
+        "title": "Winnowing: local algorithms for document fingerprinting",
+        "authors": [
+          "Saul Schleimer",
+          "Daniel S. Wilkerson",
+          "Alex Aiken"
+        ],
+        "publicationYear": 2003,
+        "doi": "10.1145/872757.873770",
+        "publicationVenue": "",
+        "keywords": [
+          "document fingerprinting",
+          "winnowing",
+          "local algorithms"
+        ]
+      },
+      "extracted": {
+        "title": "Winnowing: Local Algorithms for Document Fingerprinting",
+        "abstract": "Digital content is for copying: quotation, revision, plagiarism, and file sharing all create copies. Document fingerprinting is concerned with accurately identifying copying, including small partial copies, within large sets of documents. We introduce the class of local document fingerprinting algo-rithms, which seems to capture an essential property of any finger-printing technique guaranteed to detect copies. We prove a novel lower bound on the performance of any local algorithm. We also develop winnowing, an efficient local fingerprinting algorithm, and show that winnowing’s performance is within 33% of the lower bound. Finally, we also give experimental results on Web data, and report experience with M OSS , a widely-used plagiarism detection service.",
+        "publicationYear": 2003,
+        "authors": [
+          "Saul Schleimer",
+          "Daniel S. Wilkerson",
+          "Computer Science",
+          "UC Berkeley",
+          "Alex Aiken"
+        ],
+        "keywords": [],
+        "doi": "",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.8,
+          "abstract": 0.85,
+          "publicationYear": 0.8,
+          "authors": 0.65,
+          "keywords": 0,
+          "doi": 0,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "none",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_authors_confidence",
+            "missing_doi"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.8,
+        "abstract": 0.85,
+        "publicationYear": 0.8,
+        "authors": 0.65,
+        "keywords": 0,
+        "doi": 0,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "none",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_authors_confidence",
+          "missing_doi"
+        ]
+      }
+    },
+    {
+      "fileName": "Sherly Maria - Preprocessing Pipelines for EEG [2022].pdf",
+      "failedFields": [],
+      "expected": {
+        "fileName": "Sherly Maria - Preprocessing Pipelines for EEG [2022].pdf",
+        "title": "Preprocessing Pipelines for EEG",
+        "authors": [
+          "Sherly Maria"
+        ],
+        "publicationYear": 2022,
+        "doi": "",
+        "publicationVenue": "",
+        "keywords": [
+          "EEG",
+          "preprocessing"
+        ]
+      },
+      "extracted": {
+        "title": "Preprocessing Pipelines for EEG",
+        "abstract": "",
+        "publicationYear": 2022,
+        "authors": [
+          "Sherly Maria",
+          "Chandra J"
+        ],
+        "keywords": [
+          "EEG",
+          "Stress",
+          "Pipelines",
+          "Signals",
+          "Noise",
+          "Artifacts"
+        ],
+        "doi": "10.1051/shsconf/202213903029",
+        "publicationVenue": "",
+        "confidence": {
+          "title": 0.6,
+          "abstract": 0,
+          "publicationYear": 0.62,
+          "authors": 0.65,
+          "keywords": 0.8,
+          "doi": 0.8,
+          "publicationVenue": 0
+        },
+        "extractionProvider": "heuristic",
+        "fieldSources": {
+          "title": "heuristic",
+          "abstract": "heuristic",
+          "publicationYear": "heuristic",
+          "authors": "heuristic",
+          "keywords": "heuristic",
+          "doi": "heuristic",
+          "publicationVenue": "none"
+        },
+        "review": {
+          "required": true,
+          "reasons": [
+            "low_title_confidence",
+            "low_abstract_confidence",
+            "low_authors_confidence"
+          ]
+        }
+      },
+      "confidence": {
+        "title": 0.6,
+        "abstract": 0,
+        "publicationYear": 0.62,
+        "authors": 0.65,
+        "keywords": 0.8,
+        "doi": 0.8,
+        "publicationVenue": 0
+      },
+      "fieldSources": {
+        "title": "heuristic",
+        "abstract": "heuristic",
+        "publicationYear": "heuristic",
+        "authors": "heuristic",
+        "keywords": "heuristic",
+        "doi": "heuristic",
+        "publicationVenue": "none"
+      },
+      "review": {
+        "required": true,
+        "reasons": [
+          "low_title_confidence",
+          "low_abstract_confidence",
+          "low_authors_confidence"
+        ]
+      }
+    }
+  ]
+}

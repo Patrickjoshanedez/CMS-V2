@@ -504,31 +504,28 @@ class TeamService {
       expiresAt: { $gt: new Date() },
     });
 
-    if (existingInvite) {
-      throw new AppError(
-        'A pending invitation already exists for this email.',
-        409,
-        'DUPLICATE_INVITE',
-      );
+    const token = existingInvite?.token || uuidv4();
+    const inviteCode = existingInvite?.inviteCode || (await this.generateUniqueInviteCode());
+
+    let invite = existingInvite;
+    if (invite) {
+      invite.expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      await invite.save();
+    } else {
+      invite = await TeamInvite.create({
+        teamId,
+        email: data.email,
+        token,
+        inviteCode,
+      });
     }
 
-    const token = uuidv4();
-    const inviteCode = await this.generateUniqueInviteCode();
-    const invite = await TeamInvite.create({
-      teamId,
-      email: data.email,
-      token,
-      inviteCode,
-    });
-
-    // Send invite email
     const inviter = await User.findById(leaderId).select(
       'firstName middleName lastName sectionId instructorId',
     );
     const inviterName = inviter?.fullName || 'A team leader';
-    await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
 
-    // Create an in-app notification for the invited user
+    // Always persist and emit in-app notifications even if SMTP fails.
     const inviteNotif = await Notification.create({
       userId: invitedUser._id,
       type: 'team_invite',
@@ -537,6 +534,23 @@ class TeamService {
       metadata: { teamId, inviteToken: token, inviteCode },
     });
     emitToUser(invitedUser._id, 'notification:new', inviteNotif);
+
+    let emailSent = false;
+    try {
+      await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
+      emailSent = true;
+    } catch (error) {
+      console.warn(
+        '[TeamService] Invite email delivery failed; invite remains active for in-app acceptance.',
+        {
+          email: data.email,
+          teamId: team._id?.toString?.() || String(team._id),
+          code: error?.code,
+          responseCode: error?.responseCode,
+          message: error?.message,
+        },
+      );
+    }
 
     const isCrossSectionInvite = Boolean(
       inviter?.sectionId &&
@@ -576,6 +590,8 @@ class TeamService {
 
     return {
       invite,
+      emailSent,
+      reusedInvite: Boolean(existingInvite),
       invitedUser: {
         _id: invitedUser._id,
         fullName: invitedUser.fullName,

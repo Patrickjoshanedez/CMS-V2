@@ -36,6 +36,9 @@ const api = axios.create({
   baseURL: resolveBaseApiUrl(),
   timeout: 15000,
   withCredentials: true,
+  headers: {
+    'ngrok-skip-browser-warning': '69420',
+  },
 });
 
 // Track if we're currently refreshing to prevent infinite loops

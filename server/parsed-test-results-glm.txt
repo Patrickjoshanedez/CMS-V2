@@ -1,0 +1,202 @@
+=====================================================
+ GLM-OCR METADATA REGRESSION REPORT
+=====================================================
+
+Testing file: 336597.336667.pdf
+-----------------------------------------------------
+Field title: FAIL (mismatch)
+Field authors: FAIL (missing_expected_author)
+Field publicationYear: FAIL (mismatch)
+Field doi: FAIL (mismatch)
+Extraction Time: 307521ms
+Provider: heuristic
+Review Required: YES
+Title: Document Overlap Detection System for Distributed
+Authors: Digital Libraries, Krisztián Monostori, Arkady Zaslavsky, Heinz Schmidt, Caulfield East
+Year: 2000
+DOI: 
+Venue: 
+Keywords: overlap detection, string-matching, suffix
+Abstract preview (351 chars):
+In this paper we introduce the MatchDetectReveal(MDR) system, which is capable of identifying overlapping and plagiarised documents. Each component of the system is briefly described. The matching-engine component uses a modified suffix tree representation, which is able to identify the exact overlapping chunks and its performance is also presented.
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.8,
+  "authors": 0.65,
+  "keywords": 0.8,
+  "doi": 0,
+  "publicationVenue": 0
+}
+
+Testing file: 1066677.1066753.pdf
+-----------------------------------------------------
+Field title: FAIL (mismatch)
+Field authors: FAIL (missing_expected_author)
+Field publicationYear: FAIL (mismatch)
+Field doi: FAIL (mismatch)
+Extraction Time: 305924ms
+Provider: heuristic
+Review Required: YES
+Title: k-gram Based Software Birthmarks
+Authors: Ginger Myles Christian Collberg
+Year: 2005
+DOI: 
+Venue: 
+Keywords: Software theft detection, Software birthmarking
+Abstract preview (802 chars):
+Software birthmarking relies on unique characteristics that are inherent to a program to identify the program in the event of suspected theft. In this paper we present and empirically evaluate a novel birthmarking technique which uniquely identifies a program through instruction sequences. To evaluate the strength of the birthmarking technique we examine two properties: credibility and resilience to seman-tics-preserving transformations. We show that the technique provides both high credibility ...
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.8,
+  "authors": 0.65,
+  "keywords": 0.8,
+  "doi": 0,
+  "publicationVenue": 0
+}
+
+Testing file: Deblina Mazumder Setu - A comprehensive strategy for identifying plagiarism in academic submissions [2025].pdf
+-----------------------------------------------------
+Field title: FAIL (mismatch)
+Field authors: FAIL (missing_expected_author)
+Field publicationYear: PASS (exact)
+Extraction Time: 306131ms
+Provider: heuristic
+Review Required: YES
+Title: A comprehensive strategy for identifying plagiarism in academic
+Authors: 
+Year: 2025
+DOI: 10.1007/s43995-025-00108-1
+Venue: 
+Keywords: 
+Abstract preview (1732 chars):
+Plagiarism is a major problem in education, especially in higher education environments. To address this problem, a com-prehensive detection method is proposed, utilizing cutting-edge models like Bidirectional Encoder Representations from Transformers (BERT) and cosine similarity for detecting direct copy and semantic changes. The methodology involves evaluating the BERT model and cosine similarity first, then performing pairwise comparisons to determine how similar a student’s work is to a refe...
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.62,
+  "authors": 0,
+  "keywords": 0,
+  "doi": 0.8,
+  "publicationVenue": 0
+}
+
+Testing file: Jenna Kanerva - Semantic search as extractive paraphrase span detection [2021].pdf
+-----------------------------------------------------
+Field title: FAIL (mismatch)
+Field authors: FAIL (missing_expected_author)
+Field publicationYear: FAIL (mismatch)
+Extraction Time: 93438ms
+Provider: heuristic
+Review Required: YES
+Title: Semantic search as extractive paraphrase span detection Jenna Kanerva1 · Hanna Kitti1 · Li‑Hsin Chang1 · Teemu Vahtola2 · Mathias Creutz2 · Filip Ginter1
+Authors: Language Resources
+Year: 2020
+DOI: 10.1007/s10579-023-09715-7
+Venue: 
+Keywords: Paraphrase retrieval · Finnish · Semantic search · Paraphrasing
+Abstract preview (1656 chars):
+In this paper, we approach the problem of semantic search by introducing a task of paraphrase span detection, i.e. given a segment of text as a query phrase, the task is to identify its paraphrase in a given document, the same modelling setup as typi-cally used in extractive question answering. While current work in paraphrasing has almost uniquely focused on sentence-level approaches, the novel span detec-tion approach gives a possibility to retrieve a segment of arbitrary length. On the Turku ...
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.62,
+  "authors": 0.65,
+  "keywords": 0.8,
+  "doi": 0.8,
+  "publicationVenue": 0
+}
+
+Testing file: Rob van der Goot - ROB Using Semantic Meaning to Recognize Paraphrases [2015].pdf
+-----------------------------------------------------
+Field title: FAIL (mismatch)
+Field authors: PASS (contains_all_expected)
+Field publicationYear: PASS (exact)
+Extraction Time: 276473ms
+Provider: heuristic
+Review Required: YES
+Title: ROB: Using Semantic Meaning to Recognize Paraphrases
+Authors: Rob van der Goot, Gertjan van Noord
+Year: 2015
+DOI: 
+Venue: 
+Keywords: 
+Abstract preview (3003 chars):
+Paraphrase recognition is the task of iden-tifying whether two pieces of natural lan-guage represent similar meanings. This pa-per describes a system participating in the shared task 1 of SemEval 2015, which is about paraphrase detection and semantic similarity in twitter. Our approach is to exploit se-mantically meaningful features to detect para-phrases. An existing state-of-the-art model for predicting semantic similarity is adapted to this task. A wide variety of features is used, ranging fr...
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.8,
+  "authors": 0.65,
+  "keywords": 0,
+  "doi": 0,
+  "publicationVenue": 0
+}
+
+Testing file: S. Schleimer - Winnowing local algorithms for document fingerprinting [2003].pdf
+-----------------------------------------------------
+Field title: PASS (exact)
+Field authors: PASS (contains_all_expected)
+Field publicationYear: PASS (exact)
+Field doi: FAIL (mismatch)
+Extraction Time: 305698ms
+Provider: heuristic
+Review Required: YES
+Title: Winnowing: Local Algorithms for Document Fingerprinting
+Authors: Saul Schleimer, Daniel S. Wilkerson, Computer Science, UC Berkeley, Alex Aiken
+Year: 2003
+DOI: 
+Venue: 
+Keywords: 
+Abstract preview (765 chars):
+Digital content is for copying: quotation, revision, plagiarism, and file sharing all create copies. Document fingerprinting is concerned with accurately identifying copying, including small partial copies, within large sets of documents. We introduce the class of local document fingerprinting algo-rithms, which seems to capture an essential property of any finger-printing technique guaranteed to detect copies. We prove a novel lower bound on the performance of any local algorithm. We also devel...
+Confidence:
+{
+  "title": 0.8,
+  "abstract": 0.85,
+  "publicationYear": 0.8,
+  "authors": 0.65,
+  "keywords": 0,
+  "doi": 0,
+  "publicationVenue": 0
+}
+
+Testing file: Sherly Maria - Preprocessing Pipelines for EEG [2022].pdf
+-----------------------------------------------------
+Field title: PASS (exact)
+Field authors: PASS (contains_all_expected)
+Field publicationYear: PASS (exact)
+Extraction Time: 298446ms
+Provider: heuristic
+Review Required: YES
+Title: Preprocessing Pipelines for EEG
+Authors: Sherly Maria, Chandra J
+Year: 2022
+DOI: 10.1051/shsconf/202213903029
+Venue: 
+Keywords: EEG, Stress, Pipelines, Signals, Noise, Artifacts
+Abstract preview (0 chars):
+
+Confidence:
+{
+  "title": 0.6,
+  "abstract": 0,
+  "publicationYear": 0.62,
+  "authors": 0.65,
+  "keywords": 0.8,
+  "doi": 0.8,
+  "publicationVenue": 0
+}
+
+================== TOTALS ==================
+Scored fields: 24
+Passed fields: 9
+Failed fields: 15
+Field-level accuracy: 37.50%
+Manual review queue size: 7

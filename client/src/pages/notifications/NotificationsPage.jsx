@@ -147,12 +147,10 @@ function getNotificationTarget(notification, role) {
 
   if (notification.type === 'team_invite') {
     const inviteToken = metadata.inviteToken || metadata.inviteCode;
-
     if (inviteToken) {
-      return '/dashboard';
+      return `/teams/invites/${encodeURIComponent(inviteToken)}/accept`;
     }
-
-    return '/dashboard';
+    return '/teams';
   }
 
   if (notification.type === 'team_joined' || notification.type === 'team_locked') {

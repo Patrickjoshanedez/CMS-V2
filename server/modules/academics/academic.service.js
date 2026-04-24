@@ -3,6 +3,7 @@ import Section from './section.model.js';
 import AcademicYear from './academicYear.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
+import Project from '../projects/project.model.js';
 import AppError from '../../utils/AppError.js';
 
 class AcademicService {
@@ -182,8 +183,30 @@ class AcademicService {
       teamsBySection.get(key).push(team);
     }
 
+    const teamIds = teams.map((t) => t._id);
+    const projects = teamIds.length
+      ? await Project.find({ teamId: { $in: teamIds } })
+          .select('teamId capstonePhase titleStatus projectStatus')
+          .lean()
+      : [];
+
+    const projectByTeamId = new Map(
+      projects.map((p) => [p.teamId?.toString(), p])
+    );
+
     const hierarchy = sections.map((section) => {
-      const sectionTeams = teamsBySection.get(section._id.toString()) || [];
+      const sectionTeams = (teamsBySection.get(section._id.toString()) || []).map(team => {
+        const proj = projectByTeamId.get(team._id.toString());
+        return {
+          ...team,
+          assignment: {
+            projectId: proj?._id || null,
+            capstonePhase: proj?.capstonePhase || null,
+            titleStatus: proj?.titleStatus || null,
+            projectStatus: proj?.projectStatus || null,
+          }
+        };
+      });
       return {
         ...section,
         teams: sectionTeams,

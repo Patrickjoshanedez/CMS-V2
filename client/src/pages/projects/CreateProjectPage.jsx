@@ -991,7 +991,6 @@ export default function CreateProjectPage() {
                             required={index < 3}
                             minLength={10}
                             maxLength={300}
-                            className="text-lg"
                           />
                         </div>
 

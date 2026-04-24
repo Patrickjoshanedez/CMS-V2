@@ -259,6 +259,8 @@ export const listProjectsQuerySchema = z.object({
   projectStatus: z.enum(PROJECT_STATUS_VALUES).optional(),
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
+  panelistId: z.string().regex(objectIdPattern).optional(),
+  excludeArchived: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
 });
 
 /* ───── Advance capstone phase (instructor action) ───── */
@@ -357,7 +359,7 @@ export const reportQuerySchema = z.object({
 /** Bulk-upload archived capstone bundle metadata (Instructor only). */
 export const bulkUploadSchema = z.object({
   title: z.string().trim().max(300).optional().default(''),
-  abstract: z.string().trim().max(500).optional().default(''),
+  abstract: z.string().trim().max(5000).optional().default(''),
   keywords: z.preprocess(
     (val) =>
       typeof val === 'string'

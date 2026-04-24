@@ -347,8 +347,9 @@ class ProposalService {
     const html = buildDeckHtml(payload);
     const browser = await puppeteer.launch({
       headless: true,
-      channel: 'chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      channel: process.env.PUPPETEER_EXECUTABLE_PATH ? undefined : 'chrome',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
     try {

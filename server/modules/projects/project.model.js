@@ -308,7 +308,7 @@ const projectSchema = new mongoose.Schema(
     abstract: {
       type: String,
       trim: true,
-      maxlength: [500, 'Abstract must not exceed 500 characters'],
+      maxlength: [5000, 'Abstract must not exceed 5000 characters'],
       default: '',
     },
     keywords: {
@@ -349,6 +349,21 @@ const projectSchema = new mongoose.Schema(
       extractedAt: {
         type: Date,
         default: null,
+      },
+      review: {
+        required: {
+          type: Boolean,
+          default: false,
+        },
+        reasons: {
+          type: [String],
+          default: [],
+        },
+        fieldSources: {
+          type: Map,
+          of: String,
+          default: {},
+        },
       },
       similarityAudit: {
         checkedAt: {

@@ -60,6 +60,19 @@ const parseUnitInterval = (value, defaultValue) => {
   return parsed;
 };
 
+const parseFloatInRange = (value, defaultValue, min, max) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+
+  if (parsed < min || parsed > max) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
 const parseCookieSameSite = (value, defaultValue = 'strict') => {
   if (typeof value !== 'string') {
     return defaultValue;
@@ -714,11 +727,47 @@ const env = Object.freeze({
 
   // PDF metadata extraction and similarity audit
   PDF_METADATA_ENABLE_GLM_OCR: parseBoolean(process.env.PDF_METADATA_ENABLE_GLM_OCR, true),
-  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr',
+  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest',
   PDF_METADATA_GLM_STRATEGY: (process.env.PDF_METADATA_GLM_STRATEGY || 'fallback')
     .toLowerCase()
     .trim(),
   PDF_METADATA_CACHE_TTL_MS: parseInt(process.env.PDF_METADATA_CACHE_TTL_MS, 10) || 600000,
+  PDF_METADATA_GLM_TEMPERATURE: parseFloatInRange(
+    process.env.PDF_METADATA_GLM_TEMPERATURE,
+    0.0,
+    0,
+    2,
+  ),
+  PDF_METADATA_GLM_TOP_P: parseFloatInRange(process.env.PDF_METADATA_GLM_TOP_P, 0.2, 0, 1),
+  PDF_METADATA_GLM_REPEAT_PENALTY: parseFloatInRange(
+    process.env.PDF_METADATA_GLM_REPEAT_PENALTY,
+    1.12,
+    0.5,
+    2.5,
+  ),
+  PDF_METADATA_GLM_PROMPT_MAX_CHARS: parsePositiveInteger(
+    process.env.PDF_METADATA_GLM_PROMPT_MAX_CHARS,
+    8000,
+  ),
+  PDF_METADATA_GLM_TIMEOUT_MS: parsePositiveInteger(process.env.PDF_METADATA_GLM_TIMEOUT_MS, 20000),
+  PDF_METADATA_ENABLE_DOI_ENRICHMENT: parseBoolean(
+    process.env.PDF_METADATA_ENABLE_DOI_ENRICHMENT,
+    true,
+  ),
+  PDF_METADATA_DOI_TIMEOUT_MS: parsePositiveInteger(process.env.PDF_METADATA_DOI_TIMEOUT_MS, 4000),
+  PDF_METADATA_MIN_TITLE_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_TITLE_CONFIDENCE,
+    0.78,
+  ),
+  PDF_METADATA_MIN_ABSTRACT_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_ABSTRACT_CONFIDENCE,
+    0.82,
+  ),
+  PDF_METADATA_MIN_AUTHORS_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_AUTHORS_CONFIDENCE,
+    0.7,
+  ),
+  PDF_METADATA_REVIEW_GATE_ENABLED: parseBoolean(process.env.PDF_METADATA_REVIEW_GATE_ENABLED, true),
   ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD: parseUnitInterval(
     process.env.ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD,
     0.7,

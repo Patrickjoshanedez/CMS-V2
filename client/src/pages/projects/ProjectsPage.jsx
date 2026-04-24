@@ -36,15 +36,20 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const highlightedProjectRef = useRef(null);
 
+  const filterParam = searchParams.get('filter');
+
   const filters = {
     ...(search && { search }),
     ...(titleStatus && { titleStatus }),
+    ...(filterParam === 'advisees' && { adviserId: user?._id, excludeArchived: true }),
+    ...(filterParam === 'panel' && { panelistId: user?._id, excludeArchived: true }),
     page,
     limit: 10,
   };
 
   const { data, isLoading, error, refetch } = useProjects(filters);
   const highlightedProjectId = searchParams.get('projectId') || '';
+  const isFacultyScopedFilter = filterParam === 'advisees' || filterParam === 'panel';
 
   useEffect(() => {
     if (!highlightedProjectId) return;
@@ -62,15 +67,25 @@ export default function ProjectsPage() {
     );
   }
 
-  const projects = data?.projects || [];
+  const projects = (data?.projects || []).filter((project) => {
+    if (!isFacultyScopedFilter) return true;
+
+    const normalizedStatuses = [project.projectStatus, project.status]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).trim().toLowerCase());
+
+    return project.isArchived !== true && !normalizedStatuses.includes('archived');
+  });
   const pagination = data?.pagination || { page: 1, totalPages: 1 };
 
   const pageTitle =
-    user.role === ROLES.INSTRUCTOR
-      ? 'Instructor Review'
-      : user.role === ROLES.ADVISER
-        ? 'Adviser Review'
-        : 'Instructor Review';
+    filterParam === 'advisees'
+      ? 'Adviser Reviews'
+      : filterParam === 'panel'
+        ? 'Panel Review'
+        : user.role === ROLES.INSTRUCTOR
+          ? 'Instructor Review'
+          : 'Projects Review';
 
   return (
     <DashboardLayout>

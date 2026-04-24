@@ -11,6 +11,7 @@ node_modules
 **/.env.prod.*
 .env.prod
 .env.prod.*
+.env.deploy
 **/.DS_Store
 cookies.txt
 server/test-*.json

@@ -12,6 +12,32 @@ import env from '../../config/env.js';
  */
 
 let transporter = null;
+let smtpHealth = {
+  status: 'unknown',
+  message: 'SMTP health not checked yet.',
+  lastCheckedAt: null,
+};
+
+const setSmtpHealth = (status, message) => {
+  smtpHealth = {
+    status,
+    message,
+    lastCheckedAt: new Date().toISOString(),
+  };
+};
+
+const hasSmtpCredentials = () => Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
+
+const withTimeout = (promise, timeoutMs, timeoutMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      const timer = setTimeout(() => {
+        clearTimeout(timer);
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+    }),
+  ]);
 
 /**
  * Get or create the Nodemailer transporter (lazy singleton).
@@ -51,7 +77,7 @@ export const sendEmail = async ({ to, subject, text, html }) => {
   const transport = getTransporter();
 
   const mailOptions = {
-    from: `"${env.APP_NAME || 'CMS'}" <${env.SMTP_FROM || env.SMTP_USER}>`,
+    from: env.EMAIL_FROM || env.SMTP_USER,
     to,
     subject,
     text,
@@ -72,6 +98,41 @@ export const sendEmail = async ({ to, subject, text, html }) => {
 
   return info;
 };
+
+/**
+ * Validate SMTP transport health and cache status for diagnostics.
+ * @returns {Promise<{status: string, message: string, lastCheckedAt: string | null}>}
+ */
+export const verifyEmailTransport = async () => {
+  if (process.env.NODE_ENV === 'test') {
+    setSmtpHealth('healthy', 'SMTP check skipped in test environment.');
+    return smtpHealth;
+  }
+
+  if (!hasSmtpCredentials()) {
+    setSmtpHealth('degraded', 'SMTP credentials are missing or incomplete.');
+    return smtpHealth;
+  }
+
+  try {
+    const transport = getTransporter();
+    await withTimeout(transport.verify(), 8000, 'SMTP verification timed out.');
+    setSmtpHealth('healthy', 'SMTP transport verified successfully.');
+  } catch (error) {
+    setSmtpHealth(
+      'degraded',
+      `SMTP verification failed: ${error?.message || 'unknown error'}`,
+    );
+  }
+
+  return smtpHealth;
+};
+
+/**
+ * Get last known SMTP health state.
+ * @returns {{status: string, message: string, lastCheckedAt: string | null}}
+ */
+export const getEmailTransportHealth = () => smtpHealth;
 
 /**
  * Send OTP verification email.

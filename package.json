@@ -22,6 +22,7 @@
     "docker:dev:rebuild": "docker compose -f docker-compose.yml down --remove-orphans && docker compose -f docker-compose.yml up -d --build",
     "seed": "npm run seed --workspace=server",
     "seed:server": "npm run seed --workspace=server",
+    "seed:archive:pdfs": "npm run seed:archive:pdfs --workspace=server",
     "seed:orphans": "npm run seed:orphans --workspace=server",
     "check:endpoints": "node scripts/check-endpoint-mappings.js",
     "validate:agentic": "node scripts/validate-agentic-system.js",

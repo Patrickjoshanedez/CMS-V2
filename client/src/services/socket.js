@@ -31,6 +31,9 @@ export function connectSocket() {
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10000,
+    extraHeaders: {
+      'ngrok-skip-browser-warning': '69420',
+    },
   });
 
   return socket;

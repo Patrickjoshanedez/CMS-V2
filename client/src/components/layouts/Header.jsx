@@ -4,6 +4,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
+import { ROLES } from '@cms/shared';
 
 /**
  * Map route paths to human-readable page titles.
@@ -38,6 +39,16 @@ function getPageTitle(pathname) {
   return match?.title || 'Dashboard';
 }
 
+function getRoleLabel(role) {
+  if (!role) return '';
+
+  if (role === ROLES.ADVISER || role === ROLES.PANELIST) {
+    return 'Faculty';
+  }
+
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 /**
  * Header — top bar with mobile menu toggle, user info, theme toggle, and notifications.
  */
@@ -50,7 +61,7 @@ export default function Header({ onMenuClick }) {
   const initials =
     [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
-  const roleLabel = user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1);
+  const roleLabel = getRoleLabel(user?.role);
 
   const pageTitle = getPageTitle(pathname);
 
@@ -60,7 +71,7 @@ export default function Header({ onMenuClick }) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
+          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
           aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />

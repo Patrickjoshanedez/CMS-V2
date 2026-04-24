@@ -28,7 +28,8 @@ export const registerSchema = z.object({
     .trim()
     .email('Please provide a valid email address')
     .regex(STRICT_EMAIL_REGEX, 'Please provide a valid email address')
-    .toLowerCase(),
+    .toLowerCase()
+    .endsWith('@gmail.com', 'Only Gmail addresses are allowed'),
   password: z
     .string({ required_error: 'Password is required' })
     .min(8, 'Password must be at least 8 characters')

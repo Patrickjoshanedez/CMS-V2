@@ -1,0 +1,67 @@
+{
+  "documents": [
+    {
+      "fileName": "336597.336667.pdf",
+      "title": "Document Overlap Detection System for Distributed Digital Libraries",
+      "authors": ["Saad A. Khan", "Mumtaz Ali Memon", "Sadiq M. Sait"],
+      "publicationYear": 2005,
+      "doi": "10.1145/336597.336667",
+      "publicationVenue": "",
+      "keywords": []
+    },
+    {
+      "fileName": "1066677.1066753.pdf",
+      "title": "ROB Using Semantic Meaning to Recognize Paraphrases",
+      "authors": ["Rob van der Goot", "Gertjan van Noord"],
+      "publicationYear": 2015,
+      "doi": "10.1145/1066677.1066753",
+      "publicationVenue": "",
+      "keywords": []
+    },
+    {
+      "fileName": "Deblina Mazumder Setu - A comprehensive strategy for identifying plagiarism in academic submissions [2025].pdf",
+      "title": "A comprehensive strategy for identifying plagiarism in academic submissions",
+      "authors": ["Deblina Mazumder Setu"],
+      "publicationYear": 2025,
+      "doi": "",
+      "publicationVenue": "",
+      "keywords": []
+    },
+    {
+      "fileName": "Jenna Kanerva - Semantic search as extractive paraphrase span detection [2021].pdf",
+      "title": "Semantic search as extractive paraphrase span detection",
+      "authors": ["Jenna Kanerva"],
+      "publicationYear": 2021,
+      "doi": "",
+      "publicationVenue": "",
+      "keywords": []
+    },
+    {
+      "fileName": "Rob van der Goot - ROB Using Semantic Meaning to Recognize Paraphrases [2015].pdf",
+      "title": "ROB Using Semantic Meaning to Recognize Paraphrases",
+      "authors": ["Rob van der Goot"],
+      "publicationYear": 2015,
+      "doi": "",
+      "publicationVenue": "",
+      "keywords": []
+    },
+    {
+      "fileName": "S. Schleimer - Winnowing local algorithms for document fingerprinting [2003].pdf",
+      "title": "Winnowing: local algorithms for document fingerprinting",
+      "authors": ["Saul Schleimer", "Daniel S. Wilkerson", "Alex Aiken"],
+      "publicationYear": 2003,
+      "doi": "10.1145/872757.873770",
+      "publicationVenue": "",
+      "keywords": ["document fingerprinting", "winnowing", "local algorithms"]
+    },
+    {
+      "fileName": "Sherly Maria - Preprocessing Pipelines for EEG [2022].pdf",
+      "title": "Preprocessing Pipelines for EEG",
+      "authors": ["Sherly Maria"],
+      "publicationYear": 2022,
+      "doi": "",
+      "publicationVenue": "",
+      "keywords": ["EEG", "preprocessing"]
+    }
+  ]
+}

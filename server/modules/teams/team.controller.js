@@ -40,17 +40,26 @@ export const getMyTeam = catchAsync(async (req, res) => {
 
 /** POST /api/teams/:id/invite — Invite a student to the team (Leader only) */
 export const inviteMember = catchAsync(async (req, res) => {
-  const { invite, invitedUser } = await teamService.inviteMember(
+  const { invite, invitedUser, emailSent, reusedInvite } = await teamService.inviteMember(
     req.params.id,
     req.user._id,
     req.body,
   );
   const invitedUserName = invitedUser?.fullName || invitedUser?.email || 'the user';
+  const statusCode = reusedInvite ? HTTP_STATUS.OK : HTTP_STATUS.CREATED;
 
-  res.status(HTTP_STATUS.CREATED).json({
+  const message = emailSent
+    ? reusedInvite
+      ? `Existing invitation for ${invitedUserName} was re-sent.`
+      : `You have successfully invited ${invitedUserName} to the team.`
+    : reusedInvite
+      ? `Existing invitation for ${invitedUserName} is active, but email delivery failed. The in-app notification was sent.`
+      : `Invitation created for ${invitedUserName}, but email delivery failed. The in-app notification was sent.`;
+
+  res.status(statusCode).json({
     success: true,
-    message: `You have successfully invited ${invitedUserName} to the team.`,
-    data: { invite, invitedUser },
+    message,
+    data: { invite, invitedUser, emailSent, reusedInvite },
   });
 });
 

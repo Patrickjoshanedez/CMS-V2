@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
@@ -20,9 +21,12 @@ import {
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const DEFAULT_DEV_URI = 'mongodb://127.0.0.1:27017/cms_v2';
+const MONGODB_URI =
+  process.env.MONGODB_URI || process.env.MONGODB_DEV_FALLBACK_URI || DEFAULT_DEV_URI;
 const STORAGE_LOCAL_PATH = process.env.STORAGE_LOCAL_PATH || '';
 const TEMPLATE_PATH = process.env.ARCHIVE_PDF_TEMPLATE_PATH || '/app/server/seeders/_template.pdf';
+const SOURCE_PDF_DIR = process.env.ARCHIVE_SOURCE_PDF_DIR || 'sampleacademicpdf';
 const ARCHIVE_YEAR = '2024-2025';
 const BASE_ARCHIVED_TITLE = 'Archived Capstone Seed Project for Verification and Document Access';
 
@@ -92,17 +96,82 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+const isTransientMongoConnectionError = (error) => {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  const errorCodes = [error?.code, error?.cause?.code]
+    .filter((code) => typeof code === 'string')
+    .map((code) => code.toUpperCase());
+
+  if (errorCodes.some((code) => ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code))) {
+    return true;
+  }
+
+  return /econnrefused|enotfound|eai_again|etimedout|ehostunreach|network error/i.test(message);
+};
+
+const connectWithFallback = async () => {
+  const fallbackUri = process.env.MONGODB_DEV_FALLBACK_URI || DEFAULT_DEV_URI;
+  const candidates = [MONGODB_URI, fallbackUri].filter(
+    (uri, index, list) => uri && list.indexOf(uri) === index,
+  );
+
+  let lastError;
+  for (const uri of candidates) {
+    try {
+      console.log(`Connecting to MongoDB: ${uri}`);
+      await mongoose.connect(uri, { autoIndex: false });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (isTransientMongoConnectionError(error)) {
+        console.warn(`Mongo connection failed for ${uri}: ${error.message}`);
+        continue;
+      }
+
+      if (/Invalid scheme/i.test(error?.message || '')) {
+        console.warn(`Mongo URI scheme invalid for ${uri}, trying fallback if available...`);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+};
+
+const resolveRepoRoot = () => {
+  const candidateRoot = path.resolve(SCRIPT_DIR, '..', '..');
+  if (fs.existsSync(path.join(candidateRoot, 'package.json'))) {
+    return candidateRoot;
+  }
+
+  return process.cwd();
+};
+
 const resolveUploadsRoot = () => {
+  const repoRoot = resolveRepoRoot();
+
   if (path.isAbsolute(STORAGE_LOCAL_PATH) && STORAGE_LOCAL_PATH.trim()) {
     return STORAGE_LOCAL_PATH;
   }
 
-  const repoRoot = path.resolve(process.cwd(), '..');
   if (!STORAGE_LOCAL_PATH.trim()) {
     return path.join(repoRoot, 'uploads');
   }
 
   return path.join(repoRoot, STORAGE_LOCAL_PATH);
+};
+
+const resolveSourcePdfRoot = () => {
+  if (path.isAbsolute(SOURCE_PDF_DIR)) {
+    return SOURCE_PDF_DIR;
+  }
+
+  return path.join(resolveRepoRoot(), SOURCE_PDF_DIR);
 };
 
 const toSlug = (value) =>
@@ -188,6 +257,39 @@ const readTemplatePdfBuffer = () => {
   }
 
   return templateBuffer;
+};
+
+const humanizeFileStem = (fileName) => {
+  const stem = path.parse(fileName).name;
+  const cleaned = stem
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) {
+    return 'Seeded Archived Capstone Document';
+  }
+
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+const listProvidedPdfFixtures = () => {
+  const sourceRoot = resolveSourcePdfRoot();
+  if (!fs.existsSync(sourceRoot)) {
+    console.warn(`Source PDF directory not found: ${sourceRoot}`);
+    return [];
+  }
+
+  return fs
+    .readdirSync(sourceRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.pdf'))
+    .map((entry) => ({
+      sourceRoot,
+      fileName: entry.name,
+      absolutePath: path.join(sourceRoot, entry.name),
+      title: humanizeFileStem(entry.name),
+    }))
+    .sort((a, b) => a.fileName.localeCompare(b.fileName, 'en', { sensitivity: 'base' }));
 };
 
 const buildTitleProposals = (title) => [
@@ -515,6 +617,60 @@ const seedBaselineArchivedProject = async (context) => {
   return project;
 };
 
+const buildArchivedDateForIndex = (index) => {
+  const now = new Date();
+  return new Date(now.getTime() - (180 + index * 2) * 24 * 60 * 60 * 1000);
+};
+
+const ensureProjectFromPdfFixture = async ({ context, fixture, index }) => {
+  const { adviser, panelist, students, course, section } = context;
+  const studentIds = pickStudentIds(students, index * 2, Math.min(4, students.length));
+  const teamName = `Seed Archive Team ${String(index + 1).padStart(2, '0')}`;
+
+  const team = await ensureFixtureTeam({
+    teamName,
+    studentIds,
+    courseId: course._id,
+    sectionId: section._id,
+  });
+
+  const projectTitle = fixture.title;
+  const archivedAt = buildArchivedDateForIndex(index);
+
+  const payload = {
+    teamId: team._id,
+    title: projectTitle,
+    titleProposals: buildTitleProposals(projectTitle),
+    abstract: `Archived seed project generated from source PDF: ${fixture.fileName}`,
+    keywords: ['archive', 'seed', 'pdf', 'capstone'],
+    sdgTags: ['SDG 9: Industry, Innovation and Infrastructure'],
+    academicYear: ARCHIVE_YEAR,
+    courseId: course._id,
+    sectionId: section._id,
+    memberRoleAssignments: studentIds.map((userId, roleIndex) => ({
+      userId,
+      ...DEFAULT_ROLE_ASSIGNMENTS[roleIndex % DEFAULT_ROLE_ASSIGNMENTS.length],
+    })),
+    capstonePhase: 4,
+    titleStatus: TITLE_STATUSES.APPROVED,
+    projectStatus: PROJECT_STATUSES.ARCHIVED,
+    isArchived: true,
+    archivedAt,
+    completionNotes: `Auto-seeded from provided PDF fixture ${fixture.fileName}`,
+    adviserId: adviser._id,
+    panelistIds: [panelist._id],
+  };
+
+  const existing = await Project.findOne({ title: projectTitle }).select('_id').lean();
+  if (existing) {
+    await Project.updateOne({ _id: existing._id }, { $set: payload });
+    return { _id: existing._id, action: 'updated', title: projectTitle, teamLeaderId: team.leaderId };
+  }
+
+  const created = await Project.create(payload);
+  return { _id: created._id, action: 'created', title: projectTitle, teamLeaderId: team.leaderId };
+};
+
 const ensureArchivedSubmissionPdf = async ({
   project,
   teamLeaderId,
@@ -522,14 +678,27 @@ const ensureArchivedSubmissionPdf = async ({
   templatePdfBuffer,
   type,
   suffix,
+  sourcePdfPath,
+  sourceFileName,
+  explicitVersion,
 }) => {
   const titleSlug = toSlug(project.title || project._id.toString()) || project._id.toString();
-  const fileName = `${titleSlug}_${suffix}.pdf`;
-  const storageKey = `archives/projects/${project._id}/final/${type}/v1/${fileName}`;
+  const nextVersion =
+    explicitVersion ||
+    ((await Submission.countDocuments({ projectId: project._id, type })) + 1);
+  const sourceStem = sourceFileName
+    ? toSlug(path.parse(sourceFileName).name)
+    : null;
+  const fileName = sourceStem
+    ? `${titleSlug}_${suffix}_${sourceStem}.pdf`
+    : `${titleSlug}_${suffix}_v${nextVersion}.pdf`;
+  const storageKey = `archives/projects/${project._id}/final/${type}/v${nextVersion}/${fileName}`;
   const absolutePath = path.join(uploadsRoot, storageKey);
 
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  if (templatePdfBuffer) {
+  if (sourcePdfPath && fs.existsSync(sourcePdfPath)) {
+    fs.copyFileSync(sourcePdfPath, absolutePath);
+  } else if (templatePdfBuffer) {
     fs.writeFileSync(absolutePath, templatePdfBuffer);
   } else {
     const fallbackBuffer = buildMinimalPdfBuffer({ project, type });
@@ -543,15 +712,17 @@ const ensureArchivedSubmissionPdf = async ({
   const approvedAt = project.archivedAt || new Date();
   const plagiarismPayload = buildPlagiarismPayload({ project, type, submittedAt });
 
-  const existing = await Submission.findOne({ projectId: project._id, type, version: 1 }).select(
-    '_id',
-  );
+  const existing = await Submission.findOne({
+    projectId: project._id,
+    type,
+    version: nextVersion,
+  }).select('_id');
 
   const payload = {
     projectId: project._id,
     type,
     chapter: null,
-    version: 1,
+    version: nextVersion,
     revisionRound: 0,
     fileName,
     fileType: 'application/pdf',
@@ -576,37 +747,42 @@ const ensureArchivedSubmissionPdf = async ({
 
 const run = async () => {
   const uploadsRoot = resolveUploadsRoot();
+  const sourcePdfRoot = resolveSourcePdfRoot();
+  const pdfFixtures = listProvidedPdfFixtures();
   const templatePdfBuffer = readTemplatePdfBuffer();
   console.log(`Using uploads root: ${uploadsRoot}`);
+  console.log(`Using source PDF root: ${sourcePdfRoot}`);
+  console.log(`Source PDF fixtures discovered: ${pdfFixtures.length}`);
   console.log(`Using template PDF: ${TEMPLATE_PATH}`);
   console.log(`Template mode: ${templatePdfBuffer ? 'template-copy' : 'generated-fallback'}`);
 
-  await mongoose.connect(MONGODB_URI, { autoIndex: false });
+  await connectWithFallback();
 
   try {
     const context = await getSeedContext();
     await ensureSimilarityFixtures(context);
 
-    let archivedProjects = await Project.find({
-      projectStatus: PROJECT_STATUSES.ARCHIVED,
-      isArchived: true,
-      capstonePhase: 4,
-    })
-      .select('_id title teamId archivedAt')
-      .sort({ archivedAt: -1 })
-      .lean();
+    const projectsToProcess = [];
 
-    if (archivedProjects.length === 0) {
-      console.log('No archived capstone projects found. Bootstrapping one archived project...');
-      await seedBaselineArchivedProject(context);
-      archivedProjects = await Project.find({
-        projectStatus: PROJECT_STATUSES.ARCHIVED,
-        isArchived: true,
-        capstonePhase: 4,
-      })
-        .select('_id title teamId archivedAt')
-        .sort({ archivedAt: -1 })
-        .lean();
+    if (pdfFixtures.length > 0) {
+      for (let index = 0; index < pdfFixtures.length; index += 1) {
+        const fixture = pdfFixtures[index];
+        const project = await ensureProjectFromPdfFixture({ context, fixture, index });
+        projectsToProcess.push({ project, fixture, index });
+      }
+    } else {
+      console.log('No source PDF fixtures found. Falling back to baseline archived project.');
+      const baseline = await seedBaselineArchivedProject(context);
+      projectsToProcess.push({
+        project: {
+          _id: baseline._id,
+          title: BASE_ARCHIVED_TITLE,
+          action: baseline.action,
+          teamLeaderId: null,
+        },
+        fixture: null,
+        index: 0,
+      });
     }
 
     let archivedProcessed = 0;
@@ -616,29 +792,45 @@ const run = async () => {
     let journalUpdated = 0;
     let plagiarismCompleted = 0;
 
-    for (const project of archivedProjects) {
-      const team = await Team.findById(project.teamId).select('leaderId').lean();
-      if (!team?.leaderId) {
+    for (const item of projectsToProcess) {
+      const { project, fixture } = item;
+      let teamLeaderId = project.teamLeaderId;
+
+      if (!teamLeaderId) {
+        const projectDoc = await Project.findById(project._id).select('teamId').lean();
+        const team = projectDoc?.teamId
+          ? await Team.findById(projectDoc.teamId).select('leaderId').lean()
+          : null;
+        teamLeaderId = team?.leaderId || null;
+      }
+
+      if (!teamLeaderId) {
         console.warn(`Skipping project ${project._id}: missing team leader`);
         continue;
       }
 
       const academicResult = await ensureArchivedSubmissionPdf({
         project,
-        teamLeaderId: team.leaderId,
+        teamLeaderId,
         uploadsRoot,
         templatePdfBuffer,
         type: 'final_academic',
         suffix: 'academic',
+        sourcePdfPath: fixture?.absolutePath,
+        sourceFileName: fixture?.fileName,
+        explicitVersion: 1,
       });
 
       const journalResult = await ensureArchivedSubmissionPdf({
         project,
-        teamLeaderId: team.leaderId,
+        teamLeaderId,
         uploadsRoot,
         templatePdfBuffer,
         type: 'final_journal',
         suffix: 'journal',
+        sourcePdfPath: fixture?.absolutePath,
+        sourceFileName: fixture?.fileName,
+        explicitVersion: 1,
       });
 
       archivedProcessed += 1;
@@ -649,6 +841,9 @@ const run = async () => {
       plagiarismCompleted += 2;
 
       console.log(`Project: ${project.title}`);
+      if (fixture?.fileName) {
+        console.log(`  - source PDF: ${fixture.fileName}`);
+      }
       console.log(
         `  - ${academicResult.action}: ${academicResult.storageKey} (${academicResult.fileSize} bytes)`,
       );
@@ -664,6 +859,7 @@ const run = async () => {
 
     console.log('Seed summary:');
     console.log(`  - archived projects processed: ${archivedProcessed}`);
+    console.log(`  - source PDFs seeded: ${pdfFixtures.length}`);
     console.log(`  - academic PDFs created/updated: ${academicCreated}/${academicUpdated}`);
     console.log(`  - journal PDFs created/updated: ${journalCreated}/${journalUpdated}`);
     console.log(`  - submissions with plagiarism COMPLETED: ${plagiarismCompleted}`);

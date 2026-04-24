@@ -8,6 +8,7 @@ import AppError from './utils/AppError.js';
 import env from './config/env.js';
 import authenticate from './middleware/authenticate.js';
 import auditRequestCapture from './middleware/auditRequestCapture.js';
+import { getEmailTransportHealth } from './modules/notifications/email.service.js';
 
 import checkMaintenance from './middleware/checkMaintenance.js';
 
@@ -52,15 +53,15 @@ app.use(
     origin: env.CORS_ALLOWED_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'Accept', 'Origin', 'X-Requested-With'],
   }),
 );
 
-// Parse JSON request bodies (limit to 10kb to mitigate large-payload attacks)
-app.use(express.json({ limit: '10kb' }));
+// Parse JSON request bodies (limit to 50mb to allow large payloads like PDFs)
+app.use(express.json({ limit: '50mb' }));
 
 // Parse URL-encoded bodies
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Parse cookies (for JWT access/refresh tokens)
 app.use(cookieParser());
@@ -77,10 +78,15 @@ app.use('/api', (req, res, next) => {
 // ---------- Health Check ----------
 
 app.get('/api/health', (req, res) => {
+  const smtp = getEmailTransportHealth();
+
   res.status(200).json({
     success: true,
     message: 'CMS API is running.',
     environment: env.NODE_ENV,
+    integrations: {
+      smtp,
+    },
     timestamp: new Date().toISOString(),
   });
 });

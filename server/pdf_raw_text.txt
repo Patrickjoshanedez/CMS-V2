@@ -1,0 +1,18 @@
+﻿node : Error parsing 336597.336667.pdf: Class constructor PDFParse cannot be invoked without 'new'
+At line:1 char:30
++ $env:NODE_ENV="development"; node extract_pdf_text.js 2>&1 | Out-File ...
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error parsing 3...d without 'new':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Error parsing 1066677.1066753.pdf: Class constructor PDFParse cannot be invoked without 'new'
+Error parsing Deblina Mazumder Setu - A comprehensive strategy for identifying plagiarism in academic submissions 
+[2025].pdf: Class constructor PDFParse cannot be invoked without 'new'
+Error parsing Jenna Kanerva - Semantic search as extractive paraphrase span detection [2021].pdf: Class constructor 
+PDFParse cannot be invoked without 'new'
+Error parsing Rob van der Goot - ROB Using Semantic Meaning to Recognize Paraphrases [2015].pdf: Class constructor 
+PDFParse cannot be invoked without 'new'
+Error parsing S. Schleimer - Winnowing local algorithms for document fingerprinting [2003].pdf: Class constructor 
+PDFParse cannot be invoked without 'new'
+Error parsing Sherly Maria - Preprocessing Pipelines for EEG [2022].pdf: Class constructor PDFParse cannot be invoked 
+without 'new'

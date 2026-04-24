@@ -36,16 +36,9 @@ import {
   useProject,
   useSetDeadlines,
 } from '@/hooks/useProjects';
-import {
-  useAcademicHierarchy,
-  useAcademicYears,
-  useCourses,
-  useCreateCourse,
-  useCreateSection,
-  useCreateAcademicYear,
-  useSections,
-} from '@/hooks/useAcademics';
+import { useAcademicHierarchy, useAcademicYears, useCourses, useCreateCourse, useCreateSection, useCreateAcademicYear, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 /**
  * UsersPage — Instructor-only user and RBAC management page.
@@ -184,10 +177,7 @@ function TeamCommitteeAssignmentsView() {
 
   const selectedTeam = filteredTeams.find((team) => team._id === selectedTeamId) || null;
   const selectedAssignment = selectedTeam?.assignment || {};
-  const selectedPanelists = useMemo(
-    () => selectedAssignment.panelists || [],
-    [selectedAssignment.panelists],
-  );
+  const selectedPanelists = selectedAssignment.panelists || [];
   const selectedProjectId = selectedAssignment.projectId || null;
 
   const { data: selectedProject } = useProject(selectedProjectId, {
@@ -218,12 +208,14 @@ function TeamCommitteeAssignmentsView() {
 
   useEffect(() => {
     if (selectedTeamId && !filteredTeams.some((team) => team._id === selectedTeamId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedTeamId('');
     }
   }, [filteredTeams, selectedTeamId]);
 
   useEffect(() => {
     if (!selectedProjectId || !selectedProject) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeadlineDraft({
         chapter1: '',
         chapter2: '',
@@ -235,6 +227,7 @@ function TeamCommitteeAssignmentsView() {
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDeadlineDraft({
       chapter1: selectedProject?.deadlines?.chapter1?.split('T')[0] || '',
       chapter2: selectedProject?.deadlines?.chapter2?.split('T')[0] || '',
@@ -702,6 +695,7 @@ function HierarchyView() {
   const [sectionCode, setSectionCode] = useState('');
   const [newSectionYear, setNewSectionYear] = useState('');
   const [newAcademicYear, setNewAcademicYear] = useState('');
+  const [hierarchySearch, setHierarchySearch] = useState('');
 
   const { data: courses = [] } = useCourses();
   const { data: years = [] } = useAcademicYears();
@@ -814,9 +808,13 @@ function HierarchyView() {
   const canGoBack = Boolean(navTeamId || navSectionId || navCourseKey || navAcademicYear);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavAcademicYear('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavCourseKey('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavSectionId('');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavTeamId('');
   }, [selectedCourseId, selectedAcademicYear, selectedSectionId]);
 
@@ -1140,6 +1138,16 @@ function HierarchyView() {
               Back
             </Button>
           </div>
+          
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search current list..."
+              value={hierarchySearch}
+              onChange={(e) => setHierarchySearch(e.target.value)}
+              className="pl-9 w-full sm:max-w-xs h-9 text-sm"
+            />
+          </div>
 
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1154,12 +1162,14 @@ function HierarchyView() {
 
           {!isLoading && !navAcademicYear && (
             <div className="space-y-2">
-              {folderHierarchy.map((yearNode) => (
+              {folderHierarchy
+                .filter(node => !hierarchySearch || node.academicYear.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .map((yearNode) => (
                 <button
                   key={yearNode.academicYear}
                   type="button"
                   className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => setNavAcademicYear(yearNode.academicYear)}
+                  onClick={() => { setNavAcademicYear(yearNode.academicYear); setHierarchySearch(''); }}
                 >
                   <div>
                     <p className="text-sm font-semibold">{yearNode.academicYear}</p>
@@ -1176,12 +1186,14 @@ function HierarchyView() {
 
           {!isLoading && navAcademicYear && !navCourseKey && (
             <div className="space-y-2">
-              {(selectedYearNode?.courses || []).map((courseNode) => (
+              {(selectedYearNode?.courses || [])
+                .filter(node => !hierarchySearch || node.course?.code?.toLowerCase().includes(hierarchySearch.toLowerCase()) || node.course?.name?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .map((courseNode) => (
                 <button
                   key={courseNode.courseKey}
                   type="button"
                   className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => setNavCourseKey(courseNode.courseKey)}
+                  onClick={() => { setNavCourseKey(courseNode.courseKey); setHierarchySearch(''); }}
                 >
                   <div>
                     <p className="text-sm font-semibold">
@@ -1201,12 +1213,14 @@ function HierarchyView() {
 
           {!isLoading && navAcademicYear && navCourseKey && !navSectionId && (
             <div className="space-y-2">
-              {(selectedCourseNode?.sections || []).map((section) => (
+              {(selectedCourseNode?.sections || [])
+                .filter(sec => !hierarchySearch || sec.name.toLowerCase().includes(hierarchySearch.toLowerCase()) || sec.code?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .map((section) => (
                 <button
                   key={section._id}
                   type="button"
                   className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => setNavSectionId(section._id)}
+                  onClick={() => { setNavSectionId(section._id); setHierarchySearch(''); }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold">{section.code || section.name}</p>
@@ -1222,12 +1236,14 @@ function HierarchyView() {
 
           {!isLoading && navAcademicYear && navCourseKey && navSectionId && !navTeamId && (
             <div className="space-y-2">
-              {(selectedFolderSection?.teams || []).map((team) => (
+              {(selectedFolderSection?.teams || [])
+                .filter(t => !hierarchySearch || t.name?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .map((team) => (
                 <button
                   key={team._id}
                   type="button"
                   className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => setNavTeamId(team._id)}
+                  onClick={() => { setNavTeamId(team._id); setHierarchySearch(''); }}
                 >
                   <div>
                     <p className="text-sm font-semibold">{team.name}</p>
@@ -1248,29 +1264,66 @@ function HierarchyView() {
           )}
 
           {!isLoading && navAcademicYear && navCourseKey && navSectionId && navTeamId && (
-            <div className="rounded-md border bg-background p-3">
-              <p className="mb-2 text-sm font-semibold">Students in {selectedFolderTeam?.name}</p>
-              <div className="grid gap-1 sm:grid-cols-2">
-                {(selectedFolderTeam?.members || []).map((member) => (
-                  <div
-                    key={member._id}
-                    className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
-                  >
-                    <p className="font-medium">
-                      {[member.firstName, member.middleName, member.lastName]
-                        .filter(Boolean)
-                        .join(' ')}
-                    </p>
-                    <p className="text-muted-foreground">{member.email}</p>
-                  </div>
-                ))}
+            <div className="space-y-4">
+              <div className="rounded-md border bg-background p-3">
+                <p className="mb-2 text-sm font-semibold">Students in {selectedFolderTeam?.name}</p>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {(selectedFolderTeam?.members || [])
+                    .filter(m => !hierarchySearch || `${m.firstName} ${m.lastName} ${m.email}`.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                    .map((member) => (
+                    <div
+                      key={member._id}
+                      className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
+                    >
+                      <p className="font-medium">
+                        {[member.firstName, member.middleName, member.lastName]
+                          .filter(Boolean)
+                          .join(' ')}
+                      </p>
+                      <p className="text-muted-foreground">{member.email}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {(selectedFolderTeam?.members || []).length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No student members found in this team.
+                  </p>
+                )}
               </div>
 
-              {(selectedFolderTeam?.members || []).length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No student members found in this team.
-                </p>
-              )}
+              {/* Project details card */}
+              <div className="rounded-md border bg-muted/10 p-3">
+                 <p className="text-sm font-semibold mb-3">Project Details</p>
+                 {selectedFolderTeam?.assignment?.projectId ? (
+                   <div className="space-y-3 text-sm">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                         <div>
+                            <p className="text-muted-foreground">Project Status</p>
+                            <Badge variant="outline" className="mt-1">{selectedFolderTeam.assignment.projectStatus}</Badge>
+                         </div>
+                         <div>
+                            <p className="text-muted-foreground">Phase</p>
+                            <p className="font-medium mt-1">{selectedFolderTeam.assignment.capstonePhase}</p>
+                         </div>
+                         <div>
+                            <p className="text-muted-foreground">Title Status</p>
+                            <Badge variant="secondary" className="mt-1">{selectedFolderTeam.assignment.titleStatus}</Badge>
+                         </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                         <Button size="sm" variant="outline" onClick={() => window.open(`/projects/${selectedFolderTeam.assignment.projectId}`, '_blank')}>
+                            Open Project Viewer
+                         </Button>
+                         <Button size="sm" variant="default" onClick={() => window.open(`/project/submissions?mode=view&projectId=${selectedFolderTeam.assignment.projectId}`, '_blank')}>
+                            Submissions & Documents
+                         </Button>
+                      </div>
+                   </div>
+                 ) : (
+                   <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">No project created for this team yet.</p>
+                 )}
+              </div>
             </div>
           )}
         </CardContent>
@@ -1286,26 +1339,33 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
   const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ');
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border p-4 transition-colors hover:bg-muted/50">
+    <div className="user-row-card flex items-center justify-between gap-4 rounded-md border p-4 transition-colors">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium">{fullName || 'Unnamed'}</p>
-          <RoleBadge role={user.role} />
-          {!user.isActive && (
-            <Badge variant="destructive" className="text-xs">
-              Inactive
-            </Badge>
-          )}
-          {!user.isVerified && (
-            <Badge variant="outline" className="text-xs">
-              Unverified
-            </Badge>
-          )}
+        <div className="flex items-center gap-3">
+          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:flex">
+            {user.firstName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-medium">{fullName || 'Unnamed'}</p>
+              <RoleBadge role={user.role} />
+              {!user.isActive && (
+                <Badge variant="destructive" className="h-5 px-1.5 text-[10px] uppercase">
+                  Inactive
+                </Badge>
+              )}
+              {!user.isVerified && (
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px] uppercase">
+                  Unverified
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
+            {user.teamId && (
+              <p className="mt-0.5 text-xs text-muted-foreground">Team: {user.teamId.name || user.teamId}</p>
+            )}
+          </div>
         </div>
-        <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-        {user.teamId && (
-          <p className="text-xs text-muted-foreground">Team: {user.teamId.name || user.teamId}</p>
-        )}
       </div>
 
       {!isSelf && (
@@ -1313,13 +1373,13 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
           {/* Role change dropdown */}
           <select
             aria-label={`Change role for ${fullName}`}
-            className="h-8 rounded-md border bg-background px-2 text-xs"
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={user.role}
             onChange={(e) => onChangeRole(user._id, e.target.value)}
           >
             {ROLE_VALUES.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {r.charAt(0).toUpperCase() + r.slice(1)}
               </option>
             ))}
           </select>
@@ -1328,7 +1388,7 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+            className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
             onClick={() => onDeactivate(user._id, fullName)}
             title="Deactivate user"
           >
@@ -1623,153 +1683,166 @@ export default function UsersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Page header + section switcher */}
+        {/* Page header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
             <p className="text-sm text-muted-foreground">
-              Manage hierarchy (Course {'>'} Year {'>'} Section {'>'} Teams {'>'} Students) and
-              RBAC, plus committee assignments.
+              Manage hierarchy, roles, permissions, and committee assignments.
             </p>
-          </div>
-          <div className="flex items-center gap-2 rounded-md border p-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={activePanel === 'hierarchy' ? 'default' : 'ghost'}
-              onClick={() => setActivePanel('hierarchy')}
-            >
-              Hierarchy
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activePanel === 'rbac' ? 'default' : 'ghost'}
-              onClick={() => setActivePanel('rbac')}
-            >
-              RBAC
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activePanel === 'committee' ? 'default' : 'ghost'}
-              onClick={() => setActivePanel('committee')}
-            >
-              Committee
-            </Button>
           </div>
         </div>
 
-        {activePanel === 'hierarchy' && <HierarchyView />}
+        <div className="flex flex-col gap-6 md:flex-row">
+          {/* Sidebar Nav */}
+          <Card className="h-fit shrink-0 md:w-64">
+            <CardContent className="p-3">
+              <nav className="users-tab-nav">
+                <button
+                  type="button"
+                  className={cn('users-tab-btn', activePanel === 'hierarchy' && 'active')}
+                  onClick={() => setActivePanel('hierarchy')}
+                >
+                  <FolderTree className="h-4 w-4" />
+                  Academic Hierarchy
+                </button>
+                <button
+                  type="button"
+                  className={cn('users-tab-btn', activePanel === 'rbac' && 'active')}
+                  onClick={() => setActivePanel('rbac')}
+                >
+                  <Shield className="h-4 w-4" />
+                  Role Management (RBAC)
+                </button>
+                <button
+                  type="button"
+                  className={cn('users-tab-btn', activePanel === 'committee' && 'active')}
+                  onClick={() => setActivePanel('committee')}
+                >
+                  <Users className="h-4 w-4" />
+                  Committee Assignments
+                </button>
+              </nav>
+            </CardContent>
+          </Card>
 
-        {activePanel === 'committee' && <TeamCommitteeAssignmentsView />}
+          {/* Main Content Area */}
+          <div className="min-w-0 flex-1 users-panel-enter" key={activePanel}>
+            {activePanel === 'hierarchy' && <HierarchyView />}
 
-        {activePanel === 'rbac' && (
-          <>
-            <div className="flex justify-end">
-              <Button onClick={() => setShowCreateForm((prev) => !prev)}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                {showCreateForm ? 'Cancel' : 'New User'}
-              </Button>
-            </div>
+            {activePanel === 'committee' && <TeamCommitteeAssignmentsView />}
 
-            {/* Create student form */}
-            {showCreateForm && <CreateUserForm onCancel={() => setShowCreateForm(false)} />}
+            {activePanel === 'rbac' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Roles & Permissions</h2>
+                  <Button onClick={() => setShowCreateForm((prev) => !prev)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {showCreateForm ? 'Cancel' : 'New User'}
+                  </Button>
+                </div>
 
-            {/* Filters */}
-            <Card>
-              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="search" className="text-xs text-muted-foreground">
-                    Search
-                  </Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Search by name or email..."
-                      className="pl-9"
-                      value={search}
-                      onChange={handleSearch}
-                    />
+                {/* Create student form */}
+                {showCreateForm && <CreateUserForm onCancel={() => setShowCreateForm(false)} />}
+
+                {/* Filters */}
+                <Card className="users-stat-card">
+                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="search" className="text-xs text-muted-foreground">
+                        Search Users
+                      </Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="search"
+                          placeholder="Search by name or email..."
+                          className="pl-9"
+                          value={search}
+                          onChange={handleSearch}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-full space-y-1 sm:w-48">
+                      <Label htmlFor="roleFilter" className="text-xs text-muted-foreground">
+                        Filter by Role
+                      </Label>
+                      <select
+                        id="roleFilter"
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={roleFilter}
+                        onChange={handleRoleFilter}
+                      >
+                        <option value="">All Roles</option>
+                        {ROLE_VALUES.map((r) => (
+                          <option key={r} value={r}>
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Loading state */}
+                {isLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                </div>
-                <div className="w-full space-y-1 sm:w-48">
-                  <Label htmlFor="roleFilter" className="text-xs text-muted-foreground">
-                    Filter by Role
-                  </Label>
-                  <select
-                    id="roleFilter"
-                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                    value={roleFilter}
-                    onChange={handleRoleFilter}
-                  >
-                    <option value="">All Roles</option>
-                    {ROLE_VALUES.map((r) => (
-                      <option key={r} value={r}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </CardContent>
-            </Card>
+                )}
 
-            {/* Loading state */}
-            {isLoading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                {/* Error state */}
+                {isError && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {error?.response?.data?.error?.message || 'Failed to load users.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Empty state */}
+                {!isLoading && !isError && users.length === 0 && (
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+                    <Users className="mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">No users found</h3>
+                    <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                      {search || roleFilter
+                        ? 'Try adjusting your filters.'
+                        : 'Start by creating a new user.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Student list with RBAC controls */}
+                {!isLoading && !isError && users.length > 0 && (
+                  <Card className="users-stat-card border-none shadow-none bg-transparent">
+                    <CardHeader className="px-0 pt-0">
+                      <CardTitle className="text-base">User Directory</CardTitle>
+                      <CardDescription>
+                        Showing {users.length} of {pagination.total || 0} total users
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 px-0">
+                      {users.map((user) => (
+                        <UserRow
+                          key={user._id}
+                          user={user}
+                          currentUserId={currentUser?._id}
+                          onChangeRole={handleChangeRole}
+                          onDeactivate={handleDeactivate}
+                        />
+                      ))}
+                      <div className="pt-2">
+                        <Pagination pagination={pagination} onPageChange={setPage} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
-
-            {/* Error state */}
-            {isError && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {error?.response?.data?.error?.message || 'Failed to load users.'}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Empty state */}
-            {!isLoading && !isError && users.length === 0 && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-                <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">No users found</h3>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  {search || roleFilter
-                    ? 'Try adjusting your filters.'
-                    : 'Start by creating a new user.'}
-                </p>
-              </div>
-            )}
-
-            {/* Student list with RBAC controls */}
-            {!isLoading && !isError && users.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Users and Roles</CardTitle>
-                  <CardDescription>
-                    Showing {users.length} of {pagination.total || 0} users
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {users.map((user) => (
-                    <UserRow
-                      key={user._id}
-                      user={user}
-                      currentUserId={currentUser?._id}
-                      onChangeRole={handleChangeRole}
-                      onDeactivate={handleDeactivate}
-                    />
-                  ))}
-                  <Pagination pagination={pagination} onPageChange={setPage} />
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
