@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import env from '../../config/env.js';
+import AppError from '../../utils/AppError.js';
 
 /**
  * Abstracted email service.
@@ -26,7 +27,8 @@ const setSmtpHealth = (status, message) => {
   };
 };
 
-const hasSmtpCredentials = () => Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
+const hasSmtpCredentials = () =>
+  Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
 
 const withTimeout = (promise, timeoutMs, timeoutMessage) =>
   Promise.race([
@@ -74,29 +76,46 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     return { messageId: 'test-message-id', accepted: [to] };
   }
 
-  const transport = getTransporter();
+  try {
+    const transport = getTransporter();
 
-  const mailOptions = {
-    from: env.EMAIL_FROM || env.SMTP_USER,
-    to,
-    subject,
-    text,
-    ...(html && { html }),
-  };
+    const mailOptions = {
+      from: env.EMAIL_FROM || env.SMTP_USER,
+      to,
+      subject,
+      text,
+      ...(html && { html }),
+    };
 
-  const info = await transport.sendMail(mailOptions);
+    const info = await transport.sendMail(mailOptions);
 
-  if (env.isDevelopment) {
-    // eslint-disable-next-line no-console
-    console.log('Email sent: %s', info.messageId);
-    // If using Ethereal, log the preview URL
-    if (info.messageId && nodemailer.getTestMessageUrl(info)) {
+    if (env.isDevelopment) {
       // eslint-disable-next-line no-console
-      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      console.log('Email sent: %s', info.messageId);
+      // If using Ethereal, log the preview URL
+      if (info.messageId && nodemailer.getTestMessageUrl(info)) {
+        // eslint-disable-next-line no-console
+        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      }
     }
-  }
 
-  return info;
+    return info;
+  } catch (error) {
+    console.error('EMAIL_SEND_FAILURE:', error);
+    if (env.isDevelopment) {
+      console.warn('--------------------------------------------------');
+      console.warn('⚠️ SMTP Error in Development! Simulating success.');
+      console.warn('📧 Email Content:');
+      console.warn(text);
+      console.warn('--------------------------------------------------');
+      return { messageId: 'dev-fallback-message-id', accepted: [to] };
+    }
+    throw new AppError(
+      'Failed to send verification email. Please check the server SMTP configuration.',
+      503,
+      'EMAIL_SERVICE_ERROR',
+    );
+  }
 };
 
 /**
@@ -119,10 +138,7 @@ export const verifyEmailTransport = async () => {
     await withTimeout(transport.verify(), 8000, 'SMTP verification timed out.');
     setSmtpHealth('healthy', 'SMTP transport verified successfully.');
   } catch (error) {
-    setSmtpHealth(
-      'degraded',
-      `SMTP verification failed: ${error?.message || 'unknown error'}`,
-    );
+    setSmtpHealth('degraded', `SMTP verification failed: ${error?.message || 'unknown error'}`);
   }
 
   return smtpHealth;

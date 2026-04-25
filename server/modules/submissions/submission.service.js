@@ -829,7 +829,14 @@ class SubmissionService {
     }
 
     // --- Project state checks (chapter-specific) ---
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus)
+    ) {
       throw new AppError('Cannot upload to a non-active project.', 400, 'PROJECT_NOT_ACTIVE');
     }
     if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
@@ -1670,7 +1677,10 @@ class SubmissionService {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
-    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    const project = await Project.findById(submission.projectId).populate(
+      'teamId',
+      'members googleDocUrl',
+    );
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -1681,6 +1691,13 @@ class SubmissionService {
     const deadlineInfo = this._resolveSubmissionDeadlineInfo(enrichedSubmission, project);
     enrichedSubmission.deadlineField = deadlineInfo.deadlineField;
     enrichedSubmission.deadlineAt = deadlineInfo.deadlineAt;
+
+    // Attach team resources if available
+    if (project.teamId) {
+      enrichedSubmission.teamResources = {
+        googleDocUrl: project.teamId.googleDocUrl || null,
+      };
+    }
 
     return { submission: enrichedSubmission };
   }
@@ -2564,7 +2581,10 @@ class SubmissionService {
   async getSubmissionReviewWorkspace(submissionId, userId, _userRole) {
     const { submission } = await this.getSubmission(submissionId, userId);
 
-    const project = await Project.findById(submission.projectId).populate('teamId', 'name members');
+    const project = await Project.findById(submission.projectId).populate(
+      'teamId',
+      'name members googleDocUrl',
+    );
     const user = await User.findById(userId);
 
     if (!project || !user) {
@@ -2648,6 +2668,9 @@ class SubmissionService {
       chapter: submission.chapter,
       type: submission.type,
       teamName: project.teamId?.name || 'Unknown Team',
+      teamResources: {
+        googleDocUrl: project.teamId?.googleDocUrl || null,
+      },
       rounds,
     };
 

@@ -8,6 +8,7 @@ export { PROTOTYPE_TYPES, PROTOTYPE_TYPE_VALUES } from './constants/prototypeTyp
 export { CAPSTONE_PHASES, CAPSTONE_PHASE_VALUES } from './constants/capstonePhases.js';
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
+export { DEFENSE_DECISIONS, DEFENSE_DECISION_VALUES } from './constants/defenseDecisions.js';
 export { DOCUMENT_TYPES, DOCUMENT_TYPE_VALUES } from './constants/documentTypes.js';
 export {
   STORAGE_BUCKETS,

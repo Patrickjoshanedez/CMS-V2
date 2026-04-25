@@ -8,7 +8,7 @@ import {
   useUnlockEvaluation,
   useReleaseEvaluations,
 } from '@/hooks/useEvaluations';
-import { ROLES, EVALUATION_STATUSES } from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_DECISIONS } from '@cms/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -63,6 +63,30 @@ function ErrorAlert({ message }) {
 
 // ─── Panelist Evaluation Form ────────────────────────────────────────────────
 
+const DECISION_OPTIONS = [
+  {
+    value: DEFENSE_DECISIONS.PASSED,
+    label: 'Passed',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  },
+  {
+    value: DEFENSE_DECISIONS.PASSED_WITH_REVISIONS,
+    label: 'Passed with Revisions',
+    color: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  },
+  {
+    value: DEFENSE_DECISIONS.FAILED,
+    label: 'Failed',
+    color: 'bg-red-500/10 text-red-600 border-red-500/30',
+  },
+];
+
+function DecisionBadge({ decision }) {
+  const opt = DECISION_OPTIONS.find((o) => o.value === decision);
+  if (!opt) return null;
+  return <Badge className={opt.color}>{opt.label}</Badge>;
+}
+
 function PanelistEvaluationForm({ projectId, defenseType }) {
   const { data: evaluation, isLoading, error } = useMyEvaluation(projectId, defenseType);
   const updateEvaluation = useUpdateEvaluation();
@@ -70,12 +94,14 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
   const [criteria, setCriteria] = useState(null);
   const [overallComment, setOverallComment] = useState('');
+  const [decision, setDecision] = useState(null);
   const [initialized, setInitialized] = useState(false);
 
   // Sync server data into local state once loaded
   if (evaluation && !initialized) {
     setCriteria(evaluation.criteria.map((c) => ({ ...c })));
     setOverallComment(evaluation.overallComment ?? '');
+    setDecision(evaluation.decision ?? null);
     setInitialized(true);
   }
 
@@ -107,6 +133,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
         evaluationId: evaluation._id,
         criteria,
         overallComment,
+        decision,
       });
       toast.success('Draft saved successfully.');
     } catch (err) {
@@ -207,6 +234,34 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
           Total: {totalScore} / {maxTotalScore}
         </div>
 
+        {/* Decision */}
+        <div className="space-y-2">
+          <Label>Decision</Label>
+          {isReadOnly ? (
+            <div>
+              <DecisionBadge decision={evaluation.decision} />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {DECISION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDecision(opt.value)}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                    decision === opt.value
+                      ? opt.color + ' ring-2 ring-offset-1 ring-current'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Overall Comment */}
         <div className="space-y-2">
           <Label htmlFor="overallComment">Overall Comment</Label>
@@ -297,6 +352,7 @@ function PanelistSection({ evaluation, role }) {
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           <span className="font-medium">{panelistName || 'Panelist'}</span>
           <StatusBadge status={evaluation.status} />
+          {evaluation.decision && <DecisionBadge decision={evaluation.decision} />}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-muted-foreground">

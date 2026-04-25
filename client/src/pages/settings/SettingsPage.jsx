@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Textarea } from '@/components/ui/Textarea';
-import ThemeToggle from '@/components/ThemeToggle';
+import { Badge } from '@/components/ui/Badge';
+import { useTheme } from '@/components/ThemeProvider';
 import {
   Palette,
   Bell,
@@ -21,27 +22,36 @@ import {
   Settings2,
   Save,
   RotateCcw,
+  Sun,
+  Moon,
+  Monitor,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 
-/**
- * SettingsPage — application settings for the current user.
- * Includes theme, notification preferences, account, and instructor-only system administration sections.
- */
+/* ────────── Shared Layout Components ────────── */
 
-function SettingSection({ icon: Icon, title, description, children }) {
+function SettingSection({ icon: Icon, title, description, children, badge }) {
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="rounded-md bg-muted p-2 text-primary">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Icon className="h-5 w-5" />
           </div>
-          <div>
-            <CardTitle className="text-base">{title}</CardTitle>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">{title}</CardTitle>
+              {badge && (
+                <Badge variant="outline" className="text-[10px] font-medium">
+                  {badge}
+                </Badge>
+              )}
+            </div>
             <CardDescription>{description}</CardDescription>
           </div>
         </div>
@@ -51,122 +61,161 @@ function SettingSection({ icon: Icon, title, description, children }) {
   );
 }
 
-export default function SettingsPage() {
-  const { user, fetchUser } = useAuthStore();
-
-  useEffect(() => {
-    if (!user) fetchUser();
-  }, [user, fetchUser]);
-
-  if (!user) {
-    return (
-      <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
+function SettingRow({ label, description, children }) {
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight">Settings</h3>
-          <p className="text-muted-foreground">Manage your application preferences.</p>
-        </div>
-
-        <div className="grid gap-6">
-          {/* Appearance */}
-          <SettingSection
-            icon={Palette}
-            title="Appearance"
-            description="Customize how the application looks."
-          >
-            <div className="flex items-center justify-between rounded-md border px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">Theme</p>
-                <p className="text-xs text-muted-foreground">
-                  Toggle between light, dark, or system theme.
-                </p>
-              </div>
-              <ThemeToggle />
-            </div>
-          </SettingSection>
-
-          {/* Notifications */}
-          <SettingSection
-            icon={Bell}
-            title="Notifications"
-            description="Configure how you receive notifications."
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-md border px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">Email Notifications</p>
-                  <p className="text-xs text-muted-foreground">
-                    Receive updates about submissions and approvals via email.
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground">Coming soon</span>
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">In-App Notifications</p>
-                  <p className="text-xs text-muted-foreground">
-                    Show real-time notifications within the application.
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground">Coming soon</span>
-              </div>
-            </div>
-          </SettingSection>
-
-          {/* Security */}
-          <SettingSection
-            icon={Shield}
-            title="Security"
-            description="Manage your account security."
-          >
-            <ChangePasswordForm />
-          </SettingSection>
-
-          {/* System Administration — Instructor only */}
-          {user.role === ROLES.INSTRUCTOR && (
-            <SettingSection
-              icon={Settings2}
-              title="System Administration"
-              description="Configure system-wide thresholds and announcements."
-            >
-              <SystemSettingsForm />
-            </SettingSection>
-          )}
-
-          {/* About */}
-          <SettingSection icon={Info} title="About" description="System information.">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Version</span>
-                <span className="font-medium">0.9.0</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Environment</span>
-                <span className="font-medium">Development</span>
-              </div>
-            </div>
-          </SettingSection>
-        </div>
+    <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{label}</p>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
-    </DashboardLayout>
+      <div className="shrink-0">{children}</div>
+    </div>
   );
 }
 
-/**
- * ChangePasswordForm — inline form for updating the user password.
- * Validates confirm-password match on the client before calling the API.
- */
+/* ────────── Navigation Tabs ────────── */
+
+const BASE_TABS = [
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'security', label: 'Security', icon: Shield },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'about', label: 'About', icon: Info },
+];
+
+const ADMIN_TABS = [
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'security', label: 'Security', icon: Shield },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'administration', label: 'Administration', icon: Settings2 },
+  { id: 'about', label: 'About', icon: Info },
+];
+
+/* ────────── Theme Selector ────────── */
+
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+
+  const options = [
+    {
+      value: 'light',
+      label: 'Light',
+      icon: Sun,
+      description: 'Classic bright interface',
+      preview: 'bg-white border-gray-200',
+    },
+    {
+      value: 'dark',
+      label: 'Dark',
+      icon: Moon,
+      description: 'Easier on the eyes',
+      preview: 'bg-zinc-900 border-zinc-700',
+    },
+    {
+      value: 'system',
+      label: 'System',
+      icon: Monitor,
+      description: 'Follow OS preference',
+      preview: 'bg-gradient-to-br from-white to-zinc-900 border-gray-300 dark:border-zinc-600',
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {options.map((opt) => {
+        const isSelected = theme === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setTheme(opt.value)}
+            className={[
+              'group relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-all duration-200',
+              isSelected
+                ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10'
+                : 'border-border hover:border-primary/40 hover:bg-accent/50',
+            ].join(' ')}
+          >
+            {/* Preview swatch */}
+            <div
+              className={[
+                'h-12 w-full rounded-lg border transition-transform duration-200 group-hover:scale-[1.02]',
+                opt.preview,
+              ].join(' ')}
+            />
+            <div>
+              <div className="flex items-center justify-center gap-1.5">
+                <opt.icon className="h-4 w-4" />
+                <span className="text-sm font-medium">{opt.label}</span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{opt.description}</p>
+            </div>
+            {/* Selected indicator */}
+            {isSelected && (
+              <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <CheckCircle className="h-3.5 w-3.5" />
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ────────── Appearance Section ────────── */
+
+function AppearanceSection() {
+  return (
+    <SettingSection
+      icon={Palette}
+      title="Appearance"
+      description="Customize how the application looks and feels."
+    >
+      <div className="space-y-4">
+        <div>
+          <Label className="mb-3 block text-sm font-medium">Theme</Label>
+          <ThemeSelector />
+        </div>
+      </div>
+    </SettingSection>
+  );
+}
+
+/* ────────── Change Password Section ────────── */
+
+function SecuritySection() {
+  return (
+    <SettingSection
+      icon={Shield}
+      title="Security"
+      description="Manage your account security and authentication."
+    >
+      <div className="space-y-3">
+        <ChangePasswordForm />
+        <SettingRow
+          label="Two-Factor Authentication"
+          description="Add an extra layer of security to your account."
+        >
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Coming soon
+          </Badge>
+        </SettingRow>
+        <SettingRow
+          label="Active Sessions"
+          description="Manage devices currently logged into your account."
+        >
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Coming soon
+          </Badge>
+        </SettingRow>
+      </div>
+    </SettingSection>
+  );
+}
+
 function ChangePasswordForm() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
   const clearAuthState = useAuthStore((state) => state.clearAuthState);
   const [show, setShow] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -177,6 +226,8 @@ function ChangePasswordForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const isGoogleOnly = user?.authProvider === 'google' && !user?.password;
 
   const resetForm = () => {
     setCurrentPassword('');
@@ -217,6 +268,19 @@ function ChangePasswordForm() {
     }
   };
 
+  if (isGoogleOnly) {
+    return (
+      <SettingRow
+        label="Change Password"
+        description="Your account uses Google sign-in. Password change is not available."
+      >
+        <Badge variant="outline" className="text-xs text-muted-foreground">
+          Google Account
+        </Badge>
+      </SettingRow>
+    );
+  }
+
   if (!show) {
     return (
       <div className="space-y-3">
@@ -228,32 +292,35 @@ function ChangePasswordForm() {
             </AlertDescription>
           </Alert>
         )}
-        <div className="flex items-center justify-between rounded-md border px-4 py-3">
-          <div>
-            <p className="text-sm font-medium">Change Password</p>
-            <p className="text-xs text-muted-foreground">Update your account password.</p>
-          </div>
+        <SettingRow label="Change Password" description="Update your account password.">
           <Button variant="outline" size="sm" onClick={() => setShow(true)}>
+            <Lock className="mr-1.5 h-3.5 w-3.5" />
             Change
           </Button>
-        </div>
+        </SettingRow>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-md border p-4">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Lock className="h-4 w-4 text-primary" />
+        Change Password
+      </div>
+
       {error && (
         <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="currentPassword">Current Password</Label>
+        <Label htmlFor="settings-currentPassword">Current Password</Label>
         <div className="relative">
           <Input
-            id="currentPassword"
+            id="settings-currentPassword"
             type={showCurrent ? 'text' : 'password'}
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -272,10 +339,10 @@ function ChangePasswordForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="newPassword">New Password</Label>
+        <Label htmlFor="settings-newPassword">New Password</Label>
         <div className="relative">
           <Input
-            id="newPassword"
+            id="settings-newPassword"
             type={showNew ? 'text' : 'password'}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -298,9 +365,9 @@ function ChangePasswordForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+        <Label htmlFor="settings-confirmPassword">Confirm New Password</Label>
         <Input
-          id="confirmPassword"
+          id="settings-confirmPassword"
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -330,11 +397,95 @@ function ChangePasswordForm() {
   );
 }
 
-/**
- * SystemSettingsForm — instructor-only form for managing system-wide settings.
- * Covers plagiarism threshold, title similarity, max file size, and system announcement.
- */
-function SystemSettingsForm() {
+/* ────────── Notifications Section ────────── */
+
+function NotificationsSection() {
+  return (
+    <SettingSection
+      icon={Bell}
+      title="Notifications"
+      description="Configure how you receive notifications."
+    >
+      <div className="space-y-3">
+        <SettingRow
+          label="Email Notifications"
+          description="Receive updates about submissions and approvals via email."
+        >
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Coming soon
+          </Badge>
+        </SettingRow>
+        <SettingRow
+          label="In-App Notifications"
+          description="Show real-time notifications within the application."
+        >
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Coming soon
+          </Badge>
+        </SettingRow>
+        <SettingRow
+          label="Submission Reminders"
+          description="Get reminded about upcoming deadlines and pending reviews."
+        >
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Coming soon
+          </Badge>
+        </SettingRow>
+      </div>
+    </SettingSection>
+  );
+}
+
+/* ────────── About Section ────────── */
+
+function AboutSection() {
+  const user = useAuthStore((s) => s.user);
+  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unknown';
+
+  return (
+    <SettingSection icon={Info} title="About" description="System information and account details.">
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Version
+            </p>
+            <p className="mt-1 text-sm font-semibold">1.0.0</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Environment
+            </p>
+            <p className="mt-1 text-sm font-semibold">
+              {import.meta.env.MODE === 'production' ? 'Production' : 'Development'}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Your Role
+            </p>
+            <p className="mt-1 text-sm font-semibold">{roleLabel}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Account
+            </p>
+            <p className="mt-1 truncate text-sm font-semibold">{user?.email || '—'}</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-dashed p-3 text-center">
+          <p className="text-xs text-muted-foreground">
+            Capstone Management System &mdash; BukSU College of Technologies
+          </p>
+        </div>
+      </div>
+    </SettingSection>
+  );
+}
+
+/* ────────── System Administration (Instructor Only) ────────── */
+
+function AdministrationSection() {
   const { data: settings, isLoading, isError } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -350,6 +501,7 @@ function SystemSettingsForm() {
   // Sync form when settings load
   useEffect(() => {
     if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         plagiarismThreshold: settings.plagiarismThreshold ?? 75,
         titleSimilarityThreshold: settings.titleSimilarityThreshold ?? 0.65,
@@ -417,142 +569,249 @@ function SystemSettingsForm() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <SettingSection
+        icon={Settings2}
+        title="System Administration"
+        description="Configure system-wide thresholds and announcements."
+        badge="Instructor"
+      >
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </SettingSection>
     );
   }
 
   if (isError) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription>Failed to load system settings. Please try again later.</AlertDescription>
-      </Alert>
+      <SettingSection
+        icon={Settings2}
+        title="System Administration"
+        description="Configure system-wide thresholds and announcements."
+        badge="Instructor"
+      >
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load system settings. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </SettingSection>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Plagiarism Threshold */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="plagiarismThreshold">Minimum Originality Threshold</Label>
-          <span className="text-sm font-medium tabular-nums">{form.plagiarismThreshold}%</span>
-        </div>
-        <Input
-          id="plagiarismThreshold"
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={form.plagiarismThreshold}
-          onChange={(e) => handleChange('plagiarismThreshold', Number(e.target.value))}
-          className="h-2 cursor-pointer accent-primary"
-        />
-        <p className="text-xs text-muted-foreground">
-          Submissions must meet this originality percentage to pass the plagiarism check during
-          archival.
-        </p>
-      </div>
-
-      {/* Title Similarity Threshold */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="titleSimilarityThreshold">Title Similarity Threshold</Label>
-          <span className="text-sm font-medium tabular-nums">
-            {(form.titleSimilarityThreshold * 100).toFixed(0)}%
-          </span>
-        </div>
-        <Input
-          id="titleSimilarityThreshold"
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={form.titleSimilarityThreshold}
-          onChange={(e) => handleChange('titleSimilarityThreshold', Number(e.target.value))}
-          className="h-2 cursor-pointer accent-primary"
-        />
-        <p className="text-xs text-muted-foreground">
-          Proposed titles exceeding this similarity score will trigger a duplicate warning.
-        </p>
-      </div>
-
-      {/* Max File Size */}
-      <div className="space-y-2">
-        <Label htmlFor="maxFileSize">Maximum File Size (MB)</Label>
-        <Input
-          id="maxFileSize"
-          type="number"
-          min={1}
-          max={100}
-          value={form.maxFileSize}
-          onChange={(e) => handleChange('maxFileSize', Number(e.target.value))}
-        />
-        <p className="text-xs text-muted-foreground">
-          Maximum allowed file size for chapter uploads and final submissions.
-        </p>
-      </div>
-
-      {/* System Announcement */}
-      <div className="space-y-2">
-        <Label htmlFor="systemAnnouncement">System Announcement</Label>
-        <Textarea
-          id="systemAnnouncement"
-          placeholder="Enter a brief system-wide announcement (optional)..."
-          maxLength={500}
-          rows={3}
-          value={form.systemAnnouncement}
-          onChange={(e) => handleChange('systemAnnouncement', e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">
-          {form.systemAnnouncement.length}/500 characters. Visible to all users on the dashboard.
-        </p>
-      </div>
-
-      {/* Maintenance Mode */}
-      <div className="space-y-2">
-        <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
-        <div className="flex items-center justify-between rounded-md border px-3 py-2">
-          <div>
-            <p className="text-sm font-medium">Temporarily restrict normal access</p>
-            <p className="text-xs text-muted-foreground">
-              Enable this only during maintenance windows.
-            </p>
+    <SettingSection
+      icon={Settings2}
+      title="System Administration"
+      description="Configure system-wide thresholds, limits, and announcements."
+      badge="Instructor"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Plagiarism Threshold */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="settings-plagiarismThreshold" className="text-sm font-medium">
+                Minimum Originality Threshold
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Submissions must meet this originality percentage to pass plagiarism checks.
+              </p>
+            </div>
+            <Badge variant="secondary" className="tabular-nums">
+              {form.plagiarismThreshold}%
+            </Badge>
           </div>
-          <label htmlFor="maintenanceMode" className="flex items-center gap-2 text-sm">
-            <input
-              id="maintenanceMode"
-              type="checkbox"
-              checked={form.maintenanceMode}
-              onChange={(e) => handleChange('maintenanceMode', e.target.checked)}
-              className="h-4 w-4 rounded border-input"
-            />
-            <span>{form.maintenanceMode ? 'Enabled' : 'Disabled'}</span>
-          </label>
+          <Input
+            id="settings-plagiarismThreshold"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={form.plagiarismThreshold}
+            onChange={(e) => handleChange('plagiarismThreshold', Number(e.target.value))}
+            className="h-2 cursor-pointer accent-primary"
+          />
+        </div>
+
+        {/* Title Similarity Threshold */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="settings-titleSimilarityThreshold" className="text-sm font-medium">
+                Title Similarity Threshold
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Proposed titles exceeding this similarity score will trigger a duplicate warning.
+              </p>
+            </div>
+            <Badge variant="secondary" className="tabular-nums">
+              {(form.titleSimilarityThreshold * 100).toFixed(0)}%
+            </Badge>
+          </div>
+          <Input
+            id="settings-titleSimilarityThreshold"
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={form.titleSimilarityThreshold}
+            onChange={(e) => handleChange('titleSimilarityThreshold', Number(e.target.value))}
+            className="h-2 cursor-pointer accent-primary"
+          />
+        </div>
+
+        {/* Max File Size */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <Label htmlFor="settings-maxFileSize" className="text-sm font-medium">
+            Maximum File Size (MB)
+          </Label>
+          <Input
+            id="settings-maxFileSize"
+            type="number"
+            min={1}
+            max={100}
+            value={form.maxFileSize}
+            onChange={(e) => handleChange('maxFileSize', Number(e.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Maximum allowed file size for chapter uploads and final submissions.
+          </p>
+        </div>
+
+        {/* System Announcement */}
+        <div className="space-y-3 rounded-lg border p-4">
+          <Label htmlFor="settings-systemAnnouncement" className="text-sm font-medium">
+            System Announcement
+          </Label>
+          <Textarea
+            id="settings-systemAnnouncement"
+            placeholder="Enter a brief system-wide announcement (optional)..."
+            maxLength={500}
+            rows={3}
+            value={form.systemAnnouncement}
+            onChange={(e) => handleChange('systemAnnouncement', e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            {form.systemAnnouncement.length}/500 characters. Visible to all users on the dashboard.
+          </p>
+        </div>
+
+        {/* Maintenance Mode */}
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Maintenance Mode</p>
+              <p className="text-xs text-muted-foreground">
+                Temporarily restrict normal access. Enable only during maintenance windows.
+              </p>
+            </div>
+            <label htmlFor="settings-maintenanceMode" className="flex items-center gap-2 text-sm">
+              <input
+                id="settings-maintenanceMode"
+                type="checkbox"
+                checked={form.maintenanceMode}
+                onChange={(e) => handleChange('maintenanceMode', e.target.checked)}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              <span className={form.maintenanceMode ? 'font-medium text-amber-600' : ''}>
+                {form.maintenanceMode ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <Button type="submit" disabled={updateSettings.isPending || !dirty}>
+            {updateSettings.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Settings
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleReset}
+            disabled={updateSettings.isPending || !dirty}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </div>
+      </form>
+    </SettingSection>
+  );
+}
+
+/* ────────── Main Page ────────── */
+
+export default function SettingsPage() {
+  const { user, fetchUser } = useAuthStore();
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const tabs = isInstructor ? ADMIN_TABS : BASE_TABS;
+  const [activeTab, setActiveTab] = useState('appearance');
+
+  useEffect(() => {
+    if (!user) fetchUser();
+  }, [user, fetchUser]);
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div>
+          <h3 className="text-2xl font-bold tracking-tight">Settings</h3>
+          <p className="text-muted-foreground">
+            Manage your preferences{isInstructor ? ' and system configuration' : ''}.
+          </p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/50 p-1">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={[
+                  'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200',
+                  isActive
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+                ].join(' ')}
+              >
+                <tab.icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content */}
+        <div className="grid gap-6">
+          {activeTab === 'appearance' && <AppearanceSection />}
+          {activeTab === 'security' && <SecuritySection />}
+          {activeTab === 'notifications' && <NotificationsSection />}
+          {activeTab === 'administration' && isInstructor && <AdministrationSection />}
+          {activeTab === 'about' && <AboutSection />}
         </div>
       </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={updateSettings.isPending || !dirty}>
-          {updateSettings.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          Save Settings
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleReset}
-          disabled={updateSettings.isPending || !dirty}
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reset
-        </Button>
-      </div>
-    </form>
+    </DashboardLayout>
   );
 }

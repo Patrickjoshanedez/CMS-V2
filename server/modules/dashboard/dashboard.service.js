@@ -299,6 +299,7 @@ class DashboardService {
         title: p.title,
         titleStatus: p.titleStatus,
         projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
         teamName: p.teamId?.name || 'Unknown',
         memberCount: p.teamId?.members?.length || 0,
       })),
@@ -596,7 +597,15 @@ class DashboardService {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE || project.isArchived) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus) ||
+      project.isArchived
+    ) {
       throw new AppError('Only active projects can be selected.', 400, 'PROJECT_NOT_ACTIVE');
     }
 

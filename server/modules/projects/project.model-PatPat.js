@@ -292,6 +292,11 @@ const projectSchema = new mongoose.Schema(
       },
       default: [],
     },
+    systemDevelopment: {
+      design: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+      build: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+      test: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+    },
 
     // --- Archive & Completion fields ---
     isArchived: {

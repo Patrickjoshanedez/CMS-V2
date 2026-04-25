@@ -33,8 +33,22 @@ class AuthService {
   async register({ firstName, middleName, lastName, email, password }) {
     // Check if email already exists
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
-      throw new AppError('An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
+      if (existingUser.isVerified) {
+        throw new AppError('An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
+      }
+
+      // If user exists but is not verified, allow "re-registration"
+      // (update details and send a new verification OTP).
+      existingUser.firstName = firstName;
+      existingUser.middleName = middleName;
+      existingUser.lastName = lastName;
+      existingUser.password = password; // Will be hashed by pre-save hook
+      await existingUser.save();
+
+      await this.#createAndSendOtp(email, 'verification');
+      return { user: existingUser };
     }
 
     // Create user (unverified)

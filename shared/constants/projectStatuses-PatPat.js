@@ -3,6 +3,10 @@
  */
 export const PROJECT_STATUSES = Object.freeze({
   ACTIVE: 'active',
+  PROPOSED: 'proposed',
+  REVIEW: 'review',
+  APPROVED_FOR_DEFENSE: 'approved_for_defense',
+  DEFENDED: 'defended',
   PROPOSAL_SUBMITTED: 'proposal_submitted',
   PROPOSAL_APPROVED: 'proposal_approved',
   REJECTED: 'rejected',

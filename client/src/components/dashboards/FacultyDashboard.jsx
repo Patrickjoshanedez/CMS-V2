@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ROLES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 import { dashboardService } from '../../services/dashboardService';
 import { useDashboard } from '@/hooks/useDashboard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -34,7 +34,7 @@ function MicroStat({ icon: Icon, label, value, tone = 'default' }) {
     default: 'bg-muted/30 text-foreground border-border',
     accent: 'bg-primary/5 text-primary border-primary/20',
     warning: 'bg-amber-500/5 text-amber-600 border-amber-500/20',
-    info: 'bg-sky-500/5 text-sky-600 border-sky-500/20'
+    info: 'bg-sky-500/5 text-sky-600 border-sky-500/20',
   };
 
   return (
@@ -66,7 +66,10 @@ function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem }
         ) : (
           <div className="flex flex-col divide-y">
             {items.map((item, idx) => (
-              <div key={item._id || idx} className="px-4 py-2.5 transition-colors hover:bg-muted/10">
+              <div
+                key={item._id || idx}
+                className="px-4 py-2.5 transition-colors hover:bg-muted/10"
+              >
                 {renderItem(item)}
               </div>
             ))}
@@ -77,22 +80,91 @@ function DenseCardList({ title, items = [], emptyState, icon: Icon, renderItem }
   );
 }
 
+// Helper for detailed project status
+function ProjectDetailedStatus({ project }) {
+  const { titleStatus, projectStatus, capstonePhase } = project;
+
+  // Case 1: Title not yet approved - focus on Title Stage
+  if (titleStatus !== TITLE_STATUSES.APPROVED) {
+    const config = {
+      [TITLE_STATUSES.DRAFT]: { label: 'Draft', variant: 'secondary' },
+      [TITLE_STATUSES.SUBMITTED]: { label: 'Pending Title', variant: 'warning' },
+      [TITLE_STATUSES.REVISION_REQUIRED]: { label: 'Title Revision', variant: 'destructive' },
+      [TITLE_STATUSES.PENDING_MODIFICATION]: { label: 'Mod. Pending', variant: 'warning' },
+    };
+    const { label, variant } = config[titleStatus] || { label: titleStatus, variant: 'outline' };
+    return (
+      <Badge variant={variant} className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
+        {label}
+      </Badge>
+    );
+  }
+
+  // Case 2: Title approved - focus on Project Lifecycle
+  // Map phase to label
+  const phaseLabels = {
+    1: 'Proposal Stage',
+    2: 'Design Stage',
+    3: 'Development',
+    4: 'Final Defense',
+  };
+  const phaseLabel = phaseLabels[capstonePhase] || `Phase ${capstonePhase}`;
+
+  // Check specific project statuses within the phase
+  if (projectStatus === PROJECT_STATUSES.REVISION_NEEDED) {
+    return (
+      <Badge variant="destructive" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
+        Revision: {phaseLabel}
+      </Badge>
+    );
+  }
+
+  if (projectStatus === PROJECT_STATUSES.PENDING_IN_REVIEW) {
+    return (
+      <Badge variant="warning" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
+        Review: {phaseLabel}
+      </Badge>
+    );
+  }
+
+  if (projectStatus === PROJECT_STATUSES.PENDING_FOR_SUBMISSION) {
+    return (
+      <Badge
+        variant="outline"
+        className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-sky-500/50 text-sky-600 bg-sky-500/5"
+      >
+        Pending: {phaseLabel}
+      </Badge>
+    );
+  }
+
+  // Default active/approved state for the phase
+  return (
+    <Badge
+      variant="outline"
+      className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-emerald-500/50 text-emerald-600 bg-emerald-500/5"
+    >
+      {phaseLabel}
+    </Badge>
+  );
+}
+
 export default function FacultyDashboard({ user }) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState(() => 
-    user?.role === ROLES.PANELIST ? VIEW_MODES.PANELIST : VIEW_MODES.ADVISER
+  const [mode, setMode] = useState(() =>
+    user?.role === ROLES.PANELIST ? VIEW_MODES.PANELIST : VIEW_MODES.ADVISER,
   );
 
   // Common Dashboard queries
   const { data: dashboardData } = useDashboard();
   const ds = dashboardData || {};
   const counts = ds.counts || {};
-  
+
   // Filter out archived items
   const assignedProjects = (ds.assignedProjects || []).filter((p) => !isArchivedRecord(p));
-  
+
   const pendingReviews = (ds.pendingReviews || []).filter((r) => !isArchivedRecord(r));
-  
+
   // Specific queries only for specific modes
   useQuery({
     queryKey: ['adviserWorkload'],
@@ -126,14 +198,16 @@ export default function FacultyDashboard({ user }) {
       <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-foreground">Faculty Overview</h2>
-          <p className="text-xs text-muted-foreground">Manage your handled teams and specific actions without scrolling.</p>
+          <p className="text-xs text-muted-foreground">
+            Manage your handled teams and specific actions without scrolling.
+          </p>
         </div>
         <div className="flex shrink-0 rounded-md border bg-muted/30 p-1">
           <button
             onClick={() => setMode(VIEW_MODES.ADVISER)}
             className={`rounded px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === VIEW_MODES.ADVISER 
-                ? 'bg-background shadow-sm text-foreground ring-1 ring-border' 
+              mode === VIEW_MODES.ADVISER
+                ? 'bg-background shadow-sm text-foreground ring-1 ring-border'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -142,8 +216,8 @@ export default function FacultyDashboard({ user }) {
           <button
             onClick={() => setMode(VIEW_MODES.PANELIST)}
             className={`rounded px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === VIEW_MODES.PANELIST 
-                ? 'bg-background shadow-sm text-foreground ring-1 ring-border' 
+              mode === VIEW_MODES.PANELIST
+                ? 'bg-background shadow-sm text-foreground ring-1 ring-border'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -156,10 +230,30 @@ export default function FacultyDashboard({ user }) {
         <div className="flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Adviser */}
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <MicroStat icon={Users} label="Handled Teams" value={assignedProjects.length} tone="accent" />
-            <MicroStat icon={ClipboardCheck} label="Pending Reviews" value={pendingReviews.length} tone="warning" />
-            <MicroStat icon={Activity} label="Active Projects" value={counts.activeProjects ?? 0} tone="info" />
-            <MicroStat icon={Bell} label="Notifications" value={ds.recentNotifications?.length ?? 0} tone="default" />
+            <MicroStat
+              icon={Users}
+              label="Handled Teams"
+              value={assignedProjects.length}
+              tone="accent"
+            />
+            <MicroStat
+              icon={ClipboardCheck}
+              label="Pending Reviews"
+              value={pendingReviews.length}
+              tone="warning"
+            />
+            <MicroStat
+              icon={Activity}
+              label="Active Projects"
+              value={counts.activeProjects ?? 0}
+              tone="info"
+            />
+            <MicroStat
+              icon={Bell}
+              label="Notifications"
+              value={ds.recentNotifications?.length ?? 0}
+              tone="default"
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -172,11 +266,11 @@ export default function FacultyDashboard({ user }) {
                 <div className="flex flex-row items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-semibold">{p.teamName}</span>
-                    <span className="truncate text-xs text-muted-foreground">{p.title || 'Untitled Project'}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {p.title || 'Untitled Project'}
+                    </span>
                   </div>
-                  <Badge variant="outline" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
-                    {p.titleStatus || 'Draft'}
-                  </Badge>
+                  <ProjectDetailedStatus project={p} />
                 </div>
               )}
             />
@@ -188,8 +282,13 @@ export default function FacultyDashboard({ user }) {
               renderItem={(r) => (
                 <div className="flex flex-row items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">Ch. {r.chapter} <span className="opacity-70 font-medium ml-1">({r.projectTitle})</span></span>
-                    <span className="truncate text-xs text-muted-foreground">Version {r.version || 1} &bull; {r.submittedBy}</span>
+                    <span className="truncate text-sm font-semibold">
+                      Ch. {r.chapter}{' '}
+                      <span className="opacity-70 font-medium ml-1">({r.projectTitle})</span>
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      Version {r.version || 1} &bull; {r.submittedBy}
+                    </span>
                   </div>
                   <span className="shrink-0 text-[10px] font-bold text-amber-600 uppercase bg-amber-500/10 px-2 py-0.5 rounded-sm">
                     {r.status?.replace(/_/g, ' ') || 'Pending'}
@@ -205,10 +304,30 @@ export default function FacultyDashboard({ user }) {
         <div className="flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Panelist */}
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <MicroStat icon={Users} label="Handled Panels" value={panelTopics.assigned.length} tone="accent" />
-            <MicroStat icon={ClipboardCheck} label="Pending Evals" value={counts.pendingEvaluations ?? 0} tone="warning" />
-            <MicroStat icon={Activity} label="Active Topics" value={counts.activeProjects ?? 0} tone="info" />
-            <MicroStat icon={Plus} label="Available Topics" value={panelTopics.available.length} tone="default" />
+            <MicroStat
+              icon={Users}
+              label="Handled Panels"
+              value={panelTopics.assigned.length}
+              tone="accent"
+            />
+            <MicroStat
+              icon={ClipboardCheck}
+              label="Pending Evals"
+              value={counts.pendingEvaluations ?? 0}
+              tone="warning"
+            />
+            <MicroStat
+              icon={Activity}
+              label="Active Topics"
+              value={counts.activeProjects ?? 0}
+              tone="info"
+            />
+            <MicroStat
+              icon={Plus}
+              label="Available Topics"
+              value={panelTopics.available.length}
+              tone="default"
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -220,10 +339,17 @@ export default function FacultyDashboard({ user }) {
               renderItem={(topic) => (
                 <div className="flex flex-row items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">{topic.title || 'Untitled'}</span>
-                    <span className="truncate text-xs text-muted-foreground">Lead: {topic.proposerName || 'System'}</span>
+                    <span className="truncate text-sm font-semibold">
+                      {topic.title || 'Untitled'}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      Lead: {topic.proposerName || 'System'}
+                    </span>
                   </div>
-                  <Badge variant="outline" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-primary/20 bg-primary/5 text-primary">
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-primary/20 bg-primary/5 text-primary"
+                  >
                     Panelist
                   </Badge>
                 </div>
@@ -233,19 +359,27 @@ export default function FacultyDashboard({ user }) {
               title="Available Topics"
               icon={Plus}
               items={panelTopics.available}
-              emptyState={panelistLoading ? "Loading..." : "No new topics available to select."}
+              emptyState={panelistLoading ? 'Loading...' : 'No new topics available to select.'}
               renderItem={(topic) => (
                 <div className="flex flex-row items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">{topic.title || 'Untitled'}</span>
-                    <span className="truncate text-xs text-muted-foreground">Area: {topic.researchArea || 'General'}</span>
+                    <span className="truncate text-sm font-semibold">
+                      {topic.title || 'Untitled'}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      Area: {topic.researchArea || 'General'}
+                    </span>
                   </div>
                   <button
                     onClick={() => selectTopicMutation.mutate(topic._id)}
                     disabled={selectTopicMutation.isPending}
                     className="flex shrink-0 items-center justify-center rounded bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                   >
-                    {selectTopicMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Select'}
+                    {selectTopicMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      'Select'
+                    )}
                   </button>
                 </div>
               )}

@@ -415,6 +415,20 @@ class TeamService {
       projectStatus: currentProject?.projectStatus || null,
     };
 
+    // Include pending invites so the leader can share 6-digit codes
+    const isLeader = team.leaderId?._id?.toString() === userId.toString();
+    if (isLeader) {
+      const pendingInvites = await TeamInvite.find({
+        teamId: team._id,
+        status: 'pending',
+        expiresAt: { $gt: new Date() },
+      })
+        .select('email inviteCode expiresAt createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+      teamObject.pendingInvites = pendingInvites;
+    }
+
     return { team: teamObject };
   }
 

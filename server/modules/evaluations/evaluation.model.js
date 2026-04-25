@@ -10,6 +10,7 @@ import {
   EVALUATION_STATUS_VALUES,
   EVALUATION_STATUSES,
   DEFENSE_TYPE_VALUES,
+  DEFENSE_DECISION_VALUES,
 } from '@cms/shared';
 
 /**
@@ -108,6 +109,16 @@ const evaluationSchema = new mongoose.Schema(
       default: EVALUATION_STATUSES.DRAFT,
     },
 
+    /** Final Panelist Decision */
+    decision: {
+      type: String,
+      enum: {
+        values: DEFENSE_DECISION_VALUES,
+        message: 'Invalid defense decision',
+      },
+      default: null,
+    },
+
     /** Timestamp when panelist submitted the evaluation */
     submittedAt: {
       type: Date,
@@ -129,10 +140,7 @@ const evaluationSchema = new mongoose.Schema(
 
 // --- Indexes ---
 // One evaluation per panelist per project per defense type
-evaluationSchema.index(
-  { projectId: 1, panelistId: 1, defenseType: 1 },
-  { unique: true },
-);
+evaluationSchema.index({ projectId: 1, panelistId: 1, defenseType: 1 }, { unique: true });
 // Quick lookup: all evaluations for a project
 evaluationSchema.index({ projectId: 1, defenseType: 1 });
 // Panelist's evaluations

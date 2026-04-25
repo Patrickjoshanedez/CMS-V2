@@ -146,6 +146,18 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               </a>
             </Button>
           )}
+          {submission.teamResources?.googleDocUrl && (
+            <Button asChild variant="secondary" className="sm:w-auto">
+              <a
+                href={submission.teamResources.googleDocUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Open Team Google Doc
+              </a>
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => navigate('/plagiarism-checker')}
@@ -657,18 +669,20 @@ export default function SubmissionDetailPage() {
     );
   }
 
+  // Faculty should always have review capabilities, even when navigating from the read-only list
+  const facultyCanReview = isFaculty;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Back + header */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">Submission Detail</h1>
-          {isReadOnlyMode && <Badge variant="outline">View Only</Badge>}
-          {isFaculty && !isReadOnlyMode && (
+          {isFaculty && (
             <Button
               variant="outline"
               size="sm"
@@ -685,7 +699,7 @@ export default function SubmissionDetailPage() {
                 navigate(`/project/submissions?mode=view&projectId=${sourceProjectId}`)
               }
             >
-              Back to Student Submissions
+              Back to Submissions List
             </Button>
           )}
         </div>
@@ -693,7 +707,7 @@ export default function SubmissionDetailPage() {
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />
         {/* Faculty: plagiarism checker */}
-        {isFaculty && !isReadOnlyMode && (
+        {facultyCanReview && (
           <PlagiarismChecker
             submissionId={submission._id}
             submissionTitle={`${CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`} v${submission.version}`}
@@ -703,21 +717,17 @@ export default function SubmissionDetailPage() {
           />
         )}
         {/* Faculty: review controls */}
-        {isFaculty && !isReadOnlyMode && (
+        {facultyCanReview && (
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
 
         {/* Faculty: unlock locked submissions */}
-        {isFaculty && !isReadOnlyMode && (
+        {facultyCanReview && (
           <UnlockPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
 
-        {/* Annotations */}
-        <AnnotationsPanel
-          submission={submission}
-          isFaculty={isFaculty && !isReadOnlyMode}
-          userId={user?._id}
-        />
+        {/* Annotations — faculty always has annotation capabilities */}
+        <AnnotationsPanel submission={submission} isFaculty={facultyCanReview} userId={user?._id} />
       </div>
     </DashboardLayout>
   );

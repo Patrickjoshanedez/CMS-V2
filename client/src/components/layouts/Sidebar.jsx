@@ -15,6 +15,8 @@ import {
   ScrollText,
   ChevronDown,
   Search,
+  Settings,
+  Menu,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -48,6 +50,7 @@ const instructorItems = [
   { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
   { label: 'Users', icon: Users, path: '/users' },
   { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
+  { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 const studentItems = [
@@ -57,6 +60,7 @@ const studentItems = [
   { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
   { label: 'Archive', icon: Archive, path: '/archive' },
   { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
+  { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 const facultyItems = [
@@ -65,6 +69,7 @@ const facultyItems = [
   { label: 'Panel Review', icon: ClipboardList, path: '/projects?filter=panel' },
   { label: 'Archive', icon: Archive, path: '/archive' },
   { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
+  { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 function getNavItems(role) {
@@ -159,7 +164,9 @@ function SidebarGroup({ item, activePath }) {
   const { pathname } = useLocation();
 
   // Auto-open the group when a child route is active
-  const isChildActive = item.children?.some((child) => pathname.startsWith(child.path.split('?')[0]));
+  const isChildActive = item.children?.some((child) =>
+    pathname.startsWith(child.path.split('?')[0]),
+  );
   const [open, setOpen] = useState(isChildActive);
 
   return (
@@ -222,7 +229,7 @@ function SidebarGroup({ item, activePath }) {
 // Main Sidebar
 // ---------------------------------------------------------------------------
 
-export default function Sidebar({ open, onClose }) {
+export default function Sidebar({ open, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -256,6 +263,13 @@ export default function Sidebar({ open, onClose }) {
             </span>
           </div>
         </div>
+        <button
+          onClick={onToggle}
+          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Close sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
       </div>
 
       {/* ── Navigation ── */}

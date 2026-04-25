@@ -10,7 +10,7 @@ import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES, PROJECT_STATUSES } from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES } from '@cms/shared';
 
 class EvaluationService {
   /* ═══════════════════ Default Rubric ═══════════════════ */
@@ -141,6 +141,9 @@ class EvaluationService {
     }
     if (data.overallComment !== undefined) {
       evaluation.overallComment = data.overallComment;
+    }
+    if (data.decision !== undefined) {
+      evaluation.decision = data.decision;
     }
 
     await evaluation.save();

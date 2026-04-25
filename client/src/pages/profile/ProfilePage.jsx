@@ -10,7 +10,9 @@ import { User, Mail, Shield, Camera, Loader2, CheckCircle, GraduationCap } from 
 import { userService } from '@/services/authService';
 import { useSections } from '@/hooks/useAcademics';
 import { useInstructors } from '@/hooks/useUsers';
+import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
 import { ROLES } from '@cms/shared';
+import { toast } from 'sonner';
 
 const shouldRetryAcademicLookup = (failureCount, error) => {
   const status = error?.response?.status;
@@ -56,6 +58,7 @@ const AVATAR_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 export default function ProfilePage() {
   const { user, fetchUser } = useAuthStore();
   const isStudent = user?.role === ROLES.STUDENT;
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
 
   const fileInputRef = useRef(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -75,6 +78,10 @@ export default function ProfilePage() {
   const [isSavingAcademic, setIsSavingAcademic] = useState(false);
   const [academicSaveError, setAcademicSaveError] = useState('');
   const [academicSaveSuccess, setAcademicSaveSuccess] = useState(false);
+  const [plagiarismThreshold, setPlagiarismThreshold] = useState(75);
+
+  const { data: settings } = useSettings();
+  const updateSettings = useUpdateSettings();
 
   const {
     data: sections = [],
@@ -123,6 +130,12 @@ export default function ProfilePage() {
       setInstructorId(user.instructorId?._id || user.instructorId || '');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isInstructor && settings?.plagiarismThreshold !== undefined) {
+      setPlagiarismThreshold(settings.plagiarismThreshold);
+    }
+  }, [isInstructor, settings]);
 
   if (!user) {
     return (
@@ -188,35 +201,6 @@ export default function ProfilePage() {
   };
 
   const handleSaveAcademic = async () => {
-    const selectedSectionRecord = sections.find((section) => section._id === sectionId);
-    const selectedInstructorRecord = instructors.find(
-      (instructor) => instructor._id === instructorId,
-    );
-
-    const selectedSectionName = selectedSectionRecord?.name || 'Not selected';
-    const selectedSectionCode = selectedSectionRecord?.code || 'Not selected';
-    const selectedInstructorName = selectedInstructorRecord
-      ? [
-          selectedInstructorRecord.firstName,
-          selectedInstructorRecord.middleName,
-          selectedInstructorRecord.lastName,
-        ]
-          .filter(Boolean)
-          .join(' ')
-      : 'Not selected';
-
-    const isConfirmed = window.confirm(
-      `Please review your academic details:\n\n` +
-        `Section: ${selectedSectionName}\n` +
-        `Section Code: ${selectedSectionCode}\n` +
-        `Instructor: ${selectedInstructorName}\n\n` +
-        `Are these details correct and are you sure you want to save?`,
-    );
-
-    if (!isConfirmed) {
-      return;
-    }
-
     setAcademicSaveError('');
     setAcademicSaveSuccess(false);
     setIsSavingAcademic(true);
@@ -232,6 +216,25 @@ export default function ProfilePage() {
       setAcademicSaveError(err?.response?.data?.error?.message || 'Failed to save academic info.');
     } finally {
       setIsSavingAcademic(false);
+    }
+  };
+
+  const handleSavePlagiarismThreshold = async () => {
+    if (!isInstructor) return;
+    if (plagiarismThreshold < 0 || plagiarismThreshold > 100) {
+      toast.error('Plagiarism threshold must be between 0 and 100.');
+      return;
+    }
+
+    try {
+      await updateSettings.mutateAsync({
+        plagiarismThreshold: Number(plagiarismThreshold),
+      });
+      toast.success('Plagiarism threshold updated.');
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.error?.message || 'Failed to update plagiarism threshold.',
+      );
     }
   };
 
@@ -414,6 +417,43 @@ export default function ProfilePage() {
             </CardFooter>
           </Card>
         </div>
+
+        {/* Instructor threshold controls */}
+        {isInstructor && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Plagiarism Threshold</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Set the minimum originality percentage required for plagiarism checks.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="profile-plagiarism-threshold">Minimum Originality Threshold</Label>
+                <span className="text-sm font-medium tabular-nums">{plagiarismThreshold}%</span>
+              </div>
+              <Input
+                id="profile-plagiarism-threshold"
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={plagiarismThreshold}
+                onChange={(event) => setPlagiarismThreshold(Number(event.target.value))}
+                className="h-2 cursor-pointer accent-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Submissions below this originality score are treated as failing plagiarism criteria.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSavePlagiarismThreshold} disabled={updateSettings.isPending}>
+                {updateSettings.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Threshold
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
 
         {/* Academic Info — students only */}
         {isStudent && (

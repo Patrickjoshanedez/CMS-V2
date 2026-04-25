@@ -15,7 +15,7 @@ import {
   useUploadSystemDesign,
   useUploadTestResults,
 } from '@/hooks/useSubmissions';
-import { DOCUMENT_TYPES, SUBMISSION_STATUSES } from '@cms/shared';
+import { SUBMISSION_STATUSES } from '@cms/shared';
 import { Upload, FileText, AlertTriangle, Loader2, CheckCircle2, X, ArrowLeft } from 'lucide-react';
 
 /** Maximum file size in MB (must match server config) */
@@ -83,6 +83,7 @@ function formatDeadline(dateStr) {
  * Query-string support: ?chapter=1 pre-selects the chapter number.
  */
 export default function ChapterUploadPage() {
+  const [now] = useState(() => Date.now());
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedChapter = searchParams.get('chapter');
@@ -292,9 +293,7 @@ export default function ChapterUploadPage() {
   const selectedDeadline = selectedDeadlineField
     ? project?.deadlines?.[selectedDeadlineField]
     : null;
-  const isLateByDeadline = selectedDeadline
-    ? Date.now() > new Date(selectedDeadline).getTime()
-    : false;
+  const isLateByDeadline = selectedDeadline ? now > new Date(selectedDeadline).getTime() : false;
   const requiresLateJustification = Boolean(selectedChapterNumber) && isLateByDeadline;
 
   /* ────── Loading / Error ────── */

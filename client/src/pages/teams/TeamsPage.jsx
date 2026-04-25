@@ -23,6 +23,12 @@ import {
   ExternalLink,
   X,
   LogOut,
+  Copy,
+  Clock,
+  Hash,
+  Ticket,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import {
@@ -76,25 +82,29 @@ function EmptyTeamState({ role, onCreateClick, onAcceptClick }) {
   const isStudent = role === ROLES.STUDENT;
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-      <UsersRound className="mb-4 h-12 w-12 text-muted-foreground" />
-      <h3 className="text-lg font-semibold">
-        {isStudent ? 'You haven\u2019t joined a team yet' : 'No teams found'}
-      </h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-gradient-to-b from-muted/30 to-muted/60 py-20 text-center">
+      <div className="relative mb-6">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 ring-4 ring-primary/5">
+          <UsersRound className="h-10 w-10 text-primary" />
+        </div>
+        <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Sparkles className="h-3.5 w-3.5" />
+        </div>
+      </div>
+      <h3 className="text-xl font-bold">{isStudent ? 'No team yet' : 'No teams found'}</h3>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
         {isStudent
-          ? 'Create a new team or ask a team leader to send you an invite.'
+          ? 'Start by creating your own team or enter a 6-digit invite code shared by a team leader to join an existing group.'
           : 'Teams will appear here once students form groups.'}
       </p>
       {isStudent && (
-        <div className="mt-6 flex gap-3">
-          <Button onClick={onCreateClick}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create Team
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Button size="lg" onClick={onCreateClick} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Create a Team
           </Button>
-          <Button variant="outline" onClick={onAcceptClick}>
-            <Mail className="mr-2 h-4 w-4" />
-            Accept Invite
+          <Button size="lg" variant="outline" onClick={onAcceptClick} className="gap-2">
+            <Ticket className="h-4 w-4" />I Have an Invite Code
           </Button>
         </div>
       )}
@@ -311,14 +321,30 @@ function CreateTeamForm({ onCancel }) {
 /* ────────── Accept Invite Form ────────── */
 
 function AcceptInviteForm({ onCancel, initialToken = '' }) {
-  const [inviteCode, setInviteCode] = useState(initialToken);
+  const CODE_LENGTH = 6;
+  const isInitialTokenLong = initialToken.length > CODE_LENGTH;
+  const initialDigits = isInitialTokenLong
+    ? Array(CODE_LENGTH).fill('')
+    : initialToken
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, CODE_LENGTH)
+        .split('');
+
+  const [digits, setDigits] = useState(() => {
+    const arr = [...initialDigits];
+    while (arr.length < CODE_LENGTH) arr.push('');
+    return arr;
+  });
+  const [longToken, setLongToken] = useState(isInitialTokenLong ? initialToken : '');
   const { fetchUser } = useAuthStore();
 
   const acceptInvite = useAcceptInvite({
     onSuccess: async () => {
       await fetchUser();
       toast.success('Invite accepted! You are now part of the team.');
-      setInviteCode('');
+      setDigits(Array(CODE_LENGTH).fill(''));
+      setLongToken('');
       onCancel?.();
     },
     onError: (err) => {
@@ -327,32 +353,85 @@ function AcceptInviteForm({ onCancel, initialToken = '' }) {
         toast.error('Please complete your profile (section and adviser) before joining a team.');
         return;
       }
-
       toast.error(err?.response?.data?.error?.message || 'Failed to accept invite.');
     },
   });
 
+  const codeString = digits.join('');
+  const isCodeComplete = codeString.length === CODE_LENGTH;
+  const isTokenLike = longToken.length > CODE_LENGTH;
+
+  const handleDigitChange = (index, value) => {
+    const char = value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(-1);
+    setDigits((prev) => {
+      const next = [...prev];
+      next[index] = char;
+      return next;
+    });
+    // Auto-advance
+    if (char && index < CODE_LENGTH - 1) {
+      const nextInput = document.getElementById(`invite-digit-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      const prevInput = document.getElementById(`invite-digit-${index - 1}`);
+      prevInput?.focus();
+      setDigits((prev) => {
+        const next = [...prev];
+        next[index - 1] = '';
+        return next;
+      });
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData
+      .getData('text')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    if (pasted.length > CODE_LENGTH) {
+      setLongToken(e.clipboardData.getData('text').trim());
+      return;
+    }
+    const chars = pasted.slice(0, CODE_LENGTH).split('');
+    setDigits(() => {
+      const next = [...chars];
+      while (next.length < CODE_LENGTH) next.push('');
+      return next;
+    });
+    // Focus last filled or first empty
+    const focusIdx = Math.min(chars.length, CODE_LENGTH - 1);
+    setTimeout(() => document.getElementById(`invite-digit-${focusIdx}`)?.focus(), 0);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const normalized = inviteCode.trim();
-    const payload = normalized.length === 6 ? normalized.toUpperCase() : normalized;
+    const payload = isTokenLike ? longToken.trim() : codeString;
     acceptInvite.mutate(payload);
   };
 
-  const isCodeLike = inviteCode.trim().length === 6;
-  const isTokenLike = inviteCode.trim().length > 6;
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Accept a Team Invite</CardTitle>
-        <CardDescription>
-          Enter the 6-character invite code shared by the team leader.
+    <Card className="mx-auto max-w-lg">
+      <CardHeader className="text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Ticket className="h-7 w-7" />
+        </div>
+        <CardTitle className="text-xl">Join a Team</CardTitle>
+        <CardDescription className="text-sm">
+          Enter the 6-character invite code shared by your team leader.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {acceptInvite.error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" className="mb-5">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               {acceptInvite.error?.response?.data?.error?.message ||
@@ -360,34 +439,40 @@ function AcceptInviteForm({ onCancel, initialToken = '' }) {
             </AlertDescription>
           </Alert>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {!isTokenLike && (
-            <div className="space-y-2">
-              <Label htmlFor="inviteToken">Invite Code *</Label>
-              <Input
-                id="inviteToken"
-                placeholder="e.g. A7K9P2"
-                value={inviteCode}
-                onChange={(e) => {
-                  const normalized = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                  setInviteCode(normalized.slice(0, 6));
-                }}
-                minLength={6}
-                maxLength={6}
-                required
-                disabled={acceptInvite.isPending}
-                className="uppercase tracking-widest"
-              />
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex gap-2" onPaste={handlePaste}>
+                {digits.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`invite-digit-${i}`}
+                    type="text"
+                    inputMode="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleDigitChange(i, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(i, e)}
+                    disabled={acceptInvite.isPending}
+                    className="h-14 w-12 rounded-lg border-2 bg-muted/30 text-center text-xl font-bold uppercase tracking-widest transition-colors focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    autoComplete="off"
+                    autoFocus={i === 0}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Letters and numbers only &mdash; paste support included
+              </p>
             </div>
           )}
 
           {isTokenLike && (
-            <div className="rounded-md border bg-muted/40 p-3">
+            <div className="rounded-lg border bg-muted/40 p-4">
               <p className="text-sm font-medium">Invite link detected</p>
-              <p className="mt-1 break-all text-xs text-muted-foreground">{inviteCode}</p>
+              <p className="mt-1 break-all text-xs text-muted-foreground">{longToken}</p>
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-center gap-3">
             <Button
               type="button"
               variant="outline"
@@ -398,10 +483,11 @@ function AcceptInviteForm({ onCancel, initialToken = '' }) {
             </Button>
             <Button
               type="submit"
-              disabled={acceptInvite.isPending || (!isCodeLike && !isTokenLike)}
+              disabled={acceptInvite.isPending || (!isCodeComplete && !isTokenLike)}
+              className="min-w-[140px]"
             >
               {acceptInvite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Accept Invite
+              Join Team
             </Button>
           </div>
         </form>
@@ -419,7 +505,6 @@ function InviteMemberForm({ teamId }) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const [activeWarning, setActiveWarning] = useState(null);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -452,7 +537,6 @@ function InviteMemberForm({ teamId }) {
       setDebouncedQuery('');
       setShowSuggestions(false);
       setSelectedCandidate(null);
-      setActiveWarning(null);
     },
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to send invite.'),
   });
@@ -475,24 +559,38 @@ function InviteMemberForm({ teamId }) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {lastInviteCode && (
-        <div className="flex items-center justify-between rounded-md border border-success/30 bg-success/10 px-3 py-2">
-          <p className="text-xs text-success">
-            Team invite code:{' '}
-            <span className="font-semibold tracking-widest">{lastInviteCode}</span>
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              await navigator.clipboard.writeText(lastInviteCode);
-              toast.success('Invite code copied.');
-            }}
-          >
-            Copy
-          </Button>
+        <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+            <CheckCircle2 className="h-4 w-4" />
+            Invite sent! Share this code with your teammate:
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex gap-1.5">
+              {lastInviteCode.split('').map((char, i) => (
+                <div
+                  key={i}
+                  className="flex h-10 w-9 items-center justify-center rounded-md border-2 border-green-500/30 bg-background text-base font-bold tracking-widest"
+                >
+                  {char}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={async () => {
+                await navigator.clipboard.writeText(lastInviteCode);
+                toast.success('Invite code copied to clipboard.');
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy
+            </Button>
+          </div>
         </div>
       )}
 
@@ -509,7 +607,6 @@ function InviteMemberForm({ teamId }) {
             if (selectedCandidate?.email?.toLowerCase?.() !== value.trim().toLowerCase()) {
               setSelectedCandidate(null);
             }
-            setActiveWarning(null);
           }}
           onFocus={() => {
             if ((debouncedQuery || query).length >= 2) {
@@ -534,26 +631,29 @@ function InviteMemberForm({ teamId }) {
               </div>
             ) : candidates.length > 0 ? (
               <>
-                <ul className="max-h-56 overflow-auto py-1">
+                <ul className="max-h-72 overflow-auto py-1">
                   {candidates.map((candidate) => {
-                    const warningMessages = (candidate.warnings || [])
-                      .map((warning) => warning?.message)
-                      .filter(Boolean);
-                    const blockingWarning = (candidate.warnings || []).find(
-                      (warning) => warning?.blocksInvite,
+                    const blockingWarnings = (candidate.warnings || []).filter(
+                      (w) => w?.blocksInvite,
                     );
-                    const warningTooltipText =
-                      blockingWarning?.message ||
-                      warningMessages.join('\n') ||
-                      (candidate.canInvite === false
-                        ? 'This student cannot be invited yet.'
-                        : 'Invite warning');
+                    const softWarnings = (candidate.warnings || []).filter(
+                      (w) => w && !w.blocksInvite,
+                    );
+                    const isBlocked = blockingWarnings.length > 0;
+                    const hasSoftWarning = softWarnings.length > 0;
 
                     return (
                       <li key={candidate._id}>
                         <button
                           type="button"
-                          className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
+                          className={[
+                            'flex w-full flex-col gap-0.5 px-3 py-2.5 text-left transition-colors',
+                            isBlocked
+                              ? 'bg-destructive/5 hover:bg-destructive/10'
+                              : hasSoftWarning
+                                ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                                : 'hover:bg-accent',
+                          ].join(' ')}
                           onMouseDown={(event) => {
                             event.preventDefault();
                             setEmail(candidate.email);
@@ -561,112 +661,61 @@ function InviteMemberForm({ teamId }) {
                             setDebouncedQuery(candidate.email);
                             setShowSuggestions(false);
                             setSelectedCandidate(candidate);
-                            setActiveWarning(null);
                           }}
                         >
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">
-                              {candidate.fullName}
+                          {/* Name + email row */}
+                          <span className="flex items-start gap-2">
+                            <span className="min-w-0 flex-1">
+                              <span
+                                className={[
+                                  'block truncate text-sm font-medium',
+                                  isBlocked ? 'text-destructive/80' : '',
+                                ].join(' ')}
+                              >
+                                {candidate.fullName}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {candidate.email}
+                              </span>
                             </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {candidate.email}
-                            </span>
-                            {candidate.canInvite === false && (
-                              <span className="mt-0.5 block text-[11px] font-medium text-destructive">
-                                Cannot invite yet
+                            {isBlocked && (
+                              <span className="mt-0.5 shrink-0">
+                                <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                              </span>
+                            )}
+                            {!isBlocked && hasSoftWarning && (
+                              <span className="mt-0.5 shrink-0">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                               </span>
                             )}
                           </span>
 
-                          {candidate.warnings?.length > 0 && (
+                          {/* Blocking reasons — always visible */}
+                          {blockingWarnings.map((w, i) => (
                             <span
-                              className="mt-0.5 inline-flex shrink-0 items-center text-warning"
-                              title={warningTooltipText}
-                              aria-label={warningTooltipText}
-                              role="button"
-                              tabIndex={0}
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                              }}
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setActiveWarning((prev) =>
-                                  prev?.candidateId === candidate._id
-                                    ? null
-                                    : {
-                                        candidateId: candidate._id,
-                                        fullName: candidate.fullName,
-                                        messages:
-                                          warningMessages.length > 0
-                                            ? warningMessages
-                                            : [warningTooltipText],
-                                      },
-                                );
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  setActiveWarning((prev) =>
-                                    prev?.candidateId === candidate._id
-                                      ? null
-                                      : {
-                                          candidateId: candidate._id,
-                                          fullName: candidate.fullName,
-                                          messages:
-                                            warningMessages.length > 0
-                                              ? warningMessages
-                                              : [warningTooltipText],
-                                        },
-                                  );
-                                }
-                              }}
+                              key={i}
+                              className="flex items-start gap-1 pl-0 text-[11px] leading-snug text-destructive"
                             >
-                              <AlertTriangle className="h-4 w-4" />
+                              <span className="mt-px shrink-0">✕</span>
+                              <span>{w.message}</span>
                             </span>
-                          )}
+                          ))}
+
+                          {/* Soft warnings — always visible */}
+                          {softWarnings.map((w, i) => (
+                            <span
+                              key={i}
+                              className="flex items-start gap-1 pl-0 text-[11px] leading-snug text-amber-600 dark:text-amber-400"
+                            >
+                              <span className="mt-px shrink-0">⚠</span>
+                              <span>{w.message}</span>
+                            </span>
+                          ))}
                         </button>
                       </li>
                     );
                   })}
                 </ul>
-                {activeWarning && (
-                  <div className="z-[100] border-t bg-background/95 p-3 shadow-sm backdrop-blur">
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <p className="text-xs font-semibold text-foreground">
-                        Why {activeWarning.fullName} cannot be invited
-                      </p>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                        }}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setActiveWarning(null);
-                        }}
-                        className="inline-flex items-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                        aria-label="Close warning details"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div className="space-y-1">
-                      {activeWarning.messages.map((message, index) => (
-                        <p
-                          key={`${activeWarning.candidateId}-active-warning-${index}`}
-                          className="text-xs text-foreground"
-                        >
-                          {message}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             ) : (
               <div className="px-3 py-2 text-xs text-muted-foreground">
@@ -692,6 +741,7 @@ function InviteMemberForm({ teamId }) {
 /* ────────── Student Team Detail View ────────── */
 
 function StudentTeamDetail({ team, userId }) {
+  const [now] = useState(() => Date.now());
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
@@ -1006,11 +1056,72 @@ function StudentTeamDetail({ team, userId }) {
             </div>
           </div>
 
-          {/* Invite Form (leader only) */}
+          {/* Invite Form + Pending Invites (leader only) */}
           {isLeader && !team.isLocked && (
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
-              <InviteMemberForm teamId={team._id} />
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
+                <InviteMemberForm teamId={team._id} />
+              </div>
+
+              {/* Persistent pending invite codes */}
+              {team.pendingInvites?.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">
+                    Active Invite Codes
+                  </p>
+                  <div className="space-y-2">
+                    {team.pendingInvites.map((invite) => {
+                      const expiresAt = new Date(invite.expiresAt);
+                      const hoursLeft = Math.max(
+                        0,
+                        Math.round((expiresAt - now) / (1000 * 60 * 60)),
+                      );
+
+                      return (
+                        <div
+                          key={invite._id}
+                          className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              {invite.inviteCode.split('').map((char, i) => (
+                                <div
+                                  key={i}
+                                  className="flex h-8 w-7 items-center justify-center rounded border bg-background text-sm font-bold"
+                                >
+                                  {char}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-muted-foreground">
+                                {invite.email}
+                              </p>
+                              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {hoursLeft > 0 ? `Expires in ${hoursLeft}h` : 'Expiring soon'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1.5 text-muted-foreground hover:text-foreground"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(invite.inviteCode);
+                              toast.success('Code copied!');
+                            }}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -13,32 +13,28 @@ const PHASES = [
   },
   {
     key: 'title',
-    label: 'Title Approval',
+    label: 'Title Proposal',
     isComplete: (project) => project?.titleStatus === TITLE_STATUSES.APPROVED,
   },
   {
-    key: 'chapters',
-    label: 'Chapters 1–3',
-    isComplete: (project) =>
-      getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2 ||
-      (getCapstonePhase(project) === CAPSTONE_PHASES.PHASE_1 &&
-        (getProjectStatus(project) === PROJECT_STATUSES.PENDING_IN_REVIEW ||
-         getProjectStatus(project) === PROJECT_STATUSES.REVISION_NEEDED)),
-  },
-  {
-    key: 'proposal',
-    label: 'Full Proposal',
+    key: 'capstone_1',
+    label: 'Capstone 1 (Ch 1-3)',
     isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2,
   },
   {
-    key: 'development',
-    label: 'Development',
+    key: 'capstone_2',
+    label: 'Capstone 2 (Development)',
+    isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_3,
+  },
+  {
+    key: 'capstone_3',
+    label: 'Capstone 3 (Ch 4-5)',
     isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_4,
   },
   {
     key: 'defense',
     label: 'Final Defense',
-    isComplete: () => false, // Capstone 4 final outcome — future sprints
+    isComplete: (project) => getProjectStatus(project) === PROJECT_STATUSES.DEFENDED,
   },
 ];
 

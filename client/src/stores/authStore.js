@@ -17,6 +17,15 @@ const LOGIN_ERROR_MESSAGES_BY_CODE = {
   TOO_MANY_REQUESTS: 'Too many login attempts. Please wait a moment and try again.',
 };
 
+const REGISTER_ERROR_MESSAGES_BY_CODE = {
+  DUPLICATE_EMAIL: 'An account with this email already exists.',
+  CAPTCHA_REQUIRED: 'Please complete the reCAPTCHA verification.',
+  CAPTCHA_FAILED: 'reCAPTCHA verification failed. Please try again.',
+  CAPTCHA_SERVICE_UNAVAILABLE: 'reCAPTCHA service is unavailable. Please try again later.',
+  EMAIL_SERVICE_ERROR:
+    'The server is having trouble sending verification emails. Please contact an administrator or try again later.',
+};
+
 const GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE = {
   GOOGLE_AUDIENCE_MISMATCH:
     'Google client configuration mismatch detected. Ensure frontend VITE_GOOGLE_CLIENT_ID matches server GOOGLE_AUTH_CLIENT_ID.',
@@ -55,11 +64,22 @@ const extractErrorMessage = (error, fallbackMessage, codeMessages = {}) => {
   }
 
   if (error?.response?.status >= 500) {
-    return 'The server encountered an error. Please try again shortly.';
+    return (
+      apiMessage || fallbackMessage || 'The server encountered an error. Please try again shortly.'
+    );
   }
 
   if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
     return apiMessage;
+  }
+
+  // If it's a 4xx error and we have a status text, use it as a last resort
+  if (
+    error?.response?.status >= 400 &&
+    error?.response?.status < 500 &&
+    error?.response?.statusText
+  ) {
+    return `Error ${error.response.status}: ${error.response.statusText}`;
   }
 
   return fallbackMessage;
@@ -113,6 +133,7 @@ export const useAuthStore = create((set, _get) => ({
       set,
       request: () => authService.register(data),
       fallbackMessage: 'Registration failed.',
+      codeMessages: REGISTER_ERROR_MESSAGES_BY_CODE,
     });
   },
 

@@ -1,4 +1,4 @@
-import { Menu, Bell } from 'lucide-react';
+import { Menu, Bell, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/Button';
@@ -11,32 +11,75 @@ import { ROLES } from '@cms/shared';
  * Ordered from most specific to least specific so the first match wins.
  */
 const PAGE_TITLES = [
-  { path: '/project/submissions/upload', title: 'Submissions' },
+  // Specific with query params (must come first)
+  { path: '/projects?filter=advisees', title: 'Adviser Reviews' },
+  { path: '/projects?filter=panel', title: 'Panel Review' },
+
+  // Submissions & Projects (Student)
+  { path: '/project/submissions/upload', title: 'Upload Chapter' },
+  { path: '/project/submissions/', title: 'Submission Detail' },
   { path: '/project/submissions', title: 'Submissions' },
   { path: '/project/create', title: 'Create Project' },
+  { path: '/project/proposal', title: 'Proposal Compilation' },
   { path: '/project', title: 'My Capstone' },
+
+  // Projects & Reviews (Faculty/Admin)
+  { path: '/projects/', title: 'Project Details' },
+  { path: '/projects', title: 'Instructor Review' },
+  { path: '/adviser/team-review', title: 'Team Review' },
+
+  // General
   { path: '/dashboard', title: 'Dashboard' },
   { path: '/notifications', title: 'Notifications' },
+  { path: '/teams', title: 'My Team' },
+  { path: '/team', title: 'My Team' },
+  { path: '/users', title: 'Users' },
+  { path: '/profile', title: 'Profile' },
+  { path: '/settings', title: 'Settings' },
+
+  // Archive & Reports
   { path: '/archive/upload/capstone', title: 'Upload Archived Capstone' },
   { path: '/archive/upload/academic-paper', title: 'Upload Archived Capstone' },
   { path: '/archive/upload/academic-journal', title: 'Upload Archived Capstone' },
   { path: '/reports/bulk-upload', title: 'Upload Archived Capstone' },
   { path: '/archive', title: 'Research Archive' },
-  { path: '/users', title: 'Users' },
-  { path: '/projects', title: 'Instructor Review' },
+  { path: '/plagiarism-checker', title: 'Plagiarism Checker' },
   { path: '/reports', title: 'Reports' },
+
+  // Admin
   { path: '/admin/audit', title: 'Activity Log' },
   { path: '/admin/audit-log', title: 'Activity Log' },
-  { path: '/settings', title: 'Settings' },
-  { path: '/profile', title: 'Profile' },
 ];
 
 /**
- * Derive the page title from the current pathname.
+ * Derive the page title from the current pathname and search params.
  */
-function getPageTitle(pathname) {
-  const match = PAGE_TITLES.find((entry) => pathname.startsWith(entry.path));
-  return match?.title || 'Dashboard';
+function getPageTitle(pathname, search) {
+  const fullPath = pathname + search;
+
+  // 1. Try to match entries that include query parameters (e.g. /projects?filter=...)
+  const queryMatch = PAGE_TITLES.find(
+    (entry) => entry.path.includes('?') && fullPath.startsWith(entry.path),
+  );
+  if (queryMatch) return queryMatch.title;
+
+  // 2. Try to match path-only entries
+  const pathMatch = PAGE_TITLES.find((entry) => {
+    // Skip entries with query params here
+    if (entry.path.includes('?')) return false;
+
+    // Exact match
+    if (pathname === entry.path) return true;
+
+    // Sub-path match (e.g., /projects/123 matches /projects/ or /projects)
+    // We ensure we match full segments to avoid /projects matching /project
+    const prefix = entry.path.endsWith('/') ? entry.path : `${entry.path}/`;
+    if (pathname.startsWith(prefix)) return true;
+
+    return false;
+  });
+
+  return pathMatch?.title || 'Dashboard';
 }
 
 function getRoleLabel(role) {
@@ -52,9 +95,9 @@ function getRoleLabel(role) {
 /**
  * Header — top bar with mobile menu toggle, user info, theme toggle, and notifications.
  */
-export default function Header({ onMenuClick }) {
+export default function Header({ sidebarOpen, onMenuClick }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const user = useAuthStore((state) => state.user);
   const { data: unreadCount = 0 } = useUnreadCount();
 
@@ -63,19 +106,33 @@ export default function Header({ onMenuClick }) {
 
   const roleLabel = getRoleLabel(user?.role);
 
-  const pageTitle = getPageTitle(pathname);
+  const pageTitle = getPageTitle(pathname, search);
+
+  const showBackArrow = pathname.startsWith('/projects/') && pathname !== '/projects';
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 sm:px-6">
       {/* Left side: menu button + page title */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Open sidebar"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        {!sidebarOpen && (
+          <button
+            onClick={onMenuClick}
+            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+
+        {showBackArrow && (
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
 
         <h2 className="text-lg font-semibold text-foreground">{pageTitle}</h2>
       </div>

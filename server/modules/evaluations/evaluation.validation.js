@@ -3,7 +3,7 @@
  * Validates request body, query params, and URL params.
  */
 import { z } from 'zod';
-import { DEFENSE_TYPE_VALUES } from '@cms/shared';
+import { DEFENSE_TYPE_VALUES, DEFENSE_DECISION_VALUES } from '@cms/shared';
 
 /* ═══════════════════ Reusable fields ═══════════════════ */
 
@@ -48,4 +48,5 @@ const criterionSchema = z.object({
 export const updateEvaluationSchema = z.object({
   criteria: z.array(criterionSchema).min(1).max(20).optional(),
   overallComment: z.string().trim().max(2000).optional(),
+  decision: z.enum(DEFENSE_DECISION_VALUES).nullable().optional(),
 });

@@ -31,11 +31,11 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((prev) => !prev)} />
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+        <Header sidebarOpen={sidebarOpen} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
         <div className="border-b bg-background px-4 sm:px-6 lg:px-8 pt-4">
           <AnnouncementBanner className="mb-4" />
         </div>
