@@ -687,7 +687,7 @@ async function processJob(job) {
       userId: submission.submittedBy._id || submission.submittedBy,
       type: 'plagiarism_complete',
       title: 'Originality Check Complete',
-      message: `Your Chapter ${chapter} originality score is ${result.originalityScore}%.`,
+      message: `Your Chapter ${chapter} originality score is ${Number.isFinite(originalityScore) ? originalityScore.toFixed(1) : '—'}%.`,
       metadata: {
         submissionId,
         projectId,

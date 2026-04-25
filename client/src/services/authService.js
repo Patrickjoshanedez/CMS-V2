@@ -31,6 +31,7 @@ export const userService = {
   updateUser: (id, data) => api.patch(`/users/${id}`, data),
   changeRole: (id, data) => api.patch(`/users/${id}/role`, data),
   deleteUser: (id) => api.delete(`/users/${id}`),
+  activateUser: (id) => api.patch(`/users/${id}/activate`),
   importStudents: (formData) =>
     api.post('/users/import-students', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

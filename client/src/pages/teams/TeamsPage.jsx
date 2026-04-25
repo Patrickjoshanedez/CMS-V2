@@ -198,7 +198,7 @@ function CreateTeamForm({ onCancel }) {
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name (Optional)</Label>
+            <Label htmlFor="teamName">Team Name</Label>
             <Input
               id="teamName"
               placeholder="Leave blank to use your last name"
@@ -212,7 +212,7 @@ function CreateTeamForm({ onCancel }) {
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="createTeamInvite">Team Invitation (Optional)</Label>
+            <Label htmlFor="createTeamInvite">Invite a Teammate</Label>
             <div className="relative">
               <Input
                 id="createTeamInvite"

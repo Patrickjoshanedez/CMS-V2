@@ -130,7 +130,6 @@ export default function ChapterCard({
   isStudent,
   isReadOnly,
   projectId,
-  systemDevelopment,
   searchSuffix = '',
 }) {
   const navigate = useNavigate();
@@ -200,8 +199,6 @@ export default function ChapterCard({
           <DeadlineBadge dateStr={deadline} />
         </div>
 
-        {/* System dev tracker for chapter 2 */}
-        {chapterNumber === 2 && <SystemDevTracker systemDevelopment={systemDevelopment} />}
 
         {/* Actions */}
         <div className="mt-3 flex gap-2">

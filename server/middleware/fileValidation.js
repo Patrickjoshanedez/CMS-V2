@@ -30,13 +30,33 @@ const EXTENSION_FALLBACK_TYPES = {
 
 const DOCUMENT_ALLOWLIST = { ...ALLOWED_MIME_TYPES, 'text/plain': 'TXT' };
 
+/**
+ * MIME types that file-type reports as a container format but which map
+ * to a specific document type based on file extension.
+ *
+ * DOCX / XLSX / PPTX are all ZIP-based Office Open XML formats.
+ * file-type only sees the ZIP magic bytes and returns 'application/zip'.
+ * We refine the result using the original file extension.
+ */
+const ZIP_EXTENSION_REMAP = {
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
 const detectDocumentMime = async (buffer, originalname) => {
   // file-type is ESM-only since v17; dynamic import for compatibility
   const { fileTypeFromBuffer } = await import('file-type');
   const typeResult = await fileTypeFromBuffer(buffer);
 
   if (typeResult) {
-    return typeResult.mime;
+    const detected = typeResult.mime;
+
+    // Remap ZIP-based Office formats using the declared file extension
+    if (detected === 'application/zip') {
+      const ext = '.' + originalname.split('.').pop().toLowerCase();
+      return ZIP_EXTENSION_REMAP[ext] || detected; // fallthrough keeps 'application/zip' → rejected
+    }
+
+    return detected;
   }
 
   // Fallback for types without magic bytes (e.g. .txt)

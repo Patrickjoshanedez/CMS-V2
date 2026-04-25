@@ -243,12 +243,18 @@ function RequestModificationForm({ project }) {
   const [proposedTitle, setProposedTitle] = useState(project.title || '');
   const [justification, setJustification] = useState('');
 
+  const isRevisionRequired = project.titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION;
+
   return (
-    <Card>
+    <Card className={isRevisionRequired ? 'border-amber-400 dark:border-amber-600' : undefined}>
       <CardHeader>
-        <CardTitle className="text-base">Approved With Revision</CardTitle>
+        <CardTitle className="text-base">
+          {isRevisionRequired ? 'Revision Required — Update Your Title' : 'Approved With Revision'}
+        </CardTitle>
         <CardDescription>
-          Edit the approved title and submit your revision for instructor review.
+          {isRevisionRequired
+            ? 'The instructor has approved your project but requires a title change. Submit a revised title to unlock Capstone 1.'
+            : 'Edit the approved title and submit your revision for instructor review.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -404,6 +410,16 @@ export function TitlePendingCard({ titleStatus }) {
       textClass: 'text-orange-800 dark:text-orange-200',
       descClass: 'text-orange-700 dark:text-orange-300',
     },
+    [TITLE_STATUSES.APPROVED_WITH_REVISION]: {
+      icon: AlertTriangle,
+      title: 'Approved — Title Revision Required',
+      description:
+        'Your project concept is approved, but the instructor requires a title change before you can proceed to Capstone 1. Submit a proposed new title below.',
+      bgClass: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
+      iconClass: 'text-amber-600 dark:text-amber-400',
+      textClass: 'text-amber-800 dark:text-amber-200',
+      descClass: 'text-amber-700 dark:text-amber-300',
+    },
     [TITLE_STATUSES.PENDING_MODIFICATION]: {
       icon: Clock,
       title: 'Modification Request Pending',
@@ -443,12 +459,16 @@ export function TitlePendingCard({ titleStatus }) {
 
 /* ── WorkflowPrerequisiteBanner ── */
 export function WorkflowPrerequisiteBanner({ titleStatus }) {
+  // Banner only shows when Capstone 1 is still locked
   if (titleStatus === TITLE_STATUSES.APPROVED) return null;
 
   const getStep = () => {
     if (titleStatus === TITLE_STATUSES.DRAFT) return 1;
     if (titleStatus === TITLE_STATUSES.SUBMITTED) return 2;
     if (titleStatus === TITLE_STATUSES.REVISION_REQUIRED) return 1;
+    // APPROVED_WITH_REVISION and PENDING_MODIFICATION: submitted but not yet fully approved
+    if (titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION) return 2;
+    if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION) return 2;
     return 1;
   };
   const currentStep = getStep();
@@ -517,6 +537,7 @@ export default function TitleActionsSection({ project }) {
     case TITLE_STATUSES.SUBMITTED:
       return <SubmittedCard project={project} />;
     case TITLE_STATUSES.APPROVED:
+    case TITLE_STATUSES.APPROVED_WITH_REVISION:
       return <RequestModificationForm project={project} />;
     case TITLE_STATUSES.REVISION_REQUIRED:
       return <ReviseAndResubmitForm project={project} />;

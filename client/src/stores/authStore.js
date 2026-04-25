@@ -10,7 +10,7 @@ const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again.';
 const LOGIN_ERROR_MESSAGES_BY_CODE = {
   INVALID_CREDENTIALS: 'Invalid email or password.',
   EMAIL_NOT_VERIFIED: 'Please verify your email before logging in.',
-  ACCOUNT_DEACTIVATED: 'Your account has been deactivated.',
+  ACCOUNT_DEACTIVATED: 'The instructor deactivated your account.',
   GOOGLE_ACCOUNT_PASSWORD_LOGIN_BLOCKED:
     'This account uses Google sign-in. Please continue with Google.',
   AUTH_REQUIRED: 'Your session expired. Please log in again.',
@@ -33,7 +33,7 @@ const GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE = {
   GOOGLE_TOKEN_INVALID: 'Google sign-in token is invalid or expired. Please try again.',
   GOOGLE_PAYLOAD_INVALID: 'Google sign-in payload is invalid. Please try again.',
   GOOGLE_EMAIL_NOT_VERIFIED: 'Your Google account email is not verified.',
-  ACCOUNT_DEACTIVATED: 'Your account has been deactivated.',
+  ACCOUNT_DEACTIVATED: 'The instructor deactivated your account.',
   MISSING_CREDENTIAL: 'Google sign-in did not return a valid credential. Please try again.',
   TOO_MANY_REQUESTS: 'Too many login attempts. Please wait a moment and try again.',
 };

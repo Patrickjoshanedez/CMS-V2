@@ -154,6 +154,7 @@ export const submitTitleSchema = z.object({}).strict();
 
 export const approveTitleSchema = z.object({
   proposalId: z.union([z.string().trim().min(1), z.number().int().nonnegative()]).optional(),
+  approveWithRevision: z.boolean().optional().default(false),
 });
 
 /* ───── Reject title (instructor action) ───── */

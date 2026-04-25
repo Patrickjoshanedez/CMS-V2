@@ -1,7 +1,10 @@
-import { usePrototypes, useRemovePrototype } from '@/hooks/useProjects';
+import { useRef, useState } from 'react';
+import { usePrototypes, useRemovePrototype, useAddPrototypeLink, useAddPrototypeMedia } from '@/hooks/useProjects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import {
   Image as ImageIcon,
@@ -11,6 +14,10 @@ import {
   Loader2,
   AlertTriangle,
   Layers,
+  Upload,
+  Link as LinkIcon,
+  Plus,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,6 +29,9 @@ const TYPE_META = {
   video: { icon: Video, label: 'Video', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
   link: { icon: ExternalLink, label: 'Link', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
 };
+
+const ACCEPTED_MEDIA = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm';
+const MAX_FILE_SIZE_MB = 100;
 
 /**
  * Single prototype card — renders differently based on type.
@@ -109,14 +119,169 @@ function PrototypeCard({ prototype, canDelete, onDelete, isDeleting }) {
   );
 }
 
+/* ── Inline upload panel (student only) ── */
+function AddPrototypePanel({ projectId, onClose }) {
+  const [mode, setMode] = useState('file'); // 'file' | 'link'
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [file, setFile] = useState(null);
+  const fileRef = useRef(null);
+
+  const addMedia = useAddPrototypeMedia({
+    onSuccess: () => {
+      toast.success('Asset uploaded to gallery!');
+      onClose();
+    },
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Upload failed.'),
+  });
+
+  const addLink = useAddPrototypeLink({
+    onSuccess: () => {
+      toast.success('Link added to gallery!');
+      onClose();
+    },
+    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to add link.'),
+  });
+
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`File must be under ${MAX_FILE_SIZE_MB} MB.`);
+      e.target.value = '';
+      return;
+    }
+    setFile(f);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    if (mode === 'link') {
+      if (!url.trim()) return;
+      addLink.mutate({ projectId, title: title.trim(), url: url.trim() });
+    } else {
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('title', title.trim());
+      fd.append('file', file);
+      addMedia.mutate({ projectId, formData: fd });
+    }
+  };
+
+  const isPending = addMedia.isPending || addLink.isPending;
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold">Add to Showcase</h4>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}>
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="flex gap-2 mb-3">
+        <Button
+          type="button"
+          size="sm"
+          variant={mode === 'file' ? 'default' : 'outline'}
+          onClick={() => setMode('file')}
+          className="gap-1.5 text-xs h-7"
+        >
+          <Upload className="h-3 w-3" />
+          File / Video
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={mode === 'link' ? 'default' : 'outline'}
+          onClick={() => setMode('link')}
+          className="gap-1.5 text-xs h-7"
+        >
+          <LinkIcon className="h-3 w-3" />
+          Link
+        </Button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-1">
+          <Label htmlFor="proto-title" className="text-xs">Title *</Label>
+          <Input
+            id="proto-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Prototype Demo Video"
+            className="h-8 text-xs"
+            required
+          />
+        </div>
+
+        {mode === 'file' ? (
+          <div className="space-y-1">
+            <Label htmlFor="proto-file" className="text-xs">
+              File * <span className="text-muted-foreground">(Image / Video — max {MAX_FILE_SIZE_MB} MB)</span>
+            </Label>
+            <Input
+              id="proto-file"
+              ref={fileRef}
+              type="file"
+              accept={ACCEPTED_MEDIA}
+              onChange={handleFileChange}
+              className="h-8 text-xs"
+              required
+            />
+            {file && (
+              <p className="text-[11px] text-muted-foreground">
+                {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <Label htmlFor="proto-url" className="text-xs">URL *</Label>
+            <Input
+              id="proto-url"
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              className="h-8 text-xs"
+              required
+            />
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            size="sm"
+            className="h-7 text-xs"
+            disabled={isPending || !title.trim() || (mode === 'file' ? !file : !url.trim())}
+          >
+            {isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {mode === 'file' ? 'Upload' : 'Add Link'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /**
  * PrototypeGallery — Fetches and displays all prototypes for a project.
  *
- * @param {{ projectId: string, canDelete?: boolean }} props
+ * @param {{ projectId: string, canDelete?: boolean, canAdd?: boolean }} props
  *   - projectId: The project to fetch prototypes for
  *   - canDelete: Whether the current user may delete prototypes (students on their own project)
+ *   - canAdd: Whether the current user may add prototypes (students on their own project)
  */
-export default function PrototypeGallery({ projectId, canDelete = false }) {
+export default function PrototypeGallery({ projectId, canDelete = false, canAdd = false }) {
+  const [showAddPanel, setShowAddPanel] = useState(false);
   const { data: prototypes, isLoading, error } = usePrototypes(projectId);
 
   const remove = useRemovePrototype({
@@ -132,15 +297,38 @@ export default function PrototypeGallery({ projectId, canDelete = false }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Layers className="h-5 w-5" />
-          Prototype Showcase
-        </CardTitle>
-        <CardDescription>
-          Images, videos, and links demonstrating the system prototype.
-        </CardDescription>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Layers className="h-5 w-5" />
+              Prototype Showcase
+            </CardTitle>
+            <CardDescription>
+              Images, videos, and links demonstrating the system prototype.
+            </CardDescription>
+          </div>
+          {canAdd && !showAddPanel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => setShowAddPanel(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
+        {/* Inline add panel */}
+        {showAddPanel && (
+          <AddPrototypePanel
+            projectId={projectId}
+            onClose={() => setShowAddPanel(false)}
+          />
+        )}
+
         {/* Loading state */}
         {isLoading && (
           <div className="flex h-32 items-center justify-center">
@@ -164,7 +352,9 @@ export default function PrototypeGallery({ projectId, canDelete = false }) {
             <Layers className="mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-sm font-medium text-muted-foreground">No prototypes yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Upload images, videos, or add links to showcase the prototype.
+              {canAdd
+                ? 'Click "Add" to upload images, videos, or add links.'
+                : 'Upload images, videos, or add links to showcase the prototype.'}
             </p>
           </div>
         )}

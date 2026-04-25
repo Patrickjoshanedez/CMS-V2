@@ -374,6 +374,26 @@ class UserService {
 
     return { user };
   }
+
+  /**
+   * Re-activate a previously deactivated user (Instructor-only).
+   * Sets isActive to true.
+   * @param {string} userId
+   * @returns {Object} { user }
+   */
+  async activateUser(userId) {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: true },
+      { returnDocument: 'after' },
+    );
+
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    return { user };
+  }
 }
 
 export default new UserService();

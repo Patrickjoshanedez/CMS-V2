@@ -761,8 +761,10 @@ class ProjectService {
   /**
    * Approve a submitted project title.
    * Transitions titleStatus: SUBMITTED → APPROVED
+   *                   or  SUBMITTED → APPROVED_WITH_REVISION (when approveWithRevision is true)
    * @param {string} projectId
    * @param {string} instructorId
+   * @param {Object} data - { proposalId?, approveWithRevision? }
    * @returns {Object} { project }
    */
   async approveTitle(projectId, instructorId, data = {}) {
@@ -838,7 +840,12 @@ class ProjectService {
       }));
     }
 
-    project.titleStatus = TITLE_STATUSES.APPROVED;
+    // When approveWithRevision is true, Capstone 1 stays locked until the team submits
+    // and the instructor accepts the revised title (APPROVED_WITH_REVISION → PENDING_MODIFICATION → APPROVED).
+    const approveWithRevision = Boolean(data?.approveWithRevision);
+    project.titleStatus = approveWithRevision
+      ? TITLE_STATUSES.APPROVED_WITH_REVISION
+      : TITLE_STATUSES.APPROVED;
     project.driveFolderId = null;
     project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
     project.capstonePhase = 1;
@@ -846,11 +853,14 @@ class ProjectService {
     await project.save();
 
     // Notify team members
+    const notifMessage = approveWithRevision
+      ? `Your project title "${project.title}" has been approved with revision. Please submit a revised title before proceeding to Capstone 1.`
+      : `Your project title "${project.title}" has been approved.`;
     await this._notifyTeamMembers(project.teamId, {
       type: 'title_approved',
-      title: 'Title Approved',
-      message: `Your project title "${project.title}" has been approved.`,
-      metadata: { projectId: project._id, approvedBy: instructorId },
+      title: approveWithRevision ? 'Title Approved With Revision' : 'Title Approved',
+      message: notifMessage,
+      metadata: { projectId: project._id, approvedBy: instructorId, approveWithRevision },
     });
 
     return { project };
@@ -1049,7 +1059,8 @@ class ProjectService {
   async requestTitleModification(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
 
-    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+    const allowedStatuses = [TITLE_STATUSES.APPROVED, TITLE_STATUSES.APPROVED_WITH_REVISION];
+    if (!allowedStatuses.includes(project.titleStatus)) {
       throw new AppError(
         'Title modification can only be requested for approved titles.',
         400,
@@ -1067,12 +1078,17 @@ class ProjectService {
 
     await this._assertTeamLeader(project.teamId, userId);
 
+    // Capture the current status before transitioning, so we can restore it on denial
+    const previousTitleStatus = project.titleStatus;
+
     project.titleStatus = TITLE_STATUSES.PENDING_MODIFICATION;
     project.titleModificationRequest = {
       proposedTitle: data.proposedTitle,
       justification: data.justification,
       status: 'pending',
       requestedAt: new Date(),
+      // Remember the status we came from so a denial can restore it correctly
+      fromStatus: previousTitleStatus,
     };
     await project.save();
 
@@ -1115,10 +1131,16 @@ class ProjectService {
 
     if (data.action === 'approved') {
       project.title = project.titleModificationRequest.proposedTitle;
+      // Fully approved — unlock Capstone 1
+      project.titleStatus = TITLE_STATUSES.APPROVED;
+    } else {
+      // Denied — restore to the status the student started from so they can try again
+      const restoredStatus =
+        project.titleModificationRequest.fromStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
+          ? TITLE_STATUSES.APPROVED_WITH_REVISION
+          : TITLE_STATUSES.APPROVED;
+      project.titleStatus = restoredStatus;
     }
-
-    // Return to approved status regardless of decision
-    project.titleStatus = TITLE_STATUSES.APPROVED;
     await project.save();
 
     const verb = data.action === 'approved' ? 'approved' : 'denied';

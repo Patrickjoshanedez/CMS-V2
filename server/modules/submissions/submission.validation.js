@@ -199,5 +199,5 @@ export const listSubmissionsQuerySchema = z.object({
   chapter: z.coerce.number().int().min(1).max(5).optional(),
   status: z.enum(SUBMISSION_STATUS_VALUES).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(10),
 });

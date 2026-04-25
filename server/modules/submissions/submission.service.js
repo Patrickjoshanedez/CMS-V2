@@ -860,18 +860,28 @@ class SubmissionService {
       }
     }
 
-    if (Number(chapter) >= 4) {
-      const lockedProposal = await Submission.findOne({
+    if (Number(chapter) > 1) {
+      if (Number(chapter) >= 4 && project.capstonePhase < 3) {
+        throw new AppError(
+          'You must complete Capstone 2 (System Development) before submitting Chapters 4 and 5.',
+          400,
+          'CAPSTONE2_NOT_COMPLETED',
+        );
+      }
+
+      const prevChapter = Number(chapter) - 1;
+      const prevChapterLocked = await Submission.findOne({
         projectId,
-        type: 'proposal',
+        chapter: prevChapter,
+        type: 'chapter',
         status: SUBMISSION_STATUSES.LOCKED,
       });
 
-      if (!lockedProposal) {
+      if (!prevChapterLocked) {
         throw new AppError(
-          'Your full proposal must be approved before submitting Chapters 4 and 5.',
+          `Chapter ${prevChapter} must be approved before submitting Chapter ${chapter}.`,
           400,
-          'PROPOSAL_NOT_APPROVED',
+          `CHAPTER${prevChapter}_NOT_APPROVED`,
         );
       }
     }
@@ -899,12 +909,20 @@ class SubmissionService {
       );
     }
 
-    if (latestSubmission && latestSubmission.status !== SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
-      throw new AppError(
-        'You can only upload a new chapter version after adviser revisions are requested.',
-        400,
-        'REVISION_NOT_REQUESTED',
-      );
+    const allowedReuploadStatuses = [
+      SUBMISSION_STATUSES.REVISIONS_REQUIRED,
+      SUBMISSION_STATUSES.APPROVED, // safety valve: approved but not yet locked
+    ];
+    if (latestSubmission && !allowedReuploadStatuses.includes(latestSubmission.status)) {
+      const isAwaitingReview = [
+        SUBMISSION_STATUSES.PENDING,
+        SUBMISSION_STATUSES.UNDER_REVIEW,
+        SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW,
+      ].includes(latestSubmission.status);
+      const message = isAwaitingReview
+        ? `Chapter ${chapter} has already been submitted and is awaiting review. Please wait for your adviser's feedback.`
+        : 'You can only upload a new chapter version after your adviser requests revisions.';
+      throw new AppError(message, 400, 'REVISION_NOT_REQUESTED');
     }
 
     // --- Late submission detection ---
@@ -2196,8 +2214,21 @@ class SubmissionService {
         project.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
         await project.save();
       } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
-        if (submission.type === 'proposal' && project.capstonePhase === 1) {
+        if ((submission.type === 'proposal' || (submission.type === 'chapter' && submission.chapter === 3)) && project.capstonePhase === 1) {
           project.capstonePhase = 2;
+        } else if (project.capstonePhase === 2 && ['system_design', 'test_results'].includes(submission.type)) {
+          // Check if the OTHER requirement is already approved/locked
+          const otherType = submission.type === 'system_design' ? 'test_results' : 'system_design';
+          const otherApproved = await Submission.exists({
+            projectId: project._id,
+            type: otherType,
+            status: { $in: [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.LOCKED, 'approved', 'locked'] }
+          });
+          if (otherApproved) {
+            project.capstonePhase = 3;
+          }
+        } else if (project.capstonePhase === 3 && submission.type === 'chapter' && submission.chapter === 5) {
+          project.capstonePhase = 4;
         }
         project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         await project.save();

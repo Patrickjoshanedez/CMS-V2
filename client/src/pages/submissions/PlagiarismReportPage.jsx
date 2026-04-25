@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, RefreshCcw, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, FileText, Layers, RefreshCcw, X } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { usePlagiarismReport } from '../../hooks/useSubmissions';
 
 const SOURCE_PALETTE = [
@@ -337,39 +335,45 @@ const buildTextSegments = (text, highlights) => {
   return segments;
 };
 
-function ScoreBadge({ value }) {
-  const score = Math.round(clampPercent(value) ?? 0);
-  const variant = score >= 80 ? 'success' : score >= 60 ? 'warning' : 'destructive';
-
-  return <Badge variant={variant}>{score}% Originality</Badge>;
-}
 
 function SourceRow({ source, isActive, onSelect }) {
+  const percentage = Math.round(source.similarityPercentage);
+  const barColor = percentage >= 50 ? '#E63946' : percentage >= 25 ? '#E07B39' : '#2A9D8F';
+
   return (
     <button
       type="button"
       onClick={() => onSelect(source.sourceId)}
       className={[
-        'w-full rounded-lg border px-3 py-2 text-left transition',
+        'w-full rounded-lg border p-3 text-left transition-all',
         source.palette.cardClass,
-        isActive ? 'ring-2 ring-primary/60 bg-background' : 'bg-background hover:bg-muted/50',
+        isActive
+          ? 'ring-2 ring-primary/50 bg-background shadow-sm'
+          : 'bg-background hover:bg-muted/40 hover:shadow-sm',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={[
-              'inline-flex h-6 min-w-6 items-center justify-center rounded-full border text-[11px] font-semibold',
-              source.palette.badgeClass,
-            ].join(' ')}
-          >
-            {source.sourceNumber}
-          </span>
-          <span className="truncate text-sm font-medium text-foreground">{source.sourceTitle}</span>
+      <div className="flex items-start gap-2.5">
+        <span
+          className={[
+            'mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full border text-[11px] font-bold shrink-0',
+            source.palette.badgeClass,
+          ].join(' ')}
+        >
+          {source.sourceNumber}
         </span>
-        <span className="text-xs font-semibold text-muted-foreground">
-          {Math.round(source.similarityPercentage)}%
-        </span>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{source.sourceTitle}</p>
+          {/* Similarity bar */}
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">{source.matchedBlocks.length} match{source.matchedBlocks.length !== 1 ? 'es' : ''}</span>
+              <span className="font-semibold" style={{ color: barColor }}>{percentage}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
+              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${percentage}%`, backgroundColor: barColor }} />
+            </div>
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -510,56 +514,90 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
     );
   }
 
+
+  const scoreColor = overallScore >= 50 ? '#E63946' : overallScore >= 25 ? '#E07B39' : '#2A9D8F';
+
+
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-[1680px] space-y-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-                    <ArrowLeft className="mr-1 h-4 w-4" />
-                    Back
-                  </Button>
-                  {typeof onReset === 'function' && (
-                    <Button variant="outline" size="sm" onClick={onReset}>
-                      <RefreshCcw className="mr-1 h-4 w-4" />
-                      Scan Another PDF
-                    </Button>
-                  )}
-                  <CardTitle className="text-lg">Plagiarism Report</CardTitle>
-                </div>
-                <CardDescription>
-                  Color-coded matched blocks with source-focused review popover.
-                </CardDescription>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <ScoreBadge value={originalityScore} />
-                <Badge variant="outline">{Math.round(overallScore)}% Similarity</Badge>
-                <Badge variant="secondary">
-                  {sources.length} Source{sources.length !== 1 ? 's' : ''}
-                </Badge>
-                {processedAt && (
-                  <Badge variant="outline">Checked {new Date(processedAt).toLocaleString()}</Badge>
-                )}
-              </div>
+      <div className="mx-auto max-w-[1800px] space-y-0">
+        {/* ── Turnitin-style Sticky Toolbar ── */}
+        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-t-xl bg-[hsl(var(--sidebar))] px-4 py-2.5 text-white shadow-lg">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10" onClick={() => navigate(-1)}>
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              Back
+            </Button>
+            {typeof onReset === 'function' && (
+              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10" onClick={onReset}>
+                <RefreshCcw className="mr-1 h-4 w-4" />
+                Re-scan
+              </Button>
+            )}
+            <div className="hidden sm:flex items-center gap-2 text-sm">
+              <FileText className="h-4 w-4 text-white/60" />
+              <span className="font-medium text-white/90">Plagiarism Report</span>
             </div>
-          </CardHeader>
-        </Card>
+          </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)]">
-          <Card className="min-h-[66vh]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Submission Text</CardTitle>
-              <CardDescription>
-                Click any highlight to open source details in the sidebar popover.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {text ? (
-                <article className="max-h-[68vh] overflow-auto rounded-lg border bg-background px-5 py-4 text-sm leading-7 text-foreground whitespace-pre-wrap">
+          {/* Circular Gauge */}
+          <div className="flex items-center gap-4">
+            <div className="relative h-12 w-12">
+              <svg viewBox="0 0 40 40" className="h-full w-full -rotate-90">
+                <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" fill="transparent" />
+                <circle cx="20" cy="20" r="16" stroke={scoreColor} strokeWidth="3.5" strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 16}`}
+                  strokeDashoffset={`${2 * Math.PI * 16 * (1 - overallScore / 100)}`}
+                  fill="transparent" />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white">
+                {Math.round(overallScore)}%
+              </span>
+            </div>
+            <div className="hidden md:block text-right">
+              <p className="text-xs text-white/60 uppercase tracking-wider">Similarity</p>
+              <p className="text-sm font-semibold" style={{ color: scoreColor }}>
+                {overallScore >= 50 ? 'High' : overallScore >= 25 ? 'Moderate' : 'Low'}
+              </p>
+            </div>
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-white/60">
+              <span>{sources.length} source{sources.length !== 1 ? 's' : ''}</span>
+              {processedAt && <span>· {new Date(processedAt).toLocaleDateString()}</span>}
+            </div>
+            <Button variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10" onClick={() => window.print()}>
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+
+        {/* ── Stats ribbon ── */}
+        <div className="flex flex-wrap items-center gap-3 border-x border-b border-border bg-card px-4 py-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
+            style={{ backgroundColor: `${scoreColor}14`, color: scoreColor }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: scoreColor }} />
+            {Math.round(overallScore)}% Matched
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {Math.round(originalityScore)}% Original
+          </span>
+          <span className="ml-auto text-muted-foreground">
+            {text.trim().split(/\s+/).length.toLocaleString()} words · {sources.length} sources
+          </span>
+        </div>
+
+
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_350px] border-x border-b border-border rounded-b-xl overflow-hidden" style={{ minHeight: '78vh' }}>
+
+          {/* ── Document Canvas (Turnitin "Paper" look) ── */}
+          <div className="overflow-auto bg-[#e8e8e8] dark:bg-neutral-900" style={{ maxHeight: '78vh' }}>
+            {text ? (
+              <div className="flex justify-center py-8 px-4">
+                <article
+                  className="w-full max-w-[8.5in] rounded bg-white shadow-[0_0_12px_rgba(0,0,0,0.08)] px-10 py-8 text-sm leading-7 text-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 whitespace-pre-wrap"
+                  style={{ fontFamily: "'Times New Roman', 'Georgia', serif", fontSize: '12pt', lineHeight: '2' }}
+                >
                   {textSegments.map((segment) => {
                     if (!segment.highlight) {
                       return <span key={segment.key}>{segment.text}</span>;
@@ -577,127 +615,110 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                           else highlightRefs.current.delete(segment.highlight.key);
                         }}
                         className={[
-                          'cursor-pointer rounded px-0.5 py-0.5 ring-1 transition',
+                          'cursor-pointer rounded px-0.5 py-0.5 ring-1 transition-all',
                           palette.markClass,
                           isActive
-                            ? 'ring-2 ring-offset-1 ring-primary'
+                            ? 'ring-2 ring-offset-2 ring-primary shadow-md'
                             : 'hover:ring-2 hover:ring-primary/40',
                         ].join(' ')}
                         onClick={() => handleHighlightClick(segment.highlight)}
-                        title={`Source ${segment.highlight.sourceNumber}: ${segment.highlight.sourceTitle}`}
+                        title={`[${segment.highlight.sourceNumber}] ${segment.highlight.sourceTitle} — ${Math.round(segment.highlight.similarityPercentage)}%`}
                       >
+                        <sup className="mr-0.5 text-[9px] font-bold opacity-70">{segment.highlight.sourceNumber}</sup>
                         {segment.text}
                       </mark>
                     );
                   })}
                 </article>
-              ) : (
-                <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                  No extracted submission text is available yet.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
+                <FileText className="mb-3 h-12 w-12 opacity-30" />
+                <p className="text-sm font-medium">No extracted text available</p>
+                <p className="mt-1 text-xs">The document text could not be extracted for analysis.</p>
+              </div>
+            )}
+          </div>
 
-          <Card className="min-h-[66vh]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Sources</CardTitle>
-              <CardDescription>
-                Select a source to filter highlights and inspect matched text side-by-side.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {activeSource && activeHighlight && (
-                <div
-                  className={[
-                    'rounded-lg border bg-background p-3 shadow-sm',
-                    activeSource.palette.cardClass,
-                  ].join(' ')}
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Active Source
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">
-                        {activeSource.sourceTitle}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {Math.round(activeSource.similarityPercentage)}% similarity
-                      </p>
+          {/* ── Sources Sidebar ── */}
+          <aside className="flex flex-col border-l border-border bg-card" style={{ maxHeight: '78vh' }}>
+            {/* Sidebar header */}
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Match Overview</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{sources.length} sources</span>
+            </div>
+
+            {/* Active source detail popover */}
+            {activeSource && activeHighlight && (
+              <div className="border-b border-border bg-muted/30 p-3 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={['inline-flex h-5 min-w-5 items-center justify-center rounded-full border text-[10px] font-bold', activeSource.palette.badgeClass].join(' ')}>
+                        {activeSource.sourceNumber}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground truncate">{activeSource.sourceTitle}</p>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => {
-                        setActiveHighlightKey(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{Math.round(activeSource.similarityPercentage)}% match</p>
                   </div>
+                  <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setActiveHighlightKey(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
 
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="rounded-md border bg-card p-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Source Context
-                      </p>
-                      <p className="mt-1 text-xs text-foreground">
-                        {activeHighlight.sourceText ||
-                          'Source excerpt not available in this report payload.'}
-                      </p>
-                      {(Number.isFinite(activeHighlight.sourceStart) ||
-                        Number.isFinite(activeHighlight.sourceEnd)) && (
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          Source range: {activeHighlight.sourceStart ?? '?'} -{' '}
-                          {activeHighlight.sourceEnd ?? '?'}
-                        </p>
+                {/* Side-by-side comparison */}
+                <div className="space-y-2">
+                  <div className="rounded-md border bg-card p-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Your Text</p>
+                    <p className="text-xs text-foreground leading-relaxed">{activeHighlight.matchedText || 'Text unavailable.'}</p>
+                  </div>
+                  <div className="rounded-md border bg-card p-2.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Source Text</p>
+                    <p className="text-xs text-foreground leading-relaxed">
+                      {activeHighlight.sourceText || (
+                        <span className="flex items-center gap-2 text-muted-foreground italic">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Source excerpt not available for this match.
+                        </span>
                       )}
-                    </div>
-
-                    <div className="rounded-md border bg-card p-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Matched Text
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap text-xs text-foreground">
-                        {activeHighlight.matchedText || 'Matched text unavailable.'}
-                      </p>
-                      <p className="mt-2 text-[11px] text-muted-foreground">
-                        Student range: {activeHighlight.studentStart} - {activeHighlight.studentEnd}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="max-h-[58vh] space-y-2 overflow-auto pr-1">
-                {sources.length === 0 ? (
-                  <div className="flex h-44 flex-col items-center justify-center rounded-lg border border-dashed text-center">
-                    <CheckCircle2 className="mb-2 h-8 w-8 text-green-600" />
-                    <p className="text-sm font-medium">No source matches</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      This submission currently has no indexed text matches.
                     </p>
                   </div>
-                ) : (
-                  sources.map((source) => (
-                    <SourceRow
-                      key={source.sourceId}
-                      source={source}
-                      isActive={source.sourceId === resolvedActiveSourceId}
-                      onSelect={handleSourceSelect}
-                    />
-                  ))
-                )}
+                </div>
               </div>
+            )}
 
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                Highlight colors map directly to source rows. Selecting a source narrows the text to
-                that source&apos;s matched blocks for focused verification.
+            {/* Source list */}
+            <div className="flex-1 overflow-auto px-3 py-2 space-y-1.5">
+              {sources.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-500/50" />
+                  <p className="text-sm font-medium text-foreground">No matches found</p>
+                  <p className="mt-1 max-w-[200px] text-xs text-muted-foreground">
+                    This submission has no indexed plagiarism matches.
+                  </p>
+                </div>
+              ) : (
+                sources.map((source) => (
+                  <SourceRow
+                    key={source.sourceId}
+                    source={source}
+                    isActive={source.sourceId === resolvedActiveSourceId}
+                    onSelect={handleSourceSelect}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Sidebar footer hint */}
+            {sources.length > 0 && (
+              <div className="border-t border-border bg-muted/20 px-4 py-2.5 text-[11px] text-muted-foreground leading-relaxed">
+                Click a source to filter highlights. Numbered badges in the document link to source rows.
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </aside>
         </div>
       </div>
     </DashboardLayout>

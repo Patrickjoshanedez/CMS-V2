@@ -100,4 +100,13 @@ router.delete(
   userController.deleteUser,
 );
 
+router.patch(
+  '/:id/activate',
+  authorize(ROLES.INSTRUCTOR),
+  auditLog('user.activated', 'User', {
+    getDescription: (req) => `Activated user ${req.params.id}`,
+  }),
+  userController.activateUser,
+);
+
 export default router;

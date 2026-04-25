@@ -28,6 +28,7 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
+import Capstone2SupportingDocs from '@/components/submissions/Capstone2SupportingDocs';
 
 // Hooks & constants
 import { useMyProject } from '@/hooks/useProjects';
@@ -59,6 +60,8 @@ export default function MyProjectPage() {
   const titleStatus = project?.titleStatus;
   const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
   const hasPanelists = Array.isArray(project?.panelistIds) && project.panelistIds.length > 0;
+  // Capstone 1 is only accessible once the title is fully approved (not pending revision).
+  // APPROVED_WITH_REVISION and PENDING_MODIFICATION both keep it locked.
   const capstone1Unlocked = titleApproved;
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
@@ -109,8 +112,13 @@ export default function MyProjectPage() {
   }
 
   const getLockedReason = (tabName) => {
-    if (tabName === 'capstone_1' && !titleApproved)
+    if (tabName === 'capstone_1' && !titleApproved) {
+      if (titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION)
+        return 'Your title was approved with revision. Submit a revised title for instructor approval to unlock Capstone 1.';
+      if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION)
+        return 'Your revised title is pending instructor approval. Capstone 1 will unlock once it is accepted.';
       return 'Your title must be approved before you can access Capstone 1.';
+    }
     if (tabName === 'capstone_2') return 'Complete Capstone 1 to unlock Capstone 2.';
     if (tabName === 'capstone_3') return 'Complete Capstone 2 to unlock Capstone 3.';
     if (tabName === 'final') return 'Complete Capstone 3 to unlock Final Defense.';
@@ -288,8 +296,11 @@ export default function MyProjectPage() {
                       </p>
                     </div>
                     <DevelopmentAssetsForm project={project} />
+                    <div className="mt-6">
+                      <Capstone2SupportingDocs projectId={project._id} canUpload />
+                    </div>
                     <div className="mt-8">
-                      <PrototypeGallery projectId={project._id} canDelete />
+                      <PrototypeGallery projectId={project._id} canDelete canAdd />
                     </div>
                     <div className="mt-8">
                       <EvaluationPanel projectId={project._id} defenseType="midterm" />

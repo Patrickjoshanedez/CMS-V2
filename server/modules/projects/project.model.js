@@ -54,6 +54,16 @@ const titleModificationRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    /**
+     * The titleStatus the project had before entering PENDING_MODIFICATION.
+     * Stored so we can correctly restore APPROVED_WITH_REVISION (rather than
+     * promoting to APPROVED) if the instructor denies the modification.
+     */
+    fromStatus: {
+      type: String,
+      enum: [...TITLE_STATUS_VALUES, null],
+      default: null,
+    },
   },
   { _id: false },
 );

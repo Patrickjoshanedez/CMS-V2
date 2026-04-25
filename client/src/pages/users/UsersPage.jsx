@@ -24,10 +24,11 @@ import {
   Layers,
   CalendarDays,
   Crown,
+  UserCheck,
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
-import { useUsers, useCreateUser, useChangeRole, useDeleteUser } from '@/hooks/useUsers';
+import { useUsers, useCreateUser, useChangeRole, useDeleteUser, useActivateUser } from '@/hooks/useUsers';
 import { useTeams, teamKeys } from '@/hooks/useTeams';
 import {
   useAssignAdviser,
@@ -1223,7 +1224,11 @@ function HierarchyView() {
                   onClick={() => { setNavSectionId(section._id); setHierarchySearch(''); }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">{section.code || section.name}</p>
+                    <p className="text-sm font-semibold">
+                      {section.code && section.name
+                        ? `${section.code} · ${section.name}`
+                        : section.code || section.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {section.teamCount} teams | {section.studentCount} students
                     </p>
@@ -1334,7 +1339,7 @@ function HierarchyView() {
 
 /* ────────── User Row ────────── */
 
-function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
+function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }) {
   const isSelf = user._id === currentUserId;
   const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ');
 
@@ -1351,7 +1356,7 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
               <RoleBadge role={user.role} />
               {!user.isActive && (
                 <Badge variant="destructive" className="h-5 px-1.5 text-[10px] uppercase">
-                  Inactive
+                  Deactivated
                 </Badge>
               )}
               {!user.isVerified && (
@@ -1376,6 +1381,7 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
             className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={user.role}
             onChange={(e) => onChangeRole(user._id, e.target.value)}
+            disabled={!user.isActive}
           >
             {ROLE_VALUES.map((r) => (
               <option key={r} value={r}>
@@ -1384,16 +1390,28 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate }) {
             ))}
           </select>
 
-          {/* Deactivate button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
-            onClick={() => onDeactivate(user._id, fullName)}
-            title="Deactivate user"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {/* Deactivate / Activate toggle button */}
+          {user.isActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => onDeactivate(user._id, fullName)}
+              title="Deactivate user"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-green-600 hover:text-white"
+              onClick={() => onActivate(user._id, fullName)}
+              title="Activate user"
+            >
+              <UserCheck className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -1641,6 +1659,12 @@ export default function UsersPage() {
       toast.error(err?.response?.data?.error?.message || 'Failed to deactivate user.'),
   });
 
+  const activateUser = useActivateUser({
+    onSuccess: () => toast.success('User activated.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to activate user.'),
+  });
+
   const handleChangeRole = useCallback(
     (id, role) => {
       changeRole.mutate({ id, role });
@@ -1655,6 +1679,15 @@ export default function UsersPage() {
       }
     },
     [deleteUser],
+  );
+
+  const handleActivate = useCallback(
+    (id, name) => {
+      if (window.confirm(`Re-activate "${name}"? They will be able to log in again.`)) {
+        activateUser.mutate(id);
+      }
+    },
+    [activateUser],
   );
 
   const handleSearch = useCallback((e) => {
@@ -1831,6 +1864,7 @@ export default function UsersPage() {
                           currentUserId={currentUser?._id}
                           onChangeRole={handleChangeRole}
                           onDeactivate={handleDeactivate}
+                          onActivate={handleActivate}
                         />
                       ))}
                       <div className="pt-2">

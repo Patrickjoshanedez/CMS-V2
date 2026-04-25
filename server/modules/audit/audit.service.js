@@ -177,6 +177,30 @@ class AuditService {
       .limit(limit)
       .lean();
   }
+
+  /**
+   * Get all audit logs related to a specific project, across all target types.
+   * Includes Project-level events AND any Submission/Evaluation events that
+   * stored the projectId in their metadata.
+   *
+   * @param {string} projectId - The project's MongoDB ObjectId
+   * @param {number} [limit=100]
+   * @returns {Promise<Array>}
+   */
+  async getProjectAuditTrail(projectId, limit = 100) {
+    const pid = projectId?.toString();
+    const logs = await AuditLog.find({
+      $or: [
+        { targetType: 'Project', targetId: pid },
+        { 'metadata.projectId': pid },
+      ],
+    })
+      .populate('actor', 'firstName lastName email role')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    return logs;
+  }
 }
 
 export default new AuditService();

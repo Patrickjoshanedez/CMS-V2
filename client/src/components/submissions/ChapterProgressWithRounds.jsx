@@ -104,8 +104,23 @@ export default function ChapterProgressWithRounds({
   }, [chapters, submissions]);
 
   const suggestedUploadChapter = useMemo(() => {
-    for (const chapter of chapters) {
+    const approvedStatuses = [SUBMISSION_STATUSES.LOCKED, SUBMISSION_STATUSES.APPROVED];
+
+    for (let i = 0; i < chapters.length; i++) {
+      const chapter = chapters[i];
       const latest = chapterRoundsMap.get(chapter)?.[0];
+
+      // Previous chapter must be locked/approved before this chapter is eligible
+      if (i > 0) {
+        const prevChapter = chapters[i - 1];
+        const prevLatest = chapterRoundsMap.get(prevChapter)?.[0];
+        if (!prevLatest || !approvedStatuses.includes(prevLatest.status)) {
+          // Previous chapter not yet approved — suggest it instead
+          return prevChapter;
+        }
+      }
+
+      // This chapter has no submission yet OR needs revision → suggest it
       if (!latest || latest.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
         return chapter;
       }

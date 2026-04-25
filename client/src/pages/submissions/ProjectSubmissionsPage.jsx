@@ -24,6 +24,7 @@ import {
   Code,
   TestTube,
   CheckCircle2,
+  Paintbrush,
 } from 'lucide-react';
 
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
@@ -159,6 +160,60 @@ function SupportingDocsSection({ submissions, canUpload, isReadOnly, projectId, 
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ────────── System Development Section ────────── */
+
+function SystemDevelopmentSection({ systemDevelopment }) {
+  const stages = [
+    { key: 'design', label: 'Design', icon: Paintbrush },
+    { key: 'build', label: 'Build', icon: Code },
+    { key: 'test', label: 'Test', icon: TestTube },
+  ];
+
+  const statusColors = {
+    pending: 'bg-muted text-muted-foreground border-border',
+    in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    completed: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+  };
+
+  const completedCount = stages.filter(
+    ({ key }) => (systemDevelopment[key] || 'pending') === 'completed',
+  ).length;
+
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        System Development
+      </h2>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {stages.map(({ key, label, icon: Icon }) => {
+              const status = systemDevelopment[key] || 'pending';
+              return (
+                <span
+                  key={key}
+                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${
+                    statusColors[status]
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                  {status === 'completed' && (
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  )}
+                </span>
+              );
+            })}
+            <span className="ml-auto text-xs text-muted-foreground">
+              {completedCount}/{stages.length} completed
+            </span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -541,12 +596,16 @@ export default function ProjectSubmissionsPage() {
                 isStudent={isStudent}
                 isReadOnly={isReadOnlyMode}
                 projectId={activeProject._id}
-                systemDevelopment={ch === 2 ? activeProject.systemDevelopment : undefined}
                 searchSuffix={searchSuffix}
               />
             ))}
           </div>
         </div>
+
+        {/* System Development — after Ch 1-3, before Proposal */}
+        {activeProject.systemDevelopment && (
+          <SystemDevelopmentSection systemDevelopment={activeProject.systemDevelopment} />
+        )}
 
         {/* Proposal */}
         <ProposalSection

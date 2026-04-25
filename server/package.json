@@ -13,6 +13,7 @@
     "seed:archive:pdfs": "node seeders/seed-archived-capstone-pdfs.js",
     "seed:orphans": "node seeders/seed-orphaned-users.js",
     "seed:users": "node seeders/seed-users-only.js",
+    "seed:reseed-targets": "docker exec cms-deploy-server node server/seeders/reseed-target-users.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
