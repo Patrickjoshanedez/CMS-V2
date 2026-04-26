@@ -234,7 +234,9 @@ function FacultyWidget({ project, canManage }) {
                     <button
                       type="button"
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-destructive"
-                      onClick={() => removePanelist.mutate({ projectId: project._id, panelistId: p._id || p })}
+                      onClick={() =>
+                        removePanelist.mutate({ projectId: project._id, panelistId: p._id || p })
+                      }
                       disabled={removePanelist.isPending}
                       title="Remove panelist"
                     >
@@ -594,7 +596,6 @@ export default function ProjectDetailPage() {
     { enabled: !!projectId },
   );
 
-
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -614,6 +615,15 @@ export default function ProjectDetailPage() {
   }
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const isAssignedAdviser =
+    user?.role === ROLES.ADVISER &&
+    (project?.adviserId?._id || project?.adviserId)?.toString() === user?._id?.toString();
+  const isAssignedPanelist =
+    user?.role === ROLES.PANELIST &&
+    (project?.panelistIds || []).some(
+      (panelist) => (panelist?._id || panelist)?.toString() === user?._id?.toString(),
+    );
+  const canReviewTitle = isInstructor || isAssignedAdviser || isAssignedPanelist;
   const proposals = project.titleProposals || [];
 
   const totalEvals = project.evaluations?.length || 0;
@@ -654,12 +664,11 @@ export default function ProjectDetailPage() {
 
               <TabsContent value="proposal" className="mt-0 focus-visible:outline-none">
                 {/* Show modification review card when a student has submitted a revised title */}
-                {isInstructor &&
-                  project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
-                    <div className="mb-6">
-                      <ModificationReviewCard project={project} />
-                    </div>
-                  )}
+                {canReviewTitle && project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
+                  <div className="mb-6">
+                    <ModificationReviewCard project={project} />
+                  </div>
+                )}
 
                 {proposals.length > 0 ? (
                   <Tabs defaultValue="0" className="w-full">
@@ -699,7 +708,7 @@ export default function ProjectDetailPage() {
                             project={project}
                             proposal={typeof proposal === 'string' ? { title: proposal } : proposal}
                             index={idx}
-                            canVote={isInstructor}
+                            canVote={canReviewTitle}
                           />
                         </Card>
                       </TabsContent>
@@ -728,9 +737,12 @@ export default function ProjectDetailPage() {
               <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none">
                 {/* Mirror the student System Development Phase heading */}
                 <div className="mb-6">
-                  <h3 className="text-xl font-semibold tracking-tight text-primary mb-1">System Development Phase</h3>
+                  <h3 className="text-xl font-semibold tracking-tight text-primary mb-1">
+                    System Development Phase
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Review the team&apos;s Gantt Chart, System Design document, Prototype Gallery, and midterm evaluation.
+                    Review the team&apos;s Gantt Chart, System Design document, Prototype Gallery,
+                    and midterm evaluation.
                   </p>
                 </div>
 
@@ -769,7 +781,9 @@ export default function ProjectDetailPage() {
                   <div className="flex items-center gap-2 mb-6">
                     <History className="h-5 w-5 text-muted-foreground" />
                     <h3 className="text-base font-semibold text-foreground">Audit Trail</h3>
-                    <span className="text-xs text-muted-foreground ml-1">— full activity history for this project</span>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      — full activity history for this project
+                    </span>
                   </div>
                   <ProjectAuditTrail projectId={project._id} />
                 </div>
