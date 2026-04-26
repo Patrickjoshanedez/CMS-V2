@@ -28,7 +28,6 @@ import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
-import Capstone2SupportingDocs from '@/components/submissions/Capstone2SupportingDocs';
 
 // Hooks & constants
 import { useMyProject } from '@/hooks/useProjects';
@@ -296,9 +295,6 @@ export default function MyProjectPage() {
                       </p>
                     </div>
                     <DevelopmentAssetsForm project={project} />
-                    <div className="mt-6">
-                      <Capstone2SupportingDocs projectId={project._id} canUpload />
-                    </div>
                     <div className="mt-8">
                       <PrototypeGallery projectId={project._id} canDelete canAdd />
                     </div>

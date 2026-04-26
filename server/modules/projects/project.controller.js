@@ -529,3 +529,33 @@ export const bulkUploadArchive = catchAsync(async (req, res) => {
     data: { project, submissions, similarity },
   });
 });
+
+/** PATCH /api/projects/:id/gantt-chart — Update Gantt chart URL */
+export const updateGanttChartUrl = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateGanttChartUrl(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Gantt chart URL updated.',
+    data: { project },
+  });
+});
+
+/** PATCH /api/projects/:id/demo-video — Update Demo video URL */
+export const updateDemoVideoUrl = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateDemoVideoUrl(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Demo video URL updated.',
+    data: { project },
+  });
+});

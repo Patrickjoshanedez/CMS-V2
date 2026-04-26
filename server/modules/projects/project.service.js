@@ -5,6 +5,7 @@ import User from '../users/user.model.js';
 import Section from '../academics/section.model.js';
 import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
+import Evaluation from '../evaluations/evaluation.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
@@ -221,7 +222,11 @@ class ProjectService {
 
     const hasCanonicalTeamSection = Boolean(team?.sectionId);
 
-    if (!hasCanonicalTeamSection && sectionAcademicYear && sectionAcademicYear !== effectiveAcademicYear) {
+    if (
+      !hasCanonicalTeamSection &&
+      sectionAcademicYear &&
+      sectionAcademicYear !== effectiveAcademicYear
+    ) {
       throw new AppError(
         'Selected section does not belong to the selected academic year.',
         400,
@@ -722,6 +727,46 @@ class ProjectService {
     return { project, similarProjects };
   }
 
+  /**
+   * Update the Gantt chart URL for a project.
+   * Only a team member can perform this action.
+   * @param {string} projectId
+   * @param {string} userId - Requesting student (must be team member).
+   * @param {Object} data - { ganttChartUrl }
+   * @returns {Object} { project }
+   */
+  async updateGanttChartUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+    await this._assertTeamMember(project.teamId, userId);
+
+    if (data.ganttChartUrl !== undefined) {
+      project.ganttChartUrl = data.ganttChartUrl;
+      await project.save();
+    }
+
+    return { project };
+  }
+
+  /**
+   * Update the Demo Video URL (Google Drive link) for a project.
+   * Only a team member can perform this action.
+   * @param {string} projectId
+   * @param {string} userId - Requesting student (must be team member).
+   * @param {Object} data - { demoVideoUrl }
+   * @returns {Object} { project }
+   */
+  async updateDemoVideoUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+    await this._assertTeamMember(project.teamId, userId);
+
+    if (data.demoVideoUrl !== undefined) {
+      project.demoVideoUrl = data.demoVideoUrl;
+      await project.save();
+    }
+
+    return { project };
+  }
+
   /* ═══════════════════ Title workflow ═══════════════════ */
 
   /**
@@ -767,8 +812,10 @@ class ProjectService {
    * @param {Object} data - { proposalId?, approveWithRevision? }
    * @returns {Object} { project }
    */
-  async approveTitle(projectId, instructorId, data = {}) {
+  async approveTitle(projectId, user, data = {}) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -835,7 +882,7 @@ class ProjectService {
       project.titleProposalMetadata = metadataEntries.map((entry, index) => ({
         ...entry,
         status: index === selectedProposalIndex ? 'approved' : 'rejected',
-        reviewedBy: instructorId,
+        reviewedBy: user._id,
         reviewedAt: new Date(),
       }));
     }
@@ -860,7 +907,7 @@ class ProjectService {
       type: 'title_approved',
       title: approveWithRevision ? 'Title Approved With Revision' : 'Title Approved',
       message: notifMessage,
-      metadata: { projectId: project._id, approvedBy: instructorId, approveWithRevision },
+      metadata: { projectId: project._id, approvedBy: user._id, approveWithRevision },
     });
 
     return { project };
@@ -874,8 +921,10 @@ class ProjectService {
    * @param {Object} data - { reason }
    * @returns {Object} { project }
    */
-  async rejectTitle(projectId, instructorId, data) {
+  async rejectTitle(projectId, user, data) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -893,7 +942,7 @@ class ProjectService {
       type: 'title_rejected',
       title: 'Title Revision Required',
       message: `Your project title "${project.title}" requires revisions. Reason: ${data.reason}`,
-      metadata: { projectId: project._id, rejectedBy: instructorId },
+      metadata: { projectId: project._id, rejectedBy: user._id },
     });
 
     return { project };
@@ -1110,8 +1159,10 @@ class ProjectService {
    * @param {Object} data - { action: 'approved'|'denied', reviewNote? }
    * @returns {Object} { project }
    */
-  async resolveTitleModification(projectId, instructorId, data) {
+  async resolveTitleModification(projectId, user, data) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (
       project.titleStatus !== TITLE_STATUSES.PENDING_MODIFICATION ||
@@ -1125,7 +1176,7 @@ class ProjectService {
     }
 
     project.titleModificationRequest.status = data.action;
-    project.titleModificationRequest.reviewedBy = instructorId;
+    project.titleModificationRequest.reviewedBy = user._id;
     project.titleModificationRequest.reviewNote = data.reviewNote || '';
     project.titleModificationRequest.reviewedAt = new Date();
 
@@ -1148,7 +1199,7 @@ class ProjectService {
       type: 'title_modification_resolved',
       title: `Title Modification ${verb.charAt(0).toUpperCase() + verb.slice(1)}`,
       message: `Your title modification request has been ${verb}.${data.reviewNote ? ` Note: ${data.reviewNote}` : ''}`,
-      metadata: { projectId: project._id, resolvedBy: instructorId, action: data.action },
+      metadata: { projectId: project._id, resolvedBy: user._id, action: data.action },
     });
 
     return { project };
@@ -1442,8 +1493,8 @@ class ProjectService {
    * Advance a project to the next capstone phase (instructor action).
    *
    * Phase transitions:
-   * - 1 → 2: Requires chapter 1 upload signal OR proposal approved status
-   * - 2 → 3: Allowed once the instructor decides the team is ready
+   * - 1 → 2: Requires chapter 1 upload OR proposal-approved status
+   * - 2 → 3: Requires at least one RELEASED midterm evaluation (Capstone 2 approved)
    * - 3 → 4: Allowed once the instructor decides the team is ready
    * - 4 → (none): Phase 4 is the final phase — cannot advance further.
    *
@@ -1464,7 +1515,7 @@ class ProjectService {
       );
     }
 
-    // Phase 1 → 2 requires chapter 1 evidence (upload exists) or a proposal-approved status.
+    // Phase 1 → 2: Requires chapter 1 upload evidence OR proposal-approved status.
     if (capstonePhase === CAPSTONE_PHASES.PHASE_1) {
       const hasChapterOneSubmission = await Submission.exists({
         projectId: project._id,
@@ -1480,6 +1531,34 @@ class ProjectService {
           'Upload Chapter 1 before advancing to Capstone 2.',
           400,
           'CHAPTER1_REQUIRED_FOR_PHASE_ADVANCE',
+        );
+      }
+    }
+
+    // Phase 2 → 3: Requires the midterm evaluation to have been released AND
+    // project asset URLs (Gantt Chart, Demo Video) to be provided.
+    // This ensures Capstone 2 (midterm defense) is formally approved before
+    // students can proceed to chapters 4-5 (Capstone 3).
+    if (capstonePhase === CAPSTONE_PHASES.PHASE_2) {
+      const hasReleasedMidterm = await Evaluation.exists({
+        projectId: project._id,
+        defenseType: 'midterm',
+        status: 'released',
+      });
+
+      if (!hasReleasedMidterm) {
+        throw new AppError(
+          'Capstone 2 midterm evaluation must be released before advancing to Capstone 3 (chapters 4-5).',
+          400,
+          'MIDTERM_EVALUATION_REQUIRED_FOR_PHASE_ADVANCE',
+        );
+      }
+
+      if (!project.ganttChartUrl || !project.demoVideoUrl) {
+        throw new AppError(
+          'Gantt Chart and Project Demo Video URLs must be provided before advancing to Capstone 3.',
+          400,
+          'ASSET_URLS_REQUIRED',
         );
       }
     }
@@ -2906,6 +2985,40 @@ class ProjectService {
     const isMember = team.members.some((id) => id.toString() === userId.toString());
     if (!isMember) {
       throw new AppError('You are not a member of this project team.', 403, 'FORBIDDEN');
+    }
+  }
+
+  async _assertCanReviewTitle(user, project) {
+    if (user.role === ROLES.INSTRUCTOR) {
+      return;
+    }
+
+    const userId = user._id?.toString();
+    if (!userId) {
+      throw new AppError('User session invalid.', 401, 'UNAUTHORIZED');
+    }
+
+    // Robust check for adviserId (handles both populated object and ObjectId)
+    const projectAdviserId = project.adviserId?._id || project.adviserId;
+    const isAdviser = projectAdviserId && projectAdviserId.toString() === userId;
+
+    // Robust check for panelistIds (handles both populated array and ObjectId array)
+    const isPanelist =
+      Array.isArray(project.panelistIds) &&
+      project.panelistIds.some((p) => {
+        const pId = p?._id || p;
+        return pId && pId.toString() === userId;
+      });
+
+    if (!isAdviser && !isPanelist) {
+      console.warn(
+        `[ProjectService] Permission denied for user ${userId} on project ${project._id}. Role: ${user.role}`,
+      );
+      throw new AppError(
+        'Only the assigned instructor, adviser, or panelists can review the title proposal.',
+        403,
+        'FORBIDDEN',
+      );
     }
   }
 

@@ -392,3 +392,13 @@ export const bulkUploadSchema = z.object({
   publicationVenue: z.string().trim().max(255).optional().default(''),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
 });
+
+/* ───── Update Asset URLs (student action) ───── */
+
+export const updateGanttChartUrlSchema = z.object({
+  ganttChartUrl: z.string().trim().url('Invalid Gantt chart URL').max(2000),
+});
+
+export const updateDemoVideoUrlSchema = z.object({
+  demoVideoUrl: z.string().trim().url('Invalid Demo video URL').max(2000),
+});

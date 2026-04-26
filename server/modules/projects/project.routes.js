@@ -38,6 +38,8 @@ import {
   searchArchiveQuerySchema,
   reportQuerySchema,
   bulkUploadSchema,
+  updateGanttChartUrlSchema,
+  updateDemoVideoUrlSchema,
 } from './project.validation.js';
 
 const router = Router();
@@ -172,6 +174,28 @@ router.post(
     }),
   }),
   projectController.requestTitleModification,
+);
+
+// Update Gantt chart URL (team member)
+router.patch(
+  '/:id/gantt-chart',
+  authorize(ROLES.STUDENT),
+  validate(updateGanttChartUrlSchema),
+  auditLog('project.gantt_chart_updated', 'Project', {
+    getDescription: (req) => `Updated Gantt chart URL for project ${req.params.id}`,
+  }),
+  projectController.updateGanttChartUrl,
+);
+
+// Update Demo video URL (team member)
+router.patch(
+  '/:id/demo-video',
+  authorize(ROLES.STUDENT),
+  validate(updateDemoVideoUrlSchema),
+  auditLog('project.demo_video_updated', 'Project', {
+    getDescription: (req) => `Updated Demo video URL for project ${req.params.id}`,
+  }),
+  projectController.updateDemoVideoUrl,
 );
 
 // Add a prototype link (team member, Capstone 2 & 3)

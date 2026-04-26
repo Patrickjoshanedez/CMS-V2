@@ -367,3 +367,41 @@ export function useBulkUploadArchive(options = {}) {
     return res.data;
   }, options);
 }
+
+/** Update Gantt Chart URL */
+export function useUpdateGanttChartUrl(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateGanttChartUrl(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: ['project', 'me'] });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}
+
+/** Update Demo Video URL */
+export function useUpdateDemoVideoUrl(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateDemoVideoUrl(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: ['project', 'me'] });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}

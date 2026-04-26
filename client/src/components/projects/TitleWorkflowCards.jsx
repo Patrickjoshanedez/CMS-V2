@@ -63,9 +63,9 @@ function EditTitleForm({ project }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Title Actions</CardTitle>
+          <CardTitle className="text-base">Title Editor</CardTitle>
           <CardDescription>
-            Your title is in draft. Edit your project details below.
+            Your title is in draft. Edit your project details below before submitting for review.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex gap-3">

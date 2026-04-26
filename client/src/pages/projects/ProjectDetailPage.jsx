@@ -48,7 +48,7 @@ import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
-import Capstone2SupportingDocs from '@/components/submissions/Capstone2SupportingDocs';
+import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 
 /* ────────── Helpers ────────── */
 
@@ -84,7 +84,8 @@ function parseProposalMetadata(metadata, abstract) {
 /* ────────── Sub-components ────────── */
 
 function FacultyWidget({ project, canManage }) {
-  const [adviserId, setAdviserId] = useState('');
+  const [adviserQuery, setAdviserQuery] = useState('');
+  const [showAdviserResults, setShowAdviserResults] = useState(false);
   const [panelistQuery, setPanelistQuery] = useState('');
   const [debouncedPanelistQuery, setDebouncedPanelistQuery] = useState('');
   const [showPanelistResults, setShowPanelistResults] = useState(false);
@@ -117,7 +118,8 @@ function FacultyWidget({ project, canManage }) {
   const assignAdviser = useAssignAdviser({
     onSuccess: () => {
       toast.success('Adviser assigned!');
-      setAdviserId('');
+      setAdviserQuery('');
+      setShowAdviserResults(false);
     },
     onError: (err) =>
       toast.error(err.response?.data?.error?.message || 'Failed to assign adviser.'),
@@ -143,7 +145,7 @@ function FacultyWidget({ project, canManage }) {
   const authors = getProjectAuthors(project);
   const currentAdviser = project.adviserId ? getFullName(project.adviserId) : 'Not assigned';
   const currentPanelists = project.panelistIds || [];
-  const assignedIds = new Set(currentPanelists.map((p) => p._id || p));
+  const assignedIds = new Set(currentPanelists.map((p) => (p._id || p).toString()));
 
   // Filter panelists by search query and exclude already-assigned
   const filteredPanelists = allPanelists.filter((u) => {
@@ -191,27 +193,66 @@ function FacultyWidget({ project, canManage }) {
             <span className="text-sm text-card-foreground font-medium">{currentAdviser}</span>
           </div>
           {canManage && (
-            <div className="mt-3 flex items-center gap-2">
-              <select
-                className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:ring-1 focus:ring-primary outline-none"
-                value={adviserId}
-                onChange={(e) => setAdviserId(e.target.value)}
-              >
-                <option value="">Assign new adviser...</option>
-                {advisers.map((u) => (
-                  <option key={u._id} value={u._id}>
-                    {u.firstName} {u.lastName}
-                  </option>
-                ))}
-              </select>
-              <Button
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                disabled={!adviserId || assignAdviser.isPending}
-                onClick={() => assignAdviser.mutate({ projectId: project._id, adviserId })}
-              >
-                {assignAdviser.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
-              </Button>
+            <div className="mt-3 relative">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search adviser to assign..."
+                  className="pl-8 h-9 text-sm"
+                  value={adviserQuery}
+                  onChange={(e) => {
+                    setAdviserQuery(e.target.value);
+                    setShowAdviserResults(true);
+                  }}
+                  onFocus={() => setShowAdviserResults(true)}
+                  onBlur={() => window.setTimeout(() => setShowAdviserResults(false), 200)}
+                  autoComplete="off"
+                />
+              </div>
+              {showAdviserResults && adviserQuery.trim().length >= 1 && (
+                <div className="absolute left-0 right-0 top-10 z-40 max-h-48 overflow-auto rounded-lg border border-border bg-popover shadow-xl">
+                  {advisers.filter((u) => {
+                    const q = adviserQuery.toLowerCase();
+                    const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+                    return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+                  }).length > 0 ? (
+                    <ul className="py-1">
+                      {advisers
+                        .filter((u) => {
+                          const q = adviserQuery.toLowerCase();
+                          const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+                          return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+                        })
+                        .map((u) => (
+                          <li key={u._id}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                assignAdviser.mutate({ projectId: project._id, adviserId: u._id });
+                              }}
+                            >
+                              <UserPlus className="h-3.5 w-3.5 text-primary shrink-0" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium">
+                                  {u.firstName} {u.lastName}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {u.email}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                      No matching advisers found.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -364,7 +405,7 @@ function ActiveProposalView({ project, proposal, index, canVote }) {
 
   const handleSubmitVote = async () => {
     if (!vote) {
-      toast.error('Please select a decision (Approve, Revision, or Reject).');
+      toast.error('Please select a decision (Approve or Revise).');
       return;
     }
     try {
@@ -381,26 +422,17 @@ function ActiveProposalView({ project, proposal, index, canVote }) {
           toast.success('Title has been officially approved!');
         }
       } else if (vote === 'Revision') {
-        // "Approved With Revision" — project advances but Capstone 1 stays locked
-        // until the team submits a revised title and the instructor accepts it.
         if (
           window.confirm(
-            'Approve with revision? The project will advance but Capstone 1 stays locked until the team submits a revised title.',
+            'Send this proposal back for revision? The team will update the title and resubmit it for review.',
           )
         ) {
-          await approveMutation.mutateAsync({
+          await rejectMutation.mutateAsync({
             projectId: project._id,
-            proposalId: index,
-            approveWithRevision: true,
+            reason: `Decision: Revise. ${remarks.trim()}`,
           });
-          toast.success('Title approved with revision. Team must update the title to proceed.');
+          toast.success('Title sent back for revision.');
         }
-      } else if (vote === 'Reject') {
-        await rejectMutation.mutateAsync({
-          projectId: project._id,
-          reason: `Decision: ${vote}. ${remarks.trim()}`,
-        });
-        toast.success('Title sent back for revision.');
       }
     } catch {
       toast.error('An error occurred while submitting the decision.');
@@ -465,14 +497,7 @@ function ActiveProposalView({ project, proposal, index, canVote }) {
                 className={`flex-1 rounded-lg border-amber-500/30 hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-300 ${vote === 'Revision' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 ring-2 ring-amber-500' : 'text-muted-foreground bg-card'}`}
                 onClick={() => setVote('Revision')}
               >
-                <Settings className="mr-2 h-4 w-4" /> Revision
-              </Button>
-              <Button
-                variant="outline"
-                className={`flex-1 rounded-lg border-rose-500/30 hover:bg-rose-500/20 hover:text-rose-600 dark:hover:text-rose-300 ${vote === 'Reject' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 ring-2 ring-rose-500' : 'text-muted-foreground bg-card'}`}
-                onClick={() => setVote('Reject')}
-              >
-                <XCircle className="mr-2 h-4 w-4" /> Reject
+                <Settings className="mr-2 h-4 w-4" /> Revise
               </Button>
             </div>
             <Textarea
@@ -504,7 +529,7 @@ function ActiveProposalView({ project, proposal, index, canVote }) {
 /**
  * Shown to instructors when a student has submitted a revised title
  * (titleStatus === PENDING_MODIFICATION). Allows the instructor to
- * approve (updating the title) or deny the change request.
+ * approve (updating the title) or send it back for revision.
  */
 function ModificationReviewCard({ project }) {
   const [reviewNote, setReviewNote] = useState('');
@@ -530,7 +555,7 @@ function ModificationReviewCard({ project }) {
     <Card className="rounded-xl border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 shadow-lg p-6">
       <div className="space-y-4">
         <h4 className="text-sm font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4" /> Revised Title Pending Your Approval
+          <ShieldAlert className="h-4 w-4" /> Revised Title Pending Your Review
         </h4>
         <div className="grid gap-2 text-sm">
           <p>
@@ -568,14 +593,14 @@ function ModificationReviewCard({ project }) {
             ) : (
               <CheckCircle2 className="mr-2 h-4 w-4" />
             )}
-            Approve Revised Title
+            Approve
           </Button>
           <Button
             variant="destructive"
             onClick={() => handleResolve('denied')}
             disabled={resolve.isPending}
           >
-            <XCircle className="mr-2 h-4 w-4" /> Deny
+            <XCircle className="mr-2 h-4 w-4" /> Revise
           </Button>
         </div>
       </div>
@@ -746,8 +771,8 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
 
-                {/* Supporting Documents: System Design + Gantt Chart */}
-                <Capstone2SupportingDocs projectId={project._id} />
+                {/* Asset Review (Gantt Chart + Demo Video) */}
+                <DevelopmentAssetsForm project={project} isReadOnly />
 
                 {/* Prototype Gallery — read-only for faculty */}
                 <div className="mt-6">

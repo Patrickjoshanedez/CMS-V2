@@ -9,12 +9,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useMyProject } from '@/hooks/useProjects';
-import {
-  useProjectSubmissions,
-  useUploadChapter,
-  useUploadSystemDesign,
-  useUploadTestResults,
-} from '@/hooks/useSubmissions';
+import { useProjectSubmissions, useUploadChapter } from '@/hooks/useSubmissions';
 import { SUBMISSION_STATUSES } from '@cms/shared';
 import { Upload, FileText, AlertTriangle, Loader2, CheckCircle2, X, ArrowLeft } from 'lucide-react';
 
@@ -31,23 +26,13 @@ const ACCEPTED_FILE_TYPES = {
 
 const ACCEPT_STRING = Object.values(ACCEPTED_FILE_TYPES).join(',');
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
-const SUPPORTING_DOC_TYPE = {
-  SYSTEM_DESIGN: 'system_design',
-  TEST_RESULTS: 'test_results',
-};
 
 const DOCUMENT_LABELS = {
   chapter: 'Chapter',
-  [SUPPORTING_DOC_TYPE.SYSTEM_DESIGN]: 'System Design',
-  [SUPPORTING_DOC_TYPE.TEST_RESULTS]: 'Test Results',
 };
 
 const DOCUMENT_SUCCESS_MESSAGE = {
   chapter: 'Chapter uploaded successfully! It will now undergo review.',
-  [SUPPORTING_DOC_TYPE.SYSTEM_DESIGN]:
-    'System design document uploaded successfully! It will now undergo adviser review.',
-  [SUPPORTING_DOC_TYPE.TEST_RESULTS]:
-    'Test results document uploaded successfully! It will now undergo adviser review.',
 };
 
 function toChapterLabel(chapter) {
@@ -89,16 +74,10 @@ export default function ChapterUploadPage() {
   const preselectedChapter = searchParams.get('chapter');
   const requestedDocumentType = searchParams.get('document');
 
-  const normalizedDocumentType =
-    requestedDocumentType === SUPPORTING_DOC_TYPE.SYSTEM_DESIGN ||
-    requestedDocumentType === SUPPORTING_DOC_TYPE.TEST_RESULTS
-      ? requestedDocumentType
-      : 'chapter';
-  const isChapterMode = normalizedDocumentType === 'chapter';
-  const selectedDocumentLabel = DOCUMENT_LABELS[normalizedDocumentType] || DOCUMENT_LABELS.chapter;
+  const selectedDocumentLabel = 'Chapter';
 
   // Local state
-  const [chapter, setChapter] = useState(isChapterMode ? preselectedChapter || '' : '');
+  const [chapter, setChapter] = useState(preselectedChapter || '');
   const [file, setFile] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -113,7 +92,7 @@ export default function ChapterUploadPage() {
   } = useProjectSubmissions(project?._id, {}, { enabled: Boolean(project?._id) });
   const uploadChapterMutation = useUploadChapter({
     onSuccess: () => {
-      toast.success(DOCUMENT_SUCCESS_MESSAGE[normalizedDocumentType]);
+      toast.success(DOCUMENT_SUCCESS_MESSAGE.chapter);
       if (project?._id) {
         navigate('/project/submissions');
       }
@@ -125,44 +104,7 @@ export default function ChapterUploadPage() {
     },
   });
 
-  const uploadSystemDesignMutation = useUploadSystemDesign({
-    onSuccess: () => {
-      toast.success(DOCUMENT_SUCCESS_MESSAGE[normalizedDocumentType]);
-      if (project?._id) {
-        navigate('/project/submissions');
-      }
-    },
-    onError: (err) => {
-      toast.error(
-        err?.response?.data?.error?.message ||
-          err?.message ||
-          'Failed to upload system design document.',
-      );
-    },
-  });
-
-  const uploadTestResultsMutation = useUploadTestResults({
-    onSuccess: () => {
-      toast.success(DOCUMENT_SUCCESS_MESSAGE[normalizedDocumentType]);
-      if (project?._id) {
-        navigate('/project/submissions');
-      }
-    },
-    onError: (err) => {
-      toast.error(
-        err?.response?.data?.error?.message ||
-          err?.message ||
-          'Failed to upload test results document.',
-      );
-    },
-  });
-
-  const uploadMutation =
-    normalizedDocumentType === SUPPORTING_DOC_TYPE.SYSTEM_DESIGN
-      ? uploadSystemDesignMutation
-      : normalizedDocumentType === SUPPORTING_DOC_TYPE.TEST_RESULTS
-        ? uploadTestResultsMutation
-        : uploadChapterMutation;
+  const uploadMutation = uploadChapterMutation;
 
   /**
    * Validate the selected file on the client side before sending.
@@ -201,7 +143,7 @@ export default function ChapterUploadPage() {
     setClientError('');
 
     // Validate
-    if (isChapterMode && !chapter) {
+    if (!chapter) {
       setClientError('Please select a chapter.');
       return;
     }
@@ -222,9 +164,7 @@ export default function ChapterUploadPage() {
     // Build FormData
     const formData = new FormData();
     formData.append('file', file);
-    if (isChapterMode) {
-      formData.append('chapter', chapter);
-    }
+    formData.append('chapter', chapter);
     if (remarks.trim()) {
       formData.append('remarks', remarks.trim());
     }
@@ -272,7 +212,6 @@ export default function ChapterUploadPage() {
   })();
 
   const canSubmitSelectedChapter = (() => {
-    if (!isChapterMode) return true;
     if (!selectedChapterNumber) return false;
 
     if (selectedChapterNumber > 1) {
@@ -380,8 +319,7 @@ export default function ChapterUploadPage() {
           <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-500" />
           <h2 className="text-xl font-semibold">Upload Successful</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your {isChapterMode ? CHAPTER_LABELS[Number(chapter) - 1] : selectedDocumentLabel}{' '}
-            document has been submitted for review.
+            Your {CHAPTER_LABELS[Number(chapter) - 1]} document has been submitted for review.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button variant="outline" onClick={() => uploadMutation.reset()}>
@@ -415,41 +353,40 @@ export default function ChapterUploadPage() {
           </p>
         </div>
 
-        {isChapterMode && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Card>
-              <CardContent className="pt-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Target Chapter
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {selectedChapterNumber ? toChapterLabel(selectedChapterNumber) : 'Not selected'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Recommended Next
-                </p>
-                <p className="mt-1 text-lg font-semibold text-primary">
-                  {toChapterLabel(nextAllowedChapter)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Submission Deadline
-                </p>
-                <p className="mt-1 text-sm font-semibold">{formatDeadline(selectedDeadline)}</p>
-                {requiresLateJustification && (
-                  <p className="mt-1 text-xs font-medium text-amber-600">Late submission</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Chapter Stats */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Target Chapter
+              </p>
+              <p className="mt-1 text-lg font-semibold">
+                {selectedChapterNumber ? toChapterLabel(selectedChapterNumber) : 'Not selected'}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Recommended Next
+              </p>
+              <p className="mt-1 text-lg font-semibold text-primary">
+                {toChapterLabel(nextAllowedChapter)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Submission Deadline
+              </p>
+              <p className="mt-1 text-sm font-semibold">{formatDeadline(selectedDeadline)}</p>
+              {requiresLateJustification && (
+                <p className="mt-1 text-xs font-medium text-amber-600">Late submission</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Errors */}
         {(clientError || serverError) && (
@@ -462,59 +399,55 @@ export default function ChapterUploadPage() {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {isChapterMode
-              ? 'Chapter workflow is sequential. The previous chapter must be approved and locked before continuing, and re-uploading the same chapter is only allowed after adviser revision request.'
-              : `${selectedDocumentLabel} uploads are submitted directly for adviser review.`}
+            Chapter workflow is sequential. The previous chapter must be approved and locked before
+            continuing, and re-uploading the same chapter is only allowed after adviser revision
+            request.
           </AlertDescription>
         </Alert>
 
-        {isChapterMode && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Workflow Gate</CardTitle>
-              <CardDescription>
-                Next recommended chapter: {toChapterLabel(nextAllowedChapter)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              {selectedChapterNumber ? (
-                <>
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Workflow Gate</CardTitle>
+            <CardDescription>
+              Next recommended chapter: {toChapterLabel(nextAllowedChapter)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm text-muted-foreground">
+            {selectedChapterNumber ? (
+              <>
+                <p>
+                  Selected chapter:{' '}
+                  <span className="font-medium text-foreground">
+                    {toChapterLabel(selectedChapterNumber)}
+                  </span>
+                </p>
+                <p>
+                  Next round number:{' '}
+                  <span className="font-medium text-foreground">{selectedNextRound}</span>
+                </p>
+                <p>
+                  Applicable deadline:{' '}
+                  <span className="font-medium text-foreground">
+                    {formatDeadline(selectedDeadline)}
+                  </span>
+                </p>
+                {selectedLatestSubmission && (
                   <p>
-                    Selected chapter:{' '}
+                    Latest status:{' '}
                     <span className="font-medium text-foreground">
-                      {toChapterLabel(selectedChapterNumber)}
+                      {selectedLatestSubmission.status}
                     </span>
                   </p>
-                  <p>
-                    Next round number:{' '}
-                    <span className="font-medium text-foreground">{selectedNextRound}</span>
-                  </p>
-                  <p>
-                    Applicable deadline:{' '}
-                    <span className="font-medium text-foreground">
-                      {formatDeadline(selectedDeadline)}
-                    </span>
-                  </p>
-                  {selectedLatestSubmission && (
-                    <p>
-                      Latest status:{' '}
-                      <span className="font-medium text-foreground">
-                        {selectedLatestSubmission.status}
-                      </span>
-                    </p>
-                  )}
-                  {!canSubmitSelectedChapter && (
-                    <p className="text-destructive">
-                      Upload is currently blocked for this chapter.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p>Select a chapter to see status and next round details.</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                )}
+                {!canSubmitSelectedChapter && (
+                  <p className="text-destructive">Upload is currently blocked for this chapter.</p>
+                )}
+              </>
+            ) : (
+              <p>Select a chapter to see status and next round details.</p>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -526,36 +459,34 @@ export default function ChapterUploadPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Chapter selector */}
-              {isChapterMode && (
-                <div className="space-y-2">
-                  <Label htmlFor="chapter">Chapter</Label>
-                  <select
-                    id="chapter"
-                    value={chapter}
-                    onChange={(e) => setChapter(e.target.value)}
-                    disabled={isSubmitting}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">Select a chapter...</option>
-                    {CHAPTER_LABELS.map((label, idx) => {
-                      const chapterValue = idx + 1;
-                      const previous = latestChapterSubmissions.get(chapterValue - 1);
-                      const hasPreviousApproval =
-                        chapterValue === 1 || previous?.status === SUBMISSION_STATUSES.LOCKED;
+              <div className="space-y-2">
+                <Label htmlFor="chapter">Chapter</Label>
+                <select
+                  id="chapter"
+                  value={chapter}
+                  onChange={(e) => setChapter(e.target.value)}
+                  disabled={isSubmitting}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">Select a chapter...</option>
+                  {CHAPTER_LABELS.map((label, idx) => {
+                    const chapterValue = idx + 1;
+                    const previous = latestChapterSubmissions.get(chapterValue - 1);
+                    const hasPreviousApproval =
+                      chapterValue === 1 || previous?.status === SUBMISSION_STATUSES.LOCKED;
 
-                      return (
-                        <option
-                          key={chapterValue}
-                          value={chapterValue}
-                          disabled={!hasPreviousApproval}
-                        >
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
+                    return (
+                      <option
+                        key={chapterValue}
+                        value={chapterValue}
+                        disabled={!hasPreviousApproval}
+                      >
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
 
               {/* File dropzone / input */}
               <div className="space-y-2">

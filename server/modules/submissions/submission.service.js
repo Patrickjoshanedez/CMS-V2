@@ -33,12 +33,14 @@ import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
 import {
+  PLAGIARISM_STATUSES,
+  PROJECT_STATUSES,
   ROLES,
   SUBMISSION_STATUSES,
   TITLE_STATUSES,
-  PROJECT_STATUSES,
-  PLAGIARISM_STATUSES,
 } from '@cms/shared';
+import { extractDocxComments } from '../../utils/docxComments.js';
+import { extractPdfComments } from '../../utils/pdfComments.js';
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
@@ -296,6 +298,47 @@ class SubmissionService {
     }
 
     return { isLate };
+  }
+
+  /**
+   * Generic helper to extract comments from uploaded DOCX or PDF files
+   * and convert them into our internal Annotation schema format.
+   *
+   * @param {Object} file - multer file
+   * @param {string} userId - ID of student performing upload
+   * @returns {Promise<Array>} List of annotation objects
+   */
+  async _processFileComments(file, userId) {
+    if (!file?.buffer) return [];
+
+    const mime = file.validatedMime || file.mimetype;
+    let extracted = [];
+
+    try {
+      if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        extracted = await extractDocxComments(file.buffer);
+      } else if (mime === 'application/pdf') {
+        extracted = await extractPdfComments(file.buffer);
+      }
+    } catch (error) {
+      logger.error(
+        { error: error.message, mime },
+        'Failed to extract comments from document during upload.',
+      );
+      return [];
+    }
+
+    // Convert to submission annotation schema
+    return extracted.map((c) => ({
+      page: c.page || 1,
+      content: c.text || '',
+      selectedText: c.commentedText || '',
+      lineStart: c.lineStart || 0,
+      lineEnd: c.lineEnd || 0,
+      userId: userId,
+      resolved: c.resolved || false,
+      createdAt: c.createdAt || new Date(),
+    }));
   }
 
   /**
@@ -993,6 +1036,7 @@ class SubmissionService {
       googleDocSyncedAt: driveSync.googleDocSyncedAt,
       documentTitle: extractedMetadata.documentTitle,
       documentAbstract: extractedMetadata.documentAbstract,
+      annotations: await this._processFileComments(file, userId),
       plagiarismResult: { status: PLAGIARISM_STATUSES.QUEUED },
     });
 
@@ -2214,20 +2258,33 @@ class SubmissionService {
         project.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
         await project.save();
       } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
-        if ((submission.type === 'proposal' || (submission.type === 'chapter' && submission.chapter === 3)) && project.capstonePhase === 1) {
+        if (
+          (submission.type === 'proposal' ||
+            (submission.type === 'chapter' && submission.chapter === 3)) &&
+          project.capstonePhase === 1
+        ) {
           project.capstonePhase = 2;
-        } else if (project.capstonePhase === 2 && ['system_design', 'test_results'].includes(submission.type)) {
+        } else if (
+          project.capstonePhase === 2 &&
+          ['system_design', 'test_results'].includes(submission.type)
+        ) {
           // Check if the OTHER requirement is already approved/locked
           const otherType = submission.type === 'system_design' ? 'test_results' : 'system_design';
           const otherApproved = await Submission.exists({
             projectId: project._id,
             type: otherType,
-            status: { $in: [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.LOCKED, 'approved', 'locked'] }
+            status: {
+              $in: [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.LOCKED, 'approved', 'locked'],
+            },
           });
           if (otherApproved) {
             project.capstonePhase = 3;
           }
-        } else if (project.capstonePhase === 3 && submission.type === 'chapter' && submission.chapter === 5) {
+        } else if (
+          project.capstonePhase === 3 &&
+          submission.type === 'chapter' &&
+          submission.chapter === 5
+        ) {
           project.capstonePhase = 4;
         }
         project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;

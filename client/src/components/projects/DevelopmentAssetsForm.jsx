@@ -1,297 +1,237 @@
-import { useState, useRef } from 'react';
-import { useAddPrototypeLink, useAddPrototypeMedia } from '@/hooks/useProjects';
-import { useUpdateGithubLink } from '@/hooks/useTeams';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import React, { useState } from 'react';
+import {
+  ExternalLink,
+  Video,
+  LineChart,
+  Save,
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  Loader2,
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
-import { Textarea } from '@/components/ui/Textarea';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import {
-  Github,
-  Upload,
-  Loader2,
-  Plus,
-  Calendar,
-  Video,
-  Link as LinkIcon,
-  CheckCircle2,
-} from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert';
+import { useUpdateGanttChartUrl, useUpdateDemoVideoUrl } from '@/hooks/useProjects';
 import { toast } from 'sonner';
 
-const ACCEPTED_MEDIA =
-  'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,application/pdf';
-const MAX_FILE_SIZE_MB = 50;
+/**
+ * DevelopmentAssetsForm
+ *
+ * Allows students to manage project assets by providing external links:
+ * 1. Gantt Chart URL (e.g., Google Sheets, Excel Online)
+ * 2. Demo Video URL (e.g., Google Drive, YouTube)
+ */
+const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
+  const [ganttUrl, setGanttUrl] = useState(project?.ganttChartUrl || '');
+  const [demoUrl, setDemoUrl] = useState(project?.demoVideoUrl || '');
 
-export default function DevelopmentAssetsForm({ project }) {
-  const teamId = typeof project?.teamId === 'object' ? project?.teamId?._id : project?.teamId;
-  const currentGithubUrl = project?.teamId?.githubUrl || '';
+  const updateGanttMutation = useUpdateGanttChartUrl();
+  const updateDemoMutation = useUpdateDemoVideoUrl();
 
-  return (
-    <div className="space-y-4">
-      <GithubLinkForm teamId={teamId} currentUrl={currentGithubUrl} />
-      <AssetUploadForm projectId={project._id} />
-    </div>
-  );
-}
-
-function GithubLinkForm({ teamId, currentUrl }) {
-  const [url, setUrl] = useState(currentUrl || '');
-  const [isEditing, setIsEditing] = useState(!currentUrl);
-
-  const updateGithub = useUpdateGithubLink();
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!url.trim()) return;
-    updateGithub.mutate(
-      { teamId, githubUrl: url.trim() },
-      {
-        onSuccess: () => {
-          toast.success('GitHub link updated successfully.');
-          setIsEditing(false);
-        },
-        onError: () => toast.error('Failed to update GitHub link.'),
-      },
-    );
-  };
-
-  return (
-    <Card className="border-indigo-500/20">
-      <CardHeader className="pb-3 bg-indigo-50/50 dark:bg-indigo-950/20">
-        <CardTitle className="flex items-center gap-2 text-base text-indigo-700 dark:text-indigo-400">
-          <Github className="h-5 w-5" />
-          Source Code Repository
-        </CardTitle>
-        <CardDescription>
-          Link your team&apos;s GitHub repository containing the source code for the system.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4">
-        {!isEditing ? (
-          <div className="flex items-center justify-between p-3 border rounded-lg bg-background">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-blue-600 hover:underline"
-              >
-                {url}
-              </a>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Edit
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://github.com/your-username/your-repo"
-                required
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={updateGithub.isPending || !url.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {updateGithub.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                'Save Link'
-              )}
-            </Button>
-            {currentUrl && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setUrl(currentUrl);
-                  setIsEditing(false);
-                }}
-              >
-                Cancel
-              </Button>
-            )}
-          </form>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AssetUploadForm({ projectId }) {
-  const [assetType, setAssetType] = useState('Gantt Chart');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [file, setFile] = useState(null);
-  const [open, setOpen] = useState(false);
-  const fileRef = useRef(null);
-
-  const addMedia = useAddPrototypeMedia({
-    onSuccess: () => {
-      toast.success(`${assetType} uploaded successfully!`);
-      setTitle('');
-      setDescription('');
-      setFile(null);
-      if (fileRef.current) fileRef.current.value = '';
-      setOpen(false);
-    },
-    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to upload asset.'),
-  });
-
-  if (!open) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col sm:flex-row items-center justify-between py-6 gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2 p-3 bg-muted rounded-full text-muted-foreground">
-              <Calendar className="h-5 w-5" />
-              <Video className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-medium">Upload Development Assets</h4>
-              <p className="text-sm text-muted-foreground">
-                Upload your Gantt Chart, Prototype Video, or System Architecture
-              </p>
-            </div>
-          </div>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Upload File
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const handleFileChange = (e) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-    if (selected.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      toast.error(`File must be under ${MAX_FILE_SIZE_MB}MB.`);
-      e.target.value = '';
+  const handleUpdateGantt = async () => {
+    if (!ganttUrl.trim()) {
+      toast.error('Gantt Chart URL is required');
       return;
     }
-    setFile(selected);
+
+    try {
+      await updateGanttMutation.mutateAsync({
+        projectId: project._id,
+        ganttChartUrl: ganttUrl.trim(),
+      });
+      toast.success('Gantt Chart URL updated successfully');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update Gantt Chart URL');
+    }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!title.trim() || !file) return;
+  const handleUpdateDemo = async () => {
+    if (!demoUrl.trim()) {
+      toast.error('Demo Video URL is required');
+      return;
+    }
 
-    const formData = new FormData();
-    formData.append('title', `${assetType}: ${title.trim()}`);
-    if (description.trim()) formData.append('description', description.trim());
-    formData.append('file', file);
-
-    addMedia.mutate({ projectId, formData });
+    try {
+      await updateDemoMutation.mutateAsync({
+        projectId: project._id,
+        demoVideoUrl: demoUrl.trim(),
+      });
+      toast.success('Demo Video URL updated successfully');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update Demo Video URL');
+    }
   };
-
-  const fileInfo = file ? `${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)` : null;
 
   return (
-    <Card className="border-blue-500/20">
-      <CardHeader className="pb-3 bg-blue-50/50 dark:bg-blue-950/20">
-        <CardTitle className="flex items-center gap-2 text-base text-blue-700 dark:text-blue-400">
-          <Upload className="h-5 w-5" />
-          Upload Development Asset
-        </CardTitle>
-        <CardDescription>
-          Upload your Gantt Chart (PDF/Image) or Prototype Video (MP4/WebM, max {MAX_FILE_SIZE_MB}
-          MB).
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Asset Type *</Label>
-            <div className="flex gap-2">
-              {['Gantt Chart', 'Prototype Video', 'System Architecture'].map((type) => (
-                <Button
-                  key={type}
-                  type="button"
-                  variant={assetType === type ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAssetType(type)}
-                  className={assetType === type ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
-                >
-                  {type}
-                </Button>
-              ))}
+    <div className="space-y-6">
+      {!isReadOnly && (
+        <Alert className="bg-primary/5 border-primary/20">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-primary font-semibold">Asset Management</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            Provide links to your project&apos;s development assets. These will be reviewed by your
+            adviser and panel during evaluations.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Gantt Chart Section */}
+        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <LineChart className="h-5 w-5 text-blue-600" />
+              </div>
+              <CardTitle className="text-lg">Gantt Chart</CardTitle>
             </div>
-          </div>
+            <CardDescription>
+              {isReadOnly
+                ? 'Project timeline and schedule'
+                : 'Link to your project timeline (e.g., Google Sheets, Online Excel)'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isReadOnly && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Gantt Chart URL
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="https://docs.google.com/spreadsheets/..."
+                      value={ganttUrl}
+                      onChange={(e) => setGanttUrl(e.target.value)}
+                      className="pl-9 h-10"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleUpdateGantt}
+                    disabled={updateGanttMutation.isPending || ganttUrl === project?.ganttChartUrl}
+                    className="h-10 px-4"
+                  >
+                    {updateGanttMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="media-title">Title *</Label>
-            <Input
-              id="media-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={`e.g. Final ${assetType}`}
-              maxLength={200}
-              required
-            />
-          </div>
+            {project?.ganttChartUrl ? (
+              <div className={`pt-2 ${!isReadOnly ? 'border-t border-border/50' : ''}`}>
+                <a
+                  href={project.ganttChartUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline group"
+                >
+                  View current Gantt Chart
+                  <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+              </div>
+            ) : (
+              isReadOnly && (
+                <p className="text-sm text-muted-foreground italic">
+                  No Gantt Chart link provided.
+                </p>
+              )
+            )}
+          </CardContent>
+        </Card>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="media-file">File *</Label>
-            <Input
-              id="media-file"
-              ref={fileRef}
-              type="file"
-              accept={ACCEPTED_MEDIA}
-              onChange={handleFileChange}
-              required
-            />
-            {fileInfo && <p className="text-xs text-muted-foreground">{fileInfo}</p>}
-          </div>
+        {/* Demo Video Section */}
+        <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-indigo-500/10 rounded-lg">
+                <Video className="h-5 w-5 text-indigo-600" />
+              </div>
+              <CardTitle className="text-lg">Demo Video</CardTitle>
+            </div>
+            <CardDescription>
+              {isReadOnly
+                ? 'Prototype demonstration video'
+                : 'Link to your prototype demo (e.g., Google Drive, YouTube)'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isReadOnly && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Demo Video URL
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="https://drive.google.com/file/..."
+                      value={demoUrl}
+                      onChange={(e) => setDemoUrl(e.target.value)}
+                      className="pl-9 h-10"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleUpdateDemo}
+                    disabled={updateDemoMutation.isPending || demoUrl === project?.demoVideoUrl}
+                    className="h-10 px-4"
+                  >
+                    {updateDemoMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="media-desc">Description (optional)</Label>
-            <Textarea
-              id="media-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the uploaded asset"
-              maxLength={500}
-              rows={2}
-            />
-          </div>
+            {project?.demoVideoUrl ? (
+              <div className={`pt-2 ${!isReadOnly ? 'border-t border-border/50' : ''}`}>
+                <a
+                  href={project.demoVideoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:underline group"
+                >
+                  Watch current Demo Video
+                  <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </a>
+              </div>
+            ) : (
+              isReadOnly && (
+                <p className="text-sm text-muted-foreground italic">No Demo Video link provided.</p>
+              )
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t mt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={addMedia.isPending || !title.trim() || !file}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {addMedia.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Upload Asset
-            </Button>
-          </div>
+      {!isReadOnly && !project?.ganttChartUrl && !project?.demoVideoUrl && (
+        <Alert variant="warning" className="bg-amber-500/5 border-amber-500/20">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-600">Assets Missing</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            You haven&apos;t provided links to your Gantt Chart or Demo Video yet. Please provide
+            these assets to help your reviewers track your progress.
+          </AlertDescription>
+        </Alert>
+      )}
 
-          {addMedia.error && (
-            <Alert variant="destructive" className="mt-2">
-              <AlertDescription>
-                {addMedia.error?.response?.data?.error?.message || 'Upload failed'}
-              </AlertDescription>
-            </Alert>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+      {!isReadOnly && (project?.ganttChartUrl || project?.demoVideoUrl) && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 p-3 rounded-lg border border-border/50">
+          <CheckCircle2 className="h-3 w-3 text-green-600" />
+          <span>Your assets are available for faculty review in the evaluation panel.</span>
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default DevelopmentAssetsForm;

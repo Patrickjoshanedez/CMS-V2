@@ -11,9 +11,6 @@ import {
   AlertTriangle,
   ChevronRight,
   Lock,
-  Code,
-  TestTube,
-  Paintbrush,
 } from 'lucide-react';
 
 const CHAPTER_TITLES = {
@@ -76,46 +73,6 @@ function StatusIcon({ status }) {
   if (status === 'pending' || status === 'under_review')
     return <Clock className="h-4 w-4 text-blue-500" />;
   return <FileText className="h-4 w-4 text-muted-foreground" />;
-}
-
-/**
- * SystemDevTracker - Shows Design/Build/Test progress for Chapter 2
- */
-function SystemDevTracker({ systemDevelopment }) {
-  if (!systemDevelopment) return null;
-  const stages = [
-    { key: 'design', label: 'Design', icon: Paintbrush },
-    { key: 'build', label: 'Build', icon: Code },
-    { key: 'test', label: 'Test', icon: TestTube },
-  ];
-
-  const statusColors = {
-    pending: 'bg-muted text-muted-foreground',
-    in_progress: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-    completed: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-  };
-
-  return (
-    <div className="mt-3 border-t pt-3">
-      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        System Development
-      </p>
-      <div className="flex gap-1.5">
-        {stages.map(({ key, label, icon: Icon }) => {
-          const status = systemDevelopment[key] || 'pending';
-          return (
-            <span
-              key={key}
-              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium ${statusColors[status]}`}
-            >
-              <Icon className="h-3 w-3" />
-              {label}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -198,7 +155,6 @@ export default function ChapterCard({
           )}
           <DeadlineBadge dateStr={deadline} />
         </div>
-
 
         {/* Actions */}
         <div className="mt-3 flex gap-2">

@@ -79,145 +79,6 @@ function ChapterProgress({ latestChapterSubmissions }) {
   );
 }
 
-/* ────────── Supporting Docs Section ────────── */
-
-function SupportingDocsSection({ submissions, canUpload, isReadOnly, projectId, searchSuffix }) {
-  const navigate = useNavigate();
-
-  const systemDesignSubs = submissions.filter((s) => s.type === 'system_design');
-  const testResultsSubs = submissions.filter((s) => s.type === 'test_results');
-
-  const latestSystemDesign = systemDesignSubs.sort(
-    (a, b) => (b.version || 0) - (a.version || 0),
-  )[0];
-  const latestTestResults = testResultsSubs.sort((a, b) => (b.version || 0) - (a.version || 0))[0];
-
-  const docs = [
-    {
-      key: 'system_design',
-      label: 'System Design',
-      icon: Code,
-      submission: latestSystemDesign,
-      uploadParam: 'system_design',
-    },
-    {
-      key: 'test_results',
-      label: 'Test Results',
-      icon: TestTube,
-      submission: latestTestResults,
-      uploadParam: 'test_results',
-    },
-  ];
-
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-muted-foreground">Supporting Documents</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {docs.map(({ key, label, icon: Icon, submission, uploadParam }) => (
-          <Card key={key} className={submission ? '' : 'border-dashed'}>
-            <CardContent className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Icon className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{label}</p>
-                  {submission ? (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <SubmissionStatusBadge status={submission.status} />
-                      <span className="text-[11px] text-muted-foreground">
-                        v{submission.version}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Not uploaded</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {submission && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      navigate(`/project/submissions/${submission._id}${searchSuffix}`)
-                    }
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
-                {canUpload && !isReadOnly && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/project/submissions/upload?document=${uploadParam}`)}
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ────────── System Development Section ────────── */
-
-function SystemDevelopmentSection({ systemDevelopment }) {
-  const stages = [
-    { key: 'design', label: 'Design', icon: Paintbrush },
-    { key: 'build', label: 'Build', icon: Code },
-    { key: 'test', label: 'Test', icon: TestTube },
-  ];
-
-  const statusColors = {
-    pending: 'bg-muted text-muted-foreground border-border',
-    in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
-    completed: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-  };
-
-  const completedCount = stages.filter(
-    ({ key }) => (systemDevelopment[key] || 'pending') === 'completed',
-  ).length;
-
-  return (
-    <div>
-      <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-        System Development
-      </h2>
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {stages.map(({ key, label, icon: Icon }) => {
-              const status = systemDevelopment[key] || 'pending';
-              return (
-                <span
-                  key={key}
-                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${
-                    statusColors[status]
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                  {status === 'completed' && (
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  )}
-                </span>
-              );
-            })}
-            <span className="ml-auto text-xs text-muted-foreground">
-              {completedCount}/{stages.length} completed
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 /* ────────── Proposal Card ────────── */
 
 function ProposalSection({ submissions, canCompile, isReadOnly, searchSuffix }) {
@@ -602,25 +463,11 @@ export default function ProjectSubmissionsPage() {
           </div>
         </div>
 
-        {/* System Development — after Ch 1-3, before Proposal */}
-        {activeProject.systemDevelopment && (
-          <SystemDevelopmentSection systemDevelopment={activeProject.systemDevelopment} />
-        )}
-
         {/* Proposal */}
         <ProposalSection
           submissions={submissions}
           canCompile={canCompileProposal}
           isReadOnly={isReadOnlyMode}
-          searchSuffix={searchSuffix}
-        />
-
-        {/* Supporting Docs (System Design + Test Results) */}
-        <SupportingDocsSection
-          submissions={submissions}
-          canUpload={canUpload}
-          isReadOnly={isReadOnlyMode}
-          projectId={activeProject._id}
           searchSuffix={searchSuffix}
         />
 

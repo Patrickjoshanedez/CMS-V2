@@ -208,6 +208,11 @@ class DashboardService {
    * Instructor dashboard — system-wide counts, pending title approvals, recent submissions.
    */
   async _getInstructorStats(user) {
+    const adviserProjectIds = await Project.find({ adviserId: user._id })
+      .select('_id')
+      .lean()
+      .then((projects) => projects.map((p) => p._id));
+
     const [
       totalUsers,
       totalTeams,
@@ -216,6 +221,9 @@ class DashboardService {
       recentSubmissions,
       projectsByStatus,
       recentNotifications,
+      assignedProjects,
+      pendingReviews,
+      panelProjects,
     ] = await Promise.all([
       User.countDocuments({ isActive: true }),
       Team.countDocuments(),
@@ -232,6 +240,23 @@ class DashboardService {
         .lean(),
       Project.aggregate([{ $group: { _id: '$projectStatus', count: { $sum: 1 } } }]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
+      Project.find({ adviserId: user._id })
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      adviserProjectIds.length > 0
+        ? Submission.find({
+            projectId: { $in: adviserProjectIds },
+            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
+          })
+            .populate('projectId', 'title')
+            .sort({ createdAt: -1 })
+            .lean()
+        : Promise.resolve([]),
+      Project.find({ panelistIds: user._id })
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
     ]);
 
     const statusCounts = {};
@@ -246,6 +271,9 @@ class DashboardService {
         teams: totalTeams,
         projects: totalProjects,
         pendingTitles: pendingTitles.length,
+        assignedProjects: assignedProjects.length,
+        pendingReviews: pendingReviews.length,
+        panelAssignments: panelProjects.length,
       },
       pendingTitleApprovals: pendingTitles.map((p) => ({
         _id: p._id,
@@ -260,6 +288,33 @@ class DashboardService {
         projectTitle: s.projectId?.title || 'Unknown',
         fileName: s.fileName,
         createdAt: s.createdAt,
+      })),
+      assignedProjects: assignedProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown',
+        memberCount: p.teamId?.members?.length || 0,
+      })),
+      pendingReviews: pendingReviews.map((s) => ({
+        _id: s._id,
+        chapter: s.chapter,
+        version: s.version,
+        status: s.status,
+        projectTitle: s.projectId?.title || 'Unknown',
+        fileName: s.fileName,
+        createdAt: s.createdAt,
+      })),
+      panelAssignments: panelProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown',
+        memberCount: p.teamId?.members?.length || 0,
       })),
       projectsByStatus: statusCounts,
       recentNotifications,

@@ -169,6 +169,10 @@ export const projectService = {
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
   listProjects: (params) => api.get('/projects', { params }),
+
+  // Link-based asset updates
+  updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
+  updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
 };
 
 /**

@@ -466,3 +466,116 @@ export const scanArchivedPdfPlagiarism = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
+export const scanSubmissionAgainstArchive = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+
+  // 1. Get submission context
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'storageKey fileType fileName chapter projectId type',
+    },
+  );
+
+  // 2. Set status to processing
+  const taskId = `archive-scan-${Date.now()}`;
+
+  // Update central PlagiarismResult record
+  await PlagiarismResult.findOneAndUpdate(
+    { submissionId: submission._id },
+    {
+      $set: {
+        status: PLAGIARISM_STATUSES.PROCESSING,
+        taskId,
+        error: null,
+        errorMessage: null,
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
+
+  // Update embedded status in Submission document
+  await Submission.findByIdAndUpdate(submission._id, {
+    'plagiarismResult.status': PLAGIARISM_STATUSES.PROCESSING,
+    'plagiarismResult.jobId': taskId,
+    'plagiarismResult.error': null,
+  });
+
+  try {
+    // 3. Download file from storage
+    const fileBuffer = await storageService.downloadFile(submission.storageKey);
+
+    // 4. Run the scan against the archive
+    const result = await runArchivePdfPlagiarismScan({
+      fileBuffer,
+      fileType: submission.fileType,
+      fileName: submission.fileName,
+    });
+
+    // 5. Update central PlagiarismResult record with full data
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          overallScore: result.overallScore,
+          similarityPercentage: result.overallScore,
+          warningFlag: result.warningFlag,
+          textMatches: result.textMatches,
+          rawData: result.fullReport,
+          checkedAt: new Date(result.processedAt),
+          completedAt: new Date(result.processedAt),
+          error: null,
+          errorMessage: null,
+        },
+      },
+    );
+
+    // 6. Update embedded results in Submission document
+    await Submission.findByIdAndUpdate(submission._id, {
+      originalityScore: result.originalityScore,
+      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+      'plagiarismResult.originalityScore': result.originalityScore,
+      'plagiarismResult.overallScore': result.overallScore,
+      'plagiarismResult.processedAt': result.processedAt,
+      'plagiarismResult.matchedSources': result.matchedSources,
+      'plagiarismResult.fullReport': result.fullReport,
+      'plagiarismResult.textMatches': result.textMatches,
+      'plagiarismResult.error': null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Archive plagiarism scan completed.',
+      data: result,
+    });
+  } catch (error) {
+    console.error(`[plagiarism.controller] Archive scan failed for ${submissionId}:`, error);
+
+    const errorMessage = error?.message || 'Archive scan failed';
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          status: PLAGIARISM_STATUSES.FAILED,
+          error: errorMessage,
+          errorMessage,
+        },
+      },
+    );
+
+    await Submission.findByIdAndUpdate(submission._id, {
+      'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
+      'plagiarismResult.error': errorMessage,
+    });
+
+    return res.status(error?.statusCode || 500).json({
+      success: false,
+      message: errorMessage,
+      error: error?.message || 'Internal Server Error',
+    });
+  }
+});
