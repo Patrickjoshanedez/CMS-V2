@@ -207,7 +207,7 @@ export const sendTeamInviteEmail = async (
   inviteToken,
   inviteCode,
 ) => {
-  const clientUrl = env.CLIENT_URL || 'http://localhost:5173';
+  const clientUrl = env.CLIENT_URL || 'http://localhost:43211';
   const acceptUrl = `${clientUrl}/teams/invites/${inviteToken}/accept`;
   const declineUrl = `${clientUrl}/teams/invites/${inviteToken}/decline`;
 

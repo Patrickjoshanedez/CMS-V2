@@ -139,7 +139,7 @@ $ok = (Verify-Redis) -and $ok
 
 Step 'Checking API health endpoint...'
 try {
-    $resp = Invoke-WebRequest -Uri 'http://localhost:5000/api/health' -TimeoutSec 10 -ErrorAction Stop
+    $resp = Invoke-WebRequest -Uri 'http://localhost:43210/api/health' -TimeoutSec 10 -ErrorAction Stop
     Ok "API health returned HTTP $($resp.StatusCode)"
 } catch {
     Warn "API health not ready yet: $($_.Exception.Message)"
@@ -153,8 +153,8 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | findstr /R /C:"
 if ($ok) {
     Msg ''
     Ok 'Environment is up and validated.'
-    Msg 'Web:        http://localhost:5173' 'Cyan'
-    Msg 'API:        http://localhost:5000/api/health' 'Cyan'
+    Msg 'Web:        http://localhost:43211' 'Cyan'
+    Msg 'API:        http://localhost:43210/api/health' 'Cyan'
     Msg 'LocalStack: http://localhost:4566/_localstack/health' 'Cyan'
     Msg 'Plagiarism: http://localhost:8001/health' 'Cyan'
 } else {

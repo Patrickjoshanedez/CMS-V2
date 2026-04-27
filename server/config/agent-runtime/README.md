@@ -113,31 +113,31 @@ await agentDecisionIntegrationService.logDecisionSource({
 ```bash
 # Get active profile
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/agent-runtime
+  http://localhost:43210/api/agent-runtime
 
 # Check if feature is enabled
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/agent-runtime/features/course_creation
+  http://localhost:43210/api/agent-runtime/features/course_creation
 
 # Get debug config
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/agent-runtime/debug/config
+  http://localhost:43210/api/agent-runtime/debug/config
 
 # Validate active profile
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/agent-runtime/debug/validate
+  http://localhost:43210/api/agent-runtime/debug/validate
 
 # Switch to different profile
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"profileId":"staging"}' \
-  http://localhost:5000/api/agent-runtime/switch
+  http://localhost:43210/api/agent-runtime/switch
 
 # Rollback to previous profile
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"reason":"broken_feature"}' \
-  http://localhost:5000/api/agent-runtime/rollback
+  http://localhost:43210/api/agent-runtime/rollback
 ```
 
 ## Integration Points

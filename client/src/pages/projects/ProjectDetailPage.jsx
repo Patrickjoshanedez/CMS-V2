@@ -45,7 +45,6 @@ import ProjectTitleCard from '@/components/projects/ProjectTitleCard';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
-import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
@@ -773,11 +772,6 @@ export default function ProjectDetailPage() {
 
                 {/* Asset Review (Gantt Chart + Demo Video) */}
                 <DevelopmentAssetsForm project={project} isReadOnly />
-
-                {/* Prototype Gallery — read-only for faculty */}
-                <div className="mt-6">
-                  <PrototypeGallery projectId={project._id} canDelete={false} />
-                </div>
 
                 {/* Midterm Evaluation */}
                 <div className="mt-6">

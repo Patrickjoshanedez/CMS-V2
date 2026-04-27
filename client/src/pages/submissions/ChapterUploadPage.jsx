@@ -224,11 +224,9 @@ export default function ChapterUploadPage() {
   })();
 
   const selectedDeadlineField =
-    selectedChapterNumber >= 1 && selectedChapterNumber <= 3
+    selectedChapterNumber >= 1 && selectedChapterNumber <= 5
       ? `chapter${selectedChapterNumber}`
-      : selectedChapterNumber >= 4
-        ? 'proposal'
-        : null;
+      : null;
   const selectedDeadline = selectedDeadlineField
     ? project?.deadlines?.[selectedDeadlineField]
     : null;

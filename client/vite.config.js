@@ -4,7 +4,8 @@ import path from 'path';
 import http from 'http';
 
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
-const backendDefaultProxyTarget = 'http://localhost:5000';
+const backendDefaultProxyTarget = 'http://localhost:43210';
+const frontendDefaultPort = 43211;
 const proxyTimeoutMs = 120000;
 const customViteLogger = createLogger();
 const originalViteErrorLogger = customViteLogger.error.bind(customViteLogger);
@@ -113,7 +114,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 5173,
+      port: frontendDefaultPort,
+      strictPort: true,
       allowedHosts,
       proxy: {
         '/api': {

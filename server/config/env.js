@@ -582,8 +582,8 @@ const validateProductionCorsOrigins = (origins) => {
  * Includes CLIENT_URL, comma-separated CORS_ALLOWED_ORIGINS, and optional ngrok support.
  *
  * Examples:
- * - ['http://localhost:5173'] if only CLIENT_URL is set
- * - ['http://localhost:5173', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
+ * - ['http://localhost:43211'] if only CLIENT_URL is set
+ * - ['http://localhost:43211', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
  *   if CORS_ALLOWED_ORIGINS and ALLOW_NGROK_ORIGINS are set
  */
 const buildAllowedOrigins = () => {
@@ -591,7 +591,7 @@ const buildAllowedOrigins = () => {
 
   // Always include CLIENT_URL in development; require explicit value in production.
   const clientUrl = (
-    process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : '')
+    process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:43211' : '')
   ).trim();
   if (clientUrl) {
     origins.add(clientUrl);
@@ -653,7 +653,7 @@ if (isProductionEnv) {
 
 const env = Object.freeze({
   NODE_ENV: currentNodeEnv,
-  PORT: parseInt(process.env.PORT, 10) || 5000,
+  PORT: parseInt(process.env.PORT, 10) || 43210,
 
   // Database
   MONGODB_URI: resolveMongoUri(),
@@ -677,7 +677,7 @@ const env = Object.freeze({
   EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@cms-buksu.edu.ph',
 
   // Client
-  CLIENT_URL: process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : ''),
+  CLIENT_URL: process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:43211' : ''),
   CORS_ALLOWED_ORIGINS: buildAllowedOrigins(),
   ALLOW_NGROK_ORIGINS: parseBoolean(process.env.ALLOW_NGROK_ORIGINS, false),
 
@@ -767,7 +767,10 @@ const env = Object.freeze({
     process.env.PDF_METADATA_MIN_AUTHORS_CONFIDENCE,
     0.7,
   ),
-  PDF_METADATA_REVIEW_GATE_ENABLED: parseBoolean(process.env.PDF_METADATA_REVIEW_GATE_ENABLED, true),
+  PDF_METADATA_REVIEW_GATE_ENABLED: parseBoolean(
+    process.env.PDF_METADATA_REVIEW_GATE_ENABLED,
+    true,
+  ),
   ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD: parseUnitInterval(
     process.env.ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD,
     0.7,

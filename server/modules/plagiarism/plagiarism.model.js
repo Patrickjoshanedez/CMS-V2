@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 
 const matchedBlockSchema = new mongoose.Schema(
   {
-    studentStart: { type: Number, required: true, min: 0 },
-    studentEnd: { type: Number, required: true, min: 0 },
-    sourceStart: { type: Number, required: true, min: 0 },
-    sourceEnd: { type: Number, required: true, min: 0 },
+    studentStart: { type: Number, min: 0 },
+    studentEnd: { type: Number, min: 0 },
+    sourceStart: { type: Number, min: 0 },
+    sourceEnd: { type: Number, min: 0 },
     matchedText: { type: String, default: '' },
   },
   { _id: false },

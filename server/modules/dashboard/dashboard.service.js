@@ -208,7 +208,7 @@ class DashboardService {
    * Instructor dashboard — system-wide counts, pending title approvals, recent submissions.
    */
   async _getInstructorStats(user) {
-    const adviserProjectIds = await Project.find({ adviserId: user._id })
+    const adviserProjectIds = await Project.find({ adviserId: user._id, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -228,16 +228,20 @@ class DashboardService {
       User.countDocuments({ isActive: true }),
       Team.countDocuments(),
       Project.countDocuments(),
-      Project.find({ titleStatus: TITLE_STATUSES.SUBMITTED })
+      Project.find({ titleStatus: TITLE_STATUSES.SUBMITTED, isArchived: { $ne: true } })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
         .limit(10)
         .lean(),
       Submission.find({ status: SUBMISSION_STATUSES.PENDING })
-        .populate('projectId', 'title teamId')
+        .populate({
+          path: 'projectId',
+          select: 'title teamId isArchived',
+          match: { isArchived: { $ne: true } },
+        })
         .sort({ createdAt: -1 })
-        .limit(10)
-        .lean(),
+        .lean()
+        .then((subs) => subs.filter((s) => s.projectId).slice(0, 10)),
       Project.aggregate([{ $group: { _id: '$projectStatus', count: { $sum: 1 } } }]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
       Project.find({ adviserId: user._id })
@@ -249,11 +253,11 @@ class DashboardService {
             projectId: { $in: adviserProjectIds },
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
-            .populate('projectId', 'title')
+            .populate('projectId', 'title isArchived projectStatus')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
-      Project.find({ panelistIds: user._id })
+      Project.find({ panelistIds: user._id, isArchived: { $ne: true } })
         .populate('teamId', 'name members')
         .sort({ updatedAt: -1 })
         .lean(),
@@ -304,6 +308,8 @@ class DashboardService {
         version: s.version,
         status: s.status,
         projectTitle: s.projectId?.title || 'Unknown',
+        isArchived: s.projectId?.isArchived || false,
+        projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
       })),
@@ -325,7 +331,7 @@ class DashboardService {
    * Adviser dashboard — assigned projects, pending reviews, recent chapters.
    */
   async _getAdviserStats(user) {
-    const adviserProjectIds = await Project.find({ adviserId: user._id })
+    const adviserProjectIds = await Project.find({ adviserId: user._id, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -340,7 +346,7 @@ class DashboardService {
             projectId: { $in: adviserProjectIds },
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
-            .populate('projectId', 'title')
+            .populate('projectId', 'title isArchived projectStatus')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
@@ -364,6 +370,8 @@ class DashboardService {
         version: s.version,
         status: s.status,
         projectTitle: s.projectId?.title || 'Unknown',
+        isArchived: s.projectId?.isArchived || false,
+        projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
       })),
@@ -386,7 +394,7 @@ class DashboardService {
     const now = new Date();
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const adviserProjectIds = await Project.find({ adviserId })
+    const adviserProjectIds = await Project.find({ adviserId, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -496,7 +504,7 @@ class DashboardService {
   async getAdviserAnalytics(adviserId) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const adviserProjectIds = await Project.find({ adviserId })
+    const adviserProjectIds = await Project.find({ adviserId, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -589,7 +597,7 @@ class DashboardService {
    */
   async getPanelistTopics(panelistId) {
     const [assignedProjects, availableProjects] = await Promise.all([
-      Project.find({ panelistIds: panelistId })
+      Project.find({ panelistIds: panelistId, isArchived: { $ne: true } })
         .populate('teamId', 'name members')
         .populate('adviserId', 'firstName lastName')
         .sort({ updatedAt: -1 })
@@ -754,7 +762,9 @@ class DashboardService {
 
     const adviserRows = await Promise.all(
       advisers.map(async (adviser) => {
-        const projectIds = await Project.find({ adviserId: adviser._id }).select('_id').lean();
+        const projectIds = await Project.find({ adviserId: adviser._id, isArchived: { $ne: true } })
+          .select('_id')
+          .lean();
         const ids = projectIds.map((p) => p._id);
 
         if (ids.length === 0) {
@@ -867,7 +877,7 @@ class DashboardService {
    */
   async _getPanelistStats(user) {
     const [assignedProjects, pendingEvaluations, recentNotifications] = await Promise.all([
-      Project.find({ panelistIds: user._id })
+      Project.find({ panelistIds: user._id, isArchived: { $ne: true } })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
         .lean(),

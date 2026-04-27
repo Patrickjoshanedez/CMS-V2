@@ -303,7 +303,8 @@ export default function SubmissionReviewPage() {
   const originalityScore = activeRound?.originalityScore;
 
   const isRoundPendingUpload = activeRound?.status === SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD;
-  const canModerate = [ROLES.ADVISER, ROLES.INSTRUCTOR].includes(user?.role);
+  const isArchived = workspace?.isArchived || false;
+  const canModerate = [ROLES.ADVISER, ROLES.INSTRUCTOR].includes(user?.role) && !isArchived;
   const canTakeDecision = !!activeSubmissionId && !activeRound?.reviewClosed && canModerate;
 
   return (
@@ -322,6 +323,15 @@ export default function SubmissionReviewPage() {
             </Badge>
           </div>
         </div>
+
+        {isArchived && (
+          <Alert className="border-amber-500/50 bg-amber-500/5 text-amber-600">
+            <Lock className="h-4 w-4" />
+            <AlertDescription className="font-medium">
+              This project is archived. This review workspace is in read-only mode.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Round Tabs */}
         <Card>

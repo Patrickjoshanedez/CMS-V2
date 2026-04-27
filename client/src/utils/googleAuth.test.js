@@ -9,7 +9,7 @@ describe('getGoogleAuthRuntimeConfig', () => {
         VITE_GOOGLE_CLIENT_ID: 'test-client-id',
         VITE_ENABLE_GOOGLE_LOGIN: 'true',
       },
-      currentOrigin: 'http://localhost:5174',
+      currentOrigin: 'http://localhost:43211',
     });
 
     expect(config.hasClientId).toBe(true);
@@ -42,9 +42,9 @@ describe('getGoogleAuthRuntimeConfig', () => {
         DEV: true,
         VITE_GOOGLE_CLIENT_ID: 'test-client-id',
         VITE_ENABLE_GOOGLE_LOGIN: 'true',
-        VITE_GOOGLE_ALLOWED_ORIGINS: 'http://localhost:5174,http://127.0.0.1:5174',
+        VITE_GOOGLE_ALLOWED_ORIGINS: 'http://localhost:43211,http://127.0.0.1:43211',
       },
-      currentOrigin: 'http://localhost:5174',
+      currentOrigin: 'http://localhost:43211',
     });
 
     expect(config.isMissingAllowedOriginsInDev).toBe(false);
@@ -59,9 +59,9 @@ describe('getGoogleAuthRuntimeConfig', () => {
         DEV: true,
         VITE_GOOGLE_CLIENT_ID: 'test-client-id',
         VITE_ENABLE_GOOGLE_LOGIN: 'true',
-        VITE_GOOGLE_ALLOWED_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173',
+        VITE_GOOGLE_ALLOWED_ORIGINS: 'http://localhost:43211,http://127.0.0.1:43211',
       },
-      currentOrigin: 'http://localhost:5174',
+      currentOrigin: 'http://localhost:43211',
     });
 
     expect(config.isMissingAllowedOriginsInDev).toBe(false);
@@ -76,7 +76,7 @@ describe('getGoogleAuthRuntimeConfig', () => {
         DEV: true,
         VITE_GOOGLE_CLIENT_ID: 'test-client-id',
       },
-      currentOrigin: 'http://localhost:5173',
+      currentOrigin: 'http://localhost:43211',
     });
 
     expect(config.isDisabledByDevPolicy).toBe(true);

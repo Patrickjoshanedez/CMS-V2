@@ -80,22 +80,18 @@ const matchedBlockSchema = new mongoose.Schema(
     studentStart: {
       type: Number,
       min: 0,
-      required: true,
     },
     studentEnd: {
       type: Number,
       min: 0,
-      required: true,
     },
     sourceStart: {
       type: Number,
       min: 0,
-      required: true,
     },
     sourceEnd: {
       type: Number,
       min: 0,
-      required: true,
     },
     matchedText: {
       type: String,

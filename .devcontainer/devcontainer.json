@@ -16,7 +16,7 @@
   "overrideCommand": false,
   "shutdownAction": "stopCompose",
   "remoteUser": "root",
-  "forwardPorts": [5000, 5173, 27017, 6379, 4566, 8001],
+  "forwardPorts": [43210, 43211, 27017, 6379, 4566, 8001],
   "postCreateCommand": "npm ci --ignore-scripts",
   "customizations": {
     "vscode": {

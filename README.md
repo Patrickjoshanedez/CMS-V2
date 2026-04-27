@@ -99,8 +99,8 @@ If Google login is enabled, configure both frontend and Google Cloud Console:
 3. In Google Cloud Console: `APIs & Services > Credentials > OAuth 2.0 Client IDs > <your web client>`.
 4. Add every frontend origin you actually use to `Authorized JavaScript origins`, for example:
 
-   - `http://localhost:5173`
-   - `http://127.0.0.1:5173`
+   - `http://localhost:43211`
+   - `http://127.0.0.1:43211`
    - `https://<your-ngrok-subdomain>.ngrok-free.dev`
 
 Important:
@@ -115,13 +115,13 @@ Important:
 npm run dev
 ```
 
-This starts both the Express server (port 5000) and the Vite dev server (port 5173) concurrently. The client proxies `/api` requests to the backend.
+This starts both the Express server (port 43210) and the Vite dev server (port 43211) concurrently. The client proxies `/api` requests to the backend.
 
 ### 5. Access the application
 
-- **Frontend:** <http://localhost:5173>
-- **API:** <http://localhost:5000/api>
-- **Health check:** <http://localhost:5000/api/health>
+- **Frontend:** <http://localhost:43211>
+- **API:** <http://localhost:43210/api>
+- **Health check:** <http://localhost:43210/api/health>
 
 ---
 
@@ -133,8 +133,8 @@ Operational rule: this repo contains both `compose.yaml` and `docker-compose.yml
 
 ### Services
 
-- `client` (Vite React app) → <http://localhost:5173>
-- `server` (Express API) → <http://localhost:5000>
+- `client` (Vite React app) → <http://localhost:43211>
+- `server` (Express API) → <http://localhost:43210>
 - `mongodb` (MongoDB 7) → internal container network
 - `redis` (Redis 7) → internal container network
 

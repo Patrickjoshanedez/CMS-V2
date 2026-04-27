@@ -29,15 +29,66 @@ function StudentDashboard({ user }) {
   const teamActivityTrail = dashboardData?.teamActivityTrail || [];
   const recentNotifications = dashboardData?.recentNotifications || [];
 
-  const completedChapters = chapterProgress.filter(
+  const chapterStatusByNumber = new Map(
+    chapterProgress.map((chapter) => [chapter.chapter, chapter]),
+  );
+
+  const derivedChapterProgress = [1, 2, 3, 4, 5].map((chapterNumber) => {
+    const latestChapter = chapterStatusByNumber.get(chapterNumber);
+
+    if (latestChapter?.status && latestChapter.status !== 'not_started') {
+      return latestChapter;
+    }
+
+    if (project?.titleStatus !== 'approved') {
+      return {
+        chapter: chapterNumber,
+        status: 'waiting_title_approval',
+        version: 0,
+        updatedAt: null,
+      };
+    }
+
+    if (chapterNumber >= 4 && (project?.capstonePhase || 1) < 3) {
+      return {
+        chapter: chapterNumber,
+        status: 'locked_capstone_phase',
+        version: 0,
+        updatedAt: null,
+      };
+    }
+
+    if (chapterNumber > 1) {
+      const previousChapter = chapterStatusByNumber.get(chapterNumber - 1);
+      if (!isChapterApprovedLike(previousChapter?.status)) {
+        return {
+          chapter: chapterNumber,
+          status: 'blocked_previous_chapter',
+          version: 0,
+          updatedAt: null,
+        };
+      }
+    }
+
+    return {
+      chapter: chapterNumber,
+      status: 'ready_to_upload',
+      version: 0,
+      updatedAt: null,
+    };
+  });
+
+  const completedChapters = derivedChapterProgress.filter(
     (chapter) => chapter.status === 'approved',
   ).length;
-  const chaptersInReview = chapterProgress.filter((chapter) =>
+  const chaptersInReview = derivedChapterProgress.filter((chapter) =>
     ['pending', 'under_review', 'revisions_required'].includes(chapter.status),
   ).length;
   const completionPercent =
     progressReport?.completionPercent ??
-    (chapterProgress.length ? Math.round((completedChapters / chapterProgress.length) * 100) : 0);
+    (derivedChapterProgress.length
+      ? Math.round((completedChapters / derivedChapterProgress.length) * 100)
+      : 0);
 
   useEffect(() => {
     if (!user.sectionId || !user.instructorId) {
@@ -87,7 +138,7 @@ function StudentDashboard({ user }) {
           icon={CheckCircle2}
           title="Progress"
           metric={`${completionPercent}%`}
-          description={`${completedChapters}/${chapterProgress.length || 5} chapters approved`}
+          description={`${completedChapters}/${derivedChapterProgress.length || 5} chapters approved`}
           accent="text-emerald-600"
         />
         <DashboardCard
@@ -208,7 +259,7 @@ function StudentDashboard({ user }) {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {chapterProgress.map((chapter) => (
+                    {derivedChapterProgress.map((chapter) => (
                       <div
                         key={chapter.chapter}
                         className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
@@ -424,6 +475,18 @@ function formatProjectStatus(status) {
 }
 
 function formatChapterStatus(status) {
+  const workflowLabels = {
+    waiting_title_approval: 'Waiting Title Approval',
+    locked_capstone_phase: 'Locked by Capstone Phase',
+    blocked_previous_chapter: 'Blocked by Previous Chapter',
+    ready_to_upload: 'Ready to Upload',
+    not_started: 'Not Started',
+  };
+
+  if (workflowLabels[status]) {
+    return workflowLabels[status];
+  }
+
   return String(status || 'not_started')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -445,17 +508,28 @@ function getTitleStatusVariant(status) {
 function getChapterStatusVariant(status) {
   switch (status) {
     case 'approved':
+    case 'accepted':
+    case 'locked':
       return 'success';
     case 'rejected':
       return 'destructive';
     case 'pending':
     case 'under_review':
+    case 'waiting_title_approval':
       return 'warning';
     case 'revisions_required':
+    case 'ready_to_upload':
       return 'info';
+    case 'locked_capstone_phase':
+    case 'blocked_previous_chapter':
+      return 'secondary';
     default:
       return 'outline';
   }
+}
+
+function isChapterApprovedLike(status) {
+  return ['approved', 'accepted', 'locked'].includes(status);
 }
 
 function formatSubmissionLabel(entry) {

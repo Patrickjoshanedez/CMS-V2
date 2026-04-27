@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
-import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
@@ -1027,11 +1026,6 @@ export default function ProjectDetailPage() {
             {/* Advance phase — instructor only */}
             {!isArchived && isInstructor && project.projectStatus !== 'rejected' && (
               <AdvancePhaseCard project={project} />
-            )}
-
-            {/* Prototype showcase — visible to all faculty */}
-            {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
-              <PrototypeGallery projectId={project._id} canDelete={false} />
             )}
 
             {/* Evaluation panels — proposal defense */}

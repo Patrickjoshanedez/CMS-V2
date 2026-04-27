@@ -44,7 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `useSocket` hook — connects when authenticated, listens for `notification:new` events, triggers toast + invalidates React Query caches
 - Integrated in `DashboardLayout` for app-wide real-time notifications
 - `disconnectSocket()` called on logout in auth store
-- Vite proxy config: `/socket.io` → `http://localhost:5000` with `ws: true`
+- Vite proxy config: `/socket.io` → `http://localhost:43210` with `ws: true`
 
 **Client — Deadline Warning UI**
 - `DeadlineWarning` component (~210 lines) with `computeUrgency()` function

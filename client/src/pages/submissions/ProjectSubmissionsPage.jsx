@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
+import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
@@ -232,6 +231,7 @@ export default function ProjectSubmissionsPage() {
   const titleApproved = activeProject?.titleStatus === TITLE_STATUSES.APPROVED;
   const hasProposal = submissions.some((s) => s.type === DOCUMENT_TYPES.PROPOSAL);
   const canUpload = isStudent && !isReadOnlyMode && titleApproved;
+  const canEditDevelopmentAssets = isStudent && !isReadOnlyMode && titleApproved;
   const chaptersReadyForProposal = [1, 2, 3].every((ch) => {
     const sub = latestChapterSubmissions.get(ch);
     return sub && ['approved', 'accepted', 'locked'].includes(sub.status);
@@ -461,6 +461,34 @@ export default function ProjectSubmissionsPage() {
               />
             ))}
           </div>
+        </div>
+
+        {/* Capstone 2 */}
+        <div className="rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6">
+          <div className="mb-4 space-y-1">
+            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Capstone 2
+            </p>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              System Development Phase
+            </h2>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Upload your project&apos;s Gantt Chart link and Google Drive system demo here for
+              midterm review.
+            </p>
+          </div>
+
+          {!canEditDevelopmentAssets && !isReadOnlyMode && (
+            <Alert className="mb-4 border-primary/20 bg-primary/5">
+              <AlertTriangle className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                Capstone 2 assets unlock after your title is approved. You can still review any
+                existing links below.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <DevelopmentAssetsForm project={activeProject} isReadOnly={!canEditDevelopmentAssets} />
         </div>
 
         {/* Proposal */}

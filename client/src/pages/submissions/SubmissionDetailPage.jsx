@@ -670,7 +670,8 @@ export default function SubmissionDetailPage() {
   }
 
   // Faculty should always have review capabilities, even when navigating from the read-only list
-  const facultyCanReview = isFaculty;
+  const isArchived = submission.isArchived || false;
+  const facultyCanReview = isFaculty && !isArchived;
 
   return (
     <DashboardLayout>
@@ -703,6 +704,15 @@ export default function SubmissionDetailPage() {
             </Button>
           )}
         </div>
+
+        {isArchived && (
+          <Alert className="border-amber-500/50 bg-amber-500/5 text-amber-600">
+            <Lock className="h-4 w-4" />
+            <AlertDescription className="font-medium">
+              This project is archived. This submission is in read-only mode.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />

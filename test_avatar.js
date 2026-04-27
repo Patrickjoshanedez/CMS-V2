@@ -5,7 +5,7 @@ import path from 'path';
     try {
         console.log("Starting avatar upload test...");
         // Log in to get auth token
-        const loginRes = await fetch('http://localhost:5000/api/auth/login', {
+        const loginRes = await fetch('http://localhost:43210/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email: "leon.mentor.buksu@gmail.com", password: "Password123!" }),
             headers: { 'Content-Type': 'application/json' }
@@ -23,11 +23,11 @@ import path from 'path';
         // Let's create FormData manually (in Node fetching, you'd usually use FormData or construct multipart string)
         const dummyFile = new Blob([fs.readFileSync(dummyPath)], { type: 'image/jpeg' });
         
-        let fd = new FormData();
+        const fd = new FormData();
 		const reqHeaders = { 'cookie': cookies || '', 'Content-Type': 'multipart/form-data' };
         fd.append('avatar', dummyFile, 'dummy.jpg');
 
-        const uploadRes = await fetch('http://localhost:5000/api/users/me/avatar', {
+        const uploadRes = await fetch('http://localhost:43210/api/users/me/avatar', {
             method: 'POST',
             headers: {
                 'cookie': cookies || ''

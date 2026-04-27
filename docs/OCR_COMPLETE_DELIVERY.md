@@ -211,7 +211,7 @@ The PDF upload form now automatically extracts metadata from uploaded academic p
 ### Quick Test
 1. Start server: `npm run dev` (server directory)
 2. Start client: `npm run dev` (client directory)
-3. Navigate: `http://localhost:5173/archive/upload/capstone`
+3. Navigate: `http://localhost:43211/archive/upload/capstone`
 4. Upload: Any academic paper PDF
 5. Verify: Fields auto-fill with 2-5 sec delay
 6. Check: Green success box with confidence scores

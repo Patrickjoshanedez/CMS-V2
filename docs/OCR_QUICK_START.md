@@ -24,7 +24,7 @@ npm run dev
 ```
 
 ### 2. Navigate to Upload Page
-- Open: `http://localhost:5173/archive/upload/capstone`
+- Open: `http://localhost:43211/archive/upload/capstone`
 
 ### 3. Upload PDF
 - Click "Academic Paper PDF" button
@@ -123,7 +123,7 @@ npm run dev
 
 **Check 3:** Server is running
 - Terminal should show "listening on port 5000"
-- Check http://localhost:5000/health
+- Check http://localhost:43210/health
 
 ### Extraction Results Look Wrong?
 

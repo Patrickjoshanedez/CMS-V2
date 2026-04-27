@@ -170,7 +170,7 @@ Updated to mention all extracted fields including DOI and publication venue
 
 - [ ] Server running: `cd server && npm run dev`
 - [ ] Client running: `cd client && npm run dev`
-- [ ] Navigate to: `http://localhost:5173/archive/upload/capstone`
+- [ ] Navigate to: `http://localhost:43211/archive/upload/capstone`
 - [ ] Upload test PDF with embedded text
 - [ ] Verify "Extracting metadata..." indicator appears
 - [ ] Verify green success box shows with extracted fields
@@ -193,7 +193,7 @@ Updated to mention all extracted fields including DOI and publication venue
 Test extraction endpoint directly:
 
 ```bash
-curl -X POST http://localhost:5000/api/documents/extract-pdf-metadata \
+curl -X POST http://localhost:43210/api/documents/extract-pdf-metadata \
   -F "file=@/path/to/test.pdf" \
   -H "Authorization: Bearer <token>"
 ```
@@ -235,7 +235,7 @@ Expected response includes new fields:
 
 1. **Start Server:** `npm run dev` (from server directory)
 2. **Start Client:** `npm run dev` (from client directory)  
-3. **Navigate:** `http://localhost:5173/archive/upload/capstone`
+3. **Navigate:** `http://localhost:43211/archive/upload/capstone`
 4. **Upload:** Select a PDF with embedded text
 5. **Review:** Check auto-filled fields and confidence scores
 6. **Adjust:** Manually edit any fields as needed

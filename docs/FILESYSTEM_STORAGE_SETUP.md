@@ -48,7 +48,7 @@ uploads/
 │                       └── chapter.pdf
 ```
 
-Access it via: `http://localhost:5000/storage/archives/projects/123/chapters/1/v1/chapter.pdf`
+Access it via: `http://localhost:43210/storage/archives/projects/123/chapters/1/v1/chapter.pdf`
 
 ## Metadata
 

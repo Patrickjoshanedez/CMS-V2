@@ -228,11 +228,10 @@ services:
           exec "$$@"
         fi
 
-        test -n "$${NGROK_BASIC_AUTH}" || {
-          echo "missing NGROK_BASIC_AUTH (fallback) or NGROK_OAUTH_PROVIDER";
-          exit 1;
-        }
-        exec ngrok http client:80 --url="https://$${NGROK_DOMAIN}" --basic-auth="$${NGROK_BASIC_AUTH}"
+        if test -n "$${NGROK_BASIC_AUTH}"; then
+          set -- "$$@" "--basic-auth=$${NGROK_BASIC_AUTH}"
+        fi
+        exec ngrok http client:80 --url="https://$${NGROK_DOMAIN}" "$$@"
     depends_on:
       - client
     security_opt:

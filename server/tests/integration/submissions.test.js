@@ -18,6 +18,7 @@ import Submission from '../../modules/submissions/submission.model.js';
 import PlagiarismResult from '../../modules/plagiarism/plagiarism.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
+import * as pdfCommentsUtils from '../../utils/pdfComments.js';
 import { SUBMISSION_STATUSES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 
 /* ------------------------------------------------------------------ */
@@ -363,6 +364,56 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('TEAM_NOT_FINALIZED');
+    });
+
+    it('should ignore malformed extracted PDF comments and still upload chapter', async () => {
+      const extractPdfCommentsSpy = vi
+        .spyOn(pdfCommentsUtils, 'extractPdfComments')
+        .mockResolvedValue([
+          {
+            page: 0,
+            text: '   ',
+            lineStart: 0,
+            lineEnd: 0,
+          },
+          {
+            page: 1,
+            text: 'Valid extracted comment',
+            lineStart: 0,
+            lineEnd: 0,
+          },
+          {
+            page: 2,
+            text: 'Inverted line range',
+            lineStart: 12,
+            lineEnd: 5,
+          },
+        ]);
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '1')
+        .attach('file', createPdfBuffer(), 'chapter1.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+
+      const annotations = res.body.data.submission.annotations || [];
+      expect(annotations).toHaveLength(2);
+
+      const validAnnotation = annotations.find((a) => a.content === 'Valid extracted comment');
+      expect(validAnnotation).toBeTruthy();
+      expect(validAnnotation.lineStart).toBeNull();
+      expect(validAnnotation.lineEnd).toBeNull();
+
+      const normalizedRangeAnnotation = annotations.find(
+        (a) => a.content === 'Inverted line range',
+      );
+      expect(normalizedRangeAnnotation).toBeTruthy();
+      expect(normalizedRangeAnnotation.lineStart).toBe(5);
+      expect(normalizedRangeAnnotation.lineEnd).toBe(12);
+
+      extractPdfCommentsSpy.mockRestore();
     });
 
     it('should accept chapter upload with a valid prototype link', async () => {

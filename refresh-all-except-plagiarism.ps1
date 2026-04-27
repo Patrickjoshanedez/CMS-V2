@@ -50,9 +50,9 @@ Invoke-Compose -Args @('ps')
 
 Write-Host ''
 Write-Host 'URLs:' -ForegroundColor Cyan
-Write-Host '  Frontend:  http://localhost:5173'
-Write-Host '  Backend:   http://localhost:5000/api'
-Write-Host '  Health:    http://localhost:5000/api/health'
+Write-Host '  Frontend:  http://localhost:43211'
+Write-Host '  Backend:   http://localhost:43210/api'
+Write-Host '  Health:    http://localhost:43210/api/health'
 Write-Host ''
 Write-Host 'Notes:' -ForegroundColor Cyan
 Write-Host '  - Plagiarism services are intentionally excluded.'

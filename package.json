@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer",
+    "adm-zip": "^0.5.17",
     "gpt-tokenizer": "^3.4.0"
   }
 }

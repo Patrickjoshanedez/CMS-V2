@@ -132,7 +132,7 @@ file: <PDF file>
 ### Prerequisites
 1. Ensure server is running: `npm run dev` (from server directory)
 2. Ensure client is running: `npm run dev` (from client directory)
-3. Navigate to: `http://localhost:5173/archive/upload/capstone`
+3. Navigate to: `http://localhost:43211/archive/upload/capstone`
 
 ### Test Scenarios
 
@@ -181,7 +181,7 @@ file: <PDF file>
 
 1. **Upload Test PDF**
    ```
-   Visit: http://localhost:5173/archive/upload/capstone
+   Visit: http://localhost:43211/archive/upload/capstone
    Click: "Choose File" button
    Select: test.pdf
    ```

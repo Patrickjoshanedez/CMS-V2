@@ -23,6 +23,7 @@
     "@bull-board/api": "^7.0.0",
     "@bull-board/express": "^7.0.0",
     "@cms/shared": "*",
+    "adm-zip": "^0.5.17",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.74.1",
     "cookie-parser": "^1.4.7",

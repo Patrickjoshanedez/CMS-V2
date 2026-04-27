@@ -328,17 +328,51 @@ class SubmissionService {
       return [];
     }
 
-    // Convert to submission annotation schema
-    return extracted.map((c) => ({
-      page: c.page || 1,
-      content: c.text || '',
-      selectedText: c.commentedText || '',
-      lineStart: c.lineStart || 0,
-      lineEnd: c.lineEnd || 0,
-      userId: userId,
-      resolved: c.resolved || false,
-      createdAt: c.createdAt || new Date(),
-    }));
+    // Convert to submission annotation schema and drop malformed entries.
+    // This fail-soft approach prevents upload failures caused by bad comments
+    // embedded in DOCX/PDF files.
+    if (!Array.isArray(extracted)) return [];
+
+    return extracted
+      .map((comment) => {
+        const content = String(comment?.text ?? comment?.content ?? '').trim();
+        if (!content) return null;
+
+        const parsedPage = Number(comment?.page);
+        const page = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
+
+        const rawLineStart = Number(comment?.lineStart);
+        const rawLineEnd = Number(comment?.lineEnd);
+        const hasLineStart = Number.isInteger(rawLineStart) && rawLineStart >= 1;
+        const hasLineEnd = Number.isInteger(rawLineEnd) && rawLineEnd >= 1;
+
+        let lineStart = null;
+        let lineEnd = null;
+
+        if (hasLineStart && hasLineEnd) {
+          lineStart = Math.min(rawLineStart, rawLineEnd);
+          lineEnd = Math.max(rawLineStart, rawLineEnd);
+        } else if (hasLineStart) {
+          lineStart = rawLineStart;
+        } else if (hasLineEnd) {
+          lineEnd = rawLineEnd;
+        }
+
+        const parsedCreatedAt = comment?.createdAt ? new Date(comment.createdAt) : new Date();
+        const createdAt = Number.isNaN(parsedCreatedAt.getTime()) ? new Date() : parsedCreatedAt;
+
+        return {
+          page,
+          content,
+          selectedText: String(comment?.commentedText ?? comment?.selectedText ?? '').trim(),
+          lineStart,
+          lineEnd,
+          userId,
+          resolved: Boolean(comment?.resolved),
+          createdAt,
+        };
+      })
+      .filter(Boolean);
   }
 
   /**
@@ -1754,12 +1788,9 @@ class SubmissionService {
     enrichedSubmission.deadlineField = deadlineInfo.deadlineField;
     enrichedSubmission.deadlineAt = deadlineInfo.deadlineAt;
 
-    // Attach team resources if available
-    if (project.teamId) {
-      enrichedSubmission.teamResources = {
-        googleDocUrl: project.teamId.googleDocUrl || null,
-      };
-    }
+    // Attach project metadata
+    enrichedSubmission.isArchived = project.isArchived || false;
+    enrichedSubmission.projectStatus = project.projectStatus;
 
     return { submission: enrichedSubmission };
   }
@@ -2753,6 +2784,8 @@ class SubmissionService {
       submissionId: submission._id,
       projectId: project._id,
       projectTitle: project.title,
+      projectStatus: project.projectStatus,
+      isArchived: project.isArchived || false,
       chapter: submission.chapter,
       type: submission.type,
       teamName: project.teamId?.name || 'Unknown Team',

@@ -41,8 +41,9 @@ export default function ProjectsPage() {
   const filters = {
     ...(search && { search }),
     ...(titleStatus && { titleStatus }),
-    ...(filterParam === 'advisees' && { adviserId: user?._id, excludeArchived: true }),
-    ...(filterParam === 'panel' && { panelistId: user?._id, excludeArchived: true }),
+    ...(filterParam === 'advisees' && { adviserId: user?._id }),
+    ...(filterParam === 'panel' && { panelistId: user?._id }),
+    excludeArchived: true,
     page,
     limit: 10,
   };
@@ -68,8 +69,6 @@ export default function ProjectsPage() {
   }
 
   const projects = (data?.projects || []).filter((project) => {
-    if (!isFacultyScopedFilter) return true;
-
     const normalizedStatuses = [project.projectStatus, project.status]
       .filter((value) => value !== null && value !== undefined)
       .map((value) => String(value).trim().toLowerCase());

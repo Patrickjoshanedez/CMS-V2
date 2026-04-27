@@ -198,6 +198,15 @@ class EvaluationService {
       }
     }
 
+    // Validate that a decision is made
+    if (!evaluation.decision) {
+      throw new AppError(
+        'A defense decision must be selected before submission.',
+        400,
+        'MISSING_DECISION',
+      );
+    }
+
     // Compute totals
     evaluation.totalScore = evaluation.criteria.reduce((sum, c) => sum + c.score, 0);
     evaluation.maxTotalScore = evaluation.criteria.reduce((sum, c) => sum + c.maxScore, 0);

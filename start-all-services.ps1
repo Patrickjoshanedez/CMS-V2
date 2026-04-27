@@ -101,9 +101,9 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "🌐 Access URLs:" -ForegroundColor Cyan
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "   Frontend (Vite):          http://localhost:5173" -ForegroundColor White
-    Write-Host "   Backend API:              http://localhost:5000/api" -ForegroundColor White
-    Write-Host "   API Health Check:         http://localhost:5000/api/health" -ForegroundColor White
+    Write-Host "   Frontend (Vite):          http://localhost:43211" -ForegroundColor White
+    Write-Host "   Backend API:              http://localhost:43210/api" -ForegroundColor White
+    Write-Host "   API Health Check:         http://localhost:43210/api/health" -ForegroundColor White
     Write-Host "   Plagiarism Engine API:    http://localhost:8001" -ForegroundColor White
     Write-Host "   Plagiarism Health Check:  http://localhost:8001/health" -ForegroundColor White
     Write-Host ""
@@ -115,7 +115,7 @@ if ($LASTEXITCODE -eq 0) {
     # Test API health
     Write-Host "Testing CMS API..." -ForegroundColor Yellow
     try {
-        $apiResponse = Invoke-RestMethod -Uri "http://localhost:5000/api/health" -Method Get -TimeoutSec 5
+        $apiResponse = Invoke-RestMethod -Uri "http://localhost:43210/api/health" -Method Get -TimeoutSec 5
         if ($apiResponse.success -eq $true) {
             Write-Host "✅ CMS API is responding" -ForegroundColor Green
         }

@@ -113,7 +113,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
     setCriteria((prev) => {
       const next = [...prev];
       const max = next[index].maxScore;
-      const parsed = value === '' ? '' : Math.min(Math.max(0, Number(value)), max);
+      const parsed = value === '' ? null : Math.min(Math.max(0, Number(value)), max);
       next[index] = { ...next[index], score: parsed };
       return next;
     });
@@ -145,6 +145,14 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
     if (!window.confirm('Are you sure you want to submit? You cannot edit after submission.'))
       return;
     try {
+      // Save draft first to ensure the backend has the latest scores and decision
+      await updateEvaluation.mutateAsync({
+        evaluationId: evaluation._id,
+        criteria,
+        overallComment,
+        decision,
+      });
+
       await submitEvaluation.mutateAsync(evaluation._id);
       toast.success('Evaluation submitted successfully.');
     } catch (err) {
