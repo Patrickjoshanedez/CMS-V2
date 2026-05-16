@@ -17,7 +17,7 @@ export default function ProjectSidebarInfo({ project }) {
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
     ? capstoneRaw.join(', ')
-    : capstoneRaw || `Capstone ${project.capstonePhase}`;
+    : capstoneRaw || getCapstonePhaseLabel(project?.capstonePhase);
 
   const isProposalPhase = project.titleStatus !== TITLE_STATUSES.APPROVED;
   const proposalTitles = Array.isArray(project.titleProposals)
@@ -161,4 +161,12 @@ export default function ProjectSidebarInfo({ project }) {
       </CardContent>
     </Card>
   );
+}
+
+function getCapstonePhaseLabel(phase) {
+  const normalizedPhase = Number(phase) || 0;
+  if (normalizedPhase >= 4) return 'Capstone 3 (Final Defense)';
+  if (normalizedPhase === 3) return 'Capstone 3 (Ch 4-5)';
+  if (normalizedPhase === 2) return 'Capstone 2 (Development)';
+  return 'Capstone 1 (Ch 1-3)';
 }

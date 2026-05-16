@@ -1,4 +1,7 @@
 import SystemSettings from './settings.model.js';
+import User from '../users/user.model.js';
+import Notification from '../notifications/notification.model.js';
+import { emitToUser } from '../../services/socket.service.js';
 
 /**
  * SettingsService — business logic for system-wide configuration.
@@ -47,12 +50,17 @@ class SettingsService {
     }
 
     sanitized.updatedBy = userId;
+    const changedFields = allowedFields.filter((field) => updates[field] !== undefined);
 
     const settings = await SystemSettings.findOneAndUpdate(
       { key: 'global' },
       { $set: sanitized },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true },
     );
+
+    if (changedFields.length > 0) {
+      await this._broadcastSettingsUpdate(changedFields);
+    }
 
     return {
       plagiarismThreshold: settings.plagiarismThreshold,
@@ -62,6 +70,32 @@ class SettingsService {
       maintenanceMode: settings.maintenanceMode,
       updatedAt: settings.updatedAt,
     };
+  }
+
+  /**
+   * Notify all active users that system settings have changed.
+   * @param {string[]} changedFields
+   * @returns {Promise<void>}
+   */
+  async _broadcastSettingsUpdate(changedFields) {
+    const activeUsers = await User.find({ isActive: true }).select('_id').lean();
+    if (activeUsers.length === 0) {
+      return;
+    }
+
+    const notifications = await Notification.insertMany(
+      activeUsers.map((user) => ({
+        userId: user._id,
+        type: 'system',
+        title: 'System Settings Updated',
+        message: 'System settings have been updated. Please review the latest configuration.',
+        metadata: { changedFields },
+      })),
+    );
+
+    notifications.forEach((notification) => {
+      emitToUser(notification.userId, 'notification:new', notification);
+    });
   }
 
   /**

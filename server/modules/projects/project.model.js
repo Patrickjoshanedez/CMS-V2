@@ -566,6 +566,18 @@ const projectSchema = new mongoose.Schema(
       test: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
     },
 
+    ganttChartUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    demoVideoUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
     // --- Archive & Completion fields ---
     isArchived: {
       type: Boolean,

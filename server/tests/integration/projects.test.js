@@ -15,6 +15,7 @@ import {
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
+import Evaluation from '../../modules/evaluations/evaluation.model.js';
 import User from '../../modules/users/user.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
 import storageService from '../../services/storage.service.js';
@@ -838,11 +839,26 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.capstonePhase).toBe(2);
     });
 
-    it('should advance from phase 2 to 3 without proposal requirement', async () => {
-      // Set project to phase 2 directly
+    it('should advance from phase 2 to 3 when midterm is released and assets exist', async () => {
+      await Evaluation.create({
+        projectId,
+        panelistId: panelistUser._id,
+        defenseType: 'midterm',
+        status: 'released',
+        criteria: [
+          {
+            name: 'Development quality',
+            maxScore: 100,
+            score: 90,
+          },
+        ],
+      });
+
       await Project.findByIdAndUpdate(projectId, {
         projectStatus: 'proposal_approved',
         capstonePhase: 2,
+        ganttChartUrl: 'https://example.com/gantt',
+        demoVideoUrl: 'https://example.com/demo',
       });
 
       const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});

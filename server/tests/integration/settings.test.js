@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createAuthenticatedUserWithRole, request } from '../helpers.js';
+import Notification from '../../modules/notifications/notification.model.js';
 
 /* ═══════════════════════════════════════════════════════════════════
  *  System Settings API — /api/settings
@@ -306,6 +307,26 @@ describe('System Settings API — /api/settings', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.systemAnnouncement).toBe(maxAnnouncement);
       expect(res.body.data.systemAnnouncement.length).toBe(500);
+    });
+  });
+
+  describe('TC-SET-005 — Settings updates notify all active users', () => {
+    it('should create a system notification for every active user when settings change', async () => {
+      await Notification.deleteMany({});
+
+      const res = await instructorAgent.put('/api/settings').send({
+        plagiarismThreshold: 0,
+        systemAnnouncement: 'System update broadcast',
+      });
+
+      expect(res.status).toBe(200);
+
+      const notifications = await Notification.find({
+        type: 'system',
+        title: 'System Settings Updated',
+      });
+
+      expect(notifications).toHaveLength(3);
     });
   });
 

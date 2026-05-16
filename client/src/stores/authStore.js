@@ -161,44 +161,67 @@ export const useAuthStore = create((set, _get) => ({
 
   /**
    * Log in — on success, cookies are set by the server.
-   * We fetch the user profile to populate the store.
+   * Prefer the user payload returned by the login response so a follow-up
+   * profile fetch cannot turn a successful login into a false failure.
    */
   login: async (data) => {
     return runAuthRequest({
       set,
       request: async () => {
         const loginResponse = await authService.login(data);
+        const responseUser = loginResponse?.data?.data?.user;
+
+        if (responseUser) {
+          return { data: loginResponse.data, loginResponse, user: responseUser };
+        }
+
         const userResponse = await userService.getMe();
-        return { loginResponse, userResponse };
+        return {
+          data: loginResponse.data,
+          loginResponse,
+          userResponse,
+          user: userResponse.data.data.user,
+        };
       },
       fallbackMessage: 'Login failed.',
       codeMessages: LOGIN_ERROR_MESSAGES_BY_CODE,
-      onSuccess: ({ userResponse }) => {
-        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      onSuccess: ({ user }) => {
+        set({ user, isAuthenticated: true });
       },
-    })
-      .catch((error) => {
-        set({ isAuthenticated: false, user: null });
-        throw error;
-      })
-      .then((response) => response.loginResponse.data);
+    }).catch((error) => {
+      set({ isAuthenticated: false, user: null });
+      throw error;
+    });
   },
 
   /**
    * Log in with Google — server verifies the ID token and sets cookies.
-   * We fetch the user profile to populate the store.
+   * Prefer the user payload returned by the Google auth response so a follow-up
+   * profile fetch cannot turn a successful login into a false failure.
    */
   googleLogin: async (credential) => {
     return runAuthRequest({
       set,
       request: async () => {
-        await authService.googleLogin({ credential });
-        return userService.getMe();
+        const googleLoginResponse = await authService.googleLogin({ credential });
+        const responseUser = googleLoginResponse?.data?.data?.user;
+
+        if (responseUser) {
+          return { data: googleLoginResponse.data, googleLoginResponse, user: responseUser };
+        }
+
+        const userResponse = await userService.getMe();
+        return {
+          data: googleLoginResponse.data,
+          googleLoginResponse,
+          userResponse,
+          user: userResponse.data.data.user,
+        };
       },
       fallbackMessage: 'Google login failed.',
       codeMessages: GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE,
-      onSuccess: (userResponse) => {
-        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      onSuccess: ({ user }) => {
+        set({ user, isAuthenticated: true });
       },
     }).catch((error) => {
       set({ isAuthenticated: false, user: null });

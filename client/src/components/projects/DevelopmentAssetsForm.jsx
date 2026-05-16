@@ -126,15 +126,12 @@ const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
 
             {project?.ganttChartUrl ? (
               <div className={`pt-2 ${!isReadOnly ? 'border-t border-border/50' : ''}`}>
-                <a
-                  href={project.ganttChartUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline group"
-                >
-                  View current Gantt Chart
-                  <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </a>
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <a href={project.ganttChartUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    View current Gantt Chart
+                  </a>
+                </Button>
               </div>
             ) : (
               isReadOnly && (
@@ -194,15 +191,12 @@ const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
 
             {project?.demoVideoUrl ? (
               <div className={`pt-2 ${!isReadOnly ? 'border-t border-border/50' : ''}`}>
-                <a
-                  href={project.demoVideoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:underline group"
-                >
-                  Watch current Demo Video
-                  <ExternalLink className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </a>
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <a href={project.demoVideoUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    Watch current Demo Video
+                  </a>
+                </Button>
               </div>
             ) : (
               isReadOnly && (

@@ -14,6 +14,7 @@ import Project from '../../projects/project.model.js';
 import User from '../../users/user.model.js';
 import Notification from '../../notifications/notification.model.js';
 import submissionService from '../submission.service.js';
+import settingsService from '../../settings/settings.service.js';
 import agentRuntimeConfigService from '../../../services/agentRuntimeConfig.service.js';
 import { AppError } from '../../../utils/AppError.js';
 import {
@@ -176,8 +177,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
     });
 
     it('should block approval if similarity exceeds threshold', async () => {
-      // Set threshold to 50% (default)
-      process.env.PLAGIARISM_REJECT_THRESHOLD = '50';
+      vi.spyOn(settingsService, 'getPlagiarismThreshold').mockResolvedValue(50);
 
       // Create plagiarism result with 65% similarity
       await PlagiarismResult.create({
@@ -205,8 +205,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
     });
 
     it('should allow approval if similarity below threshold', async () => {
-      // Set threshold to 50%
-      process.env.PLAGIARISM_REJECT_THRESHOLD = '50';
+      vi.spyOn(settingsService, 'getPlagiarismThreshold').mockResolvedValue(50);
 
       // Create plagiarism result with 30% similarity (below threshold)
       await PlagiarismResult.create({
@@ -237,8 +236,7 @@ describe('Submission Review with Plagiarism Check Integration', () => {
     });
 
     it('should allow approval if similarity exactly at threshold', async () => {
-      // Set threshold to 50%
-      process.env.PLAGIARISM_REJECT_THRESHOLD = '50';
+      vi.spyOn(settingsService, 'getPlagiarismThreshold').mockResolvedValue(50);
 
       // Create plagiarism result with exactly 50% similarity
       await PlagiarismResult.create({
@@ -257,22 +255,30 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       expect(result.submission.status).toBe(SUBMISSION_STATUSES.LOCKED);
     });
 
-    it('should use configurable threshold from environment', async () => {
-      // Set custom threshold to 70%
-      process.env.PLAGIARISM_REJECT_THRESHOLD = '70';
+    it('should honor a zero threshold from system settings', async () => {
+      vi.spyOn(settingsService, 'getPlagiarismThreshold').mockResolvedValue(0);
 
-      // Force deterministic fallback-to-env behavior when dynamic profiles are enabled.
-      vi.spyOn(agentRuntimeConfigService, 'getActiveProfile').mockResolvedValue({
-        profile: {
-          settings: {
-            thresholds: {
-              plagiarism: {
-                rejectPercent: null,
-              },
-            },
-          },
-        },
+      await PlagiarismResult.create({
+        submissionId: submission._id,
+        taskId: 'test-task-zero',
+        status: PLAGIARISM_STATUSES.COMPLETED,
+        similarityPercentage: 30.0,
+        checkedAt: new Date(),
+        completedAt: new Date(),
       });
+
+      await expect(
+        submissionService.reviewSubmission(submission._id, adviserUser._id, {
+          status: SUBMISSION_STATUSES.APPROVED,
+        }),
+      ).rejects.toThrow('Plagiarism score (30.0%) exceeds threshold (0%)');
+    });
+
+    it('should fall back to the environment when settings lookup fails', async () => {
+      process.env.PLAGIARISM_REJECT_THRESHOLD = '70';
+      vi.spyOn(settingsService, 'getPlagiarismThreshold').mockRejectedValue(
+        new Error('settings unavailable'),
+      );
 
       // Create plagiarism result with 65% similarity (below new threshold)
       await PlagiarismResult.create({

@@ -26,6 +26,7 @@ import storageService from '../../services/storage.index.js';
 import googleDriveReviewService from '../../services/google-drive-review.service.js';
 import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
+import settingsService from '../settings/settings.service.js';
 import env from '../../config/env.js';
 import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
@@ -503,6 +504,15 @@ class SubmissionService {
    * @returns {Promise<number>}
    */
   async _getPlagiarismRejectThreshold() {
+    try {
+      const settingsThreshold = await settingsService.getPlagiarismThreshold();
+      if (Number.isFinite(Number(settingsThreshold))) {
+        return Number(settingsThreshold);
+      }
+    } catch {
+      // Fall through to legacy runtime/env configuration.
+    }
+
     const envThreshold =
       Number(process.env.PLAGIARISM_REJECT_THRESHOLD) ||
       Number(env.PLAGIARISM_REJECT_THRESHOLD) ||
@@ -2295,22 +2305,6 @@ class SubmissionService {
           project.capstonePhase === 1
         ) {
           project.capstonePhase = 2;
-        } else if (
-          project.capstonePhase === 2 &&
-          ['system_design', 'test_results'].includes(submission.type)
-        ) {
-          // Check if the OTHER requirement is already approved/locked
-          const otherType = submission.type === 'system_design' ? 'test_results' : 'system_design';
-          const otherApproved = await Submission.exists({
-            projectId: project._id,
-            type: otherType,
-            status: {
-              $in: [SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.LOCKED, 'approved', 'locked'],
-            },
-          });
-          if (otherApproved) {
-            project.capstonePhase = 3;
-          }
         } else if (
           project.capstonePhase === 3 &&
           submission.type === 'chapter' &&

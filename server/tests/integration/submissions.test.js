@@ -474,7 +474,7 @@ describe('Submissions API — /api/submissions', () => {
         .attach('file', createPdfBuffer(), 'chapter4.pdf');
 
       expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('PROPOSAL_NOT_APPROVED');
+      expect(res.body.error.code).toBe('CAPSTONE2_NOT_COMPLETED');
     });
 
     it('should reject chapter upload with an invalid prototype link', async () => {
