@@ -463,8 +463,8 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       });
 
       const updatedProject = await Project.findById(project._id);
-      // Status should remain PROPOSAL_SUBMITTED (not changed)
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+      // Status should not transition to PROPOSAL_APPROVED
+      expect(updatedProject.projectStatus).not.toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
   });
 

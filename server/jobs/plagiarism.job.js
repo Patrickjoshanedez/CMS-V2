@@ -450,6 +450,24 @@ async function processJob(job) {
 
   console.log(`[Plagiarism Worker] Processing job ${job.id} for submission ${submissionId}`);
 
+  const targetSubmission = await Submission.findById(submissionId).select('submittedBy').lean();
+  const studentId = targetSubmission?.submittedBy?.toString();
+  const emitProgress = (percent, stage) => {
+    if (studentId) {
+      try {
+        emitToUser(studentId, 'plagiarism:progress', {
+          submissionId,
+          percent,
+          stage,
+        });
+      } catch {
+        // Non-blocking socket notification
+      }
+    }
+  };
+
+  emitProgress(10, 'Downloading submission file...');
+
   // Update status to processing
   await Submission.findByIdAndUpdate(submissionId, {
     'plagiarismResult.status': PLAGIARISM_STATUSES.PROCESSING,
@@ -482,6 +500,7 @@ async function processJob(job) {
       storageKey,
       fileType,
     });
+    emitProgress(30, 'Extracting text and validating binary header...');
     extractedText = await extractText(fileBuffer, effectiveFileType);
   }
 
@@ -546,6 +565,8 @@ async function processJob(job) {
 
   // Store extracted text for future corpus building
   await Submission.findByIdAndUpdate(submissionId, { extractedText: normalizedExtractedText });
+
+  emitProgress(50, 'Generating winnowing fingerprints & searching corpus...');
 
   // Step 3: Deterministic database-backed plagiarism check
   let result = await calculatePlagiarism(normalizedExtractedText, submissionId);
@@ -655,6 +676,8 @@ async function processJob(job) {
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
+
+  emitProgress(100, 'Plagiarism scan complete');
 
   // Step 5: Index final/approved submissions into inverted-index corpus.
   const shouldIndexSubmission =

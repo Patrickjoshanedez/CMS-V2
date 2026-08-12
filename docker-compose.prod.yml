@@ -437,9 +437,55 @@ services:
       - /tmp
     logging: *default-logging
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cms-ollama-prod
+    restart: unless-stopped
+    init: true
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        ollama serve &
+        OLLAMA_PID=$$!
+
+        echo "Waiting for Ollama API..."
+        until ollama list > /dev/null 2>&1; do
+          sleep 1
+        done
+        echo "Ollama API ready."
+
+        echo "Ensuring model: nomic-embed-text-v2-moe:latest ..."
+        ollama pull nomic-embed-text-v2-moe:latest || echo "WARN: nomic-embed pull failed (non-fatal)"
+
+        echo "Ensuring model: llama3.2:3b ..."
+        ollama pull llama3.2:3b || echo "WARN: llama3.2 pull failed (non-fatal)"
+
+        echo "All AI models ready."
+        wait $$OLLAMA_PID
+    volumes:
+      - ollama_prod_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
 volumes:
   mongodb_prod_data:
   redis_prod_data:
   chromadb_prod_data:
   ngrok_prod_data:
   localstack_prod_data:
+  ollama_prod_data:

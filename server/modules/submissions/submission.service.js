@@ -2299,20 +2299,28 @@ class SubmissionService {
         project.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
         await project.save();
       } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
-        if (
-          (submission.type === 'proposal' ||
-            (submission.type === 'chapter' && submission.chapter === 3)) &&
+        if (submission.type === 'proposal') {
+          project.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
+          if (project.capstonePhase === 1) {
+            project.capstonePhase = 2;
+          }
+        } else if (
+          submission.type === 'chapter' &&
+          submission.chapter === 3 &&
           project.capstonePhase === 1
         ) {
           project.capstonePhase = 2;
+          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         } else if (
           project.capstonePhase === 3 &&
           submission.type === 'chapter' &&
           submission.chapter === 5
         ) {
           project.capstonePhase = 4;
+          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+        } else {
+          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         }
-        project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         await project.save();
       }
     }

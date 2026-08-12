@@ -67,7 +67,7 @@ COPY --from=builder /app/.venv /app/.venv
 COPY plagiarism_engine/ /app/plagiarism_engine/
 
 # Create directories for ChromaDB persistence and model cache
-RUN mkdir -p /app/chroma_store /app/.cache/torch/sentence_transformers \
+RUN mkdir -p /app/chroma_store /app/.cache/huggingface /app/.cache/torch \
     && chown -R appuser:appuser /app
 
 # Make the venv the default Python
@@ -77,6 +77,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     HF_HOME="/app/.cache/huggingface" \
     TORCH_HOME="/app/.cache/torch"
+
+# Pre-download and cache default sentence transformer AI model (all-MiniLM-L6-v2)
+RUN /app/.venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
+    && chown -R appuser:appuser /app/.cache
 
 # Switch to non-root user
 USER appuser

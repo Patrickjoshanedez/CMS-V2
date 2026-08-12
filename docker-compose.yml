@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -124,7 +124,7 @@ services:
       context: ./plagiarism_engine
       dockerfile: Dockerfile
       args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
     container_name: cms-plagiarism-worker
     restart: unless-stopped
     init: true
@@ -160,7 +160,7 @@ services:
       context: ./plagiarism_engine
       dockerfile: Dockerfile
       args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
     container_name: cms-plagiarism-api
     restart: unless-stopped
     init: true
@@ -245,8 +245,12 @@ services:
       PLAGIARISM_POLL_INTERVAL: "2000"
       PLAGIARISM_POLL_MAX_ATTEMPTS: "60"
       PLAGIARISM_RESULTS_TTL: "7776000"
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      PLAGIARISM_OLLAMA_EMBED_MODEL: ${PLAGIARISM_OLLAMA_EMBED_MODEL:-nomic-embed-text-v2-moe:latest}
+      PDF_METADATA_GLM_MODEL: ${PDF_METADATA_GLM_MODEL:-llama3.2:3b}
     ports:
-      - "5000:5000"
+      - "43210:43210"
+      - "5000:43210"
     volumes:
       - .:/app
       - ./uploads:/app/uploads
@@ -278,6 +282,7 @@ services:
         condition: service_healthy
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:43210/api}
+      VITE_API_PROXY_TARGET: http://server:43210
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "43211:43211"
@@ -287,13 +292,36 @@ services:
       - server_node_modules:/app/server/node_modules
       - client_node_modules:/app/client/node_modules
       - shared_node_modules:/app/shared/node_modules
-    command: npm run dev:client -- --host 0.0.0.0 --port 43211 --strictPort
+    command: sh -c "cd /app/client && npx vite --host 0.0.0.0 --port 43211 --strictPort"
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:43211" ]
       interval: 20s
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cms-ollama
+    restart: unless-stopped
+    init: true
+    ports:
+      - "11434:11434"
+    entrypoint:
+      - /bin/bash
+      - /entrypoint.sh
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./entrypoint.sh:/entrypoint.sh
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     logging: *default-logging
     networks:
       - cms_network
@@ -306,6 +334,8 @@ volumes:
   plagiarism_chroma:
     driver: local
   plagiarism_models:
+    driver: local
+  ollama_data:
     driver: local
   workspace_node_modules:
   server_node_modules:

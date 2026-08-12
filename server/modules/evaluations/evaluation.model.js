@@ -143,6 +143,7 @@ const evaluationSchema = new mongoose.Schema(
 evaluationSchema.index({ projectId: 1, panelistId: 1, defenseType: 1 }, { unique: true });
 // Quick lookup: all evaluations for a project
 evaluationSchema.index({ projectId: 1, defenseType: 1 });
+evaluationSchema.index({ projectId: 1, defenseType: 1, isReleased: 1 });
 // Panelist's evaluations
 evaluationSchema.index({ panelistId: 1, status: 1 });
 
