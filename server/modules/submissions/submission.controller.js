@@ -9,8 +9,9 @@
  * All handlers are wrapped in catchAsync for automatic error forwarding.
  */
 import submissionService from './submission.service.js';
+import Comment from './comment.model.js';
 import catchAsync from '../../utils/catchAsync.js';
-import { HTTP_STATUS } from '@cms/shared';
+import { HTTP_STATUS, ROLES } from '@cms/shared';
 
 /* ═══════════════════ Upload ═══════════════════ */
 
@@ -402,5 +403,78 @@ export const getSubmissionVersions = catchAsync(async (req, res) => {
     success: true,
     message: 'Versions retrieved.',
     data: { versions },
+  });
+});
+
+/* ═══════════════════ Inline Document Comments ═══════════════════ */
+
+/** POST /api/submissions/:submissionId/comments — Create inline highlight comment */
+export const createSubmissionComment = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+  const { pageNumber, coordinates, highlightText, commentText } = req.body;
+
+  const authorName =
+    [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
+
+  const comment = await Comment.create({
+    submissionId,
+    authorId: req.user._id,
+    authorName,
+    pageNumber: Number(pageNumber) || 1,
+    coordinates: coordinates || { x: 0, y: 0, width: 0, height: 0 },
+    highlightText: highlightText || '',
+    commentText,
+  });
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Inline comment created.',
+    data: { comment },
+  });
+});
+
+/** GET /api/submissions/:submissionId/comments — Get inline comments for submission */
+export const getSubmissionComments = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+  const { pageNumber } = req.query;
+
+  const query = { submissionId };
+  if (pageNumber) query.pageNumber = Number(pageNumber);
+
+  const comments = await Comment.find(query).sort({ pageNumber: 1, createdAt: 1 });
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { comments },
+  });
+});
+
+/** DELETE /api/submissions/:submissionId/comments/:commentId — Delete inline comment */
+export const deleteSubmissionComment = catchAsync(async (req, res) => {
+  const { commentId } = req.params;
+  const comment = await Comment.findById(commentId);
+
+  if (!comment) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment not found.',
+    });
+  }
+
+  const isOwner = comment.authorId.toString() === req.user._id.toString();
+  const isFaculty = req.user.role === ROLES.INSTRUCTOR || req.user.role === ROLES.ADMIN;
+
+  if (!isOwner && !isFaculty) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({
+      success: false,
+      message: 'Not authorized to delete this comment.',
+    });
+  }
+
+  await Comment.findByIdAndDelete(commentId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Comment deleted.',
   });
 });

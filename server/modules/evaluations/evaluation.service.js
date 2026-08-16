@@ -415,6 +415,35 @@ class EvaluationService {
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
     return { evaluation };
   }
+
+  /**
+   * Grade Visibility Guard — Retrieve consolidated defense grades for students.
+   * Locked until all assigned panelists have submitted their criteria ratings and remarks.
+   */
+  async getStudentConsolidatedGrades(user, projectId, defenseType = 'proposal') {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    const expectedEvaluatorCount =
+      (project.panelists || []).length || (project.panelistIds || []).length || 1;
+
+    // Fetch submitted or released evaluations
+    const submittedEvaluations = await Evaluation.find({
+      projectId,
+      defenseType,
+      status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
+    });
+
+    if (user.role === ROLES.STUDENT && submittedEvaluations.length < expectedEvaluatorCount) {
+      throw new AppError(
+        'Defense results and grading rubrics are locked. Scores will be made visible once all panel members have submitted their criteria ratings and final remarks.',
+        403,
+        'GRADES_LOCKED_PENDING_PANEL_COMPLETION',
+      );
+    }
+
+    return this.getProjectEvaluations(user, projectId, defenseType);
+  }
 }
 
 export default new EvaluationService();

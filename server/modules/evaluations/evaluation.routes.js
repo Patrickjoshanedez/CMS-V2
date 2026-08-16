@@ -32,6 +32,16 @@ router.use(authenticate);
 /* ────── Shared read routes (must come before parameterized catch-alls) ────── */
 
 /**
+ * GET /project/:projectId/consolidated-grades
+ * Grade Visibility Guard: Get consolidated defense grades for students.
+ */
+router.get(
+  '/project/:projectId/consolidated-grades',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  evaluationController.getStudentConsolidatedGrades,
+);
+
+/**
  * GET /project/:projectId/:defenseType
  * List all evaluations for a project's defense.
  * Faculty see all; students see only released evaluations.
@@ -64,7 +74,6 @@ router.get(
   validate(evaluationIdParamSchema, 'params'),
   evaluationController.downloadEvaluationReportPdf,
 );
-
 
 /* ────── Panelist routes ────── */
 

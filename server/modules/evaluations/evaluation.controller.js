@@ -124,3 +124,20 @@ export const downloadEvaluationReportPdf = catchAsync(async (req, res) => {
   res.send(Buffer.from(pdfBytes));
 });
 
+/** GET /api/evaluations/project/:projectId/consolidated-grades — Grade Visibility Guard */
+export const getStudentConsolidatedGrades = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const { defenseType } = req.query;
+
+  const result = await evaluationService.getStudentConsolidatedGrades(
+    req.user,
+    projectId,
+    defenseType || 'proposal',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    status: 'grades_released',
+    data: result,
+  });
+});

@@ -47,6 +47,14 @@ export const submissionAnnotationParamSchema = z.object({
   annotationId: objectIdField,
 });
 
+/**
+ * Validate :submissionId + :commentId URL parameters together.
+ */
+export const submissionCommentParamSchema = z.object({
+  submissionId: objectIdField,
+  commentId: objectIdField,
+});
+
 /* ═══════════════════ Body ═══════════════════ */
 
 /**

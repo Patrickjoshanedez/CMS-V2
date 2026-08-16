@@ -238,6 +238,42 @@ const titleProposalCommentThreadSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const actionDoneMatrixItemSchema = new mongoose.Schema(
+  {
+    panelName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    suggestion: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    expectedAction: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    actionDone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'addressed', 'verified', 'rejected'],
+      default: 'pending',
+    },
+    remarks: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+  },
+  { _id: true },
+);
+
 const titleProposalMetadataSchema = new mongoose.Schema(
   {
     title: {
@@ -630,6 +666,27 @@ const projectSchema = new mongoose.Schema(
     driveFolderId: {
       type: String,
       default: null,
+    },
+    // --- Capstone Course Stream & Action Done Matrix (ADM) ---
+    capstoneCourse: {
+      type: String,
+      enum: ['Capstone 1', 'Capstone 2', 'Capstone 3'],
+      default: 'Capstone 1',
+    },
+    admStatus: {
+      type: String,
+      enum: [
+        'not_started',
+        'awaiting_minutes_upload',
+        'pending_developer_action',
+        'under_panel_review',
+        'approved',
+      ],
+      default: 'not_started',
+    },
+    actionDoneMatrix: {
+      type: [actionDoneMatrixItemSchema],
+      default: [],
     },
   },
   {

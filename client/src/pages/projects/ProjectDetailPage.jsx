@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -36,8 +36,9 @@ import {
   Settings,
   ShieldAlert,
   Search,
-  Trash2,
+  Archive,
   UserPlus,
+  ChevronLeft,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -80,6 +81,45 @@ function parseProposalMetadata(metadata, abstract) {
     targetBeneficiaries: 'Primary users and stakeholders impacted by this research.',
   };
 }
+
+export function resolveArchiveBackContext(stateOrObj = {}, search = '', role = '') {
+  let state = stateOrObj;
+  let searchStr = search;
+  let roleStr = role;
+
+  if (
+    stateOrObj &&
+    typeof stateOrObj === 'object' &&
+    ('state' in stateOrObj || 'search' in stateOrObj || 'role' in stateOrObj)
+  ) {
+    state = stateOrObj.state || {};
+    searchStr = stateOrObj.search || '';
+    roleStr = stateOrObj.role || '';
+  }
+
+  const fromState = Boolean(state?.fromArchive || state?.returnTo?.includes('/archive'));
+  const fromSearch = typeof searchStr === 'string' && searchStr.includes('from=archive');
+
+  if (fromState || fromSearch) {
+    return {
+      fromArchive: true,
+      backDestination: state?.returnTo || '/archive',
+      backLabel: 'Back to Search Results',
+    };
+  }
+
+  let backLabel = 'Back to Projects';
+  if (roleStr === 'instructor') backLabel = 'Back to Instructor Review';
+  if (roleStr === 'adviser') backLabel = 'Back to Adviser Dashboard';
+
+  return {
+    fromArchive: false,
+    backDestination: '/projects',
+    backLabel,
+  };
+}
+
+export const resolveProjectBackNav = resolveArchiveBackContext;
 
 /* ────────── Sub-components ────────── */
 
@@ -279,9 +319,9 @@ function FacultyWidget({ project, canManage }) {
                         removePanelist.mutate({ projectId: project._id, panelistId: p._id || p })
                       }
                       disabled={removePanelist.isPending}
-                      title="Remove panelist"
+                      title="Unassign panelist"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Archive className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -612,7 +652,9 @@ function ModificationReviewCard({ project }) {
 
 export default function ProjectDetailPage() {
   const { id: projectId } = useParams();
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const user = useAuthStore((state) => state?.user);
 
   const { data: project, isLoading, error } = useProject(projectId);
   const { data: submissionsData } = useProjectSubmissions(
@@ -639,6 +681,12 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const { backDestination, backLabel } = resolveProjectBackNav({
+    state: location.state,
+    search: location.search,
+    role: user?.role,
+  });
+
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const isAssignedAdviser =
     user?.role === ROLES.ADVISER &&
@@ -663,19 +711,58 @@ export default function ProjectDetailPage() {
     avgScore = `${Math.round(totalScore / totalEvals)}%`;
   }
 
+  const isArchived = project.isArchived || project.projectStatus === 'archived';
+  const defaultTab = isArchived ? 'final' : 'proposal';
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background text-foreground">
         <div className="p-6 max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           {/* Main Workspace (Left - 70%) */}
           <div className="xl:col-span-8 space-y-6">
+            <div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(backDestination)}
+                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {backLabel}
+              </Button>
+            </div>
             <div className="bg-card rounded-2xl p-4 border border-border shadow-sm mb-6">
               <WorkflowPhaseTracker project={project} />
             </div>
 
+            {isArchived && (
+              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-card-foreground">
+                      Archived Capstone Record — Read-Only Mode
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      This project has been archived. Metadata adjustments are restricted; directly
+                      viewing final manuscript papers and evaluation reports.
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 text-primary uppercase font-bold text-[10px] px-2.5 py-1"
+                >
+                  Archived Paper
+                </Badge>
+              </div>
+            )}
+
             <ProjectTitleCard project={project} />
 
-            <Tabs defaultValue="proposal" className="w-full">
+            <Tabs defaultValue={defaultTab} className="w-full">
               <div className="border-b border-border mb-6">
                 <TabsList className="bg-transparent p-0 gap-6 h-auto">
                   <WorkflowTabTrigger value="proposal" icon={FileText} label="Proposals" />
@@ -860,7 +947,9 @@ export default function ProjectDetailPage() {
 
 export function formatCitation(project, style = 'apa', authors = []) {
   const authorStr = authors.join(', ');
-  const year = project?.academicYear ? project.academicYear.split('-').pop() : new Date().getFullYear();
+  const year = project?.academicYear
+    ? project.academicYear.split('-').pop()
+    : new Date().getFullYear();
   const course = project?.courseId?.name || 'BS Information Technology';
   const adviser = project?.adviserId ? getFullName(project.adviserId) : '';
   const adviserText = adviser ? ` Adviser: ${adviser}.` : '';
@@ -875,29 +964,6 @@ export function formatCitation(project, style = 'apa', authors = []) {
     return `${authorStr}. "${project?.title || 'Untitled'}." ${course}, ${year}.${adviserText}`;
   }
   return `${authorStr} (${year}). ${project?.title}.`;
-}
-
-export function resolveArchiveBackContext(state = {}, search = '', role = '') {
-  const fromState = state?.fromArchive || state?.returnTo?.includes('/archive');
-  const fromSearch = typeof search === 'string' && search.includes('from=archive');
-
-  if (fromState || fromSearch) {
-    return {
-      fromArchive: true,
-      backDestination: state?.returnTo || '/archive',
-      backLabel: 'Back to Search Results',
-    };
-  }
-
-  let backLabel = 'Back to Projects';
-  if (role === 'instructor') backLabel = 'Back to Instructor Review';
-  if (role === 'adviser') backLabel = 'Back to Adviser Dashboard';
-
-  return {
-    fromArchive: false,
-    backDestination: '/projects',
-    backLabel,
-  };
 }
 
 export function ProjectHistoryCard({ projectId }) {
@@ -945,4 +1011,3 @@ export function ProjectHistoryCard({ projectId }) {
     </Card>
   );
 }
-

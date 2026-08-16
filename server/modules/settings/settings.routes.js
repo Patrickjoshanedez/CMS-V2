@@ -3,6 +3,8 @@ import * as settingsController from './settings.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import auditLog from '../../middleware/auditLog.js';
+import validate from '../../middleware/validate.js';
+import { updateSettingsSchema } from './settings.validation.js';
 import { ROLES } from '@cms/shared';
 
 const router = Router();
@@ -26,6 +28,7 @@ router.get('/', settingsController.getSettings);
 router.put(
   '/',
   authorize(ROLES.INSTRUCTOR),
+  validate(updateSettingsSchema),
   auditLog('settings.updated', 'Settings', {
     getTargetId: () => 'global',
     getDescription: () => 'Updated system settings',

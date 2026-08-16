@@ -11,6 +11,7 @@
  */
 import { Router } from 'express';
 import * as submissionController from './submission.controller.js';
+import { extractMinutesToADM } from './secretary.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
@@ -24,6 +25,7 @@ import {
   submissionIdParamSchema,
   projectChapterParamSchema,
   submissionAnnotationParamSchema,
+  submissionCommentParamSchema,
   uploadChapterSchema,
   compileProposalSchema,
   finalPaperSchema,
@@ -400,6 +402,54 @@ router.get(
   '/project/:projectId/chapters/:chapter/latest',
   validate(projectChapterParamSchema, 'params'),
   submissionController.getLatestChapterSubmission,
+);
+
+/**
+ * POST /secretary-minutes
+ * Parse uploaded secretary defense minutes PDF via Ollama and auto-generate ADM.
+ */
+router.post(
+  '/secretary-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  extractMinutesToADM,
+);
+
+/* ────── Inline Document Comments & Canvas Overlays ────── */
+
+/**
+ * POST /:submissionId/comments
+ * Create an inline highlight annotation/comment on a document submission.
+ */
+router.post(
+  '/:submissionId/comments',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.createSubmissionComment,
+);
+
+/**
+ * GET /:submissionId/comments
+ * Fetch all inline comments/highlights for a submission.
+ */
+router.get(
+  '/:submissionId/comments',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionComments,
+);
+
+/**
+ * DELETE /:submissionId/comments/:commentId
+ * Delete an inline comment.
+ */
+router.delete(
+  '/:submissionId/comments/:commentId',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionCommentParamSchema, 'params'),
+  submissionController.deleteSubmissionComment,
 );
 
 export default router;

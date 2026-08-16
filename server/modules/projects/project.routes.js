@@ -382,6 +382,29 @@ router.post(
   projectController.selectAsPanelist,
 );
 
+/* ────── Action Done Matrix (ADM) & Stream Routing routes ────── */
+
+// Capstone 2 Direct-to-ADM Stream Routing
+router.post(
+  '/:projectId/stream-routing',
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADMIN),
+  projectController.handleProjectStream,
+);
+
+// Get Action Done Matrix for a project
+router.get(
+  '/:projectId/action-done-matrix',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  projectController.getActionDoneMatrix,
+);
+
+// Update single Action Done Matrix row item
+router.patch(
+  '/:projectId/action-done-matrix/:itemId',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  projectController.updateActionDoneMatrixItem,
+);
+
 /* ────── Faculty shared routes ────── */
 
 // Get a single project (any authenticated faculty or the owning team)

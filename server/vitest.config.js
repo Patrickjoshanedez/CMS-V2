@@ -13,5 +13,9 @@ export default defineConfig({
     hookTimeout: 120000, // Extended for slow beforeEach with multiple user/team setups in integration tests
     // Run tests sequentially — shared in-memory DB
     fileParallelism: false,
+    pool: 'forks',
+    forks: {
+      singleFork: true,
+    },
   },
 });

@@ -40,6 +40,11 @@ vi.mock('sonner', () => ({
   Toaster: () => null,
 }));
 
+vi.mock('./components/plagiarism/PlagiarismProgressModal', () => ({
+  PlagiarismProgressModal: () => null,
+  default: () => null,
+}));
+
 vi.mock('./pages/ForbiddenPage', () => ({
   default: () => <div>403 Forbidden Route</div>,
 }));

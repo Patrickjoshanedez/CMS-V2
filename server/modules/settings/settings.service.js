@@ -110,6 +110,24 @@ class SettingsService {
   }
 
   /**
+   * Retrieve the active plagiarism reject threshold (as a percentage 0-100).
+   * @returns {Promise<number>}
+   */
+  async getPlagiarismThreshold() {
+    const settings = await SystemSettings.getSettings();
+    if (
+      settings?.plagiarismRejectThreshold !== undefined &&
+      settings?.plagiarismRejectThreshold !== null
+    ) {
+      return Number(settings.plagiarismRejectThreshold);
+    }
+    if (settings?.plagiarismThreshold !== undefined && settings?.plagiarismThreshold !== null) {
+      return Number(settings.plagiarismThreshold);
+    }
+    return 50;
+  }
+
+  /**
    * Notify all active users that system settings have changed.
    * @param {string[]} changedFields
    * @returns {Promise<void>}

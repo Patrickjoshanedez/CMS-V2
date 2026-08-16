@@ -5,7 +5,18 @@ import { dashboardService } from '../../services/dashboardService';
 import { useDashboard } from '@/hooks/useDashboard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Loader2, Plus, Users, ClipboardCheck, Bell, Activity } from 'lucide-react';
+import {
+  Loader2,
+  Plus,
+  Users,
+  ClipboardCheck,
+  Bell,
+  Activity,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
 
 const VIEW_MODES = {
   ADVISER: 'adviser',
@@ -227,6 +238,50 @@ export default function FacultyDashboard({ user }) {
         </div>
       </div>
 
+      {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
+      {(() => {
+        const isPeriodLocked =
+          ds?.isSystemLocked ??
+          (assignedProjects.length > 0 && assignedProjects.every((p) => p.isLocked));
+        return (
+          <div
+            className={`flex items-center justify-between rounded-lg border px-4 py-2.5 shadow-sm transition-all ${
+              isPeriodLocked
+                ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
+                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                  isPeriodLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                }`}
+              >
+                {isPeriodLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-wider">
+                  {isPeriodLocked
+                    ? 'Team Rosters & Submissions: Locked'
+                    : 'Submission & Group Formation: Active'}
+                </span>
+                <span className="text-[11px] opacity-85">
+                  {isPeriodLocked
+                    ? 'Modifications and team roster changes are restricted by faculty administration.'
+                    : 'Students may form groups (2-4 members) and submit manuscript deliverables for panel evaluation.'}
+                </span>
+              </div>
+            </div>
+            <Badge
+              variant={isPeriodLocked ? 'destructive' : 'success'}
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+            >
+              {isPeriodLocked ? 'Locked' : 'Open'}
+            </Badge>
+          </div>
+        );
+      })()}
+
       {mode === VIEW_MODES.ADVISER && (
         <div className="flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">
           {/* Micro-Stat Grid for Adviser */}
@@ -280,7 +335,10 @@ export default function FacultyDashboard({ user }) {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                       <span className="font-medium text-foreground/80">
-                        IT Field of Discipline: {Array.isArray(p.capstoneType) ? p.capstoneType.join(', ') : (p.capstoneType || 'IT / Software')}
+                        IT Field of Discipline:{' '}
+                        {Array.isArray(p.capstoneType)
+                          ? p.capstoneType.join(', ')
+                          : p.capstoneType || 'IT / Software'}
                       </span>
                       {p.githubUrl && (
                         <a
@@ -339,16 +397,28 @@ export default function FacultyDashboard({ user }) {
               {selectedTeam ? (
                 <div className="space-y-3 text-xs">
                   <div>
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">Project:</span>
-                    <p className="font-medium text-foreground mt-0.5">{selectedTeam.title || 'Untitled'}</p>
+                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                      Project:
+                    </span>
+                    <p className="font-medium text-foreground mt-0.5">
+                      {selectedTeam.title || 'Untitled'}
+                    </p>
                   </div>
                   <div>
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">IT Field of Discipline:</span>
-                    <p className="text-foreground mt-0.5">{Array.isArray(selectedTeam.capstoneType) ? selectedTeam.capstoneType.join(', ') : (selectedTeam.capstoneType || 'Information Technology')}</p>
+                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                      IT Field of Discipline:
+                    </span>
+                    <p className="text-foreground mt-0.5">
+                      {Array.isArray(selectedTeam.capstoneType)
+                        ? selectedTeam.capstoneType.join(', ')
+                        : selectedTeam.capstoneType || 'Information Technology'}
+                    </p>
                   </div>
                   {selectedTeam.githubUrl && (
                     <div>
-                      <span className="font-semibold text-muted-foreground uppercase text-[10px]">Repository:</span>
+                      <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                        Repository:
+                      </span>
                       <p className="mt-0.5">
                         <a
                           href={selectedTeam.githubUrl}
@@ -362,12 +432,25 @@ export default function FacultyDashboard({ user }) {
                     </div>
                   )}
                   <div className="border-t pt-2 space-y-2">
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">Members ({selectedTeam.members?.length || selectedTeam.memberRoles?.length || 0}):</span>
+                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                      Members (
+                      {selectedTeam.members?.length || selectedTeam.memberRoles?.length || 0}):
+                    </span>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {(selectedTeam.members || selectedTeam.memberRoles || []).map((m, idx) => (
-                        <div key={m._id || idx} className="p-2 rounded bg-muted/30 border border-border/50 flex flex-col gap-0.5">
-                          <span className="font-bold text-foreground">{m.fullName || m.name || m.userId?.fullName || `Member ${idx + 1}`}</span>
-                          <span className="text-[10px] text-muted-foreground">{m.role || m.traditionalRole || m.professionalTitle || 'Student Proponent'}</span>
+                        <div
+                          key={m._id || idx}
+                          className="p-2 rounded bg-muted/30 border border-border/50 flex flex-col gap-0.5"
+                        >
+                          <span className="font-bold text-foreground">
+                            {m.fullName || m.name || m.userId?.fullName || `Member ${idx + 1}`}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {m.role ||
+                              m.traditionalRole ||
+                              m.professionalTitle ||
+                              'Student Proponent'}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -375,7 +458,8 @@ export default function FacultyDashboard({ user }) {
                 </div>
               ) : (
                 <div className="py-8 text-center text-xs text-muted-foreground">
-                  Select a handled team on the left to view member roster, roles, and repository details.
+                  Select a handled team on the left to view member roster, roles, and repository
+                  details.
                 </div>
               )}
             </div>

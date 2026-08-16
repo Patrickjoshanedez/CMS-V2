@@ -8,6 +8,8 @@ import {
 } from '../../utils/proposalSimilarity.js';
 import { checkOriginality } from '../../services/plagiarism.service.js';
 import Project from './project.model.js';
+import Notification from '../notifications/notification.model.js';
+import { emitToUser } from '../../services/socket.service.js';
 
 function buildProposalText({
   title,
@@ -557,5 +559,127 @@ export const updateDemoVideoUrl = catchAsync(async (req, res) => {
     success: true,
     message: 'Demo video URL updated.',
     data: { project },
+  });
+});
+
+/** POST /api/projects/:projectId/stream-routing — Route Capstone 1 vs Capstone 2 streams */
+export const handleProjectStream = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const project = await Project.findById(projectId);
+
+  if (!project) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Project not found.',
+    });
+  }
+
+  const targetCourse = req.body?.capstoneCourse || project.capstoneCourse;
+  if (targetCourse) {
+    project.capstoneCourse = targetCourse;
+  }
+
+  if (project.capstoneCourse === 'Capstone 2') {
+    // Bypass standard manuscript upload cycles (Proposal, Progress, Final)
+    project.projectStatus = 'active';
+    project.admStatus = 'awaiting_minutes_upload';
+    if (!project.actionDoneMatrix) {
+      project.actionDoneMatrix = [];
+    }
+    await project.save();
+
+    // Alert Adviser and Panelists if assigned
+    if (project.adviserId) {
+      const notif = await Notification.create({
+        userId: project.adviserId,
+        type: 'system',
+        title: 'Capstone 2 ADM Pipeline Activated',
+        message: `Project "${project.title}" has entered the Capstone 2 Action Done Matrix (ADM) pipeline.`,
+        metadata: { projectId: project._id, capstoneCourse: 'Capstone 2' },
+      });
+      emitToUser(project.adviserId, 'notification:new', notif);
+    }
+
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message:
+        'Capstone 2 stream detected. Manuscript uploads bypassed; routing directly to the Action Done Matrix module.',
+      project,
+    });
+  }
+
+  // Default Capstone 1 routing
+  project.projectStatus = 'active';
+  await project.save();
+  return res.status(HTTP_STATUS.OK).json({ success: true, project });
+});
+
+/** GET /api/projects/:projectId/action-done-matrix — Retrieve ADM rows */
+export const getActionDoneMatrix = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const project = await Project.findById(projectId).select(
+    'actionDoneMatrix admStatus capstoneCourse title',
+  );
+
+  if (!project) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Project not found.',
+    });
+  }
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: {
+      actionDoneMatrix: project.actionDoneMatrix || [],
+      admStatus: project.admStatus || 'not_started',
+      capstoneCourse: project.capstoneCourse,
+    },
+  });
+});
+
+/** PATCH /api/projects/:projectId/action-done-matrix/:itemId — Update single ADM item */
+export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
+  const { projectId, itemId } = req.params;
+  const { actionDone, status, remarks } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Project not found.',
+    });
+  }
+
+  const item = project.actionDoneMatrix.id(itemId);
+  if (!item) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'ADM row item not found.',
+    });
+  }
+
+  if (actionDone !== undefined) item.actionDone = actionDone;
+  if (status !== undefined) item.status = status;
+  if (remarks !== undefined) item.remarks = remarks;
+
+  // Check overall ADM completion
+  const allAddressed = project.actionDoneMatrix.every(
+    (row) => row.status === 'addressed' || row.status === 'verified',
+  );
+  if (allAddressed && project.actionDoneMatrix.length > 0) {
+    project.admStatus = 'under_panel_review';
+  }
+
+  await project.save();
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Action Done Matrix item updated.',
+    data: {
+      item,
+      actionDoneMatrix: project.actionDoneMatrix,
+      admStatus: project.admStatus,
+    },
   });
 });

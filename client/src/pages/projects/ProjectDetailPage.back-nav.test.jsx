@@ -157,6 +157,9 @@ describe('ProjectDetailPage back navigation', () => {
   });
 
   it('shows Back to Projects and navigates to /projects by default', () => {
+    mockUseAuthStore.mockImplementation((selector) =>
+      selector({ user: { _id: 'student-1', role: 'student' } }),
+    );
     mockUseLocation.mockReturnValue({
       state: {},
       search: '',

@@ -58,6 +58,11 @@ vi.mock('sonner', () => ({
   Toaster: () => null,
 }));
 
+vi.mock('./components/plagiarism/PlagiarismProgressModal', () => ({
+  PlagiarismProgressModal: () => null,
+  default: () => null,
+}));
+
 vi.mock('./pages/dashboard/DashboardPage', () => ({
   default: () => <div>Dashboard Route</div>,
 }));

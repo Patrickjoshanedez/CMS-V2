@@ -22,6 +22,11 @@ vi.mock('@/hooks/useUsers', () => ({
   useInstructors: (...args) => mockUseInstructors(...args),
 }));
 
+vi.mock('@/hooks/useSettings', () => ({
+  useSettings: () => ({ data: { maxFileSize: 10 * 1024 * 1024 } }),
+  useUpdateSettings: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div>{children}</div>,
 }));

@@ -61,7 +61,7 @@ describe('getGoogleAuthRuntimeConfig', () => {
         VITE_ENABLE_GOOGLE_LOGIN: 'true',
         VITE_GOOGLE_ALLOWED_ORIGINS: 'http://localhost:43211,http://127.0.0.1:43211',
       },
-      currentOrigin: 'http://localhost:43211',
+      currentOrigin: 'http://localhost:5000',
     });
 
     expect(config.isMissingAllowedOriginsInDev).toBe(false);
