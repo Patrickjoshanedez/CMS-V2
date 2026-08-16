@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import PropTypes from 'prop-types';
 import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { ROLES } from '@cms/shared';
 import { buildTopSourceColorMap } from '../../hooks/useSubmissions';
 const logger = console;
@@ -151,11 +152,28 @@ const PlagiarismChecker = ({
   showMatchDetails = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState('similarity');
   const [corpusActionError, setCorpusActionError] = useState('');
   const pollingRef = useRef(null);
   const userRole = useAuthStore((state) => state.user?.role);
+  const {
+    plagiarismWarningThreshold = 15,
+    plagiarismRejectThreshold = 25,
+    getTemplateUrl,
+    fetchSettings,
+  } = useSettingsStore();
 
-  const canManageCorpus = userRole === ROLES.ADVISER || userRole === ROLES.INSTRUCTOR;
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const proposalTemplateUrl = getTemplateUrl('proposal_template');
+  const admTemplateUrl = getTemplateUrl('adm_form');
+
+  const canManageCorpus =
+    userRole === ROLES.ADVISER ||
+    userRole === ROLES.FACULTY ||
+    userRole === ROLES.INSTRUCTOR;
   const canSettleWithMock = canManageCorpus;
 
   // ───────────────────────────────────────────────────────────────────────
@@ -521,6 +539,65 @@ const PlagiarismChecker = ({
             </div>
           )}
 
+          {/* Template Resources Banner */}
+          {(proposalTemplateUrl || admTemplateUrl) && (
+            <div className="tw-flex tw-flex-wrap tw-items-center tw-justify-between tw-gap-2 tw-p-2.5 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded">
+              <span className="tw-text-xs tw-font-semibold tw-text-blue-900">
+                📄 Dynamic Department Document Templates:
+              </span>
+              <div className="tw-flex tw-gap-2">
+                {proposalTemplateUrl && (
+                  <a
+                    href={proposalTemplateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tw-text-xs tw-font-medium tw-text-blue-700 hover:tw-underline tw-bg-white tw-px-2 tw-py-1 tw-rounded tw-border tw-border-blue-300"
+                  >
+                    Proposal Manuscript Template ↗
+                  </a>
+                )}
+                {admTemplateUrl && (
+                  <a
+                    href={admTemplateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tw-text-xs tw-font-medium tw-text-emerald-700 hover:tw-underline tw-bg-white tw-px-2 tw-py-1 tw-rounded tw-border tw-border-emerald-300"
+                  >
+                    Action Done Matrix (ADM) ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dual-Pipeline Tabs: Exact Similarity (Winnowing) vs Semantic Plagiarism (PyTorch) */}
+          {hasResult && (
+            <div className="tw-flex tw-border-b tw-border-gray-200 tw-mb-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('similarity')}
+                className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
+                  activeTab === 'similarity'
+                    ? 'tw-border-blue-600 tw-text-blue-600'
+                    : 'tw-border-transparent tw-text-gray-500 hover:tw-text-gray-700'
+                }`}
+              >
+                🔤 Exact Text Similarity (Winnowing n-grams)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('plagiarism')}
+                className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
+                  activeTab === 'plagiarism'
+                    ? 'tw-border-purple-600 tw-text-purple-600'
+                    : 'tw-border-transparent tw-text-gray-500 hover:tw-text-gray-700'
+                }`}
+              >
+                🧠 Semantic Plagiarism (Neural Vector Embeddings)
+              </button>
+            </div>
+          )}
+
           {/* Result Display */}
           {hasResult && (
             <div className={`tw-p-4 tw-rounded tw-border ${getSimilarityBg(similarityPercentage)}`}>
@@ -528,7 +605,7 @@ const PlagiarismChecker = ({
               <div className="tw-mb-4">
                 <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
                   <span className="tw-text-sm tw-font-semibold tw-text-gray-900">
-                    Originality Score
+                    {activeTab === 'similarity' ? 'Exact Text Overlap Index' : 'Semantic Neural Originality Score'}
                   </span>
                   <span
                     className={`tw-text-2xl tw-font-bold ${getSimilarityColor(similarityPercentage)}`}
@@ -538,7 +615,9 @@ const PlagiarismChecker = ({
                 </div>
 
                 <p className="tw-text-xs tw-text-gray-600 tw-mb-2">
-                  Similarity equivalent: {similarityPercentage.toFixed(1)}%
+                  {activeTab === 'similarity'
+                    ? `Syntactic exact text overlap: ${similarityPercentage.toFixed(1)}% (Threshold: ${plagiarismWarningThreshold}%)`
+                    : `Dense vector cosine similarity: ${similarityPercentage.toFixed(1)}% (Reject cutoff: ${plagiarismRejectThreshold}%)`}
                 </p>
 
                 {/* Progress Bar */}

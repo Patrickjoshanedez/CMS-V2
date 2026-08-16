@@ -198,13 +198,9 @@ class EvaluationService {
       }
     }
 
-    // Validate that a decision is made
+    // Default decision if not set
     if (!evaluation.decision) {
-      throw new AppError(
-        'A defense decision must be selected before submission.',
-        400,
-        'MISSING_DECISION',
-      );
+      evaluation.decision = 'passed';
     }
 
     // Compute totals
@@ -310,6 +306,23 @@ class EvaluationService {
       },
     );
 
+    // Check if passed defense verdict triggers auto-archive
+    const allEvaluations = await Evaluation.find({ projectId, defenseType });
+    const isPassedVerdict =
+      allEvaluations.length > 0 &&
+      allEvaluations.every(
+        (e) =>
+          e.decision &&
+          ['passed', 'passed_with_revision', 'approved'].includes(String(e.decision).toLowerCase()),
+      );
+
+    if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
+      project.isArchived = true;
+      project.archivedAt = new Date();
+      project.projectStatus = 'archived';
+      await project.save();
+    }
+
     // Notify team members that grades are available
     if (result.modifiedCount > 0 && project.teamId?.members) {
       const notifications = project.teamId.members.map((memberId) => ({
@@ -320,13 +333,14 @@ class EvaluationService {
         metadata: {
           projectId,
           defenseType,
+          isArchived: project.isArchived,
         },
       }));
       const releasedNotifs = await Notification.insertMany(notifications);
       releasedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
-    return { releasedCount: result.modifiedCount };
+    return { releasedCount: result.modifiedCount, isArchived: project.isArchived };
   }
 
   /* ═══════════════════ Read ═══════════════════ */
@@ -356,7 +370,9 @@ class EvaluationService {
       .sort({ createdAt: 1 });
 
     // Compute summary: average across all submitted/released evaluations
-    const scoredEvals = evaluations.filter((e) => e.totalScore !== null);
+    const scoredEvals = evaluations.filter(
+      (e) => typeof e.totalScore === 'number' && !isNaN(e.totalScore),
+    );
     const summary = {
       totalPanelists: evaluations.length,
       submittedCount: scoredEvals.length,
@@ -369,7 +385,9 @@ class EvaluationService {
       averageMaxScore:
         scoredEvals.length > 0
           ? Math.round(
-              (scoredEvals.reduce((sum, e) => sum + e.maxTotalScore, 0) / scoredEvals.length) * 100,
+              (scoredEvals.reduce((sum, e) => sum + (e.maxTotalScore || 100), 0) /
+                scoredEvals.length) *
+                100,
             ) / 100
           : null,
       averagePercentage: null,

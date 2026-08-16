@@ -3,6 +3,7 @@ import { useAuthStore } from './stores/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from 'sonner';
 import { ROLES } from '@cms/shared';
+import { PlagiarismProgressModal } from './components/plagiarism/PlagiarismProgressModal';
 
 // Lazy-loaded page imports
 import { lazy, Suspense, useEffect, useRef } from 'react';
@@ -223,6 +224,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <Toaster richColors position="top-right" />
+      <PlagiarismProgressModal />
     </ThemeProvider>
   );
 }

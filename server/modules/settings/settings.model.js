@@ -1,18 +1,66 @@
 import mongoose from 'mongoose';
 
 /**
+ * Embedded schema for configurable document templates (Google Docs links, etc.)
+ */
+const documentTemplateSchema = new mongoose.Schema(
+  {
+    documentType: {
+      type: String,
+      required: [true, 'Document type is required'],
+      trim: true,
+    },
+    templateUrl: {
+      type: String,
+      required: [true, 'Template URL is required'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true },
+);
+
+/**
+ * Embedded schema for academic milestone deadlines
+ */
+const globalDeadlineSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, 'Deadline title is required'],
+      trim: true,
+    },
+    dueDate: {
+      type: Date,
+      required: [true, 'Due date is required'],
+    },
+    stage: {
+      type: String,
+      default: 'proposal',
+      trim: true,
+    },
+    academicYear: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+  },
+  { _id: true },
+);
+
+/**
  * SystemSettings model — stores global application configuration.
  *
  * Uses a singleton pattern: there is exactly one document in this collection,
- * identified by `key: 'global'`. The `getSettings()` static method uses
- * findOneAndUpdate with upsert to guarantee the document always exists.
- *
- * Configurable settings include:
- *   - plagiarismThreshold: minimum originality score for archiving (default 75%)
- *   - titleSimilarityThreshold: similarity cutoff for duplicate title detection (default 0.65)
- *   - maxFileSize: maximum upload file size in bytes (default 25MB)
- *   - systemAnnouncement: optional banner message displayed to all users
- *   - maintenanceMode: global maintenance gate toggle (default false)
+ * identified by `key: 'global'`.
  */
 const systemSettingsSchema = new mongoose.Schema(
   {
@@ -30,6 +78,18 @@ const systemSettingsSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    plagiarismWarningThreshold: {
+      type: Number,
+      default: Number(process.env.PLAGIARISM_WARNING_THRESHOLD) || 15,
+      min: 0,
+      max: 100,
+    },
+    plagiarismRejectThreshold: {
+      type: Number,
+      default: Number(process.env.PLAGIARISM_REJECT_THRESHOLD) || 25,
+      min: 0,
+      max: 100,
+    },
 
     // --- Title Similarity ---
     titleSimilarityThreshold: {
@@ -44,6 +104,31 @@ const systemSettingsSchema = new mongoose.Schema(
       type: Number,
       default: 25 * 1024 * 1024, // 25MB
       min: 1024, // 1KB minimum
+    },
+
+    // --- Dynamic Document Templates ---
+    documentTemplates: {
+      type: [documentTemplateSchema],
+      default: [
+        {
+          documentType: 'proposal_template',
+          templateUrl: 'https://docs.google.com/document/d/example-proposal',
+          description: 'Capstone 1 Proposal Manuscript Template',
+          lastUpdated: new Date(),
+        },
+        {
+          documentType: 'adm_form',
+          templateUrl: 'https://docs.google.com/document/d/example-adm',
+          description: 'Action Done Matrix (ADM) Official Template',
+          lastUpdated: new Date(),
+        },
+      ],
+    },
+
+    // --- Milestone Deadlines ---
+    deadlines: {
+      type: [globalDeadlineSchema],
+      default: [],
     },
 
     // --- System Announcement ---

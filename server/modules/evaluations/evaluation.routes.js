@@ -49,10 +49,22 @@ router.get(
  */
 router.get(
   '/detail/:evaluationId',
-  authorize(ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR, ROLES.FACULTY),
   validate(evaluationIdParamSchema, 'params'),
   evaluationController.getEvaluation,
 );
+
+/**
+ * GET /detail/:evaluationId/pdf
+ * Download official defense evaluation and similarity report PDF (FRINS6).
+ */
+router.get(
+  '/detail/:evaluationId/pdf',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR, ROLES.FACULTY),
+  validate(evaluationIdParamSchema, 'params'),
+  evaluationController.downloadEvaluationReportPdf,
+);
+
 
 /* ────── Panelist routes ────── */
 

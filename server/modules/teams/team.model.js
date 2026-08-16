@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const MAX_TEAM_MEMBERS = 4;
 const TEAM_MEMBER_ROLES = [
@@ -127,6 +128,8 @@ teamSchema.pre('validate', function () {
 /** Maximum number of members allowed per team */
 teamSchema.statics.MAX_MEMBERS = MAX_TEAM_MEMBERS;
 teamSchema.statics.MEMBER_ROLES = TEAM_MEMBER_ROLES;
+
+teamSchema.plugin(softDeletePlugin);
 
 const Team = mongoose.model('Team', teamSchema);
 

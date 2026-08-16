@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLES, ROLE_VALUES } from '@cms/shared';
+import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -92,6 +93,23 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    panelAssignments: [
+      {
+        projectId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Project',
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: {
+            values: PANEL_ROLE_VALUES,
+            message: 'Panel role must be one of: ' + PANEL_ROLE_VALUES.join(', '),
+          },
+          required: true,
+        },
+      },
+    ],
     createProjectDraft: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
@@ -163,6 +181,8 @@ userSchema.pre('save', async function () {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+userSchema.plugin(softDeletePlugin);
 
 const User = mongoose.model('User', userSchema);
 

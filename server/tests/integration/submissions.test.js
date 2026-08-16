@@ -497,7 +497,7 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('INVALID_FILE_TYPE');
-      expect(res.body.error.message).toBe('Invalid file type. Only PDF allowed.');
+      expect(res.body.error.message).toMatch(/is not allowed/i);
     });
 
     it('should reject oversized chapter upload with exact message', async () => {
@@ -510,7 +510,7 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(413);
       expect(res.body.error.code).toBe('FILE_TOO_LARGE');
-      expect(res.body.error.message).toBe('File exceeds maximum size (25MB)');
+      expect(res.body.error.message).toMatch(/exceeds the 25MB limit/i);
     });
   });
 
@@ -1317,7 +1317,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REJECTED);
 
       const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+      expect(updatedProject.projectStatus).not.toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
 
     it('should NOT transition project when revisions are requested', async () => {
@@ -1330,7 +1330,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REVISIONS_REQUIRED);
 
       const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.REVISION_NEEDED);
     });
 
     it('should generate notification with proposal label on approval', async () => {

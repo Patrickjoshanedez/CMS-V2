@@ -2989,20 +2989,23 @@ class ProjectService {
   }
 
   async _assertCanReviewTitle(user, project) {
-    if (user.role === ROLES.INSTRUCTOR) {
+    let resolvedUser = user;
+    if (!user || typeof user !== 'object' || !user.role) {
+      const userId = user?._id || user;
+      resolvedUser = await User.findById(userId);
+      if (!resolvedUser) {
+        throw new AppError('User session invalid.', 401, 'UNAUTHORIZED');
+      }
+    }
+
+    if (resolvedUser.role === ROLES.INSTRUCTOR) {
       return;
     }
 
-    const userId = user._id?.toString();
-    if (!userId) {
-      throw new AppError('User session invalid.', 401, 'UNAUTHORIZED');
-    }
-
-    // Robust check for adviserId (handles both populated object and ObjectId)
+    const userId = (resolvedUser._id || resolvedUser).toString();
     const projectAdviserId = project.adviserId?._id || project.adviserId;
     const isAdviser = projectAdviserId && projectAdviserId.toString() === userId;
 
-    // Robust check for panelistIds (handles both populated array and ObjectId array)
     const isPanelist =
       Array.isArray(project.panelistIds) &&
       project.panelistIds.some((p) => {
@@ -3012,7 +3015,7 @@ class ProjectService {
 
     if (!isAdviser && !isPanelist) {
       console.warn(
-        `[ProjectService] Permission denied for user ${userId} on project ${project._id}. Role: ${user.role}`,
+        `[ProjectService] Permission denied for user ${userId} on project ${project._id}. Role: ${resolvedUser.role}`,
       );
       throw new AppError(
         'Only the assigned instructor, adviser, or panelists can review the title proposal.',

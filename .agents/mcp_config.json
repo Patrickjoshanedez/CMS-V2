@@ -1,0 +1,44 @@
+{
+  "mcpServers": {
+    "mongodb-inspector": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-mongodb"],
+      "env": {
+        "MONGODB_URI": "${MONGODB_URI:-mongodb://localhost:27017/cms_v2}"
+      }
+    },
+    "redis-inspector": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-redis"],
+      "env": {
+        "REDIS_URL": "redis://${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}"
+      }
+    },
+    "git-tools": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
+    },
+    "github-tools": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "s3-storage-inspector": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-s3"],
+      "env": {
+        "AWS_ENDPOINT_URL": "${S3_ENDPOINT:-http://localhost:4566}",
+        "AWS_REGION": "${S3_REGION:-us-east-1}",
+        "AWS_ACCESS_KEY_ID": "${S3_ACCESS_KEY_ID:-test}",
+        "AWS_SECRET_ACCESS_KEY": "${S3_SECRET_ACCESS_KEY:-test}",
+        "AWS_S3_BUCKET": "${S3_BUCKET:-cms-buksu-uploads}"
+      }
+    }
+  }
+}

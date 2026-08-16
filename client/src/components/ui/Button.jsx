@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import { cloneElement, forwardRef, isValidElement } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +30,7 @@ const Button = forwardRef(
     ref,
   ) => {
     const buttonClassName = cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
       buttonVariants[variant],
       buttonSizes[size],
       className,
@@ -38,6 +39,7 @@ const Button = forwardRef(
     if (asChild && isValidElement(children)) {
       return cloneElement(children, {
         ...props,
+        // eslint-disable-next-line react-hooks/refs
         ref,
         className: cn(buttonClassName, children.props.className),
         'aria-disabled': disabled || undefined,

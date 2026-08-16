@@ -20,6 +20,7 @@ import {
   useResolveTitleModification,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
 import { userService } from '@/services/authService';
 import { TITLE_STATUSES, ROLES } from '@cms/shared';
 import { toast } from 'sonner';
@@ -51,16 +52,16 @@ import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 
 /* ────────── Helpers ────────── */
 
-function getFullName(person) {
-  if (!person) return null;
+export function getFullName(person) {
+  if (!person) return '';
   if (typeof person === 'string') return person;
   const parts = [person.firstName, person.middleName, person.lastName]
     .filter(Boolean)
     .map((part) => String(part).trim());
-  return parts.length ? parts.join(' ') : person.email || null;
+  return parts.length ? parts.join(' ') : person.email || '';
 }
 
-function getProjectAuthors(project) {
+export function getProjectAuthors(project) {
   const assignmentAuthors = (project?.memberRoleAssignments || [])
     .map((assignment) => assignment?.userId)
     .map(getFullName)
@@ -856,3 +857,92 @@ export default function ProjectDetailPage() {
     </DashboardLayout>
   );
 }
+
+export function formatCitation(project, style = 'apa', authors = []) {
+  const authorStr = authors.join(', ');
+  const year = project?.academicYear ? project.academicYear.split('-').pop() : new Date().getFullYear();
+  const course = project?.courseId?.name || 'BS Information Technology';
+  const adviser = project?.adviserId ? getFullName(project.adviserId) : '';
+  const adviserText = adviser ? ` Adviser: ${adviser}.` : '';
+
+  if (style === 'apa') {
+    return `${authorStr} (${year}). ${project?.title || 'Untitled'}. ${course}.${adviserText}`;
+  }
+  if (style === 'ieee') {
+    return `${authorStr}, "${project?.title || 'Untitled'}," ${course}, ${year}.${adviserText}`;
+  }
+  if (style === 'mla') {
+    return `${authorStr}. "${project?.title || 'Untitled'}." ${course}, ${year}.${adviserText}`;
+  }
+  return `${authorStr} (${year}). ${project?.title}.`;
+}
+
+export function resolveArchiveBackContext(state = {}, search = '', role = '') {
+  const fromState = state?.fromArchive || state?.returnTo?.includes('/archive');
+  const fromSearch = typeof search === 'string' && search.includes('from=archive');
+
+  if (fromState || fromSearch) {
+    return {
+      fromArchive: true,
+      backDestination: state?.returnTo || '/archive',
+      backLabel: 'Back to Search Results',
+    };
+  }
+
+  let backLabel = 'Back to Projects';
+  if (role === 'instructor') backLabel = 'Back to Instructor Review';
+  if (role === 'adviser') backLabel = 'Back to Adviser Dashboard';
+
+  return {
+    fromArchive: false,
+    backDestination: '/projects',
+    backLabel,
+  };
+}
+
+export function ProjectHistoryCard({ projectId }) {
+  const [activeTab, setActiveTab] = useState('history');
+  const { data: auditLogs = [], isLoading } = useEntityAuditHistory('Project', projectId, 100);
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+        <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          Project History
+        </CardTitle>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant={activeTab === 'history' ? 'secondary' : 'ghost'}
+            onClick={() => setActiveTab('history')}
+          >
+            History
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-3 space-y-2 text-xs">
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading history...</p>
+        ) : auditLogs.length === 0 ? (
+          <p className="text-muted-foreground">No audit entries found.</p>
+        ) : (
+          <div className="space-y-2">
+            {auditLogs.map((log) => (
+              <div key={log._id} className="p-2 border rounded bg-muted/20 flex flex-col gap-0.5">
+                <div className="flex items-center justify-between font-semibold">
+                  <span>{log.action}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-muted-foreground">{log.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+

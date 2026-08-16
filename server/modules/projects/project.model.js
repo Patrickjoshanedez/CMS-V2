@@ -12,7 +12,9 @@ import {
   PROTOTYPE_TYPE_VALUES,
   CAPSTONE_TITLE_VALUES,
   SDG_TAG_SUGGESTIONS,
+  PANEL_ROLE_VALUES,
 } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const titleModificationRequestSchema = new mongoose.Schema(
   {
@@ -165,6 +167,25 @@ const memberRoleAssignmentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+  },
+  { _id: false },
+);
+
+const panelistAssignmentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: {
+        values: PANEL_ROLE_VALUES,
+        message: 'Panel role must be one of: ' + PANEL_ROLE_VALUES.join(', '),
+      },
+      default: 'member',
     },
   },
   { _id: false },
@@ -538,6 +559,14 @@ const projectSchema = new mongoose.Schema(
       },
       default: [],
     },
+    panelists: {
+      type: [panelistAssignmentSchema],
+      validate: {
+        validator: (arr) => arr.length <= 3,
+        message: 'A project can have at most 3 panelists',
+      },
+      default: [],
+    },
     deadlines: {
       type: deadlineSchema,
       default: () => ({}),
@@ -623,6 +652,8 @@ projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
 projectSchema.index({ isArchived: 1, academicYear: 1 });
 projectSchema.index({ isArchived: 1, academicYear: 1, archivedAt: -1 });
+
+projectSchema.plugin(softDeletePlugin);
 
 const Project = mongoose.model('Project', projectSchema);
 

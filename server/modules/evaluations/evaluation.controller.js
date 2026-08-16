@@ -7,6 +7,7 @@
  *  3. Returns a consistent JSON response
  */
 import evaluationService from './evaluation.service.js';
+import { generateEvaluationReportPdf } from './evaluation.report.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
 
@@ -111,3 +112,15 @@ export const getEvaluation = catchAsync(async (req, res) => {
     data: { evaluation },
   });
 });
+
+/** GET /api/evaluations/:evaluationId/pdf — Download official evaluation & similarity PDF report */
+export const downloadEvaluationReportPdf = catchAsync(async (req, res) => {
+  const pdfBytes = await generateEvaluationReportPdf(req.params.evaluationId);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="evaluation-report-${req.params.evaluationId}.pdf"`,
+  );
+  res.send(Buffer.from(pdfBytes));
+});
+

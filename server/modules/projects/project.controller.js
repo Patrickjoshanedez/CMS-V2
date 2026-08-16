@@ -233,7 +233,7 @@ export const submitTitle = catchAsync(async (req, res) => {
 
 /** POST /api/projects/:id/title/approve — Approve a submitted title */
 export const approveTitle = catchAsync(async (req, res) => {
-  const { project } = await projectService.approveTitle(req.params.id, req.user._id, req.body);
+  const { project } = await projectService.approveTitle(req.params.id, req.user, req.body);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -244,7 +244,7 @@ export const approveTitle = catchAsync(async (req, res) => {
 
 /** POST /api/projects/:id/title/reject — Reject a submitted title */
 export const rejectTitle = catchAsync(async (req, res) => {
-  const { project } = await projectService.rejectTitle(req.params.id, req.user._id, req.body);
+  const { project } = await projectService.rejectTitle(req.params.id, req.user, req.body);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -303,7 +303,7 @@ export const requestTitleModification = catchAsync(async (req, res) => {
 export const resolveTitleModification = catchAsync(async (req, res) => {
   const { project } = await projectService.resolveTitleModification(
     req.params.id,
-    req.user._id,
+    req.user,
     req.body,
   );
 

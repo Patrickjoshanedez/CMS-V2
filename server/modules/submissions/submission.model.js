@@ -14,6 +14,7 @@ import {
   SUBMISSION_STATUSES,
   PLAGIARISM_STATUS_VALUES,
 } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 /**
  * Embedded schema for matched sources found during plagiarism checking.
@@ -456,6 +457,20 @@ const submissionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    justification: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Justification must not exceed 1000 characters'],
+      default: null,
+    },
+    isFlagged: {
+      type: Boolean,
+      default: false,
+    },
+    flagReasons: {
+      type: [String],
+      default: [],
+    },
     remarks: {
       type: String,
       trim: true,
@@ -538,6 +553,8 @@ submissionSchema.index({ projectId: 1, type: 1 });
 submissionSchema.index({ revisionDeadline: 1, status: 1 });
 // Find submissions awaiting revision response
 submissionSchema.index({ status: 1, revisionDeadline: 1, reviewedAt: 1 });
+
+submissionSchema.plugin(softDeletePlugin);
 
 const Submission = mongoose.model('Submission', submissionSchema);
 
