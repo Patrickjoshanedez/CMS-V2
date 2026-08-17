@@ -88,6 +88,18 @@ const errorHandler = (err, req, res, _next) => {
     message = messages.join('. ');
   }
 
+  // --- Body-parser JSON parse error ---
+  if (
+    (err instanceof SyntaxError || err.type === 'entity.parse.failed') &&
+    (err.status === 400 || err.statusCode === 400) &&
+    'body' in err
+  ) {
+    err.isOperational = true;
+    statusCode = 400;
+    code = 'INVALID_JSON';
+    message = 'Malformed JSON in request body';
+  }
+
   // Log unexpected (non-operational) errors
   if (!err.isOperational) {
     console.error('UNEXPECTED ERROR:', err);
