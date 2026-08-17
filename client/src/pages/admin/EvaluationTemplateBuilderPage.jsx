@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import api from '@/lib/api';
+import api from '@/services/api';
 import {
   Plus,
   Trash2,
