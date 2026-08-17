@@ -40,6 +40,9 @@ const AcademicJournalArchiveUploadPage = lazy(
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
+const EvaluationTemplateBuilderPage = lazy(
+  () => import('./pages/admin/EvaluationTemplateBuilderPage'),
+);
 const TemplateManagementPage = lazy(() => import('./pages/documents/TemplateManagementPage'));
 const DocumentEditorPage = lazy(() => import('./pages/documents/DocumentEditorPage'));
 const TeamReviewWorkflowPage = lazy(() => import('./pages/adviser/TeamReviewWorkflowPage'));
@@ -131,6 +134,11 @@ const PROTECTED_ROUTES = [
   // Admin
   { path: '/admin/audit', Component: AuditLogPage },
   { path: '/admin/audit-log', Component: AuditLogPage },
+  {
+    path: '/admin/evaluation-templates',
+    Component: EvaluationTemplateBuilderPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
   // Documents
   { path: '/documents/manuscripts', Component: TemplateManagementPage },
   { path: '/documents/templates', Component: TemplateManagementPage },

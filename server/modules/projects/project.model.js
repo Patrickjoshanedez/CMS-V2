@@ -270,6 +270,23 @@ const actionDoneMatrixItemSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    /**
+     * Digital signature blocks per ADM row.
+     * Each signatory confirms the suggestion was addressed.
+     * signatureDataUrl: base64 typed-name acknowledgment or drawn signature.
+     */
+    signatures: {
+      type: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+          name: { type: String, required: true, trim: true },
+          role: { type: String, trim: true, default: 'Panel Member' },
+          signedAt: { type: Date, default: null },
+          signatureDataUrl: { type: String, default: null },
+        },
+      ],
+      default: [],
+    },
   },
   { _id: true },
 );
@@ -590,16 +607,16 @@ const projectSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'User',
       validate: {
-        validator: (arr) => arr.length <= 3,
-        message: 'A project can have at most 3 panelists',
+        validator: (arr) => arr.length <= 5,
+        message: 'A project can have at most 5 panelists (Chair + Members + Secretary)',
       },
       default: [],
     },
     panelists: {
       type: [panelistAssignmentSchema],
       validate: {
-        validator: (arr) => arr.length <= 3,
-        message: 'A project can have at most 3 panelists',
+        validator: (arr) => arr.length <= 5,
+        message: 'A project can have at most 5 panelists (Chair + Members + Secretary)',
       },
       default: [],
     },

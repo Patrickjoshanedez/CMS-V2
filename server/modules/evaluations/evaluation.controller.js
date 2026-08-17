@@ -141,3 +141,14 @@ export const getStudentConsolidatedGrades = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
+/** GET /api/evaluations/project/:projectId/:defenseType/report — Generate structured evaluation report (FRINS6) */
+export const getEvaluationReport = catchAsync(async (req, res) => {
+  const { projectId, defenseType } = req.params;
+  const { report } = await evaluationService.generateReport(projectId, defenseType);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { report },
+  });
+});

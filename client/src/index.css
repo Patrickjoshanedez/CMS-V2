@@ -102,9 +102,40 @@ input::-webkit-credentials-auto-fill-button {
     /* Brand gradient colors (dark mode) */
     --brand-orange: 14 100% 60%;
     --brand-pink: 340 82% 55%;
-    --brand-purple: 262 52% 55%;
-    --brand-deep-purple: 262 47% 52%;
   }
+}
+
+html[data-font-size='medium'] {
+  --font-size-multiplier: 1.1;
+}
+html[data-font-size='large'] {
+  --font-size-multiplier: 1.25;
+}
+html[data-font-size='xl'] {
+  --font-size-multiplier: 1.4;
+}
+
+html[data-high-contrast='true'] {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 0%;
+  --border: 0 0% 0%;
+  --input: 0 0% 0%;
+  --primary: 220 100% 25%;
+  --primary-foreground: 0 0% 100%;
+  --muted-foreground: 0 0% 15%;
+}
+
+html.dark[data-high-contrast='true'] {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 0%;
+  --card-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --primary: 210 100% 70%;
+  --primary-foreground: 0 0% 0%;
 }
 
 @layer base {

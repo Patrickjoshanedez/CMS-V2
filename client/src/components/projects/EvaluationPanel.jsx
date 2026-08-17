@@ -20,12 +20,14 @@ import { toast } from 'sonner';
 import {
   Loader2,
   AlertCircle,
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
   Save,
   Send,
   Unlock,
   ClipboardList,
+  Download,
 } from 'lucide-react';
 
 const STATUS_BADGE_CLASS = {
@@ -459,12 +461,23 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     );
   }
 
+  const unsubmittedEvaluations = evaluations.filter(
+    (e) => e.status !== EVALUATION_STATUSES.SUBMITTED && e.status !== EVALUATION_STATUSES.RELEASED,
+  );
+  const allPanelistsSubmitted = evaluations.length > 0 && unsubmittedEvaluations.length === 0;
+
   const hasSubmittedUnreleased =
     isInstructor &&
     evaluations.some((e) => e.status === EVALUATION_STATUSES.SUBMITTED) &&
     evaluations.some((e) => e.status !== EVALUATION_STATUSES.RELEASED);
 
   const handleRelease = async () => {
+    if (!allPanelistsSubmitted) {
+      toast.error(
+        'Grade Leakage Gate: All assigned panelists must submit their evaluations before grades can be released.',
+      );
+      return;
+    }
     if (!window.confirm('Release all submitted evaluations to the team? This cannot be undone.'))
       return;
     try {
@@ -475,15 +488,43 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     }
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      window.open(`/api/evaluations/project/${projectId}/${defenseType}/report`, '_blank');
+      toast.success('Opening defense evaluation report...');
+    } catch (err) {
+      toast.error('Failed to download evaluation report.');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Grade Leakage Warning for Instructor */}
+      {isInstructor && unsubmittedEvaluations.length > 0 && (
+        <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs">
+            <span className="font-semibold">Grade Leakage Prevention Active:</span>{' '}
+            {unsubmittedEvaluations.length} panel member(s) have not yet completed their
+            evaluations. Grading scores and remarks are locked and cannot be released until all
+            assigned committee members submit their rubrics.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Summary Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
             Evaluation Summary
           </CardTitle>
+          {!isStudent && (
+            <Button size="sm" variant="outline" onClick={handleDownloadReport}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Defense Report
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -520,8 +561,12 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 
       {/* Release Button (Instructor only) */}
       {hasSubmittedUnreleased && (
-        <div className="flex justify-end">
-          <Button onClick={handleRelease} disabled={releaseEvaluations.isPending}>
+        <div className="flex justify-end gap-2">
+          <Button
+            onClick={handleRelease}
+            disabled={releaseEvaluations.isPending || !allPanelistsSubmitted}
+            className={!allPanelistsSubmitted ? 'opacity-60 cursor-not-allowed' : ''}
+          >
             {releaseEvaluations.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -542,7 +587,11 @@ export default function EvaluationPanel({ projectId, defenseType }) {
 
   if (!user) return null;
 
-  if (user.role === ROLES.PANELIST) {
+  const isPanelistRole =
+    user.role === ROLES.PANELIST ||
+    (user.role === ROLES.FACULTY && user.facultyRole === 'panelist');
+
+  if (isPanelistRole) {
     return <PanelistEvaluationForm projectId={projectId} defenseType={defenseType} />;
   }
 

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES } from '@cms/shared';
+import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES, FACULTY_ROLE_VALUES } from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
 
 const userSchema = new mongoose.Schema(
@@ -61,6 +61,19 @@ const userSchema = new mongoose.Schema(
         message: 'Role must be one of: ' + ROLE_VALUES.join(', '),
       },
       default: ROLES.STUDENT,
+    },
+    /**
+     * Sub-role for faculty accounts. Determines whether a faculty member primarily
+     * functions as an adviser or panelist. A single user can serve both roles across
+     * different projects — the per-project differentiation is done via panelistAssignmentSchema.
+     */
+    facultyRole: {
+      type: String,
+      enum: {
+        values: [...FACULTY_ROLE_VALUES, null],
+        message: 'Faculty role must be one of: ' + FACULTY_ROLE_VALUES.join(', '),
+      },
+      default: null,
     },
     isVerified: {
       type: Boolean,
@@ -161,6 +174,7 @@ userSchema.index({ email: 1, role: 1 });
 userSchema.index({ firstName: 1, lastName: 1 });
 userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 userSchema.index({ role: 1, isActive: 1, firstName: 1, lastName: 1 });
+userSchema.index({ role: 1, facultyRole: 1 });
 
 // --- Pre-save hook: hash password ---
 userSchema.pre('save', async function () {

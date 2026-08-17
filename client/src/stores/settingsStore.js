@@ -25,6 +25,38 @@ export const useSettingsStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
+  // Accessibility (Aribe #2)
+  fontSize:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('cms-font-size') || 'standard'
+      : 'standard',
+  highContrast:
+    typeof window !== 'undefined' ? localStorage.getItem('cms-high-contrast') === 'true' : false,
+
+  setFontSize: (size) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cms-font-size', size);
+      if (size === 'standard') {
+        document.documentElement.removeAttribute('data-font-size');
+      } else {
+        document.documentElement.setAttribute('data-font-size', size);
+      }
+    }
+    set({ fontSize: size });
+  },
+
+  setHighContrast: (enabled) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('cms-high-contrast', String(enabled));
+      if (enabled) {
+        document.documentElement.setAttribute('data-high-contrast', 'true');
+      } else {
+        document.documentElement.removeAttribute('data-high-contrast');
+      }
+    }
+    set({ highContrast: enabled });
+  },
+
   fetchSettings: async () => {
     set({ isLoading: true, error: null });
     try {

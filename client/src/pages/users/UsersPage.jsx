@@ -18,7 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  Trash2,
+  Archive,
   FolderTree,
   BookOpen,
   Layers,
@@ -28,7 +28,13 @@ import {
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
-import { useUsers, useCreateUser, useChangeRole, useDeleteUser, useActivateUser } from '@/hooks/useUsers';
+import {
+  useUsers,
+  useCreateUser,
+  useChangeRole,
+  useDeleteUser,
+  useActivateUser,
+} from '@/hooks/useUsers';
 import { useTeams, teamKeys } from '@/hooks/useTeams';
 import {
   useAssignAdviser,
@@ -37,7 +43,15 @@ import {
   useProject,
   useSetDeadlines,
 } from '@/hooks/useProjects';
-import { useAcademicHierarchy, useAcademicYears, useCourses, useCreateCourse, useCreateSection, useCreateAcademicYear, useSections } from '@/hooks/useAcademics';
+import {
+  useAcademicHierarchy,
+  useAcademicYears,
+  useCourses,
+  useCreateCourse,
+  useCreateSection,
+  useCreateAcademicYear,
+  useSections,
+} from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -194,18 +208,11 @@ function TeamCommitteeAssignmentsView() {
       toast.error(err?.response?.data?.error?.message || 'Failed to update project deadlines.'),
   });
 
-  const adviserSuggestions = useMemo(
-    () => adviserOptions.map(formatCommitteeOption),
-    [adviserOptions],
-  );
+  const adviserSuggestions = adviserOptions.map(formatCommitteeOption);
 
-  const panelistSuggestions = useMemo(
-    () =>
-      panelistOptions
-        .filter((panelist) => !selectedPanelists.some((existing) => existing?._id === panelist._id))
-        .map(formatCommitteeOption),
-    [panelistOptions, selectedPanelists],
-  );
+  const panelistSuggestions = panelistOptions
+    .filter((panelist) => !selectedPanelists.some((existing) => existing?._id === panelist._id))
+    .map(formatCommitteeOption);
 
   useEffect(() => {
     if (selectedTeamId && !filteredTeams.some((team) => team._id === selectedTeamId)) {
@@ -1139,7 +1146,7 @@ function HierarchyView() {
               Back
             </Button>
           </div>
-          
+
           <div className="relative mb-2">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -1164,101 +1171,131 @@ function HierarchyView() {
           {!isLoading && !navAcademicYear && (
             <div className="space-y-2">
               {folderHierarchy
-                .filter(node => !hierarchySearch || node.academicYear.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .filter(
+                  (node) =>
+                    !hierarchySearch ||
+                    node.academicYear.toLowerCase().includes(hierarchySearch.toLowerCase()),
+                )
                 .map((yearNode) => (
-                <button
-                  key={yearNode.academicYear}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => { setNavAcademicYear(yearNode.academicYear); setHierarchySearch(''); }}
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{yearNode.academicYear}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {yearNode.sectionCount} sections | {yearNode.teamCount} teams |{' '}
-                      {yearNode.studentCount} students
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
+                  <button
+                    key={yearNode.academicYear}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                    onClick={() => {
+                      setNavAcademicYear(yearNode.academicYear);
+                      setHierarchySearch('');
+                    }}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{yearNode.academicYear}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {yearNode.sectionCount} sections | {yearNode.teamCount} teams |{' '}
+                        {yearNode.studentCount} students
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
             </div>
           )}
 
           {!isLoading && navAcademicYear && !navCourseKey && (
             <div className="space-y-2">
               {(selectedYearNode?.courses || [])
-                .filter(node => !hierarchySearch || node.course?.code?.toLowerCase().includes(hierarchySearch.toLowerCase()) || node.course?.name?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .filter(
+                  (node) =>
+                    !hierarchySearch ||
+                    node.course?.code?.toLowerCase().includes(hierarchySearch.toLowerCase()) ||
+                    node.course?.name?.toLowerCase().includes(hierarchySearch.toLowerCase()),
+                )
                 .map((courseNode) => (
-                <button
-                  key={courseNode.courseKey}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => { setNavCourseKey(courseNode.courseKey); setHierarchySearch(''); }}
-                >
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {courseNode.course?.code || 'N/A'} -{' '}
-                      {courseNode.course?.name || 'Unknown Course'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {courseNode.sections.length} sections | {courseNode.teamCount} teams |{' '}
-                      {courseNode.studentCount} students
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
+                  <button
+                    key={courseNode.courseKey}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                    onClick={() => {
+                      setNavCourseKey(courseNode.courseKey);
+                      setHierarchySearch('');
+                    }}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {courseNode.course?.code || 'N/A'} -{' '}
+                        {courseNode.course?.name || 'Unknown Course'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {courseNode.sections.length} sections | {courseNode.teamCount} teams |{' '}
+                        {courseNode.studentCount} students
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
             </div>
           )}
 
           {!isLoading && navAcademicYear && navCourseKey && !navSectionId && (
             <div className="space-y-2">
               {(selectedCourseNode?.sections || [])
-                .filter(sec => !hierarchySearch || sec.name.toLowerCase().includes(hierarchySearch.toLowerCase()) || sec.code?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .filter(
+                  (sec) =>
+                    !hierarchySearch ||
+                    sec.name.toLowerCase().includes(hierarchySearch.toLowerCase()) ||
+                    sec.code?.toLowerCase().includes(hierarchySearch.toLowerCase()),
+                )
                 .map((section) => (
-                <button
-                  key={section._id}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => { setNavSectionId(section._id); setHierarchySearch(''); }}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">
-                      {section.code && section.name
-                        ? `${section.code} · ${section.name}`
-                        : section.code || section.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {section.teamCount} teams | {section.studentCount} students
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
+                  <button
+                    key={section._id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                    onClick={() => {
+                      setNavSectionId(section._id);
+                      setHierarchySearch('');
+                    }}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">
+                        {section.code && section.name
+                          ? `${section.code} · ${section.name}`
+                          : section.code || section.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {section.teamCount} teams | {section.studentCount} students
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
             </div>
           )}
 
           {!isLoading && navAcademicYear && navCourseKey && navSectionId && !navTeamId && (
             <div className="space-y-2">
               {(selectedFolderSection?.teams || [])
-                .filter(t => !hierarchySearch || t.name?.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                .filter(
+                  (t) =>
+                    !hierarchySearch ||
+                    t.name?.toLowerCase().includes(hierarchySearch.toLowerCase()),
+                )
                 .map((team) => (
-                <button
-                  key={team._id}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
-                  onClick={() => { setNavTeamId(team._id); setHierarchySearch(''); }}
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{team.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {team.members?.length || 0} students
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              ))}
+                  <button
+                    key={team._id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:border-primary/50"
+                    onClick={() => {
+                      setNavTeamId(team._id);
+                      setHierarchySearch('');
+                    }}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">{team.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {team.members?.length || 0} students
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
 
               {(selectedFolderSection?.teams || []).length === 0 && (
                 <p className="rounded-md border bg-muted/30 p-2 text-sm text-muted-foreground">
@@ -1274,20 +1311,26 @@ function HierarchyView() {
                 <p className="mb-2 text-sm font-semibold">Students in {selectedFolderTeam?.name}</p>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {(selectedFolderTeam?.members || [])
-                    .filter(m => !hierarchySearch || `${m.firstName} ${m.lastName} ${m.email}`.toLowerCase().includes(hierarchySearch.toLowerCase()))
+                    .filter(
+                      (m) =>
+                        !hierarchySearch ||
+                        `${m.firstName} ${m.lastName} ${m.email}`
+                          .toLowerCase()
+                          .includes(hierarchySearch.toLowerCase()),
+                    )
                     .map((member) => (
-                    <div
-                      key={member._id}
-                      className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
-                    >
-                      <p className="font-medium">
-                        {[member.firstName, member.middleName, member.lastName]
-                          .filter(Boolean)
-                          .join(' ')}
-                      </p>
-                      <p className="text-muted-foreground">{member.email}</p>
-                    </div>
-                  ))}
+                      <div
+                        key={member._id}
+                        className="rounded border bg-background px-2 py-1 text-xs transition-colors hover:border-primary/60"
+                      >
+                        <p className="font-medium">
+                          {[member.firstName, member.middleName, member.lastName]
+                            .filter(Boolean)
+                            .join(' ')}
+                        </p>
+                        <p className="text-muted-foreground">{member.email}</p>
+                      </div>
+                    ))}
                 </div>
 
                 {(selectedFolderTeam?.members || []).length === 0 && (
@@ -1299,35 +1342,61 @@ function HierarchyView() {
 
               {/* Project details card */}
               <div className="rounded-md border bg-muted/10 p-3">
-                 <p className="text-sm font-semibold mb-3">Project Details</p>
-                 {selectedFolderTeam?.assignment?.projectId ? (
-                   <div className="space-y-3 text-sm">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                         <div>
-                            <p className="text-muted-foreground">Project Status</p>
-                            <Badge variant="outline" className="mt-1">{selectedFolderTeam.assignment.projectStatus}</Badge>
-                         </div>
-                         <div>
-                            <p className="text-muted-foreground">Phase</p>
-                            <p className="font-medium mt-1">{selectedFolderTeam.assignment.capstonePhase}</p>
-                         </div>
-                         <div>
-                            <p className="text-muted-foreground">Title Status</p>
-                            <Badge variant="secondary" className="mt-1">{selectedFolderTeam.assignment.titleStatus}</Badge>
-                         </div>
+                <p className="text-sm font-semibold mb-3">Project Details</p>
+                {selectedFolderTeam?.assignment?.projectId ? (
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Project Status</p>
+                        <Badge variant="outline" className="mt-1">
+                          {selectedFolderTeam.assignment.projectStatus}
+                        </Badge>
                       </div>
-                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-                         <Button size="sm" variant="outline" onClick={() => window.open(`/projects/${selectedFolderTeam.assignment.projectId}`, '_blank')}>
-                            Open Project Viewer
-                         </Button>
-                         <Button size="sm" variant="default" onClick={() => window.open(`/project/submissions?mode=view&projectId=${selectedFolderTeam.assignment.projectId}`, '_blank')}>
-                            Submissions & Documents
-                         </Button>
+                      <div>
+                        <p className="text-muted-foreground">Phase</p>
+                        <p className="font-medium mt-1">
+                          {selectedFolderTeam.assignment.capstonePhase}
+                        </p>
                       </div>
-                   </div>
-                 ) : (
-                   <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">No project created for this team yet.</p>
-                 )}
+                      <div>
+                        <p className="text-muted-foreground">Title Status</p>
+                        <Badge variant="secondary" className="mt-1">
+                          {selectedFolderTeam.assignment.titleStatus}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          window.open(
+                            `/projects/${selectedFolderTeam.assignment.projectId}`,
+                            '_blank',
+                          )
+                        }
+                      >
+                        Open Project Viewer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() =>
+                          window.open(
+                            `/project/submissions?mode=view&projectId=${selectedFolderTeam.assignment.projectId}`,
+                            '_blank',
+                          )
+                        }
+                      >
+                        Submissions & Documents
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">
+                    No project created for this team yet.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -1367,7 +1436,9 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
             </div>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
             {user.teamId && (
-              <p className="mt-0.5 text-xs text-muted-foreground">Team: {user.teamId.name || user.teamId}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Team: {user.teamId.name || user.teamId}
+              </p>
             )}
           </div>
         </div>
@@ -1395,11 +1466,11 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+              className="h-8 w-8 p-0 text-muted-foreground hover:bg-amber-600 hover:text-white"
               onClick={() => onDeactivate(user._id, fullName)}
-              title="Deactivate user"
+              title="Archive / Deactivate user"
             >
-              <Trash2 className="h-4 w-4" />
+              <Archive className="h-4 w-4" />
             </Button>
           ) : (
             <Button

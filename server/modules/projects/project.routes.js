@@ -387,22 +387,36 @@ router.post(
 // Capstone 2 Direct-to-ADM Stream Routing
 router.post(
   '/:projectId/stream-routing',
-  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADMIN),
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.FACULTY),
   projectController.handleProjectStream,
 );
 
 // Get Action Done Matrix for a project
 router.get(
   '/:projectId/action-done-matrix',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
   projectController.getActionDoneMatrix,
 );
 
 // Update single Action Done Matrix row item
 router.patch(
   '/:projectId/action-done-matrix/:itemId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
   projectController.updateActionDoneMatrixItem,
+);
+
+// Sign an ADM row item (panel chair/member/secretary typed name acknowledgment)
+router.post(
+  '/:projectId/action-done-matrix/:itemId/sign',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.signADMItem,
+);
+
+// Update overall ADM status (e.g., instructor approves → auto-archives)
+router.patch(
+  '/:projectId/adm-status',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.updateADMStatus,
 );
 
 /* ────── Faculty shared routes ────── */
@@ -410,7 +424,7 @@ router.patch(
 // Get a single project (any authenticated faculty or the owning team)
 router.get(
   '/:id',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
   projectController.getProject,
 );
 
@@ -420,7 +434,7 @@ router.get('/:id/prototypes', projectController.getPrototypes);
 // List all projects with filters/pagination
 router.get(
   '/',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   validate(listProjectsQuerySchema, 'query'),
   projectController.listProjects,
 );

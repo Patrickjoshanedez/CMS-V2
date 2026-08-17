@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 
@@ -162,19 +163,75 @@ function ThemeSelector() {
   );
 }
 
-/* ────────── Appearance Section ────────── */
+/* ────────── Appearance & Accessibility Section ────────── */
 
 function AppearanceSection() {
+  const { fontSize, setFontSize, highContrast, setHighContrast } = useSettingsStore();
+
+  const fontOptions = [
+    { value: 'standard', label: 'Standard', desc: '100% (16px base)' },
+    { value: 'medium', label: 'Medium', desc: '110% (17.6px base)' },
+    { value: 'large', label: 'Large', desc: '125% (20px base)' },
+    { value: 'xl', label: 'Extra Large', desc: '140% (22.4px base)' },
+  ];
+
   return (
     <SettingSection
       icon={Palette}
-      title="Appearance"
-      description="Customize how the application looks and feels."
+      title="Appearance & Accessibility"
+      description="Dr. Sales G. Aribe Jr. Requirement: Customize display themes, high-contrast mode, and dynamic text scaling for enhanced readability."
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div>
-          <Label className="mb-3 block text-sm font-medium">Theme</Label>
+          <Label className="mb-3 block text-sm font-medium">Theme Mode</Label>
           <ThemeSelector />
+        </div>
+
+        {/* High Contrast Mode Toggle */}
+        <div className="rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="high-contrast-toggle" className="text-sm font-medium cursor-pointer">
+                High-Contrast Interface
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Enhances text contrast, sharpens borders, and deepens dark/light backgrounds for
+                maximum legibility.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              id="high-contrast-toggle"
+              checked={highContrast}
+              onChange={(e) => setHighContrast(e.target.checked)}
+              className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            />
+          </div>
+        </div>
+
+        {/* Font Scaling Options */}
+        <div>
+          <Label className="mb-3 block text-sm font-medium">Dynamic Font Scaling</Label>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            {fontOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setFontSize(opt.value)}
+                className={`rounded-lg border p-3 text-left transition-all ${
+                  fontSize === opt.value
+                    ? 'border-primary bg-primary/5 font-semibold text-primary ring-1 ring-primary'
+                    : 'border-border text-foreground hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">{opt.label}</span>
+                  {fontSize === opt.value && <CheckCircle className="h-4 w-4 text-primary" />}
+                </div>
+                <span className="text-[11px] text-muted-foreground">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </SettingSection>

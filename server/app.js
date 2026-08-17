@@ -29,6 +29,7 @@ import plagiarismRoutes from './modules/plagiarism/plagiarism.routes.js';
 import academicRoutes from './modules/academics/academic.routes.js';
 import agentRuntimeRoutes from './modules/agent-runtime/agentRuntime.routes.js';
 import storageFileServerRouter from './middleware/storage-file-server.middleware.js';
+import evaluationTemplateRoutes from './modules/evaluations/evaluationTemplate.routes.js';
 
 const app = express();
 
@@ -53,7 +54,14 @@ app.use(
     origin: env.CORS_ALLOWED_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'Accept', 'Origin', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'ngrok-skip-browser-warning',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
   }),
 );
 
@@ -119,6 +127,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/submissions', plagiarismRoutes);
 app.use('/api/academics', academicRoutes);
 app.use('/api/agent-runtime', agentRuntimeRoutes);
+app.use('/api/evaluation-templates', evaluationTemplateRoutes);
 
 // ---------- 404 Handler ----------
 

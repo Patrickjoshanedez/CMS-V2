@@ -663,7 +663,7 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
   if (status !== undefined) item.status = status;
   if (remarks !== undefined) item.remarks = remarks;
 
-  // Check overall ADM completion
+  // Check overall ADM completion → advance status
   const allAddressed = project.actionDoneMatrix.every(
     (row) => row.status === 'addressed' || row.status === 'verified',
   );
@@ -681,5 +681,110 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
       actionDoneMatrix: project.actionDoneMatrix,
       admStatus: project.admStatus,
     },
+  });
+});
+
+/** PATCH /api/projects/:projectId/adm-status — Update overall ADM status (instructor/panelist) */
+export const updateADMStatus = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const { admStatus } = req.body;
+
+  const validStatuses = [
+    'not_started',
+    'awaiting_minutes_upload',
+    'pending_developer_action',
+    'under_panel_review',
+    'approved',
+  ];
+  if (!validStatuses.includes(admStatus)) {
+    return res
+      .status(HTTP_STATUS.BAD_REQUEST)
+      .json({ success: false, message: 'Invalid ADM status.' });
+  }
+
+  const project = await Project.findById(projectId).populate('teamId');
+  if (!project) {
+    return res
+      .status(HTTP_STATUS.NOT_FOUND)
+      .json({ success: false, message: 'Project not found.' });
+  }
+
+  project.admStatus = admStatus;
+
+  // Auto-archive on ADM approval (Labastida #1 + #7)
+  if (admStatus === 'approved') {
+    project.isArchived = true;
+    project.archivedAt = new Date();
+    project.projectStatus = 'archived';
+
+    // Notify team members of approval and archiving
+    if (project.teamId?.members) {
+      const Notification = (await import('../notifications/notification.model.js')).default;
+      const { emitToUser } = await import('../notifications/notification.socket.js');
+      const notifications = project.teamId.members.map((memberId) => ({
+        userId: memberId,
+        type: 'adm_approved',
+        title: 'ADM Approved — Project Archived',
+        message: `Congratulations! Your capstone project "${project.title}" has been approved by the panel and has been automatically archived.`,
+        metadata: { projectId, admStatus: 'approved' },
+      }));
+      const inserted = await Notification.insertMany(notifications);
+      inserted.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+    }
+  }
+
+  await project.save();
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: `ADM status updated to "${admStatus}".`,
+    data: { admStatus: project.admStatus, isArchived: project.isArchived },
+  });
+});
+
+/** POST /api/projects/:projectId/action-done-matrix/:itemId/sign — Sign an ADM row item */
+export const signADMItem = catchAsync(async (req, res) => {
+  const { projectId, itemId } = req.params;
+  const { signatureDataUrl } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return res
+      .status(HTTP_STATUS.NOT_FOUND)
+      .json({ success: false, message: 'Project not found.' });
+  }
+
+  const item = project.actionDoneMatrix.id(itemId);
+  if (!item) {
+    return res
+      .status(HTTP_STATUS.NOT_FOUND)
+      .json({ success: false, message: 'ADM row item not found.' });
+  }
+
+  // Prevent duplicate signatures from same user
+  const alreadySigned = item.signatures.some((s) => String(s.userId) === String(req.user._id));
+  if (alreadySigned) {
+    return res
+      .status(HTTP_STATUS.CONFLICT)
+      .json({ success: false, message: 'You have already signed this ADM item.' });
+  }
+
+  const panelistAssignment = (project.panelists || []).find(
+    (p) => String(p.userId) === String(req.user._id),
+  );
+  item.signatures.push({
+    userId: req.user._id,
+    name: `${req.user.firstName} ${req.user.lastName}`,
+    role: panelistAssignment?.role || 'panel member',
+    signedAt: new Date(),
+    signatureDataUrl: signatureDataUrl || null,
+  });
+
+  await project.save();
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'ADM item signed successfully.',
+    data: { item },
   });
 });

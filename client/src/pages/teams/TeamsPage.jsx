@@ -29,8 +29,11 @@ import {
   Ticket,
   Sparkles,
   CheckCircle2,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   useMyTeam,
   useTeams,
@@ -51,7 +54,7 @@ import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 
-const TEAM_TEMPLATE_URL =
+const FALLBACK_TEAM_TEMPLATE_URL =
   'https://docs.google.com/document/d/1n49COZvzKnqDaxv8hT0EFLHsINpv4RkF/edit';
 
 /**
@@ -792,8 +795,49 @@ function StudentTeamDetail({ team, userId }) {
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
 
+  const dynamicTemplateUrl =
+    useSettingsStore((state) => state.getTemplateUrl('proposal_template')) ||
+    FALLBACK_TEAM_TEMPLATE_URL;
+
   return (
     <div className="space-y-4">
+      {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
+      <div
+        className={`flex items-center justify-between rounded-lg border px-4 py-3 shadow-sm transition-all ${
+          team.isLocked
+            ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
+            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+              team.isLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+            }`}
+          >
+            {team.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {team.isLocked
+                ? 'Team Roster: Finalized & Locked'
+                : 'Team Formation: Open (2-4 Members)'}
+            </span>
+            <span className="text-[11px] opacity-85">
+              {team.isLocked
+                ? 'Roster composition is locked for manuscript submission and panel defense.'
+                : 'Invite members with your 6-digit code. Finalize and lock once complete.'}
+            </span>
+          </div>
+        </div>
+        <Badge
+          variant={team.isLocked ? 'destructive' : 'success'}
+          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+        >
+          {team.isLocked ? 'Locked' : 'Open'}
+        </Badge>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
@@ -814,15 +858,6 @@ function StudentTeamDetail({ team, userId }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!team.isLocked && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Finalize and lock your team before creating a proposal.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Members List */}
           <div>
             <p className="mb-2 text-sm font-medium text-muted-foreground">Team Resources</p>
@@ -886,7 +921,7 @@ function StudentTeamDetail({ team, userId }) {
 
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="secondary" asChild>
-                    <a href={TEAM_TEMPLATE_URL} target="_blank" rel="noreferrer">
+                    <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
                       <ExternalLink className="mr-2 h-4 w-4" />
                       Generate Template
                     </a>
@@ -920,7 +955,7 @@ function StudentTeamDetail({ team, userId }) {
             ) : (
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="secondary" asChild>
-                  <a href={TEAM_TEMPLATE_URL} target="_blank" rel="noreferrer">
+                  <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Generate Template
                   </a>

@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Menu,
+  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -48,6 +49,7 @@ const instructorItems = [
     ],
   },
   { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
+  { label: 'Evaluation Rubrics', icon: Layers, path: '/admin/evaluation-templates' },
   { label: 'Users', icon: Users, path: '/users' },
   { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
   { label: 'Settings', icon: Settings, path: '/settings' },

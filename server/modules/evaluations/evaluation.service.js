@@ -284,6 +284,9 @@ class EvaluationService {
    * Release all submitted evaluations for a project's defense so students can view grades.
    * Only instructors can release.
    *
+   * Grade Leakage Prevention (Abella #1):
+   * Release is blocked unless every assigned panelist has submitted their evaluation.
+   *
    * @param {string} projectId - The project
    * @param {string} defenseType - 'proposal' or 'final'
    * @returns {Object} { releasedCount }
@@ -291,6 +294,29 @@ class EvaluationService {
   async releaseEvaluations(projectId, defenseType) {
     const project = await Project.findById(projectId).populate('teamId');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    // --- Grade Leakage Prevention Guard ---
+    // All assigned panelists must have submitted before grades can be released.
+    const assignedPanelistIds = (project.panelists || []).map((p) => String(p.userId));
+    if (assignedPanelistIds.length > 0) {
+      const submittedEvals = await Evaluation.find({
+        projectId,
+        defenseType,
+        status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
+      }).select('panelistId');
+
+      const submittedIds = submittedEvals.map((e) => String(e.panelistId));
+      const pendingPanelistIds = assignedPanelistIds.filter((id) => !submittedIds.includes(id));
+
+      if (pendingPanelistIds.length > 0) {
+        throw new AppError(
+          `Cannot release grades: ${pendingPanelistIds.length} panelist(s) have not yet submitted their evaluations. ` +
+            'All panel members must complete their scoring and remarks before grades can be released to students.',
+          403,
+          'EVALUATIONS_INCOMPLETE',
+        );
+      }
+    }
 
     const result = await Evaluation.updateMany(
       {
@@ -443,6 +469,72 @@ class EvaluationService {
     }
 
     return this.getProjectEvaluations(user, projectId, defenseType);
+  }
+
+  /**
+   * Generate a structured evaluation report for a project defense (FRINS6).
+   * Includes all panelist scores, decisions, and overall comments.
+   *
+   * @param {string} projectId
+   * @param {string} defenseType
+   * @returns {Object} { report }
+   */
+  async generateReport(projectId, defenseType) {
+    const project = await Project.findById(projectId)
+      .populate('teamId', 'name members')
+      .populate('adviserId', 'firstName lastName');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    const evaluations = await Evaluation.find({ projectId, defenseType })
+      .populate('panelistId', 'firstName lastName facultyRole')
+      .sort({ createdAt: 1 });
+
+    const reportRows = evaluations.map((ev) => ({
+      panelistName: ev.panelistId
+        ? `${ev.panelistId.firstName} ${ev.panelistId.lastName}`
+        : 'Unknown',
+      panelRole:
+        (project.panelists || []).find((p) => String(p.userId) === String(ev.panelistId?._id))
+          ?.role || 'member',
+      status: ev.status,
+      decision: ev.decision,
+      totalScore: ev.totalScore,
+      maxTotalScore: ev.maxTotalScore,
+      overallComment: ev.overallComment,
+      submittedAt: ev.submittedAt,
+      criteria: ev.criteria.map((c) => ({
+        name: c.name,
+        maxScore: c.maxScore,
+        score: c.score,
+        comment: c.comment,
+      })),
+    }));
+
+    const avgScore =
+      reportRows.length > 0
+        ? reportRows.reduce((sum, r) => sum + (r.totalScore || 0), 0) / reportRows.length
+        : null;
+
+    return {
+      report: {
+        projectId,
+        projectTitle: project.title,
+        defenseType,
+        generatedAt: new Date().toISOString(),
+        panelists: reportRows,
+        summary: {
+          totalPanelists: reportRows.length,
+          submitted: reportRows.filter((r) => r.status !== 'draft').length,
+          averageScore: avgScore !== null ? Math.round(avgScore * 100) / 100 : null,
+          overallDecision: reportRows.every(
+            (r) =>
+              r.decision && ['passed', 'passed_with_revision', 'approved'].includes(r.decision),
+          )
+            ? 'passed'
+            : 'pending',
+        },
+      },
+    };
   }
 }
 

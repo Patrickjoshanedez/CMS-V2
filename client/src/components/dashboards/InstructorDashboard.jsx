@@ -1,11 +1,14 @@
 import React from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { dashboardService } from '../../services/dashboardService';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { CalendarScheduler } from './CalendarScheduler';
 import KPICards from './KPICards';
 import WorkloadHeatmap from './WorkloadHeatmap';
 import OptimizationEngine from './OptimizationEngine';
 
 const InstructorDashboard = () => {
+  const { deadlines = [] } = useSettingsStore();
   const {
     data: kpisData,
     isLoading: kpisLoading,
@@ -127,6 +130,11 @@ const InstructorDashboard = () => {
               loading={optimizeMutation.isPending}
             />
           </div>
+        </div>
+
+        {/* Visual Deadline Calendar (Aribe #4) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <CalendarScheduler deadlines={deadlines} defenseSchedules={[]} />
         </div>
       </div>
     </div>

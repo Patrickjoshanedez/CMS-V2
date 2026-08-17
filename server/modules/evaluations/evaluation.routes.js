@@ -4,8 +4,8 @@
  * All routes require authentication.
  *
  * Route groups:
- *  - Panelist: get/create evaluation, update draft, submit
- *  - Instructor: release evaluations to students
+ *  - Panelist (Faculty): get/create evaluation, update draft, submit
+ *  - Instructor: release evaluations to students, generate reports
  *  - Shared: view evaluations (respects RBAC visibility)
  */
 import { Router } from 'express';
@@ -37,8 +37,19 @@ router.use(authenticate);
  */
 router.get(
   '/project/:projectId/consolidated-grades',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
   evaluationController.getStudentConsolidatedGrades,
+);
+
+/**
+ * GET /project/:projectId/:defenseType/report
+ * Generate structured evaluation report for a defense (FRINS6).
+ * Accessible to faculty and instructor.
+ */
+router.get(
+  '/project/:projectId/:defenseType/report',
+  authorize(ROLES.FACULTY, ROLES.INSTRUCTOR),
+  evaluationController.getEvaluationReport,
 );
 
 /**
@@ -48,7 +59,7 @@ router.get(
  */
 router.get(
   '/project/:projectId/:defenseType',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
   validate(projectDefenseParamSchema, 'params'),
   evaluationController.getProjectEvaluations,
 );
@@ -59,7 +70,7 @@ router.get(
  */
 router.get(
   '/detail/:evaluationId',
-  authorize(ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR, ROLES.FACULTY),
+  authorize(ROLES.FACULTY, ROLES.INSTRUCTOR),
   validate(evaluationIdParamSchema, 'params'),
   evaluationController.getEvaluation,
 );
@@ -70,12 +81,12 @@ router.get(
  */
 router.get(
   '/detail/:evaluationId/pdf',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR, ROLES.FACULTY),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
   validate(evaluationIdParamSchema, 'params'),
   evaluationController.downloadEvaluationReportPdf,
 );
 
-/* ────── Panelist routes ────── */
+/* ────── Faculty (Panelist) routes ────── */
 
 /**
  * GET /:projectId/:defenseType
@@ -84,7 +95,7 @@ router.get(
  */
 router.get(
   '/:projectId/:defenseType',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(projectDefenseParamSchema, 'params'),
   evaluationController.getOrCreateEvaluation,
 );
@@ -95,7 +106,7 @@ router.get(
  */
 router.patch(
   '/:evaluationId',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(evaluationIdParamSchema, 'params'),
   validate(updateEvaluationSchema),
   evaluationController.updateEvaluation,
@@ -107,7 +118,7 @@ router.patch(
  */
 router.post(
   '/:evaluationId/submit',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(evaluationIdParamSchema, 'params'),
   auditLog('evaluation.submitted', 'Evaluation', {
     getTargetId: (req) => req.params.evaluationId,
