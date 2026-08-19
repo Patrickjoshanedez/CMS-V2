@@ -294,7 +294,7 @@ services:
       - shared_node_modules:/app/shared/node_modules
     command: sh -c "cd /app/client && npx vite --host 0.0.0.0 --port 43211 --strictPort"
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:43211" ]
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:43211" ]
       interval: 20s
       timeout: 5s
       retries: 5
