@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
@@ -256,9 +257,7 @@ export default function ProjectSubmissionsPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingScreen fullScreen={false} message="Loading project submissions..." />
       </DashboardLayout>
     );
   }

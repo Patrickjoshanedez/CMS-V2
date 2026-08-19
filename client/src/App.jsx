@@ -57,13 +57,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
  * App — Root component with routing and theme management.
  */
 
-function LoadingSpinner() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-    </div>
-  );
-}
+import LoadingScreen from './components/ui/LoadingScreen';
 
 /**
  * ThemeSync — Subscribes to the Zustand theme store and keeps the <html> class
@@ -193,12 +187,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show a full-screen spinner while we confirm the session.
+  // Show a full-screen branded loading screen while we confirm the session.
   if (sessionLoading) {
     return (
       <>
         <ThemeSync />
-        <LoadingSpinner />
+        <LoadingScreen message="Initializing session..." />
       </>
     );
   }
@@ -206,7 +200,7 @@ export default function App() {
   return (
     <>
       <ThemeSync />
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<LoadingScreen message="Loading page..." />}>
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (

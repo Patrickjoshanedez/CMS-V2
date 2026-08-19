@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { TagInput } from '@/components/ui/TagInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import {
   UsersRound,
   UserPlus,
@@ -1579,11 +1580,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingScreen fullScreen={false} message="Loading teams..." />;
   }
 
   if (isError) {
@@ -1739,11 +1736,7 @@ function StudentTeamView({ user }) {
   const { data: team, isLoading, isError, error } = useMyTeam(user?._id);
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingScreen fullScreen={false} message="Loading your team..." />;
   }
 
   // 404 means no team — show empty state

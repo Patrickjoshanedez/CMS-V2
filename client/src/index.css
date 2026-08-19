@@ -384,6 +384,80 @@ html.dark[data-high-contrast='true'] {
   }
 }
 
+/* ===================================================================
+   Brand Loading Logo Animation
+   =================================================================== */
+@keyframes cms-logo-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 25px -5px rgba(233, 30, 99, 0.35),
+      0 0 45px -10px rgba(103, 58, 183, 0.25);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 35px 2px rgba(255, 87, 34, 0.45),
+      0 0 60px -5px rgba(233, 30, 99, 0.35);
+  }
+}
+
+@keyframes cms-ring-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cms-ring-spin-reverse {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes cms-shimmer-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.cms-logo-pulse {
+  animation: cms-logo-pulse 2.2s ease-in-out infinite;
+}
+
+.cms-ring-spin {
+  animation: cms-ring-spin 8s linear infinite;
+}
+
+.cms-ring-spin-reverse {
+  animation: cms-ring-spin-reverse 10s linear infinite;
+}
+
+.cms-shimmer-bar {
+  animation: cms-shimmer-bar 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-logo-pulse,
+  .cms-ring-spin,
+  .cms-ring-spin-reverse,
+  .cms-shimmer-bar {
+    animation: none;
+  }
+}
+
 .bento-card::after {
   content: '';
   position: absolute;

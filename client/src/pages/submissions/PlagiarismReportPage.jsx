@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { usePlagiarismReport } from '../../hooks/useSubmissions';
 
 /* ──────────────────────────────────────────────────────────────
@@ -499,12 +500,7 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   if (isLoading && !reportData) {
     return (
       <DashboardLayout>
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-center [font-family:var(--font-body)]">
-            <Loader2 className="h-10 w-10 animate-spin text-[var(--color-neutral)]" />
-            <p className="text-sm text-[var(--color-text-secondary)]">Loading plagiarism report…</p>
-          </div>
-        </div>
+        <LoadingScreen fullScreen={false} message="Loading plagiarism report…" />
       </DashboardLayout>
     );
   }

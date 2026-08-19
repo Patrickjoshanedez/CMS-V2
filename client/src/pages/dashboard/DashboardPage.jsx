@@ -11,6 +11,7 @@ import InstructorDashboardV2 from '@/components/dashboards/InstructorDashboard';
 import { AlertTriangle, Bell, CheckCircle2, Clock3, FolderKanban, UsersRound } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 /**
  * DashboardPage — role-based dashboard shell.
@@ -568,9 +569,7 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
+        <LoadingScreen fullScreen={false} message="Loading dashboard..." />
       </DashboardLayout>
     );
   }
