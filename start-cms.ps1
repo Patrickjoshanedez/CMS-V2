@@ -1,4 +1,4 @@
-﻿param (
+param (
     [switch]$Build,
     [switch]$Reset,
     [switch]$Logs
@@ -33,7 +33,7 @@ function Assert-Docker {
     Ok 'Docker is running.'
 }
 
-function Normalize-InitScript {
+function Format-InitScript {
     $path = Join-Path $ROOT 'infra\init-aws.sh'
     if (-not (Test-Path $path)) {
         Err 'Missing infra/init-aws.sh'
@@ -71,19 +71,20 @@ function Wait-Health($container, $timeoutSec = 120) {
     return $false
 }
 
-function Ensure-S3Bucket {
+function Initialize-S3Bucket {
     Step 'Ensuring LocalStack bucket cms-buksu-uploads exists...'
     docker exec cms-localstack bash /etc/localstack/init/ready.d/init-aws.sh *> $null
-    $list = docker exec cms-localstack awslocal s3 ls 2>&1 | Out-String
-    if ($list -match 'cms-buksu-uploads') {
+    docker exec cms-localstack curl -s -X PUT http://localhost:4566/cms-buksu-uploads *> $null
+    $res = docker exec cms-localstack curl -s -o /dev/null -w "%{http_code}" http://localhost:4566/cms-buksu-uploads 2>$null
+    if ($res -eq '200') {
         Ok 'S3 bucket cms-buksu-uploads is ready.'
         return $true
     }
-    Err 'S3 bucket not found after init script.'
+    Err "S3 bucket initialization returned status $res."
     return $false
 }
 
-function Verify-Redis {
+function Test-Redis {
     Step 'Checking Redis PING...'
     $pong = docker exec cms-redis redis-cli ping 2>&1
     if (("$pong".Trim()) -eq 'PONG') {
@@ -99,7 +100,7 @@ Set-Location $ROOT
 Msg '=== CMS V2 Docker Startup ===' 'Cyan'
 
 Assert-Docker
-Normalize-InitScript
+Format-InitScript
 
 if ($Reset) {
     Step 'Reset requested: docker compose -f docker-compose.yml down -v --remove-orphans'
@@ -134,8 +135,8 @@ $ok = (Wait-Health 'cms-plagiarism-api' 180) -and $ok
 $ok = (Wait-Health 'cms-server' 180) -and $ok
 $ok = (Wait-Health 'cms-client' 120) -and $ok
 
-$ok = (Ensure-S3Bucket) -and $ok
-$ok = (Verify-Redis) -and $ok
+$ok = (Initialize-S3Bucket) -and $ok
+$ok = (Test-Redis) -and $ok
 
 Step 'Checking API health endpoint...'
 try {
