@@ -45,44 +45,64 @@ export function PlagiarismProgressModal() {
   const isComplete = activeScan.percent >= 100;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-card/95 backdrop-blur-md border border-border/80 rounded-xl shadow-2xl p-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
-      <div className="flex items-start justify-between mb-2">
+    <div
+      className="fixed bottom-6 right-6 z-50 w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-2xl [font-family:var(--font-body)]"
+      style={{ backdropFilter: 'blur(8px)' }}
+    >
+      {/* Header row */}
+      <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2.5">
-          <div className={`p-2 rounded-lg ${isComplete ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+          <div
+            className={[
+              'rounded-lg p-2',
+              isComplete
+                ? 'bg-[color-mix(in_srgb,var(--color-ok)_14%,white)] text-[var(--color-ok)]'
+                : 'bg-[color-mix(in_srgb,var(--color-neutral)_14%,white)] text-[var(--color-neutral)]',
+            ].join(' ')}
+          >
             {isComplete ? (
-              <CheckCircle2 className="h-5 w-5 animate-bounce" />
+              <CheckCircle2 className="h-5 w-5" />
             ) : (
               <Loader2 className="h-5 w-5 animate-spin" />
             )}
           </div>
+
           <div>
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <FileSearch className="h-4 w-4 text-muted-foreground" />
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
+              <FileSearch className="h-4 w-4 text-[var(--color-text-secondary)]" />
               Plagiarism Check
             </h4>
-            <p className="text-xs text-muted-foreground line-clamp-1">{activeScan.stage}</p>
+            <p className="line-clamp-1 text-xs text-[var(--color-text-secondary)]">
+              {activeScan.stage}
+            </p>
           </div>
         </div>
+
         <button
+          type="button"
           onClick={() => setIsVisible(false)}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
+          className="rounded-md p-1 text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+          aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Animated Progress Bar */}
-      <div className="mt-3">
-        <div className="flex justify-between items-center text-xs font-medium text-muted-foreground mb-1.5">
+      {/* Progress bar */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-[var(--color-text-secondary)]">
           <span>Progress</span>
-          <span className="text-foreground font-mono">{activeScan.percent}%</span>
+          <span className="font-mono font-semibold text-[var(--color-text-primary)]">
+            {activeScan.percent}%
+          </span>
         </div>
-        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-border)_70%,white)]">
           <div
-            className={`h-full transition-all duration-500 ease-out ${
-              isComplete ? 'bg-emerald-500' : 'bg-gradient-to-r from-primary to-brand-purple'
-            }`}
-            style={{ width: `${activeScan.percent}%` }}
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: `${activeScan.percent}%`,
+              backgroundColor: isComplete ? 'var(--color-ok)' : 'var(--color-neutral)',
+            }}
           />
         </div>
       </div>

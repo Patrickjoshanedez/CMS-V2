@@ -28,6 +28,8 @@ import {
   Unlock,
   ClipboardList,
   Download,
+  Lock,
+  Clock,
 } from 'lucide-react';
 
 const STATUS_BADGE_CLASS = {
@@ -438,6 +440,33 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
   const isStudent = role === ROLES.STUDENT;
 
   if (isLoading) return <LoadingSpinner />;
+
+  if (
+    isStudent &&
+    (error?.response?.status === 403 ||
+      error?.response?.data?.error?.code === 'GRADES_LOCKED_PENDING_PANEL_COMPLETION')
+  ) {
+    return (
+      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+        <CardContent className="py-12 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Lock className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
+          <p className="max-w-md mx-auto text-sm text-muted-foreground">
+            Defense results, grading criteria scores, and final evaluation rubrics will unlock once
+            all assigned panel members have completely submitted and released their official
+            evaluations.
+          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Panel review in progress</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (error) return <ErrorAlert message={error.message ?? 'Could not load evaluations.'} />;
 
   const { evaluations = [], summary = {} } = data ?? {};
@@ -453,9 +482,21 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 
   if (isStudent && visibleEvaluations.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">
-          Evaluations have not been released yet.
+      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+        <CardContent className="py-12 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Lock className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
+          <p className="max-w-md mx-auto text-sm text-muted-foreground">
+            Defense results, grading criteria scores, and final evaluation rubrics will unlock once
+            all assigned panel members have completely submitted and released their official
+            evaluations.
+          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Panel review in progress</span>
+          </div>
         </CardContent>
       </Card>
     );

@@ -36,6 +36,8 @@ import {
   markAcceptedSchema,
   unlockRequestSchema,
   listSubmissionsQuerySchema,
+  updateJustificationSchema,
+  batchUploadChapterSchema,
 } from './submission.validation.js';
 
 const router = Router();
@@ -68,6 +70,42 @@ router.post(
     getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
   }),
   submissionController.uploadChapter,
+);
+
+/**
+ * POST /:projectId/chapters/batch
+ * Batch upload chapter documents from the student draft workspace (FR-4.1).
+ */
+router.post(
+  '/:projectId/chapters/batch',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.array('files', 10),
+  validateFile,
+  validate(batchUploadChapterSchema),
+  auditLog('submission.chapters_batch_uploaded', 'Submission', {
+    getDescription: (req) =>
+      `Batch uploaded ${req.files?.length || 0} chapters for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ projectId: req.params.projectId, count: req.files?.length }),
+  }),
+  submissionController.batchUploadChapters,
+);
+
+/**
+ * PATCH /:submissionId/justification
+ * Update late justification note for a submission (FR-4.2).
+ */
+router.patch(
+  '/:submissionId/justification',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(updateJustificationSchema),
+  auditLog('submission.justification_updated', 'Submission', {
+    getTargetId: (req) => req.params.submissionId,
+    getDescription: (req) => `Updated justification for submission ${req.params.submissionId}`,
+  }),
+  submissionController.updateJustification,
 );
 
 /**

@@ -6,7 +6,22 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import { getGoogleAuthRuntimeConfig } from './utils/googleAuth';
 import { appQueryClient } from './lib/queryClient';
+import { applyTheme } from './stores/themeStore';
 import './index.css';
+
+// ─── Flash-free theme bootstrap ───────────────────────────────────────────────
+// Apply the persisted theme class BEFORE React mounts to eliminate the white
+// flash on hard refresh when the user is in dark or system-dark mode.
+(function () {
+  try {
+    const stored = localStorage.getItem('cms-accessibility-settings');
+    const parsed = stored ? JSON.parse(stored) : {};
+    applyTheme(parsed?.state?.theme ?? 'dark');
+  } catch {
+    // Fallback: default dark if localStorage is inaccessible
+    document.documentElement.classList.add('dark');
+  }
+})();
 
 const googleAuth = getGoogleAuthRuntimeConfig();
 

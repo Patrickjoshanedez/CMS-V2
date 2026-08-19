@@ -772,19 +772,66 @@ export const signADMItem = catchAsync(async (req, res) => {
   const panelistAssignment = (project.panelists || []).find(
     (p) => String(p.userId) === String(req.user._id),
   );
+  const userRole =
+    panelistAssignment?.role || (req.user.facultyRole === 'chair' ? 'chair' : 'panel member');
   item.signatures.push({
     userId: req.user._id,
     name: `${req.user.firstName} ${req.user.lastName}`,
-    role: panelistAssignment?.role || 'panel member',
+    role: userRole,
     signedAt: new Date(),
     signatureDataUrl: signatureDataUrl || null,
   });
+
+  // Auto-Archiving Trigger (FR-4.5)
+  // When the Panel Chair signs off on the final ADM row (or all rows have chair signatures)
+  const isChair =
+    userRole === 'chair' ||
+    userRole === 'panel chair' ||
+    userRole === 'lead_panelist' ||
+    panelistAssignment?.role === 'chair';
+
+  const isFinalRow =
+    project.actionDoneMatrix.length > 0 &&
+    String(project.actionDoneMatrix[project.actionDoneMatrix.length - 1]._id) === String(itemId);
+
+  const allRowsSignedByChair = project.actionDoneMatrix.every((row) =>
+    row.signatures.some(
+      (s) =>
+        s.role === 'chair' ||
+        s.role === 'panel chair' ||
+        s.role === 'lead_panelist' ||
+        String(s.userId) === String(req.user._id),
+    ),
+  );
+
+  if ((isChair && isFinalRow) || (isChair && allRowsSignedByChair)) {
+    project.admStatus = 'approved';
+    project.isArchived = true;
+    project.archivedAt = new Date();
+    project.projectStatus = 'archived';
+
+    // Notify team members of auto-archiving
+    await project.populate('teamId');
+    if (project.teamId?.members) {
+      const Notification = (await import('../notifications/notification.model.js')).default;
+      const { emitToUser } = await import('../../services/socket.service.js');
+      const notifications = project.teamId.members.map((memberId) => ({
+        userId: memberId,
+        type: 'project_archived',
+        title: 'ADM Approved — Project Archived',
+        message: `Congratulations! Your capstone project "${project.title}" has been signed off by the Panel Chair and automatically archived.`,
+        metadata: { projectId, admStatus: 'approved' },
+      }));
+      const inserted = await Notification.insertMany(notifications);
+      inserted.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+    }
+  }
 
   await project.save();
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'ADM item signed successfully.',
-    data: { item },
+    data: { item, projectStatus: project.projectStatus, isArchived: project.isArchived },
   });
 });

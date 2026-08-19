@@ -3,6 +3,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
@@ -98,6 +99,14 @@ function ProposalSection({ submissions, canCompile, isReadOnly, searchSuffix }) 
               <div className="flex items-center gap-2 mt-0.5">
                 <SubmissionStatusBadge status={latestProposal.status} />
                 <span className="text-[11px] text-muted-foreground">v{latestProposal.version}</span>
+                {latestProposal.isFlagged && (
+                  <Badge
+                    variant="destructive"
+                    className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] py-0"
+                  >
+                    Flagged Incomplete
+                  </Badge>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">

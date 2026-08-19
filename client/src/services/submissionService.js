@@ -244,4 +244,29 @@ export const submissionService = {
    * @param {{overallFeedback?:string}} data
    */
   markAccepted: (submissionId, data) => api.post(`/submissions/${submissionId}/accept`, data),
+
+  /**
+   * Update late justification note for a submission (FR-4.2).
+   * @param {string} submissionId
+   * @param {{ justification: string }} data
+   */
+  updateJustification: (submissionId, data) =>
+    api.patch(`/submissions/${submissionId}/justification`, data),
+
+  /**
+   * Batch upload multiple chapter documents (FR-4.1).
+   * @param {string} projectId
+   * @param {FormData} formData
+   * @param {Function} [onUploadProgress]
+   */
+  batchUploadChapters: (projectId, formData, onUploadProgress) =>
+    api.post(
+      `/submissions/${assertProjectId(projectId, 'batchUploadChapters')}/chapters/batch`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
+        onUploadProgress,
+      },
+    ),
 };

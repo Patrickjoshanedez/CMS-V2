@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useManuscriptOpenLink } from '@/hooks/useDocuments';
+import { parseDocParam } from '@/utils/documentParams';
 import { ROLES, DOCUMENT_TYPES } from '@cms/shared';
 import { Loader2, ArrowLeft, AlertCircle, FileText } from 'lucide-react';
 
@@ -24,7 +25,7 @@ const DOC_TYPE_LABELS = {
 /**
  * DocumentEditorPage — Full-page embedded Google Doc viewer / editor.
  *
- * Route: /projects/:projectId/documents/:documentType
+ * Route: /projects/:projectId/documents/:docIdOrType
  *
  * The backend returns an `openLink` that is either an /edit or /preview URL
  * depending on the user's role:
@@ -32,8 +33,11 @@ const DOC_TYPE_LABELS = {
  *   - Panelists           → /preview (canEdit = false)
  */
 export default function DocumentEditorPage() {
-  const { projectId, documentType, docId } = useParams();
-  const resolvedDocumentType = documentType || docId;
+  const { projectId, docIdOrType, documentType, docId } = useParams();
+  const rawParam = docIdOrType || documentType || docId || '';
+  const parsed = parseDocParam(rawParam);
+  const resolvedDocumentType = parsed.documentType || parsed.raw;
+
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
@@ -50,12 +54,7 @@ export default function DocumentEditorPage() {
         {/* Top bar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="shrink-0"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="shrink-0">
               <ArrowLeft className="mr-1 h-4 w-4" />
               Back
             </Button>

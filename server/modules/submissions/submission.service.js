@@ -1238,6 +1238,7 @@ class SubmissionService {
     });
 
     const extractedMetadata = await this._extractUploadedPdfMetadata(file);
+    const completeness = this._validateProposalCompleteness(project, extractedMetadata);
 
     // --- Create submission record ---
     const submission = await Submission.create({
@@ -1252,6 +1253,9 @@ class SubmissionService {
       status: SUBMISSION_STATUSES.PENDING,
       submittedBy: userId,
       isLate,
+      justification: remarks || null,
+      isFlagged: completeness.isFlagged,
+      flagReasons: completeness.flagReasons,
       remarks: remarks || null,
       userDriveFolderId: driveSync.userDriveFolderId,
       driveFileId: driveSync.driveFileId,
@@ -2950,6 +2954,102 @@ class SubmissionService {
     );
 
     return { submission };
+  }
+
+  /**
+   * Validate institutional completeness of proposal upload (FR-4.3).
+   * Flags submissions with missing essential metadata for panel review without blocking upload.
+   */
+  _validateProposalCompleteness(project, extractedMetadata) {
+    const flagReasons = [];
+    const abstractText = (extractedMetadata?.documentAbstract || project?.abstract || '').trim();
+    if (!abstractText || abstractText.length < 50) {
+      flagReasons.push('Missing proposal abstract or abstract is under 50 characters.');
+    }
+    if (!project?.sectionId) {
+      flagReasons.push('Missing academic section assignment.');
+    }
+    if (!project?.adviserId) {
+      flagReasons.push('Missing assigned capstone adviser.');
+    }
+    if (!project?.teamId?.members || project.teamId.members.length === 0) {
+      flagReasons.push('Missing team member roster.');
+    }
+    const titleText = (project?.title || extractedMetadata?.documentTitle || '').trim();
+    if (!titleText || titleText.length < 10) {
+      flagReasons.push('Proposal title is incomplete or under 10 characters.');
+    }
+
+    return {
+      isFlagged: flagReasons.length > 0,
+      flagReasons,
+    };
+  }
+
+  /**
+   * Update justification for a submission (FR-4.2).
+   * Enforces temporal validation: justifications are locked for on-time submissions.
+   */
+  async updateJustification(userId, submissionId, justification) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const project = await Project.findById(submission.projectId).populate('teamId');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    const User = (await import('../users/user.model.js')).default;
+    const user = await User.findById(userId);
+    const isMember =
+      project.teamId?.members?.some((m) => String(m) === String(userId)) ||
+      String(project.teamId?.leaderId) === String(userId);
+    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(user?.role);
+
+    if (!isMember && !isFaculty) {
+      throw new AppError(
+        'You do not have permission to update justification for this submission.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    // Temporal validation: Late justification exemption locking
+    if (!submission.isLate) {
+      throw new AppError(
+        'Justifications are locked for on-time uploads.',
+        403,
+        'JUSTIFICATION_LOCKED_ON_TIME',
+      );
+    }
+
+    submission.justification = justification;
+    submission.remarks = justification;
+    await submission.save();
+
+    return { submission };
+  }
+
+  /**
+   * Batch upload multiple chapter files from the student draft workspace (FR-4.1).
+   */
+  async batchUploadChapters(userId, projectId, chapterDataList, files) {
+    if (!Array.isArray(files) || files.length === 0) {
+      throw new AppError('No files provided for batch chapter upload.', 400, 'NO_FILES_PROVIDED');
+    }
+
+    const submissions = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const data = Array.isArray(chapterDataList) ? chapterDataList[i] || {} : {};
+      const chapter = data.chapter || i + 1;
+      const res = await this.uploadChapter(userId, projectId, { ...data, chapter }, file);
+      submissions.push(res.submission);
+    }
+
+    return { submissions };
   }
 }
 

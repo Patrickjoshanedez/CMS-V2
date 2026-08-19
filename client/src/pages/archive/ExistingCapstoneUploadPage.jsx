@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
-import { documentService } from '@/services/authService';
+import { metadataService } from '@/services/metadataService';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { useAuthStore } from '@/stores/authStore';
@@ -453,7 +453,10 @@ const enrichMetadataFromKeywords = ({ metadata = {}, confidence = {}, fileName =
       year: withFallbackConfidence(confidence.year, metadata.year ? 70 : year ? 30 : 0),
       doi: withFallbackConfidence(confidence.doi, metadata.doi ? 80 : 0),
       venue: withFallbackConfidence(confidence.venue, metadata.venue ? 62 : 0),
-      keywords: withFallbackConfidence(confidence.keywords, metadata.keywords ? 65 : keywords ? 40 : 0),
+      keywords: withFallbackConfidence(
+        confidence.keywords,
+        metadata.keywords ? 65 : keywords ? 40 : 0,
+      ),
     },
     inferredFields,
   };
@@ -586,7 +589,7 @@ export default function ExistingCapstoneUploadPage() {
     setExtractionStatus('extracting');
 
     try {
-      const response = await documentService.extractPdfMetadata(pdfFile);
+      const response = await metadataService.extractPdfMetadata(pdfFile);
       const { metadata = {}, confidence = {} } = normalizeExtractionPayload(response);
       const enriched = enrichMetadataFromKeywords({
         metadata,
@@ -676,7 +679,7 @@ export default function ExistingCapstoneUploadPage() {
     setFeedbackBusyByField((prev) => ({ ...prev, [fieldName]: true }));
 
     try {
-      await documentService.submitMetadataFeedback({
+      await metadataService.submitMetadataFeedback({
         fieldName,
         extractedValue,
         correctedValue: normalizedCorrection,

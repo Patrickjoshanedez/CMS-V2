@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
-import { useTheme } from '@/components/ThemeProvider';
+import { useThemeStore } from '@/stores/themeStore';
 import {
   Palette,
   Bell,
@@ -94,7 +94,7 @@ const ADMIN_TABS = [
 /* ────────── Theme Selector ────────── */
 
 function ThemeSelector() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemeStore();
 
   const options = [
     {

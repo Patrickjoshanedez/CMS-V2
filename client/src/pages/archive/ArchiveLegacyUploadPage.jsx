@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { TagInput } from '@/components/ui/TagInput';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
-import { documentService } from '@/services/authService';
+import { metadataService } from '@/services/metadataService';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 import { Loader2, Upload, ArrowLeft, Info, Sparkles } from 'lucide-react';
@@ -157,7 +157,7 @@ export default function ArchiveLegacyUploadPage({
 
       setIsExtracting(true);
       try {
-        const response = await documentService.extractPdfMetadata(pdfFile);
+        const response = await metadataService.extractPdfMetadata(pdfFile);
         const payload = response?.data || {};
         const metadata = payload?.metadata || payload?.data || {};
         const confidence = payload?.confidence || metadata?.confidence || {};

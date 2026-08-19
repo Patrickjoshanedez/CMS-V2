@@ -17,6 +17,7 @@ import {
   useUnlockSubmission,
   useAddAnnotation,
   useRemoveAnnotation,
+  useUpdateJustification,
 } from '@/hooks/useSubmissions';
 import { ROLES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 import {
@@ -199,6 +200,125 @@ function InfoRow({ label, value, children }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       {children || <p className="text-sm font-medium break-all text-foreground">{value}</p>}
     </div>
+  );
+}
+
+/**
+ * JustificationCard — manages late justification note editing and on-time locking (FR-4.2).
+ */
+function JustificationCard({ submission, isStudent }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [note, setNote] = useState(submission.justification || submission.remarks || '');
+  const updateMutation = useUpdateJustification({
+    onSuccess: () => {
+      toast.success('Justification updated successfully.');
+      setIsEditing(false);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to update justification.');
+    },
+  });
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (!note.trim()) {
+      toast.error('Please provide a justification note.');
+      return;
+    }
+    updateMutation.mutate({
+      submissionId: submission._id,
+      justification: note.trim(),
+    });
+  };
+
+  if (!submission.isLate) {
+    return (
+      <Card className="border-border/60 bg-muted/15">
+        <CardContent className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">On-Time Submission</p>
+              <p className="text-xs text-muted-foreground">
+                Justifications are locked for on-time uploads (ADM compliance exemption).
+              </p>
+            </div>
+          </div>
+          <Badge
+            variant="outline"
+            className="text-xs font-mono text-emerald-600 border-emerald-300"
+          >
+            Locked (On-Time)
+          </Badge>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-base font-semibold">Late Justification Note</CardTitle>
+          </div>
+          <Badge variant="warning" className="text-xs">
+            Late Submission
+          </Badge>
+        </div>
+        <CardDescription className="text-xs">
+          This submission was delivered past the milestone deadline.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        {isEditing ? (
+          <form onSubmit={handleSave} className="space-y-3">
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Explain the reason for delay..."
+              maxLength={1000}
+              rows={3}
+              disabled={updateMutation.isPending}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(false)}
+                disabled={updateMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={updateMutation.isPending || !note.trim()}>
+                {updateMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  'Save Justification'
+                )}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm leading-relaxed text-foreground">
+              {submission.justification || submission.remarks || 'No justification provided yet.'}
+            </p>
+            {isStudent && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                Edit Justification
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -714,8 +834,33 @@ export default function SubmissionDetailPage() {
           </Alert>
         )}
 
+        {/* Flagged Incomplete Proposal Warning (FR-4.3) */}
+        {submission.isFlagged && (
+          <Alert
+            variant="destructive"
+            className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200"
+          >
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="space-y-1">
+              <p className="font-semibold text-sm">
+                Flagged for Panel Review: Incomplete Institutional Metadata
+              </p>
+              {submission.flagReasons && submission.flagReasons.length > 0 && (
+                <ul className="list-disc list-inside text-xs space-y-0.5 mt-1">
+                  {submission.flagReasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* File info */}
         <FileInfoCard submission={submission} viewUrl={viewUrl} viewUrlLoading={viewUrlLoading} />
+
+        {/* Late Justification Card (FR-4.2) */}
+        <JustificationCard submission={submission} isStudent={!isFaculty} />
         {/* Faculty: plagiarism checker */}
         {facultyCanReview && (
           <PlagiarismChecker

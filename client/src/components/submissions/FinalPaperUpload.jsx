@@ -1,13 +1,18 @@
 import { useState, useRef } from 'react';
 import { FileText, Lock, Globe, Upload, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Badge } from '@/components/ui/Badge';
 import { useUploadFinalAcademic, useUploadFinalJournal } from '@/hooks/useSubmissions';
 
-function UploadSection({ icon: Icon, iconClass, label, badge, badgeVariant, description, mutation, projectId }) {
+function UploadSection({
+  icon: Icon,
+  iconColor,
+  label,
+  badge,
+  badgeStyle,
+  description,
+  mutation,
+  projectId,
+}) {
   const [file, setFile] = useState(null);
   const inputRef = useRef(null);
 
@@ -34,15 +39,25 @@ function UploadSection({ icon: Icon, iconClass, label, badge, badgeVariant, desc
     }
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Icon className={`h-5 w-5 ${iconClass}`} />
-        <h3 className="font-semibold text-base">{label}</h3>
-        <Badge variant={badgeVariant} className="text-xs">{badge}</Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">{description}</p>
+  const isPending = mutation.isPending;
 
+  return (
+    <div className="space-y-3 [font-family:var(--font-body)]">
+      {/* Section header */}
+      <div className="flex items-center gap-2">
+        <Icon className="h-5 w-5" style={{ color: iconColor }} />
+        <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{label}</h3>
+        <span
+          className="rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+          style={badgeStyle}
+        >
+          {badge}
+        </span>
+      </div>
+
+      <p className="text-sm text-[var(--color-text-secondary)]">{description}</p>
+
+      {/* Drop zone */}
       <div
         role="button"
         tabIndex={0}
@@ -50,13 +65,25 @@ function UploadSection({ icon: Icon, iconClass, label, badge, badgeVariant, desc
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
-        className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/40 p-6 cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/60"
+        className={[
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 transition-all',
+          file
+            ? 'border-[var(--color-ok)] bg-[color-mix(in_srgb,var(--color-ok)_7%,white)]'
+            : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-neutral)]/50 hover:bg-[color-mix(in_srgb,var(--color-neutral)_5%,white)]',
+        ].join(' ')}
       >
-        <FileText className="h-8 w-8 text-muted-foreground/60" />
+        <FileText
+          className="h-8 w-8"
+          style={{ color: file ? 'var(--color-ok)' : 'var(--color-text-secondary)' }}
+        />
         {file ? (
-          <span className="text-sm font-medium truncate max-w-[280px]">{file.name}</span>
+          <span className="max-w-[280px] truncate text-sm font-semibold text-[var(--color-text-primary)]">
+            {file.name}
+          </span>
         ) : (
-          <span className="text-sm text-muted-foreground">Click or drag a PDF file here</span>
+          <span className="text-sm text-[var(--color-text-secondary)]">
+            Click or drag a PDF file here
+          </span>
         )}
         <input
           ref={inputRef}
@@ -67,23 +94,30 @@ function UploadSection({ icon: Icon, iconClass, label, badge, badgeVariant, desc
         />
       </div>
 
-      <Button
+      {/* Upload button */}
+      <button
+        type="button"
         onClick={handleUpload}
-        disabled={!file || mutation.isPending}
-        className="w-full"
+        disabled={!file || isPending}
+        className={[
+          'inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
+          !file || isPending
+            ? 'cursor-not-allowed bg-[color-mix(in_srgb,var(--color-sidebar)_70%,black)] text-white/80'
+            : 'bg-[var(--color-sidebar)] text-white hover:bg-[color-mix(in_srgb,var(--color-sidebar)_85%,black)]',
+        ].join(' ')}
       >
-        {mutation.isPending ? (
+        {isPending ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             Uploading…
           </>
         ) : (
           <>
-            <Upload className="mr-2 h-4 w-4" />
+            <Upload className="h-4 w-4" />
             Upload
           </>
         )}
-      </Button>
+      </button>
     </div>
   );
 }
@@ -93,46 +127,58 @@ export default function FinalPaperUpload({ projectId }) {
   const journalMutation = useUploadFinalJournal();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Final Paper Submission</CardTitle>
-        <CardDescription>
+    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm [font-family:var(--font-body)]">
+      {/* Card header */}
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-5 py-4">
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)] [font-family:var(--font-display)]">
+          Final Paper Submission
+        </h2>
+        <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
           Upload both required versions of your final capstone paper for archiving.
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
 
-      <CardContent className="space-y-6">
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
+      <div className="space-y-6 p-5">
+        {/* Info notice */}
+        <div className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-neutral)]" />
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Capstone 4 requires two final paper versions for archiving.
-          </AlertDescription>
-        </Alert>
+          </p>
+        </div>
 
         <UploadSection
           icon={Lock}
-          iconClass="text-amber-500"
+          iconColor="var(--color-warn)"
           label="Full Academic Version"
           badge="Restricted"
-          badgeVariant="secondary"
+          badgeStyle={{
+            background: 'color-mix(in srgb, var(--color-warn) 14%, white)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid color-mix(in srgb, var(--color-warn) 30%, white)',
+          }}
           description="The complete academic manuscript with all chapters and references. This will be restricted to faculty access only."
           mutation={academicMutation}
           projectId={projectId}
         />
 
-        <div className="border-t" />
+        <div className="border-t border-[var(--color-border)]" />
 
         <UploadSection
           icon={Globe}
-          iconClass="text-blue-500"
+          iconColor="var(--color-neutral)"
           label="Journal / Publishable Version"
           badge="Public"
-          badgeVariant="outline"
+          badgeStyle={{
+            background: 'color-mix(in srgb, var(--color-neutral) 12%, white)',
+            color: 'var(--color-neutral)',
+            border: '1px solid color-mix(in srgb, var(--color-neutral) 30%, white)',
+          }}
           description="A condensed version suitable for publication. This will be publicly searchable in the archive."
           mutation={journalMutation}
           projectId={projectId}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

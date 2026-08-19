@@ -109,12 +109,21 @@ const assertValidDocumentFile = async (file, fieldLabel = 'File') => {
  */
 const validateFile = async (req, _res, next) => {
   try {
-    if (!req.file) {
+    if (!req.file && (!req.files || req.files.length === 0)) {
       return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
     }
 
-    // Attach validated MIME type to the request for downstream use
-    req.file.validatedMime = await assertValidDocumentFile(req.file, 'File');
+    // Single file upload
+    if (req.file) {
+      req.file.validatedMime = await assertValidDocumentFile(req.file, 'File');
+    }
+
+    // Array of files (batch upload)
+    if (Array.isArray(req.files)) {
+      for (const f of req.files) {
+        f.validatedMime = await assertValidDocumentFile(f, 'File');
+      }
+    }
 
     next();
   } catch (error) {

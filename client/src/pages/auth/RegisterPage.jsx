@@ -13,7 +13,7 @@ import { FloatingInput } from '@/components/ui/FloatingInput';
 import AuthStatusAlert from '@/components/auth/AuthStatusAlert';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 import { useAuthStore } from '@/stores/authStore';
-import { useTheme } from '@/components/ThemeProvider';
+import { useThemeStore } from '@/stores/themeStore';
 import { getGoogleAuthRuntimeConfig } from '@/utils/googleAuth';
 
 const registerSchema = z
@@ -121,7 +121,7 @@ export default function RegisterPage() {
   const [captchaError, setCaptchaError] = useState('');
   const [googleError, setGoogleError] = useState('');
   const recaptchaRef = useRef(null);
-  const { theme } = useTheme();
+  const { theme } = useThemeStore();
 
   const {
     control,

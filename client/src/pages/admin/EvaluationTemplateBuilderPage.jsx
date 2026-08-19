@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,7 +7,11 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import api from '@/services/api';
+import {
+  useEvaluationTemplates,
+  useSaveEvaluationTemplate,
+  useDeleteEvaluationTemplate,
+} from '@/hooks/useEvaluations';
 import {
   Plus,
   Trash2,
@@ -23,7 +26,6 @@ import {
 import { toast } from 'sonner';
 
 export default function EvaluationTemplateBuilderPage() {
-  const queryClient = useQueryClient();
   const [selectedDefenseType, setSelectedDefenseType] = useState('proposal');
   const [editingTemplate, setEditingTemplate] = useState(null);
 
@@ -55,27 +57,12 @@ export default function EvaluationTemplateBuilderPage() {
     },
   ]);
 
-  // Fetch templates
-  const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['evaluationTemplates', selectedDefenseType],
-    queryFn: async () => {
-      const res = await api.get('/evaluation-templates', {
-        params: { defenseType: selectedDefenseType },
-      });
-      return res.data?.data?.templates || [];
-    },
-  });
+  // Fetch templates via hook
+  const { data: templates = [], isLoading } = useEvaluationTemplates(selectedDefenseType);
 
-  // Create/Update mutation
-  const saveMutation = useMutation({
-    mutationFn: async (payload) => {
-      if (editingTemplate?._id) {
-        return api.patch(`/evaluation-templates/${editingTemplate._id}`, payload);
-      }
-      return api.post('/evaluation-templates', payload);
-    },
+  // Create/Update mutation hook
+  const saveMutation = useSaveEvaluationTemplate({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['evaluationTemplates'] });
       toast.success(
         editingTemplate ? 'Template updated successfully.' : 'Evaluation rubric template created.',
       );
@@ -86,14 +73,13 @@ export default function EvaluationTemplateBuilderPage() {
     },
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (templateId) => {
-      return api.delete(`/evaluation-templates/${templateId}`);
-    },
+  // Delete mutation hook
+  const deleteMutation = useDeleteEvaluationTemplate({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['evaluationTemplates'] });
       toast.success('Template archived.');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Failed to archive template.');
     },
   });
 
@@ -161,6 +147,7 @@ export default function EvaluationTemplateBuilderPage() {
       return;
     }
     saveMutation.mutate({
+      templateId: editingTemplate?._id,
       name: name.trim(),
       description: description.trim(),
       defenseType,

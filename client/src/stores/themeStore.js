@@ -1,28 +1,51 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+/**
+ * Resolves the effective theme ('dark' | 'light') for a given preference.
+ * When preference is 'system', defers to the OS prefers-color-scheme media query.
+ */
+export function resolveTheme(preference) {
+  if (preference === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return preference === 'dark' ? 'dark' : 'light';
+}
+
+/**
+ * Applies the correct .dark class to <html> based on a stored preference.
+ * Safe to call before React mounts (used in main.jsx bootstrap).
+ */
+export function applyTheme(preference) {
+  if (typeof document === 'undefined') return;
+  const effective = resolveTheme(preference);
+  document.documentElement.classList.toggle('dark', effective === 'dark');
+  document.documentElement.classList.remove('light'); // Tailwind uses .dark only — keep DOM clean
+}
+
 export const useThemeStore = create(
   persist(
     (set) => ({
-      theme: 'dark', // Primary render default
-      fontSizeMultiplier: 1.0, // Standard size multiplier (e.g. 1.0, 1.25, 1.5)
+      /** 'dark' | 'light' | 'system' */
+      theme: 'dark',
+      fontSizeMultiplier: 1.0,
 
+      /**
+       * Toggle between dark and light. If current preference is 'system',
+       * toggles to the opposite of the current effective theme.
+       */
       toggleTheme: () =>
         set((state) => {
-          const nextTheme = state.theme === 'dark' ? 'light' : 'dark';
-          if (typeof document !== 'undefined') {
-            document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-            document.documentElement.classList.toggle('light', nextTheme === 'light');
-          }
+          const effective = resolveTheme(state.theme);
+          const nextTheme = effective === 'dark' ? 'light' : 'dark';
+          applyTheme(nextTheme);
           return { theme: nextTheme };
         }),
 
+      /** Explicitly set theme preference: 'dark' | 'light' | 'system' */
       setTheme: (theme) =>
         set(() => {
-          if (typeof document !== 'undefined') {
-            document.documentElement.classList.toggle('dark', theme === 'dark');
-            document.documentElement.classList.toggle('light', theme === 'light');
-          }
+          applyTheme(theme);
           return { theme };
         }),
 
@@ -46,7 +69,7 @@ export const useThemeStore = create(
     }),
     {
       name: 'cms-accessibility-settings',
-      storage: createJSONStorage(() => localStorage), // Avoids dark flash on initial DOM painting
+      storage: createJSONStorage(() => localStorage),
     },
   ),
 );

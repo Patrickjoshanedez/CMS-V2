@@ -150,6 +150,37 @@ describe('DocumentEditorPage', () => {
     view.unmount();
   });
 
+  it('correctly resolves docIdOrType when supplied in route params', () => {
+    mockUseParams.mockReturnValue({
+      projectId: 'project-3',
+      docIdOrType: DOCUMENT_TYPES.CHAPTER_2,
+    });
+    mockUseAuthStore.mockReturnValue({
+      user: {
+        role: ROLES.STUDENT,
+      },
+    });
+    mockUseManuscriptOpenLink.mockReturnValue({
+      data: {
+        manuscript: {
+          title: 'Chapter 2 Literature',
+          documentType: DOCUMENT_TYPES.CHAPTER_2,
+        },
+        openLink: 'https://docs.google.com/document/d/mock-ch2/edit',
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    const view = renderDocumentEditorPage();
+
+    expect(mockUseManuscriptOpenLink).toHaveBeenCalledWith('project-3', DOCUMENT_TYPES.CHAPTER_2);
+    expect(view.container.textContent).toContain('Chapter 2 Literature');
+    expect(view.container.textContent).toContain('Chapter 2');
+
+    view.unmount();
+  });
+
   it('renders the loading and error states from the manuscript hook', () => {
     mockUseManuscriptOpenLink.mockReturnValue({
       data: null,

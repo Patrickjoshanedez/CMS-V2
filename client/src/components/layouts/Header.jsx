@@ -7,79 +7,90 @@ import { useUnreadCount } from '@/hooks/useNotifications';
 import { ROLES } from '@cms/shared';
 
 /**
- * Map route paths to human-readable page titles.
- * Ordered from most specific to least specific so the first match wins.
+ * Declarative route mapping rules with regex patterns.
+ * Evaluated strictly in order from most specific parameterized routes to broad fallbacks.
  */
-const PAGE_TITLES = [
-  // Specific with query params (must come first)
-  { path: '/projects?filter=advisees', title: 'Adviser Reviews' },
-  { path: '/projects?filter=panel', title: 'Panel Review' },
+export const ROUTE_TITLE_RULES = [
+  // 1. Query parameter specific routes (must precede general /projects)
+  {
+    matcher: (pathname, search) => pathname === '/projects' && search.includes('filter=advisees'),
+    title: 'Adviser Reviews',
+  },
+  {
+    matcher: (pathname, search) => pathname === '/projects' && search.includes('filter=panel'),
+    title: 'Panel Review',
+  },
 
-  // Submissions & Projects (Student)
-  { path: '/project/submissions/upload', title: 'Upload Chapter' },
-  { path: '/project/submissions/', title: 'Submission Detail' },
-  { path: '/project/submissions', title: 'Submissions' },
-  { path: '/project/create', title: 'Create Project' },
-  { path: '/project/proposal', title: 'Proposal Compilation' },
-  { path: '/project', title: 'My Capstone' },
+  // 2. Specific nested project sub-routes
+  { pattern: /^\/projects\/[^/]+\/certificate\/?$/, title: 'Certificate of Completion' },
+  { pattern: /^\/projects\/[^/]+\/documents\/[^/]+\/?$/, title: 'Document Editor' },
 
-  // Projects & Reviews (Faculty/Admin)
-  { path: '/projects/', title: 'Project Details' },
-  { path: '/projects', title: 'Instructor Review' },
-  { path: '/adviser/team-review', title: 'Team Review' },
+  // 3. Submissions & Chapters (Student / Review)
+  { pattern: /^\/project\/submissions\/upload\/?$/, title: 'Upload Chapter' },
+  { pattern: /^\/project\/submissions\/[^/]+\/plagiarism-report\/?$/, title: 'Plagiarism Report' },
+  { pattern: /^\/project\/submissions\/[^/]+\/review\/?$/, title: 'Submission Review' },
+  { pattern: /^\/project\/submissions\/[^/]+\/?$/, title: 'Submission Detail' },
+  { pattern: /^\/project\/submissions\/?$/, title: 'Submissions' },
+  { pattern: /^\/project\/proposal\/?$/, title: 'Proposal Compilation' },
+  { pattern: /^\/project\/create\/?$/, title: 'Create Project' },
+  { pattern: /^\/project\/?$/, title: 'My Capstone' },
 
-  // General
-  { path: '/dashboard', title: 'Dashboard' },
-  { path: '/notifications', title: 'Notifications' },
-  { path: '/teams', title: 'My Team' },
-  { path: '/team', title: 'My Team' },
-  { path: '/users', title: 'Users' },
-  { path: '/profile', title: 'Profile' },
-  { path: '/settings', title: 'Settings' },
+  // 4. Projects & Reviews (Faculty/Instructor)
+  { pattern: /^\/projects\/[^/]+\/?$/, title: 'Project Details' },
+  { pattern: /^\/projects\/?$/, title: 'Instructor Review' },
+  { pattern: /^\/adviser\/team-review\/?$/, title: 'Team Review' },
 
-  // Archive & Reports
-  { path: '/archive/upload/capstone', title: 'Upload Archived Capstone' },
-  { path: '/archive/upload/academic-paper', title: 'Upload Archived Capstone' },
-  { path: '/archive/upload/academic-journal', title: 'Upload Archived Capstone' },
-  { path: '/reports/bulk-upload', title: 'Upload Archived Capstone' },
-  { path: '/archive', title: 'Research Archive' },
-  { path: '/plagiarism-checker', title: 'Plagiarism Checker' },
-  { path: '/reports', title: 'Reports' },
+  // 5. Cloud Documents & Templates
+  { pattern: /^\/documents\/manuscripts\/?$/, title: 'Manuscript Management' },
+  { pattern: /^\/documents\/templates\/?$/, title: 'Document Templates' },
 
-  // Admin
-  { path: '/admin/audit', title: 'Activity Log' },
-  { path: '/admin/audit-log', title: 'Activity Log' },
+  // 6. Admin & Governance
+  { pattern: /^\/admin\/evaluation-templates\/?$/, title: 'Evaluation Rubric Builder' },
+  { pattern: /^\/admin\/audit(-log)?\/?$/, title: 'Activity Log' },
+  { pattern: /^\/admin\/users\/?$/, title: 'User Management' },
+  { pattern: /^\/users\/?$/, title: 'Users' },
+
+  // 7. Teams
+  { pattern: /^\/teams\/invites\/[^/]+\/[^/]+\/?$/, title: 'Team Invitation' },
+  { pattern: /^\/teams\/?$/, title: 'My Team' },
+  { pattern: /^\/team\/?$/, title: 'My Team' },
+
+  // 8. Archive & Plagiarism
+  { pattern: /^\/archive\/upload\/capstone\/?$/, title: 'Upload Archived Capstone' },
+  { pattern: /^\/archive\/upload\/academic-paper\/?$/, title: 'Upload Academic Paper' },
+  { pattern: /^\/archive\/upload\/academic-journal\/?$/, title: 'Upload Academic Journal' },
+  { pattern: /^\/archive\/?$/, title: 'Research Archive' },
+  { pattern: /^\/plagiarism-checker\/?$/, title: 'Plagiarism Checker' },
+
+  // 9. Reports
+  { pattern: /^\/reports\/bulk-upload\/?$/, title: 'Bulk Upload' },
+  { pattern: /^\/reports\/?$/, title: 'Reports' },
+
+  // 10. General User Views
+  { pattern: /^\/dashboard\/?$/, title: 'Dashboard' },
+  { pattern: /^\/notifications\/?$/, title: 'Notifications' },
+  { pattern: /^\/profile\/?$/, title: 'Profile' },
+  { pattern: /^\/settings\/?$/, title: 'Settings' },
 ];
 
 /**
- * Derive the page title from the current pathname and search params.
+ * Derive the page title from current pathname and search params using declarative regex matching.
+ *
+ * @param {string} pathname
+ * @param {string} search
+ * @returns {string}
  */
-function getPageTitle(pathname, search) {
-  const fullPath = pathname + search;
+export function getPageTitle(pathname = '', search = '') {
+  for (const rule of ROUTE_TITLE_RULES) {
+    if (rule.matcher && rule.matcher(pathname, search)) {
+      return rule.title;
+    }
+    if (rule.pattern && rule.pattern.test(pathname)) {
+      return rule.title;
+    }
+  }
 
-  // 1. Try to match entries that include query parameters (e.g. /projects?filter=...)
-  const queryMatch = PAGE_TITLES.find(
-    (entry) => entry.path.includes('?') && fullPath.startsWith(entry.path),
-  );
-  if (queryMatch) return queryMatch.title;
-
-  // 2. Try to match path-only entries
-  const pathMatch = PAGE_TITLES.find((entry) => {
-    // Skip entries with query params here
-    if (entry.path.includes('?')) return false;
-
-    // Exact match
-    if (pathname === entry.path) return true;
-
-    // Sub-path match (e.g., /projects/123 matches /projects/ or /projects)
-    // We ensure we match full segments to avoid /projects matching /project
-    const prefix = entry.path.endsWith('/') ? entry.path : `${entry.path}/`;
-    if (pathname.startsWith(prefix)) return true;
-
-    return false;
-  });
-
-  return pathMatch?.title || 'Dashboard';
+  return 'Dashboard';
 }
 
 function getRoleLabel(role) {
@@ -105,7 +116,6 @@ export default function Header({ sidebarOpen, onMenuClick }) {
     [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const roleLabel = getRoleLabel(user?.role);
-
   const pageTitle = getPageTitle(pathname, search);
 
   const showBackArrow = pathname.startsWith('/projects/') && pathname !== '/projects';

@@ -17,9 +17,10 @@ describe('useThemeStore', () => {
   });
 
   it('toggles between dark and light themes and updates DOM classes', () => {
+    // Tailwind darkMode: 'class' only looks for .dark on <html>.
+    // Light mode = absence of .dark — no .light class is applied.
     useThemeStore.getState().setTheme('light');
     expect(useThemeStore.getState().theme).toBe('light');
-    expect(document.documentElement.classList.contains('light')).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
 
     useThemeStore.getState().toggleTheme();

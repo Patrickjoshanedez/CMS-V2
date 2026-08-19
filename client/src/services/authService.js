@@ -196,28 +196,3 @@ export const academicService = {
   createAcademicYear: (data) => api.post('/academics/academic-years', data),
   getHierarchy: (params) => api.get('/academics/hierarchy', { params }),
 };
-
-/**
- * Document API service — document-related operations.
- */
-export const documentService = {
-  /**
-   * Extract capstone metadata and confidence scores from a PDF file.
-   * @param {File} file - The PDF file to extract metadata from
-   * @returns {Promise<{metadata: {title: string, abstract: string, authors: string, year: string, doi: string, venue: string, keywords: string}, confidence: Record<string, number>}>}
-   */
-  extractPdfMetadata: (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return api.post('/documents/extract-pdf-metadata', formData, {
-      timeout: 120000,
-    });
-  },
-
-  /**
-   * Store OCR field correction feedback for future extraction improvements.
-   */
-  submitMetadataFeedback: (payload) => {
-    return api.post('/documents/metadata-feedback', payload);
-  },
-};

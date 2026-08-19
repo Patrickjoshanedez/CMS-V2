@@ -3,7 +3,7 @@ import api from './api';
 /**
  * Evaluation API service — all evaluation-related HTTP calls.
  *
- * Endpoints are mounted at /api/evaluations on the server.
+ * Endpoints are mounted at /api/evaluations and /api/evaluation-templates on the server.
  */
 
 export const evaluationService = {
@@ -29,4 +29,20 @@ export const evaluationService = {
 
   /** Get a single evaluation by ID. */
   getEvaluation: (evaluationId) => api.get(`/evaluations/detail/${evaluationId}`),
+
+  /* ── Evaluation Rubric Templates ── */
+
+  /** List evaluation rubric templates by defenseType */
+  getEvaluationTemplates: (params) => api.get('/evaluation-templates', { params }),
+
+  /** Create an evaluation rubric template */
+  createEvaluationTemplate: (data) => api.post('/evaluation-templates', data),
+
+  /** Update an evaluation rubric template */
+  updateEvaluationTemplate: (id, data) => api.patch(`/evaluation-templates/${id}`, data),
+
+  /** Delete an evaluation rubric template */
+  deleteEvaluationTemplate: (id) => api.delete(`/evaluation-templates/${id}`),
 };
+
+export default evaluationService;

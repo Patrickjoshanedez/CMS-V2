@@ -478,3 +478,50 @@ export const deleteSubmissionComment = catchAsync(async (req, res) => {
     message: 'Comment deleted.',
   });
 });
+
+/**
+ * PATCH /api/submissions/:submissionId/justification
+ * Update late justification note for a submission (FR-4.2).
+ */
+export const updateJustification = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.updateJustification(
+    req.user._id,
+    req.params.submissionId,
+    req.body.justification,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Justification updated successfully.',
+    data: { submission },
+  });
+});
+
+/**
+ * POST /api/submissions/:projectId/chapters/batch
+ * Batch upload chapter files from draft workspace (FR-4.1).
+ */
+export const batchUploadChapters = catchAsync(async (req, res) => {
+  let chaptersData = [];
+  if (req.body.chapters) {
+    try {
+      chaptersData =
+        typeof req.body.chapters === 'string' ? JSON.parse(req.body.chapters) : req.body.chapters;
+    } catch {
+      chaptersData = [];
+    }
+  }
+
+  const { submissions } = await submissionService.batchUploadChapters(
+    req.user._id,
+    req.params.projectId,
+    chaptersData,
+    req.files,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: `${submissions.length} chapter(s) uploaded successfully from draft workspace.`,
+    data: { submissions },
+  });
+});

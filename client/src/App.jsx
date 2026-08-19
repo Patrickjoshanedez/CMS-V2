@@ -1,9 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from 'sonner';
 import { ROLES } from '@cms/shared';
 import { PlagiarismProgressModal } from './components/plagiarism/PlagiarismProgressModal';
+import { useThemeStore, applyTheme } from './stores/themeStore';
 
 // Lazy-loaded page imports
 import { lazy, Suspense, useEffect, useRef } from 'react';
@@ -63,6 +63,29 @@ function LoadingSpinner() {
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>
   );
+}
+
+/**
+ * ThemeSync — Subscribes to the Zustand theme store and keeps the <html> class
+ * in sync. Also re-applies theme when the OS prefers-color-scheme changes while
+ * the user has selected the 'system' preference.
+ */
+function ThemeSync() {
+  const theme = useThemeStore((s) => s.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (theme !== 'system') return;
+
+    // Listen for OS-level dark/light changes when preference is 'system'
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyTheme('system');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  return null;
 }
 
 function ProtectedRoute({ children }) {
@@ -142,7 +165,7 @@ const PROTECTED_ROUTES = [
   // Documents
   { path: '/documents/manuscripts', Component: TemplateManagementPage },
   { path: '/documents/templates', Component: TemplateManagementPage },
-  { path: '/projects/:projectId/documents/:docId', Component: DocumentEditorPage },
+  { path: '/projects/:projectId/documents/:docIdOrType', Component: DocumentEditorPage },
   { path: '/adviser/team-review', Component: TeamReviewWorkflowPage },
   // Submissions
   { path: '/project/submissions', Component: ProjectSubmissionsPage },
@@ -173,14 +196,16 @@ export default function App() {
   // Show a full-screen spinner while we confirm the session.
   if (sessionLoading) {
     return (
-      <ThemeProvider defaultTheme="system" storageKey="cms-ui-theme">
+      <>
+        <ThemeSync />
         <LoadingSpinner />
-      </ThemeProvider>
+      </>
     );
   }
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="cms-ui-theme">
+    <>
+      <ThemeSync />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
@@ -233,6 +258,6 @@ export default function App() {
       </Suspense>
       <Toaster richColors position="top-right" />
       <PlagiarismProgressModal />
-    </ThemeProvider>
+    </>
   );
 }

@@ -575,3 +575,23 @@ export function useUploadFinalJournal(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Update late justification note for a submission (FR-4.2).
+ */
+export function useUpdateJustification(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, justification }) => {
+    const res = await submissionService.updateJustification(submissionId, { justification });
+    return res.data;
+  }, options);
+}
+
+/**
+ * Batch upload chapter documents from the draft workspace (FR-4.1).
+ */
+export function useBatchUploadChapters(options = {}) {
+  return useSubmissionMutation(async ({ projectId, formData, onUploadProgress }) => {
+    const res = await submissionService.batchUploadChapters(projectId, formData, onUploadProgress);
+    return res.data;
+  }, options);
+}

@@ -16,7 +16,7 @@ import {
   Users,
   ClipboardCheck,
 } from 'lucide-react';
-import { useTheme } from '../components/ThemeProvider';
+import { useThemeStore } from '../stores/themeStore';
 
 /**
  * CitySkylineSVG — Intricate city skyline silhouette embedded inside the gradient wave.
@@ -158,7 +158,7 @@ function WaveShape() {
  * ThemeButton — Moon/Sun toggle for the landing page header.
  */
 function ThemeButton() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemeStore();
 
   const cycleTheme = () => {
     if (theme === 'light') setTheme('dark');
