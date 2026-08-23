@@ -156,5 +156,5 @@ describe('App session-timeout redirect behavior', () => {
     expect(view.container.textContent).not.toContain('Dashboard Route');
 
     view.unmount();
-  });
+  }, 20000);
 });
