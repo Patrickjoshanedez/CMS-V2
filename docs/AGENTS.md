@@ -23,7 +23,6 @@ Every agent operates under a strict **Two-Pile Governance Model** to prevent con
 *   **Code Quality:** Maximize modularity. Consolidate repetitive tasks behind shared hooks under `client/src/hooks` and centralized utility functions.
 
 ### Pile B: Hard Survival Rules (Deterministic & Externally Enforced)
-*   **Restricted Files:** Do not edit or overwrite environment secret files (`.env*`). Do not modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
 *   **No Unbounded File Reading:** Full repository dumps, broad wildcard searches, and recursive `cat` style dumps are strictly prohibited. Agents must use structured file indexers or targeted line-range viewers.
 *   **No Direct Database Mutations:** Direct raw MongoDB, Redis, or ChromaDB mutations via terminal scripts are blocked. All state changes must occur via the official API service layers.
 *   **Single Memory Namespace:** Agents are forbidden from writing context files, status logs, or memories outside of the `.agents/` or `.github/hooks/state/` directories. Any auxiliary memory file written to the workspace root will trigger an immediate pre-commit rejection.
@@ -39,18 +38,19 @@ To prevent a **Workspace Clutter Crisis**, the workspace maintains a strict whit
 ├── client/                           ← React 18 Tailwind Frontend SPA
 ├── server/                           ← Node.js / Express.js REST API Backend
 ├── plagiarism_engine/                ← PyTorch & Winnowing Plagiarism API (FastAPI)
-├── shared/                           ← Shared schema & utility workspace
 ├── scripts/                          ← All deployment, migration, and seeder scripts
 ├── docs/                             ← System specifications, guidelines, and manuals
 ├── assets/                           ← Media, logos, and static graphics
 ├── .git/                             ← Local Git repository metadata
 ├── .agents/                          ← Shared memory and execution trajectories
-└── scratch/                          ← Intermediate developer scratch space
+├── scratch/                          ← Intermediate developer scratch space
+├── knowledge/                        ← Directly-accessible source files (Read-Only)
+└── out/                              ← Flat write-only outbox for final deliverables
 ```
 
 ### File Write Whitelist
-*   **Allowed Write Areas:** `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, and `scratch/`.
-*   **Strictly Prohibited:** No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (all scripts must live under `scripts/`).
+*   **Allowed Write Areas:** `client/src/`, `server/`, `plagiarism_engine/`, `scripts/`, `docs/`, `.agents/`, `scratch/`, and `out/`.
+*   **Strictly Prohibited:** No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in `/workspace/` (all scripts must live under `/workspace/scripts/`).
 *   **Shadow Tree Ban:** Files must never be written to or read from dead development trees (e.g., `staging/`, `dashboard-ui/`, `memories/`, `context/`).
 
 ---
@@ -74,7 +74,7 @@ npm run validate:agentic
 # Validate the React Frontend unit and store tests
 npm test --workspace=client
 
-# Validate the Express Backend integration and unit suites
+# Validate the Express Backend integration and ADM compliance suites
 npm test --workspace=server
 ```
 
@@ -82,7 +82,7 @@ npm test --workspace=server
 
 ## 6. GIT POST-COMMIT TAGGING & AUTOMATED VERSIONING
 
-The repository implements an automated post-commit hook `.git/hooks/post-commit` (and `.husky/post-commit`) that manages semantic tagging via `scripts/git-auto-tag.py`. Every commit message must be structured according to the following matrix:
+The repository implements an automated post-commit hook `.git/hooks/post-commit` that manages semantic tagging. Every commit message must be structured according to the following matrix:
 
 | Commit Message Flag | Action Taken | Target Version Transition |
 | :--- | :--- | :--- |
@@ -106,7 +106,7 @@ To protect token consumption and pipeline resources, the execution loop is activ
 ## 8. HUMAN-IN-THE-LOOP (HITL) GATES
 
 High-consequence actions must pause and request explicit human verification:
-1.  **Database Seeding:** Any scripts modifying standard catalog records (`server/seeders/*`).
+1.  **Database Seeding:** Any scripts modifying standard catalog records.
 2.  **Production Releases:** Pushing tags beyond the major version line.
 3.  **ADM Signatures:** Applying final digital signature hashes to the Action Done Matrix.
 
