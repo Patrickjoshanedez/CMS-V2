@@ -63,7 +63,14 @@ def get_latest_semver_tag() -> tuple[int, int, int] | None:
 def auto_tag() -> int:
     print("[Git Auto-Tag Hook] Running automated version tagging...", file=sys.stderr)
 
-    # 1. Prevent re-tagging if current HEAD already has a semantic tag
+    # 1. Run Workspace Cleanliness Guardrail audit
+    try:
+        from workspace_guardrail import audit_and_purge_workspace
+        audit_and_purge_workspace(dry_run=True)
+    except Exception as e:
+        print(f"[Git Auto-Tag Hook] Note: Workspace guardrail check: {e}", file=sys.stderr)
+
+    # 2. Prevent re-tagging if current HEAD already has a semantic tag
     head_tags = run_git(["tag", "--points-at", "HEAD"])
     if head_tags:
         for tag_str in head_tags.splitlines():
