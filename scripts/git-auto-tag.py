@@ -115,6 +115,30 @@ def auto_tag() -> int:
         subprocess.run(["git", "tag", new_tag], check=False)
 
     print(f"[Git Auto-Tag Hook] Successfully tagged HEAD as '{new_tag}'.", file=sys.stderr)
+
+    # 5. Automated Remote Sync (Auto-Push Rule)
+    print("[Git Auto-Tag Hook] Running automated repository sync (git push)...", file=sys.stderr)
+    remotes = run_git(["remote"])
+    if "origin" in remotes.split():
+        current_branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"])
+        if current_branch and current_branch != "HEAD":
+            print(f"[Git Auto-Tag Hook] Pushing branch '{current_branch}' and tags to remote 'origin'...", file=sys.stderr)
+            push_result = subprocess.run(
+                ["git", "push", "origin", current_branch, "--tags"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            if push_result.returncode == 0:
+                print("[Git Auto-Tag Hook] Successfully synced branch and tags to origin.", file=sys.stderr)
+            else:
+                print(f"[Git Auto-Tag Hook] Warning: Remote push encountered an issue: {push_result.stderr.strip()}", file=sys.stderr)
+        else:
+            print("[Git Auto-Tag Hook] Detached HEAD state. Skipping automated branch push.", file=sys.stderr)
+    else:
+        print("[Git Auto-Tag Hook] No remote 'origin' detected (local-only mode). Skipping push.", file=sys.stderr)
+
     return 0
 
 
