@@ -27,6 +27,7 @@ process.env.RECAPTCHA_SECRET_KEY = ''; // Disable reCAPTCHA in tests
 process.env.RECAPTCHA_ENABLED = 'false';
 process.env.COOKIE_SECURE = 'false';
 process.env.COOKIE_SAME_SITE = 'lax';
+process.env.BCRYPT_ROUNDS = '4';
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create({

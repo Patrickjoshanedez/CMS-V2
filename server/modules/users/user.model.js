@@ -181,7 +181,8 @@ userSchema.pre('save', async function () {
   // Skip hashing for Google OAuth users (no password) or unmodified passwords
   if (!this.password || !this.isModified('password')) return;
 
-  const salt = await bcrypt.genSalt(12);
+  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 12;
+  const salt = await bcrypt.genSalt(rounds);
   this.password = await bcrypt.hash(this.password, salt);
 });
 

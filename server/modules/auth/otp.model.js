@@ -43,7 +43,8 @@ otpSchema.index({ email: 1, type: 1 });
 otpSchema.pre('save', async function () {
   if (!this.isModified('code')) return;
 
-  const salt = await bcrypt.genSalt(10);
+  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
+  const salt = await bcrypt.genSalt(rounds);
   this.code = await bcrypt.hash(this.code, salt);
 });
 
