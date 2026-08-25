@@ -1,0 +1,4 @@
+# PTSS Session Index
+# Append-only JSONL — one line per archived session.
+# Used by hermes-curator/scripts/audit_skills.py to compute per-skill activity.
+# Format: {"session_id": "...", "date": "ISO", "task_summary": "...", "task_category": "...", "skills_written": [...], "skills_patched": [...]}

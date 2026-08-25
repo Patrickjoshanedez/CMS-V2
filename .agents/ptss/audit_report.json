@@ -1,0 +1,618 @@
+{
+  "generated_at": "2026-08-24T14:31:20.426015+00:00",
+  "workspace": "C:\\Users\\patri\\OneDrive\\Desktop\\Holy folder\\CMS-V2",
+  "thresholds": {
+    "stale_days": 30,
+    "archive_days": 45
+  },
+  "summary": {
+    "active": 0,
+    "stale": 0,
+    "archived": 0,
+    "never_used": 50,
+    "skipped": 10
+  },
+  "ptss_sessions_indexed": 0,
+  "skills": [
+    {
+      "skill": "aif-loop",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "algorithmic-art",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "anti-slop",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "azure-ai-textanalytics-py",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "content-analysis",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "context7-agent-ops",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "continual-learning",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "devops-iac-engineer",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "discover-engineering",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "discover-frontend",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "discover-research",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "docker-compose-production",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "enterprise-realtime-cloud",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "frontend-patterns",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "frontend-specialist",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "hermes-curator",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "huggingface-tokenizers",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-adapt",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-animate",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-arrange",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-audit",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-bolder",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-clarify",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-colorize",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-critique",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-delight",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-distill",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-extract",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-frontend-design",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-harden",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-normalize",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-onboard",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-optimize",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-overdrive",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-polish",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-quieter",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-teach-impeccable",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "i-typeset",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "long-agent",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "mermaid-diagrams",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "mongoose-mongodb",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "opik-backend",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "pdf",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "plagiarism-engine",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "ptss",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "python",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "refactor",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "scikit-learn",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "senior-backend",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "senior-data-engineer",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "senior-fullstack",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "skill-creator",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "skill-write-or-patch",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "sre-engineer",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "sre-reliability-engineering",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "tanstack-query",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "verification-loop",
+      "state": "skipped",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "none \u2014 in _CURATOR_SKIP"
+    },
+    {
+      "skill": "web-design-guidelines",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "xlsx",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    },
+    {
+      "skill": "zustand",
+      "state": "never_used",
+      "last_used": null,
+      "triggered_count": 0,
+      "written_count": 0,
+      "patched_count": 0,
+      "age_days": null,
+      "action_recommended": "review manually \u2014 never appeared in PTSS logs"
+    }
+  ]
+}

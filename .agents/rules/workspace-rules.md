@@ -38,7 +38,7 @@ Every agent operates under a strict **Two-Pile Governance Model**:
 
 ## 3. INSTALLED SKILL ECOSYSTEM & DYNAMIC DISPATCH
 
-The workspace includes **57 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
+The workspace includes **60 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
 
 ```
 ├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor]
@@ -47,7 +47,8 @@ The workspace includes **57 verified cognitive skills** under `.agents/skills/`.
 ├── Plagiarism & AI Engine:  [plagiarism-engine, scikit-learn, huggingface-tokenizers, content-analysis]
 ├── Reliability & Infra:     [sre-engineer, sre-reliability-engineering, devops-iac-engineer, docker-compose-production]
 ├── Data & Schemas:          [mongoose-mongodb, xlsx, pdf, algorithmic-art]
-└── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator]
+└── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator,
+                              skill-write-or-patch, ptss, hermes-curator]
 ```
 
 ---
@@ -88,3 +89,68 @@ Post-commit operations are managed by [`scripts/git-auto-tag.py`](file:///c:/Use
 * **Max Iteration Ceiling**: Hard capped at **15 turns**.
 * **Max Duration**: Strict **300-second (5-minute)** wall-clock timeout.
 * **SHA-256 State Hashing**: Hashes transaction trajectories and filesystem state at every turn. Immediate fail-safe abort triggered if repetitive stagnation is detected.
+
+---
+
+## 7. HERMES PIPELINE PROTOCOL
+
+The workspace runs a **Hermes-style self-improving agent pipeline**. Every agent session follows this execution flow:
+
+```
+User Message ──► Agent Execution ──► Skill Trigger Check
+                                            │
+                               ┌────────────▼──────────────┐
+                               │   skill-write-or-patch     │  ◄── fires when gap detected
+                               │   Write or Patch SKILL.md  │
+                               └────────────┬──────────────┘
+                                            │
+                               ┌────────────▼──────────────┐
+                               │   ptss  Session Archive    │  ◄── fires after meaningful task
+                               │   .agents/ptss/sessions/   │
+                               └────────────┬──────────────┘
+                                            │
+                               ┌────────────▼──────────────┐
+                               │   Next Session Retrieval   │  ◄── injected at session start
+                               └───────────────────────────┘
+```
+
+### 7.1 Skill Write or Patch (`skill-write-or-patch`)
+
+Agents MUST invoke `skill-write-or-patch` when any of the following are true:
+- The same sub-problem was solved twice without a backing skill.
+- An existing skill is missing a trigger phrase, CMS-V2 path, or workflow step.
+- A task reveals a repeatable pattern not yet captured in any skill.
+
+**Write** creates a new SKILL.md in `.agents/skills/<name>/`.
+**Patch** surgically modifies only the relevant lines of an existing skill — never overwrites the whole file.
+
+### 7.2 PTSS Session Archive (`ptss`)
+
+After every meaningful task (feature, fix, refactor, or skill mutation), agents MUST archive a session record:
+```
+.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json
+```
+And append a summary line to:
+```
+.agents/ptss/index.jsonl
+```
+
+At the **start** of a new session where continuity matters, agents SHOULD retrieve prior context by grepping `index.jsonl` and loading the 1–3 most relevant session files.
+
+### 7.3 Hermes Curator (`hermes-curator`)
+
+The curator audits skill lifecycle on demand. Invoke it with the phrase **"audit skills"** or **"run hermes curator"**.
+
+Lifecycle thresholds:
+| State    | Condition                    | Action                              |
+|----------|------------------------------|-------------------------------------|
+| Active   | Used in PTSS within 30d      | None                                |
+| Stale    | 30–44d since last PTSS hit   | Add `_STALE.md` marker              |
+| Archived | 45d+ since last PTSS hit     | Move to `.agents/skills/.archived/` |
+| Restored | Manual request               | Move back to `.agents/skills/`      |
+
+**Curator constraints**: never deletes; always snapshots before a pass; respects `.agents/skills/_CURATOR_SKIP`; max 8 LLM patch iterations per run.
+
+### 7.4 Memory Namespace
+
+All PTSS files must remain under `.agents/ptss/`. No session state may be written to the workspace root, `memories/`, or `context/`.

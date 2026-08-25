@@ -146,7 +146,7 @@ export default function MyProjectPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-2xl font-bold tracking-tight">My Capstone</h3>
+            <h1 className="text-2xl font-bold tracking-tight">My Capstone</h1>
             <p className="text-muted-foreground">
               Track your capstone project progress and manage your submissions.
             </p>

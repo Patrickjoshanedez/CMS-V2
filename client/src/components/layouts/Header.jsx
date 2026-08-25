@@ -106,6 +106,31 @@ function getRoleLabel(role) {
 /**
  * Header — top bar with mobile menu toggle, user info, theme toggle, and notifications.
  */
+/**
+ * Derive an explicit back-navigation destination for routes that live
+ * "inside" a parent page. Returns { to, label } or null for top-level routes.
+ * Using explicit destinations (instead of navigate(-1)) keeps navigation
+ * correct for users arriving via direct link (e.g. from an email notification).
+ */
+function getBackDestination(pathname) {
+  // Must check exact /project/submissions BEFORE the wildcard sub-route match
+  if (/^\/project\/submissions\/?$/.test(pathname))
+    return { to: '/project', label: 'Back to My Capstone' };
+  // Student chapter-upload sits inside /project/submissions
+  if (/^\/project\/submissions\/upload\/?$/.test(pathname))
+    return { to: '/project/submissions', label: 'Back to Submissions' };
+  // Student proposal compilation sits inside /project/submissions
+  if (/^\/project\/proposal\/?$/.test(pathname))
+    return { to: '/project/submissions', label: 'Back to Submissions' };
+  // Submission detail / review / plagiarism-report sit inside /project/submissions
+  if (/^\/project\/submissions\/[^/]+/.test(pathname))
+    return { to: '/project/submissions', label: 'Back to Submissions' };
+  // Project detail / certificate / document editor sit inside /projects
+  if (pathname.startsWith('/projects/') && pathname !== '/projects')
+    return { to: '/projects', label: 'Back to Projects' };
+  return null;
+}
+
 export default function Header({ sidebarOpen, onMenuClick }) {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
@@ -118,7 +143,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   const roleLabel = getRoleLabel(user?.role);
   const pageTitle = getPageTitle(pathname, search);
 
-  const showBackArrow = pathname.startsWith('/projects/') && pathname !== '/projects';
+  const backDestination = getBackDestination(pathname);
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 sm:px-6">
@@ -134,11 +159,12 @@ export default function Header({ sidebarOpen, onMenuClick }) {
           </button>
         )}
 
-        {showBackArrow && (
+        {backDestination && (
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(backDestination.to)}
             className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            aria-label="Go back"
+            aria-label={backDestination.label}
+            title={backDestination.label}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>

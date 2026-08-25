@@ -104,13 +104,13 @@ function StudentDashboard({ user }) {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-6">
+      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-primary/5 via-background to-emerald-500/5 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Welcome back, {user.firstName}!
-            </h3>
-            <p className="mt-1 text-sm text-slate-700">
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               Team highlights, project status, and the next actions for your capstone journey.
             </p>
           </div>
@@ -194,14 +194,14 @@ function StudentDashboard({ user }) {
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 p-3">
                     <div>
                       <p className="text-sm text-muted-foreground">Current Team</p>
-                      <p className="text-base font-semibold">{team.name}</p>
+                      <p className="text-base font-semibold text-foreground">{team.name}</p>
                     </div>
                     <Badge variant={team.isLocked ? 'warning' : 'success'}>
                       {team.isLocked ? 'Locked Team' : 'Open Team'}
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-700">Members</p>
+                    <p className="text-sm font-medium text-muted-foreground">Members</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {team.members?.map((member) => (
                         <div

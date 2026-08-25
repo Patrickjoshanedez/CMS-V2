@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import LoadingScreen from '@/components/ui/LoadingScreen';
+import { EmptyState } from '@/components/ui/EmptyState';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
@@ -21,7 +22,6 @@ import {
   Loader2,
   Clock,
   ChevronRight,
-  ArrowLeft,
   Code,
   TestTube,
   CheckCircle2,
@@ -72,7 +72,7 @@ function ChapterProgress({ latestChapterSubmissions }) {
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+          className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -140,42 +140,35 @@ function ProposalSection({ submissions, canCompile, isReadOnly, searchSuffix }) 
 
 /* ────────── Empty State ────────── */
 
-function EmptyState({ canUpload, canCompileProposal }) {
+function EmptySubmissionsState({ canUpload, canCompileProposal }) {
   const navigate = useNavigate();
 
+  const actions = [
+    canCompileProposal && {
+      label: 'Compile Proposal',
+      onClick: () => navigate('/project/proposal'),
+      variant: 'default',
+    },
+    canUpload && {
+      label: 'Upload Chapter',
+      onClick: () => navigate('/project/submissions/upload'),
+      variant: canCompileProposal ? 'outline' : 'default',
+    },
+  ].filter(Boolean);
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-gradient-to-b from-muted/30 to-muted/60 py-20 text-center">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-        <FileText className="h-8 w-8 text-primary" />
-      </div>
-      <h3 className="text-lg font-bold">No submissions yet</h3>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        {canCompileProposal
+    <EmptyState
+      icon={FileText}
+      title="No submissions yet"
+      description={
+        canCompileProposal
           ? 'Your chapter requirements are complete. Compile and submit your proposal.'
           : canUpload
             ? 'Upload your first chapter to get started.'
-            : 'No documents have been uploaded for this project.'}
-      </p>
-      {(canUpload || canCompileProposal) && (
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {canCompileProposal && (
-            <Button onClick={() => navigate('/project/proposal')}>
-              <BookOpen className="mr-2 h-4 w-4" />
-              Compile Proposal
-            </Button>
-          )}
-          {canUpload && (
-            <Button
-              variant={canCompileProposal ? 'outline' : 'default'}
-              onClick={() => navigate('/project/submissions/upload')}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Chapter
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+            : 'No documents have been uploaded for this project.'
+      }
+      actions={actions}
+    />
   );
 }
 
@@ -266,17 +259,14 @@ export default function ProjectSubmissionsPage() {
   if (!isStudent && !isReadOnlyMode) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/50 py-16 text-center">
-          <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Access Submissions via Projects</h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            As a faculty member, you can view submissions by selecting a project from the Projects
-            page.
-          </p>
-          <Button className="mt-6" onClick={() => navigate('/projects')}>
-            Go to Projects
-          </Button>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="Access Submissions via Projects"
+          description="As a faculty member, you can view submissions by selecting a project from the Projects page."
+          actionLabel="Go to Projects"
+          onAction={() => navigate('/projects')}
+          gradient={false}
+        />
       </DashboardLayout>
     );
   }
@@ -313,16 +303,13 @@ export default function ProjectSubmissionsPage() {
     if (isNoTeam) {
       return (
         <DashboardLayout>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/50 py-16 text-center">
-            <AlertTriangle className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No Team Yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              You need to join or create a team before you can view submissions.
-            </p>
-            <Button className="mt-6" onClick={() => navigate('/dashboard')}>
-              Go to Dashboard
-            </Button>
-          </div>
+          <EmptyState
+            icon={AlertTriangle}
+            title="No Team Yet"
+            description="You need to join or create a team before you can view submissions."
+            actionLabel="Go to Dashboard"
+            onAction={() => navigate('/dashboard')}
+          />
         </DashboardLayout>
       );
     }
@@ -330,16 +317,13 @@ export default function ProjectSubmissionsPage() {
     if (isNoProject) {
       return (
         <DashboardLayout>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/50 py-16 text-center">
-            <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No Project Yet</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Your team does not have a project yet. Create a project to start submitting documents.
-            </p>
-            <Button className="mt-6" onClick={() => navigate('/project/create')}>
-              Create Project
-            </Button>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="No Project Yet"
+            description="Your team does not have a project yet. Create a project to start submitting documents."
+            actionLabel="Create Project"
+            onAction={() => navigate('/project/create')}
+          />
         </DashboardLayout>
       );
     }
@@ -394,21 +378,6 @@ export default function ProjectSubmissionsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mb-2 -ml-2 text-muted-foreground"
-              onClick={() => {
-                if (isReadOnlyMode) {
-                  navigate(`/projects/${activeProject?._id}`);
-                  return;
-                }
-                navigate('/project');
-              }}
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              {isReadOnlyMode ? 'Back to Project Detail' : 'Back to Project'}
-            </Button>
             <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Document submissions for&nbsp;
@@ -447,6 +416,11 @@ export default function ProjectSubmissionsPage() {
 
         {/* Progress bar */}
         <ChapterProgress latestChapterSubmissions={latestChapterSubmissions} />
+
+        {/* Empty state — shown when no submissions exist yet */}
+        {submissions.length === 0 && (
+          <EmptySubmissionsState canUpload={canUpload} canCompileProposal={canCompileProposal} />
+        )}
 
         {/* Chapter Grid — Pre-proposal (Ch 1-3) */}
         <div>
