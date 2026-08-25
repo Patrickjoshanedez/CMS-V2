@@ -27,6 +27,9 @@ import {
   Monitor,
   Lock,
   AlertTriangle,
+  Calendar,
+  FileSpreadsheet,
+  ExternalLink,
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
@@ -735,6 +738,69 @@ function AdministrationSection() {
           <p className="text-xs text-muted-foreground">
             Maximum allowed file size for chapter uploads and final submissions.
           </p>
+        </div>
+
+        {/* Deliverables Deadlines */}
+        <div className="space-y-4 rounded-lg border p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <h4 className="text-sm font-semibold text-foreground">
+              Deliverable Submission Milestones &amp; Deadlines
+            </h4>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Establish institutional deadline dates for capstone research milestones.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Title Proposal Deadline</Label>
+              <Input type="date" className="h-8 text-xs" defaultValue="2026-09-15" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Capstone 1 (Chapters 1–3) Deadline</Label>
+              <Input type="date" className="h-8 text-xs" defaultValue="2026-10-30" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Capstone 2 (Prototype &amp; ADM) Deadline</Label>
+              <Input type="date" className="h-8 text-xs" defaultValue="2026-12-15" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Capstone 3 (Final Manuscript) Deadline</Label>
+              <Input type="date" className="h-8 text-xs" defaultValue="2027-02-28" />
+            </div>
+          </div>
+        </div>
+
+        {/* Institutional Document Templates */}
+        <div className="space-y-4 rounded-lg border p-4">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-primary" />
+            <h4 className="text-sm font-semibold text-foreground">
+              Institutional Document Templates &amp; Forms
+            </h4>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Configure default Google Docs templates and Action Done Matrix spreadsheets for student
+            access.
+          </p>
+          <div className="space-y-3 text-xs">
+            <div className="space-y-1">
+              <Label className="text-xs">Google Docs Title Proposal Template URL</Label>
+              <Input
+                placeholder="https://docs.google.com/document/d/..."
+                defaultValue="https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Action Done Matrix Spreadsheet URL</Label>
+              <Input
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                defaultValue="https://docs.google.com/spreadsheets/d/1q6Q7-4_KxKx_ActionDoneMatrix/edit"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
         </div>
 
         {/* System Announcement */}

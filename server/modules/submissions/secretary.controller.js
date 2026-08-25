@@ -1,5 +1,7 @@
 import { extractText } from '../../utils/extractText.js';
 import Project from '../projects/project.model.js';
+import Notification from '../notifications/notification.model.js';
+import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import env from '../../config/env.js';
 
@@ -150,6 +152,23 @@ Do not include any Markdown tags, preambles, or postscripts. Return raw JSON.`,
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    try {
+      const team = await (await import('../teams/team.model.js')).default.findById(project.teamId);
+      if (team?.members?.length > 0) {
+        const notifications = team.members.map((memberId) => ({
+          userId: memberId,
+          type: 'minutes_uploaded',
+          title: 'Defense Minutes & Action Done Matrix Ready',
+          message: `Defense minutes for "${project.title}" have been uploaded. Action Done Matrix items are ready for your action.`,
+          metadata: { projectId: project._id, admStatus: project.admStatus },
+        }));
+        const createdNotifs = await Notification.insertMany(notifications);
+        createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+      }
+    } catch {
+      // Non-blocking notification dispatch
     }
 
     return res.status(200).json({

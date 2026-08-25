@@ -1,4 +1,12 @@
-export const WORKFLOW_TABS = ['proposal', 'capstone_1', 'capstone_2', 'capstone_3', 'final'];
+export const WORKFLOW_TABS = [
+  'proposal',
+  'capstone_1',
+  'capstone_2',
+  'adm',
+  'capstone_3',
+  'final',
+  'consultation',
+];
 
 export function resolveActiveWorkflowTab({
   requestedTab,

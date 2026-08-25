@@ -166,6 +166,19 @@ export const projectService = {
     });
   },
 
+  // Action Done Matrix (ADM) & Secretary Minutes
+  getActionDoneMatrix: (projectId) => api.get(`/projects/${projectId}/action-done-matrix`),
+  updateActionDoneMatrixItem: (projectId, itemId, data) =>
+    api.patch(`/projects/${projectId}/action-done-matrix/${itemId}`, data),
+  signADMItem: (projectId, itemId, data) =>
+    api.post(`/projects/${projectId}/action-done-matrix/${itemId}/sign`, data),
+  updateADMStatus: (projectId, data) => api.patch(`/projects/${projectId}/adm-status`, data),
+  uploadSecretaryMinutes: (formData) =>
+    api.post('/submissions/secretary-minutes', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  handleProjectStream: (projectId, data) => api.post(`/projects/${projectId}/stream-routing`, data),
+
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
   listProjects: (params) => api.get('/projects', { params }),

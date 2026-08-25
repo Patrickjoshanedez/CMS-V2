@@ -8,10 +8,19 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import FacultyDashboardV2 from '@/components/dashboards/FacultyDashboard';
 import InstructorDashboardV2 from '@/components/dashboards/InstructorDashboard';
-import { AlertTriangle, Bell, CheckCircle2, Clock3, FolderKanban, UsersRound } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  CheckCircle2,
+  Clock3,
+  FolderKanban,
+  UsersRound,
+  Calendar,
+} from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
 import LoadingScreen from '@/components/ui/LoadingScreen';
+import DefenseScheduleCalendar from '@/components/calendar/DefenseScheduleCalendar';
 
 /**
  * DashboardPage — role-based dashboard shell.
@@ -337,6 +346,13 @@ function StudentDashboard({ user }) {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Defense & Submission Schedule Calendar */}
+      {!isLoading && (
+        <div>
+          <DefenseScheduleCalendar />
+        </div>
       )}
 
       {!isLoading && project && (

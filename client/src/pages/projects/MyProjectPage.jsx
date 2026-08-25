@@ -6,7 +6,17 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsContent } from '@/components/ui/Tabs';
-import { Loader2, AlertTriangle, Info, FileText, BookOpen, Award, Lock } from 'lucide-react';
+import {
+  Loader2,
+  AlertTriangle,
+  Info,
+  FileText,
+  BookOpen,
+  Award,
+  Lock,
+  FileSpreadsheet,
+  MessageSquareCheck,
+} from 'lucide-react';
 
 // Extracted reusable components
 import EmptyProjectState from '@/components/projects/EmptyProjectState';
@@ -26,6 +36,8 @@ import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import ProposalTab from '@/components/projects/ProposalTab';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
+import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
+import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 
@@ -46,7 +58,7 @@ import { toast } from 'sonner';
 export default function MyProjectPage() {
   const { user, fetchUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: project, isLoading, error } = useMyProject();
+  const { data: project, isLoading, error, refetch } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
 
   const { data: submissions } = useProjectSubmissions(
@@ -63,6 +75,7 @@ export default function MyProjectPage() {
   // APPROVED_WITH_REVISION and PENDING_MODIFICATION both keep it locked.
   const capstone1Unlocked = titleApproved;
   const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
+  const admUnlocked = titleApproved;
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
   const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
   const isArchivedProject =
@@ -71,8 +84,10 @@ export default function MyProjectPage() {
   const unlockedTabs = ['proposal'];
   if (capstone1Unlocked) unlockedTabs.push('capstone_1');
   if (capstone2Unlocked) unlockedTabs.push('capstone_2');
+  if (admUnlocked) unlockedTabs.push('adm');
   if (capstone3Unlocked) unlockedTabs.push('capstone_3');
   if (finalUnlocked) unlockedTabs.push('final');
+  if (titleApproved) unlockedTabs.push('consultation');
 
   function getDefaultTab() {
     if (!project) return 'proposal';
@@ -251,6 +266,14 @@ export default function MyProjectPage() {
                         onLockedClick={() => handleLockedTabClick('capstone_2')}
                       />
                       <WorkflowTabTrigger
+                        value="adm"
+                        icon={FileSpreadsheet}
+                        label="Action Done Matrix"
+                        locked={!admUnlocked}
+                        lockedReason={getLockedReason('adm')}
+                        onLockedClick={() => handleLockedTabClick('adm')}
+                      />
+                      <WorkflowTabTrigger
                         value="capstone_3"
                         icon={BookOpen}
                         label="Capstone 3"
@@ -265,6 +288,14 @@ export default function MyProjectPage() {
                         locked={!finalUnlocked}
                         lockedReason={getLockedReason('final')}
                         onLockedClick={() => handleLockedTabClick('final')}
+                      />
+                      <WorkflowTabTrigger
+                        value="consultation"
+                        icon={MessageSquareCheck}
+                        label="Consultations"
+                        locked={!titleApproved}
+                        lockedReason={getLockedReason('consultation')}
+                        onLockedClick={() => handleLockedTabClick('consultation')}
                       />
                     </TabsList>
                   </div>
@@ -284,16 +315,27 @@ export default function MyProjectPage() {
                     <EvaluationPanel projectId={project._id} defenseType="proposal" />
                   </TabsContent>
 
-                  <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none">
+                  <TabsContent
+                    value="capstone_2"
+                    className="mt-0 focus-visible:outline-none space-y-6"
+                  >
                     <div className="mb-6">
                       <h3 className="text-xl font-semibold tracking-tight text-primary mb-2">
-                        System Development Phase
+                        Capstone 2 — System Development &amp; Action Done Matrix
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Upload your project&apos;s Gantt Chart, connect your GitHub repository, and
-                        share your Prototype Video for midterm review.
+                        In Capstone 2, manage your system development milestones and address defense
+                        recommendations directly via the Action Done Matrix without manuscript
+                        documents.
                       </p>
                     </div>
+                    {/* Action Done Matrix for Capstone 2 Direct Pipeline */}
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
                     <DevelopmentAssetsForm project={project} />
                     <div className="mt-8">
                       <PrototypeGallery projectId={project._id} canDelete canAdd />
@@ -301,6 +343,15 @@ export default function MyProjectPage() {
                     <div className="mt-8">
                       <EvaluationPanel projectId={project._id} defenseType="midterm" />
                     </div>
+                  </TabsContent>
+
+                  <TabsContent value="adm" className="mt-0 focus-visible:outline-none">
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
                   </TabsContent>
 
                   <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none">
@@ -316,6 +367,10 @@ export default function MyProjectPage() {
                   <TabsContent value="final" className="mt-0 focus-visible:outline-none">
                     <FinalPaperUpload projectId={project._id} />
                     <EvaluationPanel projectId={project._id} defenseType="final" />
+                  </TabsContent>
+
+                  <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+                    <ConsultationLogWidget project={project} isStudent user={user} />
                   </TabsContent>
                 </Tabs>
               </div>

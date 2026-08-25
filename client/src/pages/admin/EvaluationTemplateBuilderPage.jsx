@@ -22,6 +22,10 @@ import {
   Star,
   Layers,
   ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
+  Copy,
+  Scale,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -110,6 +114,52 @@ export default function EvaluationTemplateBuilderPage() {
         description: c.description || '',
       })),
     );
+  };
+
+  const handleClone = (tmpl) => {
+    setEditingTemplate(null);
+    setName(`${tmpl.name} (Restructured Copy)`);
+    setDescription(tmpl.description || '');
+    setDefenseType(tmpl.defenseType);
+    setIsDefault(false);
+    setCriteria(
+      tmpl.criteria.map((c) => ({
+        name: c.name,
+        maxScore: c.maxScore,
+        description: c.description || '',
+      })),
+    );
+    toast.success('Template cloned into editor for restructuring.');
+  };
+
+  const handleMoveUp = (index) => {
+    if (index === 0) return;
+    const next = [...criteria];
+    const temp = next[index - 1];
+    next[index - 1] = next[index];
+    next[index] = temp;
+    setCriteria(next);
+  };
+
+  const handleMoveDown = (index) => {
+    if (index === criteria.length - 1) return;
+    const next = [...criteria];
+    const temp = next[index + 1];
+    next[index + 1] = next[index];
+    next[index] = temp;
+    setCriteria(next);
+  };
+
+  const handleDistributeEqually = () => {
+    if (criteria.length === 0) return;
+    const base = Math.floor(100 / criteria.length);
+    const remainder = 100 % criteria.length;
+    const next = criteria.map((c, i) => ({
+      ...c,
+      maxScore: base + (i === 0 ? remainder : 0),
+    }));
+    setCriteria(next);
+    toast.success('Points distributed equally across criteria (Total: 100 pts).');
   };
 
   const handleAddCriterion = () => {
@@ -234,6 +284,14 @@ export default function EvaluationTemplateBuilderPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-2 flex justify-end gap-2">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => handleClone(tmpl)}
+                      className="gap-1"
+                    >
+                      <Copy className="h-3 w-3" /> Clone &amp; Restructure
+                    </Button>
                     <Button size="xs" variant="outline" onClick={() => handleEdit(tmpl)}>
                       Edit
                     </Button>
@@ -322,19 +380,30 @@ export default function EvaluationTemplateBuilderPage() {
 
                   {/* Criteria Builder */}
                   <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
                       <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <Layers className="h-4 w-4 text-primary" /> Criteria ({criteria.length}) —
                         Total Max: {totalMaxScore} Points
                       </Label>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={handleAddCriterion}
-                      >
-                        <Plus className="mr-1 h-3.5 w-3.5" /> Add Criterion
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="ghost"
+                          onClick={handleDistributeEqually}
+                          className="text-xs gap-1 text-primary hover:bg-primary/10"
+                        >
+                          <Scale className="h-3.5 w-3.5" /> Equalize 100%
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleAddCriterion}
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Criterion
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
@@ -343,6 +412,31 @@ export default function EvaluationTemplateBuilderPage() {
                           key={idx}
                           className="flex gap-2 items-start rounded-lg border bg-muted/20 p-3"
                         >
+                          <div className="flex flex-col gap-1 shrink-0 pt-0.5">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveUp(idx)}
+                              title="Move criterion up"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              disabled={idx === criteria.length - 1}
+                              onClick={() => handleMoveDown(idx)}
+                              title="Move criterion down"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+
                           <div className="flex-1 space-y-2">
                             <div className="flex gap-2">
                               <Input

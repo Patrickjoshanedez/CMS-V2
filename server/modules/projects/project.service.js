@@ -280,9 +280,9 @@ class ProjectService {
       throw new AppError('One or more SDG tags are invalid.', 400, 'INVALID_SDG_TAG');
     }
 
-    if (normalizedTitleProposals.length < 3) {
+    if (normalizedTitleProposals.length < 1) {
       throw new AppError(
-        'At least 3 unique title proposals are required.',
+        'At least 1 unique title proposal is required.',
         400,
         'MIN_TITLE_PROPOSALS',
       );
@@ -496,7 +496,9 @@ class ProjectService {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(requester?.role);
+    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(
+      requester?.role,
+    );
     if (!isFaculty) {
       if (requester?.role !== ROLES.STUDENT) {
         throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');

@@ -1251,6 +1251,90 @@ class TeamService {
   }
 
   /**
+   * Attach or clear a team-level GitHub repository link (leader-only action).
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @param {string} githubUrl
+   * @returns {Object} { team }
+   */
+  async updateGithubLink(teamId, leaderId, githubUrl) {
+    const team = await Team.findById(teamId)
+      .populate({
+        path: 'leaderId',
+        select: 'firstName middleName lastName email instructorId',
+        populate: {
+          path: 'instructorId',
+          select: 'firstName middleName lastName email profilePicture',
+        },
+      })
+      .populate('members', 'firstName middleName lastName email role')
+      .populate('memberRoles.userId', 'firstName middleName lastName email');
+
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId?._id?.toString() !== leaderId.toString()) {
+      throw new AppError(
+        'Only the team leader can update the GitHub repository link.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    const normalizedLink = typeof githubUrl === 'string' ? githubUrl.trim() : '';
+    if (normalizedLink && !/^https?:\/\/(www\.)?github\.com\/.+/i.test(normalizedLink)) {
+      throw new AppError(
+        'Please provide a valid GitHub repository URL (e.g. https://github.com/org/repo).',
+        400,
+        'INVALID_GITHUB_URL',
+      );
+    }
+
+    team.githubUrl = normalizedLink;
+    await team.save();
+
+    // If there is an active project, also synchronize prototypes link
+    if (normalizedLink) {
+      const activeProject = await Project.findOne({ teamId: team._id, isDeleted: false });
+      if (activeProject) {
+        const existingIdx = activeProject.prototypes.findIndex(
+          (p) => p.type === 'link' && p.title.toLowerCase().includes('github'),
+        );
+        if (existingIdx >= 0) {
+          activeProject.prototypes[existingIdx].url = normalizedLink;
+        } else {
+          activeProject.prototypes.push({
+            title: 'GitHub Repository',
+            type: 'link',
+            url: normalizedLink,
+            uploadedBy: leaderId,
+          });
+        }
+        await activeProject.save();
+      }
+    }
+
+    const currentProject = await Project.findOne({ teamId: team._id })
+      .sort({ createdAt: -1 })
+      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    const teamObject = team.toObject();
+    teamObject.assignment = {
+      instructor: teamObject.leaderId?.instructorId || null,
+      adviser: currentProject?.adviserId || null,
+      panelists: currentProject?.panelistIds || [],
+      capstonePhase: currentProject?.capstonePhase || null,
+      titleStatus: currentProject?.titleStatus || null,
+      projectStatus: currentProject?.projectStatus || null,
+    };
+
+    return { team: teamObject };
+  }
+
+  /**
    * List all teams (Instructor/Adviser only, paginated).
    * @param {Object} query - { page, limit, academicYear?, sectionId?, search? }
    * @returns {Object} { teams, pagination }

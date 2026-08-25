@@ -154,6 +154,21 @@ export const updateGoogleDocLink = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/github-link — Attach or clear team GitHub link (Leader only) */
+export const updateGithubLink = catchAsync(async (req, res) => {
+  const { team } = await teamService.updateGithubLink(
+    req.params.id,
+    req.user._id,
+    req.body.githubUrl || '',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team GitHub repository link updated successfully.',
+    data: { team },
+  });
+});
+
 /** PATCH /api/teams/:id/lock — Finalize a team (Leader only) */
 export const lockTeam = catchAsync(async (req, res) => {
   const { team } = await teamService.lockTeam(req.params.id, req.user._id);

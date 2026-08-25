@@ -1,6 +1,7 @@
 import { createLogger, defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import http from 'http';
 
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
@@ -110,7 +111,7 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
     server: {

@@ -99,7 +99,7 @@ export const createProjectSchema = z.object({
     .max(300, 'Title must not exceed 300 characters'),
   titleProposals: z
     .array(titleProposalSchema)
-    .min(3, 'At least 3 title proposals are required')
+    .min(1, 'At least 1 title proposal is required')
     .max(10, 'At most 10 title proposals are allowed'),
   abstract: z
     .string()

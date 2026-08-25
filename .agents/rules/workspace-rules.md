@@ -41,7 +41,7 @@ Every agent operates under a strict **Two-Pile Governance Model**:
 The workspace includes **60 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
 
 ```
-├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor]
+├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor, capstone-lifecycle-orchestrator]
 ├── Frontend Excellence:     [frontend-patterns, frontend-specialist, zustand, tanstack-query, web-design-guidelines]
 ├── Design Polish Suite:     [i-frontend-design, i-polish, i-typeset, i-colorize, i-arrange, i-delight, i-harden, i-animate]
 ├── Plagiarism & AI Engine:  [plagiarism-engine, scikit-learn, huggingface-tokenizers, content-analysis]
@@ -154,3 +154,13 @@ Lifecycle thresholds:
 ### 7.4 Memory Namespace
 
 All PTSS files must remain under `.agents/ptss/`. No session state may be written to the workspace root, `memories/`, or `context/`.
+
+### 7.5 Continuous Autonomous Skill Harvesting (CASS)
+
+Whenever a complex requirement is fulfilled, a recurring workflow is solved, or a domain gap is addressed:
+1. **Detect Resolution**: The agent harness analyzes whether the solved task represents a reusable architectural or domain pattern.
+2. **Synthesize or Patch**:
+   - If novel: Write a new `SKILL.md` in `.agents/skills/<skill-name>/` with yaml frontmatter, trigger phrases, core workflow steps, and CMS-V2 specifics.
+   - If an existing skill exists: Surgically patch the missing capabilities or paths.
+3. **Register & Archive**: Register the skill in `.agents/rules/workspace-rules.md` and log the session snapshot in `.agents/ptss/sessions/` and `.agents/ptss/index.jsonl`.
+

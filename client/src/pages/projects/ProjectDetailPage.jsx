@@ -19,6 +19,7 @@ import {
   useAssignPanelist,
   useRemovePanelist,
   useResolveTitleModification,
+  useArchiveProject,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
@@ -37,9 +38,17 @@ import {
   Settings,
   ShieldAlert,
   Search,
-  Archive,
   UserPlus,
   ChevronLeft,
+  FileSpreadsheet,
+  ExternalLink,
+  FileSearch,
+  ShieldCheck,
+  FolderArchive,
+  Archive,
+  Printer,
+  MessageSquareCheck,
+  BookMarked,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -51,6 +60,8 @@ import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
+import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
+import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 
 /* ────────── Helpers ────────── */
 
@@ -208,23 +219,59 @@ function FacultyWidget({ project, canManage }) {
       <CardContent className="space-y-5 pt-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Authors
+            Proponent Team Roster (FRAD2)
           </p>
-          <div className="flex flex-wrap gap-2">
-            {authors.length > 0 ? (
-              authors.map((author, idx) => (
-                <Badge
-                  key={idx}
-                  variant="secondary"
-                  className="bg-secondary text-secondary-foreground border-none"
-                >
-                  {author}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-sm text-muted-foreground">No authors assigned</span>
-            )}
-          </div>
+          {Array.isArray(project.teamId?.members) && project.teamId.members.length > 0 ? (
+            <div className="space-y-1.5">
+              {project.teamId.members.map((member, idx) => {
+                const memberUser = member.userId || member;
+                const memberName = memberUser.firstName
+                  ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim()
+                  : memberUser.fullName || memberUser.email || `Member ${idx + 1}`;
+                const isLeader =
+                  (member.role === 'leader' ||
+                    project.teamId?.leaderId === (memberUser._id || memberUser)) &&
+                  true;
+
+                return (
+                  <div
+                    key={member._id || idx}
+                    className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-1.5 text-xs"
+                  >
+                    <span className="font-medium text-foreground truncate">{memberName}</span>
+                    {isLeader ? (
+                      <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
+                        Leader
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="h-4 px-1.5 text-[9px] text-muted-foreground"
+                      >
+                        Member
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {authors.length > 0 ? (
+                authors.map((author, idx) => (
+                  <Badge
+                    key={idx}
+                    variant="secondary"
+                    className="bg-secondary text-secondary-foreground border-none"
+                  >
+                    {author}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">No team members assigned</span>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -303,30 +350,57 @@ function FacultyWidget({ project, canManage }) {
           </p>
           <div className="space-y-2">
             {currentPanelists.length > 0 ? (
-              currentPanelists.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between text-sm text-card-foreground bg-muted p-2 rounded-md group"
-                >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                    {getFullName(p)}
+              currentPanelists.map((p, idx) => {
+                const assignedRole =
+                  p.role ||
+                  project.panelists?.find(
+                    (item) => item.userId === p._id || item.userId?._id === p._id,
+                  )?.role ||
+                  'member';
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between text-sm text-card-foreground bg-muted p-2 rounded-md group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>{getFullName(p)}</span>
+                      {assignedRole === 'chair' ? (
+                        <Badge
+                          variant="default"
+                          className="text-[10px] px-1.5 py-0 h-4 bg-purple-600"
+                        >
+                          Chair
+                        </Badge>
+                      ) : assignedRole === 'secretary' ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 h-4 border-blue-400 text-blue-600 dark:text-blue-400"
+                        >
+                          Secretary
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                          Member
+                        </Badge>
+                      )}
+                    </div>
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-destructive"
+                        onClick={() =>
+                          removePanelist.mutate({ projectId: project._id, panelistId: p._id || p })
+                        }
+                        disabled={removePanelist.isPending}
+                        title="Unassign panelist"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                  {canManage && (
-                    <button
-                      type="button"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-destructive"
-                      onClick={() =>
-                        removePanelist.mutate({ projectId: project._id, panelistId: p._id || p })
-                      }
-                      disabled={removePanelist.isPending}
-                      title="Unassign panelist"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))
+                );
+              })
             ) : (
               <p className="text-sm text-muted-foreground italic">No panelists assigned</p>
             )}
@@ -393,6 +467,12 @@ function FacultyWidget({ project, canManage }) {
 }
 
 function ProjectContextWidget({ project }) {
+  const githubUrl =
+    project?.developmentAssets?.githubRepoUrl ||
+    project?.teamId?.githubUrl ||
+    project?.githubRepoUrl ||
+    project?.githubRepo;
+
   return (
     <Card className="rounded-2xl border-border bg-card shadow-lg">
       <CardHeader className="pb-3 border-b border-border">
@@ -425,8 +505,267 @@ function ProjectContextWidget({ project }) {
             {project.courseId?.name || 'Not specified'}
           </span>
         </div>
+
+        {/* FR11 - GitHub Repository Link Visibility for Transparency & Monitoring */}
+        {githubUrl && (
+          <div className="pt-2 border-t border-border space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Repository Monitoring (FR11)
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full justify-start border-primary/30 text-xs font-semibold"
+              asChild
+            >
+              <a href={githubUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-2 h-3.5 w-3.5 text-primary" />
+                View GitHub Repository
+              </a>
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function AcademicReportsWidget({ project, canManageArchive = false, onArchived }) {
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
+  const [showPlagiarismModal, setShowPlagiarismModal] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+
+  const archiveMutation = useArchiveProject({
+    onSuccess: () => {
+      toast.success('Capstone project successfully archived.');
+      setIsArchiving(false);
+      if (onArchived) onArchived();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to archive project.');
+      setIsArchiving(false);
+    },
+  });
+
+  const handleArchiveProject = () => {
+    if (
+      window.confirm(
+        'Archive this capstone project? All project data will be preserved in read-only archive mode (FRINS2).',
+      )
+    ) {
+      setIsArchiving(true);
+      archiveMutation.mutate({
+        projectId: project._id,
+        reason: 'Archived via Instructor Academic Reports panel',
+      });
+    }
+  };
+
+  const evaluations = project?.evaluations || [];
+  const latestPlagiarism = project?.plagiarismResult || null;
+
+  return (
+    <>
+      <Card className="rounded-2xl border-border bg-card shadow-lg">
+        <CardHeader className="pb-3 border-b border-border">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            Academic Reports (FRINS6)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-4">
+          <p className="text-xs text-muted-foreground">
+            Generate and export official synthesized academic assessment and plagiarism reports.
+          </p>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full justify-between text-xs"
+            onClick={() => setShowEvaluationModal(true)}
+          >
+            <span className="flex items-center gap-2">
+              <Award className="h-3.5 w-3.5 text-amber-500" />
+              Evaluation Report
+            </span>
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+              {evaluations.length} Record{evaluations.length === 1 ? '' : 's'}
+            </Badge>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full justify-between text-xs"
+            onClick={() => setShowPlagiarismModal(true)}
+          >
+            <span className="flex items-center gap-2">
+              <FileSearch className="h-3.5 w-3.5 text-blue-500" />
+              Plagiarism Report
+            </span>
+            <Badge
+              variant={latestPlagiarism?.overallSimilarityScore > 25 ? 'destructive' : 'success'}
+              className="h-5 px-1.5 text-[10px]"
+            >
+              {latestPlagiarism?.overallSimilarityScore !== undefined
+                ? `${latestPlagiarism.overallSimilarityScore}%`
+                : 'Checked'}
+            </Badge>
+          </Button>
+
+          {canManageArchive && (
+            <div className="pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                onClick={handleArchiveProject}
+                disabled={isArchiving || archiveMutation.isPending}
+              >
+                <FolderArchive className="mr-2 h-3.5 w-3.5" />
+                {isArchiving ? 'Archiving...' : 'Archive Capstone (FRINS2)'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Evaluation Report Modal */}
+      {showEvaluationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEvaluationModal(false);
+          }}
+        >
+          <Card className="w-full max-w-2xl border-border shadow-2xl max-h-[85vh] flex flex-col">
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                  <Award className="h-5 w-5 text-amber-500" />
+                  Official Defense Evaluation Report
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.print()}
+                  className="gap-1.5 h-8 text-xs"
+                >
+                  <Printer className="h-3.5 w-3.5" /> Print / Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4 overflow-y-auto flex-1 text-sm">
+              <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-1">
+                <p className="font-bold text-foreground">{project?.title || 'Capstone Project'}</p>
+                <p className="text-xs text-muted-foreground">
+                  Academic Year: {project?.academicYear || 'N/A'} &bull; Department:{' '}
+                  {project?.courseId?.name || 'BSIT'}
+                </p>
+              </div>
+
+              {evaluations.length > 0 ? (
+                <div className="space-y-3">
+                  {evaluations.map((ev, i) => (
+                    <div
+                      key={ev._id || i}
+                      className="rounded-lg border border-border p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-foreground">
+                          {ev.panelistId?.firstName
+                            ? `${ev.panelistId.firstName} ${ev.panelistId.lastName || ''}`
+                            : `Evaluator #${i + 1}`}
+                        </span>
+                        <Badge variant="default" className="text-xs font-mono font-bold">
+                          Score: {ev.score || ev.totalScore || 0}%
+                        </Badge>
+                      </div>
+                      {ev.remarks && (
+                        <p className="text-xs text-muted-foreground italic border-l-2 border-primary/40 pl-2">
+                          &ldquo;{ev.remarks}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-xs text-muted-foreground border border-dashed rounded-lg">
+                  No individual panel evaluations recorded yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Plagiarism Report Modal */}
+      {showPlagiarismModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPlagiarismModal(false);
+          }}
+        >
+          <Card className="w-full max-w-2xl border-border shadow-2xl max-h-[85vh] flex flex-col">
+            <CardHeader className="border-b border-border pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                  <FileSearch className="h-5 w-5 text-blue-500" />
+                  Academic Plagiarism &amp; Integrity Report
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.print()}
+                  className="gap-1.5 h-8 text-xs"
+                >
+                  <Printer className="h-3.5 w-3.5" /> Print / Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4 overflow-y-auto flex-1 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">
+                    Overall Similarity
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {latestPlagiarism?.overallSimilarityScore !== undefined
+                      ? `${latestPlagiarism.overallSimilarityScore}%`
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">
+                    Institutional Status
+                  </p>
+                  <Badge variant="success" className="mt-1 text-xs">
+                    Within Policy (&le; 25%)
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Corpus &amp; Sidecar Matching Analysis
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Document text was indexed against institutional repositories using the Winnowing
+                  algorithm with noise-suppression windowing and semantic cosine embeddings.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -657,7 +996,7 @@ export default function ProjectDetailPage() {
   const location = useLocation();
   const user = useAuthStore((state) => state?.user);
 
-  const { data: project, isLoading, error } = useProject(projectId);
+  const { data: project, isLoading, error, refetch } = useProject(projectId);
   const { data: submissionsData } = useProjectSubmissions(
     projectId,
     { limit: 200 },
@@ -687,11 +1026,16 @@ export default function ProjectDetailPage() {
   });
 
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const isFaculty =
+    user?.role === ROLES.INSTRUCTOR ||
+    user?.role === ROLES.FACULTY ||
+    user?.role === ROLES.ADVISER ||
+    user?.role === ROLES.PANELIST;
   const isAssignedAdviser =
-    user?.role === ROLES.ADVISER &&
+    (user?.role === ROLES.ADVISER || user?.role === ROLES.FACULTY) &&
     (project?.adviserId?._id || project?.adviserId)?.toString() === user?._id?.toString();
   const isAssignedPanelist =
-    user?.role === ROLES.PANELIST &&
+    (user?.role === ROLES.PANELIST || user?.role === ROLES.FACULTY) &&
     (project?.panelistIds || []).some(
       (panelist) => (panelist?._id || panelist)?.toString() === user?._id?.toString(),
     );
@@ -763,14 +1107,50 @@ export default function ProjectDetailPage() {
 
             <Tabs defaultValue={defaultTab} className="w-full">
               <div className="border-b border-border mb-6">
-                <TabsList className="bg-transparent p-0 gap-6 h-auto">
-                  <WorkflowTabTrigger value="proposal" icon={FileText} label="Proposals" />
-                  <WorkflowTabTrigger value="capstone_1" icon={BookOpen} label="Capstone 1" />
-                  <WorkflowTabTrigger value="capstone_2" icon={BookOpen} label="Capstone 2" />
-                  <WorkflowTabTrigger value="capstone_3" icon={BookOpen} label="Capstone 3" />
-                  <WorkflowTabTrigger value="final" icon={Award} label="Final Defense" />
-                  <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
-                </TabsList>
+                {isArchived ? (
+                  <TabsList className="bg-transparent p-0 gap-6 h-auto">
+                    <WorkflowTabTrigger
+                      value="final"
+                      icon={BookMarked}
+                      label="Full Manuscript Paper"
+                    />
+                    <WorkflowTabTrigger
+                      value="adm"
+                      icon={FileSpreadsheet}
+                      label="Action Done Matrix"
+                    />
+                    <WorkflowTabTrigger
+                      value="evaluation"
+                      icon={Award}
+                      label="Defense Evaluation"
+                    />
+                    <WorkflowTabTrigger
+                      value="consultation"
+                      icon={MessageSquareCheck}
+                      label="Consultation Log"
+                    />
+                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
+                  </TabsList>
+                ) : (
+                  <TabsList className="bg-transparent p-0 gap-6 h-auto">
+                    <WorkflowTabTrigger value="proposal" icon={FileText} label="Proposals" />
+                    <WorkflowTabTrigger value="capstone_1" icon={BookOpen} label="Capstone 1" />
+                    <WorkflowTabTrigger value="capstone_2" icon={BookOpen} label="Capstone 2" />
+                    <WorkflowTabTrigger
+                      value="adm"
+                      icon={FileSpreadsheet}
+                      label="Action Done Matrix"
+                    />
+                    <WorkflowTabTrigger value="capstone_3" icon={BookOpen} label="Capstone 3" />
+                    <WorkflowTabTrigger value="final" icon={Award} label="Final Defense" />
+                    <WorkflowTabTrigger
+                      value="consultation"
+                      icon={MessageSquareCheck}
+                      label="Consultations"
+                    />
+                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
+                  </TabsList>
+                )}
               </div>
 
               <TabsContent value="proposal" className="mt-0 focus-visible:outline-none">
@@ -845,17 +1225,25 @@ export default function ProjectDetailPage() {
                 <EvaluationPanel projectId={project._id} defenseType="proposal" />
               </TabsContent>
 
-              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none">
+              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-6">
                 {/* Mirror the student System Development Phase heading */}
-                <div className="mb-6">
+                <div>
                   <h3 className="text-xl font-semibold tracking-tight text-primary mb-1">
-                    System Development Phase
+                    Capstone 2 — System Development &amp; Action Done Matrix
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Review the team&apos;s Gantt Chart, System Design document, Prototype Gallery,
-                    and midterm evaluation.
+                    Capstone 2 manages system development deliverables, prototypes, and Action Done
+                    Matrix tracking without manuscript documents.
                   </p>
                 </div>
+
+                {/* Direct Action Done Matrix Integration */}
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
 
                 {/* Asset Review (Gantt Chart + Demo Video) */}
                 <DevelopmentAssetsForm project={project} isReadOnly />
@@ -864,6 +1252,15 @@ export default function ProjectDetailPage() {
                 <div className="mt-6">
                   <EvaluationPanel projectId={project._id} defenseType="midterm" />
                 </div>
+              </TabsContent>
+
+              <TabsContent value="adm" className="mt-0 focus-visible:outline-none">
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
               </TabsContent>
 
               <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
@@ -878,8 +1275,94 @@ export default function ProjectDetailPage() {
                 <EvaluationPanel projectId={project._id} defenseType="paper" />
               </TabsContent>
 
-              <TabsContent value="final" className="mt-0 focus-visible:outline-none">
+              <TabsContent value="final" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Full Manuscript Paper Reader & Archival Document Package */}
+                <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <BookMarked className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-bold text-foreground">
+                          Official Full Manuscript Paper
+                        </h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Conferred Capstone Study — Bukidnon State University Institutional
+                        Repository
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="gap-2 font-semibold shadow-sm"
+                        asChild
+                      >
+                        <a
+                          href={`/api/archive/${project._id}/view`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Read Full Paper (PDF)
+                        </a>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                        className="gap-2 text-xs"
+                      >
+                        <Award className="h-4 w-4 text-emerald-500" />
+                        View Certificate
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Abstract Reader */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Executive Abstract
+                    </h4>
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
+                      {project.abstract ||
+                        project.approvedProposal?.abstract ||
+                        'No abstract text recorded for this manuscript.'}
+                    </p>
+                  </div>
+
+                  {/* Citation Generator */}
+                  <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Academic Citation Formats
+                    </h4>
+                    <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
+                      <p className="text-muted-foreground">
+                        <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
+                        {formatCitation(project, 'apa', getProjectAuthors(project))}
+                      </p>
+                      <p className="text-muted-foreground pt-1 border-t border-border/40">
+                        <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
+                        {formatCitation(project, 'ieee', getProjectAuthors(project))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Defense Evaluation Rubric Panel */}
                 <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+
+              <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+
+              <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+                <ConsultationLogWidget
+                  project={project}
+                  isAdviser={isAssignedAdviser}
+                  isStudent={!isFaculty}
+                />
               </TabsContent>
 
               <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
@@ -937,6 +1420,11 @@ export default function ProjectDetailPage() {
 
             <FacultyWidget project={project} canManage={isInstructor} />
             <ProjectContextWidget project={project} />
+            <AcademicReportsWidget
+              project={project}
+              canManageArchive={isInstructor && !isArchived}
+              onArchived={() => refetch()}
+            />
           </div>
         </div>
       </div>

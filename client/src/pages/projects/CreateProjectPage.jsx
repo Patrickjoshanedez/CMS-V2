@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
 import {
@@ -24,6 +25,7 @@ import {
   Search,
   RefreshCw,
   Download,
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
@@ -272,6 +274,16 @@ export default function CreateProjectPage() {
 
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
   const { data: academicYears = [] } = useAcademicYears();
+  const {
+    plagiarismThreshold,
+    plagiarismRejectThreshold,
+    titleSimilarityThreshold,
+    fetchSettings,
+  } = useSettingsStore();
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const [form, setForm] = useState({
     title: '',
@@ -280,9 +292,7 @@ export default function CreateProjectPage() {
     academicYear: defaultAcademicYear,
     sectionId: '',
   });
-  const [titleProposals, setTitleProposals] = useState(() =>
-    Array.from({ length: 3 }, () => createEmptyProposal()),
-  );
+  const [titleProposals, setTitleProposals] = useState(() => [createEmptyProposal()]);
   // Optional: keep track of which proposal is expanded
   const [activeProposalIndex, setActiveProposalIndex] = useState(0);
   const [activeSubTab, setActiveSubTab] = useState('write');
@@ -343,7 +353,7 @@ export default function CreateProjectPage() {
             .slice(0, 10)
             .map((proposal) => normalizeDraftProposal(proposal));
 
-          while (normalizedDraftProposals.length < 3) {
+          if (normalizedDraftProposals.length === 0) {
             normalizedDraftProposals.push(createEmptyProposal());
           }
 
@@ -386,10 +396,12 @@ export default function CreateProjectPage() {
     }
 
     if (!academicYears.includes(form.academicYear)) {
-      setForm((prev) => ({
-        ...prev,
-        academicYear: academicYears[0],
-      }));
+      queueMicrotask(() => {
+        setForm((prev) => ({
+          ...prev,
+          academicYear: academicYears[0],
+        }));
+      });
     }
   }, [academicYears, form.academicYear]);
 
@@ -399,23 +411,25 @@ export default function CreateProjectPage() {
       return;
     }
 
-    setForm((prev) => {
-      const updates = {};
-      const normalizedTeamSectionId =
-        typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
+    queueMicrotask(() => {
+      setForm((prev) => {
+        const updates = {};
+        const normalizedTeamSectionId =
+          typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
 
-      // Prefer the team's academic year when available so the section list and selection stay aligned.
-      if (team.academicYear && prev.academicYear !== team.academicYear) {
-        updates.academicYear = team.academicYear;
-      }
+        // Prefer the team's academic year when available so the section list and selection stay aligned.
+        if (team.academicYear && prev.academicYear !== team.academicYear) {
+          updates.academicYear = team.academicYear;
+        }
 
-      // Pre-fill section from team context to avoid blocking project creation.
-      if (normalizedTeamSectionId && !prev.sectionId) {
-        updates.sectionId = normalizedTeamSectionId;
-      }
+        // Pre-fill section from team context to avoid blocking project creation.
+        if (normalizedTeamSectionId && !prev.sectionId) {
+          updates.sectionId = normalizedTeamSectionId;
+        }
 
-      teamDefaultsAppliedRef.current = true;
-      return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+        teamDefaultsAppliedRef.current = true;
+        return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+      });
     });
   }, [team, isTeamLoading]);
 
@@ -424,7 +438,9 @@ export default function CreateProjectPage() {
     if (form.sectionId && sectionOptions.length > 0) {
       const isValid = sectionOptions.some((section) => section._id === form.sectionId);
       if (!isValid) {
-        setForm((prev) => ({ ...prev, sectionId: '' }));
+        queueMicrotask(() => {
+          setForm((prev) => ({ ...prev, sectionId: '' }));
+        });
       }
     }
   }, [form.sectionId, sectionOptions]);
@@ -669,17 +685,27 @@ export default function CreateProjectPage() {
     e.preventDefault();
 
     const members = teamMembers;
-    const requiredProposals = titleProposals.slice(0, 3);
-    const invalidRequiredProposal = requiredProposals
+    const filledProposals = titleProposals.filter((p) => p.title?.trim());
+    if (filledProposals.length === 0) {
+      toast.error('Please complete at least 1 title proposal.');
+      return;
+    }
+
+    const invalidProposal = titleProposals
       .map((proposal, index) => ({
         index,
+        proposal,
         missingFields: getMissingRequiredProposalFields(proposal),
       }))
-      .find((item) => item.missingFields.length > 0);
+      .find(
+        (item) =>
+          item.missingFields.length > 0 &&
+          (item.index === 0 || (item.proposal.title && item.proposal.title.trim().length > 0)),
+      );
 
-    if (invalidRequiredProposal) {
+    if (invalidProposal) {
       toast.error(
-        `Proposal ${invalidRequiredProposal.index + 1} is missing: ${invalidRequiredProposal.missingFields.join(', ')}.`,
+        `Proposal ${invalidProposal.index + 1} is missing: ${invalidProposal.missingFields.join(', ')}.`,
       );
       return;
     }
@@ -709,8 +735,8 @@ export default function CreateProjectPage() {
 
     const normalizedTitleProposals = [...normalizedByTitle.values()];
 
-    if (normalizedTitleProposals.length < 3) {
-      toast.error('Please provide at least 3 unique title proposals.');
+    if (normalizedTitleProposals.length < 1) {
+      toast.error('Please provide at least 1 unique title proposal.');
       return;
     }
 
@@ -843,29 +869,65 @@ export default function CreateProjectPage() {
           </Alert>
         )}
 
-        {/* Global Details - Grouped at the top before proposals instead of the bottom 
-            Wait, prompt says "Main Navigation: Large tabs for Proposals..." 
-            so we jump right to the proposals, and we can keep Global fields nicely grouped below them. */}
+        {/* Cascaded Policy Standards Card */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.03] p-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="font-mono text-primary border-primary/30">
+              Policy Standards
+            </Badge>
+            <span className="text-muted-foreground">
+              Institutional Plagiarism Tolerance:{' '}
+              <strong className="text-foreground">&le; {plagiarismRejectThreshold || 25}%</strong>
+            </span>
+            <span className="text-muted-foreground">|</span>
+            <span className="text-muted-foreground">
+              Title Similarity Warning Threshold:{' '}
+              <strong className="text-foreground">
+                &le; {Math.round((titleSimilarityThreshold || 0.65) * 100)}%
+              </strong>
+            </span>
+          </div>
+          <span className="text-muted-foreground italic">
+            Dynamic threshold cascaded across student &amp; faculty evaluations
+          </span>
+        </div>
 
         {/* Main Navigation (Proposal Tabs) */}
         <div className="flex flex-wrap items-center gap-2 border-b">
           {titleProposals.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => {
-                setActiveProposalIndex(i);
-                setActiveSubTab('write');
-              }}
-              className={cn(
-                'px-4 py-3 border-b-2 font-medium text-sm transition-colors -mb-px',
-                activeProposalIndex === i
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+            <div key={i} className="flex items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveProposalIndex(i);
+                  setActiveSubTab('write');
+                }}
+                className={cn(
+                  'px-4 py-3 border-b-2 font-medium text-sm transition-colors -mb-px flex items-center gap-2',
+                  activeProposalIndex === i
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+                )}
+              >
+                <span>Proposal {i + 1}</span>
+                {titleProposals[i]?.title?.trim() && (
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" title="Has title" />
+                )}
+              </button>
+              {titleProposals.length > 1 && (
+                <button
+                  type="button"
+                  title="Remove this proposal"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTitleProposal(i);
+                  }}
+                  className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors -ml-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               )}
-            >
-              Proposal {i + 1}
-            </button>
+            </div>
           ))}
           <button
             type="button"
@@ -875,9 +937,9 @@ export default function CreateProjectPage() {
               setActiveProposalIndex(titleProposals.length);
               setActiveSubTab('write');
             }}
-            className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 flex items-center -mb-px"
+            className="px-4 py-3 text-sm font-medium text-primary hover:text-primary/80 disabled:opacity-50 flex items-center gap-1 -mb-px"
           >
-            <Plus className="mr-1 h-4 w-4" /> Add Proposal
+            <Plus className="h-4 w-4" /> Add More Proposal
           </button>
         </div>
 
@@ -1038,13 +1100,15 @@ export default function CreateProjectPage() {
                       {/* Academic Classifications */}
                       <div className="space-y-4">
                         <h4 className="font-semibold text-lg border-b pb-2 text-foreground/90">
-                          Academic Classifications
+                          IT Field of Discipline &amp; SDG Alignment
                         </h4>
                         <div className="space-y-2">
-                          <Label htmlFor={`proposal-${index}-capstoneType`}>Capstone Type *</Label>
+                          <Label htmlFor={`proposal-${index}-capstoneType`}>
+                            IT Field of Discipline *
+                          </Label>
                           <TagInput
                             id={`proposal-${index}-capstoneType`}
-                            placeholder="Select or type capstone types"
+                            placeholder="Select or type IT fields of discipline (e.g. Web Development, Machine Learning, IoT)"
                             value={proposal.capstoneType || []}
                             onChange={(newTags) =>
                               handleTitleProposalChange(index, 'capstoneType', newTags)
@@ -1259,6 +1323,51 @@ export default function CreateProjectPage() {
               </div>
             );
           })()}
+
+        {/* Bottom Submission Action Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border bg-card p-6 shadow-sm">
+          <div className="space-y-1 text-center sm:text-left">
+            <h4 className="text-base font-semibold text-foreground">Ready to Submit?</h4>
+            <p className="text-xs text-muted-foreground">
+              You have configured {titleProposals.filter((p) => p.title?.trim()).length} of{' '}
+              {titleProposals.length} proposal{titleProposals.length > 1 ? 's' : ''}. You can submit
+              1 or more proposals for committee evaluation.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {titleProposals.length < 10 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  addTitleProposal();
+                  setActiveProposalIndex(titleProposals.length);
+                  setActiveSubTab('write');
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add More Proposal
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={createProject.isPending || needsTeamFinalization}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {createProject.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Done &amp; Submit Project
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

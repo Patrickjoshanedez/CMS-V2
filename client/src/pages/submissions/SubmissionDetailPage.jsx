@@ -601,8 +601,15 @@ function AnnotationsPanel({ submission, isFaculty, userId }) {
             className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/70 p-4"
           >
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <User className="h-3 w-3" />
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
+                <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="font-semibold text-foreground">
+                  {ann.authorName ||
+                    (ann.userId?.firstName
+                      ? `${ann.userId.firstName} ${ann.userId.lastName || ''}`.trim()
+                      : 'Faculty Panelist')}
+                </span>
+                <span>&middot;</span>
                 <span>Page {ann.page}</span>
                 {(ann.lineStart || ann.lineEnd) && (
                   <>

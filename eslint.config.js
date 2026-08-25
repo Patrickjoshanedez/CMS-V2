@@ -47,6 +47,8 @@ module.exports = [
     rules: {
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
     },

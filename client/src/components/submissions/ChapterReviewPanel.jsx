@@ -82,12 +82,14 @@ const STATUS_CONFIG = {
 };
 
 function statusConfig(status) {
-  return STATUS_CONFIG[status] ?? {
-    label: 'Not Started',
-    variant: 'outline',
-    icon: FileText,
-    iconClass: 'text-muted-foreground',
-  };
+  return (
+    STATUS_CONFIG[status] ?? {
+      label: 'Not Started',
+      variant: 'outline',
+      icon: FileText,
+      iconClass: 'text-muted-foreground',
+    }
+  );
 }
 
 function formatDate(v) {
@@ -211,7 +213,10 @@ function ReviewActions({ round, onSuccess }) {
             </Badge>
             <button
               className="ml-auto text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => { setAction(null); setNote(''); }}
+              onClick={() => {
+                setAction(null);
+                setNote('');
+              }}
             >
               Cancel
             </button>
@@ -246,7 +251,11 @@ function ReviewActions({ round, onSuccess }) {
             disabled={reviewMutation.isPending}
             onClick={handleSubmit}
           >
-            {reviewMutation.isPending ? 'Saving…' : action === 'approve' ? 'Confirm Approval' : 'Send for Revision'}
+            {reviewMutation.isPending
+              ? 'Saving…'
+              : action === 'approve'
+                ? 'Confirm Approval'
+                : 'Send for Revision'}
           </Button>
         </div>
       )}
@@ -277,11 +286,10 @@ function ProgressionGate({ chapters, chapterRoundsMap }) {
                   : 'bg-muted text-muted-foreground'
               }`}
             >
-              {isApproved ? '✓ ' : ''}{CHAPTER_LABELS[ch]}
+              {isApproved ? '✓ ' : ''}
+              {CHAPTER_LABELS[ch]}
             </span>
-            {i < chapters.length - 1 && (
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            )}
+            {i < chapters.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
           </div>
         );
       })}
@@ -335,11 +343,29 @@ export default function ChapterReviewPanel({
     return map;
   }, [chapters, submissions]);
 
+  const [selectedSession, setSelectedSession] = useState('all');
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <CardTitle className="text-base">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+            Session:
+          </span>
+          <select
+            value={selectedSession}
+            onChange={(e) => setSelectedSession(e.target.value)}
+            className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary"
+          >
+            <option value="all">All Review Sessions</option>
+            <option value="s1">Session 1 (Initial Rounds)</option>
+            <option value="s2">Session 2 (Revisions &amp; Defense)</option>
+          </select>
+        </div>
       </CardHeader>
 
       <CardContent>
@@ -399,7 +425,8 @@ export default function ChapterReviewPanel({
                               className="h-7 gap-1 rounded-md border px-2.5 py-1 text-xs data-[state=active]:bg-muted"
                             >
                               Round {round.version || 1}
-                              {(round.status === SUBMISSION_STATUSES.LOCKED || round.status === SUBMISSION_STATUSES.APPROVED) && (
+                              {(round.status === SUBMISSION_STATUSES.LOCKED ||
+                                round.status === SUBMISSION_STATUSES.APPROVED) && (
                                 <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                               )}
                               {round.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
@@ -446,8 +473,12 @@ export default function ChapterReviewPanel({
 
                             {round.reviewNote && (
                               <div className="sm:col-span-2 lg:col-span-3">
-                                <p className="text-xs font-medium text-muted-foreground">Review Comment</p>
-                                <p className="mt-0.5 rounded-md bg-muted px-3 py-2 text-sm">{round.reviewNote}</p>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Review Comment
+                                </p>
+                                <p className="mt-0.5 rounded-md bg-muted px-3 py-2 text-sm">
+                                  {round.reviewNote}
+                                </p>
                               </div>
                             )}
                           </div>
@@ -475,7 +506,9 @@ export default function ChapterReviewPanel({
                   </div>
                 ) : (
                   <div className="border-t border-border px-4 py-3">
-                    <p className="text-xs text-muted-foreground">No submissions yet for this chapter.</p>
+                    <p className="text-xs text-muted-foreground">
+                      No submissions yet for this chapter.
+                    </p>
                   </div>
                 )}
               </div>

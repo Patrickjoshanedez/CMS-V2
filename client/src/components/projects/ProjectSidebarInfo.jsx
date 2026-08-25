@@ -101,7 +101,53 @@ export default function ProjectSidebarInfo({ project }) {
           </div>
         )}
 
-        {(project.teamId?.googleDocUrl || project.teamId?.githubUrl) && (
+        {/* Team Members List (FRAD2 - Adviser/Faculty Right-Sidebar Visibility) */}
+        {Array.isArray(project.teamId?.members) && project.teamId.members.length > 0 && (
+          <div className="pt-2 border-t border-border space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Team Roster ({project.teamId.members.length})
+            </p>
+            <div className="space-y-1.5">
+              {project.teamId.members.map((member, idx) => {
+                const memberUser = member.userId || member;
+                const memberName = memberUser.firstName
+                  ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim()
+                  : memberUser.fullName || memberUser.email || `Member ${idx + 1}`;
+                const isLeader =
+                  (member.role === 'leader' ||
+                    project.teamId?.leaderId === (memberUser._id || memberUser)) &&
+                  true;
+
+                return (
+                  <div
+                    key={member._id || idx}
+                    className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="font-medium text-foreground truncate">{memberName}</span>
+                    {isLeader ? (
+                      <Badge variant="default" className="h-4 px-1.5 text-[9px] font-bold">
+                        Leader
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="h-4 px-1.5 text-[9px] text-muted-foreground"
+                      >
+                        Member
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Project External Links & Monitoring (FR11 - GitHub Repository) */}
+        {(project.teamId?.googleDocUrl ||
+          project.teamId?.githubUrl ||
+          project.developmentAssets?.githubRepoUrl ||
+          project.githubRepo) && (
           <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
             {project.teamId?.googleDocUrl && (
               <Button type="button" variant="secondary" size="sm" asChild>
@@ -111,11 +157,27 @@ export default function ProjectSidebarInfo({ project }) {
                 </a>
               </Button>
             )}
-            {project.teamId?.githubUrl && (
-              <Button type="button" variant="secondary" size="sm" asChild>
-                <a href={project.teamId.githubUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Team GitHub
+            {(project.teamId?.githubUrl ||
+              project.developmentAssets?.githubRepoUrl ||
+              project.githubRepo) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-primary/30"
+                asChild
+              >
+                <a
+                  href={
+                    project.developmentAssets?.githubRepoUrl ||
+                    project.teamId?.githubUrl ||
+                    project.githubRepo
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4 text-primary" />
+                  GitHub Repository
                 </a>
               </Button>
             )}

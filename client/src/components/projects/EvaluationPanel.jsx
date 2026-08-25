@@ -571,12 +571,15 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-md border p-4 text-center">
               <p className="text-2xl font-bold">
-                {summary.averageScore !== null && summary.averageScore !== undefined
+                {allPanelistsSubmitted &&
+                summary.averageScore !== null &&
+                summary.averageScore !== undefined
                   ? summary.averageScore.toFixed(1)
-                  : '—'}
+                  : 'Pending Details'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Average Score{averageMaxScore ? ` / ${averageMaxScore}` : ''}
+                Average Score
+                {averageMaxScore && allPanelistsSubmitted ? ` / ${averageMaxScore}` : ''}
               </p>
             </div>
             <div className="rounded-md border p-4 text-center">

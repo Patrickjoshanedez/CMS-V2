@@ -71,6 +71,11 @@ const teamSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    githubUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   {
     timestamps: true,

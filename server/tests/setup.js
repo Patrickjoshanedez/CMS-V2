@@ -52,8 +52,18 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  if (mongoServer) {
-    await mongoServer.stop();
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+  } catch (_err) {
+    // Ignore disconnect errors on teardown
+  }
+  try {
+    if (mongoServer) {
+      await mongoServer.stop({ force: true });
+    }
+  } catch (_err) {
+    // Ignore server stop errors on teardown
   }
 });

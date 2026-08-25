@@ -443,12 +443,21 @@ router.get(
 );
 
 /**
- * POST /secretary-minutes
- * Parse uploaded secretary defense minutes PDF via Ollama and auto-generate ADM.
+ * POST /secretary-minutes & POST /secretary/extract-minutes
+ * Parse uploaded secretary defense minutes PDF and auto-generate ADM.
  */
 router.post(
   '/secretary-minutes',
-  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  extractMinutesToADM,
+);
+
+router.post(
+  '/secretary/extract-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
   uploadLimiter,
   upload.single('file'),
   validateFile,

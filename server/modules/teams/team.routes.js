@@ -12,6 +12,7 @@ import {
   assignMemberRoleSchema,
   transferTeamLeadershipSchema,
   updateTeamGoogleDocLinkSchema,
+  updateTeamGithubLinkSchema,
 } from './team.validation.js';
 
 const router = Router();
@@ -72,6 +73,13 @@ router.patch(
   authorize(ROLES.STUDENT),
   validate(updateTeamGoogleDocLinkSchema),
   teamController.updateGoogleDocLink,
+);
+
+router.patch(
+  '/:id/github-link',
+  authorize(ROLES.STUDENT),
+  validate(updateTeamGithubLinkSchema),
+  teamController.updateGithubLink,
 );
 
 router.patch('/:id/lock', authorize(ROLES.STUDENT), teamController.lockTeam);

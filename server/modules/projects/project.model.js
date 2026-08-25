@@ -364,14 +364,14 @@ const projectSchema = new mongoose.Schema(
       validate: {
         validator: (arr) =>
           Array.isArray(arr) &&
-          arr.length >= 3 &&
+          arr.length >= 1 &&
           arr.length <= 10 &&
           arr.every(
             (proposal) =>
               typeof proposal === 'string' ||
               (proposal && typeof proposal === 'object' && typeof proposal.title === 'string'),
           ),
-        message: 'A project must include between 3 and 10 title proposals',
+        message: 'A project must include between 1 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],
       default: [],
@@ -380,8 +380,8 @@ const projectSchema = new mongoose.Schema(
       type: [titleProposalMetadataSchema],
       validate: {
         validator: (arr) =>
-          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 3 && arr.length <= 10)),
-        message: 'Title proposal metadata must include between 3 and 10 entries',
+          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 1 && arr.length <= 10)),
+        message: 'Title proposal metadata must include between 1 and 10 entries',
       },
       default: [],
     },

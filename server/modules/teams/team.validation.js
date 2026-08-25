@@ -70,3 +70,7 @@ export const transferTeamLeadershipSchema = z.object({
 export const updateTeamGoogleDocLinkSchema = z.object({
   googleDocUrl: z.string().trim().max(2000, 'Google Docs URL is too long').optional().default(''),
 });
+
+export const updateTeamGithubLinkSchema = z.object({
+  githubUrl: z.string().trim().max(2000, 'GitHub URL is too long').optional().default(''),
+});

@@ -55,9 +55,6 @@ import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
 
-const FALLBACK_TEAM_TEMPLATE_URL =
-  'https://docs.google.com/document/d/1n49COZvzKnqDaxv8hT0EFLHsINpv4RkF/edit';
-
 /**
  * TeamsPage — team management page.
  *
@@ -796,9 +793,10 @@ function StudentTeamDetail({ team, userId }) {
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
 
-  const dynamicTemplateUrl =
-    useSettingsStore((state) => state.getTemplateUrl('proposal_template')) ||
-    FALLBACK_TEAM_TEMPLATE_URL;
+  const dynamicTemplateUrl = useSettingsStore(
+    (state) =>
+      state.getTemplateUrl('proposal_template') || state.getTemplateUrl('team_template') || '',
+  );
 
   return (
     <div className="space-y-4">
