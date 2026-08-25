@@ -11,25 +11,25 @@ const KPICards = ({ kpis }) => {
       label: 'Completion Rate',
       value: `${performance.completionRatePercent || 0}%`,
       hint: 'Archived projects over total',
-      tone: 'border-green-200 bg-green-50 text-green-900',
+      tone: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400',
     },
     {
       label: 'Avg Review Turnaround',
       value: `${performance.avgReviewTurnaroundHours || 0}h`,
       hint: 'Submission to review',
-      tone: 'border-blue-200 bg-blue-50 text-blue-900',
+      tone: 'border-primary/20 bg-primary/5 text-primary',
     },
     {
       label: 'Avg Evaluation Score',
       value: performance.avgEvaluationScore || 0,
       hint: 'Across all evaluations',
-      tone: 'border-amber-200 bg-amber-50 text-amber-900',
+      tone: 'border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400',
     },
     {
       label: 'Pending Submissions',
       value: pipeline.pendingSubmissions || 0,
       hint: `${pipeline.underReview || 0} currently under review`,
-      tone: 'border-slate-200 bg-white text-slate-900',
+      tone: 'border-border bg-muted/40 text-foreground',
     },
   ];
 
@@ -50,25 +50,23 @@ const KPICards = ({ kpis }) => {
         ))}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-            <p className="text-[11px] uppercase text-slate-500 font-semibold tracking-wide">
+          <div className="rounded-xl bg-muted/40 border border-border p-4">
+            <p className="text-[11px] uppercase text-muted-foreground font-semibold tracking-wide">
               Projects
             </p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{totals.totalProjects || 0}</p>
+            <p className="text-3xl font-bold text-foreground mt-1">{totals.totalProjects || 0}</p>
           </div>
-          <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
-            <p className="text-[11px] uppercase text-blue-700 font-semibold tracking-wide">
-              Active
-            </p>
-            <p className="text-3xl font-bold text-blue-700 mt-1">{totals.activeProjects || 0}</p>
+          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
+            <p className="text-[11px] uppercase text-primary font-semibold tracking-wide">Active</p>
+            <p className="text-3xl font-bold text-primary mt-1">{totals.activeProjects || 0}</p>
           </div>
-          <div className="rounded-xl bg-green-50 border border-green-100 p-4">
-            <p className="text-[11px] uppercase text-green-700 font-semibold tracking-wide">
+          <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4">
+            <p className="text-[11px] uppercase text-emerald-600 dark:text-emerald-400 font-semibold tracking-wide">
               Archived
             </p>
-            <p className="text-3xl font-bold text-green-700 mt-1">
+            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
               {totals.completedProjects || 0}
             </p>
           </div>

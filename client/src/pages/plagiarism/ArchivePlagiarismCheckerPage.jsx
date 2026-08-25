@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DropZone from '@/components/plagiarism/DropZone';
 import PlagiarismReportPage from '@/components/plagiarism/PlagiarismReportPage';
@@ -27,21 +27,12 @@ function getInlineErrorMessage(error) {
       message: 'Scan timed out. Large documents can take up to 60s. Please try again.',
     };
   }
-
   if (status === 429) {
-    return {
-      type: 'server',
-      message: 'Too many scans. Please wait before trying again.',
-    };
+    return { type: 'server', message: 'Too many scans. Please wait before trying again.' };
   }
-
   if (status >= 500) {
-    return {
-      type: 'server',
-      message: 'Scan service unavailable. Try again shortly.',
-    };
+    return { type: 'server', message: 'Scan service unavailable. Try again shortly.' };
   }
-
   return {
     type: 'server',
     message:
@@ -61,17 +52,14 @@ export default function ArchivePlagiarismCheckerPage() {
 
   useEffect(() => {
     if (!scanning) return undefined;
-
     const timerId = window.setInterval(() => {
-      setElapsedSeconds((current) => current + 1);
+      setElapsedSeconds((c) => c + 1);
     }, 1000);
-
     return () => window.clearInterval(timerId);
   }, [scanning]);
 
   const selectedFileMeta = useMemo(() => {
     if (!file) return null;
-
     const sizeInBytes = Number(file.size || 0);
     return {
       name: file.name,
@@ -82,7 +70,6 @@ export default function ArchivePlagiarismCheckerPage() {
   }, [file]);
 
   const dropZoneError = scanError?.type === 'validation' ? scanError?.message : null;
-
   const canScan = Boolean(file) && !selectedFileMeta?.tooLarge && !scanning;
 
   const handleSelectFile = (nextFile) => {
@@ -91,19 +78,16 @@ export default function ArchivePlagiarismCheckerPage() {
       setScanError(null);
       return;
     }
-
     if (nextFile.size > MAX_FILE_SIZE_BYTES) {
       setFile(null);
       setScanError(buildValidationError('File exceeds 25 MB limit.'));
       return;
     }
-
     if (nextFile.type !== 'application/pdf') {
       setFile(null);
       setScanError(buildValidationError('Only PDF files are accepted.'));
       return;
     }
-
     setFile(nextFile);
     setScanError(null);
   };
@@ -113,12 +97,10 @@ export default function ArchivePlagiarismCheckerPage() {
       setScanError(buildValidationError('Please select a PDF file.'));
       return;
     }
-
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setScanError(buildValidationError('File exceeds 25 MB limit.'));
       return;
     }
-
     if (file.type !== 'application/pdf') {
       setScanError(buildValidationError('Only PDF files are accepted.'));
       return;
@@ -134,15 +116,8 @@ export default function ArchivePlagiarismCheckerPage() {
         : await plagiarismService.scanArchivedPdf(file);
 
       const payload = response?.data?.data || response?.data || response || null;
-
-      if (!payload) {
-        throw new Error('Scan response did not include report data.');
-      }
-
-      if (payload.semanticModel) {
-        setSemanticModel(payload.semanticModel);
-      }
-
+      if (!payload) throw new Error('Scan response did not include report data.');
+      if (payload.semanticModel) setSemanticModel(payload.semanticModel);
       setReportData(payload);
     } catch (error) {
       setScanError(getInlineErrorMessage(error));
@@ -170,46 +145,94 @@ export default function ArchivePlagiarismCheckerPage() {
 
   return (
     <DashboardLayout>
-      <section className="archive-upload-shell mx-auto max-w-5xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[0_30px_70px_-55px_rgba(13,27,42,0.75)] sm:p-7">
-        <div className="space-y-6">
-          <ScanHero semanticModel={semanticModel} />
+      {/* Two-column layout: hero + upload form */}
+      <div className="mx-auto max-w-5xl">
+        <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
+          {/* Left: hero + info */}
+          <div className="flex flex-col gap-6">
+            <ScanHero semanticModel={semanticModel} />
 
-          <DropZone
-            file={file}
-            scanning={scanning}
-            errorMessage={dropZoneError}
-            onFileSelected={handleSelectFile}
-          />
+            {/* How it works card */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                How it works
+              </p>
+              <ol className="space-y-3">
+                {[
+                  {
+                    step: '01',
+                    title: 'Upload PDF',
+                    desc: 'Drop or select your capstone document (max 25 MB).',
+                  },
+                  {
+                    step: '02',
+                    title: 'Dual-Engine Scan',
+                    desc: 'Lexical fingerprinting + semantic embedding comparison runs against the full archive.',
+                  },
+                  {
+                    step: '03',
+                    title: 'Review Results',
+                    desc: 'View annotated highlights, source-by-source breakdown, and overall originality score.',
+                  },
+                ].map(({ step, title, desc }) => (
+                  <li key={step} className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                      {step}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{title}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
 
-          {selectedFileMeta && !dropZoneError ? (
-            <p className="text-xs font-medium text-[var(--color-text-secondary)] [font-family:var(--font-body)]">
-              Selected file: <span className="font-semibold">{selectedFileMeta.name}</span> (
-              {selectedFileMeta.sizeLabel})
-            </p>
-          ) : null}
+          {/* Right: upload card */}
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
+              <p className="mb-5 text-xs text-muted-foreground">
+                PDF only · max {MAX_FILE_SIZE_MB} MB
+              </p>
 
-          {scanError && scanError.type !== 'validation' ? (
-            <div className="rounded-lg border border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_8%,white)] p-3 [font-family:var(--font-body)]">
-              <p className="flex items-center gap-2 text-sm font-medium text-[var(--color-accent)]">
-                <AlertTriangle className="h-4 w-4" />
-                {scanError.message}
+              <div className="space-y-4">
+                <DropZone
+                  file={file}
+                  scanning={scanning}
+                  errorMessage={dropZoneError}
+                  onFileSelected={handleSelectFile}
+                />
+
+                {scanError && scanError.type !== 'validation' && (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    <p className="text-sm font-medium text-destructive">{scanError.message}</p>
+                  </div>
+                )}
+
+                <ScanButton
+                  disabled={!canScan}
+                  scanning={scanning}
+                  elapsedSeconds={elapsedSeconds}
+                  onClick={handleScan}
+                />
+              </div>
+            </div>
+
+            {/* Disclaimer note */}
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Uploads use <code className="font-mono text-foreground">multipart/form-data</code>{' '}
+                with field name <code className="font-mono text-foreground">file</code>. Results are
+                not stored and are computed on demand.
               </p>
             </div>
-          ) : null}
-
-          <ScanButton
-            disabled={!canScan}
-            scanning={scanning}
-            elapsedSeconds={elapsedSeconds}
-            onClick={handleScan}
-          />
-
-          <p className="text-xs text-[var(--color-text-secondary)] [font-family:var(--font-body)]">
-            Upload uses multipart/form-data with field name{' '}
-            <span className="font-semibold">file</span>, PDF only, max {MAX_FILE_SIZE_MB} MB.
-          </p>
+          </div>
         </div>
-      </section>
+      </div>
     </DashboardLayout>
   );
 }

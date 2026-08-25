@@ -128,6 +128,9 @@ function getBackDestination(pathname) {
   // Project detail / certificate / document editor sit inside /projects
   if (pathname.startsWith('/projects/') && pathname !== '/projects')
     return { to: '/projects', label: 'Back to Projects' };
+  // Archive detail sits inside /archive
+  if (pathname.startsWith('/archive/') && pathname !== '/archive')
+    return { to: '/archive', label: 'Back to Archive' };
   return null;
 }
 

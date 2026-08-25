@@ -1,0 +1,65 @@
+{
+  "pendingFailures": [
+    {
+      "commandLabel": "Jest test for a function that adds two numbers. Output only the code.',\\n+    );\\n+\\n+    console.log('\\\\n--- TEST SUCCESS: Model Output ---');\\n+    console.log(result);\\n+    console.log('----------------------------------\\\\n');\\n+  } cat",
+      "commandLabelNormalized": "jest test for a function that adds two numbers. output only the code.',\\n+ );\\n+\\n+ console.log('\\\\n--- test success: model output ---');\\n+ console.log(result);\\n+ console.log('----------------------------------\\\\n');\\n+ } cat",
+      "firstFailedAt": "2026-04-15T17:54:22+00:00",
+      "lastFailedAt": "2026-04-15T17:54:33+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
+      "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
+      "firstFailedAt": "2026-04-16T13:10:04+00:00",
+      "lastFailedAt": "2026-04-26T17:53:29+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
+      "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
+      "firstFailedAt": "2026-04-17T10:02:20+00:00",
+      "lastFailedAt": "2026-04-17T10:02:21+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.4 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u25c7 injected env (46) from .env // tip: \\u25c8 encrypted .en",
+      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.4 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u25c7 injected env (46) from .env // tip: \\u25c8 encrypted .en",
+      "firstFailedAt": "2026-04-26T19:03:33+00:00",
+      "lastFailedAt": "2026-04-26T19:03:33+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.4 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u00e2\\u2014\\u2021 injected env (46) from .env // tip: \\u00e2\\u",
+      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.4 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u00e2\\u2014\\u2021 injected env (46) from .env // tip: \\u00e2\\u",
+      "firstFailedAt": "2026-04-26T19:03:34+00:00",
+      "lastFailedAt": "2026-04-26T19:03:34+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "vitest] No \\\"useMyProject\\\" export is defined on the \\\"@/hooks/useProjects\\\" mock. Did you forget to return it from \\\"vi.mock\\\"?\\nIf you need to partially mock a module, you can use \\\"importOriginal\\\" helper inside:\\n\\nvi.mock(import(\\\"@/ho",
+      "commandLabelNormalized": "vitest] no \\\"usemyproject\\\" export is defined on the \\\"@/hooks/useprojects\\\" mock. did you forget to return it from \\\"vi.mock\\\"?\\nif you need to partially mock a module, you can use \\\"importoriginal\\\" helper inside:\\n\\nvi.mock(import(\\\"@/ho",
+      "firstFailedAt": "2026-04-26T20:15:49+00:00",
+      "lastFailedAt": "2026-04-26T20:15:55+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    }
+  ],
+  "observedTestActivity": true,
+  "updatedAt": "2026-04-26T20:15:55+00:00",
+  "integrityAnomaly": null,
+  "publicExposureGate": {
+    "pending": false,
+    "pendingContext": null,
+    "passed": false,
+    "lastVerifiedAt": null,
+    "lastAttemptedCommand": "",
+    "lastBlockedAt": null,
+    "evidenceMap": {},
+    "updatedAt": null
+  }
+}

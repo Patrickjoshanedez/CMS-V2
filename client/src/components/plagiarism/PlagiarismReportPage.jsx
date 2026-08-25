@@ -5,7 +5,7 @@ import AnnotatedText from '@/components/plagiarism/AnnotatedText';
 import SimilarityGauge from '@/components/plagiarism/SimilarityGauge';
 import SourceDetail from '@/components/plagiarism/SourceDetail';
 import SourceList from '@/components/plagiarism/SourceList';
-import { getSourceColor, toPercent } from '@/utils/similarityColor';
+import { getSourceColor, getSimilarityBand, toPercent } from '@/utils/similarityColor';
 import useResolvedSelection from '@/hooks/useResolvedSelection';
 
 const TAB_OPTIONS = [
@@ -297,30 +297,76 @@ export default function PlagiarismReportPage({ reportData, fileName, onBack }) {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <header className="sticky top-0 z-20 rounded-xl bg-[var(--color-sidebar)] px-4 py-3 text-white shadow-lg">
-          <div className="grid items-center gap-4 lg:grid-cols-[auto_1fr_auto]">
+        {/* ── Sticky report header ── */}
+        <header className="sticky top-0 z-20 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur-md">
+          <div className="grid items-center gap-3 lg:grid-cols-[auto_1fr_auto]">
+            {/* Back */}
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex items-center gap-2 rounded-md border border-white/20 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
 
-            <div className="flex min-w-0 items-center justify-center gap-2 text-center [font-family:var(--font-body)]">
-              <FileText className="h-4 w-4 shrink-0 text-[var(--color-sidebar-text)]" />
-              <p className="truncate text-sm font-semibold text-white">
+            {/* File name */}
+            <div className="flex min-w-0 items-center justify-center gap-2">
+              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <p className="truncate text-sm font-semibold text-foreground">
                 {fileName || 'Submitted document'}
               </p>
             </div>
 
-            <div className="top-bar-actions flex items-center justify-end gap-3">
-              <SimilarityGauge value={overallSimilarity} />
+            {/* Gauge + export */}
+            <div className="flex items-center justify-end gap-3">
+              {/* Compact score badge */}
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-2">
+                <div className="relative h-8 w-8 shrink-0">
+                  <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="48"
+                      strokeWidth="14"
+                      fill="transparent"
+                      className="stroke-muted"
+                    />
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="48"
+                      strokeWidth="14"
+                      strokeLinecap="round"
+                      fill="transparent"
+                      stroke={getSimilarityBand(overallSimilarity).color}
+                      strokeDasharray={2 * Math.PI * 48}
+                      strokeDashoffset={
+                        2 * Math.PI * 48 - (2 * Math.PI * 48 * overallSimilarity) / 100
+                      }
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[9px] font-bold tabular-nums text-foreground">
+                      {Math.round(overallSimilarity)}%
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground">Similarity</p>
+                  <p
+                    className="text-xs font-bold"
+                    style={{ color: getSimilarityBand(overallSimilarity).color }}
+                  >
+                    {getSimilarityBand(overallSimilarity).label}
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-white/20 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-white/10"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -329,53 +375,54 @@ export default function PlagiarismReportPage({ reportData, fileName, onBack }) {
           </div>
         </header>
 
-        <section className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 [font-family:var(--font-body)]">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--color-ok)_14%,white)] px-3 py-1 text-xs font-semibold text-[var(--color-ok)]">
-              <span className="h-2 w-2 rounded-full bg-[var(--color-ok)]" />
-              {Math.round(originalityScore)}% Original
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-[color-mix(in_srgb,var(--color-accent)_12%,white)] px-3 py-1 text-xs font-semibold text-[var(--color-accent)]">
-              <span className="h-2 w-2 rounded-full bg-[var(--color-accent)]" />
-              {Math.round(overallSimilarity)}% Matched content
-            </div>
-            <p className="ml-auto text-xs font-medium text-[var(--color-text-secondary)]">
-              {wordCount.toLocaleString()} words | {allSources.length} sources
-            </p>
+        {/* ── Stats summary bar ── */}
+        <section className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/8 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {Math.round(originalityScore)}% Original
           </div>
+          <div className="inline-flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/8 px-3 py-1.5 text-xs font-semibold text-destructive">
+            <span className="h-2 w-2 rounded-full bg-destructive" />
+            {Math.round(overallSimilarity)}% Matched
+          </div>
+          <p className="ml-auto text-xs text-muted-foreground">
+            {wordCount.toLocaleString()} words &middot; {allSources.length} sources
+          </p>
         </section>
 
+        {/* ── Main content: annotated text + source panel ── */}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
-          <section className="flex min-h-[70vh] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 [font-family:var(--font-body)]">
-              <h2 className="text-lg text-[var(--color-text-primary)] [font-family:var(--font-display)]">
-                Submitted Document
-              </h2>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)]">
-                {charCount.toLocaleString()} characters | {wordCount.toLocaleString()} words
+          {/* Annotated document */}
+          <section className="flex min-h-[70vh] flex-col rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-foreground">Submitted Document</h2>
+              <p className="text-xs text-muted-foreground">
+                {charCount.toLocaleString()} chars &middot; {wordCount.toLocaleString()} words
               </p>
             </div>
 
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[11px] [font-family:var(--font-body)]">
-              <span className="font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
-                Similarity Legend
+            {/* Legend */}
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Legend
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                <span className="h-2 w-3 rounded-sm bg-[color-mix(in_srgb,var(--color-ok)_24%,white)]" />
-                Low 0-15%
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                <span className="h-2 w-3 rounded-sm bg-[color-mix(in_srgb,var(--color-warn)_24%,white)]" />
-                Moderate 16-40%
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                <span className="h-2 w-3 rounded-sm bg-[color-mix(in_srgb,var(--color-high)_24%,white)]" />
-                High 41-70%
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-[var(--color-text-secondary)]">
-                <span className="h-2 w-3 rounded-sm bg-[color-mix(in_srgb,var(--color-accent)_20%,white)]" />
-                Critical 71-100%
-              </span>
+              {[
+                { color: 'var(--color-ok, #4caf50)', label: 'Low 0-15%' },
+                { color: 'var(--color-warn, #ff9800)', label: 'Moderate 16-40%' },
+                { color: 'var(--color-high, #ff5722)', label: 'High 41-70%' },
+                { color: 'var(--color-accent, #e91e63)', label: 'Critical 71-100%' },
+              ].map(({ color, label }) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                >
+                  <span
+                    className="h-2 w-3 rounded-sm opacity-50"
+                    style={{ backgroundColor: color }}
+                  />
+                  {label}
+                </span>
+              ))}
             </div>
 
             <AnnotatedText
@@ -389,17 +436,17 @@ export default function PlagiarismReportPage({ reportData, fileName, onBack }) {
             />
           </section>
 
-          <aside className="source-panel flex min-h-[70vh] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-            <div className="mb-2 flex items-center justify-between px-1 [font-family:var(--font-body)]">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
-                Sources
-              </h3>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)]">
+          {/* Source panel */}
+          <aside className="flex min-h-[70vh] flex-col rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Sources</h3>
+              <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {filteredSources.length} found
-              </p>
+              </span>
             </div>
 
-            <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-1 [font-family:var(--font-body)]">
+            {/* Tab switcher */}
+            <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/40 p-1">
               {TAB_OPTIONS.map((tab) => (
                 <button
                   key={tab.id}
@@ -409,10 +456,10 @@ export default function PlagiarismReportPage({ reportData, fileName, onBack }) {
                     setSourceDetailId(null);
                   }}
                   className={[
-                    'rounded-md px-2 py-2 text-xs font-semibold transition-colors',
+                    'rounded-md px-2 py-1.5 text-xs font-semibold transition-colors',
                     activeTab === tab.id
-                      ? 'bg-white text-[var(--color-text-primary)] shadow-sm'
-                      : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]',
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
                   ].join(' ')}
                 >
                   {tab.label}
@@ -420,7 +467,7 @@ export default function PlagiarismReportPage({ reportData, fileName, onBack }) {
               ))}
             </div>
 
-            <div className="flex-1 overflow-auto pr-1">
+            <div className="flex-1 overflow-auto">
               {sourceDetailId ? (
                 <SourceDetail
                   source={activeSource}

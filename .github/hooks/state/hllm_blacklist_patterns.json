@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-08-23T23:08:00.000Z",
+  "patterns": [
+    {
+      "id": "sec-no-hardcoded-credentials",
+      "pattern": "(?:password|secret|api_key|token)\\s*=\\s*['\"][a-zA-Z0-9_-]{16,}['\"]",
+      "reason": "Hardcoded credentials or API tokens detected in source patch."
+    },
+    {
+      "id": "sec-no-destructive-db-drop",
+      "pattern": "(?:db\\.(?:dropDatabase|dropAllDatabases)|mongoose\\.connection\\.db\\.dropDatabase)",
+      "reason": "Destructive database drop operations are forbidden."
+    },
+    {
+      "id": "hllm-anti-slop-generic-placeholder",
+      "pattern": "TODO:\\s*implement\\s+this\\s+later|PLACEHOLDER_FOR_REAL_CODE",
+      "reason": "Unimplemented placeholder code pattern forbidden."
+    }
+  ]
+}

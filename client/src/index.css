@@ -361,12 +361,14 @@ html.dark[data-high-contrast='true'] {
 }
 
 /* ===================================================================
-   App Navigation Motion
+   App Navigation Motion — CodePen spring-entry + NProgress top bar
    =================================================================== */
+
+/* ─ Page content enter (upgraded: stronger lift + spring easing) ─ */
 @keyframes cms-route-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -375,88 +377,165 @@ html.dark[data-high-contrast='true'] {
 }
 
 .cms-route-enter {
-  animation: cms-route-enter 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: cms-route-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: transform, opacity;
+}
+
+/* ─ NProgress-style top route progress bar ─ */
+@keyframes cms-route-progress {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleX(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+.cms-route-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform-origin: left center;
+  background: linear-gradient(
+    90deg,
+    var(--brand-orange, #ff5722),
+    var(--brand-pink, #e91e63),
+    var(--brand-deep-purple, #673ab7)
+  );
+  animation: cms-route-progress 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+  z-index: 10;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cms-route-enter {
     animation: none;
     transform: none;
+    opacity: 1;
+  }
+  .cms-route-progress {
+    animation: none;
+    opacity: 0;
   }
 }
 
 /* ===================================================================
-   Brand Loading Logo Animation
+   Brand Loading — CodePen-inspired dot cascade + fluid track
+   Inspired by: css-loaders.com (Temani Afif) & CodePen community
    =================================================================== */
-@keyframes cms-logo-pulse {
+
+/* ─ 5 dot colour stops sampled from the brand gradient ─ */
+:root {
+  --cms-dot-1: #ff5722; /* brand-orange     */
+  --cms-dot-2: #f06292; /* orange → pink    */
+  --cms-dot-3: #e91e63; /* brand-pink        */
+  --cms-dot-4: #ab47bc; /* pink → purple    */
+  --cms-dot-5: #673ab7; /* brand-deep-purple */
+}
+
+.cms-dot-color-1 {
+  background-color: var(--cms-dot-1);
+}
+.cms-dot-color-2 {
+  background-color: var(--cms-dot-2);
+}
+.cms-dot-color-3 {
+  background-color: var(--cms-dot-3);
+}
+.cms-dot-color-4 {
+  background-color: var(--cms-dot-4);
+}
+.cms-dot-color-5 {
+  background-color: var(--cms-dot-5);
+}
+
+/* ─ Dot wave bounce (CodePen style) ─ */
+@keyframes cms-dot-wave {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.55;
+  }
+  40% {
+    transform: translateY(-10px) scale(1.15);
+    opacity: 1;
+  }
+}
+
+.cms-dot-wave {
+  animation: cms-dot-wave 1.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ─ Fluid indeterminate progress track ─ */
+@keyframes cms-fluid-track {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 20%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.cms-fluid-track {
+  animation: cms-fluid-track 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: left;
+}
+
+/* ─ Badge icon subtle pop-in ─ */
+@keyframes cms-badge-pop {
   0%,
   100% {
     transform: scale(1);
-    box-shadow:
-      0 0 25px -5px rgba(233, 30, 99, 0.35),
-      0 0 45px -10px rgba(103, 58, 183, 0.25);
+    box-shadow: 0 4px 20px -4px rgba(233, 30, 99, 0.2);
   }
   50% {
-    transform: scale(1.04);
-    box-shadow:
-      0 0 35px 2px rgba(255, 87, 34, 0.45),
-      0 0 60px -5px rgba(233, 30, 99, 0.35);
+    transform: scale(1.05);
+    box-shadow: 0 8px 28px -4px rgba(233, 30, 99, 0.38);
   }
 }
 
-@keyframes cms-ring-spin {
-  0% {
-    transform: rotate(0deg);
-  }
+.cms-badge-pop {
+  animation: cms-badge-pop 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ─ Message text soft fade/pulse ─ */
+@keyframes cms-text-fade {
+  0%,
   100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes cms-ring-spin-reverse {
-  0% {
-    transform: rotate(360deg);
-  }
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes cms-shimmer-bar {
-  0% {
-    transform: translateX(-100%);
+    opacity: 0.6;
   }
   50% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(100%);
+    opacity: 1;
   }
 }
 
-.cms-logo-pulse {
-  animation: cms-logo-pulse 2.2s ease-in-out infinite;
-}
-
-.cms-ring-spin {
-  animation: cms-ring-spin 8s linear infinite;
-}
-
-.cms-ring-spin-reverse {
-  animation: cms-ring-spin-reverse 10s linear infinite;
-}
-
-.cms-shimmer-bar {
-  animation: cms-shimmer-bar 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.cms-text-fade {
+  animation: cms-text-fade 2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cms-logo-pulse,
-  .cms-ring-spin,
-  .cms-ring-spin-reverse,
-  .cms-shimmer-bar {
+  .cms-dot-wave,
+  .cms-fluid-track,
+  .cms-badge-pop,
+  .cms-text-fade {
     animation: none;
+    transform: none;
+    opacity: 1;
   }
 }
 

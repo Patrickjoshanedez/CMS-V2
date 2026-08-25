@@ -209,7 +209,7 @@ export default function FacultyDashboard({ user }) {
       {/* Top Header & Tabs (Very Space Efficient) */}
       <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-foreground">Faculty Overview</h2>
+          <h1 className="text-lg font-bold tracking-tight text-foreground">Faculty Overview</h1>
           <p className="text-xs text-muted-foreground">
             Manage your handled teams and specific actions without scrolling.
           </p>

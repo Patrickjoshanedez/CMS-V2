@@ -61,6 +61,7 @@ describe('LoadingScreen', () => {
     expect(statusEl).not.toBeNull();
     expect(statusEl.className).not.toContain('fixed inset-0');
     expect(statusEl.className).toContain('min-h-[300px]');
+
     expect(container.textContent).toContain('Loading project workspace...');
     expect(container.textContent).toContain('BukSU College of Technologies');
   });
@@ -74,8 +75,8 @@ describe('LoadingScreen', () => {
       root.render(<LoadingScreen size="sm" fullScreen={false} />);
     });
 
-    const badge = container.querySelector('.cms-logo-pulse');
+    const badge = container.querySelector('.cms-badge-pop');
     expect(badge).not.toBeNull();
-    expect(badge.className).toContain('h-14 w-14');
+    expect(badge.className).toContain('h-12 w-12');
   });
 });

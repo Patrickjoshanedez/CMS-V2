@@ -10,9 +10,12 @@ export default function SourceList({
 }) {
   if (sources.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-[var(--color-border)] bg-white px-3 py-5 text-sm text-[var(--color-text-secondary)] [font-family:var(--font-body)]">
-        No sources were returned by this scan.
-      </p>
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+        <p className="text-sm font-medium text-muted-foreground">No sources found</p>
+        <p className="text-xs text-muted-foreground/70">
+          This document had no significant matches in the archive.
+        </p>
+      </div>
     );
   }
 
@@ -20,7 +23,7 @@ export default function SourceList({
     <div className="space-y-2">
       {sources.map((source) => {
         const isActive = source._sourceId === activeSourceId;
-        const sourceMeta = [source.authors?.join(', '), source.year].filter(Boolean).join(' | ');
+        const sourceMeta = [source.authors?.join(', '), source.year].filter(Boolean).join(' · ');
 
         return (
           <button
@@ -31,43 +34,47 @@ export default function SourceList({
             onMouseEnter={() => onHoverSource(source._sourceId)}
             onMouseLeave={onLeaveSource}
             className={[
-              'block w-full rounded-lg border bg-white p-3 text-left transition-all',
+              'block w-full rounded-xl border p-3 text-left transition-all duration-150',
               isActive
-                ? 'border-[var(--color-neutral)] shadow-[0_0_0_1px_var(--color-neutral)]'
-                : 'border-[var(--color-border)] hover:border-[var(--color-neutral)]/50',
+                ? 'border-primary/40 bg-primary/5 shadow-sm shadow-primary/10'
+                : 'border-border bg-card hover:border-primary/30 hover:bg-muted/40',
             ].join(' ')}
           >
-            <div className="flex items-start gap-2.5 [font-family:var(--font-body)]">
+            <div className="flex items-start gap-2.5">
+              {/* Color swatch */}
               <span
-                className="mt-1 inline-block h-2.5 w-2.5 rounded-full"
+                className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: source.sourceColor }}
               />
 
-              <div className="min-w-0 flex-1 space-y-2">
-                <h4 className="archive-two-line text-sm font-semibold text-[var(--color-text-primary)]">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {/* Title */}
+                <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                   {source.title || 'Untitled Source'}
-                </h4>
-
-                <p className="archive-two-line text-xs text-[var(--color-text-secondary)]">
-                  {sourceMeta || 'Unknown metadata'}
                 </p>
 
+                {/* Meta */}
+                {sourceMeta && (
+                  <p className="line-clamp-1 text-xs text-muted-foreground">{sourceMeta}</p>
+                )}
+
+                {/* Score bar */}
                 <ScoreBar
                   finalScore={source.finalScore}
                   lexicalScore={source.similarity}
                   semanticScore={source.semanticSimilarity}
                 />
 
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-0.5 font-semibold text-[var(--color-text-secondary)]">
+                {/* Badges */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 font-medium text-muted-foreground">
                     {source.matchCount || 0} matches
                   </span>
-
-                  {source.semanticOnly ? (
-                    <span className="rounded-full border border-[var(--color-neutral)]/40 bg-[color-mix(in_srgb,var(--color-neutral)_12%,white)] px-2 py-0.5 font-semibold text-[var(--color-neutral)]">
-                      Semantic match only
+                  {source.semanticOnly && (
+                    <span className="rounded-md border border-primary/25 bg-primary/5 px-2 py-0.5 font-medium text-primary">
+                      Semantic only
                     </span>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </div>

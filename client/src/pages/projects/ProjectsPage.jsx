@@ -11,6 +11,7 @@ import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import { useProjects } from '@/hooks/useProjects';
 import { Search, ChevronLeft, ChevronRight, Loader2, FileText, AlertTriangle } from 'lucide-react';
 import { ROLES, PROJECT_STATUSES } from '@cms/shared';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 /**
  * ProjectsPage — Faculty view of all capstone projects.
@@ -91,7 +92,7 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">{pageTitle}</h3>
+          <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
           <p className="text-muted-foreground">
             Review proposals, submissions — approve, request revision, reject, and add remarks.
           </p>
@@ -150,15 +151,15 @@ export default function ProjectsPage() {
 
         {/* Empty state */}
         {!isLoading && !error && projects.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-            <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No projects found</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {search || titleStatus
+          <EmptyState
+            icon={FileText}
+            title="No projects found"
+            description={
+              search || titleStatus
                 ? 'Try adjusting your filters.'
-                : 'Projects will appear here once students create them.'}
-            </p>
-          </div>
+                : 'Projects will appear here once students create them.'
+            }
+          />
         )}
 
         {/* Project list */}
