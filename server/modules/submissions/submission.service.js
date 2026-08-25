@@ -1847,12 +1847,13 @@ class SubmissionService {
         .sort({ chapter: 1, version: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('submittedBy', 'firstName middleName lastName email'),
+        .populate('submittedBy', 'firstName middleName lastName email')
+        .lean(),
       Submission.countDocuments(filter),
     ]);
 
     const enrichedSubmissions = submissions.map((item) => {
-      const submission = item.toObject();
+      const submission = item.toObject ? item.toObject() : { ...item };
       const deadlineInfo = this._resolveSubmissionDeadlineInfo(submission, project);
       submission.deadlineField = deadlineInfo.deadlineField;
       submission.deadlineAt = deadlineInfo.deadlineAt;

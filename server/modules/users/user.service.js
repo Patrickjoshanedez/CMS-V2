@@ -139,7 +139,12 @@ class UserService {
     }
 
     const [users, total] = await Promise.all([
-      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('teamId', 'name'),
+      User.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('teamId', 'name')
+        .lean(),
       User.countDocuments(filter),
     ]);
 
@@ -222,7 +227,8 @@ class UserService {
   async listInstructors() {
     const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true })
       .select('firstName middleName lastName email')
-      .sort({ firstName: 1 });
+      .sort({ firstName: 1 })
+      .lean();
     return { instructors };
   }
 

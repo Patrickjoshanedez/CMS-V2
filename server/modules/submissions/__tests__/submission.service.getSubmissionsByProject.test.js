@@ -67,7 +67,9 @@ describe('submissionService.getSubmissionsByProject', () => {
       sort: vi.fn().mockReturnThis(),
       skip: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      populate: vi.fn().mockResolvedValue([submissionDoc]),
+      populate: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([submissionDoc]),
+      }),
     });
     Submission.countDocuments.mockResolvedValue(1);
 

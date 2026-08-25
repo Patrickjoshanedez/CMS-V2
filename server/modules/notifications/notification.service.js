@@ -17,7 +17,7 @@ class NotificationService {
     const skip = (page - 1) * limit;
 
     const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Notification.countDocuments({ userId }),
       Notification.countDocuments({ userId, isRead: false }),
     ]);

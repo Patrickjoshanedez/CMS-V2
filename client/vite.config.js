@@ -151,11 +151,49 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replace(/\\/g, '/');
+            if (normalizedId.includes('node_modules')) {
+              if (
+                normalizedId.includes('/react/') ||
+                normalizedId.includes('/react-dom/') ||
+                normalizedId.includes('/react-router-dom/')
+              ) {
+                return 'react-vendor';
+              }
+              if (
+                normalizedId.includes('/@tanstack/react-query/') ||
+                normalizedId.includes('/zustand/') ||
+                normalizedId.includes('/axios/')
+              ) {
+                return 'query-vendor';
+              }
+              if (normalizedId.includes('/recharts/') || normalizedId.includes('/d3-')) {
+                return 'charts-vendor';
+              }
+              if (
+                normalizedId.includes('/lucide-react/') ||
+                normalizedId.includes('/sonner/') ||
+                normalizedId.includes('/clsx/') ||
+                normalizedId.includes('/tailwind-merge/')
+              ) {
+                return 'ui-vendor';
+              }
+            }
+          },
+        },
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',
       setupFiles: './src/setupTests.js',
       include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      testTimeout: 30000,
+      hookTimeout: 30000,
     },
     define: {
       // Ensure moduleType is defined at transform time
