@@ -64,8 +64,8 @@ describe('Audit TC integration coverage', () => {
     const res = await instructorAgent.get('/api/audit').query({ action: 'login' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.logs.length).toBe(1);
-    expect(res.body.data.logs[0].action).toContain('login');
+    expect(res.body.data.logs.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.logs.every((log) => log.action.includes('login'))).toBe(true);
   });
 
   it('TC-AUDIT-003: date range filter works with startDate/endDate', async () => {
