@@ -46,6 +46,8 @@ coverage/
 
 # Misc
 *.tgz
+*.zip
+CMS-V2-Final-Submission.zip
 .cache
 cookies.txt
 
