@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import {
-  MessageSquareCheck,
+  MessageSquareMore,
   Calendar,
   UserCheck,
   Plus,
@@ -93,7 +93,7 @@ export default function ConsultationLogWidget({ project, isAdviser = false, isSt
       <CardHeader className="border-b border-border pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquareCheck className="h-5 w-5 text-indigo-500" />
+            <MessageSquareMore className="h-5 w-5 text-indigo-500" />
             <CardTitle className="text-base font-bold text-card-foreground">
               Adviser Consultation Log (Research Mentorship)
             </CardTitle>

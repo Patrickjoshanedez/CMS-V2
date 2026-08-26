@@ -15,7 +15,7 @@ import {
   Award,
   Lock,
   FileSpreadsheet,
-  MessageSquareCheck,
+  MessageSquareMore,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -291,7 +291,7 @@ export default function MyProjectPage() {
                       />
                       <WorkflowTabTrigger
                         value="consultation"
-                        icon={MessageSquareCheck}
+                        icon={MessageSquareMore}
                         label="Consultations"
                         locked={!titleApproved}
                         lockedReason={getLockedReason('consultation')}

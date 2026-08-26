@@ -47,7 +47,7 @@ import {
   FolderArchive,
   Archive,
   Printer,
-  MessageSquareCheck,
+  MessageSquareMore,
   BookMarked,
 } from 'lucide-react';
 
@@ -1126,7 +1126,7 @@ export default function ProjectDetailPage() {
                     />
                     <WorkflowTabTrigger
                       value="consultation"
-                      icon={MessageSquareCheck}
+                      icon={MessageSquareMore}
                       label="Consultation Log"
                     />
                     <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
@@ -1145,7 +1145,7 @@ export default function ProjectDetailPage() {
                     <WorkflowTabTrigger value="final" icon={Award} label="Final Defense" />
                     <WorkflowTabTrigger
                       value="consultation"
-                      icon={MessageSquareCheck}
+                      icon={MessageSquareMore}
                       label="Consultations"
                     />
                     <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
