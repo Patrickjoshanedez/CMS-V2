@@ -1,0 +1,25 @@
+{
+  "sessionId": "2026-08-26_anti-regression-and-ci-governance",
+  "timestamp": "2026-08-26T12:59:40+08:00",
+  "task": "Codify strict skill reading and anti-regression governance harness",
+  "outcomes": {
+    "status": "COMPLETED",
+    "createdSkill": ".agents/skills/anti-regression-and-ci-governance/SKILL.md",
+    "ruleCodified": ".agents/rules/workspace-rules.md Section 7.6",
+    "patternsPreserved": [
+      "Exclusive ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION in GitHub Actions workflows",
+      "Valid Lucide icon imports and local Vite production build preflights",
+      "Asynchronous fire-and-forget event invariants in integration test assertions",
+      "Zero-unmatched endpoint parity gate (npm run check:endpoints)"
+    ]
+  },
+  "invariants": {
+    "verificationBattery": [
+      "npm run check:endpoints",
+      "npm test --workspace=client",
+      "npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js",
+      "npm run validate:agentic",
+      "python scripts/workspace_guardrail.py"
+    ]
+  }
+}

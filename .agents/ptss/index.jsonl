@@ -3,3 +3,5 @@
 # Used by hermes-curator/scripts/audit_skills.py to compute per-skill activity.
 # Format: {"session_id": "...", "date": "ISO", "task_summary": "...", "task_category": "...", "skills_written": [...], "skills_patched": [...]}
 {"session_id":"2026-08-26_capstone-lifecycle-orchestrator","date":"2026-08-26T01:53:30.000Z","task_summary":"Synthesized capstone-lifecycle-orchestrator skill covering dynamic proposals, unified faculty accounts, Capstone 2 direct ADM pipeline, Google Docs annotations, late justification gating, and automated final defense archival.","task_category":"skill_synthesis","skills_written":["capstone-lifecycle-orchestrator"],"skills_patched":[]}
+{"session_id":"2026-08-26_anti-regression-and-ci-governance","date":"2026-08-26T12:59:40.000Z","task_summary":"Codified anti-regression-and-ci-governance skill locking down GitHub Action runner versions, Vite production bundling checks, and integration test async timing predicates.","task_category":"skill_synthesis","skills_written":["anti-regression-and-ci-governance"],"skills_patched":[]}
+

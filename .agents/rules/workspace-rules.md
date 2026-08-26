@@ -48,7 +48,7 @@ The workspace includes **60 verified cognitive skills** under `.agents/skills/`.
 ├── Reliability & Infra:     [sre-engineer, sre-reliability-engineering, devops-iac-engineer, docker-compose-production]
 ├── Data & Schemas:          [mongoose-mongodb, xlsx, pdf, algorithmic-art]
 └── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator,
-                              skill-write-or-patch, ptss, hermes-curator]
+                              skill-write-or-patch, ptss, hermes-curator, anti-regression-and-ci-governance]
 ```
 
 ---
@@ -163,4 +163,12 @@ Whenever a complex requirement is fulfilled, a recurring workflow is solved, or 
    - If novel: Write a new `SKILL.md` in `.agents/skills/<skill-name>/` with yaml frontmatter, trigger phrases, core workflow steps, and CMS-V2 specifics.
    - If an existing skill exists: Surgically patch the missing capabilities or paths.
 3. **Register & Archive**: Register the skill in `.agents/rules/workspace-rules.md` and log the session snapshot in `.agents/ptss/sessions/` and `.agents/ptss/index.jsonl`.
+
+### 7.6 Strict Anti-Regression & Skill-First Execution Contract
+
+To guarantee zero regression across development cycles:
+1. **Skill-First Reading**: Before initiating code changes or debugging, agents MUST view and adhere to the relevant skill in `.agents/skills/` (e.g. `anti-regression-and-ci-governance`, `capstone-lifecycle-orchestrator`, `verification-loop`).
+2. **Regression Containment**: If a defect is solved and verified, its resolution invariants (e.g., node env flags, export validity, async test predicates) are codified in the matching skill.
+3. **Evidence of Solution**: A problem is confirmed solved when the user proceeds to subsequent tasks without re-prompting the failure and all local verification gates pass with zero errors.
+
 
