@@ -145,10 +145,62 @@ def audit_and_purge_workspace(dry_run: bool = True) -> tuple[int, list[Path]]:
     return violations, purge_queue
 
 
+def audit_github_workflows() -> int:
+    """Audits CI/CD GitHub Actions workflow files for syntax, conflicting runner flags, and integrity."""
+    workflows_dir = WORKSPACE_ROOT / ".github" / "workflows"
+    if not workflows_dir.exists():
+        logging.info("ℹ️ No .github/workflows directory found to audit.")
+        return 0
+
+    workflow_violations = 0
+    workflow_files = list(workflows_dir.glob("*.yml")) + list(workflows_dir.glob("*.yaml"))
+
+    for wf in workflow_files:
+        try:
+            content = wf.read_text(encoding="utf-8")
+        except Exception as e:
+            logging.error(f"❌ Could not read workflow file {wf.name}: {e}")
+            workflow_violations += 1
+            continue
+
+        # 1. Check for conflicting Node 24 / Node 20 runner flags
+        has_force_node24 = "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24" in content
+        has_unsecure_node = "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION" in content
+        if has_force_node24 and has_unsecure_node:
+            logging.error(
+                f"❌ Workflow conflict in '{wf.name}': "
+                f"Both FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 and ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION are set. "
+                f"Use only ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION to prevent runner errors."
+            )
+            workflow_violations += 1
+
+        # 2. Check basic YAML workflow structure
+        if "name:" not in content or "jobs:" not in content:
+            logging.error(f"❌ Workflow '{wf.name}' is missing required 'name:' or 'jobs:' definition.")
+            workflow_violations += 1
+
+        # 3. Check for unbacked pip cache in setup-python steps
+        if "uses: actions/setup-python" in content and "cache: pip" in content:
+            if "cache-dependency-path" not in content and not (WORKSPACE_ROOT / "requirements.txt").exists():
+                logging.warning(
+                    f"⚠️ Workflow '{wf.name}' specifies 'cache: pip' without root requirements.txt or cache-dependency-path."
+                )
+
+    if workflow_violations == 0:
+        logging.info(f"✅ All {len(workflow_files)} GitHub Actions workflows verified cleanly!")
+    else:
+        logging.error(f"❌ Detected {workflow_violations} GitHub Actions workflow violations.")
+
+    return workflow_violations
+
+
 def main() -> int:
     dry_run = "--purge" not in sys.argv
-    violations, _ = audit_and_purge_workspace(dry_run=dry_run)
-    return 0 if (dry_run or violations == 0) else 1
+    workspace_violations, _ = audit_and_purge_workspace(dry_run=dry_run)
+    workflow_violations = audit_github_workflows()
+
+    total_violations = (workspace_violations if not dry_run else 0) + workflow_violations
+    return 0 if total_violations == 0 else 1
 
 
 if __name__ == "__main__":
