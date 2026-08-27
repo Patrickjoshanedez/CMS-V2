@@ -1,0 +1,24 @@
+# ==============================================================================
+# BukSU Capstone Management System V2 (CMS-V2)
+# Dedicated Ngrok Tunneling Container
+# ==============================================================================
+FROM ngrok/ngrok:3.37.3-alpine
+
+LABEL maintainer="BukSU CMS-V2 Team"
+LABEL description="Ngrok tunnel container for BukSU Capstone Management System"
+
+USER root
+
+# Install curl for in-container healthcheck probe
+RUN apk add --no-cache curl
+
+# Create unprivileged working directory for config if needed
+RUN mkdir -p /etc/ngrok /var/lib/ngrok && chown -R 1000:1000 /etc/ngrok /var/lib/ngrok
+
+USER 1000:1000
+
+# Expose internal web dashboard / inspector
+EXPOSE 4040
+
+ENTRYPOINT ["ngrok"]
+CMD ["start", "--all", "--config", "/etc/ngrok/ngrok.yml"]

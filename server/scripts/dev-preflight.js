@@ -1,6 +1,12 @@
 import net from 'node:net';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const composeFilePath = path.resolve(__dirname, '..', '..', 'docker-compose.yml');
 
 const parseMongoTarget = (mongoUri) => {
   try {
@@ -43,17 +49,24 @@ const run = async () => {
     return;
   }
 
-  const dockerComposeAvailable = spawnSync('docker', ['compose', 'version'], {
-    stdio: 'ignore',
-  }).status === 0;
+  const dockerComposeAvailable =
+    spawnSync('docker', ['compose', 'version'], {
+      stdio: 'ignore',
+    }).status === 0;
 
   if (dockerComposeAvailable) {
-    console.warn('[dev-preflight] MongoDB is not reachable. Attempting to start docker compose service: mongodb');
+    console.warn(
+      '[dev-preflight] MongoDB is not reachable. Attempting to start docker compose service: mongodb',
+    );
 
-    const composeUp = spawnSync('docker', ['compose', '-f', '../docker-compose.yml', 'up', '-d', 'mongodb'], {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-    });
+    const composeUp = spawnSync(
+      'docker',
+      ['compose', '-f', composeFilePath, 'up', '-d', 'mongodb'],
+      {
+        cwd: process.cwd(),
+        stdio: 'inherit',
+      },
+    );
 
     if (composeUp.status === 0) {
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -69,7 +82,9 @@ const run = async () => {
   console.error('[dev-preflight] Unable to connect to MongoDB for local dev.');
   console.error('[dev-preflight] Start MongoDB with one of these options and re-run npm run dev:');
   console.error('[dev-preflight]   1) docker compose -f ../docker-compose.yml up -d mongodb');
-  console.error('[dev-preflight]   2) Start a local mongod service and set MONGODB_URI in server/.env');
+  console.error(
+    '[dev-preflight]   2) Start a local mongod service and set MONGODB_URI in server/.env',
+  );
   process.exit(1);
 };
 

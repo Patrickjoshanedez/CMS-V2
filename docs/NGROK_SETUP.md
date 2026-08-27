@@ -134,3 +134,39 @@ Notes:
 - `localstack-ngrok` forwards to `localstack:4566` on the same compose network.
 - If `NGROK_LOCALSTACK_DOMAIN` is set, ngrok runs with `--domain` for a stable URL.
 - `S3_PUBLIC_URL` with `S3_FORCE_PATH_STYLE=false` is rejected by the server to prevent invalid presigned URLs.
+
+---
+
+## Containerized Ngrok for Local Development
+
+CMS-V2 provides a dedicated, lightweight Docker container for ngrok attached directly to the local development network (`cms_network`). This allows developers to tunnel local client or server traffic through ngrok with no local CLI dependencies and with full access to the ngrok Web Inspector.
+
+### Prerequisites
+- Docker & Docker Compose running.
+- (Optional) `NGROK_AUTHTOKEN` in your environment or `.env` file for authenticated features/custom domains.
+
+### Starting the Ngrok Container
+```bash
+# Start via npm shortcut
+npm run docker:tunnel
+
+# Or via PowerShell script with custom options:
+pwsh ./scripts/docker-ngrok.ps1 -Action up -Domain your-domain.ngrok-free.dev -Target client:43211
+```
+
+### Viewing Tunnel Status & Traffic Inspector
+- **Ngrok Web Inspector Dashboard**: Open [http://localhost:4040](http://localhost:4040) in your browser to inspect live requests, inspect HTTP headers, and replay API calls.
+- **Tailing Logs**:
+  ```bash
+  npm run docker:tunnel:logs
+  ```
+- **Checking Container Status**:
+  ```bash
+  pwsh ./scripts/docker-ngrok.ps1 -Action status
+  ```
+
+### Stopping the Ngrok Container
+```bash
+npm run docker:tunnel:down
+```
+

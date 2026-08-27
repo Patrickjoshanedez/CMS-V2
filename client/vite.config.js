@@ -13,8 +13,13 @@ const originalViteErrorLogger = customViteLogger.error.bind(customViteLogger);
 const allowedHosts = [
   'localhost',
   '127.0.0.1',
+  'client',
+  'cms-client',
+  'furuncular-shavonda-unprevalently.ngrok-free.dev',
   'unfactious-wen-nonsweating.ngrok-free.dev',
   '.ngrok-free.dev',
+  '.ngrok.io',
+  '.ngrok.app',
 ];
 
 const normalizeProxyTarget = (target) => {

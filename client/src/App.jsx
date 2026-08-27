@@ -58,6 +58,8 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
  */
 
 import LoadingScreen from './components/ui/LoadingScreen';
+import TopProgressBar from './components/ui/TopProgressBar';
+import PageSkeleton from './components/ui/PageSkeleton';
 
 /**
  * ThemeSync — Subscribes to the Zustand theme store and keeps the <html> class
@@ -192,7 +194,7 @@ export default function App() {
     return (
       <>
         <ThemeSync />
-        <LoadingScreen message="Initializing session..." />
+        <LoadingScreen showLogo={true} message="Initializing session..." />
       </>
     );
   }
@@ -200,7 +202,8 @@ export default function App() {
   return (
     <>
       <ThemeSync />
-      <Suspense fallback={<LoadingScreen message="Loading page..." />}>
+      <TopProgressBar />
+      <Suspense fallback={<PageSkeleton />}>
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (

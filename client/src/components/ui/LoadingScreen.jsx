@@ -1,16 +1,19 @@
+import { memo } from 'react';
 import { GraduationCap } from 'lucide-react';
 
 /**
- * LoadingScreen — CodePen-inspired staggered dot cascade loader.
- *
- * Animation inspired by: css-loaders.com / Temani Afif's single-element
- * dot patterns & Noel Delgado's orbit dot technique on CodePen.
+ * LoadingScreen — Alex Warnes CodePen-inspired 3D Dual Orbit Spinner (jXYYKL).
  *
  * Features:
- * - 5 dots in a bouncing wave cascade with staggered animation-delay
- * - Brand gradient color applied across the dot row (orange → pink → purple)
- * - Fluid indeterminate progress track (moving gradient blob)
- * - Subtle pulsing badge icon centered below the dots
+ * - Dual counter-rotating 3D gradient orbital rings with brand color palette
+ * - Inner core mask creating dimensional hollow luminous arcs
+ * - Ambient radial glow pulse at the vortex center
+ * - Fluid indeterminate progress track (GPU-accelerated composite layer)
+ * - Configurable `showLogo`:
+ *   - false (default): minimal logo-free loader (for dashboard & page views)
+ *   - true: includes full brand badge & CMS BukSU header (for initial landing/session opening)
+ * - Pure CSS GPU-composited animations (zero JS animation frame overhead)
+ * - Memoized component to avoid re-renders during background fetching
  * - Respects prefers-reduced-motion
  *
  * @param {Object} props
@@ -18,33 +21,26 @@ import { GraduationCap } from 'lucide-react';
  * @param {string} [props.subtitle="Capstone Management System"] - Subtitle
  * @param {boolean} [props.fullScreen=true] - Whether to occupy full viewport
  * @param {'sm'|'md'|'lg'} [props.size="md"] - Size preset
+ * @param {boolean} [props.showLogo=false] - Whether to render logo badge & brand title
  * @param {string} [props.className=""] - Additional container classes
  */
-export default function LoadingScreen({
+function LoadingScreenComponent({
   message = 'Loading...',
   subtitle = 'Capstone Management System',
   fullScreen = true,
   size = 'md',
+  showLogo = false,
   className = '',
 }) {
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
-  const iconSize = isSmall ? 'h-6 w-6' : isLarge ? 'h-10 w-10' : 'h-8 w-8';
+  const spinnerBoxSize = isSmall ? 'h-16 w-16' : isLarge ? 'h-28 w-28' : 'h-20 w-20';
+  const ringSize = isSmall ? 'h-14 w-14' : isLarge ? 'h-24 w-24' : 'h-18 w-18';
+  const glowSize = isSmall ? 'h-8 w-8' : isLarge ? 'h-14 w-14' : 'h-10 w-10';
+  const iconSize = isSmall ? 'h-5 w-5' : isLarge ? 'h-9 w-9' : 'h-7 w-7';
   const badgeSize = isSmall ? 'h-12 w-12' : isLarge ? 'h-20 w-20' : 'h-16 w-16';
-  const dotSize = isSmall ? 'h-2 w-2' : isLarge ? 'h-3.5 w-3.5' : 'h-2.5 w-2.5';
-  const dotGap = isSmall ? 'gap-1.5' : isLarge ? 'gap-2.5' : 'gap-2';
   const trackWidth = isSmall ? 'w-28' : isLarge ? 'w-52' : 'w-40';
-
-  // 5 colour stops sampled from the brand orange→pink→purple gradient
-  const DOT_COLORS = [
-    'cms-dot-color-1',
-    'cms-dot-color-2',
-    'cms-dot-color-3',
-    'cms-dot-color-4',
-    'cms-dot-color-5',
-  ];
-  const DOT_DELAYS = ['0ms', '100ms', '200ms', '300ms', '400ms'];
 
   const containerClasses = fullScreen
     ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/85 backdrop-blur-md'
@@ -58,40 +54,44 @@ export default function LoadingScreen({
       className={`${containerClasses} ${className}`}
     >
       <div className="flex flex-col items-center gap-6">
-        {/* ── Bouncing dot wave ── */}
-        <div className={`flex items-end ${dotGap}`} aria-hidden="true">
-          {DOT_COLORS.map((colorClass, i) => (
-            <span
-              key={i}
-              className={`cms-dot-wave ${dotSize} ${colorClass} block rounded-full`}
-              style={{ animationDelay: DOT_DELAYS[i] }}
-            />
-          ))}
+        {/* ── Alex Warnes 3D Orbit Spinner (CodePen jXYYKL) ── */}
+        <div className={`cms-spinner-box ${spinnerBoxSize}`} aria-hidden="true">
+          <div className={`cms-orbit-glow ${glowSize}`} />
+          <div className={`cms-orbit-ring-1 ${ringSize}`}>
+            <div className="cms-orbit-core" />
+          </div>
+          <div className={`cms-orbit-ring-2 ${ringSize}`}>
+            <div className="cms-orbit-core" />
+          </div>
         </div>
 
-        {/* ── Brand badge icon ── */}
-        <div
-          className={`cms-badge-pop relative flex items-center justify-center rounded-2xl border border-border/60 bg-card/90 shadow-lg backdrop-blur-md ${badgeSize}`}
-          aria-hidden="true"
-        >
-          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
-          <GraduationCap
-            className={`${iconSize} text-primary drop-shadow-[0_1px_6px_rgba(233,30,99,0.35)]`}
-          />
-        </div>
+        {/* ── Optional Brand Badge (excluded on dashboard loading, shown only on landing/first opening) ── */}
+        {showLogo && (
+          <div
+            className={`cms-badge-pop relative flex items-center justify-center rounded-2xl border border-border/60 bg-card/90 shadow-lg backdrop-blur-md ${badgeSize}`}
+            aria-hidden="true"
+          >
+            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent" />
+            <GraduationCap
+              className={`${iconSize} text-primary drop-shadow-[0_1px_6px_rgba(233,30,99,0.35)]`}
+            />
+          </div>
+        )}
 
         {/* ── Text & fluid progress track ── */}
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex items-center gap-1.5">
-            <span className="bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
-              CMS
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">
-              BukSU
-            </span>
-          </div>
+          {showLogo && (
+            <div className="flex items-center gap-1.5">
+              <span className="bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
+                CMS
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">
+                BukSU
+              </span>
+            </div>
+          )}
 
-          {subtitle && (
+          {showLogo && subtitle && (
             <p className="-mt-1 text-xs font-medium tracking-wide text-muted-foreground/60">
               {subtitle}
             </p>
@@ -114,4 +114,7 @@ export default function LoadingScreen({
   );
 }
 
+const LoadingScreen = memo(LoadingScreenComponent);
+
+export default LoadingScreen;
 export { LoadingScreen as PageLoadingSpinner, LoadingScreen as LoadingLogo };
