@@ -12,6 +12,11 @@ import { ROLES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
 const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -20,6 +25,8 @@ const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
 const INVITE_CODE_LENGTH = 6;
 
@@ -150,6 +157,34 @@ class TeamService {
   }
 
   /**
+   * Resolve the assigned or section instructor for a team.
+   * @param {Object} team
+   * @param {Object} leaderUser
+   * @returns {Promise<string|null>} instructorId
+   */
+  async _resolveInstructorId(team, leaderUser) {
+    if (leaderUser?.instructorId) {
+      return leaderUser.instructorId.toString();
+    }
+    if (team?.sectionId) {
+      const section = await Section.findById(team.sectionId).select('createdBy').lean();
+      if (section?.createdBy) {
+        return section.createdBy.toString();
+      }
+    }
+    if (leaderUser?.sectionId) {
+      const section = await Section.findById(leaderUser.sectionId).select('createdBy').lean();
+      if (section?.createdBy) {
+        return section.createdBy.toString();
+      }
+    }
+    const fallbackInstructor = await User.findOne({ role: ROLES.INSTRUCTOR, isActive: true })
+      .select('_id')
+      .lean();
+    return fallbackInstructor ? fallbackInstructor._id.toString() : null;
+  }
+
+  /**
    * Create a new project team. The requesting student becomes the leader.
    * @param {string} userId - The ID of the student creating the team.
    * @param {Object} data - { name? }
@@ -222,6 +257,32 @@ class TeamService {
     user.teamId = team._id;
     await user.save({ validateBeforeSave: false });
 
+    // Notify the instructor of team creation and committee requirement
+    try {
+      const instructorId = await this._resolveInstructorId(team, user);
+      if (instructorId) {
+        const notif = await Notification.create({
+          userId: instructorId,
+          type: 'team_formation_pending_committee',
+          title: 'New Team Formed',
+          message: `Team "${team.name}" has been created by ${user.firstName} ${user.lastName} and will require faculty committee appointments.`,
+          metadata: {
+            teamId: team._id,
+            teamName: team.name,
+            memberCount: team.members.length,
+            rosterCode: team._id.toString().slice(-6).toUpperCase(),
+            leaderName: `${user.firstName} ${user.lastName}`,
+            requiresCommittee: true,
+            actionUrl: `/teams?teamId=${team._id}`,
+          },
+        });
+        emitToUser(instructorId, 'notification:new', notif);
+      }
+    } catch (notifErr) {
+      // Notification failure should not abort team creation
+      console.warn('[createTeam] Failed to notify instructor:', notifErr.message);
+    }
+
     return { team };
   }
 
@@ -263,8 +324,36 @@ class TeamService {
     );
 
     const populatedTeam = await Team.findById(team._id)
-      .populate('leaderId', 'firstName middleName lastName email profilePicture')
+      .populate('leaderId', 'firstName middleName lastName email profilePicture instructorId')
       .populate('members', 'firstName middleName lastName email profilePicture role');
+
+    // Notify instructor that team roster is finalized and awaiting committee assignment
+    try {
+      const leader =
+        populatedTeam?.leaderId ||
+        (await User.findById(leaderId).select('firstName lastName instructorId sectionId'));
+      const instructorId = await this._resolveInstructorId(team, leader);
+      if (instructorId) {
+        const notif = await Notification.create({
+          userId: instructorId,
+          type: 'team_formation_pending_committee',
+          title: 'Team Formation Completed',
+          message: `Team "${team.name}" has locked their roster (${team.members.length} member${team.members.length === 1 ? '' : 's'}) and is awaiting faculty committee appointments.`,
+          metadata: {
+            teamId: team._id,
+            teamName: team.name,
+            memberCount: team.members.length,
+            rosterCode: team._id.toString().slice(-6).toUpperCase(),
+            leaderName: `${leader.firstName} ${leader.lastName}`,
+            requiresCommittee: true,
+            actionUrl: `/teams?teamId=${team._id}`,
+          },
+        });
+        emitToUser(instructorId, 'notification:new', notif);
+      }
+    } catch (notifErr) {
+      console.warn('[lockTeam] Failed to notify instructor:', notifErr.message);
+    }
 
     return { team: populatedTeam };
   }
@@ -356,7 +445,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email profilePicture role');
+        .populate('members', 'firstName middleName lastName email profilePicture role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
     }
 
     if (!team) {
@@ -371,7 +463,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email profilePicture role');
+        .populate('members', 'firstName middleName lastName email profilePicture role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
       if (!team) {
         if (user.teamId) {
@@ -400,16 +495,25 @@ class TeamService {
 
     const currentProject = await Project.findOne({ teamId: team._id })
       .sort({ createdAt: -1 })
-      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .select('adviserId secretaryId panelistIds capstonePhase titleStatus projectStatus')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('secretaryId', 'firstName middleName lastName email profilePicture')
       .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
     const teamObject = team.toObject();
+    const assignedAdviser = teamObject.adviserId || currentProject?.adviserId || null;
+    const assignedSecretary = teamObject.secretaryId || currentProject?.secretaryId || null;
+    const assignedPanelists =
+      teamObject.panelistIds && teamObject.panelistIds.length > 0
+        ? teamObject.panelistIds
+        : currentProject?.panelistIds || [];
+
     teamObject.assignment = {
       projectId: currentProject?._id || null,
       instructor: teamObject.leaderId?.instructorId || null,
-      adviser: currentProject?.adviserId || null,
-      panelists: currentProject?.panelistIds || [],
+      adviser: assignedAdviser,
+      secretary: assignedSecretary,
+      panelists: assignedPanelists,
       capstonePhase: currentProject?.capstonePhase || null,
       titleStatus: currentProject?.titleStatus || null,
       projectStatus: currentProject?.projectStatus || null,
@@ -1363,7 +1467,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email role'),
+        .populate('members', 'firstName middleName lastName email role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture'),
       Team.countDocuments(filter),
     ]);
 
@@ -1371,8 +1478,11 @@ class TeamService {
     const latestProjects = teamIds.length
       ? await Project.find({ teamId: { $in: teamIds } })
           .sort({ createdAt: -1 })
-          .select('teamId adviserId panelistIds capstonePhase titleStatus projectStatus')
+          .select(
+            'teamId adviserId secretaryId panelistIds capstonePhase titleStatus projectStatus',
+          )
           .populate('adviserId', 'firstName middleName lastName email profilePicture')
+          .populate('secretaryId', 'firstName middleName lastName email profilePicture')
           .populate('panelistIds', 'firstName middleName lastName email profilePicture')
           .lean()
       : [];
@@ -1388,11 +1498,19 @@ class TeamService {
       const team = teamDoc.toObject();
       const currentProject = projectByTeamId.get(team._id.toString());
 
+      const assignedAdviser = team.adviserId || currentProject?.adviserId || null;
+      const assignedSecretary = team.secretaryId || currentProject?.secretaryId || null;
+      const assignedPanelists =
+        team.panelistIds && team.panelistIds.length > 0
+          ? team.panelistIds
+          : currentProject?.panelistIds || [];
+
       team.assignment = {
         projectId: currentProject?._id || null,
         instructor: team.leaderId?.instructorId || null,
-        adviser: currentProject?.adviserId || null,
-        panelists: currentProject?.panelistIds || [],
+        adviser: assignedAdviser,
+        secretary: assignedSecretary,
+        panelists: assignedPanelists,
         capstonePhase: currentProject?.capstonePhase || null,
         titleStatus: currentProject?.titleStatus || null,
         projectStatus: currentProject?.projectStatus || null,
@@ -1409,6 +1527,174 @@ class TeamService {
         total,
         pages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  /**
+   * Assign committee (Adviser, Panelists, Secretary) to a team.
+   * @param {string} teamId
+   * @param {string} instructorId
+   * @param {Object} data - { adviserId?, secretaryId?, panelistIds? }
+   * @returns {Promise<{ team: Object, message: string }>}
+   */
+  async assignCommittee(teamId, instructorId, data) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    const instructor = await User.findById(instructorId).select('firstName lastName role');
+    if (!instructor || (instructor.role !== ROLES.INSTRUCTOR && instructor.role !== ROLES.ADMIN)) {
+      throw new AppError(
+        'Only course instructors can assign the faculty committee.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    const { adviserId, secretaryId, panelistIds = [] } = data;
+
+    // Validate adviser if provided
+    let adviser = null;
+    if (adviserId) {
+      adviser = await User.findById(adviserId);
+      if (!adviser) {
+        throw new AppError('The specified adviser was not found.', 400, 'INVALID_ADVISER');
+      }
+      team.adviserId = adviser._id;
+    }
+
+    // Validate secretary if provided
+    let secretary = null;
+    if (secretaryId) {
+      secretary = await User.findById(secretaryId);
+      if (!secretary) {
+        throw new AppError(
+          'The specified committee secretary was not found.',
+          400,
+          'INVALID_SECRETARY',
+        );
+      }
+      team.secretaryId = secretary._id;
+    }
+
+    // Validate panelists if provided
+    if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+      if (panelistIds.length > 5) {
+        throw new AppError('A team can have at most 5 panelists.', 400, 'MAX_PANELISTS_EXCEEDED');
+      }
+      team.panelistIds = panelistIds;
+    }
+
+    await team.save();
+
+    // Reconcile and sync with associated Project if one already exists
+    const project = await Project.findOne({ teamId: team._id }).sort({ createdAt: -1 });
+    if (project) {
+      if (adviserId) project.adviserId = adviserId;
+      if (secretaryId) project.secretaryId = secretaryId;
+      if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+        project.panelistIds = panelistIds;
+        const structuredPanelists = panelistIds.map((pId, idx) => ({
+          userId: pId,
+          role: idx === 0 ? 'chair' : 'member',
+        }));
+        if (secretaryId && !panelistIds.some((p) => p.toString() === secretaryId.toString())) {
+          structuredPanelists.push({ userId: secretaryId, role: 'secretary' });
+        }
+        project.panelists = structuredPanelists;
+      }
+      await project.save();
+    }
+
+    // Mark pending committee appointment notifications for this team as read
+    try {
+      await Notification.updateMany(
+        {
+          type: { $in: ['team_formation_pending_committee', 'committee_appointment_required'] },
+          'metadata.teamId': team._id,
+        },
+        { $set: { isRead: true } },
+      );
+    } catch (e) {
+      console.warn('[assignCommittee] Failed to mark notifications as read:', e.message);
+    }
+
+    // Send targeted in-app notifications
+    try {
+      // 1. Notify Adviser
+      if (adviser) {
+        const notif = await Notification.create({
+          userId: adviser._id,
+          type: 'adviser_assigned',
+          title: 'Adviser Appointment',
+          message: `You have been appointed as Capstone Adviser for Team "${team.name}".`,
+          metadata: { teamId: team._id, assignedBy: instructorId },
+        });
+        emitToUser(adviser._id, 'notification:new', notif);
+      }
+
+      // 2. Notify Secretary
+      if (secretary) {
+        const notif = await Notification.create({
+          userId: secretary._id,
+          type: 'secretary_assigned',
+          title: 'Committee Secretary Appointment',
+          message: `You have been appointed as Committee Secretary for Team "${team.name}".`,
+          metadata: { teamId: team._id, assignedBy: instructorId },
+        });
+        emitToUser(secretary._id, 'notification:new', notif);
+      }
+
+      // 3. Notify Panelists
+      if (Array.isArray(panelistIds)) {
+        for (const panelistId of panelistIds) {
+          const notif = await Notification.create({
+            userId: panelistId,
+            type: 'panelist_assigned',
+            title: 'Panelist Appointment',
+            message: `You have been appointed to the defense committee for Team "${team.name}".`,
+            metadata: { teamId: team._id, assignedBy: instructorId },
+          });
+          emitToUser(panelistId, 'notification:new', notif);
+        }
+      }
+
+      // 4. Notify all Team Members
+      if (Array.isArray(team.members)) {
+        for (const memberId of team.members) {
+          const notif = await Notification.create({
+            userId: memberId,
+            type: 'committee_assigned',
+            title: 'Faculty Committee Appointed',
+            message: `Your instructor has assigned your capstone committee (Adviser, Committee Secretary, and Panelists).`,
+            metadata: {
+              teamId: team._id,
+              adviserId: team.adviserId,
+              secretaryId: team.secretaryId,
+              panelistIds: team.panelistIds,
+            },
+          });
+          emitToUser(memberId, 'notification:new', notif);
+        }
+      }
+    } catch (notifErr) {
+      console.warn(
+        '[assignCommittee] Failed to dispatch appointment notifications:',
+        notifErr.message,
+      );
+    }
+
+    const populatedTeam = await Team.findById(team._id)
+      .populate('leaderId', 'firstName middleName lastName email profilePicture instructorId')
+      .populate('members', 'firstName middleName lastName email profilePicture role')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    return {
+      team: populatedTeam,
+      message: 'Faculty committee assigned and team notified successfully.',
     };
   }
 }

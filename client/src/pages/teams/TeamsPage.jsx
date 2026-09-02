@@ -33,9 +33,24 @@ import {
   CheckCircle2,
   Lock,
   Unlock,
+  GitBranch,
+  FileText,
+  AlertCircle,
+  ShieldAlert,
+  Pencil,
+  Plus,
+  Presentation,
+  Palette,
+  Database,
+  Layers,
+  ShieldCheck,
+  Info,
+  ChevronDown,
+  UserCheck,
 } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { useSettingsStore } from '@/stores/settingsStore';
+import AssignCommitteeDialog from '@/components/teams/AssignCommitteeDialog';
 import {
   useMyTeam,
   useTeams,
@@ -740,30 +755,158 @@ function InviteMemberForm({ teamId }) {
   );
 }
 
+/* ────────── 5 Standard Capstone Roles ────────── */
+
+const STANDARD_CAPSTONE_ROLES = [
+  {
+    name: 'Project Lead & Systems Analyst',
+    consolidates: 'Pitcher + Researcher',
+    focus:
+      'System requirements, defense presentations/pitching, sprint management, and panel coordination.',
+    icon: Presentation,
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-500/10 border-indigo-500/20',
+    badgeClass:
+      'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60',
+  },
+  {
+    name: 'Frontend & UI/UX Developer',
+    consolidates: 'Frontend Developer + UI/UX',
+    focus:
+      'User flow design, responsive layouts, accessibility, and client-side UI integration (shadcn/Tailwind).',
+    icon: Palette,
+    color: 'text-pink-600 dark:text-pink-400',
+    bg: 'bg-pink-500/10 border-pink-500/20',
+    badgeClass:
+      'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800/60',
+  },
+  {
+    name: 'Backend & Database Developer',
+    consolidates: 'Backend Developer + Programmer',
+    focus: 'Schema design, API routing, server-side business logic, and database migrations.',
+    icon: Database,
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10 border-emerald-500/20',
+    badgeClass:
+      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
+  },
+  {
+    name: 'Full-Stack Developer',
+    consolidates: 'All-Around + Programmer',
+    focus:
+      'End-to-end feature integration, Git workflow/PR reviews, deployment, and cross-layer support.',
+    icon: Layers,
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10 border-amber-500/20',
+    badgeClass:
+      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+  },
+  {
+    name: 'QA & Technical Documentor',
+    consolidates: 'QA/Tester + Documentor',
+    focus:
+      'Unit/integration testing, bug verification, and authoring Chapters 1–5 of the capstone manuscript.',
+    icon: ShieldCheck,
+    color: 'text-sky-600 dark:text-sky-400',
+    bg: 'bg-sky-500/10 border-sky-500/20',
+    badgeClass:
+      'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60',
+  },
+];
+
+const STANDARD_CAPSTONE_ROLE_NAMES = STANDARD_CAPSTONE_ROLES.map((r) => r.name);
+
+function getRoleMetadata(roleName) {
+  if (!roleName) return null;
+  const match = STANDARD_CAPSTONE_ROLES.find((r) => r.name === roleName);
+  if (match) return match;
+  if (roleName === 'Pitcher' || roleName === 'Researcher') {
+    return {
+      name: roleName,
+      consolidates: 'Legacy Role',
+      focus: 'Migrated into Project Lead & Systems Analyst',
+      icon: Presentation,
+      color: 'text-indigo-600 dark:text-indigo-400',
+      badgeClass:
+        'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300',
+    };
+  }
+  if (roleName === 'Frontend Developer' || roleName === 'UI/UX') {
+    return {
+      name: roleName,
+      consolidates: 'Legacy Role',
+      focus: 'Migrated into Frontend & UI/UX Developer',
+      icon: Palette,
+      color: 'text-pink-600 dark:text-pink-400',
+      badgeClass: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300',
+    };
+  }
+  if (roleName === 'Backend Developer' || roleName === 'Programmer') {
+    return {
+      name: roleName,
+      consolidates: 'Legacy Role',
+      focus: 'Migrated into Backend & Database Developer',
+      icon: Database,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      badgeClass:
+        'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300',
+    };
+  }
+  if (roleName === 'All-Around' || roleName === 'All-around') {
+    return {
+      name: roleName,
+      consolidates: 'Legacy Role',
+      focus: 'Migrated into Full-Stack Developer',
+      icon: Layers,
+      color: 'text-amber-600 dark:text-amber-400',
+      badgeClass:
+        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300',
+    };
+  }
+  if (roleName === 'QA/Tester' || roleName === 'Documentor') {
+    return {
+      name: roleName,
+      consolidates: 'Legacy Role',
+      focus: 'Migrated into QA & Technical Documentor',
+      icon: ShieldCheck,
+      color: 'text-sky-600 dark:text-sky-400',
+      badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300',
+    };
+  }
+  return {
+    name: roleName,
+    consolidates: 'Custom',
+    focus: 'Assigned capstone role',
+    icon: ShieldAlert,
+    color: 'text-muted-foreground',
+    badgeClass: 'bg-muted text-muted-foreground border-border',
+  };
+}
+
 /* ────────── Student Team Detail View ────────── */
 
 function StudentTeamDetail({ team, userId }) {
   const [now] = useState(() => Date.now());
+  const [showRolesGuide, setShowRolesGuide] = useState(false);
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
+  const capstonePhase = Number(assignment.capstonePhase) || 1;
+  const isTitleApproved = assignment.titleStatus === 'approved';
+  // Source code is accessible only when reaching Development Stage (Capstone 2/3 or title approved, or if already linked)
+  const isDevelopmentStage = Boolean(team.githubUrl) || capstonePhase >= 2 || isTitleApproved;
+
   const [googleDocUrlInput, setGoogleDocUrlInput] = useState(team.googleDocUrl || '');
   const [githubUrlInput, setGithubUrlInput] = useState(team.githubUrl || '');
+  const [isEditingGoogleDoc, setIsEditingGoogleDoc] = useState(false);
+  const [isEditingGithub, setIsEditingGithub] = useState(false);
+
   const memberRoleAssignments = team.memberRoles || [];
   const memberRoleMap = new Map(
     memberRoleAssignments.map((item) => [item?.userId?._id || item?.userId, item?.role || '']),
   );
 
-  const TEAM_MEMBER_ROLE_OPTIONS = [
-    'Programmer',
-    'Documentor',
-    'Pitcher',
-    'UI/UX',
-    'QA/Tester',
-    'Researcher',
-    'Backend Developer',
-    'Frontend Developer',
-  ];
+  const TEAM_MEMBER_ROLE_OPTIONS = STANDARD_CAPSTONE_ROLE_NAMES;
 
   const assignMemberRole = useAssignMemberRole({
     onSuccess: () => toast.success('Team role updated.'),
@@ -772,13 +915,19 @@ function StudentTeamDetail({ team, userId }) {
   });
 
   const updateGoogleDocLink = useUpdateGoogleDocLink({
-    onSuccess: () => toast.success('Team Google Docs link updated.'),
+    onSuccess: () => {
+      toast.success('Team Google Docs link updated.');
+      setIsEditingGoogleDoc(false);
+    },
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to update team Google Docs link.'),
   });
 
   const updateGithubLink = useUpdateGithubLink({
-    onSuccess: () => toast.success('Team GitHub link updated.'),
+    onSuccess: () => {
+      toast.success('Team GitHub link updated.');
+      setIsEditingGithub(false);
+    },
     onError: (err) =>
       toast.error(err?.response?.data?.error?.message || 'Failed to update team GitHub link.'),
   });
@@ -799,372 +948,63 @@ function StudentTeamDetail({ team, userId }) {
       state.getTemplateUrl('proposal_template') || state.getTemplateUrl('team_template') || '',
   );
 
+  const members = team.members || [];
+  const memberCount = members.length;
+  const isMinMembersMet = memberCount >= 1;
+  const allRolesAssigned =
+    memberCount > 0 &&
+    members.every((m) => {
+      const id = m._id || m;
+      return Boolean(memberRoleMap.get(id));
+    });
+  const firstInviteCode = team.pendingInvites?.[0]?.inviteCode;
+  const groupCode = firstInviteCode || (team._id ? team._id.slice(-6).toUpperCase() : '');
+
   return (
-    <div className="space-y-4">
-      {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
-      <div
-        className={`flex items-center justify-between rounded-lg border px-4 py-3 shadow-sm transition-all ${
-          team.isLocked
-            ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
-            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-              team.isLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
-            }`}
-          >
-            {team.isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">
-              {team.isLocked
-                ? 'Team Roster: Finalized & Locked'
-                : 'Team Formation: Open (2-4 Members)'}
-            </span>
-            <span className="text-[11px] opacity-85">
-              {team.isLocked
-                ? 'Roster composition is locked for manuscript submission and panel defense.'
-                : 'Invite members with your 6-digit code. Finalize and lock once complete.'}
-            </span>
-          </div>
-        </div>
-        <Badge
-          variant={team.isLocked ? 'destructive' : 'success'}
-          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
-        >
-          {team.isLocked ? 'Locked' : 'Open'}
-        </Badge>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-xl">{team.name}</CardTitle>
-              <CardDescription className="flex flex-wrap items-center gap-2">
-                <span>
-                  {team.members?.length || 0} member
-                  {team.members?.length !== 1 ? 's' : ''}
-                </span>
-                <span className="text-muted-foreground">&bull;</span>
-                <span>{team.academicYear}</span>
-              </CardDescription>
-            </div>
-            <div className="rounded-md bg-muted p-2 text-primary">
-              <UsersRound className="h-5 w-5" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Members List */}
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Team Resources</p>
-            {isLeader ? (
-              <div className="space-y-3">
-                <div className="flex flex-col gap-2 md:flex-row">
-                  <Input
-                    type="url"
-                    placeholder="https://docs.google.com/document/d/..."
-                    value={googleDocUrlInput}
-                    onChange={(event) => setGoogleDocUrlInput(event.target.value)}
-                    disabled={updateGoogleDocLink.isPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      updateGoogleDocLink.mutate({
-                        teamId: team._id,
-                        googleDocUrl: googleDocUrlInput.trim(),
-                      })
-                    }
-                    disabled={updateGoogleDocLink.isPending}
-                  >
-                    {updateGoogleDocLink.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                    )}
-                    Attach Google Docs
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-2 md:flex-row">
-                  <Input
-                    type="url"
-                    placeholder="https://github.com/org/repository"
-                    value={githubUrlInput}
-                    onChange={(event) => setGithubUrlInput(event.target.value)}
-                    disabled={updateGithubLink.isPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      updateGithubLink.mutate({
-                        teamId: team._id,
-                        githubUrl: githubUrlInput.trim(),
-                      })
-                    }
-                    disabled={updateGithubLink.isPending}
-                  >
-                    {updateGithubLink.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                    )}
-                    Attach GitHub
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" asChild>
-                    <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Generate Template
-                    </a>
-                  </Button>
-
-                  {team.googleDocUrl ? (
-                    <Button type="button" variant="secondary" asChild>
-                      <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open Team Google Doc
-                      </a>
-                    </Button>
-                  ) : null}
-
-                  {team.githubUrl ? (
-                    <Button type="button" variant="secondary" asChild>
-                      <a href={team.githubUrl} target="_blank" rel="noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open Team GitHub
-                      </a>
-                    </Button>
-                  ) : null}
-
-                  {!team.googleDocUrl && !team.githubUrl ? (
-                    <p className="text-xs text-muted-foreground">
-                      No team resource links attached yet.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+    <div className="space-y-6">
+      {/* Top Header & Global Actions */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-5">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {team.name || 'Team Workspace'}
+            </h1>
+            {team.isLocked ? (
+              <Badge
+                variant="outline"
+                className="border-rose-500/30 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 gap-1.5"
+              >
+                <Lock className="h-3 w-3 inline-block" />
+                Team Finalized
+              </Badge>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="secondary" asChild>
-                  <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Generate Template
-                  </a>
-                </Button>
-
-                {team.googleDocUrl ? (
-                  <Button type="button" variant="secondary" asChild>
-                    <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open Team Google Doc
-                    </a>
-                  </Button>
-                ) : null}
-
-                {team.githubUrl ? (
-                  <Button type="button" variant="secondary" asChild>
-                    <a href={team.githubUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open Team GitHub
-                    </a>
-                  </Button>
-                ) : null}
-
-                {!team.googleDocUrl && !team.githubUrl ? (
-                  <p className="text-xs text-muted-foreground">
-                    No team resource links attached yet.
-                  </p>
-                ) : null}
-              </div>
+              <Badge
+                variant="outline"
+                className="border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 gap-1.5"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                Formation Open
+              </Badge>
             )}
           </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Academic Year {team.academicYear || '2025–2026'}
+            {groupCode && (
+              <>
+                {' · '}
+                <span>Group code: </span>
+                <span className="font-mono font-medium text-foreground">#{groupCode}</span>
+              </>
+            )}
+          </p>
+        </div>
 
-          {/* Members List */}
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Members</p>
-            <div className="space-y-2">
-              {team.members?.map((member) => {
-                const memberId = member._id || member;
-                const isThisLeader = (team.leaderId?._id || team.leaderId) === memberId;
-                const selectedRole = memberRoleMap.get(memberId) || '';
-
-                return (
-                  <div key={memberId} className="flex items-center gap-3 rounded-md border p-3">
-                    {/* Avatar placeholder */}
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {member.firstName?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{formatName(member)}</p>
-                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                    </div>
-                    {isThisLeader && (
-                      <Badge variant="outline" className="gap-1 shrink-0">
-                        <Crown className="h-3 w-3" />
-                        Leader
-                      </Badge>
-                    )}
-
-                    <div className="ml-auto min-w-[170px]">
-                      <Label className="mb-1 block text-xs text-muted-foreground">Team Role</Label>
-                      <select
-                        className="h-8 w-full rounded-md border bg-background px-2 text-xs"
-                        value={selectedRole}
-                        disabled={!isLeader || assignMemberRole.isPending}
-                        onChange={(event) => {
-                          assignMemberRole.mutate({
-                            teamId: team._id,
-                            memberId,
-                            role: event.target.value,
-                          });
-                        }}
-                      >
-                        <option value="">No role</option>
-                        {TEAM_MEMBER_ROLE_OPTIONS.map((roleOption) => (
-                          <option key={roleOption} value={roleOption}>
-                            {roleOption}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">
-              Current Capstone Committee
-            </p>
-            <div className="space-y-2">
-              <div className="rounded-md border p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Instructor
-                </p>
-                <p className="mt-1 text-sm font-medium">
-                  {assignment.instructor ? formatName(assignment.instructor) : 'Not assigned yet'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {assignment.instructor?.email || 'No instructor assigned to your profile yet'}
-                </p>
-              </div>
-
-              <div className="rounded-md border p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Adviser
-                </p>
-                <p className="mt-1 text-sm font-medium">
-                  {assignment.adviser ? formatName(assignment.adviser) : 'Not assigned yet'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {assignment.adviser?.email || 'No adviser assigned yet'}
-                </p>
-              </div>
-
-              <div className="rounded-md border p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Panelists
-                </p>
-                {panelists.length > 0 ? (
-                  <div className="mt-1 space-y-1">
-                    {panelists.map((panelist) => (
-                      <div key={panelist._id} className="text-sm">
-                        <p className="font-medium">{formatName(panelist)}</p>
-                        <p className="text-xs text-muted-foreground">{panelist.email}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Invite Form + Pending Invites (leader only) */}
-          {isLeader && !team.isLocked && (
-            <div className="space-y-4">
-              <div>
-                <p className="mb-2 text-sm font-medium text-muted-foreground">Invite a Member</p>
-                <InviteMemberForm teamId={team._id} />
-              </div>
-
-              {/* Persistent pending invite codes */}
-              {team.pendingInvites?.length > 0 && (
-                <div>
-                  <p className="mb-2 text-sm font-medium text-muted-foreground">
-                    Active Invite Codes
-                  </p>
-                  <div className="space-y-2">
-                    {team.pendingInvites.map((invite) => {
-                      const expiresAt = new Date(invite.expiresAt);
-                      const hoursLeft = Math.max(
-                        0,
-                        Math.round((expiresAt - now) / (1000 * 60 * 60)),
-                      );
-
-                      return (
-                        <div
-                          key={invite._id}
-                          className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex gap-1">
-                              {invite.inviteCode.split('').map((char, i) => (
-                                <div
-                                  key={i}
-                                  className="flex h-8 w-7 items-center justify-center rounded border bg-background text-sm font-bold"
-                                >
-                                  {char}
-                                </div>
-                              ))}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm text-muted-foreground">
-                                {invite.email}
-                              </p>
-                              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {hoursLeft > 0 ? `Expires in ${hoursLeft}h` : 'Expiring soon'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="gap-1.5 text-muted-foreground hover:text-foreground"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(invite.inviteCode);
-                              toast.success('Code copied!');
-                            }}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+        <div className="flex items-center gap-2">
           {!team.isLocked && (
-            <div className="flex justify-end gap-2">
+            <>
               <Button
-                type="button"
-                variant="destructive"
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 border-destructive/30 text-xs sm:text-sm"
                 onClick={() => {
                   if (window.confirm('Are you sure you want to leave this team?')) {
                     leaveTeam.mutate({ teamId: team._id });
@@ -1173,35 +1013,726 @@ function StudentTeamDetail({ team, userId }) {
                 disabled={leaveTeam.isPending || lockTeam.isPending}
               >
                 {leaveTeam.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 Leave Team
               </Button>
-
               {isLeader && (
                 <Button
-                  type="button"
-                  onClick={() => lockTeam.mutate({ teamId: team._id })}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs gap-1.5 text-xs sm:text-sm"
+                  onClick={() => {
+                    if (memberCount < 1) {
+                      toast.error('Teams must have at least 1 member before finalization.');
+                      return;
+                    }
+                    if (
+                      window.confirm(
+                        'Finalize and lock team roster? This prepares your team for proposal submission.',
+                      )
+                    ) {
+                      lockTeam.mutate({ teamId: team._id });
+                    }
+                  }}
                   disabled={lockTeam.isPending || leaveTeam.isPending}
                 >
-                  {lockTeam.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Finalize Team
+                  {lockTeam.isPending ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Lock className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Finalize & Lock Team
                 </Button>
               )}
-            </div>
+            </>
+          )}
+          {team.isLocked && (
+            <Badge variant="secondary" className="px-3 py-1.5 text-xs font-medium gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              Ready for Proposal Submission
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Main Grid: 2 Cols Main, 1 Col Sidebar */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left Column (Span 2): Members & Workspace Links */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Members Card */}
+          <Card className="border-border/60 shadow-xs">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base font-semibold">Team Roster</CardTitle>
+                <CardDescription>{memberCount} of 4 slots filled</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 px-2.5 font-medium border-border/80 hover:bg-muted/80"
+                  onClick={() => setShowRolesGuide((prev) => !prev)}
+                >
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                  <span>{showRolesGuide ? 'Hide Guide' : 'Roles Guide'}</span>
+                  <ChevronDown
+                    className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
+                      showRolesGuide ? 'rotate-180' : ''
+                    }`}
+                  />
+                </Button>
+                <Badge variant="secondary" className="font-normal">
+                  Min: 1 | Max: 4
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Expandable 5 Standard Roles Guide */}
+              {showRolesGuide && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3.5 animate-in fade-in duration-200">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      The 5 Standard Capstone Roles
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      BukSU standardized roles mapping student competencies to defense evaluation
+                      criteria.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {STANDARD_CAPSTONE_ROLES.map((role) => {
+                      const IconComponent = role.icon;
+                      return (
+                        <div
+                          key={role.name}
+                          className="flex flex-col justify-between rounded-lg border bg-background/90 p-3 shadow-2xs transition-colors hover:border-primary/40"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${role.bg} ${role.color}`}
+                              >
+                                <IconComponent className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="text-xs font-semibold text-foreground truncate">
+                                  {role.name}
+                                </h5>
+                                <span className="inline-block text-[10px] font-medium text-muted-foreground">
+                                  Consolidates:{' '}
+                                  <span className="text-foreground/90 font-semibold">
+                                    {role.consolidates}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                              <strong className="text-foreground/90">Focus:</strong> {role.focus}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Member Items */}
+              {members.map((member) => {
+                const memberId = member._id || member;
+                const isThisLeader = (team.leaderId?._id || team.leaderId) === memberId;
+                const selectedRole = memberRoleMap.get(memberId) || '';
+                const roleMeta = getRoleMetadata(selectedRole);
+                const fullName = formatName(member);
+                const initials =
+                  (member.firstName?.[0] || '') + (member.lastName?.[0] || '') ||
+                  member.email?.[0]?.toUpperCase() ||
+                  '?';
+
+                return (
+                  <div
+                    key={memberId}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border/50 p-3.5 transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-primary/10 text-primary font-medium text-sm">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium leading-none truncate text-foreground">
+                            {fullName}
+                          </p>
+                          {isThisLeader && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[11px] py-0 px-1.5 gap-1 font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
+                            >
+                              <Crown className="h-3 w-3 text-amber-500" /> Leader
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {member.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 self-start sm:self-center">
+                      {roleMeta ? (
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border shadow-2xs ${roleMeta.badgeClass}`}
+                          title={`${roleMeta.name}\nConsolidates: ${roleMeta.consolidates}\nFocus: ${roleMeta.focus}`}
+                        >
+                          <roleMeta.icon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-semibold">{roleMeta.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs italic text-muted-foreground px-1">
+                          No role assigned
+                        </span>
+                      )}
+
+                      {isLeader && !team.isLocked && (
+                        <select
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground font-medium shadow-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
+                          value={selectedRole}
+                          disabled={assignMemberRole.isPending}
+                          onChange={(event) => {
+                            assignMemberRole.mutate({
+                              teamId: team._id,
+                              memberId,
+                              role: event.target.value,
+                            });
+                          }}
+                        >
+                          <option value="">
+                            {selectedRole ? 'Change role...' : 'Assign role...'}
+                          </option>
+                          {TEAM_MEMBER_ROLE_OPTIONS.map((roleOption) => (
+                            <option key={roleOption} value={roleOption}>
+                              {roleOption}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Quick Invite Box inside Card */}
+              {isLeader && !team.isLocked && memberCount < 4 && (
+                <div className="pt-2 border-t border-border/40">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Invite Teammate</p>
+                  <InviteMemberForm teamId={team._id} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Project Resources / Deliverables */}
+          <Card className="border-border/60 shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">
+                Repository & Working Documents
+              </CardTitle>
+              <CardDescription>
+                Collaborative links accessible by committee reviewers.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* GitHub Card (Source Control — Gated to Development Stage) */}
+                <div
+                  className={`flex flex-col justify-between rounded-lg border p-4 transition-colors ${
+                    isDevelopmentStage
+                      ? 'border-border/60 hover:border-primary/40 bg-card/60'
+                      : 'border-dashed border-border/70 bg-muted/20 opacity-90'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                          <GitBranch className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium leading-none">Source Control</h4>
+                          <p className="text-xs text-muted-foreground mt-1">GitHub</p>
+                        </div>
+                      </div>
+                      {team.githubUrl ? (
+                        <Badge
+                          variant="secondary"
+                          className="border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px]"
+                        >
+                          Connected
+                        </Badge>
+                      ) : isDevelopmentStage ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          Not Linked
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 text-muted-foreground border-border/80"
+                        >
+                          <Lock className="h-2.5 w-2.5" />
+                          Development Stage
+                        </Badge>
+                      )}
+                    </div>
+
+                    {team.githubUrl && !isEditingGithub && (
+                      <p className="mt-3 truncate text-xs font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                        {team.githubUrl}
+                      </p>
+                    )}
+
+                    {!isDevelopmentStage && !team.githubUrl && (
+                      <div className="mt-3 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground text-[11px] flex items-center gap-1.5">
+                          <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                          Locked in Proposal Stage
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed">
+                          Source code repository submission unlocks during the System Development
+                          stage.
+                        </p>
+                      </div>
+                    )}
+
+                    {isEditingGithub && isLeader && !team.isLocked && isDevelopmentStage && (
+                      <div className="mt-3 space-y-2">
+                        <Input
+                          type="url"
+                          placeholder="https://github.com/org/repo"
+                          value={githubUrlInput}
+                          onChange={(e) => setGithubUrlInput(e.target.value)}
+                          className="h-8 text-xs font-mono"
+                          disabled={updateGithubLink.isPending}
+                        />
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => {
+                              updateGithubLink.mutate({
+                                teamId: team._id,
+                                githubUrl: githubUrlInput.trim(),
+                              });
+                            }}
+                            disabled={updateGithubLink.isPending}
+                          >
+                            {updateGithubLink.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : null}
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs px-2"
+                            onClick={() => setIsEditingGithub(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isEditingGithub && (
+                    <div className="mt-4 flex items-center gap-2">
+                      {team.githubUrl ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="w-full text-xs gap-1.5"
+                          >
+                            <a href={team.githubUrl} target="_blank" rel="noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Launch Repository
+                            </a>
+                          </Button>
+                          {isLeader && !team.isLocked && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs shrink-0"
+                              onClick={() => setIsEditingGithub(true)}
+                              title="Edit repository link"
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </>
+                      ) : isDevelopmentStage && isLeader && !team.isLocked ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs gap-1.5"
+                          onClick={() => setIsEditingGithub(true)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Connect Repository
+                        </Button>
+                      ) : !isDevelopmentStage ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="w-full text-xs gap-1.5 cursor-not-allowed opacity-60"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          Available in Development Stage
+                        </Button>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No link attached</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Google Docs Card */}
+                <div className="flex flex-col justify-between rounded-lg border border-border/60 p-4 transition-colors hover:border-primary/40 bg-card/60">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium leading-none">Manuscript Document</h4>
+                          <p className="text-xs text-muted-foreground mt-1">Google Docs</p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={team.googleDocUrl ? 'secondary' : 'outline'}
+                        className={
+                          team.googleDocUrl
+                            ? 'border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px]'
+                            : 'text-[10px]'
+                        }
+                      >
+                        {team.googleDocUrl ? 'Connected' : 'Not Linked'}
+                      </Badge>
+                    </div>
+
+                    {team.googleDocUrl && !isEditingGoogleDoc && (
+                      <p className="mt-3 truncate text-xs font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                        {team.googleDocUrl}
+                      </p>
+                    )}
+
+                    {isEditingGoogleDoc && isLeader && !team.isLocked && (
+                      <div className="mt-3 space-y-2">
+                        <Input
+                          type="url"
+                          placeholder="https://docs.google.com/document/d/..."
+                          value={googleDocUrlInput}
+                          onChange={(e) => setGoogleDocUrlInput(e.target.value)}
+                          className="h-8 text-xs font-mono"
+                          disabled={updateGoogleDocLink.isPending}
+                        />
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => {
+                              updateGoogleDocLink.mutate({
+                                teamId: team._id,
+                                googleDocUrl: googleDocUrlInput.trim(),
+                              });
+                            }}
+                            disabled={updateGoogleDocLink.isPending}
+                          >
+                            {updateGoogleDocLink.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : null}
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs px-2"
+                            onClick={() => setIsEditingGoogleDoc(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isEditingGoogleDoc && (
+                    <div className="mt-4 flex items-center gap-2">
+                      {team.googleDocUrl ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="w-full text-xs gap-1.5"
+                          >
+                            <a href={team.googleDocUrl} target="_blank" rel="noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Open Document
+                            </a>
+                          </Button>
+                          {isLeader && !team.isLocked && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs shrink-0"
+                              onClick={() => setIsEditingGoogleDoc(true)}
+                              title="Edit document link"
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </>
+                      ) : isLeader && !team.isLocked ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs gap-1.5"
+                          onClick={() => setIsEditingGoogleDoc(true)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Attach Document
+                        </Button>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No link attached</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Proposal Template Helper */}
+              {dynamicTemplateUrl && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground">
+                        BukSU Capstone Proposal Template
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Official format required for title defense submissions.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    asChild
+                    className="h-8 text-xs shrink-0 gap-1.5"
+                  >
+                    <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Get Template
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column (Span 1): Committee & Verification Status */}
+        <div className="space-y-6">
+          {/* Capstone Committee Card */}
+          <Card className="border-border/60 shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Capstone Committee</CardTitle>
+              <CardDescription>Assigned evaluators for this team</CardDescription>
+            </CardHeader>
+            <CardContent className="divide-y divide-border/50 text-xs">
+              {/* Instructor */}
+              <div className="py-3 first:pt-0">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
+                  Instructor
+                </span>
+                {assignment.instructor ? (
+                  <div className="mt-1">
+                    <p className="font-medium text-foreground text-sm">
+                      {formatName(assignment.instructor)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">{assignment.instructor.email}</p>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-muted-foreground italic text-xs">
+                    No instructor assigned yet
+                  </p>
+                )}
+              </div>
+
+              {/* Adviser */}
+              <div className="py-3">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
+                  Adviser
+                </span>
+                {assignment.adviser ? (
+                  <div className="mt-1">
+                    <p className="font-medium text-foreground text-sm">
+                      {formatName(assignment.adviser)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">{assignment.adviser.email}</p>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span>Pending assignment</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Committee Secretary */}
+              <div className="py-3">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
+                  Committee Secretary
+                </span>
+                {assignment.secretary ? (
+                  <div className="mt-1">
+                    <p className="font-medium text-foreground text-sm">
+                      {formatName(assignment.secretary)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">{assignment.secretary.email}</p>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span>Pending assignment</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Panelists */}
+              <div className="py-3 last:pb-0">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground text-[10px]">
+                  Panelists
+                </span>
+                {panelists.length > 0 ? (
+                  <div className="mt-1 space-y-1.5">
+                    {panelists.map((panelist) => (
+                      <div key={panelist._id} className="text-xs">
+                        <p className="font-medium text-foreground text-sm">
+                          {formatName(panelist)}
+                        </p>
+                        <p className="text-muted-foreground">{panelist.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-1 flex items-center gap-1.5 text-muted-foreground italic text-xs">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span>No panelists assigned yet</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Invite Codes (if leader and pending invites exist) */}
+          {isLeader && team.pendingInvites?.length > 0 && (
+            <Card className="border-border/60 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Active Invite Codes</CardTitle>
+                <CardDescription>Share these 6-digit codes with invitees</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                {team.pendingInvites.map((invite) => {
+                  const expiresAt = new Date(invite.expiresAt);
+                  const hoursLeft = Math.max(0, Math.round((expiresAt - now) / (1000 * 60 * 60)));
+
+                  return (
+                    <div
+                      key={invite._id}
+                      className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2.5"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="font-mono font-bold text-sm bg-background px-2 py-1 rounded border border-border/80 text-foreground tracking-wider shrink-0">
+                          {invite.inviteCode}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs text-foreground font-medium">
+                            {invite.email}
+                          </p>
+                          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {hoursLeft > 0 ? `${hoursLeft}h left` : 'Expiring soon'}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(invite.inviteCode);
+                          toast.success(`Copied invite code ${invite.inviteCode}`);
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
           )}
 
-          {team.isLocked && (
-            <Alert>
-              <AlertDescription>
-                This team is finalized and locked. Proposal submission is now available.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+          {/* Quick Checklist / Policy Notice */}
+          <Card className="bg-muted/40 border-dashed border-border shadow-none">
+            <CardContent className="pt-5 space-y-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <ShieldAlert className="h-4 w-4 text-primary" />
+                Team Lock Requirements
+              </div>
+              <ul className="space-y-2">
+                <li className="flex items-center gap-2">
+                  {isMinMembersMet ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-amber-500 inline-block shrink-0 ml-1 mr-1" />
+                  )}
+                  <span className={isMinMembersMet ? 'text-foreground' : ''}>
+                    Minimum of 1 active member ({memberCount}/1)
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {allRolesAssigned ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-amber-500 inline-block shrink-0 ml-1 mr-1" />
+                  )}
+                  <span className={allRolesAssigned ? 'text-foreground' : ''}>
+                    All members select a project role
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  {assignment.adviser ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-muted-foreground/50 inline-block shrink-0 ml-1 mr-1" />
+                  )}
+                  <span>Adviser confirmation pending final submission</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1263,6 +1794,7 @@ function TeamCard({ team }) {
 
 function FacultyTeamDetail({ team, canAssignCommittee }) {
   const queryClient = useQueryClient();
+  const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const leader = team.leaderId;
   const members = team.members || [];
   const assignment = team.assignment || {};
@@ -1373,19 +1905,32 @@ function FacultyTeamDetail({ team, canAssignCommittee }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{team.name || 'Untitled Team'}</CardTitle>
-        <CardDescription className="flex flex-wrap items-center gap-2">
-          <span>
-            {members.length} member{members.length !== 1 ? 's' : ''}
-          </span>
-          {team.academicYear && (
-            <>
-              <span>&bull;</span>
-              <span>{team.academicYear}</span>
-            </>
-          )}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div>
+          <CardTitle className="text-lg">{team.name || 'Untitled Team'}</CardTitle>
+          <CardDescription className="flex flex-wrap items-center gap-2">
+            <span>
+              {members.length} member{members.length !== 1 ? 's' : ''}
+            </span>
+            {team.academicYear && (
+              <>
+                <span>&bull;</span>
+                <span>{team.academicYear}</span>
+              </>
+            )}
+          </CardDescription>
+        </div>
+        {canAssignCommittee && (
+          <Button
+            type="button"
+            size="sm"
+            className="text-xs bg-primary hover:bg-primary/90 gap-1.5 font-medium shrink-0"
+            onClick={() => setIsCommitteeModalOpen(true)}
+          >
+            <UserCheck className="h-3.5 w-3.5" />
+            Assign Committee
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border p-3">
@@ -1442,6 +1987,18 @@ function FacultyTeamDetail({ team, canAssignCommittee }) {
                   />
                 </div>
               )}
+            </div>
+
+            <div className="rounded-md border p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Committee Secretary
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {assignment.secretary ? formatName(assignment.secretary) : 'Not assigned yet'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {assignment.secretary?.email || 'No committee secretary assigned yet'}
+              </p>
             </div>
 
             <div className="rounded-md border p-3">
@@ -1547,6 +2104,18 @@ function FacultyTeamDetail({ team, canAssignCommittee }) {
           </div>
         </div>
       </CardContent>
+
+      {isCommitteeModalOpen && (
+        <AssignCommitteeDialog
+          open={isCommitteeModalOpen}
+          onOpenChange={setIsCommitteeModalOpen}
+          teamId={team._id}
+          teamName={team.name}
+          initialAdviserId={assignment.adviser?._id}
+          initialSecretaryId={assignment.secretary?._id}
+          initialPanelistIds={panelists.map((p) => p._id)}
+        />
+      )}
     </Card>
   );
 }

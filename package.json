@@ -34,8 +34,8 @@
     "check:endpoints": "node scripts/check-endpoint-mappings.js",
     "validate:agentic": "node scripts/validate-agentic-system.js",
     "validate:governance": "node scripts/validate-agentic-system.js && python .github/hooks/scripts/agent_prefetch.py && python .github/hooks/scripts/agent_sync_verify.py && python .github/hooks/scripts/decision_coherence.py",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/**",
-    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/** --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "husky"
   },

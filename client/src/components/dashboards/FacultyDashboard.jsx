@@ -257,7 +257,7 @@ export default function FacultyDashboard({ user }) {
                 <span className="text-[11px] opacity-85">
                   {isPeriodLocked
                     ? 'Modifications and team roster changes are restricted by faculty administration.'
-                    : 'Students may form groups (2-4 members) and submit manuscript deliverables for panel evaluation.'}
+                    : 'Students may form groups (1-4 members) and submit manuscript deliverables for panel evaluation.'}
                 </span>
               </div>
             </div>

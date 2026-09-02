@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Quick test to verify the two fixes:
  * 1. compressToolOutput returns object for 'test' type
@@ -44,7 +45,7 @@ console.log('\n=== Test 2: routeToTier for session tier ===');
 // Clean up any existing test file first
 const sessionPath = TIERS.session.path;
 const testFilePath = join(sessionPath, 'session_data.json');
-try { unlinkSync(testFilePath); } catch(e) { /* ignore */ }
+try { unlinkSync(testFilePath); } catch(_e) { /* ignore */ }
 
 const result = routeToTier('session_data', { test: 'value', nested: { a: 1 } }, 'session');
 console.log('Route success:', result.success);
@@ -61,7 +62,7 @@ const test2Pass = result.success && existsSync(testFilePath) && retrieved !== nu
 console.log('TEST 2:', test2Pass ? 'PASSED' : 'FAILED');
 
 // Cleanup
-try { unlinkSync(testFilePath); } catch(e) { /* ignore */ }
+try { unlinkSync(testFilePath); } catch(_e) { /* ignore */ }
 
 console.log('\n=== Summary ===');
 console.log('Test 1 (compressToolOutput object structure):', test1Pass ? 'PASSED' : 'FAILED');

@@ -2,7 +2,15 @@ import mongoose from 'mongoose';
 import softDeletePlugin from '../../middleware/softDelete.js';
 
 const MAX_TEAM_MEMBERS = 4;
-const TEAM_MEMBER_ROLES = [
+const STANDARD_CAPSTONE_ROLES = [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
+];
+
+const LEGACY_TEAM_ROLES = [
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -11,7 +19,11 @@ const TEAM_MEMBER_ROLES = [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
+
+const TEAM_MEMBER_ROLES = [...STANDARD_CAPSTONE_ROLES, ...LEGACY_TEAM_ROLES];
 
 const teamSchema = new mongoose.Schema(
   {
@@ -75,6 +87,21 @@ const teamSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+    },
+    adviserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    secretaryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    panelistIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
     },
   },
   {

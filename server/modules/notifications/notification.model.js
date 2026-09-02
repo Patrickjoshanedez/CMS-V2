@@ -2,9 +2,14 @@ import mongoose from 'mongoose';
 
 const NOTIFICATION_TYPES = [
   // Team notifications
+  'team_created',
   'team_invite',
   'team_joined',
   'team_locked',
+  'team_formation_pending_committee',
+  'committee_appointment_required',
+  'committee_assigned',
+  'secretary_assigned',
   // Project / title workflow notifications
   'project_created',
   'title_submitted',

@@ -59,6 +59,7 @@ export const teamService = {
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
   leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
+  assignCommittee: (teamId, data) => api.put(`/teams/${teamId}/committee`, data),
 };
 
 /**

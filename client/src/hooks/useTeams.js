@@ -220,3 +220,25 @@ export function useLeaveTeam(options = {}) {
     return res.data;
   }, options);
 }
+
+/**
+ * Assign faculty committee (Adviser, Panelists, Secretary) to a team (Instructor).
+ * @param {Object} params — { teamId: string, adviserId?: string, secretaryId?: string, panelistIds?: string[] }
+ */
+export function useAssignCommittee(options = {}) {
+  const queryClient = useQueryClient();
+  return useTeamMutation(
+    async ({ teamId, ...data }) => {
+      const res = await teamService.assignCommittee(teamId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: async (...args) => {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        options.onSuccess?.(...args);
+      },
+    },
+  );
+}

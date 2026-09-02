@@ -13,6 +13,7 @@ import {
   transferTeamLeadershipSchema,
   updateTeamGoogleDocLinkSchema,
   updateTeamGithubLinkSchema,
+  assignCommitteeSchema,
 } from './team.validation.js';
 
 const router = Router();
@@ -91,6 +92,14 @@ router.get(
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(listTeamsQuerySchema, 'query'),
   teamController.listTeams,
+);
+
+// --- Instructor committee assignment route ---
+router.put(
+  '/:id/committee',
+  authorize(ROLES.INSTRUCTOR),
+  validate(assignCommitteeSchema),
+  teamController.assignCommittee,
 );
 
 export default router;

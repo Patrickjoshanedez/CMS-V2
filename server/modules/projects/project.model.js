@@ -603,6 +603,11 @@ const projectSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    secretaryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     panelistIds: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'User',

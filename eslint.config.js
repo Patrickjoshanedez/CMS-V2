@@ -6,12 +6,25 @@ const prettier = require('eslint-config-prettier');
 
 module.exports = [
   {
-    ignores: ['server/**/*.ts', 'client/dist/**'],
+    ignores: [
+      'server/**/*.ts',
+      'client/dist/**',
+      '.agents/**',
+      '.claude/**',
+      '.gemini/**',
+      '.github/**',
+      '.venv/**',
+      'venv/**',
+      'env/**',
+      'scratch/**',
+      'plagiarism_engine/**',
+      'scripts/**',
+    ],
   },
   js.configs.recommended,
   prettier,
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

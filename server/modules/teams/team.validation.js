@@ -45,6 +45,11 @@ export const listTeamsQuerySchema = z.object({
 });
 
 const TEAM_MEMBER_ROLES = [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -53,6 +58,8 @@ const TEAM_MEMBER_ROLES = [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
 
 export const assignMemberRoleSchema = z.object({
@@ -73,4 +80,21 @@ export const updateTeamGoogleDocLinkSchema = z.object({
 
 export const updateTeamGithubLinkSchema = z.object({
   githubUrl: z.string().trim().max(2000, 'GitHub URL is too long').optional().default(''),
+});
+
+export const assignCommitteeSchema = z.object({
+  adviserId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid adviserId')
+    .optional()
+    .nullable(),
+  secretaryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid secretaryId')
+    .optional()
+    .nullable(),
+  panelistIds: z
+    .array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid panelistId'))
+    .optional()
+    .default([]),
 });

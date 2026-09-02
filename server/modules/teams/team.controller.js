@@ -200,3 +200,18 @@ export const listTeams = catchAsync(async (req, res) => {
     data: { teams, pagination },
   });
 });
+
+/** PUT /api/teams/:id/committee — Assign faculty committee (Instructor only) */
+export const assignCommittee = catchAsync(async (req, res) => {
+  const { team, message } = await teamService.assignCommittee(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message,
+    data: { team },
+  });
+});
