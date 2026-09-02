@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Menu, Bell, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -139,6 +140,9 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   const { pathname, search } = useLocation();
   const user = useAuthStore((state) => state.user);
   const { data: unreadCount = 0 } = useUnreadCount();
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
 
   const initials =
     [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
@@ -148,8 +152,43 @@ export default function Header({ sidebarOpen, onMenuClick }) {
 
   const backDestination = getBackDestination(pathname);
 
+  // Reset broken-avatar state whenever the avatarUrl changes
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [user?.avatarUrl]);
+
+  // Auto-hide header on scroll-down, reveal on scroll-up
+  useEffect(() => {
+    // The scrollable container is the <main> sibling — but since DashboardLayout
+    // wraps the header and main in the same flex column, we listen on the nearest
+    // overflow-y-auto ancestor which is the div wrapping main inside DashboardLayout.
+    // Using window as the fallback covers most cases.
+    const scroller = document.querySelector('main.relative');
+    if (!scroller) return;
+
+    const onScroll = () => {
+      const current = scroller.scrollTop;
+      const delta = current - lastScrollY.current;
+      if (delta > 8 && current > 64) {
+        setHidden(true);
+      } else if (delta < -8 || current < 64) {
+        setHidden(false);
+      }
+      lastScrollY.current = current;
+    };
+
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 sm:px-6">
+    <header
+      className={[
+        'flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 sm:px-6',
+        'transition-transform duration-300 ease-in-out',
+        hidden ? '-translate-y-full' : 'translate-y-0',
+      ].join(' ')}
+    >
       {/* Left side: menu button + page title */}
       <div className="flex items-center gap-3">
         {!sidebarOpen && (
@@ -204,11 +243,12 @@ export default function Header({ sidebarOpen, onMenuClick }) {
           aria-label="Go to profile"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground overflow-hidden">
-            {user?.avatarUrl ? (
+            {user?.avatarUrl && !avatarBroken ? (
               <img
                 src={user.avatarUrl}
                 alt={user.fullName || 'avatar'}
                 className="h-full w-full object-cover"
+                onError={() => setAvatarBroken(true)}
               />
             ) : (
               initials

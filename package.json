@@ -16,6 +16,8 @@
     "hotpatch:plagiarism-api": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/hotpatch-plagiarism-api.ps1",
     "dev:server": "npm run dev --workspace=server",
     "dev:client": "npm run dev --workspace=client",
+    "dev:memory-db": "node server/scripts/start-memory-mongo.js",
+    "dev:standalone": "concurrently -n \"mongo,server,client\" -c \"yellow,blue,green\" \"npm run dev:memory-db\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "tunnel": "ngrok http 43211 --url=furuncular-shavonda-unprevalently.ngrok-free.dev",
     "dev:tunnel": "concurrently -n \"server,client,ngrok\" -c \"blue,green,magenta\" \"npm run dev:server\" \"npm run dev:client\" \"npm run tunnel\"",

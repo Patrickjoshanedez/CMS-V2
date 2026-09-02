@@ -54,6 +54,7 @@ cookies.txt
 # Test artifacts & debug output
 visual_audit_screenshots/
 exhaustive_audit_screenshots/
+scratch/screenshots/
 server/test-*.txt
 server/test-*.json
 server/vitest-results.json

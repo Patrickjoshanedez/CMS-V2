@@ -5,18 +5,7 @@ import { dashboardService } from '../../services/dashboardService';
 import { useDashboard } from '@/hooks/useDashboard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import {
-  Loader2,
-  Plus,
-  Users,
-  ClipboardCheck,
-  Bell,
-  Activity,
-  Lock,
-  Unlock,
-  ShieldAlert,
-  ShieldCheck,
-} from 'lucide-react';
+import { Loader2, Plus, Users, ClipboardCheck, Bell, Activity, Lock, Unlock } from 'lucide-react';
 
 const VIEW_MODES = {
   ADVISER: 'adviser',
@@ -319,41 +308,48 @@ export default function FacultyDashboard({ user }) {
                 icon={Users}
                 items={assignedProjects}
                 emptyState="No assigned teams yet."
-                renderItem={(p) => (
-                  <div
-                    className="flex flex-col gap-2 cursor-pointer p-1 rounded hover:bg-muted/20"
-                    onClick={() => setSelectedTeam(p)}
-                  >
-                    <div className="flex flex-row items-center justify-between gap-3">
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-semibold">{p.teamName}</span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {p.title || 'Untitled Project'}
-                        </span>
+                renderItem={(p, idx) => {
+                  const isSelected = selectedTeam ? selectedTeam._id === p._id : idx === 0;
+                  return (
+                    <div
+                      className={`flex flex-col gap-2 cursor-pointer p-2 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary/40 shadow-xs ring-1 ring-primary/20'
+                          : 'border-transparent hover:bg-muted/20'
+                      }`}
+                      onClick={() => setSelectedTeam(p)}
+                    >
+                      <div className="flex flex-row items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-semibold">{p.teamName}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {p.title || 'Untitled Project'}
+                          </span>
+                        </div>
+                        <ProjectDetailedStatus project={p} />
                       </div>
-                      <ProjectDetailedStatus project={p} />
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground/80">
+                          IT Field of Discipline:{' '}
+                          {Array.isArray(p.capstoneType)
+                            ? p.capstoneType.join(', ')
+                            : p.capstoneType || 'IT / Software'}
+                        </span>
+                        {p.githubUrl && (
+                          <a
+                            href={p.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            📦 GitHub Repo ↗
+                          </a>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="font-medium text-foreground/80">
-                        IT Field of Discipline:{' '}
-                        {Array.isArray(p.capstoneType)
-                          ? p.capstoneType.join(', ')
-                          : p.capstoneType || 'IT / Software'}
-                      </span>
-                      {p.githubUrl && (
-                        <a
-                          href={p.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          📦 GitHub Repo ↗
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  );
+                }}
               />
 
               <DenseCardList
@@ -381,88 +377,91 @@ export default function FacultyDashboard({ user }) {
             </div>
 
             {/* Right-hand Team Member Roster Sidebar (FRAD2) */}
-            <div className="rounded-lg border bg-card p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b pb-2">
-                <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  Team Roster Details
-                </h3>
-                {selectedTeam && (
-                  <Badge variant="outline" className="text-[10px]">
-                    {selectedTeam.teamName}
-                  </Badge>
-                )}
-              </div>
+            {(() => {
+              const activeTeam = selectedTeam || assignedProjects[0];
+              return (
+                <div className="rounded-lg border bg-card p-4 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      Team Roster Details
+                    </h3>
+                    {activeTeam && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {activeTeam.teamName}
+                      </Badge>
+                    )}
+                  </div>
 
-              {selectedTeam ? (
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                      Project:
-                    </span>
-                    <p className="font-medium text-foreground mt-0.5">
-                      {selectedTeam.title || 'Untitled'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                      IT Field of Discipline:
-                    </span>
-                    <p className="text-foreground mt-0.5">
-                      {Array.isArray(selectedTeam.capstoneType)
-                        ? selectedTeam.capstoneType.join(', ')
-                        : selectedTeam.capstoneType || 'Information Technology'}
-                    </p>
-                  </div>
-                  {selectedTeam.githubUrl && (
-                    <div>
-                      <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                        Repository:
-                      </span>
-                      <p className="mt-0.5">
-                        <a
-                          href={selectedTeam.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
-                        >
-                          🔗 {selectedTeam.githubUrl}
-                        </a>
-                      </p>
+                  {activeTeam ? (
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                          Project:
+                        </span>
+                        <p className="font-medium text-foreground mt-0.5">
+                          {activeTeam.title || 'Untitled'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                          IT Field of Discipline:
+                        </span>
+                        <p className="text-foreground mt-0.5">
+                          {Array.isArray(activeTeam.capstoneType)
+                            ? activeTeam.capstoneType.join(', ')
+                            : activeTeam.capstoneType || 'Information Technology'}
+                        </p>
+                      </div>
+                      {activeTeam.githubUrl && (
+                        <div>
+                          <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                            Repository:
+                          </span>
+                          <p className="mt-0.5">
+                            <a
+                              href={activeTeam.githubUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
+                            >
+                              🔗 {activeTeam.githubUrl}
+                            </a>
+                          </p>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 space-y-2">
+                        <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                          Members (
+                          {activeTeam.members?.length || activeTeam.memberRoles?.length || 0}):
+                        </span>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                          {(activeTeam.members || activeTeam.memberRoles || []).map((m, idx) => (
+                            <div
+                              key={m._id || idx}
+                              className="p-2 rounded bg-muted/30 border border-border/50 flex flex-col gap-0.5"
+                            >
+                              <span className="font-bold text-foreground">
+                                {m.fullName || m.name || m.userId?.fullName || `Member ${idx + 1}`}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {m.role || m.traditionalRole || m.capstoneTitle || 'Proponent'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-6 text-center text-xs text-muted-foreground">
+                      <Users className="h-8 w-8 mb-2 opacity-40 text-muted-foreground" />
+                      Select a handled team on the left to view member roster, roles, and repository
+                      details.
                     </div>
                   )}
-                  <div className="border-t pt-2 space-y-2">
-                    <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                      Members (
-                      {selectedTeam.members?.length || selectedTeam.memberRoles?.length || 0}):
-                    </span>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {(selectedTeam.members || selectedTeam.memberRoles || []).map((m, idx) => (
-                        <div
-                          key={m._id || idx}
-                          className="p-2 rounded bg-muted/30 border border-border/50 flex flex-col gap-0.5"
-                        >
-                          <span className="font-bold text-foreground">
-                            {m.fullName || m.name || m.userId?.fullName || `Member ${idx + 1}`}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {m.role ||
-                              m.traditionalRole ||
-                              m.professionalTitle ||
-                              'Student Proponent'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              ) : (
-                <div className="py-8 text-center text-xs text-muted-foreground">
-                  Select a handled team on the left to view member roster, roles, and repository
-                  details.
-                </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -22,9 +22,9 @@ This skill codifies the architectural rules, data schemas, API routes, and front
 
 ```
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│   Pre-Capstone  │ ───►  │   Capstone 1    │ ───►  │   Capstone 2    │ ───►  │ Final Defense   │
-│ Dynamic Proposal│       │ Manuscript Ch1-3│       │ Direct ADM Track│       │ & Auto-Archival │
-│ 1..10 Proposals │       │ Inline Feedback │       │ Multi-Signatures│       │ Direct Paper Rdr│
+│   Capstone 1    │ ───►  │   Capstone 2    │ ───►  │   Capstone 3    │ ───►  │   Capstone 4    │
+│Proposal Defense │       │  Ch 1-3 & ADM   │       │  Ch 4-5 & ADM   │       │ Final & Archival│
+│ 1..10 Proposals │       │ Inline Feedback │       │ System Dev      │       │ Full Paper, Jrnl│
 └─────────────────┘       └─────────────────┘       └─────────────────┘       └─────────────────┘
 ```
 
@@ -45,10 +45,11 @@ This skill codifies the architectural rules, data schemas, API routes, and front
   - `PANEL_ROLES.MEMBER`: Panel evaluation scoring.
   - `ROLES.ADVISER`: Research guidance, consultation logging, and repository monitoring.
 
-### 2.3 Capstone 2 Direct ADM Pipeline (No Manuscript Upload)
-- **Zero Document Upload**: Capstone 2 bypasses manuscript drafting and moves directly into software prototyping and defense recommendation verification.
+### 2.3 Capstone 2 and 3 (Chapters + Integrated ADM)
+- **Drafting & Revisions**: Capstone 2 is strictly Chapters 1-3 manuscript drafting, followed by Defense and the Action Done Matrix. Capstone 3 is Chapters 4-5, Prototype Development, and its own ADM phase.
+- **Integrated ADM UI**: ADM is NOT a standalone tab; it is integrated directly inside the Capstone 2 and Capstone 3 views to enforce continuity of feedback tracking.
 - **Defense Minutes Extraction**: Secretary uploads defense minutes; action items auto-populate the Action Done Matrix.
-- **Multi-Signatory Verification**: Each item contains a cryptographic `signatures` array tracking `{ userId, name, role, signedAt, signatureDataUrl }`.
+- **Multi-Signatory Verification**: Each ADM item contains a cryptographic `signatures` array tracking `{ userId, name, role, signedAt, signatureDataUrl }`.
 
 ### 2.4 Google Docs-Style Inline Annotations
 - Reviewers highlight precise line ranges (`page`, `lineStart`, `lineEnd`, `selectedText`).

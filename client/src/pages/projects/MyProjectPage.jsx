@@ -16,6 +16,7 @@ import {
   Lock,
   FileSpreadsheet,
   MessageSquareMore,
+  Code2,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -40,6 +41,7 @@ import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 
 // Hooks & constants
 import { useMyProject } from '@/hooks/useProjects';
@@ -71,31 +73,31 @@ export default function MyProjectPage() {
   const titleStatus = project?.titleStatus;
   const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
   const hasPanelists = Array.isArray(project?.panelistIds) && project.panelistIds.length > 0;
-  // Capstone 1 is only accessible once the title is fully approved (not pending revision).
-  // APPROVED_WITH_REVISION and PENDING_MODIFICATION both keep it locked.
-  const capstone1Unlocked = titleApproved;
-  const capstone2Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
-  const admUnlocked = titleApproved;
+
+  // Capstone 1 (Proposal) is always accessible.
+  const capstone1Unlocked = true;
+  // Capstone 2 (Ch 1-3) is unlocked once title is fully approved
+  const capstone2Unlocked = titleApproved || project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
+  // Capstone 3 (Ch 4-5) requires Phase 3
   const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
-  const finalUnlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+  // Capstone 4 (Final) requires Phase 4
+  const capstone4Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+
   const isArchivedProject =
     project?.projectStatus === PROJECT_STATUSES.ARCHIVED || Boolean(project?.isArchived);
 
-  const unlockedTabs = ['proposal'];
-  if (capstone1Unlocked) unlockedTabs.push('capstone_1');
+  const unlockedTabs = ['capstone_1'];
   if (capstone2Unlocked) unlockedTabs.push('capstone_2');
-  if (admUnlocked) unlockedTabs.push('adm');
   if (capstone3Unlocked) unlockedTabs.push('capstone_3');
-  if (finalUnlocked) unlockedTabs.push('final');
+  if (capstone4Unlocked) unlockedTabs.push('capstone_4');
   if (titleApproved) unlockedTabs.push('consultation');
 
   function getDefaultTab() {
-    if (!project) return 'proposal';
-    if (finalUnlocked) return 'final';
+    if (!project) return 'capstone_1';
+    if (capstone4Unlocked) return 'capstone_4';
     if (capstone3Unlocked) return 'capstone_3';
     if (capstone2Unlocked) return 'capstone_2';
-    if (capstone1Unlocked) return 'capstone_1';
-    return 'proposal';
+    return 'capstone_1';
   }
 
   const defaultTab = getDefaultTab();
@@ -126,16 +128,15 @@ export default function MyProjectPage() {
   }
 
   const getLockedReason = (tabName) => {
-    if (tabName === 'capstone_1' && !titleApproved) {
+    if (tabName === 'capstone_2' && !titleApproved) {
       if (titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION)
-        return 'Your title was approved with revision. Submit a revised title for instructor approval to unlock Capstone 1.';
+        return 'Your title was approved with revision. Submit a revised title for instructor approval to unlock Capstone 2.';
       if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION)
-        return 'Your revised title is pending instructor approval. Capstone 1 will unlock once it is accepted.';
-      return 'Your title must be approved before you can access Capstone 1.';
+        return 'Your revised title is pending instructor approval. Capstone 2 will unlock once it is accepted.';
+      return 'Your title must be approved before you can access Capstone 2.';
     }
-    if (tabName === 'capstone_2') return 'Complete Capstone 1 to unlock Capstone 2.';
     if (tabName === 'capstone_3') return 'Complete Capstone 2 to unlock Capstone 3.';
-    if (tabName === 'final') return 'Complete Capstone 3 to unlock Final Defense.';
+    if (tabName === 'capstone_4') return 'Complete Capstone 3 to unlock Capstone 4.';
     return 'This tab is currently locked.';
   };
 
@@ -168,11 +169,7 @@ export default function MyProjectPage() {
           </div>
         </div>
 
-        {isLoading && (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        )}
+        {isLoading && <PageSkeleton />}
 
         {error && !isLoading && error.response?.status === 404 && (
           <EmptyProjectState team={isTeamLoading ? null : team} />
@@ -246,17 +243,9 @@ export default function MyProjectPage() {
 
                 {/* Tabbed workflow */}
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                  <div className="border-b border-border mb-6">
-                    <TabsList className="bg-transparent p-0 gap-6 h-auto">
-                      <WorkflowTabTrigger value="proposal" icon={FileText} label="Proposal" />
-                      <WorkflowTabTrigger
-                        value="capstone_1"
-                        icon={BookOpen}
-                        label="Capstone 1"
-                        locked={!capstone1Unlocked}
-                        lockedReason={getLockedReason('capstone_1')}
-                        onLockedClick={() => handleLockedTabClick('capstone_1')}
-                      />
+                  <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-border mb-6">
+                    <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
+                      <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
                       <WorkflowTabTrigger
                         value="capstone_2"
                         icon={BookOpen}
@@ -266,28 +255,20 @@ export default function MyProjectPage() {
                         onLockedClick={() => handleLockedTabClick('capstone_2')}
                       />
                       <WorkflowTabTrigger
-                        value="adm"
-                        icon={FileSpreadsheet}
-                        label="Action Done Matrix"
-                        locked={!admUnlocked}
-                        lockedReason={getLockedReason('adm')}
-                        onLockedClick={() => handleLockedTabClick('adm')}
-                      />
-                      <WorkflowTabTrigger
                         value="capstone_3"
-                        icon={BookOpen}
+                        icon={Code2}
                         label="Capstone 3"
                         locked={!capstone3Unlocked}
                         lockedReason={getLockedReason('capstone_3')}
                         onLockedClick={() => handleLockedTabClick('capstone_3')}
                       />
                       <WorkflowTabTrigger
-                        value="final"
+                        value="capstone_4"
                         icon={Award}
-                        label="Final Defense"
-                        locked={!finalUnlocked}
-                        lockedReason={getLockedReason('final')}
-                        onLockedClick={() => handleLockedTabClick('final')}
+                        label="Capstone 4"
+                        locked={!capstone4Unlocked}
+                        lockedReason={getLockedReason('capstone_4')}
+                        onLockedClick={() => handleLockedTabClick('capstone_4')}
                       />
                       <WorkflowTabTrigger
                         value="consultation"
@@ -300,18 +281,12 @@ export default function MyProjectPage() {
                     </TabsList>
                   </div>
 
-                  <TabsContent value="proposal" className="mt-0 focus-visible:outline-none">
+                  <TabsContent
+                    value="capstone_1"
+                    className="mt-0 focus-visible:outline-none space-y-6"
+                  >
                     <TitleActionsSection project={project} />
                     <ProposalTab project={project} />
-                  </TabsContent>
-
-                  <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none">
-                    <ChapterProgressWithRounds
-                      project={project}
-                      submissions={submissions}
-                      chapters={[1, 2, 3]}
-                      showUploadButton={titleApproved}
-                    />
                     <EvaluationPanel projectId={project._id} defenseType="proposal" />
                   </TabsContent>
 
@@ -319,52 +294,46 @@ export default function MyProjectPage() {
                     value="capstone_2"
                     className="mt-0 focus-visible:outline-none space-y-6"
                   >
-                    <div className="mb-6">
-                      <h3 className="text-xl font-semibold tracking-tight text-primary mb-2">
-                        Capstone 2 — System Development &amp; Action Done Matrix
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        In Capstone 2, manage your system development milestones and address defense
-                        recommendations directly via the Action Done Matrix without manuscript
-                        documents.
-                      </p>
-                    </div>
-                    {/* Action Done Matrix for Capstone 2 Direct Pipeline */}
+                    <ChapterProgressWithRounds
+                      project={project}
+                      submissions={submissions}
+                      chapters={[1, 2, 3]}
+                      showUploadButton={titleApproved}
+                    />
                     <ActionDoneMatrixTab
                       project={project}
                       isStudent
                       user={user}
                       onRefresh={() => refetch()}
                     />
+                    <EvaluationPanel projectId={project._id} defenseType="midterm" />
+                  </TabsContent>
+
+                  <TabsContent
+                    value="capstone_3"
+                    className="mt-0 focus-visible:outline-none space-y-6"
+                  >
                     <DevelopmentAssetsForm project={project} />
-                    <div className="mt-8">
-                      <PrototypeGallery projectId={project._id} canDelete canAdd />
-                    </div>
-                    <div className="mt-8">
-                      <EvaluationPanel projectId={project._id} defenseType="midterm" />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="adm" className="mt-0 focus-visible:outline-none">
-                    <ActionDoneMatrixTab
-                      project={project}
-                      isStudent
-                      user={user}
-                      onRefresh={() => refetch()}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none">
+                    <PrototypeGallery projectId={project._id} canDelete canAdd />
                     <ChapterProgressWithRounds
                       project={project}
                       submissions={submissions}
                       chapters={[4, 5]}
                       showUploadButton={titleApproved}
                     />
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
                     <EvaluationPanel projectId={project._id} defenseType="paper" />
                   </TabsContent>
 
-                  <TabsContent value="final" className="mt-0 focus-visible:outline-none">
+                  <TabsContent
+                    value="capstone_4"
+                    className="mt-0 focus-visible:outline-none space-y-6"
+                  >
                     <FinalPaperUpload projectId={project._id} />
                     <EvaluationPanel projectId={project._id} defenseType="final" />
                   </TabsContent>

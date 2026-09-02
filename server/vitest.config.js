@@ -14,8 +14,5 @@ export default defineConfig({
     // Run tests sequentially — shared in-memory DB
     fileParallelism: false,
     pool: 'forks',
-    forks: {
-      singleFork: true,
-    },
   },
 });

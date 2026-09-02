@@ -1,25 +1,24 @@
 export const WORKFLOW_TABS = [
-  'proposal',
   'capstone_1',
   'capstone_2',
-  'adm',
   'capstone_3',
-  'final',
+  'capstone_4',
   'consultation',
+  'audit',
 ];
 
 export function resolveActiveWorkflowTab({
   requestedTab,
   unlockedTabs,
   workflowTabs = WORKFLOW_TABS,
-  defaultTab = 'proposal',
+  defaultTab = 'capstone_1',
 }) {
   const requested =
     typeof requestedTab === 'string' && requestedTab.trim().length > 0 ? requestedTab.trim() : null;
 
-  const normalizedUnlockedTabs = Array.isArray(unlockedTabs) ? unlockedTabs : ['proposal'];
+  const normalizedUnlockedTabs = Array.isArray(unlockedTabs) ? unlockedTabs : ['capstone_1'];
   const firstUnlockedTab =
-    normalizedUnlockedTabs.find((tab) => workflowTabs.includes(tab)) ?? 'proposal';
+    normalizedUnlockedTabs.find((tab) => workflowTabs.includes(tab)) ?? 'capstone_1';
   const fallbackTab = normalizedUnlockedTabs.includes(defaultTab) ? defaultTab : firstUnlockedTab;
 
   const isRequestedTabSelectable =

@@ -35,12 +35,12 @@ function LoadingScreenComponent({
   const isSmall = size === 'sm';
   const isLarge = size === 'lg';
 
-  const spinnerBoxSize = isSmall ? 'h-16 w-16' : isLarge ? 'h-28 w-28' : 'h-20 w-20';
-  const ringSize = isSmall ? 'h-14 w-14' : isLarge ? 'h-24 w-24' : 'h-18 w-18';
-  const glowSize = isSmall ? 'h-8 w-8' : isLarge ? 'h-14 w-14' : 'h-10 w-10';
-  const iconSize = isSmall ? 'h-5 w-5' : isLarge ? 'h-9 w-9' : 'h-7 w-7';
-  const badgeSize = isSmall ? 'h-12 w-12' : isLarge ? 'h-20 w-20' : 'h-16 w-16';
-  const trackWidth = isSmall ? 'w-28' : isLarge ? 'w-52' : 'w-40';
+  const spinnerBoxSize = isSmall ? 'h-32 w-32' : isLarge ? 'h-64 w-64' : 'h-48 w-48';
+  const ringSize = isSmall ? 'h-28 w-28' : isLarge ? 'h-56 w-56' : 'h-40 w-40';
+  const glowSize = isSmall ? 'h-12 w-12' : isLarge ? 'h-28 w-28' : 'h-20 w-20';
+  const iconSize = isSmall ? 'h-6 w-6' : isLarge ? 'h-12 w-12' : 'h-8 w-8';
+  const badgeSize = isSmall ? 'h-16 w-16' : isLarge ? 'h-24 w-24' : 'h-20 w-20';
+  const trackWidth = isSmall ? 'w-32' : isLarge ? 'w-64' : 'w-48';
 
   const containerClasses = fullScreen
     ? 'fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/85 backdrop-blur-md'
@@ -78,9 +78,9 @@ function LoadingScreenComponent({
           </div>
         )}
 
-        {/* ── Text & fluid progress track ── */}
-        <div className="flex flex-col items-center gap-3 text-center">
-          {showLogo && (
+        {/* ── Text & fluid progress track — only on branded landing/session init screen ── */}
+        {showLogo && (
+          <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex items-center gap-1.5">
               <span className="bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
                 CMS
@@ -89,26 +89,28 @@ function LoadingScreenComponent({
                 BukSU
               </span>
             </div>
-          )}
 
-          {showLogo && subtitle && (
-            <p className="-mt-1 text-xs font-medium tracking-wide text-muted-foreground/60">
-              {subtitle}
-            </p>
-          )}
+            {subtitle && (
+              <p className="-mt-1 text-xs font-medium tracking-wide text-muted-foreground/60">
+                {subtitle}
+              </p>
+            )}
 
-          {/* Fluid indeterminate track — CodePen-style moving blob */}
-          <div
-            className={`relative h-1 ${trackWidth} overflow-hidden rounded-full bg-muted/50`}
-            aria-hidden="true"
-          >
-            <div className="cms-fluid-track absolute inset-y-0 w-2/5 rounded-full bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple" />
+            {/* Fluid indeterminate track — CodePen-style moving blob */}
+            <div
+              className={`relative h-1 ${trackWidth} overflow-hidden rounded-full bg-muted/50`}
+              aria-hidden="true"
+            >
+              <div className="cms-fluid-track absolute inset-y-0 w-2/5 rounded-full bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple" />
+            </div>
+
+            {message && (
+              <p className="text-xs font-medium text-muted-foreground/70 cms-text-fade">
+                {message}
+              </p>
+            )}
           </div>
-
-          {message && (
-            <p className="text-xs font-medium text-muted-foreground/70 cms-text-fade">{message}</p>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

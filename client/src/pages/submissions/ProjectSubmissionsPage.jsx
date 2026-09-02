@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
@@ -250,7 +250,7 @@ export default function ProjectSubmissionsPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <LoadingScreen fullScreen={false} message="Loading project submissions..." />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

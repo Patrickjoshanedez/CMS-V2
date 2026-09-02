@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Textarea } from '@/components/ui/Textarea';
@@ -778,7 +778,7 @@ export default function SubmissionDetailPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <LoadingScreen fullScreen={false} message="Loading submission details..." />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

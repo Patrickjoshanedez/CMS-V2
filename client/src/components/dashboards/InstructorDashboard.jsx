@@ -7,7 +7,8 @@ import KPICards from './KPICards';
 import WorkloadHeatmap from './WorkloadHeatmap';
 import OptimizationEngine from './OptimizationEngine';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { AlertTriangle } from 'lucide-react';
 
 const InstructorDashboard = () => {
@@ -50,7 +51,7 @@ const InstructorDashboard = () => {
   });
 
   if (kpisLoading || workloadLoading) {
-    return <LoadingScreen fullScreen={false} message="Loading instructor command center..." />;
+    return <PageSkeleton />;
   }
 
   if (kpisError || workloadError) {

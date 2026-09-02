@@ -11,6 +11,7 @@
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import env from '../config/env.js';
 
@@ -25,7 +26,7 @@ const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uplo
  * GET /storage/archives/projects/{projectId}/chapters/1/v1/file.pdf
  */
 // Use a RegExp catch-all to avoid path-to-regexp wildcard parsing differences.
-router.get(/.*/, (req, res, _next) => {
+router.get(/.*/, async (req, res, _next) => {
   try {
     // Sanitize path — prevent path traversal attacks
     let requestedPath = req.path;
@@ -45,6 +46,18 @@ router.get(/.*/, (req, res, _next) => {
     const resolvedPath = path.resolve(filePath);
     if (!resolvedPath.startsWith(path.resolve(baseDir))) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Try to read sidecar meta file for content type
+    try {
+      const metaPath = `${resolvedPath}.meta.json`;
+      const metaContent = await fs.readFile(metaPath, 'utf-8');
+      const meta = JSON.parse(metaContent);
+      if (meta.contentType) {
+        res.setHeader('Content-Type', meta.contentType);
+      }
+    } catch (e) {
+      // Ignore errors if meta file doesn't exist
     }
 
     // Serve the file

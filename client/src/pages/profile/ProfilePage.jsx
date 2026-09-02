@@ -63,6 +63,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState('');
+  const [avatarBroken, setAvatarBroken] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -130,6 +131,11 @@ export default function ProfilePage() {
       setInstructorId(user.instructorId?._id || user.instructorId || '');
     }
   }, [user]);
+
+  // Reset broken-avatar state when URL changes (e.g. after re-upload)
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [user?.avatarUrl]);
 
   useEffect(() => {
     if (isInstructor && settings?.plagiarismThreshold !== undefined) {
@@ -254,11 +260,12 @@ export default function ProfilePage() {
           <Card className="lg:col-span-1">
             <CardContent className="flex flex-col items-center pt-6">
               <div className="relative">
-                {user.avatarUrl ? (
+                {user.avatarUrl && !avatarBroken ? (
                   <img
                     src={user.avatarUrl}
                     alt={user.fullName}
                     className="h-24 w-24 rounded-full object-cover"
+                    onError={() => setAvatarBroken(true)}
                   />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">

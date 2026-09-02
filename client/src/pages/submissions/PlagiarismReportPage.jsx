@@ -12,7 +12,8 @@ import {
   X,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { usePlagiarismReport } from '../../hooks/useSubmissions';
 
 /* ──────────────────────────────────────────────────────────────
@@ -500,7 +501,7 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   if (isLoading && !reportData) {
     return (
       <DashboardLayout>
-        <LoadingScreen fullScreen={false} message="Loading plagiarism report…" />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

@@ -13,34 +13,30 @@ const PHASES = [
     isComplete: (project) => Boolean(getTeamValue(project)),
   },
   {
-    key: 'title',
-    label: 'Title Proposal',
-    icon: FileText,
-    isComplete: (project) => project?.titleStatus === TITLE_STATUSES.APPROVED,
-  },
-  {
     key: 'capstone_1',
-    label: 'Capstone 1 (Ch 1-3)',
-    icon: BookOpen,
+    label: 'Capstone 1 (Proposal Defense)',
+    icon: FileText,
     isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_2,
   },
   {
     key: 'capstone_2',
-    label: 'Capstone 2 (Development)',
-    icon: Code2,
+    label: 'Capstone 2 (Ch 1-3 & ADM)',
+    icon: BookOpen,
     isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_3,
   },
   {
     key: 'capstone_3',
-    label: 'Capstone 3 (Ch 4-5)',
-    icon: PenTool,
+    label: 'Capstone 3 (Ch 4-5 & ADM)',
+    icon: Code2,
     isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_4,
   },
   {
-    key: 'defense',
-    label: 'Final Defense',
+    key: 'capstone_4',
+    label: 'Capstone 4 (Paper, Journal & Archival)',
     icon: ShieldCheck,
-    isComplete: (project) => getProjectStatus(project) === PROJECT_STATUSES.DEFENDED,
+    isComplete: (project) =>
+      getProjectStatus(project) === PROJECT_STATUSES.DEFENDED ||
+      getProjectStatus(project) === 'archived',
   },
 ];
 

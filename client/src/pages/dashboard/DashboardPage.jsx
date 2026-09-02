@@ -8,18 +8,10 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import FacultyDashboardV2 from '@/components/dashboards/FacultyDashboard';
 import InstructorDashboardV2 from '@/components/dashboards/InstructorDashboard';
-import {
-  AlertTriangle,
-  Bell,
-  CheckCircle2,
-  Clock3,
-  FolderKanban,
-  UsersRound,
-  Calendar,
-} from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle2, Clock3, FolderKanban, UsersRound } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 import { toast } from 'sonner';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import DefenseScheduleCalendar from '@/components/calendar/DefenseScheduleCalendar';
 
 /**
@@ -144,13 +136,52 @@ function StudentDashboard({ user }) {
           description={team ? team.name : 'No team assigned yet'}
           accent="text-sky-600"
         />
-        <DashboardCard
-          icon={CheckCircle2}
-          title="Progress"
-          metric={`${completionPercent}%`}
-          description={`${completedChapters}/${derivedChapterProgress.length || 5} chapters approved`}
-          accent="text-emerald-600"
-        />
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+            <div className="rounded-md bg-muted p-2 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-sm">Progress</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <p className="text-2xl font-bold leading-none">{completionPercent}%</p>
+              <span className="text-xs font-semibold text-emerald-600">
+                {completedChapters}/5 Approved
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5 pt-1">
+              {[1, 2, 3, 4, 5].map((ch) => {
+                const chapterInfo = derivedChapterProgress.find((c) => c.chapter === ch);
+                const isApproved = isChapterApprovedLike(chapterInfo?.status);
+                const isInProgress = [
+                  'pending',
+                  'under_review',
+                  'revisions_required',
+                  'ready_to_upload',
+                ].includes(chapterInfo?.status);
+                return (
+                  <div
+                    key={ch}
+                    className={`h-2 rounded-full transition-all ${
+                      isApproved
+                        ? 'bg-emerald-500 shadow-sm shadow-emerald-500/20'
+                        : isInProgress
+                          ? 'bg-amber-500/80 animate-pulse'
+                          : 'bg-muted/70'
+                    }`}
+                    title={`Chapter ${ch}: ${formatChapterStatus(chapterInfo?.status || 'not_started')}`}
+                  />
+                );
+              })}
+            </div>
+            <CardDescription className="text-xs">
+              {completedChapters}/{derivedChapterProgress.length || 5} chapters approved
+            </CardDescription>
+          </CardContent>
+        </Card>
         <DashboardCard
           icon={Bell}
           title="Recent Updates"
@@ -212,14 +243,26 @@ function StudentDashboard({ user }) {
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Members</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {team.members?.map((member) => (
-                        <div
-                          key={member._id}
-                          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        >
-                          {member.firstName} {member.lastName}
-                        </div>
-                      ))}
+                      {team.members?.map((member) => {
+                        const memberId = String(member._id || member.id || '');
+                        const assignedRole =
+                          project?.memberRoleAssignments?.find(
+                            (ra) => String(ra.userId?._id || ra.userId) === memberId,
+                          )?.professionalTitle || 'Team Member';
+                        return (
+                          <div
+                            key={member._id}
+                            className="flex flex-col gap-1 rounded-lg border border-border bg-card/60 p-2.5 shadow-sm transition-colors hover:border-primary/30"
+                          >
+                            <span className="text-sm font-semibold text-foreground">
+                              {member.firstName} {member.lastName}
+                            </span>
+                            <span className="inline-flex w-fit items-center rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                              {assignedRole}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </>
@@ -585,7 +628,7 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <DashboardLayout>
-        <LoadingScreen fullScreen={false} message="Loading dashboard..." />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatCitation,
-  getFullName,
-  getProjectAuthors,
-  resolveArchiveBackContext,
-} from './ProjectDetailPage';
+import { formatCitation, resolveArchiveBackContext } from './ProjectDetailPage';
+import { getFullName, getProjectAuthors } from './projectDetailUtils';
 
 describe('ProjectDetailPage archive helpers', () => {
   it('builds full names from person objects and falls back to email', () => {

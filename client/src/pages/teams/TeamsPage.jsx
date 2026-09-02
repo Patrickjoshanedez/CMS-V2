@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
@@ -1565,7 +1566,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
     { enabled: Boolean(academicYear) },
   );
 
-  const { data, isLoading, isError, error } = useTeams(filters);
+  const { data, isLoading: isLoadingTeams, isError, error } = useTeams(filters);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -1577,8 +1578,8 @@ function FacultyTeamsView({ canAssignCommittee }) {
     });
   };
 
-  if (isLoading) {
-    return <LoadingScreen fullScreen={false} message="Loading teams..." />;
+  if (isLoadingTeams) {
+    return <PageSkeleton />;
   }
 
   if (isError) {
@@ -1731,10 +1732,10 @@ function StudentTeamView({ user }) {
 
   const isProfileComplete = Boolean(user.sectionId && user.instructorId);
 
-  const { data: team, isLoading, isError, error } = useMyTeam(user?._id);
+  const { data: team, isLoading: isLoadingTeam, isError, error } = useMyTeam(user?._id);
 
-  if (isLoading) {
-    return <LoadingScreen fullScreen={false} message="Loading your team..." />;
+  if (isLoadingTeam) {
+    return <PageSkeleton />;
   }
 
   // 404 means no team — show empty state

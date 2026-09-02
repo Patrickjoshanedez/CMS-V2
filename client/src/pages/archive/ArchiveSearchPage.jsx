@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { useArchiveSearch } from '@/hooks/useProjects';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -208,9 +209,7 @@ export default function ArchiveSearchPage() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
-          <LoadingScreen fullScreen={false} message="Searching archived capstones..." />
-        )}
+        {isLoading && <PageSkeleton />}
 
         {/* Empty State */}
         {!isLoading && !error && projects.length === 0 && (

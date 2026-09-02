@@ -132,7 +132,7 @@ const TAB_BY_DEFENSE = {
   proposal: 'capstone_1',
   midterm: 'capstone_2',
   paper: 'capstone_3',
-  final: 'final',
+  final: 'capstone_4',
 };
 
 function getNotificationTarget(notification, role) {
@@ -174,19 +174,19 @@ function getNotificationTarget(notification, role) {
   }
 
   if (TITLE_NOTIFICATION_TYPES.has(notification.type)) {
-    return '/project?tab=proposal';
+    return '/project?tab=capstone_1';
   }
 
   if (notification.type === 'phase_advanced') {
-    return `/project?tab=${TAB_BY_DEFENSE[defenseType] || 'proposal'}`;
+    return `/project?tab=${TAB_BY_DEFENSE[defenseType] || 'capstone_1'}`;
   }
 
   if (notification.type === 'project_created' || notification.type === 'project_rejected') {
-    return '/project?tab=proposal';
+    return '/project?tab=capstone_1';
   }
 
   if (notification.type === 'certificate_uploaded' || notification.type === 'project_archived') {
-    return '/project?tab=final';
+    return '/project?tab=capstone_4';
   }
 
   if (role !== ROLES.STUDENT && projectId) {

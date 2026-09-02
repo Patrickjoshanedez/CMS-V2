@@ -80,10 +80,15 @@ const run = async () => {
   }
 
   console.error('[dev-preflight] Unable to connect to MongoDB for local dev.');
-  console.error('[dev-preflight] Start MongoDB with one of these options and re-run npm run dev:');
-  console.error('[dev-preflight]   1) docker compose -f ../docker-compose.yml up -d mongodb');
+  console.error('[dev-preflight] Start MongoDB with one of these options and re-run:');
   console.error(
-    '[dev-preflight]   2) Start a local mongod service and set MONGODB_URI in server/.env',
+    '[dev-preflight]   1) Zero-Docker in-memory DB: npm run dev:standalone (or npm run dev:memory-db)',
+  );
+  console.error(
+    '[dev-preflight]   2) Docker container: docker compose -f ../docker-compose.yml up -d mongodb',
+  );
+  console.error(
+    '[dev-preflight]   3) Native service / MongoDB Atlas: set MONGODB_URI in server/.env',
   );
   process.exit(1);
 };
