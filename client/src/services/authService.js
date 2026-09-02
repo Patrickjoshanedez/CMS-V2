@@ -169,8 +169,17 @@ export const projectService = {
 
   // Action Done Matrix (ADM) & Secretary Minutes
   getActionDoneMatrix: (projectId) => api.get(`/projects/${projectId}/action-done-matrix`),
+  createActionDoneMatrixItem: (projectId, data) =>
+    api.post(`/projects/${projectId}/action-done-matrix`, data),
   updateActionDoneMatrixItem: (projectId, itemId, data) =>
     api.patch(`/projects/${projectId}/action-done-matrix/${itemId}`, data),
+  deleteActionDoneMatrixItem: (projectId, itemId) =>
+    api.delete(`/projects/${projectId}/action-done-matrix/${itemId}`),
+  patchADMRow: (projectId, rowId, data) => api.patch(`/adm/${projectId}/rows/${rowId}`, data),
+  updateADMMetadata: (projectId, data) => api.patch(`/projects/${projectId}/adm-metadata`, data),
+  signTieredADM: (projectId, data) => api.post(`/projects/${projectId}/adm-signatures`, data),
+  seedInstitutionalADM: (projectId) =>
+    api.post(`/projects/${projectId}/action-done-matrix/seed-institutional`),
   signADMItem: (projectId, itemId, data) =>
     api.post(`/projects/${projectId}/action-done-matrix/${itemId}/sign`, data),
   updateADMStatus: (projectId, data) => api.patch(`/projects/${projectId}/adm-status`, data),

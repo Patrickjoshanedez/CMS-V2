@@ -1,17 +1,18 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
-import { TagInput } from '@/components/ui/TagInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { YearInput } from '@/components/ui/YearInput';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import TeamCommitteeAssignmentsView from '@/components/users/TeamCommitteeAssignmentsView';
+import CreateAcademicNodeDialog from '@/components/users/CreateAcademicNodeDialog';
 import {
   Users,
   UserPlus,
+  Plus,
   Search,
   Loader2,
   AlertTriangle,
@@ -20,10 +21,6 @@ import {
   Shield,
   Archive,
   FolderTree,
-  BookOpen,
-  Layers,
-  CalendarDays,
-  Crown,
   UserCheck,
 } from 'lucide-react';
 import { ROLES, ROLE_VALUES } from '@cms/shared';
@@ -35,21 +32,10 @@ import {
   useDeleteUser,
   useActivateUser,
 } from '@/hooks/useUsers';
-import { useTeams, teamKeys } from '@/hooks/useTeams';
-import {
-  useAssignAdviser,
-  useAssignPanelist,
-  useRemovePanelist,
-  useProject,
-  useSetDeadlines,
-} from '@/hooks/useProjects';
 import {
   useAcademicHierarchy,
   useAcademicYears,
   useCourses,
-  useCreateCourse,
-  useCreateSection,
-  useCreateAcademicYear,
   useSections,
 } from '@/hooks/useAcademics';
 import { toast } from 'sonner';
@@ -68,13 +54,27 @@ import { cn } from '@/lib/utils';
 /* ────────── Role Badge ────────── */
 
 function RoleBadge({ role }) {
-  const variants = {
-    instructor: 'default',
-    adviser: 'secondary',
-    panelist: 'outline',
-    student: 'outline',
+  const roleStyles = {
+    instructor: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    adviser: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    panelist: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    faculty: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    student: 'border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-500/10',
+    admin: 'border-purple-500/40 text-purple-600 dark:text-purple-400 bg-purple-500/10',
+    coordinator: 'border-purple-500/40 text-purple-600 dark:text-purple-400 bg-purple-500/10',
   };
-  return <Badge variant={variants[role] || 'outline'}>{role}</Badge>;
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'capitalize text-[10px] py-0 px-2 font-medium tracking-wide',
+        roleStyles[role] || 'border-border text-muted-foreground',
+      )}
+    >
+      {role}
+    </Badge>
+  );
 }
 
 function HierarchyBreadcrumb({ course, academicYear, section }) {
@@ -97,598 +97,6 @@ function HierarchyBreadcrumb({ course, academicYear, section }) {
   );
 }
 
-function formatFullName(user) {
-  if (!user) return 'Unknown';
-  return [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ') || user.email;
-}
-
-function formatCommitteeOption(user) {
-  return `${formatFullName(user)} • ${user?.email || 'No email provided'}`;
-}
-
-function TeamCommitteeAssignmentsView() {
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({});
-  const [academicYear, setAcademicYear] = useState('');
-  const [sectionId, setSectionId] = useState('');
-  const [committeeFilter, setCommitteeFilter] = useState('all');
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [deadlineDraft, setDeadlineDraft] = useState({
-    chapter1: '',
-    chapter2: '',
-    chapter3: '',
-    proposal: '',
-    chapter4: '',
-    chapter5: '',
-  });
-
-  const { data: years = [] } = useAcademicYears();
-  const { data: sections = [] } = useSections(
-    { academicYear: academicYear || undefined },
-    { enabled: Boolean(academicYear) },
-  );
-
-  const { data: teamData, isLoading, isError, error } = useTeams(filters);
-  const { data: adviserData, isLoading: isAdvisersLoading } = useUsers({
-    role: ROLES.ADVISER,
-    isActive: true,
-    page: 1,
-    limit: 200,
-  });
-  const { data: panelistData, isLoading: isPanelistsLoading } = useUsers({
-    role: ROLES.PANELIST,
-    isActive: true,
-    page: 1,
-    limit: 200,
-  });
-
-  const assignAdviser = useAssignAdviser({
-    onSuccess: () => {
-      toast.success('Adviser assigned successfully.');
-      queryClient.invalidateQueries({ queryKey: teamKeys.all });
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to assign adviser.'),
-  });
-
-  const assignPanelist = useAssignPanelist({
-    onSuccess: () => {
-      toast.success('Panelist assigned successfully.');
-      queryClient.invalidateQueries({ queryKey: teamKeys.all });
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to assign panelist.'),
-  });
-
-  const removePanelist = useRemovePanelist({
-    onSuccess: () => {
-      toast.success('Panelist removed successfully.');
-      queryClient.invalidateQueries({ queryKey: teamKeys.all });
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to remove panelist.'),
-  });
-
-  const allTeams = useMemo(() => teamData?.teams || [], [teamData?.teams]);
-  const adviserOptions = useMemo(() => adviserData?.users || [], [adviserData?.users]);
-  const panelistOptions = useMemo(() => panelistData?.users || [], [panelistData?.users]);
-
-  const filteredTeams = useMemo(() => {
-    return allTeams.filter((team) => {
-      if (committeeFilter === 'all') return true;
-
-      const assignment = team.assignment || {};
-      const panelists = assignment.panelists || [];
-
-      if (committeeFilter === 'no-adviser') return !assignment.adviser;
-      if (committeeFilter === 'needs-panelists') return panelists.length < 3;
-      if (committeeFilter === 'complete')
-        return Boolean(assignment.adviser) && panelists.length >= 3;
-
-      return true;
-    });
-  }, [allTeams, committeeFilter]);
-
-  const selectedTeam = filteredTeams.find((team) => team._id === selectedTeamId) || null;
-  const selectedAssignment = selectedTeam?.assignment || {};
-  const selectedPanelists = selectedAssignment.panelists || [];
-  const selectedProjectId = selectedAssignment.projectId || null;
-
-  const { data: selectedProject } = useProject(selectedProjectId, {
-    enabled: Boolean(selectedProjectId),
-  });
-
-  const setDeadlines = useSetDeadlines({
-    onSuccess: () => {
-      toast.success('Project deadlines updated.');
-      queryClient.invalidateQueries({ queryKey: teamKeys.all });
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to update project deadlines.'),
-  });
-
-  const adviserSuggestions = adviserOptions.map(formatCommitteeOption);
-
-  const panelistSuggestions = panelistOptions
-    .filter((panelist) => !selectedPanelists.some((existing) => existing?._id === panelist._id))
-    .map(formatCommitteeOption);
-
-  useEffect(() => {
-    if (selectedTeamId && !filteredTeams.some((team) => team._id === selectedTeamId)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedTeamId('');
-    }
-  }, [filteredTeams, selectedTeamId]);
-
-  useEffect(() => {
-    if (!selectedProjectId || !selectedProject) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDeadlineDraft({
-        chapter1: '',
-        chapter2: '',
-        chapter3: '',
-        proposal: '',
-        chapter4: '',
-        chapter5: '',
-      });
-      return;
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDeadlineDraft({
-      chapter1: selectedProject?.deadlines?.chapter1?.split('T')[0] || '',
-      chapter2: selectedProject?.deadlines?.chapter2?.split('T')[0] || '',
-      chapter3: selectedProject?.deadlines?.chapter3?.split('T')[0] || '',
-      proposal: selectedProject?.deadlines?.proposal?.split('T')[0] || '',
-      chapter4: selectedProject?.deadlines?.chapter4?.split('T')[0] || '',
-      chapter5: selectedProject?.deadlines?.chapter5?.split('T')[0] || '',
-    });
-  }, [selectedProjectId, selectedProject]);
-
-  const openSubmissionViewer = (docKey) => {
-    if (!selectedProjectId) return;
-
-    const base = `/project/submissions?mode=view&projectId=${encodeURIComponent(selectedProjectId)}`;
-    const chapterMatch = /^chapter(\d+)$/.exec(docKey);
-    const href = chapterMatch ? `${base}&chapter=${chapterMatch[1]}` : base;
-    window.open(href, '_blank', 'noopener,noreferrer');
-  };
-
-  const openProjectViewer = () => {
-    if (!selectedProjectId) return;
-    window.open(`/projects/${selectedProjectId}`, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleSaveDeadlines = () => {
-    if (!selectedProjectId) {
-      toast.error('Select a team with a linked project first.');
-      return;
-    }
-
-    const payload = { projectId: selectedProjectId };
-    Object.entries(deadlineDraft).forEach(([key, value]) => {
-      if (value) {
-        payload[key] = value;
-      }
-    });
-
-    setDeadlines.mutate(payload);
-  };
-
-  const handleTeamSearch = (event) => {
-    event.preventDefault();
-    setFilters({
-      search: search.trim() || undefined,
-      academicYear: academicYear || undefined,
-      sectionId: sectionId || undefined,
-      page: 1,
-    });
-  };
-
-  const handleAdviserSelect = (selectedTags) => {
-    const selectedLabel = selectedTags.at(-1);
-    if (!selectedLabel || !selectedProjectId || !selectedTeam) {
-      return;
-    }
-
-    const adviser = adviserOptions.find(
-      (option) => formatCommitteeOption(option) === selectedLabel,
-    );
-    if (!adviser) {
-      toast.error('Select a valid adviser from the suggestions.');
-      return;
-    }
-
-    if (selectedAssignment.adviser?._id === adviser._id) {
-      toast.error('This adviser is already assigned.');
-      return;
-    }
-
-    assignAdviser.mutate({ projectId: selectedProjectId, adviserId: adviser._id });
-  };
-
-  const handlePanelistSelect = (selectedTags) => {
-    const selectedLabel = selectedTags.at(-1);
-    if (!selectedLabel || !selectedProjectId || !selectedTeam) {
-      return;
-    }
-
-    if (selectedPanelists.length >= 3) {
-      toast.error('Only a maximum of 3 panelists can be assigned per team.');
-      return;
-    }
-
-    const panelist = panelistOptions.find(
-      (option) => formatCommitteeOption(option) === selectedLabel,
-    );
-    if (!panelist) {
-      toast.error('Select a valid panelist from the suggestions.');
-      return;
-    }
-
-    if (selectedPanelists.some((existing) => existing?._id === panelist._id)) {
-      toast.error('This panelist is already assigned to the team.');
-      return;
-    }
-
-    assignPanelist.mutate({ projectId: selectedProjectId, panelistId: panelist._id });
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Committee Assignment</CardTitle>
-          <CardDescription>
-            Assign exactly one adviser and up to three panelists per team.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleTeamSearch} className="grid gap-2 md:grid-cols-5">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search teams..."
-                className="pl-9"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-            <select
-              value={academicYear}
-              onChange={(event) => {
-                setAcademicYear(event.target.value);
-                setSectionId('');
-              }}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">All years</option>
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sectionId}
-              disabled={!academicYear}
-              onChange={(event) => setSectionId(event.target.value)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">All sections</option>
-              {sections.map((section) => (
-                <option key={section._id} value={section._id}>
-                  {section.courseId?.code} - {section.name}
-                </option>
-              ))}
-            </select>
-            <Button type="submit" variant="outline">
-              Search
-            </Button>
-          </form>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="committeeFilter">Committee Filter</Label>
-              <select
-                id="committeeFilter"
-                value={committeeFilter}
-                onChange={(event) => setCommitteeFilter(event.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="all">All teams</option>
-                <option value="no-adviser">No adviser assigned</option>
-                <option value="needs-panelists">Needs panelists (&lt;3)</option>
-                <option value="complete">Complete committee</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="teamQuickSelect">Quick Team Select</Label>
-              <select
-                id="teamQuickSelect"
-                value={selectedTeamId}
-                onChange={(event) => setSelectedTeamId(event.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="">Select a team</option>
-                {filteredTeams.map((team) => (
-                  <option key={team._id} value={team._id}>
-                    {team.name || 'Untitled Team'}
-                    {team.academicYear ? ` • ${team.academicYear}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {isLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading teams...
-            </div>
-          )}
-
-          {isError && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                {error?.response?.data?.error?.message || 'Failed to load teams.'}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!isLoading && !isError && filteredTeams.length === 0 && (
-            <p className="rounded-md border border-dashed bg-muted/40 px-3 py-8 text-center text-sm text-muted-foreground">
-              No teams found for the selected criteria.
-            </p>
-          )}
-
-          {selectedTeam && (
-            <div className="space-y-3 rounded-md border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-base font-semibold">{selectedTeam.name || 'Untitled Team'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedTeam.academicYear || 'No academic year'} •{' '}
-                    {(selectedTeam.members || []).length} members
-                  </p>
-                </div>
-                <Badge variant="outline">
-                  {selectedProjectId ? 'Project Linked' : 'No Project Yet'}
-                </Badge>
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-3">
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Team Leader
-                  </p>
-                  <p className="mt-1 text-sm font-medium">
-                    {formatFullName(selectedTeam.leaderId)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedTeam.leaderId?.email || 'No email available'}
-                  </p>
-                </div>
-
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Adviser
-                  </p>
-                  <p className="mt-1 text-sm font-medium">
-                    {selectedAssignment.adviser
-                      ? formatFullName(selectedAssignment.adviser)
-                      : 'Not assigned yet'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedAssignment.adviser?.email || 'No adviser assigned'}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Search and assign adviser
-                    </p>
-                    <TagInput
-                      value={[]}
-                      onChange={handleAdviserSelect}
-                      suggestions={adviserSuggestions}
-                      placeholder={
-                        isAdvisersLoading ? 'Loading advisers...' : 'Type to search advisers'
-                      }
-                      maxTags={1}
-                      disabled={!selectedProjectId || isAdvisersLoading || assignAdviser.isPending}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-md border p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Panelists ({selectedPanelists.length}/3)
-                  </p>
-                  {selectedPanelists.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {selectedPanelists.map((panelist) => (
-                        <div
-                          key={panelist._id}
-                          className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 px-2 py-2"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{formatFullName(panelist)}</p>
-                            <p className="text-xs text-muted-foreground">{panelist.email}</p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!selectedProjectId || removePanelist.isPending}
-                            onClick={() =>
-                              removePanelist.mutate({
-                                projectId: selectedProjectId,
-                                panelistId: panelist._id,
-                              })
-                            }
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-1 text-sm text-muted-foreground">No panelists assigned yet</p>
-                  )}
-
-                  <div className="mt-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Search and add panelist
-                    </p>
-                    <TagInput
-                      value={[]}
-                      onChange={handlePanelistSelect}
-                      suggestions={panelistSuggestions}
-                      placeholder={
-                        isPanelistsLoading ? 'Loading panelists...' : 'Type to search panelists'
-                      }
-                      maxTags={3}
-                      disabled={
-                        !selectedProjectId ||
-                        isPanelistsLoading ||
-                        assignPanelist.isPending ||
-                        selectedPanelists.length >= 3
-                      }
-                    />
-                    {selectedPanelists.length >= 3 && (
-                      <p className="text-xs text-muted-foreground">
-                        Maximum reached: only 3 panelists are allowed per team.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {!selectedProjectId && (
-                <p className="text-xs text-muted-foreground">
-                  Create and approve the team project first before assigning adviser and panelists.
-                </p>
-              )}
-
-              {selectedProjectId && (
-                <div className="space-y-3 rounded-md border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold">Deadline Setter</p>
-                      <p className="text-xs text-muted-foreground">
-                        Set proposal and chapter deadlines, then open the same submission/project
-                        viewers used by instructors and faculty.
-                      </p>
-                    </div>
-                    <Badge variant="outline">Project {selectedProjectId.slice(-6)}</Badge>
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {[
-                      { key: 'proposal', label: 'Proposal' },
-                      { key: 'chapter1', label: 'Chapter 1' },
-                      { key: 'chapter2', label: 'Chapter 2' },
-                      { key: 'chapter3', label: 'Chapter 3' },
-                      { key: 'chapter4', label: 'Chapter 4' },
-                      { key: 'chapter5', label: 'Chapter 5' },
-                    ].map((entry) => (
-                      <div key={entry.key} className="space-y-2 rounded-md border p-2">
-                        <Label htmlFor={`deadline-${entry.key}`}>{entry.label}</Label>
-                        <Input
-                          id={`deadline-${entry.key}`}
-                          type="date"
-                          value={deadlineDraft[entry.key]}
-                          onChange={(event) =>
-                            setDeadlineDraft((prev) => ({
-                              ...prev,
-                              [entry.key]: event.target.value,
-                            }))
-                          }
-                        />
-                        <div className="flex flex-wrap gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openSubmissionViewer(entry.key)}
-                          >
-                            Submission Viewer
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={openProjectViewer}
-                          >
-                            Project Viewer
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={openProjectViewer}
-                      disabled={!selectedProjectId}
-                    >
-                      Open Project Viewer
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleSaveDeadlines}
-                      disabled={!selectedProjectId || setDeadlines.isPending}
-                    >
-                      {setDeadlines.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Deadlines
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Team Members
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(selectedTeam.members || []).map((member) => {
-                    const isLeader =
-                      (selectedTeam.leaderId?._id || selectedTeam.leaderId) === member._id;
-
-                    return (
-                      <div
-                        key={member._id}
-                        className="flex items-center gap-2 rounded-md border p-2"
-                      >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          {member.firstName?.[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{formatFullName(member)}</p>
-                          <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-                        </div>
-                        {isLeader && (
-                          <Badge variant="outline" className="gap-1">
-                            <Crown className="h-3 w-3" />
-                            Leader
-                          </Badge>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function HierarchyView() {
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
@@ -697,13 +105,8 @@ function HierarchyView() {
   const [navCourseKey, setNavCourseKey] = useState('');
   const [navSectionId, setNavSectionId] = useState('');
   const [navTeamId, setNavTeamId] = useState('');
-  const [courseName, setCourseName] = useState('');
-  const [courseCode, setCourseCode] = useState('');
-  const [sectionName, setSectionName] = useState('');
-  const [sectionCode, setSectionCode] = useState('');
-  const [newSectionYear, setNewSectionYear] = useState('');
-  const [newAcademicYear, setNewAcademicYear] = useState('');
   const [hierarchySearch, setHierarchySearch] = useState('');
+  const [showAddNodeModal, setShowAddNodeModal] = useState(false);
 
   const { data: courses = [] } = useCourses();
   const { data: years = [] } = useAcademicYears();
@@ -719,33 +122,6 @@ function HierarchyView() {
     courseId: selectedCourseId || undefined,
     academicYear: selectedAcademicYear || undefined,
     sectionId: selectedSectionId || undefined,
-  });
-
-  const createCourse = useCreateCourse({
-    onSuccess: () => {
-      toast.success('Course created successfully.');
-      setCourseName('');
-      setCourseCode('');
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to create course.'),
-  });
-  const createAcademicYear = useCreateAcademicYear({
-    onSuccess: () => {
-      toast.success('Academic Year created successfully');
-      setNewAcademicYear('');
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to create academic year.'),
-  });
-  const createSection = useCreateSection({
-    onSuccess: () => {
-      toast.success('Section created successfully.');
-      setSectionName('');
-      setSectionCode('');
-    },
-    onError: (err) =>
-      toast.error(err?.response?.data?.error?.message || 'Failed to create section.'),
   });
 
   const selectedCourse = courses.find((course) => course._id === selectedCourseId);
@@ -816,13 +192,9 @@ function HierarchyView() {
   const canGoBack = Boolean(navTeamId || navSectionId || navCourseKey || navAcademicYear);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavAcademicYear('');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavCourseKey('');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavSectionId('');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavTeamId('');
   }, [selectedCourseId, selectedAcademicYear, selectedSectionId]);
 
@@ -844,75 +216,78 @@ function HierarchyView() {
     }
   };
 
-  const onCreateCourse = (event) => {
-    event.preventDefault();
-    createCourse.mutate({ name: courseName.trim(), code: courseCode.trim() });
-  };
-
-  const onCreateAcademicYear = (event) => {
-    event.preventDefault();
-    createAcademicYear.mutate({ year: newAcademicYear.trim() });
-  };
-
-  const onCreateSection = (event) => {
-    event.preventDefault();
-    createSection.mutate({
-      section: sectionName.trim(),
-      code: sectionCode.trim(),
-      courseId: selectedCourseId,
-      academicYear: newSectionYear.trim(),
-    });
-  };
-
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FolderTree className="h-4 w-4" />
-            Student Management Hierarchy
-          </CardTitle>
-          <CardDescription>
-            Drill down from course to year, section, teams, and student members.
-          </CardDescription>
-          <HierarchyBreadcrumb
-            course={selectedCourse}
-            academicYear={selectedAcademicYear}
-            section={selectedSection}
-          />
+      {/* Create Academic Node Modal */}
+      <CreateAcademicNodeDialog
+        isOpen={showAddNodeModal}
+        onClose={() => setShowAddNodeModal(false)}
+        courses={courses}
+        years={years}
+      />
+
+      <Card className="border-border/60">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <FolderTree className="h-4 w-4 text-primary" />
+                Student Management Hierarchy
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Drill down from academic year to degree program, section cohort, and capstone teams.
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setShowAddNodeModal(true)}
+              className="gap-1.5 text-xs bg-primary shrink-0 self-start sm:self-auto"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Academic Level
+            </Button>
+          </div>
+
+          <div className="mt-2">
+            <HierarchyBreadcrumb
+              course={selectedCourse}
+              academicYear={selectedAcademicYear}
+              section={selectedSection}
+            />
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
+        <CardContent className="space-y-4 pt-0">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <Label>Course</Label>
+              <Label className="text-xs text-muted-foreground">Filter by Course</Label>
               <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedCourseId}
                 onChange={(e) => {
                   setSelectedCourseId(e.target.value);
                   setSelectedSectionId('');
                 }}
               >
-                <option value="">All Courses</option>
+                <option value="">All Courses / Programs</option>
                 {courses.map((course) => (
                   <option key={course._id} value={course._id}>
-                    {course.code} - {course.name}
+                    {course.code} — {course.name}
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-1">
-              <Label>Academic Year</Label>
+              <Label className="text-xs text-muted-foreground">Filter by Academic Year</Label>
               <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedAcademicYear}
                 onChange={(e) => {
                   setSelectedAcademicYear(e.target.value);
                   setSelectedSectionId('');
                 }}
               >
-                <option value="">All Years</option>
+                <option value="">All Academic Years</option>
                 {years.map((year) => (
                   <option key={year} value={year}>
                     {year}
@@ -922,9 +297,9 @@ function HierarchyView() {
             </div>
 
             <div className="space-y-1">
-              <Label>Section</Label>
+              <Label className="text-xs text-muted-foreground">Filter by Section</Label>
               <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={selectedSectionId}
                 onChange={(e) => setSelectedSectionId(e.target.value)}
               >
@@ -937,112 +312,6 @@ function HierarchyView() {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <form onSubmit={onCreateCourse} className="space-y-2 rounded-md border p-3">
-              <Label className="flex items-center gap-2 text-sm">
-                <BookOpen className="h-4 w-4" />
-                Add Course
-              </Label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Input
-                  value={courseCode}
-                  onChange={(e) => setCourseCode(e.target.value)}
-                  placeholder="BSIT"
-                  required
-                />
-                <Input
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  placeholder="BS Information Technology"
-                  required
-                />
-              </div>
-              <Button type="submit" size="sm" disabled={createCourse.isPending}>
-                {createCourse.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Course
-              </Button>
-            </form>
-
-            <form onSubmit={onCreateAcademicYear} className="space-y-2 rounded-md border p-3">
-              <Label className="flex items-center gap-2 text-sm">
-                <CalendarDays className="h-4 w-4" />
-                Add Academic Year
-              </Label>
-              <div className="grid gap-2">
-                <YearInput
-                  value={newAcademicYear}
-                  onChange={(e) => setNewAcademicYear(e)}
-                  placeholder="2025"
-                  required
-                />
-              </div>
-              <Button type="submit" size="sm" disabled={createAcademicYear.isPending}>
-                {createAcademicYear.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Year
-              </Button>
-            </form>
-
-            <form onSubmit={onCreateSection} className="space-y-2 rounded-md border p-3">
-              <Label className="flex items-center gap-2 text-sm">
-                <Layers className="h-4 w-4" />
-                Add Section
-              </Label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Input
-                  value={sectionName}
-                  onChange={(e) => setSectionName(e.target.value)}
-                  placeholder="Section/Year e.g. 1A"
-                  title="Format: Year + Cluster (e.g., 1A, 2B, 4C)"
-                  pattern="\d{1,2}[A-Za-z]"
-                  required
-                />
-                <Input
-                  value={sectionCode}
-                  onChange={(e) => setSectionCode(e.target.value)}
-                  placeholder="Section Code e.g. T88"
-                  title="Section code example: T88"
-                  required
-                />
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                  required
-                >
-                  <option value="">Select Course</option>
-                  {courses.map((course) => (
-                    <option key={course._id} value={course._id}>
-                      {course.code}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={newSectionYear}
-                  onChange={(e) => setNewSectionYear(e.target.value)}
-                  required
-                >
-                  <option value="">Select Year</option>
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={
-                  createSection.isPending || !selectedCourseId || !newSectionYear || !sectionCode
-                }
-              >
-                {createSection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Section
-              </Button>
-            </form>
           </div>
         </CardContent>
       </Card>
@@ -1411,45 +680,56 @@ function HierarchyView() {
 function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }) {
   const isSelf = user._id === currentUserId;
   const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ');
+  const initials = (user.firstName?.[0] || user.email?.[0] || '?').toUpperCase();
 
   return (
-    <div className="user-row-card flex items-center justify-between gap-4 rounded-md border p-4 transition-colors">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3">
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:flex">
-            {user.firstName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-medium">{fullName || 'Unnamed'}</p>
-              <RoleBadge role={user.role} />
-              {!user.isActive && (
-                <Badge variant="destructive" className="h-5 px-1.5 text-[10px] uppercase">
-                  Deactivated
-                </Badge>
-              )}
-              {!user.isVerified && (
-                <Badge variant="outline" className="h-5 px-1.5 text-[10px] uppercase">
-                  Unverified
-                </Badge>
-              )}
-            </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
-            {user.teamId && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Team: {user.teamId.name || user.teamId}
-              </p>
+    <div className="user-row-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3.5 transition-colors hover:border-primary/40 min-w-0">
+      {/* Identity block protected with min-w-0 */}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary border border-primary/20">
+          {initials}
+        </div>
+        <div className="space-y-1 min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {fullName || 'Unnamed'}
+            </p>
+            <RoleBadge role={user.role} />
+            {!user.isVerified && (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 text-amber-500 bg-amber-500/10 text-[10px] py-0 px-1.5"
+              >
+                Unverified
+              </Badge>
+            )}
+            {!user.isActive && (
+              <Badge variant="destructive" className="text-[10px] py-0 px-1.5 uppercase">
+                Deactivated
+              </Badge>
             )}
           </div>
+          <p className="text-xs text-muted-foreground truncate">
+            {user.email}
+            {user.teamId && (
+              <>
+                {' '}
+                ·{' '}
+                <span className="text-foreground/80 font-medium">
+                  Team: {user.teamId.name || user.teamId}
+                </span>
+              </>
+            )}
+          </p>
         </div>
       </div>
 
+      {/* Right: Role Change Dropdown & Actions */}
       {!isSelf && (
-        <div className="flex shrink-0 items-center gap-2">
-          {/* Role change dropdown */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
           <select
             aria-label={`Change role for ${fullName}`}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-8 w-[130px] rounded-md border border-input bg-muted/30 px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={user.role}
             onChange={(e) => onChangeRole(user._id, e.target.value)}
             disabled={!user.isActive}
@@ -1461,12 +741,11 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
             ))}
           </select>
 
-          {/* Deactivate / Activate toggle button */}
           {user.isActive ? (
             <Button
               variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-muted-foreground hover:bg-amber-600 hover:text-white"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:bg-amber-600 hover:text-white transition-colors"
               onClick={() => onDeactivate(user._id, fullName)}
               title="Archive / Deactivate user"
             >
@@ -1475,8 +754,8 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
           ) : (
             <Button
               variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-muted-foreground hover:bg-green-600 hover:text-white"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:bg-green-600 hover:text-white transition-colors"
               onClick={() => onActivate(user._id, fullName)}
               title="Activate user"
             >
@@ -1786,168 +1065,158 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex-1 space-y-6 max-w-[1600px] mx-auto min-w-0 w-full">
         {/* Page header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage hierarchy, roles, permissions, and committee assignments.
-            </p>
-          </div>
+        <div className="flex flex-col gap-1 border-b border-border/60 pb-5">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">User Management</h1>
+          <p className="text-sm text-muted-foreground">
+            Administer platform access, academic structures, and capstone evaluation committees.
+          </p>
         </div>
 
-        <div className="flex flex-col gap-6 md:flex-row">
-          {/* Sidebar Nav */}
-          <Card className="h-fit shrink-0 md:w-64">
-            <CardContent className="p-3">
-              <nav className="users-tab-nav">
-                <button
-                  type="button"
-                  className={cn('users-tab-btn', activePanel === 'hierarchy' && 'active')}
-                  onClick={() => setActivePanel('hierarchy')}
-                >
-                  <FolderTree className="h-4 w-4" />
-                  Academic Hierarchy
-                </button>
-                <button
-                  type="button"
-                  className={cn('users-tab-btn', activePanel === 'rbac' && 'active')}
-                  onClick={() => setActivePanel('rbac')}
-                >
-                  <Shield className="h-4 w-4" />
-                  Role Management (RBAC)
-                </button>
-                <button
-                  type="button"
-                  className={cn('users-tab-btn', activePanel === 'committee' && 'active')}
-                  onClick={() => setActivePanel('committee')}
-                >
-                  <Users className="h-4 w-4" />
-                  Committee Assignments
-                </button>
-              </nav>
-            </CardContent>
-          </Card>
+        {/* Primary Sub-Navigation: Horizontal Pill Tabs */}
+        <Tabs value={activePanel} onValueChange={setActivePanel} className="space-y-6">
+          <TabsList className="bg-muted/40 p-1 border border-border/60 rounded-lg inline-flex h-10">
+            <TabsTrigger value="hierarchy" className="gap-2 text-xs">
+              <FolderTree className="h-3.5 w-3.5" /> Academic Hierarchy
+            </TabsTrigger>
+            <TabsTrigger value="rbac" className="gap-2 text-xs">
+              <Shield className="h-3.5 w-3.5" /> Role Management (RBAC)
+            </TabsTrigger>
+            <TabsTrigger value="committee" className="gap-2 text-xs">
+              <Users className="h-3.5 w-3.5" /> Committee Assignments
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Main Content Area */}
-          <div className="min-w-0 flex-1 users-panel-enter" key={activePanel}>
-            {activePanel === 'hierarchy' && <HierarchyView />}
+          {/* Tab 1: Academic Hierarchy */}
+          <TabsContent value="hierarchy" className="space-y-6 min-w-0 w-full">
+            <HierarchyView />
+          </TabsContent>
 
-            {activePanel === 'committee' && <TeamCommitteeAssignmentsView />}
+          {/* Tab 2: Committee Assignments */}
+          <TabsContent value="committee" className="space-y-6 min-w-0 w-full">
+            <TeamCommitteeAssignmentsView />
+          </TabsContent>
 
-            {activePanel === 'rbac' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Roles & Permissions</h2>
-                  <Button onClick={() => setShowCreateForm((prev) => !prev)}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    {showCreateForm ? 'Cancel' : 'New User'}
-                  </Button>
+          {/* Tab 3: Role Management (RBAC) */}
+          <TabsContent value="rbac" className="space-y-6 min-w-0 w-full">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Roles & Permissions</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Manage user credentials, platform permissions, and authentication access.
+                  </p>
                 </div>
-
-                {/* Create student form */}
-                {showCreateForm && <CreateUserForm onCancel={() => setShowCreateForm(false)} />}
-
-                {/* Filters */}
-                <Card className="users-stat-card">
-                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
-                    <div className="flex-1 space-y-1">
-                      <Label htmlFor="search" className="text-xs text-muted-foreground">
-                        Search Users
-                      </Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="search"
-                          placeholder="Search by name or email..."
-                          className="pl-9"
-                          value={search}
-                          onChange={handleSearch}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-full space-y-1 sm:w-48">
-                      <Label htmlFor="roleFilter" className="text-xs text-muted-foreground">
-                        Filter by Role
-                      </Label>
-                      <select
-                        id="roleFilter"
-                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        value={roleFilter}
-                        onChange={handleRoleFilter}
-                      >
-                        <option value="">All Roles</option>
-                        {ROLE_VALUES.map((r) => (
-                          <option key={r} value={r}>
-                            {r.charAt(0).toUpperCase() + r.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Loading state */}
-                {isLoading && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                )}
-
-                {/* Error state */}
-                {isError && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      {error?.response?.data?.error?.message || 'Failed to load users.'}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Empty state */}
-                {!isLoading && !isError && users.length === 0 && (
-                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-                    <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">No users found</h3>
-                    <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                      {search || roleFilter
-                        ? 'Try adjusting your filters.'
-                        : 'Start by creating a new user.'}
-                    </p>
-                  </div>
-                )}
-
-                {/* Student list with RBAC controls */}
-                {!isLoading && !isError && users.length > 0 && (
-                  <Card className="users-stat-card border-none shadow-none bg-transparent">
-                    <CardHeader className="px-0 pt-0">
-                      <CardTitle className="text-base">User Directory</CardTitle>
-                      <CardDescription>
-                        Showing {users.length} of {pagination.total || 0} total users
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 px-0">
-                      {users.map((user) => (
-                        <UserRow
-                          key={user._id}
-                          user={user}
-                          currentUserId={currentUser?._id}
-                          onChangeRole={handleChangeRole}
-                          onDeactivate={handleDeactivate}
-                          onActivate={handleActivate}
-                        />
-                      ))}
-                      <div className="pt-2">
-                        <Pagination pagination={pagination} onPageChange={setPage} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs bg-primary shrink-0 self-start sm:self-auto"
+                  onClick={() => setShowCreateForm((prev) => !prev)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {showCreateForm ? 'Cancel' : 'New User'}
+                </Button>
               </div>
-            )}
-          </div>
-        </div>
+
+              {/* Create student form */}
+              {showCreateForm && <CreateUserForm onCancel={() => setShowCreateForm(false)} />}
+
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3.5 rounded-lg border border-border/60">
+                <div className="relative flex-1 w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Search users by name or email..."
+                    className="pl-9 h-9 text-xs"
+                    value={search}
+                    onChange={handleSearch}
+                  />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Label
+                    htmlFor="roleFilter"
+                    className="text-xs text-muted-foreground whitespace-nowrap"
+                  >
+                    Role:
+                  </Label>
+                  <select
+                    id="roleFilter"
+                    className="h-9 w-full sm:w-[150px] rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={roleFilter}
+                    onChange={handleRoleFilter}
+                  >
+                    <option value="">All Roles</option>
+                    {ROLE_VALUES.map((r) => (
+                      <option key={r} value={r}>
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Loading state */}
+              {isLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+
+              {/* Error state */}
+              {isError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    {error?.response?.data?.error?.message || 'Failed to load users.'}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Empty state */}
+              {!isLoading && !isError && users.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
+                  <Users className="mb-4 h-12 w-12 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">No users found</h3>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    {search || roleFilter
+                      ? 'Try adjusting your filters.'
+                      : 'Start by creating a new user.'}
+                  </p>
+                </div>
+              )}
+
+              {/* User Directory List */}
+              {!isLoading && !isError && users.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      User Directory
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      Showing {users.length} of {pagination.total || 0} total users
+                    </span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {users.map((user) => (
+                      <UserRow
+                        key={user._id}
+                        user={user}
+                        currentUserId={currentUser?._id}
+                        onChangeRole={handleChangeRole}
+                        onDeactivate={handleDeactivate}
+                        onActivate={handleActivate}
+                      />
+                    ))}
+                  </div>
+                  <div className="pt-2">
+                    <Pagination pagination={pagination} onPageChange={setPage} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

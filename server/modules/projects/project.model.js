@@ -252,13 +252,22 @@ const actionDoneMatrixItemSchema = new mongoose.Schema(
     },
     expectedAction: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
     },
     actionDone: {
       type: String,
       trim: true,
       default: '',
+    },
+    pageNumbers: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    isLocked: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,
@@ -705,6 +714,44 @@ const projectSchema = new mongoose.Schema(
         'approved',
       ],
       default: 'not_started',
+    },
+    admReviewType: {
+      type: String,
+      enum: ['internal', 'external'],
+      default: 'internal',
+    },
+    admSignatures: {
+      adviser: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+      instructor: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+      panelists: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          role: { type: String, default: 'Panel Member' },
+          signed: { type: Boolean, default: false },
+          signedAt: { type: Date, default: null },
+          signatoryName: { type: String, default: '' },
+          signatureDataUrl: { type: String, default: null },
+        },
+      ],
+      chair: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
     },
     actionDoneMatrix: {
       type: [actionDoneMatrixItemSchema],

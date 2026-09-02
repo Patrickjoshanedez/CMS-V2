@@ -412,6 +412,41 @@ router.post(
   projectController.signADMItem,
 );
 
+// Append new Action Done Matrix row item
+router.post(
+  '/:projectId/action-done-matrix',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.createActionDoneMatrixItem,
+);
+
+// Delete an Action Done Matrix row item
+router.delete(
+  '/:projectId/action-done-matrix/:itemId',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.deleteActionDoneMatrixItem,
+);
+
+// Update ADM metadata (review classification, title override)
+router.patch(
+  '/:projectId/adm-metadata',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.updateADMMetadata,
+);
+
+// Sign Tiered Signatories Board (Adviser/Instructor, Panelists, REC/Chair)
+router.post(
+  '/:projectId/adm-signatures',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.signTieredADM,
+);
+
+// Seed institutional ADM template from official document
+router.post(
+  '/:projectId/action-done-matrix/seed-institutional',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.seedInstitutionalADM,
+);
+
 // Update overall ADM status (e.g., instructor approves → auto-archives)
 router.patch(
   '/:projectId/adm-status',
