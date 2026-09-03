@@ -1,0 +1,27 @@
+{
+  "id": "2026-09-03_assign-committee-dialog-portal-and-toast-zindex-fix",
+  "timestamp": "2026-09-03T15:51:00Z",
+  "task": "Resolve AssignCommitteeDialog vertical cut-off, portal stacking containment bug, background button bleed-through, and toast notification z-index coverage",
+  "summary": "Diagnosed and resolved two interrelated UI rendering anomalies when clicking 'Assign Committee': (1) The dialog was mounted inside DashboardLayout's .cms-route-enter container, which carried permanent transform and will-change properties, trapping fixed inset-0 within the main scroll area instead of the viewport. This left the right-hand notification action buttons ('Inspect Roster', 'Assign Committee', '✓', '🗑') and page header buttons exposed outside the dimmed backdrop as fragmented 'weird boxes'. Portaled AssignCommitteeDialog directly to document.body using createPortal with z-[100] and full-screen backdrop-blur-xs overlay. (2) Re-engineered the flexbox modal centering from unbounded items-center to a bounded scroll architecture (my-auto, max-h-[calc(100vh-2rem)], shrink-0 header and footer, overflow-y-auto CardContent). This permanently prevents the modal header and close button from getting cut off at the top of the viewport. (3) Added top-level z-index: 999999 to Sonner's [data-sonner-toaster] and App.jsx Toaster to guarantee toast notifications are never covered by modals. Added unit test suite for AssignCommitteeDialog and passed all 6 quality gates.",
+  "skillsUsed": [
+    "anti-slop",
+    "frontend-patterns",
+    "anti-regression-and-ci-governance",
+    "verification-loop",
+    "ptss"
+  ],
+  "filesModified": [
+    "client/src/components/teams/AssignCommitteeDialog.jsx",
+    "client/src/components/teams/AssignCommitteeDialog.test.jsx",
+    "client/src/App.jsx",
+    "client/src/index.css"
+  ],
+  "verification": {
+    "endpointParity": "187 Server / 166 Client, UNMATCHED_COUNT = 0",
+    "agenticAudit": "60/60 checks passed",
+    "governancePipeline": "Passed, DAG & Coherence valid",
+    "clientTests": "38 test suites, 120 tests passed (100%)",
+    "serverTests": "comprehensive-all-workflows.test.js (13/13 passed)",
+    "workspaceGuardrail": "Pristine, 0 cognitive load errors"
+  }
+}

@@ -1,8 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FileText, Lock, ExternalLink, Download, CheckCircle2, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { useTeamManuscriptTemplate } from '@/hooks/useTeams';
 
 export function ManuscriptTemplateWidget({

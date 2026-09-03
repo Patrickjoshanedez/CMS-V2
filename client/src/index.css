@@ -1500,3 +1500,8 @@ html.dark[data-high-contrast='true'] {
 .cms-route-enter {
   animation: cms-page-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Ensure Sonner toast notifications appear above all modals, backdrops, and dialogs */
+[data-sonner-toaster] {
+  z-index: 999999 !important;
+}

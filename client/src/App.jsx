@@ -253,7 +253,7 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
-      <Toaster richColors position="top-right" />
+      <Toaster richColors position="top-right" style={{ zIndex: 999999 }} />
       <PlagiarismProgressModal />
     </>
   );
