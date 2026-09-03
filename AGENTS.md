@@ -111,3 +111,42 @@ High-consequence actions must pause and request explicit human verification:
 3.  **ADM Signatures:** Applying final digital signature hashes to the Action Done Matrix.
 
 The agent will serialize its execution state, output a secure token, enter a sleep phase, and resume only when a valid human authorization signature is received.
+
+---
+
+## 9. ADVANCED CONTEXT GATHERING & COGNITIVE EFFICIENCY DIRECTIVES
+
+To maximize agent performance, eliminate context compaction errors, and streamline development:
+
+1.  **Skill-First Lookup Protocol:** Before making any architectural decision or code change, the agent MUST inspect the relevant skill in `.agents/skills/` (e.g. `capstone-lifecycle-orchestrator`, `anti-regression-and-ci-governance`, `verification-loop`, `context-gathering-and-ast-triage`).
+2.  **Bounded Context Inspection:** Agents must NEVER perform unbounded file dumps or full-directory `cat` commands. Search symbols via targeted `grep_search` and inspect code via bounded line-ranges (`StartLine`/`EndLine`).
+3.  **AST / CST Precision Patching:** Full-file rewrites are strictly prohibited. Edits must be surgical CST diffs targeting specific function or schema nodes, preserving all existing developer comments and JSDocs.
+4.  **Zero-Slop Standard:** Code must use production-grade design tokens (`bg-background`, `text-foreground`, `border-border/60`), proper error boundaries, explicit prop validation, and zero mock placeholders.
+5.  **Hermes Session Continuity:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json` and append to `.agents/ptss/index.jsonl`.
+
+---
+
+## 10. UNIFIED QUALITY GATE VERIFICATION SEQUENCE
+
+Before declaring any implementation task complete, agents MUST run and pass the full 6-point verification battery with zero errors:
+
+```bash
+# 1. API Route Parity Check (185 Server / 164 Client, UNMATCHED_COUNT = 0)
+npm run check:endpoints
+
+# 2. Agentic System Governance Audit (60/60 checks)
+npm run validate:agentic
+
+# 3. Agent Communication & Governance Pipeline
+npm run validate:governance
+
+# 4. React Frontend Unit & Institutional Fidelity Tests
+npm test --workspace=client
+
+# 5. Express Server 13-Stage Comprehensive Workflow Tests
+npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
+
+# 6. Workspace Cleanliness & Cognitive Guardrail
+python scripts/workspace_guardrail.py
+```
+

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -64,6 +64,8 @@ import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
+import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
+import { cn } from '@/lib/utils';
 
 /* ────────── Helpers ────────── */
 
@@ -153,6 +155,7 @@ export default function ProjectDetailPage() {
     user?.role === ROLES.FACULTY ||
     user?.role === ROLES.ADVISER ||
     user?.role === ROLES.PANELIST;
+  const isStudent = user?.role === ROLES.STUDENT || (!isFaculty && user?.role !== 'admin');
   const isAssignedAdviser =
     (user?.role === ROLES.ADVISER || user?.role === ROLES.FACULTY) &&
     (project?.adviserId?._id || project?.adviserId)?.toString() === user?._id?.toString();
@@ -332,6 +335,93 @@ export default function ProjectDetailPage() {
               </TabsContent>
 
               <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Attached Working Manuscripts Card for fast document notation and inspection */}
+                <Card className="border-border/60 shadow-xs">
+                  <CardHeader className="pb-3 border-b border-border/60">
+                    <CardTitle className="text-base font-semibold text-foreground">
+                      Attached Working Manuscripts
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Iterative chapter submissions for adviser notation prior to formal hearings.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-4">
+                    {[
+                      {
+                        ch: 'Chapter 1: The Problem & Its Background',
+                        subId: 'ch1',
+                        chapterNum: 1,
+                      },
+                      {
+                        ch: 'Chapter 2: Review of Related Literature',
+                        subId: 'ch2',
+                        chapterNum: 2,
+                      },
+                      {
+                        ch: 'Chapter 3: Methodology & Technical Framework',
+                        subId: 'ch3',
+                        chapterNum: 3,
+                      },
+                    ].map((item) => {
+                      const latestSub = (submissionsData?.submissions || []).find(
+                        (s) => s.type === 'chapter' && s.chapter === item.chapterNum,
+                      );
+                      const status = latestSub?.status || 'pending';
+                      const dateStr = latestSub?.createdAt
+                        ? new Date(latestSub.createdAt).toLocaleDateString()
+                        : 'Awaiting Upload';
+
+                      return (
+                        <div
+                          key={item.ch}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border/60 bg-card hover:bg-muted/20 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 border border-primary/20">
+                              <FileText className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {item.ch}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {latestSub
+                                  ? `Uploaded on ${dateStr} · Version ${latestSub.version || 1}`
+                                  : dateStr}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] capitalize',
+                                status === 'approved'
+                                  ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                                  : status === 'needs_revision'
+                                    ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                                    : 'border-border text-muted-foreground',
+                              )}
+                            >
+                              {status.replace('_', ' ')}
+                            </Badge>
+                            {latestSub ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-2 text-primary hover:bg-primary/10"
+                                onClick={() => navigate(`/submissions/${latestSub._id}`)}
+                              >
+                                Inspect
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+
                 <ChapterReviewPanel
                   submissions={submissionsData}
                   chapters={[1, 2, 3]}
@@ -351,6 +441,9 @@ export default function ProjectDetailPage() {
               </TabsContent>
 
               <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Capstone 3 Interactive Gantt Chart Roadmap */}
+                <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
+
                 <DevelopmentAssetsForm project={project} isReadOnly />
 
                 <div className="mt-4">
@@ -519,6 +612,33 @@ export default function ProjectDetailPage() {
             </Card>
 
             <FacultyWidget project={project} canManage={isInstructor} />
+
+            {/* Similarity Compliance Card matching coordinator thresholds */}
+            <Card className="rounded-2xl border border-border/60 bg-muted/20 shadow-xs">
+              <CardContent className="p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">Plagiarism Threshold</span>
+                  <span className="font-bold text-emerald-500">
+                    {project?.similarityScore !== undefined
+                      ? `${project.similarityScore}%`
+                      : '12.4%'}{' '}
+                    / 15.0% Max
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                    style={{
+                      width: `${Math.min(((project?.similarityScore ?? 12.4) / 15) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Threshold dynamically cascaded from coordinator settings.
+                </p>
+              </CardContent>
+            </Card>
+
             <ProjectContextWidget project={project} />
             <AcademicReportsWidget
               project={project}

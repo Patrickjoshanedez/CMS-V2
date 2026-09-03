@@ -279,6 +279,11 @@ const actionDoneMatrixItemSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    milestone: {
+      type: String,
+      enum: ['CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'],
+      default: 'CAPSTONE_2',
+    },
     /**
      * Digital signature blocks per ADM row.
      * Each signatory confirms the suggestion was addressed.

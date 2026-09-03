@@ -40,13 +40,13 @@ export default function DashboardLayout({ children }) {
       <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((prev) => !prev)} />
 
       {/* Main area */}
-      <div className="flex flex-1 flex-col overflow-visible min-h-0">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden min-h-0">
         <Header sidebarOpen={sidebarOpen} onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
         {/* Announcement banner — only rendered when there is content */}
         <AnnouncementBanner />
 
-        <main className="relative flex-1 overflow-y-auto p-6">
+        <main className="relative flex-1 min-w-0 overflow-y-auto p-6">
           {/* NProgress-style route progress bar */}
           <div key={`progress-${pathname}`} className="cms-route-progress" aria-hidden="true" />
 

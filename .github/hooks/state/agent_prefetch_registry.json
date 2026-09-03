@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-08-25T16:27:18.537334Z",
+  "generated_at": "2026-09-03T14:44:07.377002Z",
   "agent_count": 10,
   "agents": {
     "100x Code Reviewer": {
@@ -313,7 +313,7 @@
       "online": false,
       "model_available": false,
       "status_code": 200,
-      "available_models": ["llama3.2:3b", "nomic-embed-text-v2-moe:latest"],
+      "available_models": [],
       "error": "CRITICAL: qwen2.5-coder:7b not found. Run 'ollama pull qwen2.5-coder:7b'"
     },
     "directories": {
@@ -375,7 +375,7 @@
     },
     "errors": [],
     "warnings": [
-      "Local AI check bypassed in CI/automated environment: CRITICAL: qwen2.5-coder:7b not found. Run 'ollama pull qwen2.5-coder:7b'"
+      "Local AI check bypassed/soft in dev environment: CRITICAL: qwen2.5-coder:7b not found. Run 'ollama pull qwen2.5-coder:7b'"
     ]
   }
 }

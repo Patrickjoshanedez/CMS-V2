@@ -38,7 +38,7 @@ Every agent operates under a strict **Two-Pile Governance Model**:
 
 ## 3. INSTALLED SKILL ECOSYSTEM & DYNAMIC DISPATCH
 
-The workspace includes **60 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
+The workspace includes **64 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
 
 ```
 ├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor, capstone-lifecycle-orchestrator]
@@ -48,7 +48,8 @@ The workspace includes **60 verified cognitive skills** under `.agents/skills/`.
 ├── Reliability & Infra:     [sre-engineer, sre-reliability-engineering, devops-iac-engineer, docker-compose-production]
 ├── Data & Schemas:          [mongoose-mongodb, xlsx, pdf, algorithmic-art]
 └── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator,
-                              skill-write-or-patch, ptss, hermes-curator, anti-regression-and-ci-governance]
+                              skill-write-or-patch, ptss, hermes-curator, anti-regression-and-ci-governance,
+                              context-gathering-and-ast-triage]
 ```
 
 ---
@@ -58,16 +59,22 @@ The workspace includes **60 verified cognitive skills** under `.agents/skills/`.
 An implementation or refactoring task is officially completed **only** when all local verification suites exit with zero errors:
 
 ```bash
-# 1. Agentic Governance & Security Audit
+# 1. API Route Parity Check (185 Server / 164 Client, UNMATCHED_COUNT = 0)
+npm run check:endpoints
+
+# 2. Agentic Governance & Security Audit (60/60 checks)
 npm run validate:agentic
 
-# 2. React Frontend Unit & Store Test Suite
+# 3. Agent Communication & Governance Pipeline
+npm run validate:governance
+
+# 4. React Frontend Unit & Store Test Suite
 npm test --workspace=client
 
-# 3. Express Backend Integration & Unit Test Suite
-npm test --workspace=server
+# 5. Express Backend Integration & Unit Test Suite
+npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
 
-# 4. Workspace Cleanliness Guardrail Linter
+# 6. Workspace Cleanliness Guardrail Linter
 python scripts/workspace_guardrail.py
 ```
 
@@ -167,8 +174,18 @@ Whenever a complex requirement is fulfilled, a recurring workflow is solved, or 
 ### 7.6 Strict Anti-Regression & Skill-First Execution Contract
 
 To guarantee zero regression across development cycles:
-1. **Skill-First Reading**: Before initiating code changes or debugging, agents MUST view and adhere to the relevant skill in `.agents/skills/` (e.g. `anti-regression-and-ci-governance`, `capstone-lifecycle-orchestrator`, `verification-loop`).
+1. **Skill-First Reading**: Before initiating code changes or debugging, agents MUST view and adhere to the relevant skill in `.agents/skills/` (e.g. `anti-regression-and-ci-governance`, `capstone-lifecycle-orchestrator`, `verification-loop`, `context-gathering-and-ast-triage`).
 2. **Regression Containment**: If a defect is solved and verified, its resolution invariants (e.g., node env flags, export validity, async test predicates) are codified in the matching skill.
 3. **Evidence of Solution**: A problem is confirmed solved when the user proceeds to subsequent tasks without re-prompting the failure and all local verification gates pass with zero errors.
 
+---
 
+## 8. CONTEXT GATHERING & HIGH-PERFORMANCE CODEBASE NAVIGATION DIRECTIVES (ASDLC STAGE 2 & 3)
+
+To ensure development is maximally guided, token-efficient, and fast:
+
+1. **Index-First Orientation**: Always check [FILES_INDEX.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/FILES_INDEX.md), [package.json](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/package.json), and module route definitions before grepping across directories.
+2. **Bounded Line-Slice Inspection**: Never dump entire files (>100 lines) into conversation context. View target symbols using `StartLine` and `EndLine` slices to preserve cognitive budget.
+3. **Caller-Callee Chain Tracing**: When inspecting frontend actions, trace the call chain: UI Component $\to$ Zustand Store / React Query hook $\to$ API Service $\to$ Express Route $\to$ Controller $\to$ Mongoose Model.
+4. **Endpoint Parity Assurance**: Any newly added or modified client API call must have its exact HTTP route defined and checked via `npm run check:endpoints` (`UNMATCHED_COUNT = 0`).
+5. **Concrete Syntax Tree (CST) Preservation**: Modify code via surgical replacements targeting exact line spans. Never wipe or recreate files containing production logic.

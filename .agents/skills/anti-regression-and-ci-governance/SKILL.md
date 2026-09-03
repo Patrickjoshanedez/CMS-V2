@@ -79,7 +79,10 @@ npm test --workspace=server -- tests/integration/comprehensive-all-workflows.tes
 # 4. Verify agentic governance policy (60/60 checks)
 npm run validate:agentic
 
-# 5. Check workspace cleanliness guardrail
+# 5. Verify agent sync DAG and decision coherence pipeline
+npm run validate:governance
+
+# 6. Check workspace cleanliness guardrail
 python scripts/workspace_guardrail.py
 ```
 
@@ -93,3 +96,5 @@ python scripts/workspace_guardrail.py
 | `expected 2 to be 1` in audit tests | Async fire-and-forget logging | Change assertion to `toBeGreaterThanOrEqual(1)` + `.every(...)`. |
 | `Both FORCE_... and ACTIONS_...` warning | Conflicting workflow env vars | Keep only `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'`. |
 | `UNMATCHED_COUNT > 0` | Missing server route for client service | Add corresponding backend route in `server/modules/*/*.routes.js`. |
+| `qwen2.5-coder:7b not found` in dev | Local Ollama empty or model unpulled | `agent_prefetch.py` treats as soft warning in dev (`STRICT_LOCAL_AI!=true`); run `ollama pull qwen2.5-coder:7b` when offline inference is needed. |
+

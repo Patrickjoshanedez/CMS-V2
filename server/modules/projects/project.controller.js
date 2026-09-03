@@ -663,7 +663,8 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
 /** PATCH /api/projects/:projectId/action-done-matrix/:itemId — Update single ADM item */
 export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
   const { projectId, itemId } = req.params;
-  const { actionDone, status, remarks, suggestion, panelName, pageNumbers, isLocked } = req.body;
+  const { actionDone, status, remarks, suggestion, panelName, pageNumbers, isLocked, milestone } =
+    req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -710,6 +711,7 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
     if (panelName !== undefined) item.panelName = panelName;
     if (status !== undefined) item.status = status;
     if (remarks !== undefined) item.remarks = remarks;
+    if (milestone !== undefined) item.milestone = milestone;
     if (isLocked !== undefined && isInstructor) item.isLocked = isLocked;
   }
 
@@ -734,10 +736,10 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
   });
 });
 
-/** POST /api/projects/:projectId/action-done-matrix — Append row item */
+/** POST /api/projects/:projectId/action-done-matrix — Append new ADM row item */
 export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const { panelName, suggestion, expectedAction, actionDone, pageNumbers } = req.body;
+  const { panelName, suggestion, expectedAction, actionDone, pageNumbers, milestone } = req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -754,6 +756,7 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
     actionDone: actionDone || '',
     pageNumbers: pageNumbers || '',
     status: 'pending',
+    milestone: milestone || 'CAPSTONE_2',
     signatures: [],
     isLocked: false,
   };

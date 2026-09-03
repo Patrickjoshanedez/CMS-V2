@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/Label';
 import { projectService } from '@/services/authService';
 import { ROLES, PANEL_ROLES } from '@cms/shared';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
+import ADMPhaseSelector from '@/components/projects/ADMPhaseSelector';
 import buksuLogo from '@/assets/buksu-logo.png';
 import {
   Printer,
@@ -44,6 +45,21 @@ export default function ActionDoneMatrixTab({
   const [reviewType, setReviewType] = useState('internal');
   const [projectTitle, setProjectTitle] = useState('');
   const [savingCells, setSavingCells] = useState({}); // { [rowId_field]: 'saving' | 'saved' | 'error' }
+
+  // Milestone revision scoping (Capstone 2, Capstone 3, Capstone 4)
+  const defaultMilestone = useMemo(() => {
+    const phase = Number(project?.capstonePhase ?? project?.phase ?? 2);
+    if (phase >= 4) return 'CAPSTONE_4';
+    if (phase === 3) return 'CAPSTONE_3';
+    return 'CAPSTONE_2';
+  }, [project?.capstonePhase, project?.phase]);
+
+  const [selectedMilestone, setSelectedMilestone] = useState(defaultMilestone);
+
+  const displayedRows = useMemo(() => {
+    if (selectedMilestone === 'ALL') return rows;
+    return rows.filter((r) => (r.milestone || 'CAPSTONE_2') === selectedMilestone);
+  }, [rows, selectedMilestone]);
 
   // Modals & Uploads
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -185,14 +201,17 @@ export default function ActionDoneMatrixTab({
         ? formatFullName(regularPanelists[0].user || regularPanelists[0])
         : 'Panel Member';
 
+    const targetMilestone = selectedMilestone === 'ALL' ? defaultMilestone : selectedMilestone;
+
     try {
       const res = await projectService.createActionDoneMatrixItem(project._id, {
         panelName: defaultPanelName,
         suggestion: '',
         actionDone: '',
         pageNumbers: '',
+        milestone: targetMilestone,
       });
-      toast.success('Added new panel evaluation row.');
+      toast.success(`Added new evaluation row for ${targetMilestone.replace('_', ' ')}.`);
       if (res?.data?.data?.actionDoneMatrix) {
         setRows(res.data.data.actionDoneMatrix);
       }
@@ -347,6 +366,15 @@ export default function ActionDoneMatrixTab({
         </div>
       </div>
 
+      {/* Milestone Revision Scope Selector */}
+      <div className="max-w-5xl mx-auto print:hidden">
+        <ADMPhaseSelector
+          selectedPhase={selectedMilestone}
+          onPhaseChange={setSelectedMilestone}
+          academicYear={project?.academicYear || '2025–2026'}
+        />
+      </div>
+
       {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
       <div className="max-w-5xl mx-auto bg-card text-foreground print:bg-white print:text-black border border-border/80 print:border-none shadow-md print:shadow-none p-6 sm:p-12 rounded-xl print:rounded-none font-serif leading-normal transition-all">
         {/* ============================================================ */}
@@ -466,14 +494,15 @@ export default function ActionDoneMatrixTab({
           </div>
 
           {/* Rows */}
-          {rows.length === 0 ? (
+          {displayedRows.length === 0 ? (
             <div className="p-8 text-center text-xs sm:text-sm text-muted-foreground italic">
-              No recommendations recorded yet. Click &quot;Add Row&quot; or &quot;Load Institutional
-              Template&quot; to begin.
+              {rows.length === 0
+                ? 'No recommendations recorded yet. Click "Add Row" or "Load Institutional Template" to begin.'
+                : `No recommendations recorded for ${selectedMilestone.replace('_', ' ')}. Switch phase scope or click "Add Row" to append an item.`}
             </div>
           ) : (
             <div className="divide-y divide-black dark:divide-border print:divide-black">
-              {rows.map((row, idx) => {
+              {displayedRows.map((row, idx) => {
                 const rowId = row._id || row.id || idx;
                 const isLocked = Boolean(row.isLocked);
 
@@ -499,12 +528,26 @@ export default function ActionDoneMatrixTab({
                         className="font-bold text-foreground print:text-black"
                         minRows={1}
                       />
-                      {isLocked && (
-                        <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground font-sans print:hidden">
-                          <Lock className="h-3 w-3 text-amber-500" />
-                          <span>Locked</span>
-                        </div>
-                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground font-sans print:hidden">
+                        {row.milestone && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] py-0 px-1 border-primary/30 text-primary"
+                          >
+                            {row.milestone === 'CAPSTONE_3'
+                              ? 'Cap 3'
+                              : row.milestone === 'CAPSTONE_4'
+                                ? 'Cap 4'
+                                : 'Cap 2'}
+                          </Badge>
+                        )}
+                        {isLocked && (
+                          <span className="flex items-center gap-1 text-amber-500 font-medium">
+                            <Lock className="h-3 w-3" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Column 2: Suggestion of the Panel(s) (Col span 4) */}

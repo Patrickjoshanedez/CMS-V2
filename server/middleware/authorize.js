@@ -1,6 +1,7 @@
 import AppError from '../utils/AppError.js';
 import Project from '../modules/projects/project.model.js';
-import { ROLES } from '@cms/shared';
+import Team from '../modules/teams/team.model.js';
+import { ROLES, PANEL_ROLES } from '@cms/shared';
 
 /**
  * Role-based authorization middleware factory.
@@ -42,11 +43,7 @@ export const authorize = (...allowedRoles) => {
     }
 
     return next(
-      new AppError(
-        'You do not have permission to perform this action.',
-        403,
-        'FORBIDDEN',
-      ),
+      new AppError('You do not have permission to perform this action.', 403, 'FORBIDDEN'),
     );
   };
 };
@@ -71,13 +68,16 @@ export const authorizePanelRole = (...allowedPanelRoles) => {
       return next();
     }
 
-    const projectId =
-      req.params.projectId ||
-      req.params.id ||
-      req.body.projectId;
+    const projectId = req.params.projectId || req.params.id || req.body.projectId;
 
     if (!projectId) {
-      return next(new AppError('Project context is required for panel authorization.', 400, 'PROJECT_REQUIRED'));
+      return next(
+        new AppError(
+          'Project context is required for panel authorization.',
+          400,
+          'PROJECT_REQUIRED',
+        ),
+      );
     }
 
     const userIdStr = req.user._id.toString();
@@ -128,6 +128,91 @@ export const authorizePanelRole = (...allowedPanelRoles) => {
     } catch (err) {
       return next(err);
     }
+  };
+};
+
+/**
+ * Context-sensitive role authorization helper.
+ * Dynamically resolves committee permissions for a user within a project or team.
+ *
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {string|mongoose.Types.ObjectId} targetId (teamId or projectId)
+ * @returns {Promise<{ isInstructor: boolean, isAdviser: boolean, isSecretary: boolean, isPanelist: boolean, isChair: boolean, isMember: boolean }>}
+ */
+export const getProjectPermissions = async (userId, targetId) => {
+  if (!userId || !targetId) {
+    return {
+      isInstructor: false,
+      isAdviser: false,
+      isSecretary: false,
+      isPanelist: false,
+      isChair: false,
+      isMember: false,
+    };
+  }
+
+  const userIdStr = userId.toString();
+
+  // Target can be a Project ID or a Team ID
+  let project = await Project.findById(targetId)
+    .select('panelists panelistIds adviserId secretaryId teamId')
+    .populate({
+      path: 'teamId',
+      select: 'adviserId secretaryId panelistIds members leaderId sectionId',
+      populate: { path: 'sectionId', select: 'createdBy' },
+    });
+
+  let team = project?.teamId;
+  if (!project) {
+    team = await Team.findById(targetId).populate({
+      path: 'sectionId',
+      select: 'createdBy',
+    });
+    if (team) {
+      project = await Project.findOne({ teamId: team._id }).select(
+        'panelists panelistIds adviserId secretaryId',
+      );
+    }
+  }
+
+  const adviserIdStr = (project?.adviserId || team?.adviserId)?.toString();
+  const secretaryIdStr = (project?.secretaryId || team?.secretaryId)?.toString();
+  const instructorIdStr = team?.sectionId?.createdBy?.toString();
+
+  const isInstructor = Boolean(instructorIdStr && instructorIdStr === userIdStr);
+  const isAdviser = Boolean(adviserIdStr && adviserIdStr === userIdStr);
+  const isSecretary = Boolean(
+    (secretaryIdStr && secretaryIdStr === userIdStr) ||
+    (project?.panelists &&
+      project.panelists.some(
+        (p) => p.userId?.toString() === userIdStr && p.role === PANEL_ROLES.SECRETARY,
+      )),
+  );
+
+  const isChair = Boolean(
+    project?.panelists &&
+    project.panelists.some(
+      (p) => p.userId?.toString() === userIdStr && p.role === PANEL_ROLES.CHAIR,
+    ),
+  );
+
+  const isPanelist = Boolean(
+    isChair ||
+    isSecretary ||
+    (project?.panelistIds && project.panelistIds.some((id) => id?.toString() === userIdStr)) ||
+    (team?.panelistIds && team.panelistIds.some((id) => id?.toString() === userIdStr)) ||
+    (project?.panelists && project.panelists.some((p) => p.userId?.toString() === userIdStr)),
+  );
+
+  const isMember = Boolean(team?.members && team.members.some((m) => m?.toString() === userIdStr));
+
+  return {
+    isInstructor,
+    isAdviser,
+    isSecretary,
+    isPanelist,
+    isChair,
+    isMember,
   };
 };
 

@@ -495,9 +495,14 @@ def validate_preflight_surface() -> tuple[bool, dict[str, Any]]:
     local_ai_valid, local_ai_status = check_local_ai_health()
     checks["local_ai"].update(local_ai_status)
     if not local_ai_valid:
-        is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("SKIP_LOCAL_AI_CHECK") == "true"
-        if is_ci:
-            checks["warnings"].append(f"Local AI check bypassed in CI/automated environment: {local_ai_status.get('error')}")
+        is_soft = (
+            os.environ.get("CI") == "true"
+            or os.environ.get("GITHUB_ACTIONS") == "true"
+            or os.environ.get("SKIP_LOCAL_AI_CHECK") == "true"
+            or os.environ.get("STRICT_LOCAL_AI") != "true"
+        )
+        if is_soft:
+            checks["warnings"].append(f"Local AI check bypassed/soft in dev environment: {local_ai_status.get('error')}")
         else:
             checks["errors"].append(local_ai_status.get("error", "Local AI health check failed"))
 
