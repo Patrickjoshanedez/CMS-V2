@@ -51,6 +51,8 @@ import {
 import { ROLES } from '@cms/shared';
 import { useSettingsStore } from '@/stores/settingsStore';
 import AssignCommitteeDialog from '@/components/teams/AssignCommitteeDialog';
+import { ManuscriptTemplateWidget } from '@/components/teams/ManuscriptTemplateWidget';
+import { InstructorTemplateConfigModal } from '@/components/teams/InstructorTemplateConfigModal';
 import {
   useMyTeam,
   useTeams,
@@ -1517,33 +1519,8 @@ function StudentTeamDetail({ team, userId }) {
                 </div>
               </div>
 
-              {/* Proposal Template Helper */}
-              {dynamicTemplateUrl && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-foreground">
-                        BukSU Capstone Proposal Template
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Official format required for title defense submissions.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    asChild
-                    className="h-8 text-xs shrink-0 gap-1.5"
-                  >
-                    <a href={dynamicTemplateUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Get Template
-                    </a>
-                  </Button>
-                </div>
-              )}
+              {/* Institutional Manuscript Template (Title Defense Gated) */}
+              <ManuscriptTemplateWidget teamId={team._id} />
             </CardContent>
           </Card>
         </div>
@@ -2168,6 +2145,12 @@ function FacultyTeamsView({ canAssignCommittee }) {
 
   return (
     <div className="space-y-4">
+      {canAssignCommittee && (
+        <div className="flex justify-end">
+          <InstructorTemplateConfigModal academicYear={academicYear || '2025-2026'} />
+        </div>
+      )}
+
       {/* Search bar */}
       <form onSubmit={handleSearch} className="grid gap-2 md:grid-cols-4">
         <div className="relative flex-1">
@@ -2367,6 +2350,11 @@ function StudentTeamView({ user }) {
 
 export default function TeamsPage() {
   const { user } = useAuthStore();
+  const isStudent = user?.role === ROLES.STUDENT;
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
+  const pageTitle = isStudent ? 'My Team' : user?.role === ROLES.ADVISER ? 'My Teams' : 'Teams';
+  const { data: myTeamData } = useMyTeam({ enabled: Boolean(isStudent) });
+  const hasStudentTeam = Boolean(isStudent && myTeamData);
 
   if (!user) {
     return (
@@ -2378,19 +2366,20 @@ export default function TeamsPage() {
     );
   }
 
-  const isStudent = user.role === ROLES.STUDENT;
-  const isInstructor = user.role === ROLES.INSTRUCTOR;
-  const pageTitle = isStudent ? 'My Team' : user.role === ROLES.ADVISER ? 'My Teams' : 'Teams';
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight">{pageTitle}</h3>
-          <p className="text-muted-foreground">
-            {isStudent ? 'Manage your team and invite members.' : 'View and manage capstone teams.'}
-          </p>
-        </div>
+        {/* Render page title banner only when not in active student team workspace (Entity-Driven H1 pattern) */}
+        {!hasStudentTeam && (
+          <div>
+            <h3 className="text-2xl font-bold tracking-tight">{pageTitle}</h3>
+            <p className="text-muted-foreground">
+              {isStudent
+                ? 'Manage your team and invite members.'
+                : 'View and manage capstone teams.'}
+            </p>
+          </div>
+        )}
 
         {isStudent ? (
           <StudentTeamView user={user} />

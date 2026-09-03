@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { ROLES } from '@cms/shared';
 import { Badge } from '@/components/ui/Badge';
 import { AssignCommitteeDialog } from '@/components/teams/AssignCommitteeDialog';
+import { TeamFormationNotificationItem } from '@/components/teams/TeamFormationNotificationItem';
 import {
   useNotifications,
   useMarkAsRead,
@@ -246,102 +247,15 @@ function NotificationItem({
     notification.type === 'committee_appointment_required';
 
   if (isActionableCommittee) {
-    const meta = notification.metadata || {};
-    const teamId = meta.teamId || '';
-    const teamName = meta.teamName || 'Team';
-    const memberCount = meta.memberCount;
-    const rosterCode = meta.rosterCode || (teamId ? teamId.slice(-6).toUpperCase() : 'CODE');
-    const leaderName = meta.leaderName;
-
     return (
-      <Card className="border-border/60 bg-card/60 transition-all hover:border-primary/40 hover:bg-card">
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {/* Left: Icon & Notification Details */}
-            <div className="flex items-start gap-3.5">
-              <div className="mt-0.5 rounded-lg bg-primary/10 p-2.5 text-primary shrink-0">
-                <Users className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    {notification.title || 'Team Formation Completed'}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/40 bg-amber-500/10 text-amber-500 text-[11px] font-medium"
-                  >
-                    Action Required
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTimeAgo(notification.createdAt)}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {notification.message}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-muted-foreground">
-                  <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
-                    Code: #{rosterCode}
-                  </span>
-                  {leaderName && <span>Leader: {leaderName}</span>}
-                  {memberCount !== undefined && (
-                    <span>
-                      &bull; {memberCount} member{memberCount === 1 ? '' : 's'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleActionClick(() => onInspectRoster?.(teamId))}
-              >
-                Inspect Roster
-              </Button>
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-primary hover:bg-primary/90 gap-1.5 font-medium"
-                onClick={handleActionClick(() =>
-                  onAssignCommittee?.({
-                    teamId,
-                    teamName,
-                  }),
-                )}
-              >
-                <UserCheck className="h-3.5 w-3.5" />
-                Assign Committee
-              </Button>
-              {!notification.isRead && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleActionClick(onMarkRead, notification._id)}
-                  aria-label="Mark as read"
-                  className="h-8 w-8"
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleActionClick(onDelete, notification._id)}
-                aria-label="Delete notification"
-                disabled={isDeletePending}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <TeamFormationNotificationItem
+        notification={notification}
+        onInspectRoster={onInspectRoster}
+        onAssignCommittee={onAssignCommittee}
+        onMarkRead={onMarkRead}
+        onDelete={onDelete}
+        isDeletePending={isDeletePending}
+      />
     );
   }
 

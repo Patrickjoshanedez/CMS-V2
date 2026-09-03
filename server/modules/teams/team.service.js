@@ -4,11 +4,12 @@ import User from '../users/user.model.js';
 import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import Section from '../academics/section.model.js';
+import DocumentTemplate from './documentTemplate.model.js';
 import { sendTeamInviteEmail } from '../notifications/email.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ROLES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
 const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
@@ -261,17 +262,37 @@ class TeamService {
     try {
       const instructorId = await this._resolveInstructorId(team, user);
       if (instructorId) {
+        let sectionName = '';
+        let sectionCode = '';
+        if (sectionId) {
+          const sec = await Section.findById(sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+        const codeSuffix = team._id.toString().slice(-6).toUpperCase();
+        const formattedGroupCode = `#${codeSuffix}`;
+        const leaderFullName =
+          [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ') ||
+          `${user.firstName} ${user.lastName}`;
+
         const notif = await Notification.create({
           userId: instructorId,
           type: 'team_formation_pending_committee',
           title: 'New Team Formed',
           message: `Team "${team.name}" has been created by ${user.firstName} ${user.lastName} and will require faculty committee appointments.`,
           metadata: {
-            teamId: team._id,
+            teamId: team._id.toString(),
             teamName: team.name,
+            groupCode: formattedGroupCode,
+            rosterCode: codeSuffix,
+            academicYear: team.academicYear || '',
+            section: sectionName,
+            sectionCode: sectionCode,
+            leaderName: leaderFullName,
             memberCount: team.members.length,
-            rosterCode: team._id.toString().slice(-6).toUpperCase(),
-            leaderName: `${user.firstName} ${user.lastName}`,
+            maxMembers: MAX_TEAM_MEMBERS,
             requiresCommittee: true,
             actionUrl: `/teams?teamId=${team._id}`,
           },
@@ -324,27 +345,61 @@ class TeamService {
     );
 
     const populatedTeam = await Team.findById(team._id)
-      .populate('leaderId', 'firstName middleName lastName email profilePicture instructorId')
-      .populate('members', 'firstName middleName lastName email profilePicture role');
+      .populate(
+        'leaderId',
+        'firstName middleName lastName email profilePicture instructorId sectionId',
+      )
+      .populate('members', 'firstName middleName lastName email profilePicture role')
+      .populate('sectionId', 'name code academicYear');
 
     // Notify instructor that team roster is finalized and awaiting committee assignment
     try {
       const leader =
         populatedTeam?.leaderId ||
-        (await User.findById(leaderId).select('firstName lastName instructorId sectionId'));
+        (await User.findById(leaderId).select(
+          'firstName middleName lastName instructorId sectionId',
+        ));
       const instructorId = await this._resolveInstructorId(team, leader);
       if (instructorId) {
+        let sectionName = populatedTeam?.sectionId?.name || '';
+        let sectionCode = populatedTeam?.sectionId?.code || '';
+        if (!sectionName && team.sectionId) {
+          const sec = await Section.findById(team.sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+        if (!sectionName && leader?.sectionId) {
+          const sec = await Section.findById(leader.sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+
+        const codeSuffix = team._id.toString().slice(-6).toUpperCase();
+        const formattedGroupCode = `#${codeSuffix}`;
+        const leaderFullName =
+          [leader.firstName, leader.middleName, leader.lastName].filter(Boolean).join(' ') ||
+          `${leader.firstName} ${leader.lastName}`;
+
         const notif = await Notification.create({
           userId: instructorId,
           type: 'team_formation_pending_committee',
           title: 'Team Formation Completed',
           message: `Team "${team.name}" has locked their roster (${team.members.length} member${team.members.length === 1 ? '' : 's'}) and is awaiting faculty committee appointments.`,
           metadata: {
-            teamId: team._id,
+            teamId: team._id.toString(),
             teamName: team.name,
+            groupCode: formattedGroupCode,
+            rosterCode: codeSuffix,
+            academicYear: team.academicYear || '',
+            section: sectionName,
+            sectionCode: sectionCode,
+            leaderName: leaderFullName,
             memberCount: team.members.length,
-            rosterCode: team._id.toString().slice(-6).toUpperCase(),
-            leaderName: `${leader.firstName} ${leader.lastName}`,
+            maxMembers: MAX_TEAM_MEMBERS,
             requiresCommittee: true,
             actionUrl: `/teams?teamId=${team._id}`,
           },
@@ -1696,6 +1751,126 @@ class TeamService {
       team: populatedTeam,
       message: 'Faculty committee assigned and team notified successfully.',
     };
+  }
+
+  /**
+   * Retrieve dynamic manuscript template for a team with Title Approval access gating.
+   * Locked until the team's project title pitch is approved.
+   * @param {string} teamId
+   * @returns {Promise<Object>} { isUnlocked, approvedTitle, template }
+   */
+  async getTeamManuscriptTemplate(teamId) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found', 404);
+    }
+
+    const project = await Project.findOne({ teamId: team._id });
+    const isTitleApproved = Boolean(
+      project &&
+      (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved'),
+    );
+
+    if (!isTitleApproved) {
+      return {
+        isUnlocked: false,
+        reason: 'TITLE_DEFENSE_APPROVAL_REQUIRED',
+        approvedTitle: project?.title || null,
+      };
+    }
+
+    // Fetch active template for this academic year, or latest active
+    let activeTemplate = await DocumentTemplate.findOne({
+      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+      academicYear: team.academicYear,
+      isActive: true,
+    }).sort({ updatedAt: -1 });
+
+    if (!activeTemplate) {
+      activeTemplate = await DocumentTemplate.findOne({
+        targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+        isActive: true,
+      }).sort({ updatedAt: -1 });
+    }
+
+    const fallbackUrl = 'https://docs.google.com/document/d/1tTwi29xL.../copy';
+    const fallbackVersion = `AY ${team.academicYear || '2025–2026'} v2.1`;
+
+    const isGoogleDocs = activeTemplate ? activeTemplate.distributionType === 'GOOGLE_DOCS' : true;
+
+    const url = activeTemplate
+      ? activeTemplate.resourcePayload?.googleDocsUrl ||
+        activeTemplate.resourcePayload?.fileAttachmentUrl ||
+        fallbackUrl
+      : fallbackUrl;
+
+    const version = activeTemplate?.versionLabel || fallbackVersion;
+    const updatedAt = activeTemplate?.updatedAt
+      ? new Date(activeTemplate.updatedAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+        })
+      : 'Sep 01, 2026';
+
+    return {
+      isUnlocked: true,
+      approvedTitle: project?.title || 'Approved Capstone Title',
+      template: {
+        title: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+        type: isGoogleDocs ? 'google_docs' : 'downloadable_file',
+        url,
+        version,
+        updatedAt,
+      },
+    };
+  }
+
+  /**
+   * Update the active institutional manuscript template (Instructor only).
+   * Cascades globally across all teams and approved students.
+   * @param {Object} data
+   * @param {string} userId
+   * @returns {Promise<Object>} Updated DocumentTemplate document
+   */
+  async updateManuscriptTemplate(data, userId) {
+    const {
+      academicYear = '2025-2026',
+      versionLabel = 'AY 2025–2026 v2.1',
+      distributionType = 'GOOGLE_DOCS',
+      docUrl,
+      fileAttachmentUrl,
+      fileName,
+    } = data;
+
+    const normDistributionType =
+      distributionType === 'google_docs' || distributionType === 'GOOGLE_DOCS'
+        ? 'GOOGLE_DOCS'
+        : 'FILE_ATTACHMENT';
+
+    const resourcePayload = {
+      googleDocsUrl: normDistributionType === 'GOOGLE_DOCS' ? docUrl : null,
+      fileAttachmentUrl: normDistributionType === 'FILE_ATTACHMENT' ? fileAttachmentUrl : null,
+      fileName: normDistributionType === 'FILE_ATTACHMENT' ? fileName : null,
+    };
+
+    // Deactivate previous templates for this academic year & targetType
+    await DocumentTemplate.updateMany(
+      { targetType: 'MANUSCRIPT_CHAPTERS_1_5', academicYear },
+      { $set: { isActive: false } },
+    );
+
+    const newTemplate = await DocumentTemplate.create({
+      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+      academicYear,
+      versionLabel,
+      distributionType: normDistributionType,
+      resourcePayload,
+      updatedBy: userId,
+      isActive: true,
+    });
+
+    return newTemplate;
   }
 }
 

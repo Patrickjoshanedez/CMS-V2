@@ -43,6 +43,8 @@ vi.mock('@/hooks/useTeams', () => ({
   useUpdateGithubLink: () => ({ mutate: vi.fn(), isPending: false }),
   useLockTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useLeaveTeam: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateManuscriptTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useTeamManuscriptTemplate: () => ({ data: null, isLoading: false }),
   teamKeys: {
     all: ['teams'],
   },

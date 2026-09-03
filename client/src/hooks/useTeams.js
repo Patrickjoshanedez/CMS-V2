@@ -242,3 +242,38 @@ export function useAssignCommittee(options = {}) {
     },
   );
 }
+
+/**
+ * Fetch dynamic institutional manuscript template with title defense access gating.
+ * @param {string} teamId
+ */
+export function useTeamManuscriptTemplate(teamId, options = {}) {
+  return useQuery({
+    queryKey: ['teams', teamId, 'manuscript-template'],
+    queryFn: async () => {
+      const res = await teamService.getManuscriptTemplate(teamId);
+      return res.data?.data;
+    },
+    enabled: Boolean(teamId),
+    ...options,
+  });
+}
+
+/**
+ * Update dynamic manuscript template (Instructor only).
+ */
+export function useUpdateManuscriptTemplate(options = {}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await teamService.updateManuscriptTemplate(data);
+      return res.data;
+    },
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+      options.onSuccess?.(...args);
+    },
+    onError: options.onError,
+  });
+}

@@ -215,3 +215,24 @@ export const assignCommittee = catchAsync(async (req, res) => {
     data: { team },
   });
 });
+
+/** GET /api/teams/:id/manuscript-template — Get dynamic manuscript template with title defense gating */
+export const getTeamManuscriptTemplate = catchAsync(async (req, res) => {
+  const result = await teamService.getTeamManuscriptTemplate(req.params.id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
+  });
+});
+
+/** PUT /api/teams/manuscript-template — Update dynamic manuscript template (Instructor only) */
+export const updateManuscriptTemplate = catchAsync(async (req, res) => {
+  const template = await teamService.updateManuscriptTemplate(req.body, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Institutional manuscript template updated successfully.',
+    data: { template },
+  });
+});

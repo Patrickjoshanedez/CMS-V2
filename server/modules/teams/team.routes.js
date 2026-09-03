@@ -102,4 +102,12 @@ router.put(
   teamController.assignCommittee,
 );
 
+// --- Institutional Manuscript Template routes ---
+router.get('/:id/manuscript-template', teamController.getTeamManuscriptTemplate);
+router.put(
+  '/manuscript-template',
+  authorize(ROLES.INSTRUCTOR),
+  teamController.updateManuscriptTemplate,
+);
+
 export default router;

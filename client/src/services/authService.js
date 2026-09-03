@@ -60,6 +60,8 @@ export const teamService = {
   leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
   assignCommittee: (teamId, data) => api.put(`/teams/${teamId}/committee`, data),
+  getManuscriptTemplate: (teamId) => api.get(`/teams/${teamId}/manuscript-template`),
+  updateManuscriptTemplate: (data) => api.put('/teams/manuscript-template', data),
 };
 
 /**
