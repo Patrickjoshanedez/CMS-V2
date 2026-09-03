@@ -34,6 +34,7 @@ vi.mock('@/stores/authStore', () => ({
 
 vi.mock('@/hooks/useProjects', () => ({
   useProject: (...args) => mockUseProject(...args),
+  useAddTitleComment: () => ({ mutate: vi.fn(), isPending: false }),
   useApproveTitle: () => ({ mutate: vi.fn(), isPending: false }),
   useRejectTitle: () => ({ mutate: vi.fn(), isPending: false }),
   useResolveTitleModification: () => ({ mutate: vi.fn(), isPending: false }),
@@ -65,8 +66,12 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div>{children}</div>,
 }));
 
-vi.mock('@/components/projects/TitleStatusBadge', () => ({ default: () => <div>title-badge</div> }));
-vi.mock('@/components/projects/ProjectStatusBadge', () => ({ default: () => <div>project-badge</div> }));
+vi.mock('@/components/projects/TitleStatusBadge', () => ({
+  default: () => <div>title-badge</div>,
+}));
+vi.mock('@/components/projects/ProjectStatusBadge', () => ({
+  default: () => <div>project-badge</div>,
+}));
 vi.mock('@/components/projects/PrototypeGallery', () => ({ default: () => null }));
 vi.mock('@/components/projects/DeadlineWarning', () => ({ default: () => null }));
 vi.mock('@/components/projects/EvaluationPanel', () => ({ default: () => null }));
@@ -152,6 +157,9 @@ describe('ProjectDetailPage back navigation', () => {
   });
 
   it('shows Back to Projects and navigates to /projects by default', () => {
+    mockUseAuthStore.mockImplementation((selector) =>
+      selector({ user: { _id: 'student-1', role: 'student' } }),
+    );
     mockUseLocation.mockReturnValue({
       state: {},
       search: '',

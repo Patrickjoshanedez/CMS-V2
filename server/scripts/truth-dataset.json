@@ -1,0 +1,19 @@
+[
+  {
+    "id": "test_doc_1",
+    "text": "Innovation in AI is advancing rapidly. The quick brown fox jumps over the lazy dog repeatedly. Technology changes everything quickly.",
+    "corpus": [
+      {
+        "id": "source_1",
+        "title": "Source Material 1",
+        "text": "The quick brown fox jumps over the lazy dog repeatedly."
+      }
+    ],
+    "groundTruthSpans": [
+      {
+        "start": 39,
+        "end": 94
+      }
+    ]
+  }
+]

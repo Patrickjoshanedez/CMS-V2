@@ -40,16 +40,12 @@ otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 otpSchema.index({ email: 1, type: 1 });
 
 // --- Pre-save hook: hash OTP code before storage ---
-otpSchema.pre('save', async function (next) {
-  if (!this.isModified('code')) return next();
+otpSchema.pre('save', async function () {
+  if (!this.isModified('code')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.code = await bcrypt.hash(this.code, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
+  const salt = await bcrypt.genSalt(rounds);
+  this.code = await bcrypt.hash(this.code, salt);
 });
 
 /**

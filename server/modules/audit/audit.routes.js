@@ -12,7 +12,8 @@ const router = Router();
  * Audit log routes — /api/audit
  *
  * GET  /                          — Query all audit logs (Instructor only)
- * GET  /:targetType/:targetId     — Entity-specific history (authenticated roles)
+ * GET  /project/:projectId        — Full project-scoped trail (faculty)
+ * GET  /:targetType/:targetId     — Entity-specific history (faculty)
  */
 
 router.use(authenticate);
@@ -25,10 +26,17 @@ router.get(
   auditController.queryLogs,
 );
 
+// Project-scoped full audit trail — MUST be before /:targetType/:targetId
+router.get(
+  '/project/:projectId',
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
+  auditController.getProjectHistory,
+);
+
 // Entity history — available to faculty roles
 router.get(
   '/:targetType/:targetId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   auditController.getEntityHistory,
 );
 

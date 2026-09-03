@@ -24,7 +24,7 @@ FRONTEND (React 18)
                                       ▲
   plagiarism.routes.ts ◄──────────────┤
   plagiarism.controller.ts            │
-  plagiarism.service.ts ◄─────────────┼─────── gRPC/HTTP
+  plagiarism.service.js ◄─────────────┼─────── Internal worker service
                                       │
                                       ▼
                         Plagiarism Engine (Python)
@@ -66,7 +66,7 @@ FRONTEND (React 18)
 
 | File | Purpose | Details |
 |------|---------|---------|
-| `docs/PLAGIARISM_INTEGRATION_GUIDE.md` | Complete Guide | API specs, examples, workflow, testing, troubleshooting |
+| `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md` | Complete Guide | API specs, examples, workflow, testing, troubleshooting |
 
 ---
 
@@ -386,7 +386,7 @@ curl -X GET http://localhost:3000/api/submissions/sub-123/plagiarism/result \
 
 ## 📚 Documentation
 
-**Complete Integration Guide:** `docs/PLAGIARISM_INTEGRATION_GUIDE.md`
+**Complete Integration Guide:** `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md`
 
 Includes:
 - Architecture diagram
@@ -424,4 +424,4 @@ All backend, frontend, and data layer components are complete and production-rea
 ---
 
 **Session Complete** ✨  
-For any questions, refer to `docs/PLAGIARISM_INTEGRATION_GUIDE.md` or review the code comments in the implementation files.
+For any questions, refer to `docs/archive/PLAGIARISM_IMPLEMENTATION_SUMMARY.md` or review the code comments in the implementation files.

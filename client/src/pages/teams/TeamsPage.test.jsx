@@ -40,8 +40,11 @@ vi.mock('@/hooks/useTeams', () => ({
   useAcceptInvite: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useAssignMemberRole: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateGoogleDocLink: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateGithubLink: () => ({ mutate: vi.fn(), isPending: false }),
   useLockTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useLeaveTeam: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateManuscriptTemplate: () => ({ mutate: vi.fn(), isPending: false }),
+  useTeamManuscriptTemplate: () => ({ data: null, isLoading: false }),
   teamKeys: {
     all: ['teams'],
   },
@@ -120,7 +123,12 @@ describe('TeamsPage', () => {
               firstName: 'Ben',
               lastName: 'Geo',
               email: 'leader@example.com',
-              instructorId: { _id: 'inst-1', firstName: 'Pat', lastName: 'Instructor', email: 'pat@example.com' },
+              instructorId: {
+                _id: 'inst-1',
+                firstName: 'Pat',
+                lastName: 'Instructor',
+                email: 'pat@example.com',
+              },
             },
             members: [],
             assignment: {
@@ -192,8 +200,12 @@ describe('TeamsPage', () => {
       teamButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(view.container.querySelector('input[placeholder="Type to search advisers"]')).toBeTruthy();
-    expect(view.container.querySelector('input[placeholder="Type to search panelists"]')).toBeTruthy();
+    expect(
+      view.container.querySelector('input[placeholder="Type to search advisers"]'),
+    ).toBeTruthy();
+    expect(
+      view.container.querySelector('input[placeholder="Type to search panelists"]'),
+    ).toBeTruthy();
 
     view.unmount();
   });

@@ -4,7 +4,10 @@ import { STORAGE_BUCKETS } from '@cms/shared';
 
 dotenv.config();
 
-const currentNodeEnv = process.env.NODE_ENV || 'development';
+const isServerDevScriptRun =
+  process.env.npm_package_name === 'server' && process.env.npm_lifecycle_event === 'dev';
+
+const currentNodeEnv = isServerDevScriptRun ? 'development' : process.env.NODE_ENV || 'development';
 const isDevelopmentEnv = currentNodeEnv === 'development';
 const isProductionEnv = currentNodeEnv === 'production';
 
@@ -51,6 +54,19 @@ const parseUnitInterval = (value, defaultValue) => {
   }
 
   if (parsed < 0 || parsed > 1) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
+const parseFloatInRange = (value, defaultValue, min, max) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+
+  if (parsed < min || parsed > max) {
     return defaultValue;
   }
 
@@ -566,8 +582,8 @@ const validateProductionCorsOrigins = (origins) => {
  * Includes CLIENT_URL, comma-separated CORS_ALLOWED_ORIGINS, and optional ngrok support.
  *
  * Examples:
- * - ['http://localhost:5173'] if only CLIENT_URL is set
- * - ['http://localhost:5173', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
+ * - ['http://localhost:43211'] if only CLIENT_URL is set
+ * - ['http://localhost:43211', 'http://localhost:8080', 'https://ngrok-tunnel.ngrok-free.dev']
  *   if CORS_ALLOWED_ORIGINS and ALLOW_NGROK_ORIGINS are set
  */
 const buildAllowedOrigins = () => {
@@ -575,7 +591,7 @@ const buildAllowedOrigins = () => {
 
   // Always include CLIENT_URL in development; require explicit value in production.
   const clientUrl = (
-    process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : '')
+    process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:43211' : '')
   ).trim();
   if (clientUrl) {
     origins.add(clientUrl);
@@ -636,8 +652,8 @@ if (isProductionEnv) {
 }
 
 const env = Object.freeze({
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  PORT: parseInt(process.env.PORT, 10) || 5000,
+  NODE_ENV: currentNodeEnv,
+  PORT: parseInt(process.env.PORT, 10) || 43210,
 
   // Database
   MONGODB_URI: resolveMongoUri(),
@@ -661,7 +677,7 @@ const env = Object.freeze({
   EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@cms-buksu.edu.ph',
 
   // Client
-  CLIENT_URL: process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:5173' : ''),
+  CLIENT_URL: process.env.CLIENT_URL || (isDevelopmentEnv ? 'http://localhost:43211' : ''),
   CORS_ALLOWED_ORIGINS: buildAllowedOrigins(),
   ALLOW_NGROK_ORIGINS: parseBoolean(process.env.ALLOW_NGROK_ORIGINS, false),
 
@@ -704,14 +720,57 @@ const env = Object.freeze({
   // Plagiarism (native engine)
   PLAGIARISM_WARNING_THRESHOLD: parseInt(process.env.PLAGIARISM_WARNING_THRESHOLD, 10) || 30,
   PLAGIARISM_REJECT_THRESHOLD: parseInt(process.env.PLAGIARISM_REJECT_THRESHOLD, 10) || 50,
+  PLAGIARISM_FORCE_MOCK_SCORE: parseBoolean(
+    process.env.PLAGIARISM_FORCE_MOCK_SCORE,
+    isDevelopmentEnv,
+  ),
 
   // PDF metadata extraction and similarity audit
   PDF_METADATA_ENABLE_GLM_OCR: parseBoolean(process.env.PDF_METADATA_ENABLE_GLM_OCR, true),
-  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr',
+  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest',
   PDF_METADATA_GLM_STRATEGY: (process.env.PDF_METADATA_GLM_STRATEGY || 'fallback')
     .toLowerCase()
     .trim(),
   PDF_METADATA_CACHE_TTL_MS: parseInt(process.env.PDF_METADATA_CACHE_TTL_MS, 10) || 600000,
+  PDF_METADATA_GLM_TEMPERATURE: parseFloatInRange(
+    process.env.PDF_METADATA_GLM_TEMPERATURE,
+    0.0,
+    0,
+    2,
+  ),
+  PDF_METADATA_GLM_TOP_P: parseFloatInRange(process.env.PDF_METADATA_GLM_TOP_P, 0.2, 0, 1),
+  PDF_METADATA_GLM_REPEAT_PENALTY: parseFloatInRange(
+    process.env.PDF_METADATA_GLM_REPEAT_PENALTY,
+    1.12,
+    0.5,
+    2.5,
+  ),
+  PDF_METADATA_GLM_PROMPT_MAX_CHARS: parsePositiveInteger(
+    process.env.PDF_METADATA_GLM_PROMPT_MAX_CHARS,
+    8000,
+  ),
+  PDF_METADATA_GLM_TIMEOUT_MS: parsePositiveInteger(process.env.PDF_METADATA_GLM_TIMEOUT_MS, 20000),
+  PDF_METADATA_ENABLE_DOI_ENRICHMENT: parseBoolean(
+    process.env.PDF_METADATA_ENABLE_DOI_ENRICHMENT,
+    true,
+  ),
+  PDF_METADATA_DOI_TIMEOUT_MS: parsePositiveInteger(process.env.PDF_METADATA_DOI_TIMEOUT_MS, 4000),
+  PDF_METADATA_MIN_TITLE_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_TITLE_CONFIDENCE,
+    0.78,
+  ),
+  PDF_METADATA_MIN_ABSTRACT_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_ABSTRACT_CONFIDENCE,
+    0.82,
+  ),
+  PDF_METADATA_MIN_AUTHORS_CONFIDENCE: parseUnitInterval(
+    process.env.PDF_METADATA_MIN_AUTHORS_CONFIDENCE,
+    0.7,
+  ),
+  PDF_METADATA_REVIEW_GATE_ENABLED: parseBoolean(
+    process.env.PDF_METADATA_REVIEW_GATE_ENABLED,
+    true,
+  ),
   ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD: parseUnitInterval(
     process.env.ARCHIVE_ABSTRACT_SIMILARITY_THRESHOLD,
     0.7,

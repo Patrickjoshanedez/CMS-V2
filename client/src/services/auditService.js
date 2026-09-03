@@ -29,6 +29,14 @@ const auditService = {
    */
   getEntityHistory: (targetType, targetId, limit = 20) =>
     api.get(`/audit/${targetType}/${targetId}`, { params: { limit } }),
+
+  /**
+   * Get the full audit trail for a project (Project + Submission + Evaluation events).
+   * @param {string} projectId - MongoDB ObjectId
+   * @param {number} [limit=100]
+   */
+  getProjectHistory: (projectId, limit = 100) =>
+    api.get(`/audit/project/${projectId}`, { params: { limit } }),
 };
 
 export default auditService;

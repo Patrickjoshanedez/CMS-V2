@@ -12,6 +12,8 @@ import {
   assignMemberRoleSchema,
   transferTeamLeadershipSchema,
   updateTeamGoogleDocLinkSchema,
+  updateTeamGithubLinkSchema,
+  assignCommitteeSchema,
 } from './team.validation.js';
 
 const router = Router();
@@ -32,6 +34,13 @@ router.post(
   authorize(ROLES.STUDENT),
   validate(inviteMemberSchema),
   teamController.inviteMember,
+);
+
+router.get(
+  '/invite-candidates/preview',
+  authorize(ROLES.STUDENT),
+  validate(inviteCandidatesQuerySchema, 'query'),
+  teamController.listCreateTeamInviteCandidates,
 );
 
 router.get(
@@ -67,6 +76,13 @@ router.patch(
   teamController.updateGoogleDocLink,
 );
 
+router.patch(
+  '/:id/github-link',
+  authorize(ROLES.STUDENT),
+  validate(updateTeamGithubLinkSchema),
+  teamController.updateGithubLink,
+);
+
 router.patch('/:id/lock', authorize(ROLES.STUDENT), teamController.lockTeam);
 router.delete('/:id/members/me', authorize(ROLES.STUDENT), teamController.leaveTeam);
 
@@ -76,6 +92,22 @@ router.get(
   authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
   validate(listTeamsQuerySchema, 'query'),
   teamController.listTeams,
+);
+
+// --- Instructor committee assignment route ---
+router.put(
+  '/:id/committee',
+  authorize(ROLES.INSTRUCTOR),
+  validate(assignCommitteeSchema),
+  teamController.assignCommittee,
+);
+
+// --- Institutional Manuscript Template routes ---
+router.get('/:id/manuscript-template', teamController.getTeamManuscriptTemplate);
+router.put(
+  '/manuscript-template',
+  authorize(ROLES.INSTRUCTOR),
+  teamController.updateManuscriptTemplate,
 );
 
 export default router;

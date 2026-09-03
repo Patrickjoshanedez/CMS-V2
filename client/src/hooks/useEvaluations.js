@@ -2,7 +2,7 @@
  * React Query hooks for the Evaluations module.
  *
  * Provides query hooks (data fetching) and mutation hooks (write actions)
- * for defense evaluations: panelist scoring, submission, release, and retrieval.
+ * for defense evaluations and evaluation rubric templates.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { evaluationService } from '../services/evaluationService';
@@ -17,6 +17,7 @@ export const evaluationKeys = {
   details: () => [...evaluationKeys.all, 'detail'],
   detail: (id) => [...evaluationKeys.details(), id],
   my: (projectId, defenseType) => [...evaluationKeys.all, 'my', projectId, defenseType],
+  templates: (defenseType) => [...evaluationKeys.all, 'templates', defenseType || 'all'],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -70,6 +71,20 @@ export function useEvaluation(evaluationId, options = {}) {
   });
 }
 
+/**
+ * Fetch evaluation rubric templates filtered by defenseType.
+ */
+export function useEvaluationTemplates(defenseType, options = {}) {
+  return useQuery({
+    queryKey: evaluationKeys.templates(defenseType),
+    queryFn: async () => {
+      const res = await evaluationService.getEvaluationTemplates({ defenseType });
+      return res.data?.data?.templates || [];
+    },
+    ...options,
+  });
+}
+
 /* ────────── Mutation Hooks ────────── */
 
 /**
@@ -114,6 +129,17 @@ export function useSubmitEvaluation(options = {}) {
 }
 
 /**
+ * Unlock a submitted evaluation for editing (instructor only).
+ * Expects: { evaluationId, reason }
+ */
+export function useUnlockEvaluation(options = {}) {
+  return useEvaluationMutation(async ({ evaluationId, ...data }) => {
+    const res = await evaluationService.unlockEvaluation(evaluationId, data);
+    return res.data;
+  }, options);
+}
+
+/**
  * Release evaluations for a project + defense type (instructor only).
  * Expects: { projectId, defenseType }
  */
@@ -122,4 +148,47 @@ export function useReleaseEvaluations(options = {}) {
     const res = await evaluationService.releaseEvaluations(projectId, defenseType);
     return res.data;
   }, options);
+}
+
+/**
+ * Create or update an evaluation rubric template.
+ */
+export function useSaveEvaluationTemplate(options = {}) {
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
+
+  return useMutation({
+    mutationFn: async ({ templateId, ...payload }) => {
+      if (templateId) {
+        return evaluationService.updateEvaluationTemplate(templateId, payload);
+      }
+      return evaluationService.createEvaluationTemplate(payload);
+    },
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: evaluationKeys.templates() });
+      onSuccess?.(...args);
+    },
+    onError,
+    ...restOptions,
+  });
+}
+
+/**
+ * Delete an evaluation rubric template.
+ */
+export function useDeleteEvaluationTemplate(options = {}) {
+  const queryClient = useQueryClient();
+  const { onSuccess, onError, ...restOptions } = options;
+
+  return useMutation({
+    mutationFn: async (templateId) => {
+      return evaluationService.deleteEvaluationTemplate(templateId);
+    },
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: evaluationKeys.templates() });
+      onSuccess?.(...args);
+    },
+    onError,
+    ...restOptions,
+  });
 }

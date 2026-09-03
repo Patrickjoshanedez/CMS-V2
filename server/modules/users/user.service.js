@@ -106,7 +106,7 @@ class UserService {
     }
 
     const user = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -139,7 +139,12 @@ class UserService {
     }
 
     const [users, total] = await Promise.all([
-      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('teamId', 'name'),
+      User.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('teamId', 'name')
+        .lean(),
       User.countDocuments(filter),
     ]);
 
@@ -183,7 +188,7 @@ class UserService {
    */
   async updateUser(userId, data) {
     const user = await User.findByIdAndUpdate(userId, data, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -201,7 +206,11 @@ class UserService {
    * @returns {Object} { user }
    */
   async changeRole(userId, role) {
-    const user = await User.findByIdAndUpdate(userId, { role }, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { returnDocument: 'after', runValidators: true },
+    );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
@@ -218,7 +227,8 @@ class UserService {
   async listInstructors() {
     const instructors = await User.find({ role: ROLES.INSTRUCTOR, isActive: true })
       .select('firstName middleName lastName email')
-      .sort({ firstName: 1 });
+      .sort({ firstName: 1 })
+      .lean();
     return { instructors };
   }
 
@@ -250,7 +260,11 @@ class UserService {
       );
     }
 
-    const userDoc = await User.findByIdAndUpdate(userId, { profilePicture: key }, { new: true });
+    const userDoc = await User.findByIdAndUpdate(
+      userId,
+      { profilePicture: key },
+      { returnDocument: 'after' },
+    );
     if (!userDoc) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
@@ -354,7 +368,31 @@ class UserService {
    * @returns {Object} { user }
    */
   async deleteUser(userId) {
-    const user = await User.findByIdAndUpdate(userId, { isActive: false }, { new: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: false },
+      { returnDocument: 'after' },
+    );
+
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    return { user };
+  }
+
+  /**
+   * Re-activate a previously deactivated user (Instructor-only).
+   * Sets isActive to true.
+   * @param {string} userId
+   * @returns {Object} { user }
+   */
+  async activateUser(userId) {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isActive: true },
+      { returnDocument: 'after' },
+    );
 
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');

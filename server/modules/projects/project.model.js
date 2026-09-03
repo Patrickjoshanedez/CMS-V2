@@ -12,7 +12,9 @@ import {
   PROTOTYPE_TYPE_VALUES,
   CAPSTONE_TITLE_VALUES,
   SDG_TAG_SUGGESTIONS,
+  PANEL_ROLE_VALUES,
 } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const titleModificationRequestSchema = new mongoose.Schema(
   {
@@ -52,6 +54,16 @@ const titleModificationRequestSchema = new mongoose.Schema(
     },
     reviewedAt: {
       type: Date,
+      default: null,
+    },
+    /**
+     * The titleStatus the project had before entering PENDING_MODIFICATION.
+     * Stored so we can correctly restore APPROVED_WITH_REVISION (rather than
+     * promoting to APPROVED) if the instructor denies the modification.
+     */
+    fromStatus: {
+      type: String,
+      enum: [...TITLE_STATUS_VALUES, null],
       default: null,
     },
   },
@@ -160,6 +172,25 @@ const memberRoleAssignmentSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const panelistAssignmentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: {
+        values: PANEL_ROLE_VALUES,
+        message: 'Panel role must be one of: ' + PANEL_ROLE_VALUES.join(', '),
+      },
+      default: 'member',
+    },
+  },
+  { _id: false },
+);
+
 const titleProposalCommentSchema = new mongoose.Schema(
   {
     user: {
@@ -207,6 +238,73 @@ const titleProposalCommentThreadSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const actionDoneMatrixItemSchema = new mongoose.Schema(
+  {
+    panelName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    suggestion: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    expectedAction: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    actionDone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    pageNumbers: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'addressed', 'verified', 'rejected'],
+      default: 'pending',
+    },
+    remarks: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    milestone: {
+      type: String,
+      enum: ['CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'],
+      default: 'CAPSTONE_2',
+    },
+    /**
+     * Digital signature blocks per ADM row.
+     * Each signatory confirms the suggestion was addressed.
+     * signatureDataUrl: base64 typed-name acknowledgment or drawn signature.
+     */
+    signatures: {
+      type: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+          name: { type: String, required: true, trim: true },
+          role: { type: String, trim: true, default: 'Panel Member' },
+          signedAt: { type: Date, default: null },
+          signatureDataUrl: { type: String, default: null },
+        },
+      ],
+      default: [],
+    },
+  },
+  { _id: true },
+);
+
 const titleProposalMetadataSchema = new mongoose.Schema(
   {
     title: {
@@ -221,7 +319,6 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: [20, 'Title proposal description must be at least 20 characters'],
-      maxlength: [1000, 'Title proposal description must not exceed 1000 characters'],
     },
     capstoneType: {
       type: [String],
@@ -243,6 +340,20 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       },
       default: [],
     },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { _id: true },
 );
@@ -263,10 +374,18 @@ const projectSchema = new mongoose.Schema(
       maxlength: [300, 'Project title must not exceed 300 characters'],
     },
     titleProposals: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length >= 3 && arr.length <= 10,
-        message: 'A project must include between 3 and 10 title proposals',
+        validator: (arr) =>
+          Array.isArray(arr) &&
+          arr.length >= 1 &&
+          arr.length <= 10 &&
+          arr.every(
+            (proposal) =>
+              typeof proposal === 'string' ||
+              (proposal && typeof proposal === 'object' && typeof proposal.title === 'string'),
+          ),
+        message: 'A project must include between 1 and 10 title proposals',
       },
       required: [true, 'Title proposals are required'],
       default: [],
@@ -275,8 +394,8 @@ const projectSchema = new mongoose.Schema(
       type: [titleProposalMetadataSchema],
       validate: {
         validator: (arr) =>
-          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 3 && arr.length <= 10)),
-        message: 'Title proposal metadata must include between 3 and 10 entries',
+          Array.isArray(arr) && (arr.length === 0 || (arr.length >= 1 && arr.length <= 10)),
+        message: 'Title proposal metadata must include between 1 and 10 entries',
       },
       default: [],
     },
@@ -287,7 +406,7 @@ const projectSchema = new mongoose.Schema(
     abstract: {
       type: String,
       trim: true,
-      maxlength: [500, 'Abstract must not exceed 500 characters'],
+      maxlength: [5000, 'Abstract must not exceed 5000 characters'],
       default: '',
     },
     keywords: {
@@ -328,6 +447,21 @@ const projectSchema = new mongoose.Schema(
       extractedAt: {
         type: Date,
         default: null,
+      },
+      review: {
+        required: {
+          type: Boolean,
+          default: false,
+        },
+        reasons: {
+          type: [String],
+          default: [],
+        },
+        fieldSources: {
+          type: Map,
+          of: String,
+          default: {},
+        },
       },
       similarityAudit: {
         checkedAt: {
@@ -483,12 +617,25 @@ const projectSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    secretaryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     panelistIds: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'User',
       validate: {
-        validator: (arr) => arr.length <= 3,
-        message: 'A project can have at most 3 panelists',
+        validator: (arr) => arr.length <= 5,
+        message: 'A project can have at most 5 panelists (Chair + Members + Secretary)',
+      },
+      default: [],
+    },
+    panelists: {
+      type: [panelistAssignmentSchema],
+      validate: {
+        validator: (arr) => arr.length <= 5,
+        message: 'A project can have at most 5 panelists (Chair + Members + Secretary)',
       },
       default: [],
     },
@@ -513,6 +660,23 @@ const projectSchema = new mongoose.Schema(
         message: 'A project can have at most 20 prototypes',
       },
       default: [],
+    },
+    systemDevelopment: {
+      design: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+      build: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+      test: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+    },
+
+    ganttChartUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    demoVideoUrl: {
+      type: String,
+      default: null,
+      trim: true,
     },
 
     // --- Archive & Completion fields ---
@@ -539,6 +703,65 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // --- Capstone Course Stream & Action Done Matrix (ADM) ---
+    capstoneCourse: {
+      type: String,
+      enum: ['Capstone 1', 'Capstone 2', 'Capstone 3'],
+      default: 'Capstone 1',
+    },
+    admStatus: {
+      type: String,
+      enum: [
+        'not_started',
+        'awaiting_minutes_upload',
+        'pending_developer_action',
+        'under_panel_review',
+        'approved',
+      ],
+      default: 'not_started',
+    },
+    admReviewType: {
+      type: String,
+      enum: ['internal', 'external'],
+      default: 'internal',
+    },
+    admSignatures: {
+      adviser: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+      instructor: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+      panelists: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          role: { type: String, default: 'Panel Member' },
+          signed: { type: Boolean, default: false },
+          signedAt: { type: Date, default: null },
+          signatoryName: { type: String, default: '' },
+          signatureDataUrl: { type: String, default: null },
+        },
+      ],
+      chair: {
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+    },
+    actionDoneMatrix: {
+      type: [actionDoneMatrixItemSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -560,6 +783,8 @@ projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
 projectSchema.index({ isArchived: 1, academicYear: 1 });
 projectSchema.index({ isArchived: 1, academicYear: 1, archivedAt: -1 });
+
+projectSchema.plugin(softDeletePlugin);
 
 const Project = mongoose.model('Project', projectSchema);
 

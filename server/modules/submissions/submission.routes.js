@@ -11,19 +11,21 @@
  */
 import { Router } from 'express';
 import * as submissionController from './submission.controller.js';
+import { extractMinutesToADM } from './secretary.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
-import { uploadLimiter } from '../../middleware/rateLimiter.js';
+import { uploadLimiter, readLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
   projectIdParamSchema,
   submissionIdParamSchema,
   projectChapterParamSchema,
   submissionAnnotationParamSchema,
+  submissionCommentParamSchema,
   uploadChapterSchema,
   compileProposalSchema,
   finalPaperSchema,
@@ -34,6 +36,8 @@ import {
   markAcceptedSchema,
   unlockRequestSchema,
   listSubmissionsQuerySchema,
+  updateJustificationSchema,
+  batchUploadChapterSchema,
 } from './submission.validation.js';
 
 const router = Router();
@@ -69,6 +73,42 @@ router.post(
 );
 
 /**
+ * POST /:projectId/chapters/batch
+ * Batch upload chapter documents from the student draft workspace (FR-4.1).
+ */
+router.post(
+  '/:projectId/chapters/batch',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.array('files', 10),
+  validateFile,
+  validate(batchUploadChapterSchema),
+  auditLog('submission.chapters_batch_uploaded', 'Submission', {
+    getDescription: (req) =>
+      `Batch uploaded ${req.files?.length || 0} chapters for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ projectId: req.params.projectId, count: req.files?.length }),
+  }),
+  submissionController.batchUploadChapters,
+);
+
+/**
+ * PATCH /:submissionId/justification
+ * Update late justification note for a submission (FR-4.2).
+ */
+router.patch(
+  '/:submissionId/justification',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.ADVISER),
+  validate(submissionIdParamSchema, 'params'),
+  validate(updateJustificationSchema),
+  auditLog('submission.justification_updated', 'Submission', {
+    getTargetId: (req) => req.params.submissionId,
+    getDescription: (req) => `Updated justification for submission ${req.params.submissionId}`,
+  }),
+  submissionController.updateJustification,
+);
+
+/**
  * POST /:projectId/proposal
  * Upload the compiled proposal document (Chapters 1-3 unified).
  * Middleware chain: authenticate → authorize(student) → validate(params) →
@@ -88,6 +128,44 @@ router.post(
     getDescription: (req) => `Compiled proposal for project ${req.params.projectId}`,
   }),
   submissionController.compileProposal,
+);
+
+/**
+ * POST /:projectId/system-design
+ * Upload a system design document for adviser review.
+ */
+router.post(
+  '/:projectId/system-design',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.system_design_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded system design document for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadSystemDesign,
+);
+
+/**
+ * POST /:projectId/test-results
+ * Upload a test results document for adviser review.
+ */
+router.post(
+  '/:projectId/test-results',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  validate(finalPaperSchema),
+  auditLog('submission.test_results_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) => `Uploaded test results document for project ${req.params.projectId}`,
+  }),
+  submissionController.uploadTestResults,
 );
 
 /**
@@ -159,7 +237,7 @@ router.post(
  */
 router.post(
   '/:submissionId/request-revision-round',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(requestRevisionRoundSchema),
   submissionController.requestRevisionRound,
@@ -171,7 +249,7 @@ router.post(
  */
 router.post(
   '/:submissionId/accept',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(markAcceptedSchema),
   submissionController.markSubmissionAccepted,
@@ -180,11 +258,11 @@ router.post(
 /**
  * POST /:submissionId/unlock
  * Unlock a locked submission so the student can upload a new version.
- * Only advisers and instructors can unlock.
+ * Only advisers, instructors, and panelists can unlock.
  */
 router.post(
   '/:submissionId/unlock',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(unlockRequestSchema),
   auditLog('submission.unlocked', 'Submission', {
@@ -197,11 +275,11 @@ router.post(
 /**
  * POST /:submissionId/annotations
  * Add a highlight & comment annotation to a submission.
- * Only advisers and instructors can annotate.
+ * Instructors, advisers, and panelists can annotate.
  */
 router.post(
   '/:submissionId/annotations',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionIdParamSchema, 'params'),
   validate(addAnnotationSchema),
   submissionController.addAnnotation,
@@ -213,7 +291,7 @@ router.post(
  */
 router.post(
   '/:submissionId/annotations/:annotationId/replies',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
   validate(submissionAnnotationParamSchema, 'params'),
   validate(addAnnotationReplySchema),
   submissionController.addAnnotationReply,
@@ -221,22 +299,22 @@ router.post(
 
 /**
  * DELETE /:submissionId/annotations/:annotationId
- * Remove an annotation. Only the annotation author or an instructor can remove.
+ * Remove an annotation. Only the annotation author, adviser, instructor, or panelist can remove.
  */
 router.delete(
   '/:submissionId/annotations/:annotationId',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionAnnotationParamSchema, 'params'),
   submissionController.removeAnnotation,
 );
 
 /**
  * POST /:submissionId/annotations/:annotationId/resolve
- * Mark an annotation as resolved/addressed. Only adviser and instructor.
+ * Mark an annotation as resolved/addressed. Only adviser, instructor, and panelist.
  */
 router.post(
   '/:submissionId/annotations/:annotationId/resolve',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER),
+  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
   validate(submissionAnnotationParamSchema, 'params'),
   submissionController.markAnnotationResolved,
 );
@@ -283,6 +361,7 @@ router.get(
  */
 router.get(
   '/:submissionId',
+  readLimiter,
   validate(submissionIdParamSchema, 'params'),
   submissionController.getSubmission,
 );
@@ -293,6 +372,7 @@ router.get(
  */
 router.get(
   '/:submissionId/view',
+  readLimiter,
   validate(submissionIdParamSchema, 'params'),
   submissionController.getViewUrl,
 );
@@ -360,6 +440,63 @@ router.get(
   '/project/:projectId/chapters/:chapter/latest',
   validate(projectChapterParamSchema, 'params'),
   submissionController.getLatestChapterSubmission,
+);
+
+/**
+ * POST /secretary-minutes & POST /secretary/extract-minutes
+ * Parse uploaded secretary defense minutes PDF and auto-generate ADM.
+ */
+router.post(
+  '/secretary-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  extractMinutesToADM,
+);
+
+router.post(
+  '/secretary/extract-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  extractMinutesToADM,
+);
+
+/* ────── Inline Document Comments & Canvas Overlays ────── */
+
+/**
+ * POST /:submissionId/comments
+ * Create an inline highlight annotation/comment on a document submission.
+ */
+router.post(
+  '/:submissionId/comments',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.createSubmissionComment,
+);
+
+/**
+ * GET /:submissionId/comments
+ * Fetch all inline comments/highlights for a submission.
+ */
+router.get(
+  '/:submissionId/comments',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionComments,
+);
+
+/**
+ * DELETE /:submissionId/comments/:commentId
+ * Delete an inline comment.
+ */
+router.delete(
+  '/:submissionId/comments/:commentId',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionCommentParamSchema, 'params'),
+  submissionController.deleteSubmissionComment,
 );
 
 export default router;

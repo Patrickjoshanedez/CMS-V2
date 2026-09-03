@@ -38,6 +38,8 @@ import {
   searchArchiveQuerySchema,
   reportQuerySchema,
   bulkUploadSchema,
+  updateGanttChartUrlSchema,
+  updateDemoVideoUrlSchema,
 } from './project.validation.js';
 
 const router = Router();
@@ -172,6 +174,28 @@ router.post(
     }),
   }),
   projectController.requestTitleModification,
+);
+
+// Update Gantt chart URL (team member)
+router.patch(
+  '/:id/gantt-chart',
+  authorize(ROLES.STUDENT),
+  validate(updateGanttChartUrlSchema),
+  auditLog('project.gantt_chart_updated', 'Project', {
+    getDescription: (req) => `Updated Gantt chart URL for project ${req.params.id}`,
+  }),
+  projectController.updateGanttChartUrl,
+);
+
+// Update Demo video URL (team member)
+router.patch(
+  '/:id/demo-video',
+  authorize(ROLES.STUDENT),
+  validate(updateDemoVideoUrlSchema),
+  auditLog('project.demo_video_updated', 'Project', {
+    getDescription: (req) => `Updated Demo video URL for project ${req.params.id}`,
+  }),
+  projectController.updateDemoVideoUrl,
 );
 
 // Add a prototype link (team member, Capstone 2 & 3)
@@ -358,12 +382,84 @@ router.post(
   projectController.selectAsPanelist,
 );
 
+/* ────── Action Done Matrix (ADM) & Stream Routing routes ────── */
+
+// Capstone 2 Direct-to-ADM Stream Routing
+router.post(
+  '/:projectId/stream-routing',
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.FACULTY),
+  projectController.handleProjectStream,
+);
+
+// Get Action Done Matrix for a project
+router.get(
+  '/:projectId/action-done-matrix',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.getActionDoneMatrix,
+);
+
+// Update single Action Done Matrix row item
+router.patch(
+  '/:projectId/action-done-matrix/:itemId',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.updateActionDoneMatrixItem,
+);
+
+// Sign an ADM row item (panel chair/member/secretary typed name acknowledgment)
+router.post(
+  '/:projectId/action-done-matrix/:itemId/sign',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.signADMItem,
+);
+
+// Append new Action Done Matrix row item
+router.post(
+  '/:projectId/action-done-matrix',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.createActionDoneMatrixItem,
+);
+
+// Delete an Action Done Matrix row item
+router.delete(
+  '/:projectId/action-done-matrix/:itemId',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.deleteActionDoneMatrixItem,
+);
+
+// Update ADM metadata (review classification, title override)
+router.patch(
+  '/:projectId/adm-metadata',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.updateADMMetadata,
+);
+
+// Sign Tiered Signatories Board (Adviser/Instructor, Panelists, REC/Chair)
+router.post(
+  '/:projectId/adm-signatures',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.signTieredADM,
+);
+
+// Seed institutional ADM template from official document
+router.post(
+  '/:projectId/action-done-matrix/seed-institutional',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.seedInstitutionalADM,
+);
+
+// Update overall ADM status (e.g., instructor approves → auto-archives)
+router.patch(
+  '/:projectId/adm-status',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.updateADMStatus,
+);
+
 /* ────── Faculty shared routes ────── */
 
 // Get a single project (any authenticated faculty or the owning team)
 router.get(
   '/:id',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
   projectController.getProject,
 );
 
@@ -373,7 +469,7 @@ router.get('/:id/prototypes', projectController.getPrototypes);
 // List all projects with filters/pagination
 router.get(
   '/',
-  authorize(ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   validate(listProjectsQuerySchema, 'query'),
   projectController.listProjects,
 );

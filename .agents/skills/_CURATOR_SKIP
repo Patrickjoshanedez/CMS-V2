@@ -1,0 +1,14 @@
+# Hermes Curator — Skills Protected from Curation
+# One skill name per line. These skills will never be archived or auto-patched.
+# Add any skill here that is critical infrastructure or externally managed.
+
+skill-write-or-patch
+ptss
+hermes-curator
+verification-loop
+aif-loop
+long-agent
+skill-creator
+senior-backend
+senior-fullstack
+context7-agent-ops

@@ -3,21 +3,21 @@ import api from './api';
 /**
  * Evaluation API service — all evaluation-related HTTP calls.
  *
- * Endpoints are mounted at /api/evaluations on the server.
+ * Endpoints are mounted at /api/evaluations and /api/evaluation-templates on the server.
  */
 
 export const evaluationService = {
   /** Get or create the current panelist's evaluation (panelist only). */
-  getMyEvaluation: (projectId, defenseType) =>
-    api.get(`/evaluations/${projectId}/${defenseType}`),
+  getMyEvaluation: (projectId, defenseType) => api.get(`/evaluations/${projectId}/${defenseType}`),
 
   /** Update evaluation scores/comments (panelist only, draft status). */
-  updateEvaluation: (evaluationId, data) =>
-    api.patch(`/evaluations/${evaluationId}`, data),
+  updateEvaluation: (evaluationId, data) => api.patch(`/evaluations/${evaluationId}`, data),
 
   /** Submit a completed evaluation (panelist only). */
-  submitEvaluation: (evaluationId) =>
-    api.post(`/evaluations/${evaluationId}/submit`),
+  submitEvaluation: (evaluationId) => api.post(`/evaluations/${evaluationId}/submit`),
+
+  /** Reopen a submitted evaluation for editing (instructor only). */
+  unlockEvaluation: (evaluationId, data) => api.post(`/evaluations/${evaluationId}/unlock`, data),
 
   /** Release all evaluations for a project + defense type (instructor only). */
   releaseEvaluations: (projectId, defenseType) =>
@@ -28,6 +28,21 @@ export const evaluationService = {
     api.get(`/evaluations/project/${projectId}/${defenseType}`),
 
   /** Get a single evaluation by ID. */
-  getEvaluation: (evaluationId) =>
-    api.get(`/evaluations/detail/${evaluationId}`),
+  getEvaluation: (evaluationId) => api.get(`/evaluations/detail/${evaluationId}`),
+
+  /* ── Evaluation Rubric Templates ── */
+
+  /** List evaluation rubric templates by defenseType */
+  getEvaluationTemplates: (params) => api.get('/evaluation-templates', { params }),
+
+  /** Create an evaluation rubric template */
+  createEvaluationTemplate: (data) => api.post('/evaluation-templates', data),
+
+  /** Update an evaluation rubric template */
+  updateEvaluationTemplate: (id, data) => api.patch(`/evaluation-templates/${id}`, data),
+
+  /** Delete an evaluation rubric template */
+  deleteEvaluationTemplate: (id) => api.delete(`/evaluation-templates/${id}`),
 };
+
+export default evaluationService;

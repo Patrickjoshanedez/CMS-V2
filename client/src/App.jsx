@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
-import { ThemeProvider } from './components/ThemeProvider';
 import { Toaster } from 'sonner';
 import { ROLES } from '@cms/shared';
+import { PlagiarismProgressModal } from './components/plagiarism/PlagiarismProgressModal';
+import { useThemeStore, applyTheme } from './stores/themeStore';
 
 // Lazy-loaded page imports
 import { lazy, Suspense, useEffect, useRef } from 'react';
@@ -13,6 +14,7 @@ const VerifyOtpPage = lazy(() => import('./pages/auth/VerifyOtpPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const TeamsPage = lazy(() => import('./pages/teams/TeamsPage'));
 const UsersPage = lazy(() => import('./pages/users/UsersPage'));
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
@@ -38,9 +40,15 @@ const AcademicJournalArchiveUploadPage = lazy(
 const CertificatePage = lazy(() => import('./pages/projects/CertificatePage'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
 const AuditLogPage = lazy(() => import('./pages/admin/AuditLogPage'));
+const EvaluationTemplateBuilderPage = lazy(
+  () => import('./pages/admin/EvaluationTemplateBuilderPage'),
+);
 const TemplateManagementPage = lazy(() => import('./pages/documents/TemplateManagementPage'));
 const DocumentEditorPage = lazy(() => import('./pages/documents/DocumentEditorPage'));
 const TeamReviewWorkflowPage = lazy(() => import('./pages/adviser/TeamReviewWorkflowPage'));
+const ArchivePlagiarismCheckerPage = lazy(
+  () => import('./pages/plagiarism/ArchivePlagiarismCheckerPage'),
+);
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -49,12 +57,31 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
  * App — Root component with routing and theme management.
  */
 
-function LoadingSpinner() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-    </div>
-  );
+import LoadingScreen from './components/ui/LoadingScreen';
+import TopProgressBar from './components/ui/TopProgressBar';
+import PageSkeleton from './components/ui/PageSkeleton';
+
+/**
+ * ThemeSync — Subscribes to the Zustand theme store and keeps the <html> class
+ * in sync. Also re-applies theme when the OS prefers-color-scheme changes while
+ * the user has selected the 'system' preference.
+ */
+function ThemeSync() {
+  const theme = useThemeStore((s) => s.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (theme !== 'system') return;
+
+    // Listen for OS-level dark/light changes when preference is 'system'
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyTheme('system');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  return null;
 }
 
 function ProtectedRoute({ children }) {
@@ -101,6 +128,9 @@ const GUEST_ROUTES = [
 const PROTECTED_ROUTES = [
   // General
   { path: '/dashboard', Component: DashboardPage },
+  { path: '/teams', Component: TeamsPage },
+  { path: '/teams/invites/:token/:action', Component: TeamsPage },
+  { path: '/team', Component: TeamsPage },
   { path: '/users', Component: UsersPage },
   { path: '/admin/users', Component: UsersPage, allowedRoles: [ROLES.INSTRUCTOR] },
   { path: '/profile', Component: ProfilePage },
@@ -113,6 +143,7 @@ const PROTECTED_ROUTES = [
   { path: '/projects/:id', Component: ProjectDetailPage },
   // Archive & Reports
   { path: '/archive', Component: ArchiveSearchPage },
+  { path: '/plagiarism-checker', Component: ArchivePlagiarismCheckerPage },
   { path: '/archive/upload/capstone', Component: ExistingCapstoneUploadPage },
   { path: '/archive/upload/academic-paper', Component: AcademicPaperArchiveUploadPage },
   { path: '/archive/upload/academic-journal', Component: AcademicJournalArchiveUploadPage },
@@ -122,10 +153,15 @@ const PROTECTED_ROUTES = [
   // Admin
   { path: '/admin/audit', Component: AuditLogPage },
   { path: '/admin/audit-log', Component: AuditLogPage },
+  {
+    path: '/admin/evaluation-templates',
+    Component: EvaluationTemplateBuilderPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
   // Documents
   { path: '/documents/manuscripts', Component: TemplateManagementPage },
   { path: '/documents/templates', Component: TemplateManagementPage },
-  { path: '/projects/:projectId/documents/:docId', Component: DocumentEditorPage },
+  { path: '/projects/:projectId/documents/:docIdOrType', Component: DocumentEditorPage },
   { path: '/adviser/team-review', Component: TeamReviewWorkflowPage },
   // Submissions
   { path: '/project/submissions', Component: ProjectSubmissionsPage },
@@ -153,18 +189,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show a full-screen spinner while we confirm the session.
+  // Show a full-screen branded loading screen while we confirm the session.
   if (sessionLoading) {
     return (
-      <ThemeProvider defaultTheme="system" storageKey="cms-ui-theme">
-        <LoadingSpinner />
-      </ThemeProvider>
+      <>
+        <ThemeSync />
+        <LoadingScreen showLogo={true} message="Initializing session..." />
+      </>
     );
   }
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="cms-ui-theme">
-      <Suspense fallback={<LoadingSpinner />}>
+    <>
+      <ThemeSync />
+      <TopProgressBar />
+      <Suspense fallback={<PageSkeleton />}>
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (
@@ -214,7 +253,8 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
-      <Toaster richColors position="top-right" />
-    </ThemeProvider>
+      <Toaster richColors position="top-right" style={{ zIndex: 999999 }} />
+      <PlagiarismProgressModal />
+    </>
   );
 }

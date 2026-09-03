@@ -4,18 +4,23 @@ import { useAuthStore } from '../stores/authStore';
 const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 
 const resolveBaseApiUrl = () => {
-  const configuredUrl = import.meta.env.VITE_API_URL;
+  const configuredUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
 
   if (!configuredUrl) {
     return '/api';
   }
 
-  // In local browser sessions, force the Vite proxy path to avoid CORS drift
-  // when backend env CORS origins do not include localhost.
-  if (typeof window !== 'undefined' && LOCALHOST_HOSTNAMES.has(window.location.hostname)) {
+  // In browser sessions, route through the same-origin Vite proxy path ('/api')
+  // when the configured URL points to localhost or matches the current origin,
+  // preventing cross-origin cookie loss and 401 redirect loops.
+  if (typeof window !== 'undefined') {
     try {
       const parsedUrl = new URL(configuredUrl, window.location.origin);
-      if (LOCALHOST_HOSTNAMES.has(parsedUrl.hostname)) {
+      if (
+        LOCALHOST_HOSTNAMES.has(parsedUrl.hostname) ||
+        parsedUrl.origin === window.location.origin ||
+        configuredUrl.startsWith('/')
+      ) {
         return '/api';
       }
     } catch {
@@ -36,6 +41,9 @@ const api = axios.create({
   baseURL: resolveBaseApiUrl(),
   timeout: 15000,
   withCredentials: true,
+  headers: {
+    'ngrok-skip-browser-warning': '69420',
+  },
 });
 
 // Track if we're currently refreshing to prevent infinite loops

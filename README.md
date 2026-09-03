@@ -16,6 +16,19 @@ A full-stack **Capstone Management and Archiving System** with plagiarism checki
 
 ---
 
+## Plagiarism Pipeline
+
+The plagiarism checker now runs as a native Node.js workflow in this monorepo.
+
+- Queue + worker orchestration: `server/jobs/plagiarism.job.js` (BullMQ + Redis)
+- Core scoring engine: `server/services/plagiarism.service.js` (winnowing fingerprints + span-union scoring)
+- Inverted index candidate retrieval: `server/services/fingerprintIndex.service.js`
+- Fingerprint persistence model: `server/modules/plagiarism/documentFingerprint.model.js`
+
+This architecture avoids full corpus scans for each request and does not require an external Python plagiarism microservice for the active check path.
+
+---
+
 ## Project Structure
 
 ```text
@@ -86,8 +99,8 @@ If Google login is enabled, configure both frontend and Google Cloud Console:
 3. In Google Cloud Console: `APIs & Services > Credentials > OAuth 2.0 Client IDs > <your web client>`.
 4. Add every frontend origin you actually use to `Authorized JavaScript origins`, for example:
 
-   - `http://localhost:5173`
-   - `http://127.0.0.1:5173`
+   - `http://localhost:43211`
+   - `http://127.0.0.1:43211`
    - `https://<your-ngrok-subdomain>.ngrok-free.dev`
 
 Important:
@@ -102,13 +115,13 @@ Important:
 npm run dev
 ```
 
-This starts both the Express server (port 5000) and the Vite dev server (port 5173) concurrently. The client proxies `/api` requests to the backend.
+This starts both the Express server (port 43210) and the Vite dev server (port 43211) concurrently. The client proxies `/api` requests to the backend.
 
 ### 5. Access the application
 
-- **Frontend:** <http://localhost:5173>
-- **API:** <http://localhost:5000/api>
-- **Health check:** <http://localhost:5000/api/health>
+- **Frontend:** <http://localhost:43211>
+- **API:** <http://localhost:43210/api>
+- **Health check:** <http://localhost:43210/api/health>
 
 ---
 
@@ -120,8 +133,8 @@ Operational rule: this repo contains both `compose.yaml` and `docker-compose.yml
 
 ### Services
 
-- `client` (Vite React app) → <http://localhost:5173>
-- `server` (Express API) → <http://localhost:5000>
+- `client` (Vite React app) → <http://localhost:43211>
+- `server` (Express API) → <http://localhost:43210>
 - `mongodb` (MongoDB 7) → internal container network
 - `redis` (Redis 7) → internal container network
 

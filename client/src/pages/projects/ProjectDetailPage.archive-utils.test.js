@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatCitation,
-  getFullName,
-  getProjectAuthors,
-  resolveArchiveBackContext,
-} from './ProjectDetailPage';
+import { formatCitation, resolveArchiveBackContext } from './ProjectDetailPage';
+import { getFullName, getProjectAuthors } from './projectDetailUtils';
 
 describe('ProjectDetailPage archive helpers', () => {
   it('builds full names from person objects and falls back to email', () => {
@@ -47,7 +43,9 @@ describe('ProjectDetailPage archive helpers', () => {
   });
 
   it('resolves archive back context from location state and query string', () => {
-    expect(resolveArchiveBackContext({ fromArchive: true, returnTo: '/archive?q=ai&p=2' }, '')).toEqual({
+    expect(
+      resolveArchiveBackContext({ fromArchive: true, returnTo: '/archive?q=ai&p=2' }, ''),
+    ).toEqual({
       fromArchive: true,
       backDestination: '/archive?q=ai&p=2',
       backLabel: 'Back to Search Results',
@@ -59,10 +57,25 @@ describe('ProjectDetailPage archive helpers', () => {
       backLabel: 'Back to Search Results',
     });
 
+    // Default (no role) falls back to generic label
     expect(resolveArchiveBackContext({}, '')).toEqual({
       fromArchive: false,
       backDestination: '/projects',
       backLabel: 'Back to Projects',
+    });
+
+    // Instructor gets role-specific label
+    expect(resolveArchiveBackContext({}, '', 'instructor')).toEqual({
+      fromArchive: false,
+      backDestination: '/projects',
+      backLabel: 'Back to Instructor Review',
+    });
+
+    // Adviser gets role-specific label
+    expect(resolveArchiveBackContext({}, '', 'adviser')).toEqual({
+      fromArchive: false,
+      backDestination: '/projects',
+      backLabel: 'Back to Adviser Dashboard',
     });
   });
 });

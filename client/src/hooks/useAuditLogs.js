@@ -54,3 +54,23 @@ export function useEntityAuditHistory(targetType, targetId, limit = 20) {
     staleTime: 30 * 1000,
   });
 }
+
+/**
+ * Fetch the full audit trail for a project (all event types scoped to the project).
+ *
+ * @param {string} projectId - MongoDB ObjectId
+ * @param {number} [limit=100]
+ * @returns {import('@tanstack/react-query').UseQueryResult}
+ */
+export function useProjectAuditTrail(projectId, limit = 100) {
+  return useQuery({
+    queryKey: [...auditKeys.all, 'project', projectId],
+    queryFn: async () => {
+      const res = await auditService.getProjectHistory(projectId, limit);
+      return unwrapEnvelopeData(res.data);
+    },
+    enabled: !!projectId,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}

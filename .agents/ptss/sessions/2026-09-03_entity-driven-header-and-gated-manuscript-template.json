@@ -1,0 +1,34 @@
+{
+  "id": "2026-09-03_entity-driven-header-and-gated-manuscript-template",
+  "timestamp": "2026-09-03T15:25:00Z",
+  "task": "Eliminate redundant 'My Team' hierarchy repetition via Entity-Driven Page Header and implement dynamic Institutional Manuscript Template with Title Defense Approval gating and Instructor Management Modal",
+  "summary": "Resolved the triple vertical repetition of 'My Team' by adopting Option 1 (Entity-Driven Page Header) in TeamsPage.jsx, promoting the active team workspace header to the primary H1 and removing intermediate duplicate banners. Created ManuscriptTemplateWidget with Title Defense Approval access gating (State 1 locked amber banner vs State 2 unlocked emerald banner with Google Docs copy / DOCX download actions). Built InstructorTemplateConfigModal enabling instructors to configure syllabus version, distribution type, and Google Docs copy link or DOCX attachment. Added DocumentTemplate model, server routes GET /api/teams/:id/manuscript-template and PUT /api/teams/manuscript-template, client API methods in teamService, and verified with 100% test pass across 6-point verification battery.",
+  "skillsUsed": [
+    "anti-regression-and-ci-governance",
+    "context-gathering-and-ast-triage",
+    "verification-loop",
+    "ptss"
+  ],
+  "filesModified": [
+    "client/src/pages/teams/TeamsPage.jsx",
+    "client/src/pages/teams/TeamsPage.test.jsx",
+    "client/src/hooks/useTeams.js",
+    "client/src/services/authService.js",
+    "server/modules/teams/documentTemplate.model.js",
+    "server/modules/teams/team.routes.js",
+    "server/modules/teams/team.controller.js",
+    "server/modules/teams/team.service.js",
+    "client/src/components/teams/ManuscriptTemplateWidget.jsx",
+    "client/src/components/teams/ManuscriptTemplateWidget.test.jsx",
+    "client/src/components/teams/InstructorTemplateConfigModal.jsx",
+    "client/src/components/teams/InstructorTemplateConfigModal.test.jsx"
+  ],
+  "verification": {
+    "endpointParity": "187 Server / 166 Client, UNMATCHED_COUNT = 0",
+    "agenticAudit": "60/60 checks passed",
+    "governancePipeline": "Passed, DAG & Coherence valid",
+    "clientTests": "37 test suites, 116 tests passed (100%)",
+    "serverTests": "teams.test.js (24/24 passed), comprehensive-all-workflows.test.js (13/13 passed)",
+    "workspaceGuardrail": "Pristine, 0 cognitive load errors"
+  }
+}

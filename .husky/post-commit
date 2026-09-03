@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+python "$REPO_ROOT/scripts/git-auto-tag.py"

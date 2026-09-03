@@ -6,6 +6,11 @@ import NotFoundPage from './NotFoundPage';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 const renderNotFoundPage = () => {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -13,7 +18,7 @@ const renderNotFoundPage = () => {
   const root = createRoot(container);
   act(() => {
     root.render(
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE_FLAGS}>
         <NotFoundPage />
       </MemoryRouter>,
     );

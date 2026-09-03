@@ -33,3 +33,19 @@ export const getEntityHistory = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * GET /api/audit/project/:projectId
+ * Get the full audit trail for a project (Project events + all scoped Submission/Evaluation events).
+ * Available to Instructor, Adviser, Panelist.
+ */
+export const getProjectHistory = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    const logs = await auditService.getProjectAuditTrail(projectId, limit);
+    res.json({ success: true, data: logs });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -4,8 +4,8 @@
  * All routes require authentication.
  *
  * Route groups:
- *  - Panelist: get/create evaluation, update draft, submit
- *  - Instructor: release evaluations to students
+ *  - Panelist (Faculty): get/create evaluation, update draft, submit
+ *  - Instructor: release evaluations to students, generate reports
  *  - Shared: view evaluations (respects RBAC visibility)
  */
 import { Router } from 'express';
@@ -18,6 +18,7 @@ import { ROLES } from '@cms/shared';
 import {
   projectDefenseParamSchema,
   evaluationIdParamSchema,
+  unlockEvaluationSchema,
   updateEvaluationSchema,
 } from './evaluation.validation.js';
 
@@ -31,13 +32,34 @@ router.use(authenticate);
 /* ────── Shared read routes (must come before parameterized catch-alls) ────── */
 
 /**
+ * GET /project/:projectId/consolidated-grades
+ * Grade Visibility Guard: Get consolidated defense grades for students.
+ */
+router.get(
+  '/project/:projectId/consolidated-grades',
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
+  evaluationController.getStudentConsolidatedGrades,
+);
+
+/**
+ * GET /project/:projectId/:defenseType/report
+ * Generate structured evaluation report for a defense (FRINS6).
+ * Accessible to faculty and instructor.
+ */
+router.get(
+  '/project/:projectId/:defenseType/report',
+  authorize(ROLES.FACULTY, ROLES.INSTRUCTOR),
+  evaluationController.getEvaluationReport,
+);
+
+/**
  * GET /project/:projectId/:defenseType
  * List all evaluations for a project's defense.
  * Faculty see all; students see only released evaluations.
  */
 router.get(
   '/project/:projectId/:defenseType',
-  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
   validate(projectDefenseParamSchema, 'params'),
   evaluationController.getProjectEvaluations,
 );
@@ -48,12 +70,23 @@ router.get(
  */
 router.get(
   '/detail/:evaluationId',
-  authorize(ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  authorize(ROLES.FACULTY, ROLES.INSTRUCTOR),
   validate(evaluationIdParamSchema, 'params'),
   evaluationController.getEvaluation,
 );
 
-/* ────── Panelist routes ────── */
+/**
+ * GET /detail/:evaluationId/pdf
+ * Download official defense evaluation and similarity report PDF (FRINS6).
+ */
+router.get(
+  '/detail/:evaluationId/pdf',
+  authorize(ROLES.STUDENT, ROLES.FACULTY, ROLES.INSTRUCTOR),
+  validate(evaluationIdParamSchema, 'params'),
+  evaluationController.downloadEvaluationReportPdf,
+);
+
+/* ────── Faculty (Panelist) routes ────── */
 
 /**
  * GET /:projectId/:defenseType
@@ -62,7 +95,7 @@ router.get(
  */
 router.get(
   '/:projectId/:defenseType',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(projectDefenseParamSchema, 'params'),
   evaluationController.getOrCreateEvaluation,
 );
@@ -73,7 +106,7 @@ router.get(
  */
 router.patch(
   '/:evaluationId',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(evaluationIdParamSchema, 'params'),
   validate(updateEvaluationSchema),
   evaluationController.updateEvaluation,
@@ -85,13 +118,30 @@ router.patch(
  */
 router.post(
   '/:evaluationId/submit',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.FACULTY),
   validate(evaluationIdParamSchema, 'params'),
   auditLog('evaluation.submitted', 'Evaluation', {
     getTargetId: (req) => req.params.evaluationId,
     getDescription: (req) => `Submitted evaluation ${req.params.evaluationId}`,
   }),
   evaluationController.submitEvaluation,
+);
+
+/**
+ * POST /:evaluationId/unlock
+ * Reopen a submitted or released evaluation for editing.
+ */
+router.post(
+  '/:evaluationId/unlock',
+  authorize(ROLES.INSTRUCTOR),
+  validate(evaluationIdParamSchema, 'params'),
+  validate(unlockEvaluationSchema),
+  auditLog('evaluation.unlocked', 'Evaluation', {
+    getTargetId: (req) => req.params.evaluationId,
+    getDescription: (req) => `Unlocked evaluation ${req.params.evaluationId}`,
+    getMetadata: (req) => ({ reason: req.body.reason }),
+  }),
+  evaluationController.unlockEvaluation,
 );
 
 /* ────── Instructor routes ────── */
@@ -106,7 +156,8 @@ router.post(
   validate(projectDefenseParamSchema, 'params'),
   auditLog('evaluation.released', 'Evaluation', {
     getTargetId: (req) => req.params.projectId,
-    getDescription: (req) => `Released ${req.params.defenseType} evaluations for project ${req.params.projectId}`,
+    getDescription: (req) =>
+      `Released ${req.params.defenseType} evaluations for project ${req.params.projectId}`,
     getMetadata: (req) => ({ defenseType: req.params.defenseType }),
   }),
   evaluationController.releaseEvaluations,

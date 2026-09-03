@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import env from '../../config/env.js';
+import AppError from '../../utils/AppError.js';
 
 /**
  * Abstracted email service.
@@ -12,6 +13,33 @@ import env from '../../config/env.js';
  */
 
 let transporter = null;
+let smtpHealth = {
+  status: 'unknown',
+  message: 'SMTP health not checked yet.',
+  lastCheckedAt: null,
+};
+
+const setSmtpHealth = (status, message) => {
+  smtpHealth = {
+    status,
+    message,
+    lastCheckedAt: new Date().toISOString(),
+  };
+};
+
+const hasSmtpCredentials = () =>
+  Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
+
+const withTimeout = (promise, timeoutMs, timeoutMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      const timer = setTimeout(() => {
+        clearTimeout(timer);
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+    }),
+  ]);
 
 /**
  * Get or create the Nodemailer transporter (lazy singleton).
@@ -48,30 +76,79 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     return { messageId: 'test-message-id', accepted: [to] };
   }
 
-  const transport = getTransporter();
+  try {
+    const transport = getTransporter();
 
-  const mailOptions = {
-    from: `"${env.APP_NAME || 'CMS'}" <${env.SMTP_FROM || env.SMTP_USER}>`,
-    to,
-    subject,
-    text,
-    ...(html && { html }),
-  };
+    const mailOptions = {
+      from: env.EMAIL_FROM || env.SMTP_USER,
+      to,
+      subject,
+      text,
+      ...(html && { html }),
+    };
 
-  const info = await transport.sendMail(mailOptions);
+    const info = await transport.sendMail(mailOptions);
 
-  if (env.isDevelopment) {
-    // eslint-disable-next-line no-console
-    console.log('Email sent: %s', info.messageId);
-    // If using Ethereal, log the preview URL
-    if (info.messageId && nodemailer.getTestMessageUrl(info)) {
+    if (env.isDevelopment) {
       // eslint-disable-next-line no-console
-      console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      console.log('Email sent: %s', info.messageId);
+      // If using Ethereal, log the preview URL
+      if (info.messageId && nodemailer.getTestMessageUrl(info)) {
+        // eslint-disable-next-line no-console
+        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+      }
     }
+
+    return info;
+  } catch (error) {
+    console.error('EMAIL_SEND_FAILURE:', error);
+    if (env.isDevelopment) {
+      console.warn('--------------------------------------------------');
+      console.warn('⚠️ SMTP Error in Development! Simulating success.');
+      console.warn('📧 Email Content:');
+      console.warn(text);
+      console.warn('--------------------------------------------------');
+      return { messageId: 'dev-fallback-message-id', accepted: [to] };
+    }
+    throw new AppError(
+      'Failed to send verification email. Please check the server SMTP configuration.',
+      503,
+      'EMAIL_SERVICE_ERROR',
+    );
+  }
+};
+
+/**
+ * Validate SMTP transport health and cache status for diagnostics.
+ * @returns {Promise<{status: string, message: string, lastCheckedAt: string | null}>}
+ */
+export const verifyEmailTransport = async () => {
+  if (process.env.NODE_ENV === 'test') {
+    setSmtpHealth('healthy', 'SMTP check skipped in test environment.');
+    return smtpHealth;
   }
 
-  return info;
+  if (!hasSmtpCredentials()) {
+    setSmtpHealth('degraded', 'SMTP credentials are missing or incomplete.');
+    return smtpHealth;
+  }
+
+  try {
+    const transport = getTransporter();
+    await withTimeout(transport.verify(), 8000, 'SMTP verification timed out.');
+    setSmtpHealth('healthy', 'SMTP transport verified successfully.');
+  } catch (error) {
+    setSmtpHealth('degraded', `SMTP verification failed: ${error?.message || 'unknown error'}`);
+  }
+
+  return smtpHealth;
 };
+
+/**
+ * Get last known SMTP health state.
+ * @returns {{status: string, message: string, lastCheckedAt: string | null}}
+ */
+export const getEmailTransportHealth = () => smtpHealth;
 
 /**
  * Send OTP verification email.
@@ -130,7 +207,7 @@ export const sendTeamInviteEmail = async (
   inviteToken,
   inviteCode,
 ) => {
-  const clientUrl = env.CLIENT_URL || 'http://localhost:5173';
+  const clientUrl = env.CLIENT_URL || 'http://localhost:43211';
   const acceptUrl = `${clientUrl}/teams/invites/${inviteToken}/accept`;
   const declineUrl = `${clientUrl}/teams/invites/${inviteToken}/decline`;
 

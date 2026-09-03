@@ -12,6 +12,7 @@ import {
   projectDocumentTypeParamSchema,
   uploadManuscriptSchema,
   listProjectManuscriptsQuerySchema,
+  submitMetadataFeedbackSchema,
 } from './document.validation.js';
 
 const router = Router();
@@ -29,6 +30,13 @@ router.post(
   pdfMetadataUpload.single('file'),
   validateFile,
   documentController.extractPdfMetadataHandler,
+);
+
+router.post(
+  '/metadata-feedback',
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
+  validate(submitMetadataFeedbackSchema),
+  documentController.submitMetadataFeedback,
 );
 
 router.post(

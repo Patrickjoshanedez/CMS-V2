@@ -1,4 +1,4 @@
-﻿x-logging: &default-logging
+x-logging: &default-logging
   driver: json-file
   options:
     max-size: "10m"
@@ -11,15 +11,15 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
-      interval: 15s
-      timeout: 10s
-      retries: 8
-      start_period: 40s
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet" ]
+      interval: 4s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     logging: *default-logging
     networks:
       - cms_network
@@ -35,8 +35,32 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: cms-minio
+    restart: unless-stopped
+    init: true
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 4s
       timeout: 3s
       retries: 5
       start_period: 5s
@@ -44,64 +68,23 @@ services:
     networks:
       - cms_network
 
-  localstack:
-    image: localstack/localstack:2.0.2
-    container_name: cms-localstack
-    restart: unless-stopped
-    init: true
-    ports:
-      - "127.0.0.1:4566:4566"
-    environment:
-      SERVICES: s3
-      DEBUG: 0
-      DATA_DIR: /var/lib/localstack/data
-      DEFAULT_REGION: us-east-1
-      DISABLE_MOTO_API_RESPONSES: 1
-    volumes:
-      - localstack_data:/var/lib/localstack
-      - ./infra/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
-    healthcheck:
-      test: ["CMD", "curl", "-s", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 8
-      start_period: 15s
+  minio-init:
+    image: minio/mc:latest
+    container_name: cms-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/cms-buksu-uploads --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/cms-buksu-uploads || true;
+      exit 0;
+      "
     logging: *default-logging
     networks:
       - cms_network
 
-  localstack-ngrok:
-    image: ngrok/ngrok:3.37.3-alpine
-    container_name: cms-localstack-ngrok
-    restart: unless-stopped
-    profiles:
-      - localstack-public
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
-      NGROK_LOCALSTACK_DOMAIN: ${NGROK_LOCALSTACK_DOMAIN:-}
-    entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        test -n "$${NGROK_AUTHTOKEN}" || { echo "missing NGROK_AUTHTOKEN"; exit 1; }
-        if test -n "$${NGROK_LOCALSTACK_DOMAIN}"; then
-          exec ngrok http --domain="$${NGROK_LOCALSTACK_DOMAIN}" localstack:4566 --log=stdout
-        fi
-        exec ngrok http localstack:4566 --log=stdout
-    depends_on:
-      localstack:
-        condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp
-    logging: *default-logging
-    networks:
-      - cms_network
 
   plagiarism_redis:
     image: redis:7-alpine
@@ -110,11 +93,11 @@ services:
     init: true
     command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 3s
+      timeout: 2s
       retries: 5
-      start_period: 5s
+      start_period: 2s
     logging: *default-logging
     networks:
       - cms_network
@@ -124,7 +107,7 @@ services:
       context: ./plagiarism_engine
       dockerfile: Dockerfile
       args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
     container_name: cms-plagiarism-worker
     restart: unless-stopped
     init: true
@@ -160,7 +143,7 @@ services:
       context: ./plagiarism_engine
       dockerfile: Dockerfile
       args:
-        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cu121}
+        TORCH_VARIANT: ${PLAGIARISM_TORCH_VARIANT:-cpu}
     container_name: cms-plagiarism-api
     restart: unless-stopped
     init: true
@@ -184,7 +167,7 @@ services:
       TORCH_NUM_THREADS: ${PLAGIARISM_TORCH_NUM_THREADS:-2}
       API_HOST: 0.0.0.0
       API_PORT: "8001"
-      APP_CORS_ORIGINS: "http://localhost:5173,http://localhost:5000,http://cms-client:5173"
+      APP_CORS_ORIGINS: "http://localhost:43211,http://localhost:43210,http://cms-client:43211,${CLIENT_URL:-}"
       LOG_LEVEL: INFO
     depends_on:
       plagiarism_redis:
@@ -192,11 +175,11 @@ services:
       plagiarism_worker:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 5s
+      timeout: 4s
+      retries: 6
+      start_period: 10s
     logging: *default-logging
     networks:
       - cms_network
@@ -214,28 +197,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      localstack:
+      minio:
         condition: service_healthy
       plagiarism_api:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      PORT: "5000"
-      STORAGE_MODE: ${STORAGE_MODE:-filesystem}
+      PORT: "43210"
+      STORAGE_MODE: ${STORAGE_MODE:-s3}
       STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-/app/uploads}
       MONGODB_URI: mongodb://mongodb:27017/cms_v2
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ""
-      CLIENT_URL: http://localhost:5173
+      CLIENT_URL: http://localhost:43211
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
       OTP_EXPIRES_MINUTES: "10"
-      S3_ENDPOINT: http://localstack:4566
+      S3_ENDPOINT: http://minio:9000
       S3_BUCKET: cms-buksu-uploads
       S3_REGION: us-east-1
-      S3_ACCESS_KEY_ID: test
-      S3_SECRET_ACCESS_KEY: test
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
       S3_FORCE_PATH_STYLE: "true"
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
       PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
@@ -245,8 +228,12 @@ services:
       PLAGIARISM_POLL_INTERVAL: "2000"
       PLAGIARISM_POLL_MAX_ATTEMPTS: "60"
       PLAGIARISM_RESULTS_TTL: "7776000"
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      PLAGIARISM_OLLAMA_EMBED_MODEL: ${PLAGIARISM_OLLAMA_EMBED_MODEL:-nomic-embed-text-v2-moe:latest}
+      PDF_METADATA_GLM_MODEL: ${PDF_METADATA_GLM_MODEL:-llama3.2:3b}
     ports:
-      - "5000:5000"
+      - "43210:43210"
+      - "5000:43210"
     volumes:
       - .:/app
       - ./uploads:/app/uploads
@@ -256,16 +243,19 @@ services:
       - shared_node_modules:/app/shared/node_modules
     command: npm run dev:server
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:43210/api/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))" ]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
     logging: *default-logging
     networks:
       - cms_network
 
   client:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: cms-v2-dev-base
     container_name: cms-client
     restart: unless-stopped
@@ -274,35 +264,106 @@ services:
       server:
         condition: service_healthy
     environment:
-      VITE_API_URL: http://localhost:5000/api
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:43210/api}
+      VITE_API_PROXY_TARGET: http://server:43210
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "5173:5173"
+      - "43211:43211"
     volumes:
       - .:/app
       - workspace_node_modules:/app/node_modules
       - server_node_modules:/app/server/node_modules
       - client_node_modules:/app/client/node_modules
       - shared_node_modules:/app/shared/node_modules
-    command: npm run dev:client -- --host 0.0.0.0 --port 5173
+    command: sh -c "cd /app/client && npx vite --host 0.0.0.0 --port 43211 --strictPort"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5173"]
-      interval: 20s
-      timeout: 5s
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:43211" ]
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     logging: *default-logging
+    networks:
+      - cms_network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cms-ollama
+    restart: unless-stopped
+    init: true
+    ports:
+      - "11434:11434"
+    entrypoint:
+      - /bin/bash
+      - /entrypoint.sh
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./entrypoint.sh:/entrypoint.sh
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  ngrok:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.ngrok
+    image: cms-v2-ngrok
+    container_name: cms-ngrok-dev
+    restart: unless-stopped
+    init: true
+    profiles:
+      - tunnel
+      - ngrok
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-furuncular-shavonda-unprevalently.ngrok-free.dev}
+      NGROK_TARGET: ${NGROK_TARGET:-client:43211}
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        if [ -z "$${NGROK_AUTHTOKEN}" ]; then
+          echo "================================================================================"
+          echo "[CMS-V2 NGROK] NGROK_AUTHTOKEN is required but not configured!"
+          echo "1. Get your free token at: https://dashboard.ngrok.com/get-started/your-authtoken"
+          echo "2. Add it to your root .env file:"
+          echo "   NGROK_AUTHTOKEN=your_actual_authtoken_here"
+          echo "3. Restart the tunnel container:"
+          echo "   npm run docker:tunnel"
+          echo "================================================================================"
+          sleep 60
+          exit 1
+        fi
+        TARGET="$${NGROK_TARGET:-client:43211}"
+        if [ -n "$${NGROK_DOMAIN}" ]; then
+          echo "Starting ngrok tunnel pointing to $$TARGET with domain $$NGROK_DOMAIN..."
+          exec ngrok http "$$TARGET" --url="https://$${NGROK_DOMAIN}" --authtoken="$${NGROK_AUTHTOKEN}"
+        else
+          echo "Starting ngrok tunnel pointing to $$TARGET..."
+          exec ngrok http "$$TARGET" --authtoken="$${NGROK_AUTHTOKEN}"
+        fi
+    ports:
+      - "4040:4040"
     networks:
       - cms_network
 
 volumes:
   mongodb_data:
   redis_data:
-  localstack_data:
+  minio_data:
     driver: local
   plagiarism_chroma:
     driver: local
   plagiarism_models:
+    driver: local
+  ollama_data:
     driver: local
   workspace_node_modules:
   server_node_modules:

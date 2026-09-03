@@ -10,7 +10,8 @@ import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
 import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
 import { useProjects } from '@/hooks/useProjects';
 import { Search, ChevronLeft, ChevronRight, Loader2, FileText, AlertTriangle } from 'lucide-react';
-import { ROLES } from '@cms/shared';
+import { ROLES, PROJECT_STATUSES } from '@cms/shared';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 /**
  * ProjectsPage — Faculty view of all capstone projects.
@@ -21,8 +22,8 @@ import { ROLES } from '@cms/shared';
 
 const STATUS_FILTERS = [
   { label: 'All', value: '' },
+  { label: 'Pending Review', value: 'submitted' },
   { label: 'Draft', value: 'draft' },
-  { label: 'Submitted', value: 'submitted' },
   { label: 'Approved', value: 'approved' },
   { label: 'Revision Required', value: 'revision_required' },
 ];
@@ -36,15 +37,21 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const highlightedProjectRef = useRef(null);
 
+  const filterParam = searchParams.get('filter');
+
   const filters = {
     ...(search && { search }),
     ...(titleStatus && { titleStatus }),
+    ...(filterParam === 'advisees' && { adviserId: user?._id }),
+    ...(filterParam === 'panel' && { panelistId: user?._id }),
+    excludeArchived: true,
     page,
     limit: 10,
   };
 
   const { data, isLoading, error, refetch } = useProjects(filters);
   const highlightedProjectId = searchParams.get('projectId') || '';
+  const isFacultyScopedFilter = filterParam === 'advisees' || filterParam === 'panel';
 
   useEffect(() => {
     if (!highlightedProjectId) return;
@@ -62,23 +69,33 @@ export default function ProjectsPage() {
     );
   }
 
-  const projects = data?.projects || [];
+  const projects = (data?.projects || []).filter((project) => {
+    const normalizedStatuses = [project.projectStatus, project.status]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).trim().toLowerCase());
+
+    return project.isArchived !== true && !normalizedStatuses.includes('archived');
+  });
   const pagination = data?.pagination || { page: 1, totalPages: 1 };
 
   const pageTitle =
-    user.role === ROLES.INSTRUCTOR
-      ? 'All Projects'
-      : user.role === ROLES.ADVISER
-        ? 'My Advised Projects'
-        : 'Projects';
+    filterParam === 'advisees'
+      ? 'Adviser Reviews'
+      : filterParam === 'panel'
+        ? 'Panel Review'
+        : user.role === ROLES.INSTRUCTOR
+          ? 'Instructor Review'
+          : 'Projects Review';
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">{pageTitle}</h3>
-          <p className="text-muted-foreground">Browse, filter, and manage capstone projects.</p>
+          <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
+          <p className="text-muted-foreground">
+            Review proposals, submissions — approve, request revision, reject, and add remarks.
+          </p>
         </div>
 
         {/* Filters */}
@@ -134,53 +151,88 @@ export default function ProjectsPage() {
 
         {/* Empty state */}
         {!isLoading && !error && projects.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-            <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No projects found</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {search || titleStatus
+          <EmptyState
+            icon={FileText}
+            title="No projects found"
+            description={
+              search || titleStatus
                 ? 'Try adjusting your filters.'
-                : 'Projects will appear here once students create them.'}
-            </p>
-          </div>
+                : 'Projects will appear here once students create them.'
+            }
+          />
         )}
 
         {/* Project list */}
         {!isLoading && projects.length > 0 && (
           <div className="space-y-3">
-            {projects.map((project) => (
-              <Card
-                key={project._id}
-                ref={project._id === highlightedProjectId ? highlightedProjectRef : undefined}
-                className={`cursor-pointer transition-shadow hover:shadow-md ${
-                  project._id === highlightedProjectId
-                    ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                    : ''
-                }`}
-                onClick={() => navigate(`/projects/${project._id}`)}
-              >
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate font-semibold">{project.title}</p>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span>{project.academicYear}</span>
-                      <span>•</span>
-                      <span>Capstone {project.capstonePhase}</span>
-                      {project.teamId?.name && (
-                        <>
-                          <span>•</span>
-                          <span>{project.teamId.name}</span>
-                        </>
+            {projects.map((project) => {
+              const isArchived =
+                Boolean(project.isArchived) || project.projectStatus === PROJECT_STATUSES.ARCHIVED;
+              const isProposalPhase = !isArchived && project.titleStatus !== 'approved';
+              const teamName = project.teamId?.name || 'Team';
+              const proposalCount = Array.isArray(project.titleProposals)
+                ? project.titleProposals.length
+                : 0;
+              const displayTitle = isArchived
+                ? project.title
+                : isProposalPhase
+                  ? `${teamName} Title Proposal`
+                  : project.title;
+
+              return (
+                <Card
+                  key={project._id}
+                  ref={project._id === highlightedProjectId ? highlightedProjectRef : undefined}
+                  className={`cursor-pointer transition-shadow hover:shadow-md ${
+                    project._id === highlightedProjectId
+                      ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                      : ''
+                  }`}
+                  onClick={() => navigate(`/projects/${project._id}`)}
+                >
+                  <CardContent className="flex items-center justify-between py-4">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="truncate font-semibold">{displayTitle}</p>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <span>{project.academicYear}</span>
+                        <span>•</span>
+                        <span>
+                          {isArchived
+                            ? 'Archived'
+                            : isProposalPhase
+                              ? 'Proposal Phase'
+                              : `Capstone ${project.capstonePhase}`}
+                        </span>
+                        {project.teamId?.name && (
+                          <>
+                            <span>•</span>
+                            <span>{project.teamId.name}</span>
+                          </>
+                        )}
+                      </div>
+                      {/* Pending proposals indicator */}
+                      {isProposalPhase && proposalCount > 0 && (
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                            {project.titleStatus === 'submitted'
+                              ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} pending review`
+                              : project.titleStatus === 'draft'
+                                ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} in draft`
+                                : project.titleStatus === 'revision_required'
+                                  ? `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} — revision required`
+                                  : `${proposalCount} proposal${proposalCount !== 1 ? 's' : ''}`}
+                          </span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="ml-4 flex flex-shrink-0 items-center gap-2">
-                    <TitleStatusBadge status={project.titleStatus} />
-                    <ProjectStatusBadge status={project.projectStatus} />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+                      {!isArchived && <TitleStatusBadge status={project.titleStatus} />}
+                      <ProjectStatusBadge status={project.projectStatus} />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 

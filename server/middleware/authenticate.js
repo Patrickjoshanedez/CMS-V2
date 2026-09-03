@@ -11,7 +11,15 @@ import AppError from '../utils/AppError.js';
  */
 const authenticate = async (req, _res, next) => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+
+    if (
+      !token &&
+      typeof req.headers.authorization === 'string' &&
+      req.headers.authorization.startsWith('Bearer ')
+    ) {
+      token = req.headers.authorization.slice(7).trim();
+    }
 
     if (!token) {
       throw new AppError('Authentication required. Please log in.', 401, 'AUTH_REQUIRED');
@@ -32,7 +40,11 @@ const authenticate = async (req, _res, next) => {
     }
 
     if (!user.isVerified) {
-      throw new AppError('Email not verified. Please verify your email first.', 401, 'EMAIL_NOT_VERIFIED');
+      throw new AppError(
+        'Email not verified. Please verify your email first.',
+        401,
+        'EMAIL_NOT_VERIFIED',
+      );
     }
 
     // Attach user to request for downstream middleware/controllers

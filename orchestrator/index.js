@@ -19,6 +19,7 @@ import {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 } from './token-optimizer.js';
 
@@ -75,6 +76,13 @@ import {
   SerenaAbilityDiscovery,
   SerenaDispatcherRouter,
 } from './serena-integration.js';
+
+// Local AI fast-path - isolated opt-in route for low-complexity tasks
+import {
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
+} from './local-fast-path.js';
 
 /**
  * Initialize the orchestrator module.
@@ -146,6 +154,7 @@ export {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 
   // HLLM
@@ -193,6 +202,11 @@ export {
   SerenaIntegrationManager,
   SerenaAbilityDiscovery,
   SerenaDispatcherRouter,
+
+  // Local AI fast-path
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
 };
 
 // Default export with all functionality
@@ -209,6 +223,7 @@ export default {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 
   // HLLM
@@ -256,4 +271,9 @@ export default {
   SerenaIntegrationManager,
   SerenaAbilityDiscovery,
   SerenaDispatcherRouter,
+
+  // Local AI fast-path
+  isClearlyLowComplexity,
+  shouldUseLocalFastPath,
+  runLocalFastPath,
 };

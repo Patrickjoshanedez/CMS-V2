@@ -1,6 +1,6 @@
 {
   "name": "cms-v2",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Capstone Management System with Plagiarism Checker — BukSU IT Department",
   "workspaces": [
@@ -9,37 +9,51 @@
     "shared"
   ],
   "scripts": {
+    "deps:update:all": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/autoupdate-all-packages.ps1 -NoMajor",
+    "deps:update:all:dry": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/autoupdate-all-packages.ps1 -NoMajor -DryRun",
+    "deps:update:all:major": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/autoupdate-all-packages.ps1",
     "dev:local": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./start-local-dev.ps1",
     "hotpatch:plagiarism-api": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/hotpatch-plagiarism-api.ps1",
     "dev:server": "npm run dev --workspace=server",
     "dev:client": "npm run dev --workspace=client",
+    "dev:memory-db": "node server/scripts/start-memory-mongo.js",
+    "dev:standalone": "concurrently -n \"mongo,server,client\" -c \"yellow,blue,green\" \"npm run dev:memory-db\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "tunnel": "ngrok http 43211 --url=furuncular-shavonda-unprevalently.ngrok-free.dev",
+    "dev:tunnel": "concurrently -n \"server,client,ngrok\" -c \"blue,green,magenta\" \"npm run dev:server\" \"npm run dev:client\" \"npm run tunnel\"",
+    "docker:tunnel": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/docker-ngrok.ps1 -Action up",
+    "docker:tunnel:down": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/docker-ngrok.ps1 -Action down",
+    "docker:tunnel:logs": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/docker-ngrok.ps1 -Action logs",
+    "docker:dev:up": "docker compose -f docker-compose.yml up -d --build",
+    "docker:dev:down": "docker compose -f docker-compose.yml down",
+    "docker:dev:rebuild": "docker compose -f docker-compose.yml down --remove-orphans && docker compose -f docker-compose.yml up -d --build",
     "seed": "npm run seed --workspace=server",
     "seed:server": "npm run seed --workspace=server",
+    "seed:archive:pdfs": "npm run seed:archive:pdfs --workspace=server",
     "seed:orphans": "npm run seed:orphans --workspace=server",
     "check:endpoints": "node scripts/check-endpoint-mappings.js",
     "validate:agentic": "node scripts/validate-agentic-system.js",
     "validate:governance": "node scripts/validate-agentic-system.js && python .github/hooks/scripts/agent_prefetch.py && python .github/hooks/scripts/agent_sync_verify.py && python .github/hooks/scripts/decision_coherence.py",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/**",
-    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern client/dist/** --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-tailwindcss": "^3.18.2",
-    "husky": "^9.1.0",
-    "lint-staged": "^15.2.0",
-    "playwright": "^1.59.0",
-    "prettier": "^3.4.0"
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-tailwindcss": "^3.18.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "playwright": "^1.59.1",
+    "prettier": "^3.8.3"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "eslint --config eslint.config.js --fix --quiet",
       "prettier --write"
     ],
     "*.{json,css,md}": [
@@ -51,6 +65,7 @@
   },
   "dependencies": {
     "@anedezorchestrator/orchestrator-essentials-setup": "file:../Orchestrator/agent-essentials-installer",
+    "adm-zip": "^0.5.17",
     "gpt-tokenizer": "^3.4.0"
   }
 }

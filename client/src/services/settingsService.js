@@ -7,20 +7,29 @@ import api from './api';
 const settingsService = {
   /**
    * Retrieve current system settings.
-   * @returns {Promise<import('axios').AxiosResponse>}
    */
   getSettings: () => api.get('/settings'),
 
   /**
-   * Update system settings (Instructor only).
-   * @param {Object} updates - Partial settings to update
-   * @param {number} [updates.plagiarismThreshold] - 0–100
-   * @param {number} [updates.titleSimilarityThreshold] - 0–1
-   * @param {number} [updates.maxFileSize] - bytes
-   * @param {string} [updates.systemAnnouncement] - max 500 chars
-   * @returns {Promise<import('axios').AxiosResponse>}
+   * Update general system settings (Instructor only).
    */
   updateSettings: (updates) => api.put('/settings', updates),
+
+  /**
+   * Update document templates (Google Doc links, etc.)
+   */
+  updateTemplates: (templates) => api.put('/settings/templates', { templates }),
+
+  /**
+   * Update milestone deadlines
+   */
+  updateDeadlines: (deadlines) => api.put('/settings/deadlines', { deadlines }),
+
+  /**
+   * Update plagiarism thresholds
+   */
+  updateThresholds: (thresholds) => api.put('/settings/thresholds', thresholds),
 };
 
+export { settingsService };
 export default settingsService;

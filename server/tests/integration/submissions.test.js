@@ -18,6 +18,7 @@ import Submission from '../../modules/submissions/submission.model.js';
 import PlagiarismResult from '../../modules/plagiarism/plagiarism.model.js';
 import Notification from '../../modules/notifications/notification.model.js';
 import storageService from '../../services/storage.service.js';
+import * as pdfCommentsUtils from '../../utils/pdfComments.js';
 import { SUBMISSION_STATUSES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
 
 /* ------------------------------------------------------------------ */
@@ -341,7 +342,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.error.code).toBe('TITLE_NOT_APPROVED');
     });
 
-    it('should reject chapter 1 upload when no adviser is assigned', async () => {
+    it('should allow chapter 1 upload when no adviser is assigned', async () => {
       await Project.findByIdAndUpdate(project._id, { adviserId: null });
 
       const res = await studentAgent
@@ -349,8 +350,8 @@ describe('Submissions API — /api/submissions', () => {
         .field('chapter', '1')
         .attach('file', createPdfBuffer(), 'chapter1.pdf');
 
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('ADVISER_REQUIRED_FOR_CHAPTER_1');
+      expect(res.status).toBe(201);
+      expect(res.body.data.submission.chapter).toBe(1);
     });
 
     it('should reject upload when team is not finalized', async () => {
@@ -363,6 +364,56 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('TEAM_NOT_FINALIZED');
+    });
+
+    it('should ignore malformed extracted PDF comments and still upload chapter', async () => {
+      const extractPdfCommentsSpy = vi
+        .spyOn(pdfCommentsUtils, 'extractPdfComments')
+        .mockResolvedValue([
+          {
+            page: 0,
+            text: '   ',
+            lineStart: 0,
+            lineEnd: 0,
+          },
+          {
+            page: 1,
+            text: 'Valid extracted comment',
+            lineStart: 0,
+            lineEnd: 0,
+          },
+          {
+            page: 2,
+            text: 'Inverted line range',
+            lineStart: 12,
+            lineEnd: 5,
+          },
+        ]);
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '1')
+        .attach('file', createPdfBuffer(), 'chapter1.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+
+      const annotations = res.body.data.submission.annotations || [];
+      expect(annotations).toHaveLength(2);
+
+      const validAnnotation = annotations.find((a) => a.content === 'Valid extracted comment');
+      expect(validAnnotation).toBeTruthy();
+      expect(validAnnotation.lineStart).toBeNull();
+      expect(validAnnotation.lineEnd).toBeNull();
+
+      const normalizedRangeAnnotation = annotations.find(
+        (a) => a.content === 'Inverted line range',
+      );
+      expect(normalizedRangeAnnotation).toBeTruthy();
+      expect(normalizedRangeAnnotation.lineStart).toBe(5);
+      expect(normalizedRangeAnnotation.lineEnd).toBe(12);
+
+      extractPdfCommentsSpy.mockRestore();
     });
 
     it('should accept chapter upload with a valid prototype link', async () => {
@@ -423,7 +474,7 @@ describe('Submissions API — /api/submissions', () => {
         .attach('file', createPdfBuffer(), 'chapter4.pdf');
 
       expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('PROPOSAL_NOT_APPROVED');
+      expect(res.body.error.code).toBe('CAPSTONE2_NOT_COMPLETED');
     });
 
     it('should reject chapter upload with an invalid prototype link', async () => {
@@ -446,7 +497,7 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('INVALID_FILE_TYPE');
-      expect(res.body.error.message).toBe('Invalid file type. Only PDF allowed.');
+      expect(res.body.error.message).toMatch(/is not allowed/i);
     });
 
     it('should reject oversized chapter upload with exact message', async () => {
@@ -459,7 +510,7 @@ describe('Submissions API — /api/submissions', () => {
 
       expect(res.status).toBe(413);
       expect(res.body.error.code).toBe('FILE_TOO_LARGE');
-      expect(res.body.error.message).toBe('File exceeds maximum size (25MB)');
+      expect(res.body.error.message).toMatch(/exceeds the 25MB limit/i);
     });
   });
 
@@ -1266,7 +1317,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REJECTED);
 
       const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+      expect(updatedProject.projectStatus).not.toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
     });
 
     it('should NOT transition project when revisions are requested', async () => {
@@ -1279,7 +1330,7 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.data.submission.status).toBe(SUBMISSION_STATUSES.REVISIONS_REQUIRED);
 
       const updatedProject = await Project.findById(project._id);
-      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_SUBMITTED);
+      expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.REVISION_NEEDED);
     });
 
     it('should generate notification with proposal label on approval', async () => {

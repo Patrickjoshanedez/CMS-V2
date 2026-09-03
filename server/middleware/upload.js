@@ -9,8 +9,8 @@
 import multer from 'multer';
 import env from '../config/env.js';
 
-const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-const pdfMetadataMaxBytes = maxBytes;
+const maxBytes = 50 * 1024 * 1024; // 50 MB limit
+const pdfMetadataMaxBytes = 50 * 1024 * 1024; // 50 MB limit
 
 const createMemoryUpload = (fileSizeLimitBytes, maxFiles) =>
   multer({
@@ -31,8 +31,8 @@ const pdfMetadataUpload = createMemoryUpload(pdfMetadataMaxBytes, 1);
 const avatarUpload = createMemoryUpload(5 * 1024 * 1024, 1);
 
 /**
- * Multer instance for archive bundle uploads requiring two files:
- * one academic paper and one journal paper.
+ * Multer instance for archive bundle uploads:
+ * one required academic paper and one optional journal paper.
  */
 const archiveDualUpload = createMemoryUpload(maxBytes, 2);
 

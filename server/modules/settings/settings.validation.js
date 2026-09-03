@@ -11,6 +11,16 @@ export const updateSettingsSchema = z
       .min(0, 'Plagiarism threshold must be at least 0')
       .max(100, 'Plagiarism threshold must be at most 100')
       .optional(),
+    plagiarismWarningThreshold: z
+      .number()
+      .min(0, 'Plagiarism warning threshold must be at least 0')
+      .max(100, 'Plagiarism warning threshold must be at most 100')
+      .optional(),
+    plagiarismRejectThreshold: z
+      .number()
+      .min(0, 'Plagiarism reject threshold must be at least 0')
+      .max(100, 'Plagiarism reject threshold must be at most 100')
+      .optional(),
     titleSimilarityThreshold: z
       .number()
       .min(0, 'Title similarity threshold must be at least 0')
@@ -26,5 +36,7 @@ export const updateSettingsSchema = z
       .max(500, 'System announcement must be at most 500 characters')
       .optional(),
     maintenanceMode: z.boolean().optional(),
+    documentTemplates: z.array(z.any()).optional(),
+    deadlines: z.array(z.any()).optional(),
   })
   .strict();

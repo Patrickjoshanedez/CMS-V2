@@ -26,10 +26,14 @@ import {
   Star,
   Trash2,
   Loader2,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ROLES } from '@cms/shared';
+import { Badge } from '@/components/ui/Badge';
+import { AssignCommitteeDialog } from '@/components/teams/AssignCommitteeDialog';
+import { TeamFormationNotificationItem } from '@/components/teams/TeamFormationNotificationItem';
 import {
   useNotifications,
   useMarkAsRead,
@@ -46,9 +50,14 @@ import {
 /** Maps notification types to lucide icons. */
 const ICON_MAP = {
   // Team events
+  team_created: Users,
   team_invite: UserPlus,
   team_joined: Users,
   team_locked: Lock,
+  team_formation_pending_committee: Users,
+  committee_appointment_required: UserCheck,
+  committee_assigned: ShieldCheck,
+  secretary_assigned: UserCheck,
   // Project events
   project_created: FolderOpen,
   project_rejected: ShieldX,
@@ -132,7 +141,7 @@ const TAB_BY_DEFENSE = {
   proposal: 'capstone_1',
   midterm: 'capstone_2',
   paper: 'capstone_3',
-  final: 'final',
+  final: 'capstone_4',
 };
 
 function getNotificationTarget(notification, role) {
@@ -147,12 +156,10 @@ function getNotificationTarget(notification, role) {
 
   if (notification.type === 'team_invite') {
     const inviteToken = metadata.inviteToken || metadata.inviteCode;
-
     if (inviteToken) {
-      return '/dashboard';
+      return `/teams/invites/${encodeURIComponent(inviteToken)}/accept`;
     }
-
-    return '/dashboard';
+    return '/teams';
   }
 
   if (notification.type === 'team_joined' || notification.type === 'team_locked') {
@@ -176,19 +183,19 @@ function getNotificationTarget(notification, role) {
   }
 
   if (TITLE_NOTIFICATION_TYPES.has(notification.type)) {
-    return '/project?tab=proposal';
+    return '/project?tab=capstone_1';
   }
 
   if (notification.type === 'phase_advanced') {
-    return `/project?tab=${TAB_BY_DEFENSE[defenseType] || 'proposal'}`;
+    return `/project?tab=${TAB_BY_DEFENSE[defenseType] || 'capstone_1'}`;
   }
 
   if (notification.type === 'project_created' || notification.type === 'project_rejected') {
-    return '/project?tab=proposal';
+    return '/project?tab=capstone_1';
   }
 
   if (notification.type === 'certificate_uploaded' || notification.type === 'project_archived') {
-    return '/project?tab=final';
+    return '/project?tab=capstone_4';
   }
 
   if (role !== ROLES.STUDENT && projectId) {
@@ -206,13 +213,51 @@ function isInteractiveTarget(target) {
   return Boolean(target.closest('button, a, input, select, textarea, [role="button"]'));
 }
 
-function NotificationItem({ notification, onOpen, onMarkRead, onDelete, isDeletePending }) {
+function formatTimeAgo(dateString) {
+  if (!dateString) return 'Just now';
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+function NotificationItem({
+  notification,
+  onOpen,
+  onMarkRead,
+  onDelete,
+  isDeletePending,
+  onInspectRoster,
+  onAssignCommittee,
+}) {
   const Icon = ICON_MAP[notification.type] || ICON_MAP.default;
 
   const handleActionClick = (handler, id) => (event) => {
-    event.stopPropagation();
+    event?.stopPropagation?.();
     handler(id);
   };
+
+  const isActionableCommittee =
+    Boolean(notification?.metadata?.requiresCommittee) ||
+    notification.type === 'team_formation_pending_committee' ||
+    notification.type === 'committee_appointment_required';
+
+  if (isActionableCommittee) {
+    return (
+      <TeamFormationNotificationItem
+        notification={notification}
+        onInspectRoster={onInspectRoster}
+        onAssignCommittee={onAssignCommittee}
+        onMarkRead={onMarkRead}
+        onDelete={onDelete}
+        isDeletePending={isDeletePending}
+      />
+    );
+  }
 
   return (
     <Card
@@ -311,6 +356,7 @@ export default function NotificationsPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [assignCommitteeTarget, setAssignCommitteeTarget] = useState(null);
   const pendingDeleteIdRef = useRef(null);
   const clearAllInFlightRef = useRef(false);
   const clearAllTriggerRef = useRef(null);
@@ -538,6 +584,10 @@ export default function NotificationsPage() {
                 onMarkRead={handleMarkRead}
                 onDelete={handleDelete}
                 isDeletePending={pendingDeleteId === notification._id}
+                onInspectRoster={(teamId) =>
+                  navigate(teamId ? `/teams?teamId=${encodeURIComponent(teamId)}` : '/teams')
+                }
+                onAssignCommittee={(target) => setAssignCommitteeTarget(target)}
               />
             ))}
           </div>
@@ -623,6 +673,15 @@ export default function NotificationsPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {assignCommitteeTarget && (
+        <AssignCommitteeDialog
+          open={Boolean(assignCommitteeTarget)}
+          onOpenChange={(open) => !open && setAssignCommitteeTarget(null)}
+          teamId={assignCommitteeTarget.teamId}
+          teamName={assignCommitteeTarget.teamName}
+        />
       )}
     </DashboardLayout>
   );

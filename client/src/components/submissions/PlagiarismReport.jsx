@@ -2,6 +2,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/Badge';
 import { PLAGIARISM_STATUSES } from '@cms/shared';
 import OriginalityBadge from './OriginalityBadge';
+import { buildTopSourceColorMap } from '../../hooks/useSubmissions';
+
+const toSourceKey = (source = {}, fallbackIndex = 0) => {
+  const candidate = source.sourceId || source.id || source.documentId || source.title;
+  if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+  if (Number.isFinite(candidate)) return String(candidate);
+  return `source-${fallbackIndex}`;
+};
 
 /**
  * PlagiarismReport — detailed originality-check panel for a submission.
@@ -99,6 +107,29 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
   if (scoreNum >= 80) ringColor = 'text-green-600 dark:text-green-400';
   else if (scoreNum >= 60) ringColor = 'text-amber-600 dark:text-amber-400';
 
+  const paletteInput = matchedSources.map((source, index) => ({
+    id: source.sourceId || source.id || source.documentId || `source-${index}`,
+    similarity_score: Number(source.matchPercentage ?? source.similarity ?? 0) / 100,
+    source_metadata: {
+      title: source.title || source.sourceId || 'Unknown source',
+      document_id: source.sourceId || source.id || source.documentId || null,
+    },
+  }));
+
+  const { sourceMap } = buildTopSourceColorMap(paletteInput, 10);
+
+  const decoratedSources = matchedSources.map((source, index) => {
+    const sourceKey = toSourceKey(source, index);
+    const sourceStyle = sourceMap.get(sourceKey);
+
+    return {
+      ...source,
+      sourceKey,
+      sourceNumber: sourceStyle?.sourceNumber ?? index + 1,
+      badgeClass: sourceStyle?.badgeClass || 'border-slate-300 bg-slate-100 text-slate-700',
+    };
+  });
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -137,21 +168,58 @@ export default function PlagiarismReport({ plagiarismResult, isLoading = false, 
           </div>
         </div>
 
+        {decoratedSources.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {decoratedSources.slice(0, 5).map((source) => (
+              <span
+                key={`palette-${source.sourceKey}`}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1 text-xs"
+              >
+                <span
+                  className={[
+                    'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold',
+                    source.badgeClass,
+                  ].join(' ')}
+                >
+                  {source.sourceNumber}
+                </span>
+                <span className="max-w-[10rem] truncate">
+                  {source.title || source.sourceId || 'Source'}
+                </span>
+              </span>
+            ))}
+            {decoratedSources.length > 5 && (
+              <span className="text-xs text-muted-foreground">
+                +{decoratedSources.length - 5} more
+              </span>
+            )}
+          </div>
+        )}
+
         {/* ── Matched sources table ── */}
-        {matchedSources.length > 0 && (
+        {decoratedSources.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">#</th>
+                  <th className="pb-2 pr-4 font-medium">Source #</th>
                   <th className="pb-2 pr-4 font-medium">Source</th>
                   <th className="pb-2 font-medium text-right">Match %</th>
                 </tr>
               </thead>
               <tbody>
-                {matchedSources.map((src, idx) => (
-                  <tr key={src.sourceId || idx} className="border-b last:border-0">
-                    <td className="py-2 pr-4 text-muted-foreground">{idx + 1}</td>
+                {decoratedSources.map((src, idx) => (
+                  <tr key={src.sourceId || src.sourceKey || idx} className="border-b last:border-0">
+                    <td className="py-2 pr-4">
+                      <span
+                        className={[
+                          'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[11px] font-semibold',
+                          src.badgeClass,
+                        ].join(' ')}
+                      >
+                        {src.sourceNumber}
+                      </span>
+                    </td>
                     <td className="py-2 pr-4">{src.title || src.sourceId || 'Unknown'}</td>
                     <td className="py-2 text-right font-mono">
                       {typeof src.matchPercentage === 'number'

@@ -1,0 +1,307 @@
+Here's your full redesign prompt — structured so you can hand it directly to a developer, AI coding tool, or use it yourself across multiple files.
+
+🎯 Master Redesign Prompt: Archive Plagiarism Checker
+
+CONTEXT & GOAL
+You are redesigning the Archive Plagiarism Checker feature of a Capstone Management System. The current system works but needs a complete UI overhaul inspired by Turnitin's professional accuracy-first design language — clean, authoritative, and data-dense without feeling cluttered.
+The backend is fixed. It returns this payload shape:
+js{
+  overallSimilarity: Number,         // 0–100, percentage
+  textMatches: Array<{
+    submittedText: String,
+    matchedText: String,
+    sourceId: String,
+    startIndex: Number,
+    endIndex: Number,
+    similarity: Number,
+  }>,
+  matchedBlocks: Array,
+  sources: Array<{
+    _id: String,
+    title: String,
+    authors: Array<String>,
+    year: Number,
+    similarity: Number,              // lexical score
+    semanticSimilarity: Number,      // Ollama embedding score
+    finalScore: Number,              // blended score shown to user
+    matchCount: Number,
+  }>,
+  extractedText: String,             // full text of submitted document
+  semanticModel: String,             // e.g. "nomic-embed-text"
+}
+The upload flow is:
+
+POST /api/submissions/plagiarism/checker/scan with multipart/form-data, field name file, PDF only, max 25 MB
+Called via plagiarismService.scanArchive(file) which returns the above payload
+
+
+DESIGN DIRECTION
+Aesthetic: Refined institutional — think Turnitin meets a Bloomberg terminal. Dark navy sidebar, crisp white content area, bold typography, surgical color coding for similarity levels. Not playful. Not generic SaaS purple. Professional, trustworthy, dense with meaning.
+Color System (CSS variables to define):
+css--color-bg: #F7F8FA
+--color-surface: #FFFFFF
+--color-sidebar: #0D1B2A
+--color-sidebar-text: #C8D6E5
+--color-accent: #E63946          /* high similarity — red */
+--color-warn: #F4A261            /* medium — amber */
+--color-ok: #2A9D8F             /* low — teal */
+--color-neutral: #457B9D        /* informational blue */
+--color-text-primary: #1A1A2E
+--color-text-secondary: #6B7A99
+--color-border: #E4E8F0
+--font-display: 'DM Serif Display', serif    /* headers */
+--font-body: 'DM Sans', sans-serif           /* body/UI text */
+--font-mono: 'JetBrains Mono', monospace     /* match snippets */
+Similarity color thresholds:
+
+0–15% → --color-ok (teal) — label: "Low"
+16–40% → --color-warn (amber) — label: "Moderate"
+41–70% → #E07B39 (deep orange) — label: "High"
+71–100% → --color-accent (red) — label: "Critical"
+
+
+PAGE 1 — UPLOAD SCREEN (ArchivePlagiarismCheckerPage.jsx)
+Layout: Centered card on a subtle dot-grid background. No clutter.
+Components to build:
+1. <ScanHero />
+
+Large DM Serif Display heading: "Archive Similarity Scanner"
+Subheading in DM Sans/muted: "Compare your submission against the full capstone archive using lexical fingerprinting + semantic embeddings."
+Small badge: Model: {semanticModel} (shown after first scan, or hardcoded from env)
+
+2. <DropZone />
+
+Dashed border, subtle hover glow in --color-neutral
+Accepts PDF only (enforce on frontend: check file.type === 'application/pdf' before upload)
+Shows file name + size after selection
+Shows error inline (red border + message) if non-PDF or >25MB selected
+States: idle | selected | uploading | error
+
+3. <ScanButton />
+
+Full-width, --color-sidebar background
+Text: "Scan for Similarities"
+Loading state: animated progress bar + "Analyzing document…" (this can take 10–60s, show elapsed time counter)
+Disabled when no file selected
+
+4. Upload error handling (show inline, not toast):
+jsif (!file) → "Please select a PDF file."
+if (file.size > 25 * 1024 * 1024) → "File exceeds 25 MB limit."
+if (file.type !== 'application/pdf') → "Only PDF files are accepted."
+if (response.status === 429) → "Too many scans. Please wait before trying again."
+if (response.status >= 500) → "Scan service unavailable. Try again shortly."
+
+PAGE 2 — REPORT SCREEN (PlagiarismReportPage.jsx)
+Layout: Fixed two-panel split. Left = annotated document text. Right = source panel. A top bar holds the overall score and controls.
+
+TOP BAR
+Sticky, --color-sidebar background, full width.
+Left: Back button → returns to upload screen (clears reportData state)
+Center: Document filename
+Right: Overall Similarity Score — large circular gauge:
+
+Ring chart (SVG), colored by threshold
+Large percentage number inside
+Label below: "Low / Moderate / High / Critical"
+Tooltip on hover: "Computed from matched character intervals across all sources"
+
+Export button (PDF/print — can be window.print() targeting a @media print stylesheet)
+
+LEFT PANEL — Annotated Document Text
+Header: "Submitted Document" | character count | word count
+Body: Render extractedText with inline highlights.
+Highlight rendering logic:
+js// Given: extractedText (string), textMatches (array of {startIndex, endIndex, sourceId, similarity})
+// 1. Sort matches by startIndex
+// 2. Merge overlapping intervals (keep highest similarity for color)
+// 3. Walk through text, inserting <mark> spans with data-source-id and appropriate color class
+// 4. Clicking a highlight → sets activeSourceId in state → scrolls right panel to that source
+Excluded regions (do NOT highlight):
+
+Text within "..." or '...' (quoted strings longer than 15 chars) — these are intentional quotes
+Common reference/bibliography patterns: lines starting with [1], [2], numbered list at end of doc
+
+Highlight colors:
+
+Use the similarity threshold colors from the Design Direction section
+Each source gets a consistent color (cycle through a palette of 8 colors, reuse if >8 sources)
+Overlapping highlights: show the highest-similarity color, with a striped overlay effect via CSS background: repeating-linear-gradient(...) to indicate overlap
+
+UX details:
+
+Smooth scroll-to-highlight when source is selected from right panel
+Active highlight: slightly darker shade + subtle box-shadow
+Non-active highlights: 60% opacity so active one pops
+
+
+RIGHT PANEL — Source List + Source Detail
+Tab bar:
+
+"All Sources" (default) — sorted by finalScore descending
+"Lexical Matches" — sorted by similarity
+"Semantic Matches" — sorted by semanticSimilarity
+
+Source List item (for each entry in sources):
+[Color dot] [Title — truncated 2 lines]
+            [Authors] · [Year]
+            [Score bar] XX% final  |  Lexical: XX%  Semantic: XX%
+            [N matches badge]
+
+Clicking a source → shows Source Detail view (replaces list, back button returns)
+Hovering → highlights all that source's matches in left panel
+
+Source Detail view:
+← Back to sources
+
+[Title]
+[Authors, Year]
+
+┌─────────────────────────────────────────┐
+│  Final Score      Lexical     Semantic   │
+│    XX%             XX%         XX%       │
+└─────────────────────────────────────────┘
+
+Score Formula (collapsible info box):
+  finalScore = max(lexical, semantic) when semantic > threshold,
+               lexical otherwise
+
+Match Snippets (X found):
+  For each textMatch where sourceId === this source:
+  ┌──────────────────────────────────┐
+  │ Your text:   "...excerpt..."     │
+  │ Source text: "...excerpt..."     │
+  │              Similarity: XX%     │
+  └──────────────────────────────────┘
+  (Jump to in document) button per snippet
+
+ACCURACY-FOCUSED NOTES (embed these as inline comments in your code)
+These are critical for the UI to accurately represent what the backend computed:
+// ACCURACY: Do not display `similarity` (lexical only) as the primary score.
+// Always use `finalScore` which is the blended lexical + semantic result.
+// See: archivePlagiarismScan.service.js:532–536
+
+// ACCURACY: Overall similarity is character-interval based, NOT an average of source scores.
+// It = matchedCharacters / totalExtractedCharacters * 100
+// Do NOT recompute it from sources array — use the value from overallSimilarity directly.
+// See: archivePlagiarismScan.service.js:628–642
+
+// ACCURACY: Overlapping text matches from multiple sources should be merged before
+// computing display coverage. The same characters matched by 2 sources should count once.
+// Use interval-merge algorithm on textMatches before rendering highlights.
+
+// ACCURACY: Sources with only semantic similarity (no lexical match) can appear in
+// results if semanticSimilarity > threshold. These will have similarity ≈ 0 but
+// a non-zero finalScore. Label these as "Semantic match only" in the UI.
+// See: archivePlagiarismScan.service.js:496
+
+// ACCURACY: Quote/bibliography exclusion happens in the backend fingerprinting.
+// Do a best-effort visual exclusion on frontend too (skip highlighting quoted strings),
+// so the UI doesn't mislead users into thinking those are flagged.
+// See: plagiarism.service.js:193–201
+
+STATE MANAGEMENT STRUCTURE
+js// ArchivePlagiarismCheckerPage state
+const [file, setFile] = useState(null);
+const [scanning, setScanning] = useState(false);
+const [scanError, setScanError] = useState(null);
+const [reportData, setReportData] = useState(null);  // null = show upload screen
+const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+// PlagiarismReportPage state
+const [activeSourceId, setActiveSourceId] = useState(null);
+const [activeTab, setActiveTab] = useState('all'); // 'all' | 'lexical' | 'semantic'
+const [sourceDetailId, setSourceDetailId] = useState(null);
+const [highlightedSourceId, setHighlightedSourceId] = useState(null); // hover state
+
+FILE STRUCTURE (what to create/update)
+src/
+  pages/
+    ArchivePlagiarismCheckerPage.jsx   ← upload screen (full rewrite)
+  components/plagiarism/
+    DropZone.jsx
+    ScanButton.jsx
+    ScanHero.jsx
+    PlagiarismReportPage.jsx           ← full rewrite
+    AnnotatedText.jsx                  ← highlight rendering engine
+    SourceList.jsx
+    SourceDetail.jsx
+    SimilarityGauge.jsx                ← SVG ring chart
+    MatchSnippet.jsx
+    ScoreBar.jsx
+  utils/
+    intervalMerge.js     ← merge overlapping [start,end] intervals
+    similarityColor.js   ← threshold → CSS variable mapping
+    highlightBuilder.js  ← builds annotated segment array from extractedText + textMatches
+
+intervalMerge.js — Implement this utility
+js/**
+ * Merges overlapping intervals, keeping the highest similarity value.
+ * Input: [{startIndex, endIndex, sourceId, similarity}]
+ * Output: [{startIndex, endIndex, sourceId, similarity}] — no overlaps
+ */
+export function mergeIntervals(matches) {
+  if (!matches.length) return [];
+  const sorted = [...matches].sort((a, b) => a.startIndex - b.startIndex);
+  const merged = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    const curr = sorted[i];
+    if (curr.startIndex <= last.endIndex) {
+      last.endIndex = Math.max(last.endIndex, curr.endIndex);
+      if (curr.similarity > last.similarity) {
+        last.similarity = curr.similarity;
+        last.sourceId = curr.sourceId;
+      }
+    } else {
+      merged.push({ ...curr });
+    }
+  }
+  return merged;
+}
+
+highlightBuilder.js — Implement this utility
+js/**
+ * Splits extractedText into annotated segments for rendering.
+ * Returns: [{text, highlighted, sourceId, similarity}]
+ */
+export function buildSegments(extractedText, mergedIntervals) {
+  const segments = [];
+  let cursor = 0;
+  for (const interval of mergedIntervals) {
+    if (cursor < interval.startIndex) {
+      segments.push({ text: extractedText.slice(cursor, interval.startIndex), highlighted: false });
+    }
+    segments.push({
+      text: extractedText.slice(interval.startIndex, interval.endIndex),
+      highlighted: true,
+      sourceId: interval.sourceId,
+      similarity: interval.similarity,
+    });
+    cursor = interval.endIndex;
+  }
+  if (cursor < extractedText.length) {
+    segments.push({ text: extractedText.slice(cursor), highlighted: false });
+  }
+  return segments;
+}
+
+PRINT STYLESHEET (add to global CSS)
+css@media print {
+  .sidebar, .top-bar-actions, .source-panel { display: none; }
+  .annotated-text { width: 100%; font-size: 11pt; }
+  .score-summary { page-break-after: always; }
+  mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+DON'T DO LIST (common mistakes to avoid)
+
+❌ Don't average sources[].finalScore to compute overall similarity — use overallSimilarity from the API
+❌ Don't show similarity (lexical only) as the headline score per source — use finalScore
+❌ Don't highlight quoted/bibliography text — skip those regions visually
+❌ Don't show a toast for scan errors — show inline in the upload card
+❌ Don't re-sort sources by lexical score by default — default to finalScore descending
+❌ Don't ignore semantic-only sources — label them explicitly in the source list
+❌ Don't block the UI while rendering highlights for long documents — use useMemo or chunk rendering
+
+
+This gives you everything: the design system, the component tree, the accuracy-critical logic, and the exact utilities to implement. The highlight rendering engine (AnnotatedText + highlightBuilder + intervalMerge) is where most accuracy bugs live — build and test those first with mock data before wiring the real API.

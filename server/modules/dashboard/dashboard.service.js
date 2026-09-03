@@ -10,6 +10,7 @@
 import User from '../users/user.model.js';
 import Team from '../teams/team.model.js';
 import Project from '../projects/project.model.js';
+import AuditLog from '../audit/audit.model.js';
 import projectService from '../projects/project.service.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
@@ -57,19 +58,32 @@ class DashboardService {
     ]);
 
     let chapterProgress = [];
+    let submissionHistory = [];
+    let teamActivityTrail = [];
+    let progressReport = null;
     if (project) {
-      const latestSubmissions = await Submission.aggregate([
-        { $match: { projectId: project._id } },
-        { $sort: { chapter: 1, version: -1 } },
-        {
-          $group: {
-            _id: '$chapter',
-            status: { $first: '$status' },
-            version: { $first: '$version' },
-            updatedAt: { $first: '$updatedAt' },
+      const [latestSubmissions, projectSubmissions] = await Promise.all([
+        Submission.aggregate([
+          { $match: { projectId: project._id } },
+          { $sort: { chapter: 1, version: -1 } },
+          {
+            $group: {
+              _id: '$chapter',
+              status: { $first: '$status' },
+              version: { $first: '$version' },
+              updatedAt: { $first: '$updatedAt' },
+            },
           },
-        },
-        { $sort: { _id: 1 } },
+          { $sort: { _id: 1 } },
+        ]),
+        Submission.find({ projectId: project._id })
+          .select(
+            '_id chapter type version status submittedAt updatedAt fileName fileSize plagiarismResult originalityScore submittedBy',
+          )
+          .populate('submittedBy', 'firstName lastName role')
+          .sort({ submittedAt: -1, createdAt: -1 })
+          .limit(100)
+          .lean(),
       ]);
 
       chapterProgress = [1, 2, 3, 4, 5].map((ch) => {
@@ -81,6 +95,79 @@ class DashboardService {
           updatedAt: sub ? sub.updatedAt : null,
         };
       });
+
+      submissionHistory = projectSubmissions.map((item) => ({
+        _id: item._id,
+        chapter: item.chapter,
+        type: item.type,
+        version: item.version,
+        status: item.status,
+        fileName: item.fileName,
+        fileSize: item.fileSize,
+        submittedAt: item.submittedAt,
+        updatedAt: item.updatedAt,
+        originalityScore: item.originalityScore ?? null,
+        plagiarismStatus: item.plagiarismResult?.status || null,
+        submittedBy: item.submittedBy
+          ? {
+              _id: item.submittedBy._id,
+              firstName: item.submittedBy.firstName,
+              lastName: item.submittedBy.lastName,
+              role: item.submittedBy.role,
+            }
+          : null,
+      }));
+
+      const submissionIds = projectSubmissions.map((item) => item._id.toString());
+      const projectAuditLogs = await AuditLog.find({
+        $or: [
+          { targetType: 'Project', targetId: project._id.toString() },
+          { targetType: 'Submission', targetId: { $in: submissionIds } },
+        ],
+        action: {
+          $not: /^(user\.|settings\.|auth\.|system\.|audit\.)/i,
+        },
+      })
+        .populate('actor', 'firstName lastName role')
+        .sort({ createdAt: -1 })
+        .limit(150)
+        .lean();
+
+      teamActivityTrail = projectAuditLogs.map((entry) => ({
+        _id: entry._id,
+        action: entry.action,
+        actorRole: entry.actorRole,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        description: entry.description,
+        metadata: entry.metadata,
+        createdAt: entry.createdAt,
+        actor: entry.actor
+          ? {
+              _id: entry.actor._id,
+              firstName: entry.actor.firstName,
+              lastName: entry.actor.lastName,
+              role: entry.actor.role,
+            }
+          : null,
+      }));
+
+      const totalMilestones = chapterProgress.length;
+      const approvedMilestones = chapterProgress.filter(
+        (item) => item.status === 'approved',
+      ).length;
+      const inReviewMilestones = chapterProgress.filter((item) =>
+        [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW].includes(item.status),
+      ).length;
+
+      progressReport = {
+        totalMilestones,
+        approvedMilestones,
+        inReviewMilestones,
+        completionPercent: totalMilestones
+          ? Math.round((approvedMilestones / totalMilestones) * 100)
+          : 0,
+      };
     }
 
     return {
@@ -109,7 +196,10 @@ class DashboardService {
             deadlines: project.deadlines,
           }
         : null,
+      progressReport,
       chapterProgress,
+      submissionHistory,
+      teamActivityTrail,
       recentNotifications,
     };
   }
@@ -118,6 +208,11 @@ class DashboardService {
    * Instructor dashboard — system-wide counts, pending title approvals, recent submissions.
    */
   async _getInstructorStats(user) {
+    const adviserProjectIds = await Project.find({ adviserId: user._id, isArchived: { $ne: true } })
+      .select('_id')
+      .lean()
+      .then((projects) => projects.map((p) => p._id));
+
     const [
       totalUsers,
       totalTeams,
@@ -126,22 +221,46 @@ class DashboardService {
       recentSubmissions,
       projectsByStatus,
       recentNotifications,
+      assignedProjects,
+      pendingReviews,
+      panelProjects,
     ] = await Promise.all([
       User.countDocuments({ isActive: true }),
       Team.countDocuments(),
       Project.countDocuments(),
-      Project.find({ titleStatus: TITLE_STATUSES.SUBMITTED })
+      Project.find({ titleStatus: TITLE_STATUSES.SUBMITTED, isArchived: { $ne: true } })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
         .limit(10)
         .lean(),
       Submission.find({ status: SUBMISSION_STATUSES.PENDING })
-        .populate('projectId', 'title teamId')
+        .populate({
+          path: 'projectId',
+          select: 'title teamId isArchived',
+          match: { isArchived: { $ne: true } },
+        })
         .sort({ createdAt: -1 })
-        .limit(10)
-        .lean(),
+        .lean()
+        .then((subs) => subs.filter((s) => s.projectId).slice(0, 10)),
       Project.aggregate([{ $group: { _id: '$projectStatus', count: { $sum: 1 } } }]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
+      Project.find({ adviserId: user._id })
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      adviserProjectIds.length > 0
+        ? Submission.find({
+            projectId: { $in: adviserProjectIds },
+            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
+          })
+            .populate('projectId', 'title isArchived projectStatus')
+            .sort({ createdAt: -1 })
+            .lean()
+        : Promise.resolve([]),
+      Project.find({ panelistIds: user._id, isArchived: { $ne: true } })
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
     ]);
 
     const statusCounts = {};
@@ -156,6 +275,9 @@ class DashboardService {
         teams: totalTeams,
         projects: totalProjects,
         pendingTitles: pendingTitles.length,
+        assignedProjects: assignedProjects.length,
+        pendingReviews: pendingReviews.length,
+        panelAssignments: panelProjects.length,
       },
       pendingTitleApprovals: pendingTitles.map((p) => ({
         _id: p._id,
@@ -171,6 +293,35 @@ class DashboardService {
         fileName: s.fileName,
         createdAt: s.createdAt,
       })),
+      assignedProjects: assignedProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown',
+        memberCount: p.teamId?.members?.length || 0,
+      })),
+      pendingReviews: pendingReviews.map((s) => ({
+        _id: s._id,
+        chapter: s.chapter,
+        version: s.version,
+        status: s.status,
+        projectTitle: s.projectId?.title || 'Unknown',
+        isArchived: s.projectId?.isArchived || false,
+        projectStatus: s.projectId?.projectStatus || null,
+        fileName: s.fileName,
+        createdAt: s.createdAt,
+      })),
+      panelAssignments: panelProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown',
+        memberCount: p.teamId?.members?.length || 0,
+      })),
       projectsByStatus: statusCounts,
       recentNotifications,
     };
@@ -180,7 +331,7 @@ class DashboardService {
    * Adviser dashboard — assigned projects, pending reviews, recent chapters.
    */
   async _getAdviserStats(user) {
-    const adviserProjectIds = await Project.find({ adviserId: user._id })
+    const adviserProjectIds = await Project.find({ adviserId: user._id, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -195,7 +346,7 @@ class DashboardService {
             projectId: { $in: adviserProjectIds },
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
-            .populate('projectId', 'title')
+            .populate('projectId', 'title isArchived projectStatus')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
@@ -209,6 +360,7 @@ class DashboardService {
         title: p.title,
         titleStatus: p.titleStatus,
         projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
         teamName: p.teamId?.name || 'Unknown',
         memberCount: p.teamId?.members?.length || 0,
       })),
@@ -218,6 +370,8 @@ class DashboardService {
         version: s.version,
         status: s.status,
         projectTitle: s.projectId?.title || 'Unknown',
+        isArchived: s.projectId?.isArchived || false,
+        projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
       })),
@@ -240,7 +394,7 @@ class DashboardService {
     const now = new Date();
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const adviserProjectIds = await Project.find({ adviserId })
+    const adviserProjectIds = await Project.find({ adviserId, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -350,7 +504,7 @@ class DashboardService {
   async getAdviserAnalytics(adviserId) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const adviserProjectIds = await Project.find({ adviserId })
+    const adviserProjectIds = await Project.find({ adviserId, isArchived: { $ne: true } })
       .select('_id')
       .lean()
       .then((projects) => projects.map((p) => p._id));
@@ -443,7 +597,7 @@ class DashboardService {
    */
   async getPanelistTopics(panelistId) {
     const [assignedProjects, availableProjects] = await Promise.all([
-      Project.find({ panelistIds: panelistId })
+      Project.find({ panelistIds: panelistId, isArchived: { $ne: true } })
         .populate('teamId', 'name members')
         .populate('adviserId', 'firstName lastName')
         .sort({ updatedAt: -1 })
@@ -506,7 +660,15 @@ class DashboardService {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    if (project.projectStatus !== PROJECT_STATUSES.ACTIVE || project.isArchived) {
+    if (
+      ![
+        PROJECT_STATUSES.ACTIVE,
+        PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
+        PROJECT_STATUSES.PENDING_IN_REVIEW,
+        PROJECT_STATUSES.REVISION_NEEDED,
+      ].includes(project.projectStatus) ||
+      project.isArchived
+    ) {
       throw new AppError('Only active projects can be selected.', 400, 'PROJECT_NOT_ACTIVE');
     }
 
@@ -521,7 +683,10 @@ class DashboardService {
       };
     }
 
-    const { project: updatedProject } = await projectService.selectAsPanelist(projectId, panelistId);
+    const { project: updatedProject } = await projectService.selectAsPanelist(
+      projectId,
+      panelistId,
+    );
 
     return {
       alreadyAssigned: false,
@@ -597,7 +762,9 @@ class DashboardService {
 
     const adviserRows = await Promise.all(
       advisers.map(async (adviser) => {
-        const projectIds = await Project.find({ adviserId: adviser._id }).select('_id').lean();
+        const projectIds = await Project.find({ adviserId: adviser._id, isArchived: { $ne: true } })
+          .select('_id')
+          .lean();
         const ids = projectIds.map((p) => p._id);
 
         if (ids.length === 0) {
@@ -710,7 +877,7 @@ class DashboardService {
    */
   async _getPanelistStats(user) {
     const [assignedProjects, pendingEvaluations, recentNotifications] = await Promise.all([
-      Project.find({ panelistIds: user._id })
+      Project.find({ panelistIds: user._id, isArchived: { $ne: true } })
         .populate('teamId', 'name')
         .sort({ updatedAt: -1 })
         .lean(),

@@ -47,6 +47,11 @@ export async function extractText(buffer, mimeType) {
  * @returns {Promise<string>}
  */
 async function extractFromPdf(buffer) {
+  // Magic-byte check for %PDF-
+  if (buffer.length < 5 || buffer.toString('utf-8', 0, 5) !== '%PDF-') {
+    throw new Error('Invalid PDF document: magic byte header check failed.');
+  }
+
   // pdf-parse v2 exposes a PDFParse class, not a default function.
   // Construct a parser per call and destroy it to avoid leaked resources.
   const { PDFParse } = await import('pdf-parse');
@@ -66,6 +71,17 @@ async function extractFromPdf(buffer) {
  * @returns {Promise<string>}
  */
 async function extractFromDocx(buffer) {
+  // Magic-byte check for PK\x03\x04 (ZIP header for DOCX)
+  if (
+    buffer.length < 4 ||
+    buffer[0] !== 0x50 ||
+    buffer[1] !== 0x4b ||
+    buffer[2] !== 0x03 ||
+    buffer[3] !== 0x04
+  ) {
+    throw new Error('Invalid DOCX document: ZIP magic byte header check failed.');
+  }
+
   const mammoth = await import('mammoth');
   const result = await mammoth.extractRawText({ buffer });
   return result.value || '';

@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { useArchiveSearch } from '@/hooks/useProjects';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -207,11 +209,7 @@ export default function ArchiveSearchPage() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {isLoading && <PageSkeleton />}
 
         {/* Empty State */}
         {!isLoading && !error && projects.length === 0 && (
@@ -297,7 +295,9 @@ export default function ArchiveSearchPage() {
                         <span className="line-clamp-1 text-sm text-muted-foreground">
                           {project.teamId?.name ?? 'Unknown Team'}
                         </span>
-                        <span className="text-sm text-muted-foreground">{project.academicYear}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {project.academicYear}
+                        </span>
                         <span className="line-clamp-1 text-sm text-muted-foreground">
                           {project.keywords?.slice(0, 2).join(', ') || '-'}
                         </span>
@@ -316,7 +316,9 @@ export default function ArchiveSearchPage() {
                     className="rounded-lg border border-border p-4 text-left transition-colors hover:bg-muted/50"
                   >
                     <div className="space-y-1">
-                      <p className="line-clamp-2 text-sm font-semibold text-foreground">{project.title}</p>
+                      <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                        {project.title}
+                      </p>
                       <p className="line-clamp-1 text-xs text-muted-foreground">
                         {project.teamId?.name ?? 'Unknown Team'}
                       </p>

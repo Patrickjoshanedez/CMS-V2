@@ -1,0 +1,5 @@
+- Fixed start-local-dev.ps1 crash from PowerShell automatic variable collision: never use loop variable name `pid` because it collides with read-only `$PID`.
+- Telemetry sidecar failed on Windows paths with spaces; use cmd.exe invocation + quoted script path for node startup.
+- Added telemetry stdout/stderr redirection and fail-fast error surfacing to diagnose sidecar startup quickly.
+- For Express + path-to-regexp v8 compatibility: avoid bare '*'/'/*' routes; use named wildcard patterns (`/*filepath`, '/{*path}').
+- Repeated EADDRINUSE on 5000 can come from stale concurrent dev sessions/watchers; kill prior dev terminals/processes before launching new session.

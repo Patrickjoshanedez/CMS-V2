@@ -851,9 +851,9 @@ async function seed() {
 
     if (isGoogle) {
       baseUser.googleId = def.googleId;
-    } else {
-      baseUser.password = DEFAULT_PASSWORD;
     }
+
+    baseUser.password = DEFAULT_PASSWORD;
 
     const u = await User.create(baseUser);
     createdUsers.push(u);

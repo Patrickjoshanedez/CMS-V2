@@ -107,7 +107,7 @@ export default function AuthLayout({ children, title, description, wide = false 
   }, []);
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(28rem,42rem)]">
       {/* ── Left: Wave panel ── */}
       <AuthWavePanel />
 

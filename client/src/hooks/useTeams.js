@@ -16,6 +16,7 @@ export const teamKeys = {
   my: (userId) => [...teamKeys.all, 'my', userId],
   lists: () => [...teamKeys.all, 'list'],
   list: (filters) => [...teamKeys.lists(), filters],
+  createInviteCandidates: (search) => [...teamKeys.all, 'create-invite-candidates', search],
   inviteCandidates: (teamId, search) => [...teamKeys.all, 'invite-candidates', teamId, search],
 };
 
@@ -79,6 +80,25 @@ export function useInviteCandidates(teamId, search, options = {}) {
   });
 }
 
+/**
+ * Search student invite candidates before a team is created.
+ */
+export function useCreateTeamInviteCandidates(search, options = {}) {
+  return useQuery({
+    queryKey: teamKeys.createInviteCandidates(search),
+    queryFn: async () => {
+      const { data } = await teamService.listCreateTeamInviteCandidates({
+        search,
+        limit: 8,
+      });
+      return data.data.candidates;
+    },
+    enabled: (search?.trim()?.length ?? 0) >= 2,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+}
+
 /* ────────── Mutation Helper ────────── */
 
 /**
@@ -104,7 +124,7 @@ function useTeamMutation(mutationFn, options = {}) {
 
 /**
  * Create a new team.
- * @param {Object} data — { name: string, academicYear: string }
+ * @param {Object} data — { name: string }
  */
 export function useCreateTeam(options = {}) {
   return useTeamMutation(async (data) => {
@@ -169,6 +189,17 @@ export function useUpdateGoogleDocLink(options = {}) {
 }
 
 /**
+ * Attach or clear team-level GitHub repository link (leader only).
+ * @param {Object} params — { teamId: string, githubUrl: string }
+ */
+export function useUpdateGithubLink(options = {}) {
+  return useTeamMutation(async ({ teamId, githubUrl }) => {
+    const res = await teamService.updateGithubLink(teamId, { githubUrl });
+    return res.data;
+  }, options);
+}
+
+/**
  * Finalize a team by locking it.
  * @param {Object} params — { teamId: string }
  */
@@ -188,4 +219,61 @@ export function useLeaveTeam(options = {}) {
     const res = await teamService.leaveTeam(teamId);
     return res.data;
   }, options);
+}
+
+/**
+ * Assign faculty committee (Adviser, Panelists, Secretary) to a team (Instructor).
+ * @param {Object} params — { teamId: string, adviserId?: string, secretaryId?: string, panelistIds?: string[] }
+ */
+export function useAssignCommittee(options = {}) {
+  const queryClient = useQueryClient();
+  return useTeamMutation(
+    async ({ teamId, ...data }) => {
+      const res = await teamService.assignCommittee(teamId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: async (...args) => {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        options.onSuccess?.(...args);
+      },
+    },
+  );
+}
+
+/**
+ * Fetch dynamic institutional manuscript template with title defense access gating.
+ * @param {string} teamId
+ */
+export function useTeamManuscriptTemplate(teamId, options = {}) {
+  return useQuery({
+    queryKey: ['teams', teamId, 'manuscript-template'],
+    queryFn: async () => {
+      const res = await teamService.getManuscriptTemplate(teamId);
+      return res.data?.data;
+    },
+    enabled: Boolean(teamId),
+    ...options,
+  });
+}
+
+/**
+ * Update dynamic manuscript template (Instructor only).
+ */
+export function useUpdateManuscriptTemplate(options = {}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await teamService.updateManuscriptTemplate(data);
+      return res.data;
+    },
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: teamKeys.all });
+      options.onSuccess?.(...args);
+    },
+    onError: options.onError,
+  });
 }

@@ -98,3 +98,10 @@ export function useChangeRole(options = {}) {
 export function useDeleteUser(options = {}) {
   return useUserMutation((id) => userService.deleteUser(id), options);
 }
+
+/**
+ * Re-activate a previously deactivated user (Instructor-only).
+ */
+export function useActivateUser(options = {}) {
+  return useUserMutation((id) => userService.activateUser(id), options);
+}

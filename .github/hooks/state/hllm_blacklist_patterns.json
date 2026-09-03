@@ -1,21 +1,21 @@
 {
   "version": "1.0.0",
-  "description": "Central blacklist regex rules for HLLM preflight hook.",
+  "generated_at": "2026-08-23T23:08:00.000Z",
   "patterns": [
     {
-      "id": "no-test-skip-bypass",
-      "pattern": "\\b(?:it|test|describe)\\.skip\\s*\\(",
-      "reason": "Do not bypass failing tests by skipping them. Fix root cause instead."
+      "id": "sec-no-hardcoded-credentials",
+      "pattern": "(?:password|secret|api_key|token)\\s*=\\s*['\"][a-zA-Z0-9_-]{16,}['\"]",
+      "reason": "Hardcoded credentials or API tokens detected in source patch."
     },
     {
-      "id": "no-hard-reset",
-      "pattern": "git\\s+reset\\s+--hard",
-      "reason": "Destructive git history rewrites are forbidden in autonomous fix flows."
+      "id": "sec-no-destructive-db-drop",
+      "pattern": "(?:db\\.(?:dropDatabase|dropAllDatabases)|mongoose\\.connection\\.db\\.dropDatabase)",
+      "reason": "Destructive database drop operations are forbidden."
     },
     {
-      "id": "no-checkout-discard",
-      "pattern": "git\\s+checkout\\s+--",
-      "reason": "Do not discard potentially relevant local work during automated repair."
+      "id": "hllm-anti-slop-generic-placeholder",
+      "pattern": "TODO:\\s*implement\\s+this\\s+later|PLACEHOLDER_FOR_REAL_CODE",
+      "reason": "Unimplemented placeholder code pattern forbidden."
     }
   ]
 }

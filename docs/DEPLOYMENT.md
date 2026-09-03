@@ -69,8 +69,8 @@ npm run dev
 Or start them individually:
 
 ```bash
-npm run dev:server   # Express API at http://localhost:5000
-npm run dev:client   # Vite React at http://localhost:5173
+npm run dev:server   # Express API at http://localhost:43210
+npm run dev:client   # Vite React at http://localhost:43211
 ```
 
 ---
@@ -92,7 +92,7 @@ All environment configuration lives in `server/.env`. The server validates that 
 | Variable               | Default                    | Description                                      |
 |------------------------|----------------------------|--------------------------------------------------|
 | `NODE_ENV`             | `development`              | `development`, `production`, or `test`           |
-| `PORT`                 | `5000`                     | Express server port                              |
+| `PORT`                 | `43210`                    | Express server port                              |
 | `JWT_ACCESS_EXPIRES_IN`| `15m`                      | Access token TTL (e.g., `15m`, `1h`)             |
 | `JWT_REFRESH_EXPIRES_IN`| `7d`                      | Refresh token TTL (e.g., `7d`, `30d`)            |
 | `OTP_EXPIRES_MINUTES`  | `10`                       | OTP validity window in minutes                   |
@@ -101,7 +101,7 @@ All environment configuration lives in `server/.env`. The server validates that 
 | `SMTP_USER`            | _(empty)_                  | SMTP authentication username                     |
 | `SMTP_PASS`            | _(empty)_                  | SMTP authentication password                     |
 | `EMAIL_FROM`           | `noreply@cms-buksu.edu.ph` | Sender address for outbound emails               |
-| `CLIENT_URL`           | `http://localhost:5173`    | Frontend URL (used for CORS and email links)     |
+| `CLIENT_URL`           | `http://localhost:43211`    | Frontend URL (used for CORS and email links)     |
 
 ### Generating Secrets
 

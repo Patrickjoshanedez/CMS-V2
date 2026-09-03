@@ -12,8 +12,9 @@ export const createTeamSchema = z.object({
     .optional()
     .or(z.literal('')),
   academicYear: z
-    .string({ required_error: 'Academic year is required' })
-    .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY (e.g. 2024-2025)'),
+    .string()
+    .regex(/^[0-9]{4}-[0-9]{4}$/, 'Academic year must follow the format YYYY-YYYY')
+    .optional(),
 });
 
 export const inviteMemberSchema = z.object({
@@ -36,11 +37,19 @@ export const listTeamsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow the format YYYY-YYYY')
     .optional(),
-  sectionId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId').optional(),
+  sectionId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId')
+    .optional(),
   search: z.string().trim().max(100).optional(),
 });
 
 const TEAM_MEMBER_ROLES = [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -49,6 +58,8 @@ const TEAM_MEMBER_ROLES = [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
 
 export const assignMemberRoleSchema = z.object({
@@ -64,10 +75,26 @@ export const transferTeamLeadershipSchema = z.object({
 });
 
 export const updateTeamGoogleDocLinkSchema = z.object({
-  googleDocUrl: z
+  googleDocUrl: z.string().trim().max(2000, 'Google Docs URL is too long').optional().default(''),
+});
+
+export const updateTeamGithubLinkSchema = z.object({
+  githubUrl: z.string().trim().max(2000, 'GitHub URL is too long').optional().default(''),
+});
+
+export const assignCommitteeSchema = z.object({
+  adviserId: z
     .string()
-    .trim()
-    .max(2000, 'Google Docs URL is too long')
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid adviserId')
     .optional()
-    .default(''),
+    .nullable(),
+  secretaryId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid secretaryId')
+    .optional()
+    .nullable(),
+  panelistIds: z
+    .array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid panelistId'))
+    .optional()
+    .default([]),
 });

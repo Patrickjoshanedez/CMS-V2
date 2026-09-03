@@ -4,14 +4,20 @@ import User from '../users/user.model.js';
 import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import Section from '../academics/section.model.js';
+import DocumentTemplate from './documentTemplate.model.js';
 import { sendTeamInviteEmail } from '../notifications/email.service.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ROLES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES } from '@cms/shared';
 
 const MAX_TEAM_MEMBERS = 4;
 const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -20,6 +26,8 @@ const TEAM_MEMBER_ROLES = Team.MEMBER_ROLES || [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
 const INVITE_CODE_LENGTH = 6;
 
@@ -135,7 +143,7 @@ class TeamService {
   async generateUniqueInviteCode() {
     for (let attempts = 0; attempts < 10; attempts += 1) {
       const candidateCode = generateInviteCodeValue();
-      // eslint-disable-next-line no-await-in-loop
+
       const existingInvite = await TeamInvite.exists({ inviteCode: candidateCode });
       if (!existingInvite) {
         return candidateCode;
@@ -150,9 +158,37 @@ class TeamService {
   }
 
   /**
+   * Resolve the assigned or section instructor for a team.
+   * @param {Object} team
+   * @param {Object} leaderUser
+   * @returns {Promise<string|null>} instructorId
+   */
+  async _resolveInstructorId(team, leaderUser) {
+    if (leaderUser?.instructorId) {
+      return leaderUser.instructorId.toString();
+    }
+    if (team?.sectionId) {
+      const section = await Section.findById(team.sectionId).select('createdBy').lean();
+      if (section?.createdBy) {
+        return section.createdBy.toString();
+      }
+    }
+    if (leaderUser?.sectionId) {
+      const section = await Section.findById(leaderUser.sectionId).select('createdBy').lean();
+      if (section?.createdBy) {
+        return section.createdBy.toString();
+      }
+    }
+    const fallbackInstructor = await User.findOne({ role: ROLES.INSTRUCTOR, isActive: true })
+      .select('_id')
+      .lean();
+    return fallbackInstructor ? fallbackInstructor._id.toString() : null;
+  }
+
+  /**
    * Create a new project team. The requesting student becomes the leader.
    * @param {string} userId - The ID of the student creating the team.
-   * @param {Object} data - { name?, academicYear }
+   * @param {Object} data - { name? }
    * @returns {Object} { team }
    */
   async createTeam(userId, data) {
@@ -192,16 +228,26 @@ class TeamService {
 
     let sectionId = null;
     let courseId = null;
+    let academicYear = typeof data.academicYear === 'string' ? data.academicYear.trim() : '';
 
     if (user.sectionId) {
+      const section = await Section.findById(user.sectionId).select('courseId academicYear').lean();
       sectionId = user.sectionId;
-      const section = await Section.findById(user.sectionId).select('courseId').lean();
       courseId = section?.courseId || null;
+      academicYear = section?.academicYear || academicYear;
+    }
+
+    if (!academicYear) {
+      throw new AppError(
+        'Please complete your profile section before creating a team.',
+        400,
+        'PROFILE_SECTION_REQUIRED',
+      );
     }
 
     const team = await Team.create({
       name: teamName,
-      academicYear: data.academicYear,
+      academicYear,
       leaderId: userId,
       members: [userId],
       sectionId,
@@ -211,6 +257,52 @@ class TeamService {
     // Link the user to the team
     user.teamId = team._id;
     await user.save({ validateBeforeSave: false });
+
+    // Notify the instructor of team creation and committee requirement
+    try {
+      const instructorId = await this._resolveInstructorId(team, user);
+      if (instructorId) {
+        let sectionName = '';
+        let sectionCode = '';
+        if (sectionId) {
+          const sec = await Section.findById(sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+        const codeSuffix = team._id.toString().slice(-6).toUpperCase();
+        const formattedGroupCode = `#${codeSuffix}`;
+        const leaderFullName =
+          [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ') ||
+          `${user.firstName} ${user.lastName}`;
+
+        const notif = await Notification.create({
+          userId: instructorId,
+          type: 'team_formation_pending_committee',
+          title: 'New Team Formed',
+          message: `Team "${team.name}" has been created by ${user.firstName} ${user.lastName} and will require faculty committee appointments.`,
+          metadata: {
+            teamId: team._id.toString(),
+            teamName: team.name,
+            groupCode: formattedGroupCode,
+            rosterCode: codeSuffix,
+            academicYear: team.academicYear || '',
+            section: sectionName,
+            sectionCode: sectionCode,
+            leaderName: leaderFullName,
+            memberCount: team.members.length,
+            maxMembers: MAX_TEAM_MEMBERS,
+            requiresCommittee: true,
+            actionUrl: `/teams?teamId=${team._id}`,
+          },
+        });
+        emitToUser(instructorId, 'notification:new', notif);
+      }
+    } catch (notifErr) {
+      // Notification failure should not abort team creation
+      console.warn('[createTeam] Failed to notify instructor:', notifErr.message);
+    }
 
     return { team };
   }
@@ -246,9 +338,77 @@ class TeamService {
     team.isLocked = true;
     await team.save();
 
+    // Invalidate outstanding invites so finalized teams cannot add members via stale invite links.
+    await TeamInvite.updateMany(
+      { teamId: team._id, status: 'pending' },
+      { $set: { status: 'expired' } },
+    );
+
     const populatedTeam = await Team.findById(team._id)
-      .populate('leaderId', 'firstName middleName lastName email profilePicture')
-      .populate('members', 'firstName middleName lastName email profilePicture role');
+      .populate(
+        'leaderId',
+        'firstName middleName lastName email profilePicture instructorId sectionId',
+      )
+      .populate('members', 'firstName middleName lastName email profilePicture role')
+      .populate('sectionId', 'name code academicYear');
+
+    // Notify instructor that team roster is finalized and awaiting committee assignment
+    try {
+      const leader =
+        populatedTeam?.leaderId ||
+        (await User.findById(leaderId).select(
+          'firstName middleName lastName instructorId sectionId',
+        ));
+      const instructorId = await this._resolveInstructorId(team, leader);
+      if (instructorId) {
+        let sectionName = populatedTeam?.sectionId?.name || '';
+        let sectionCode = populatedTeam?.sectionId?.code || '';
+        if (!sectionName && team.sectionId) {
+          const sec = await Section.findById(team.sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+        if (!sectionName && leader?.sectionId) {
+          const sec = await Section.findById(leader.sectionId).select('name code');
+          if (sec) {
+            sectionName = sec.name || '';
+            sectionCode = sec.code || '';
+          }
+        }
+
+        const codeSuffix = team._id.toString().slice(-6).toUpperCase();
+        const formattedGroupCode = `#${codeSuffix}`;
+        const leaderFullName =
+          [leader.firstName, leader.middleName, leader.lastName].filter(Boolean).join(' ') ||
+          `${leader.firstName} ${leader.lastName}`;
+
+        const notif = await Notification.create({
+          userId: instructorId,
+          type: 'team_formation_pending_committee',
+          title: 'Team Formation Completed',
+          message: `Team "${team.name}" has locked their roster (${team.members.length} member${team.members.length === 1 ? '' : 's'}) and is awaiting faculty committee appointments.`,
+          metadata: {
+            teamId: team._id.toString(),
+            teamName: team.name,
+            groupCode: formattedGroupCode,
+            rosterCode: codeSuffix,
+            academicYear: team.academicYear || '',
+            section: sectionName,
+            sectionCode: sectionCode,
+            leaderName: leaderFullName,
+            memberCount: team.members.length,
+            maxMembers: MAX_TEAM_MEMBERS,
+            requiresCommittee: true,
+            actionUrl: `/teams?teamId=${team._id}`,
+          },
+        });
+        emitToUser(instructorId, 'notification:new', notif);
+      }
+    } catch (notifErr) {
+      console.warn('[lockTeam] Failed to notify instructor:', notifErr.message);
+    }
 
     return { team: populatedTeam };
   }
@@ -276,12 +436,16 @@ class TeamService {
       );
     }
 
-    const isMember = (team.members || []).some((memberId) => memberId.toString() === userId.toString());
+    const isMember = (team.members || []).some(
+      (memberId) => memberId.toString() === userId.toString(),
+    );
     if (!isMember) {
       throw new AppError('You are not a member of this team.', 403, 'FORBIDDEN');
     }
 
-    team.members = (team.members || []).filter((memberId) => memberId.toString() !== userId.toString());
+    team.members = (team.members || []).filter(
+      (memberId) => memberId.toString() !== userId.toString(),
+    );
     team.memberRoles = (team.memberRoles || []).filter(
       (assignment) => assignment?.userId?.toString() !== userId.toString(),
     );
@@ -290,10 +454,7 @@ class TeamService {
     const wasLeader = team.leaderId?.toString() === userId.toString();
 
     if (remainingMemberIds.length === 0) {
-      await User.updateOne(
-        { _id: userId, teamId: team._id },
-        { $set: { teamId: null } },
-      );
+      await User.updateOne({ _id: userId, teamId: team._id }, { $set: { teamId: null } });
       await TeamInvite.deleteMany({ teamId: team._id, status: 'pending' });
       await team.deleteOne();
       return { team: null };
@@ -305,10 +466,7 @@ class TeamService {
 
     await team.save();
 
-    await User.updateOne(
-      { _id: userId, teamId: team._id },
-      { $set: { teamId: null } },
-    );
+    await User.updateOne({ _id: userId, teamId: team._id }, { $set: { teamId: null } });
 
     const populatedTeam = await Team.findById(team._id)
       .populate('leaderId', 'firstName middleName lastName email profilePicture')
@@ -342,7 +500,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email profilePicture role');
+        .populate('members', 'firstName middleName lastName email profilePicture role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
     }
 
     if (!team) {
@@ -357,7 +518,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email profilePicture role');
+        .populate('members', 'firstName middleName lastName email profilePicture role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
       if (!team) {
         if (user.teamId) {
@@ -386,20 +550,43 @@ class TeamService {
 
     const currentProject = await Project.findOne({ teamId: team._id })
       .sort({ createdAt: -1 })
-      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .select('adviserId secretaryId panelistIds capstonePhase titleStatus projectStatus')
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('secretaryId', 'firstName middleName lastName email profilePicture')
       .populate('panelistIds', 'firstName middleName lastName email profilePicture');
 
     const teamObject = team.toObject();
+    const assignedAdviser = teamObject.adviserId || currentProject?.adviserId || null;
+    const assignedSecretary = teamObject.secretaryId || currentProject?.secretaryId || null;
+    const assignedPanelists =
+      teamObject.panelistIds && teamObject.panelistIds.length > 0
+        ? teamObject.panelistIds
+        : currentProject?.panelistIds || [];
+
     teamObject.assignment = {
       projectId: currentProject?._id || null,
       instructor: teamObject.leaderId?.instructorId || null,
-      adviser: currentProject?.adviserId || null,
-      panelists: currentProject?.panelistIds || [],
+      adviser: assignedAdviser,
+      secretary: assignedSecretary,
+      panelists: assignedPanelists,
       capstonePhase: currentProject?.capstonePhase || null,
       titleStatus: currentProject?.titleStatus || null,
       projectStatus: currentProject?.projectStatus || null,
     };
+
+    // Include pending invites so the leader can share 6-digit codes
+    const isLeader = team.leaderId?._id?.toString() === userId.toString();
+    if (isLeader) {
+      const pendingInvites = await TeamInvite.find({
+        teamId: team._id,
+        status: 'pending',
+        expiresAt: { $gt: new Date() },
+      })
+        .select('email inviteCode expiresAt createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+      teamObject.pendingInvites = pendingInvites;
+    }
 
     return { team: teamObject };
   }
@@ -428,6 +615,14 @@ class TeamService {
 
     if (team.leaderId.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can send invitations.', 403, 'FORBIDDEN');
+    }
+
+    if (team.isLocked) {
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
     }
 
     if (team.members.length >= MAX_TEAM_MEMBERS) {
@@ -482,31 +677,28 @@ class TeamService {
       expiresAt: { $gt: new Date() },
     });
 
-    if (existingInvite) {
-      throw new AppError(
-        'A pending invitation already exists for this email.',
-        409,
-        'DUPLICATE_INVITE',
-      );
+    const token = existingInvite?.token || uuidv4();
+    const inviteCode = existingInvite?.inviteCode || (await this.generateUniqueInviteCode());
+
+    let invite = existingInvite;
+    if (invite) {
+      invite.expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      await invite.save();
+    } else {
+      invite = await TeamInvite.create({
+        teamId,
+        email: data.email,
+        token,
+        inviteCode,
+      });
     }
 
-    const token = uuidv4();
-    const inviteCode = await this.generateUniqueInviteCode();
-    const invite = await TeamInvite.create({
-      teamId,
-      email: data.email,
-      token,
-      inviteCode,
-    });
-
-    // Send invite email
     const inviter = await User.findById(leaderId).select(
       'firstName middleName lastName sectionId instructorId',
     );
     const inviterName = inviter?.fullName || 'A team leader';
-    await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
 
-    // Create an in-app notification for the invited user
+    // Always persist and emit in-app notifications even if SMTP fails.
     const inviteNotif = await Notification.create({
       userId: invitedUser._id,
       type: 'team_invite',
@@ -516,10 +708,27 @@ class TeamService {
     });
     emitToUser(invitedUser._id, 'notification:new', inviteNotif);
 
+    let emailSent = false;
+    try {
+      await sendTeamInviteEmail(data.email, team.name, inviterName, token, inviteCode);
+      emailSent = true;
+    } catch (error) {
+      console.warn(
+        '[TeamService] Invite email delivery failed; invite remains active for in-app acceptance.',
+        {
+          email: data.email,
+          teamId: team._id?.toString?.() || String(team._id),
+          code: error?.code,
+          responseCode: error?.responseCode,
+          message: error?.message,
+        },
+      );
+    }
+
     const isCrossSectionInvite = Boolean(
       inviter?.sectionId &&
-        invitedUser?.sectionId &&
-        inviter.sectionId.toString() !== invitedUser.sectionId.toString(),
+      invitedUser?.sectionId &&
+      inviter.sectionId.toString() !== invitedUser.sectionId.toString(),
     );
 
     if (isCrossSectionInvite) {
@@ -554,6 +763,8 @@ class TeamService {
 
     return {
       invite,
+      emailSent,
+      reusedInvite: Boolean(existingInvite),
       invitedUser: {
         _id: invitedUser._id,
         fullName: invitedUser.fullName,
@@ -578,6 +789,14 @@ class TeamService {
 
     if (team.leaderId.toString() !== leaderId.toString()) {
       throw new AppError('Only the team leader can search invite candidates.', 403, 'FORBIDDEN');
+    }
+
+    if (team.isLocked) {
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
     }
 
     const search = typeof query.search === 'string' ? query.search.trim() : '';
@@ -630,51 +849,53 @@ class TeamService {
 
     const candidates = users
       .map((user) => {
-      const userId = user._id.toString();
-      const inAnotherSection = Boolean(
-        scopedSectionId && user.sectionId && user.sectionId.toString() !== scopedSectionId.toString(),
-      );
-      // Rely on current team membership records instead of user.teamId, which can be stale.
-      const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
-      const mappedTeamId = memberTeamMap.get(userId);
-      const currentTeamId = user.teamId ? user.teamId.toString() : null;
-      if (alreadyInTeam && mappedTeamId && currentTeamId !== mappedTeamId) {
-        staleTeamIdUpdates.push({
-          updateOne: {
-            filter: { _id: user._id },
-            update: { $set: { teamId: mappedTeamId } },
-          },
-        });
-      }
-      const missingInstructor = !user.instructorId;
+        const userId = user._id.toString();
+        const inAnotherSection = Boolean(
+          scopedSectionId &&
+          user.sectionId &&
+          user.sectionId.toString() !== scopedSectionId.toString(),
+        );
+        // Rely on current team membership records instead of user.teamId, which can be stale.
+        const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
+        const mappedTeamId = memberTeamMap.get(userId);
+        const currentTeamId = user.teamId ? user.teamId.toString() : null;
+        if (alreadyInTeam && mappedTeamId && currentTeamId !== mappedTeamId) {
+          staleTeamIdUpdates.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: { teamId: mappedTeamId } },
+            },
+          });
+        }
+        const missingInstructor = !user.instructorId;
 
-      const warnings = [];
+        const warnings = [];
 
-      if (inAnotherSection) {
-        warnings.push({
-          code: 'DIFFERENT_SECTION',
-          message:
-            'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
-          blocksInvite: false,
-        });
-      }
+        if (inAnotherSection) {
+          warnings.push({
+            code: 'DIFFERENT_SECTION',
+            message:
+              'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
+            blocksInvite: false,
+          });
+        }
 
-      if (alreadyInTeam) {
-        warnings.push({
-          code: 'ALREADY_IN_TEAM',
-          message: `${user.fullName || 'This student'} already has a team.`,
-          blocksInvite: true,
-        });
-      }
+        if (alreadyInTeam) {
+          warnings.push({
+            code: 'ALREADY_IN_TEAM',
+            message: `${user.fullName || 'This student'} already has a team.`,
+            blocksInvite: true,
+          });
+        }
 
-      if (missingInstructor) {
-        warnings.push({
-          code: 'NO_INSTRUCTOR',
-          message:
-            'This student does not have an instructor yet. They should complete their profile before joining a team.',
-          blocksInvite: true,
-        });
-      }
+        if (missingInstructor) {
+          warnings.push({
+            code: 'NO_INSTRUCTOR',
+            message:
+              'This student does not have an instructor yet. They should complete their profile before joining a team.',
+            blocksInvite: true,
+          });
+        }
 
         return {
           _id: user._id,
@@ -694,6 +915,107 @@ class TeamService {
   }
 
   /**
+   * Search student invite candidates before creating a team.
+   * @param {string} leaderId
+   * @param {Object} query - { search?, limit? }
+   * @returns {Object} { candidates }
+   */
+  async listCreateTeamInviteCandidates(leaderId, query) {
+    const leader = await User.findById(leaderId).select('sectionId');
+    if (!leader) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    const search = typeof query.search === 'string' ? query.search.trim() : '';
+    const limit = Number.isFinite(query.limit) ? query.limit : 8;
+
+    const filter = {
+      role: ROLES.STUDENT,
+      isActive: true,
+      _id: { $ne: leaderId },
+    };
+
+    if (search) {
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select('firstName middleName lastName email sectionId instructorId teamId')
+      .sort({ firstName: 1, lastName: 1 })
+      .limit(limit);
+
+    const candidateIds = users.map((user) => user._id);
+    const teamsContainingCandidates = await Team.find({ members: { $in: candidateIds } })
+      .select('members')
+      .lean();
+
+    const memberOfAnotherTeamSet = new Set();
+    for (const existingTeam of teamsContainingCandidates) {
+      for (const memberId of existingTeam.members || []) {
+        memberOfAnotherTeamSet.add(memberId.toString());
+      }
+    }
+
+    const scopedSectionId = leader?.sectionId || null;
+
+    const candidates = users
+      .map((user) => {
+        const userId = user._id.toString();
+        const inAnotherSection = Boolean(
+          scopedSectionId &&
+          user.sectionId &&
+          user.sectionId.toString() !== scopedSectionId.toString(),
+        );
+        const alreadyInTeam = memberOfAnotherTeamSet.has(userId);
+        const missingInstructor = !user.instructorId;
+
+        const warnings = [];
+
+        if (inAnotherSection) {
+          warnings.push({
+            code: 'DIFFERENT_SECTION',
+            message:
+              'This student is on another section and it may cause confusion. If you add this student, the system will send notification for the instructor.',
+            blocksInvite: false,
+          });
+        }
+
+        if (alreadyInTeam) {
+          warnings.push({
+            code: 'ALREADY_IN_TEAM',
+            message: `${user.fullName || 'This student'} already has a team.`,
+            blocksInvite: true,
+          });
+        }
+
+        if (missingInstructor) {
+          warnings.push({
+            code: 'NO_INSTRUCTOR',
+            message:
+              'This student does not have an instructor yet. They should complete their profile before joining a team.',
+            blocksInvite: true,
+          });
+        }
+
+        return {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          canInvite: !warnings.some((warning) => warning.blocksInvite),
+          warnings,
+        };
+      })
+      .sort((a, b) => Number(b.canInvite) - Number(a.canInvite));
+
+    return { candidates };
+  }
+
+  /**
    * Accept a team invitation by token.
    * @param {string} token - The invite token.
    * @param {string} userId - The authenticated user accepting.
@@ -706,7 +1028,29 @@ class TeamService {
     const invite = await TeamInvite.findOne({
       $or: [{ token: normalizedInput }, { inviteCode: normalizedCode }],
     });
-    if (!invite || !invite.isValid()) {
+    if (!invite) {
+      throw new AppError('This invitation is invalid or has expired.', 400, 'INVALID_INVITE');
+    }
+
+    const team = await Team.findById(invite.teamId);
+    if (!team) {
+      throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.isLocked) {
+      if (invite.status === 'pending') {
+        invite.status = 'expired';
+        await invite.save();
+      }
+
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
+    if (!invite.isValid()) {
       throw new AppError('This invitation is invalid or has expired.', 400, 'INVALID_INVITE');
     }
 
@@ -727,11 +1071,6 @@ class TeamService {
 
     if (user.email !== invite.email) {
       throw new AppError('This invitation was not sent to your email address.', 403, 'FORBIDDEN');
-    }
-
-    const team = await Team.findById(invite.teamId);
-    if (!team) {
-      throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
     }
 
     const isMemberOfAnotherTeam = await Team.exists({
@@ -763,7 +1102,7 @@ class TeamService {
       {
         $set: { teamId: team._id },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!claimedUser) {
@@ -773,25 +1112,37 @@ class TeamService {
     const updatedTeam = await Team.findOneAndUpdate(
       {
         _id: team._id,
+        isLocked: false,
         members: { $ne: user._id },
         $expr: { $lt: [{ $size: '$members' }, MAX_TEAM_MEMBERS] },
       },
       {
         $addToSet: { members: user._id },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!updatedTeam) {
-      await User.updateOne(
-        { _id: user._id, teamId: team._id },
-        { $set: { teamId: null } },
-      );
+      await User.updateOne({ _id: user._id, teamId: team._id }, { $set: { teamId: null } });
 
-      const freshTeam = await Team.findById(team._id).select('members');
+      const freshTeam = await Team.findById(team._id).select('members isLocked');
       if (!freshTeam) {
         throw new AppError('Team no longer exists.', 404, 'TEAM_NOT_FOUND');
       }
+
+      if (freshTeam.isLocked) {
+        if (invite.status === 'pending') {
+          invite.status = 'expired';
+          await invite.save();
+        }
+
+        throw new AppError(
+          'This team is already finalized and can no longer add members.',
+          409,
+          'TEAM_ALREADY_LOCKED',
+        );
+      }
+
       if (freshTeam.members.length >= MAX_TEAM_MEMBERS) {
         throw new AppError(
           `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,
@@ -950,9 +1301,15 @@ class TeamService {
       throw new AppError('The selected member is already the team leader.', 400, 'ALREADY_LEADER');
     }
 
-    const isTeamMember = team.members?.some((member) => member?._id?.toString() === memberId.toString());
+    const isTeamMember = team.members?.some(
+      (member) => member?._id?.toString() === memberId.toString(),
+    );
     if (!isTeamMember) {
-      throw new AppError('The selected user is not a member of this team.', 404, 'MEMBER_NOT_FOUND');
+      throw new AppError(
+        'The selected user is not a member of this team.',
+        404,
+        'MEMBER_NOT_FOUND',
+      );
     }
 
     team.leaderId = memberId;
@@ -1053,6 +1410,90 @@ class TeamService {
   }
 
   /**
+   * Attach or clear a team-level GitHub repository link (leader-only action).
+   * @param {string} teamId
+   * @param {string} leaderId
+   * @param {string} githubUrl
+   * @returns {Object} { team }
+   */
+  async updateGithubLink(teamId, leaderId, githubUrl) {
+    const team = await Team.findById(teamId)
+      .populate({
+        path: 'leaderId',
+        select: 'firstName middleName lastName email instructorId',
+        populate: {
+          path: 'instructorId',
+          select: 'firstName middleName lastName email profilePicture',
+        },
+      })
+      .populate('members', 'firstName middleName lastName email role')
+      .populate('memberRoles.userId', 'firstName middleName lastName email');
+
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    if (team.leaderId?._id?.toString() !== leaderId.toString()) {
+      throw new AppError(
+        'Only the team leader can update the GitHub repository link.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    const normalizedLink = typeof githubUrl === 'string' ? githubUrl.trim() : '';
+    if (normalizedLink && !/^https?:\/\/(www\.)?github\.com\/.+/i.test(normalizedLink)) {
+      throw new AppError(
+        'Please provide a valid GitHub repository URL (e.g. https://github.com/org/repo).',
+        400,
+        'INVALID_GITHUB_URL',
+      );
+    }
+
+    team.githubUrl = normalizedLink;
+    await team.save();
+
+    // If there is an active project, also synchronize prototypes link
+    if (normalizedLink) {
+      const activeProject = await Project.findOne({ teamId: team._id, isDeleted: false });
+      if (activeProject) {
+        const existingIdx = activeProject.prototypes.findIndex(
+          (p) => p.type === 'link' && p.title.toLowerCase().includes('github'),
+        );
+        if (existingIdx >= 0) {
+          activeProject.prototypes[existingIdx].url = normalizedLink;
+        } else {
+          activeProject.prototypes.push({
+            title: 'GitHub Repository',
+            type: 'link',
+            url: normalizedLink,
+            uploadedBy: leaderId,
+          });
+        }
+        await activeProject.save();
+      }
+    }
+
+    const currentProject = await Project.findOne({ teamId: team._id })
+      .sort({ createdAt: -1 })
+      .select('adviserId panelistIds capstonePhase titleStatus projectStatus')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    const teamObject = team.toObject();
+    teamObject.assignment = {
+      instructor: teamObject.leaderId?.instructorId || null,
+      adviser: currentProject?.adviserId || null,
+      panelists: currentProject?.panelistIds || [],
+      capstonePhase: currentProject?.capstonePhase || null,
+      titleStatus: currentProject?.titleStatus || null,
+      projectStatus: currentProject?.projectStatus || null,
+    };
+
+    return { team: teamObject };
+  }
+
+  /**
    * List all teams (Instructor/Adviser only, paginated).
    * @param {Object} query - { page, limit, academicYear?, sectionId?, search? }
    * @returns {Object} { teams, pagination }
@@ -1081,7 +1522,10 @@ class TeamService {
             select: 'firstName middleName lastName email profilePicture',
           },
         })
-        .populate('members', 'firstName middleName lastName email role'),
+        .populate('members', 'firstName middleName lastName email role')
+        .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture'),
       Team.countDocuments(filter),
     ]);
 
@@ -1089,8 +1533,11 @@ class TeamService {
     const latestProjects = teamIds.length
       ? await Project.find({ teamId: { $in: teamIds } })
           .sort({ createdAt: -1 })
-          .select('teamId adviserId panelistIds capstonePhase titleStatus projectStatus')
+          .select(
+            'teamId adviserId secretaryId panelistIds capstonePhase titleStatus projectStatus',
+          )
           .populate('adviserId', 'firstName middleName lastName email profilePicture')
+          .populate('secretaryId', 'firstName middleName lastName email profilePicture')
           .populate('panelistIds', 'firstName middleName lastName email profilePicture')
           .lean()
       : [];
@@ -1106,11 +1553,19 @@ class TeamService {
       const team = teamDoc.toObject();
       const currentProject = projectByTeamId.get(team._id.toString());
 
+      const assignedAdviser = team.adviserId || currentProject?.adviserId || null;
+      const assignedSecretary = team.secretaryId || currentProject?.secretaryId || null;
+      const assignedPanelists =
+        team.panelistIds && team.panelistIds.length > 0
+          ? team.panelistIds
+          : currentProject?.panelistIds || [];
+
       team.assignment = {
         projectId: currentProject?._id || null,
         instructor: team.leaderId?.instructorId || null,
-        adviser: currentProject?.adviserId || null,
-        panelists: currentProject?.panelistIds || [],
+        adviser: assignedAdviser,
+        secretary: assignedSecretary,
+        panelists: assignedPanelists,
         capstonePhase: currentProject?.capstonePhase || null,
         titleStatus: currentProject?.titleStatus || null,
         projectStatus: currentProject?.projectStatus || null,
@@ -1128,6 +1583,294 @@ class TeamService {
         pages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Assign committee (Adviser, Panelists, Secretary) to a team.
+   * @param {string} teamId
+   * @param {string} instructorId
+   * @param {Object} data - { adviserId?, secretaryId?, panelistIds? }
+   * @returns {Promise<{ team: Object, message: string }>}
+   */
+  async assignCommittee(teamId, instructorId, data) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    const instructor = await User.findById(instructorId).select('firstName lastName role');
+    if (!instructor || (instructor.role !== ROLES.INSTRUCTOR && instructor.role !== ROLES.ADMIN)) {
+      throw new AppError(
+        'Only course instructors can assign the faculty committee.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    const { adviserId, secretaryId, panelistIds = [] } = data;
+
+    // Validate adviser if provided
+    let adviser = null;
+    if (adviserId) {
+      adviser = await User.findById(adviserId);
+      if (!adviser) {
+        throw new AppError('The specified adviser was not found.', 400, 'INVALID_ADVISER');
+      }
+      team.adviserId = adviser._id;
+    }
+
+    // Validate secretary if provided
+    let secretary = null;
+    if (secretaryId) {
+      secretary = await User.findById(secretaryId);
+      if (!secretary) {
+        throw new AppError(
+          'The specified committee secretary was not found.',
+          400,
+          'INVALID_SECRETARY',
+        );
+      }
+      team.secretaryId = secretary._id;
+    }
+
+    // Validate panelists if provided
+    if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+      if (panelistIds.length > 5) {
+        throw new AppError('A team can have at most 5 panelists.', 400, 'MAX_PANELISTS_EXCEEDED');
+      }
+      team.panelistIds = panelistIds;
+    }
+
+    await team.save();
+
+    // Reconcile and sync with associated Project if one already exists
+    const project = await Project.findOne({ teamId: team._id }).sort({ createdAt: -1 });
+    if (project) {
+      if (adviserId) project.adviserId = adviserId;
+      if (secretaryId) project.secretaryId = secretaryId;
+      if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+        project.panelistIds = panelistIds;
+        const structuredPanelists = panelistIds.map((pId, idx) => ({
+          userId: pId,
+          role: idx === 0 ? 'chair' : 'member',
+        }));
+        if (secretaryId && !panelistIds.some((p) => p.toString() === secretaryId.toString())) {
+          structuredPanelists.push({ userId: secretaryId, role: 'secretary' });
+        }
+        project.panelists = structuredPanelists;
+      }
+      await project.save();
+    }
+
+    // Mark pending committee appointment notifications for this team as read
+    try {
+      await Notification.updateMany(
+        {
+          type: { $in: ['team_formation_pending_committee', 'committee_appointment_required'] },
+          'metadata.teamId': team._id,
+        },
+        { $set: { isRead: true } },
+      );
+    } catch (e) {
+      console.warn('[assignCommittee] Failed to mark notifications as read:', e.message);
+    }
+
+    // Send targeted in-app notifications
+    try {
+      // 1. Notify Adviser
+      if (adviser) {
+        const notif = await Notification.create({
+          userId: adviser._id,
+          type: 'adviser_assigned',
+          title: 'Adviser Appointment',
+          message: `You have been appointed as Capstone Adviser for Team "${team.name}".`,
+          metadata: { teamId: team._id, assignedBy: instructorId },
+        });
+        emitToUser(adviser._id, 'notification:new', notif);
+      }
+
+      // 2. Notify Secretary
+      if (secretary) {
+        const notif = await Notification.create({
+          userId: secretary._id,
+          type: 'secretary_assigned',
+          title: 'Committee Secretary Appointment',
+          message: `You have been appointed as Committee Secretary for Team "${team.name}".`,
+          metadata: { teamId: team._id, assignedBy: instructorId },
+        });
+        emitToUser(secretary._id, 'notification:new', notif);
+      }
+
+      // 3. Notify Panelists
+      if (Array.isArray(panelistIds)) {
+        for (const panelistId of panelistIds) {
+          const notif = await Notification.create({
+            userId: panelistId,
+            type: 'panelist_assigned',
+            title: 'Panelist Appointment',
+            message: `You have been appointed to the defense committee for Team "${team.name}".`,
+            metadata: { teamId: team._id, assignedBy: instructorId },
+          });
+          emitToUser(panelistId, 'notification:new', notif);
+        }
+      }
+
+      // 4. Notify all Team Members
+      if (Array.isArray(team.members)) {
+        for (const memberId of team.members) {
+          const notif = await Notification.create({
+            userId: memberId,
+            type: 'committee_assigned',
+            title: 'Faculty Committee Appointed',
+            message: `Your instructor has assigned your capstone committee (Adviser, Committee Secretary, and Panelists).`,
+            metadata: {
+              teamId: team._id,
+              adviserId: team.adviserId,
+              secretaryId: team.secretaryId,
+              panelistIds: team.panelistIds,
+            },
+          });
+          emitToUser(memberId, 'notification:new', notif);
+        }
+      }
+    } catch (notifErr) {
+      console.warn(
+        '[assignCommittee] Failed to dispatch appointment notifications:',
+        notifErr.message,
+      );
+    }
+
+    const populatedTeam = await Team.findById(team._id)
+      .populate('leaderId', 'firstName middleName lastName email profilePicture instructorId')
+      .populate('members', 'firstName middleName lastName email profilePicture role')
+      .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('secretaryId', 'firstName middleName lastName email profilePicture')
+      .populate('panelistIds', 'firstName middleName lastName email profilePicture');
+
+    return {
+      team: populatedTeam,
+      message: 'Faculty committee assigned and team notified successfully.',
+    };
+  }
+
+  /**
+   * Retrieve dynamic manuscript template for a team with Title Approval access gating.
+   * Locked until the team's project title pitch is approved.
+   * @param {string} teamId
+   * @returns {Promise<Object>} { isUnlocked, approvedTitle, template }
+   */
+  async getTeamManuscriptTemplate(teamId) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found', 404);
+    }
+
+    const project = await Project.findOne({ teamId: team._id });
+    const isTitleApproved = Boolean(
+      project &&
+      (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved'),
+    );
+
+    if (!isTitleApproved) {
+      return {
+        isUnlocked: false,
+        reason: 'TITLE_DEFENSE_APPROVAL_REQUIRED',
+        approvedTitle: project?.title || null,
+      };
+    }
+
+    // Fetch active template for this academic year, or latest active
+    let activeTemplate = await DocumentTemplate.findOne({
+      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+      academicYear: team.academicYear,
+      isActive: true,
+    }).sort({ updatedAt: -1 });
+
+    if (!activeTemplate) {
+      activeTemplate = await DocumentTemplate.findOne({
+        targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+        isActive: true,
+      }).sort({ updatedAt: -1 });
+    }
+
+    const fallbackUrl = 'https://docs.google.com/document/d/1tTwi29xL.../copy';
+    const fallbackVersion = `AY ${team.academicYear || '2025–2026'} v2.1`;
+
+    const isGoogleDocs = activeTemplate ? activeTemplate.distributionType === 'GOOGLE_DOCS' : true;
+
+    const url = activeTemplate
+      ? activeTemplate.resourcePayload?.googleDocsUrl ||
+        activeTemplate.resourcePayload?.fileAttachmentUrl ||
+        fallbackUrl
+      : fallbackUrl;
+
+    const version = activeTemplate?.versionLabel || fallbackVersion;
+    const updatedAt = activeTemplate?.updatedAt
+      ? new Date(activeTemplate.updatedAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+        })
+      : 'Sep 01, 2026';
+
+    return {
+      isUnlocked: true,
+      approvedTitle: project?.title || 'Approved Capstone Title',
+      template: {
+        title: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+        type: isGoogleDocs ? 'google_docs' : 'downloadable_file',
+        url,
+        version,
+        updatedAt,
+      },
+    };
+  }
+
+  /**
+   * Update the active institutional manuscript template (Instructor only).
+   * Cascades globally across all teams and approved students.
+   * @param {Object} data
+   * @param {string} userId
+   * @returns {Promise<Object>} Updated DocumentTemplate document
+   */
+  async updateManuscriptTemplate(data, userId) {
+    const {
+      academicYear = '2025-2026',
+      versionLabel = 'AY 2025–2026 v2.1',
+      distributionType = 'GOOGLE_DOCS',
+      docUrl,
+      fileAttachmentUrl,
+      fileName,
+    } = data;
+
+    const normDistributionType =
+      distributionType === 'google_docs' || distributionType === 'GOOGLE_DOCS'
+        ? 'GOOGLE_DOCS'
+        : 'FILE_ATTACHMENT';
+
+    const resourcePayload = {
+      googleDocsUrl: normDistributionType === 'GOOGLE_DOCS' ? docUrl : null,
+      fileAttachmentUrl: normDistributionType === 'FILE_ATTACHMENT' ? fileAttachmentUrl : null,
+      fileName: normDistributionType === 'FILE_ATTACHMENT' ? fileName : null,
+    };
+
+    // Deactivate previous templates for this academic year & targetType
+    await DocumentTemplate.updateMany(
+      { targetType: 'MANUSCRIPT_CHAPTERS_1_5', academicYear },
+      { $set: { isActive: false } },
+    );
+
+    const newTemplate = await DocumentTemplate.create({
+      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+      academicYear,
+      versionLabel,
+      distributionType: normDistributionType,
+      resourcePayload,
+      updatedBy: userId,
+      isActive: true,
+    });
+
+    return newTemplate;
   }
 }
 

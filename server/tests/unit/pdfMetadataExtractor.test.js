@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 const parsePdfMock = vi.fn();
 
@@ -7,8 +7,18 @@ vi.mock('pdf-parse', () => ({
 }));
 
 describe('pdfMetadataExtractor', () => {
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
+    vi.resetModules();
     parsePdfMock.mockReset();
+    process.env.PDF_METADATA_ENABLE_GLM_OCR = 'false';
+    process.env.PDF_METADATA_GLM_STRATEGY = 'fallback';
+    process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS = 'false';
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it('extracts title, abstract, publicationYear, authors, and keywords from text', async () => {

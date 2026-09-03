@@ -40,17 +40,26 @@ export const getMyTeam = catchAsync(async (req, res) => {
 
 /** POST /api/teams/:id/invite — Invite a student to the team (Leader only) */
 export const inviteMember = catchAsync(async (req, res) => {
-  const { invite, invitedUser } = await teamService.inviteMember(
+  const { invite, invitedUser, emailSent, reusedInvite } = await teamService.inviteMember(
     req.params.id,
     req.user._id,
     req.body,
   );
   const invitedUserName = invitedUser?.fullName || invitedUser?.email || 'the user';
+  const statusCode = reusedInvite ? HTTP_STATUS.OK : HTTP_STATUS.CREATED;
 
-  res.status(HTTP_STATUS.CREATED).json({
+  const message = emailSent
+    ? reusedInvite
+      ? `Existing invitation for ${invitedUserName} was re-sent.`
+      : `You have successfully invited ${invitedUserName} to the team.`
+    : reusedInvite
+      ? `Existing invitation for ${invitedUserName} is active, but email delivery failed. The in-app notification was sent.`
+      : `Invitation created for ${invitedUserName}, but email delivery failed. The in-app notification was sent.`;
+
+  res.status(statusCode).json({
     success: true,
-    message: `You have successfully invited ${invitedUserName} to the team.`,
-    data: { invite, invitedUser },
+    message,
+    data: { invite, invitedUser, emailSent, reusedInvite },
   });
 });
 
@@ -61,6 +70,16 @@ export const listInviteCandidates = catchAsync(async (req, res) => {
     req.user._id,
     req.query,
   );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { candidates },
+  });
+});
+
+/** GET /api/teams/invite-candidates/preview — Search invite candidates before creating a team */
+export const listCreateTeamInviteCandidates = catchAsync(async (req, res) => {
+  const { candidates } = await teamService.listCreateTeamInviteCandidates(req.user._id, req.query);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -135,6 +154,21 @@ export const updateGoogleDocLink = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/github-link — Attach or clear team GitHub link (Leader only) */
+export const updateGithubLink = catchAsync(async (req, res) => {
+  const { team } = await teamService.updateGithubLink(
+    req.params.id,
+    req.user._id,
+    req.body.githubUrl || '',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team GitHub repository link updated successfully.',
+    data: { team },
+  });
+});
+
 /** PATCH /api/teams/:id/lock — Finalize a team (Leader only) */
 export const lockTeam = catchAsync(async (req, res) => {
   const { team } = await teamService.lockTeam(req.params.id, req.user._id);
@@ -164,5 +198,41 @@ export const listTeams = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     data: { teams, pagination },
+  });
+});
+
+/** PUT /api/teams/:id/committee — Assign faculty committee (Instructor only) */
+export const assignCommittee = catchAsync(async (req, res) => {
+  const { team, message } = await teamService.assignCommittee(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message,
+    data: { team },
+  });
+});
+
+/** GET /api/teams/:id/manuscript-template — Get dynamic manuscript template with title defense gating */
+export const getTeamManuscriptTemplate = catchAsync(async (req, res) => {
+  const result = await teamService.getTeamManuscriptTemplate(req.params.id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
+  });
+});
+
+/** PUT /api/teams/manuscript-template — Update dynamic manuscript template (Instructor only) */
+export const updateManuscriptTemplate = catchAsync(async (req, res) => {
+  const template = await teamService.updateManuscriptTemplate(req.body, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Institutional manuscript template updated successfully.',
+    data: { template },
   });
 });

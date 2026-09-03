@@ -1,18 +1,25 @@
 import { createLogger, defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import http from 'http';
 
 const nonKeepAliveHttpAgent = new http.Agent({ keepAlive: false });
-const backendDefaultProxyTarget = 'http://localhost:5000';
+const backendDefaultProxyTarget = 'http://localhost:43210';
+const frontendDefaultPort = 43211;
 const proxyTimeoutMs = 120000;
 const customViteLogger = createLogger();
 const originalViteErrorLogger = customViteLogger.error.bind(customViteLogger);
 const allowedHosts = [
   'localhost',
   '127.0.0.1',
+  'client',
+  'cms-client',
+  'furuncular-shavonda-unprevalently.ngrok-free.dev',
   'unfactious-wen-nonsweating.ngrok-free.dev',
   '.ngrok-free.dev',
+  '.ngrok.io',
+  '.ngrok.app',
 ];
 
 const normalizeProxyTarget = (target) => {
@@ -98,14 +105,23 @@ export default defineConfig(({ mode }) => {
 
   return {
     customLogger: customViteLogger,
-    plugins: [react()],
+    plugins: [
+      react({
+        jsxRuntime: 'automatic',
+        fastRefresh: true,
+        // Explicit module detection for better plugin compatibility
+        include: /src\/.*\.[jt]sx?$/,
+        exclude: /node_modules/,
+      }),
+    ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
     server: {
-      port: 5173,
+      port: frontendDefaultPort,
+      strictPort: true,
       allowedHosts,
       proxy: {
         '/api': {
@@ -141,11 +157,53 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replace(/\\/g, '/');
+            if (normalizedId.includes('node_modules')) {
+              if (
+                normalizedId.includes('/react/') ||
+                normalizedId.includes('/react-dom/') ||
+                normalizedId.includes('/react-router-dom/')
+              ) {
+                return 'react-vendor';
+              }
+              if (
+                normalizedId.includes('/@tanstack/react-query/') ||
+                normalizedId.includes('/zustand/') ||
+                normalizedId.includes('/axios/')
+              ) {
+                return 'query-vendor';
+              }
+              if (normalizedId.includes('/recharts/') || normalizedId.includes('/d3-')) {
+                return 'charts-vendor';
+              }
+              if (
+                normalizedId.includes('/lucide-react/') ||
+                normalizedId.includes('/sonner/') ||
+                normalizedId.includes('/clsx/') ||
+                normalizedId.includes('/tailwind-merge/')
+              ) {
+                return 'ui-vendor';
+              }
+            }
+          },
+        },
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',
       setupFiles: './src/setupTests.js',
       include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      testTimeout: 30000,
+      hookTimeout: 30000,
+    },
+    define: {
+      // Ensure moduleType is defined at transform time
+      __VITE_MODULE_TYPE__: '"module"',
     },
   };
 });

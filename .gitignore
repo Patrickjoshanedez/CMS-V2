@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
@@ -7,10 +7,12 @@ node_modules/
 dist/
 .dist/
 build/
+out/
 
 # Environment files
 .env
 .env.prod
+.env.deploy
 .env.local
 .env.development.local
 .env.test.local
@@ -44,10 +46,15 @@ coverage/
 
 # Misc
 *.tgz
+*.zip
+CMS-V2-Final-Submission.zip
 .cache
 cookies.txt
 
 # Test artifacts & debug output
+visual_audit_screenshots/
+exhaustive_audit_screenshots/
+scratch/screenshots/
 server/test-*.txt
 server/test-*.json
 server/vitest-results.json
@@ -84,14 +91,14 @@ scripts/token.json
 # LocalStack cache artifacts (contains local test keys/certs)
 .localstack/cache/
 
-# Generated hook runtime artifacts
-.github/hooks/state/
-.github/hooks/scripts/__pycache__/
-*.pyc
-
 # Local context and checkpoint files
 context/
 .probe
+
+# Tracked orchestrator hook state for CI agentic governance validation
+!.github/hooks/state/*.json
+!.github/hooks/state/.gitkeep
+
 
 # Test results and artifacts
 test-results/
@@ -132,10 +139,4 @@ start-all-services-fixed.ps1
 start-all-services.ps1
 start-cms.ps1
 start-prod-test.ps1
-.github/hooks/state/agent_communication_dag.json
-.github/hooks/state/agent_prefetch_registry.json
-.github/hooks/state/decision_coherence_report.json
-.github/hooks/copilot-runtime-hooks.json
-.github/hooks/orchestrator-automation.json
-.github/hooks/state/agent_communication_dag.json
-.github/hooks/state/decision_coherence_report.json
+

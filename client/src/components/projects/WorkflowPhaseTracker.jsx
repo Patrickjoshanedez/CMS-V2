@@ -1,118 +1,77 @@
-import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
-import { TITLE_STATUSES, PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
+import React from 'react';
+import PropTypes from 'prop-types';
+import { Users, FileText, BookOpen, Code2, ShieldCheck } from 'lucide-react';
+import { PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
+import CapstoneWorkflowStepper, {
+  resolveCurrentStep,
+  CAPSTONE_STEPS,
+} from './CapstoneWorkflowStepper';
+
+export { CAPSTONE_STEPS, resolveCurrentStep };
 
 /**
- * Workflow phases for the Capstone lifecycle.
- * Each phase has a key, label, and a function to determine if it is complete / active.
+ * Legacy PHASES array preserved for backwards compatibility with any utility imports.
  */
-const PHASES = [
+export const PHASES = [
   {
     key: 'team',
     label: 'Team Formation',
-    isComplete: (project) => Boolean(getTeamValue(project)),
+    icon: Users,
+    isComplete: (project) => Boolean(project?.teamId ?? project?.team ?? null),
   },
   {
-    key: 'title',
-    label: 'Title Approval',
-    isComplete: (project) => project?.titleStatus === TITLE_STATUSES.APPROVED,
-  },
-  {
-    key: 'chapters',
-    label: 'Chapters 1–3',
+    key: 'capstone_1',
+    label: 'Capstone 1 (Proposal Defense)',
+    icon: FileText,
     isComplete: (project) =>
-      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_SUBMITTED ||
-      getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
+      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_2,
   },
   {
-    key: 'proposal',
-    label: 'Full Proposal',
-    isComplete: (project) => getProjectStatus(project) === PROJECT_STATUSES.PROPOSAL_APPROVED,
+    key: 'capstone_2',
+    label: 'Capstone 2 (Ch 1-3 & ADM)',
+    icon: BookOpen,
+    isComplete: (project) =>
+      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_3,
   },
   {
-    key: 'development',
-    label: 'Development',
-    isComplete: (project) => getCapstonePhase(project) >= CAPSTONE_PHASES.PHASE_4,
+    key: 'capstone_3',
+    label: 'Capstone 3 (System Dev & ADM)',
+    icon: Code2,
+    isComplete: (project) =>
+      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_4,
   },
   {
-    key: 'defense',
-    label: 'Final Defense',
-    isComplete: () => false, // Capstone 4 final outcome — future sprints
+    key: 'capstone_4',
+    label: 'Capstone 4 (Paper, Journal & Archival)',
+    icon: ShieldCheck,
+    isComplete: (project) =>
+      (project?.projectStatus ?? project?.status) === PROJECT_STATUSES.DEFENDED ||
+      (project?.projectStatus ?? project?.status) === 'archived',
   },
 ];
 
-function getTeamValue(project) {
-  return project?.teamId ?? project?.team ?? null;
-}
-
-function getProjectStatus(project) {
-  return project?.projectStatus ?? project?.status ?? null;
-}
-
-function getCapstonePhase(project) {
-  return Number(project?.capstonePhase ?? project?.phase ?? 0) || 0;
+export function getActivePhaseIndex(project) {
+  return resolveCurrentStep(project);
 }
 
 /**
- * Determine which phase index is currently active based on the first incomplete phase.
+ * WorkflowPhaseTracker — Responsive 5-stage milestone card stepper for the Capstone workflow.
+ * Renders modern milestone cards with live status badges, progress bars, and institutional phase tags.
  */
-function getActivePhaseIndex(project) {
-  if (!project) return 0;
-  for (let i = 0; i < PHASES.length; i++) {
-    if (!PHASES[i].isComplete(project)) return i;
-  }
-  return PHASES.length; // all complete
-}
-
-/**
- * WorkflowPhaseTracker — A horizontal stepper showing capstone lifecycle phases.
- *
- * Highlights completed phases with a check icon and the current phase as active.
- * Works in both light and dark modes using CSS variables.
- *
- * @param {{ project: Object }} props
- */
-export default function WorkflowPhaseTracker({ project }) {
-  const activeIndex = getActivePhaseIndex(project);
-
+export default function WorkflowPhaseTracker({ project, currentStep, onStepClick, className }) {
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex min-w-max items-center gap-1 py-2">
-        {PHASES.map((phase, idx) => {
-          const isComplete = idx < activeIndex;
-          const isActive = idx === activeIndex;
-
-          return (
-            <div key={phase.key} className="flex items-center">
-              {/* Phase node */}
-              <div
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  isComplete
-                    ? 'bg-primary/15 text-primary'
-                    : isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {isComplete ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                ) : (
-                  <Circle className="h-3.5 w-3.5 shrink-0" />
-                )}
-                <span className="whitespace-nowrap">{phase.label}</span>
-              </div>
-
-              {/* Connector arrow (not after last phase) */}
-              {idx < PHASES.length - 1 && (
-                <ArrowRight
-                  className={`mx-1 h-3.5 w-3.5 shrink-0 ${
-                    idx < activeIndex ? 'text-primary' : 'text-muted-foreground/40'
-                  }`}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <CapstoneWorkflowStepper
+      project={project}
+      currentStep={currentStep}
+      onStepClick={onStepClick}
+      className={className}
+    />
   );
 }
+
+WorkflowPhaseTracker.propTypes = {
+  project: PropTypes.object,
+  currentStep: PropTypes.number,
+  onStepClick: PropTypes.func,
+  className: PropTypes.string,
+};

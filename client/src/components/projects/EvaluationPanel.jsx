@@ -5,9 +5,10 @@ import {
   useProjectEvaluations,
   useUpdateEvaluation,
   useSubmitEvaluation,
+  useUnlockEvaluation,
   useReleaseEvaluations,
 } from '@/hooks/useEvaluations';
-import { ROLES, EVALUATION_STATUSES } from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_DECISIONS } from '@cms/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,12 +20,16 @@ import { toast } from 'sonner';
 import {
   Loader2,
   AlertCircle,
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
   Save,
   Send,
   Unlock,
   ClipboardList,
+  Download,
+  Lock,
+  Clock,
 } from 'lucide-react';
 
 const STATUS_BADGE_CLASS = {
@@ -62,6 +67,30 @@ function ErrorAlert({ message }) {
 
 // ─── Panelist Evaluation Form ────────────────────────────────────────────────
 
+const DECISION_OPTIONS = [
+  {
+    value: DEFENSE_DECISIONS.PASSED,
+    label: 'Passed',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  },
+  {
+    value: DEFENSE_DECISIONS.PASSED_WITH_REVISIONS,
+    label: 'Passed with Revisions',
+    color: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  },
+  {
+    value: DEFENSE_DECISIONS.FAILED,
+    label: 'Failed',
+    color: 'bg-red-500/10 text-red-600 border-red-500/30',
+  },
+];
+
+function DecisionBadge({ decision }) {
+  const opt = DECISION_OPTIONS.find((o) => o.value === decision);
+  if (!opt) return null;
+  return <Badge className={opt.color}>{opt.label}</Badge>;
+}
+
 function PanelistEvaluationForm({ projectId, defenseType }) {
   const { data: evaluation, isLoading, error } = useMyEvaluation(projectId, defenseType);
   const updateEvaluation = useUpdateEvaluation();
@@ -69,12 +98,14 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
   const [criteria, setCriteria] = useState(null);
   const [overallComment, setOverallComment] = useState('');
+  const [decision, setDecision] = useState(null);
   const [initialized, setInitialized] = useState(false);
 
   // Sync server data into local state once loaded
   if (evaluation && !initialized) {
     setCriteria(evaluation.criteria.map((c) => ({ ...c })));
     setOverallComment(evaluation.overallComment ?? '');
+    setDecision(evaluation.decision ?? null);
     setInitialized(true);
   }
 
@@ -86,7 +117,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
     setCriteria((prev) => {
       const next = [...prev];
       const max = next[index].maxScore;
-      const parsed = value === '' ? '' : Math.min(Math.max(0, Number(value)), max);
+      const parsed = value === '' ? null : Math.min(Math.max(0, Number(value)), max);
       next[index] = { ...next[index], score: parsed };
       return next;
     });
@@ -106,6 +137,7 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
         evaluationId: evaluation._id,
         criteria,
         overallComment,
+        decision,
       });
       toast.success('Draft saved successfully.');
     } catch (err) {
@@ -117,6 +149,14 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
     if (!window.confirm('Are you sure you want to submit? You cannot edit after submission.'))
       return;
     try {
+      // Save draft first to ensure the backend has the latest scores and decision
+      await updateEvaluation.mutateAsync({
+        evaluationId: evaluation._id,
+        criteria,
+        overallComment,
+        decision,
+      });
+
       await submitEvaluation.mutateAsync(evaluation._id);
       toast.success('Evaluation submitted successfully.');
     } catch (err) {
@@ -206,6 +246,34 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
           Total: {totalScore} / {maxTotalScore}
         </div>
 
+        {/* Decision */}
+        <div className="space-y-2">
+          <Label>Decision</Label>
+          {isReadOnly ? (
+            <div>
+              <DecisionBadge decision={evaluation.decision} />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {DECISION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDecision(opt.value)}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                    decision === opt.value
+                      ? opt.color + ' ring-2 ring-offset-1 ring-current'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Overall Comment */}
         <div className="space-y-2">
           <Label htmlFor="overallComment">Overall Comment</Label>
@@ -256,10 +324,11 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
 
 // ─── Collapsible Panelist Section ────────────────────────────────────────────
 
-function PanelistSection({ evaluation }) {
+function PanelistSection({ evaluation, role }) {
   const [open, setOpen] = useState(false);
   const total = evaluation.criteria.reduce((s, c) => s + (Number(c.score) || 0), 0);
   const max = evaluation.criteria.reduce((s, c) => s + c.maxScore, 0);
+  const unlockEvaluation = useUnlockEvaluation();
   const explicitName =
     typeof evaluation.panelistName === 'string' ? evaluation.panelistName.trim() : '';
   const derivedName = [evaluation.panelistId?.firstName, evaluation.panelistId?.lastName]
@@ -270,6 +339,19 @@ function PanelistSection({ evaluation }) {
   const emailName =
     typeof evaluation.panelistId?.email === 'string' ? evaluation.panelistId.email.trim() : '';
   const panelistName = explicitName || derivedName || emailName || 'Panelist';
+  const canUnlock = role === ROLES.INSTRUCTOR && evaluation.status !== EVALUATION_STATUSES.DRAFT;
+
+  const handleUnlock = async () => {
+    const reason = window.prompt('Enter a reason for unlocking this evaluation:');
+    if (!reason?.trim()) return;
+
+    try {
+      await unlockEvaluation.mutateAsync({ evaluationId: evaluation._id, reason: reason.trim() });
+      toast.success('Evaluation unlocked successfully.');
+    } catch (err) {
+      toast.error(err?.message ?? 'Failed to unlock evaluation.');
+    }
+  };
 
   return (
     <div className="rounded-md border">
@@ -282,10 +364,28 @@ function PanelistSection({ evaluation }) {
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           <span className="font-medium">{panelistName || 'Panelist'}</span>
           <StatusBadge status={evaluation.status} />
+          {evaluation.decision && <DecisionBadge decision={evaluation.decision} />}
         </div>
-        <span className="text-sm font-semibold text-muted-foreground">
-          {total} / {max}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-muted-foreground">
+            {total} / {max}
+          </span>
+          {canUnlock && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUnlock}
+              disabled={unlockEvaluation.isPending}
+            >
+              {unlockEvaluation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unlock className="mr-2 h-4 w-4" />
+              )}
+              Unlock
+            </Button>
+          )}
+        </div>
       </button>
 
       {open && (
@@ -340,6 +440,33 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
   const isStudent = role === ROLES.STUDENT;
 
   if (isLoading) return <LoadingSpinner />;
+
+  if (
+    isStudent &&
+    (error?.response?.status === 403 ||
+      error?.response?.data?.error?.code === 'GRADES_LOCKED_PENDING_PANEL_COMPLETION')
+  ) {
+    return (
+      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+        <CardContent className="py-12 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Lock className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
+          <p className="max-w-md mx-auto text-sm text-muted-foreground">
+            Defense results, grading criteria scores, and final evaluation rubrics will unlock once
+            all assigned panel members have completely submitted and released their official
+            evaluations.
+          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Panel review in progress</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (error) return <ErrorAlert message={error.message ?? 'Could not load evaluations.'} />;
 
   const { evaluations = [], summary = {} } = data ?? {};
@@ -355,13 +482,30 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 
   if (isStudent && visibleEvaluations.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">
-          Evaluations have not been released yet.
+      <Card className="border-amber-500/30 bg-amber-50/10 dark:bg-amber-950/10 shadow-sm">
+        <CardContent className="py-12 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Lock className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">Grades Pending Panel Sign-Off</h3>
+          <p className="max-w-md mx-auto text-sm text-muted-foreground">
+            Defense results, grading criteria scores, and final evaluation rubrics will unlock once
+            all assigned panel members have completely submitted and released their official
+            evaluations.
+          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>Panel review in progress</span>
+          </div>
         </CardContent>
       </Card>
     );
   }
+
+  const unsubmittedEvaluations = evaluations.filter(
+    (e) => e.status !== EVALUATION_STATUSES.SUBMITTED && e.status !== EVALUATION_STATUSES.RELEASED,
+  );
+  const allPanelistsSubmitted = evaluations.length > 0 && unsubmittedEvaluations.length === 0;
 
   const hasSubmittedUnreleased =
     isInstructor &&
@@ -369,6 +513,12 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     evaluations.some((e) => e.status !== EVALUATION_STATUSES.RELEASED);
 
   const handleRelease = async () => {
+    if (!allPanelistsSubmitted) {
+      toast.error(
+        'Grade Leakage Gate: All assigned panelists must submit their evaluations before grades can be released.',
+      );
+      return;
+    }
     if (!window.confirm('Release all submitted evaluations to the team? This cannot be undone.'))
       return;
     try {
@@ -379,26 +529,57 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
     }
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      window.open(`/api/evaluations/project/${projectId}/${defenseType}/report`, '_blank');
+      toast.success('Opening defense evaluation report...');
+    } catch (err) {
+      toast.error('Failed to download evaluation report.');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Grade Leakage Warning for Instructor */}
+      {isInstructor && unsubmittedEvaluations.length > 0 && (
+        <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs">
+            <span className="font-semibold">Grade Leakage Prevention Active:</span>{' '}
+            {unsubmittedEvaluations.length} panel member(s) have not yet completed their
+            evaluations. Grading scores and remarks are locked and cannot be released until all
+            assigned committee members submit their rubrics.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Summary Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
             Evaluation Summary
           </CardTitle>
+          {!isStudent && (
+            <Button size="sm" variant="outline" onClick={handleDownloadReport}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Defense Report
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-md border p-4 text-center">
               <p className="text-2xl font-bold">
-                {summary.averageScore !== null && summary.averageScore !== undefined
+                {allPanelistsSubmitted &&
+                summary.averageScore !== null &&
+                summary.averageScore !== undefined
                   ? summary.averageScore.toFixed(1)
-                  : '—'}
+                  : 'Pending Details'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Average Score{averageMaxScore ? ` / ${averageMaxScore}` : ''}
+                Average Score
+                {averageMaxScore && allPanelistsSubmitted ? ` / ${averageMaxScore}` : ''}
               </p>
             </div>
             <div className="rounded-md border p-4 text-center">
@@ -418,14 +599,18 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
       {/* Panelist Evaluations */}
       <div className="space-y-3">
         {visibleEvaluations.map((ev) => (
-          <PanelistSection key={ev._id} evaluation={ev} />
+          <PanelistSection key={ev._id} evaluation={ev} role={role} />
         ))}
       </div>
 
       {/* Release Button (Instructor only) */}
       {hasSubmittedUnreleased && (
-        <div className="flex justify-end">
-          <Button onClick={handleRelease} disabled={releaseEvaluations.isPending}>
+        <div className="flex justify-end gap-2">
+          <Button
+            onClick={handleRelease}
+            disabled={releaseEvaluations.isPending || !allPanelistsSubmitted}
+            className={!allPanelistsSubmitted ? 'opacity-60 cursor-not-allowed' : ''}
+          >
             {releaseEvaluations.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -446,7 +631,11 @@ export default function EvaluationPanel({ projectId, defenseType }) {
 
   if (!user) return null;
 
-  if (user.role === ROLES.PANELIST) {
+  const isPanelistRole =
+    user.role === ROLES.PANELIST ||
+    (user.role === ROLES.FACULTY && user.facultyRole === 'panelist');
+
+  if (isPanelistRole) {
     return <PanelistEvaluationForm projectId={projectId} defenseType={defenseType} />;
   }
 

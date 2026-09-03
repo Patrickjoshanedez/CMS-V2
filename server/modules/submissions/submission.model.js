@@ -14,6 +14,7 @@ import {
   SUBMISSION_STATUSES,
   PLAGIARISM_STATUS_VALUES,
 } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 /**
  * Embedded schema for matched sources found during plagiarism checking.
@@ -75,6 +76,63 @@ const matchedSourceSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const matchedBlockSchema = new mongoose.Schema(
+  {
+    studentStart: {
+      type: Number,
+      min: 0,
+    },
+    studentEnd: {
+      type: Number,
+      min: 0,
+    },
+    sourceStart: {
+      type: Number,
+      min: 0,
+    },
+    sourceEnd: {
+      type: Number,
+      min: 0,
+    },
+    matchedText: {
+      type: String,
+      default: '',
+    },
+  },
+  { _id: false },
+);
+
+const textMatchSchema = new mongoose.Schema(
+  {
+    sourceId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    sourceTitle: {
+      type: String,
+      default: 'Unknown source',
+      trim: true,
+    },
+    similarityPercentage: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    colorCode: {
+      type: String,
+      default: '#ef4444',
+      trim: true,
+    },
+    matchedBlocks: {
+      type: [matchedBlockSchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
 /**
  * Embedded schema for the plagiarism/originality check result.
  * Populated asynchronously by the plagiarism job worker.
@@ -94,6 +152,16 @@ const plagiarismResultSchema = new mongoose.Schema(
       default: null,
       min: 0,
       max: 100,
+    },
+    overallScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    textMatches: {
+      type: [textMatchSchema],
+      default: [],
     },
     matchedSources: {
       type: [matchedSourceSchema],
@@ -217,12 +285,21 @@ const submissionSchema = new mongoose.Schema(
      * Submission type:
      *  - 'chapter'         — Individual chapter uploads (Ch. 1-5)
      *  - 'proposal'        — Compiled proposal document (Ch. 1-3 unified)
+     *  - 'system_design'   — System design document for adviser review
+     *  - 'test_results'    — Test results document for adviser review
      *  - 'final_academic'  — Full academic version (Capstone 4, restricted access)
      *  - 'final_journal'   — Journal/publishable version (Capstone 4, public archive)
      */
     type: {
       type: String,
-      enum: ['chapter', 'proposal', 'final_academic', 'final_journal'],
+      enum: [
+        'chapter',
+        'proposal',
+        'system_design',
+        'test_results',
+        'final_academic',
+        'final_journal',
+      ],
       default: 'chapter',
     },
     chapter: {
@@ -380,6 +457,20 @@ const submissionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    justification: {
+      type: String,
+      trim: true,
+      maxlength: [1000, 'Justification must not exceed 1000 characters'],
+      default: null,
+    },
+    isFlagged: {
+      type: Boolean,
+      default: false,
+    },
+    flagReasons: {
+      type: [String],
+      default: [],
+    },
     remarks: {
       type: String,
       trim: true,
@@ -443,14 +534,16 @@ submissionSchema.index(
   { projectId: 1, chapter: 1, version: 1 },
   { unique: true, partialFilterExpression: { type: 'chapter' } },
 );
-// Ensure unique version per project+type for proposal, final_academic, and final_journal submissions
+// Ensure unique version per project+type for non-chapter submissions
 // (single index avoids Mongoose duplicate-key-pattern warnings)
 submissionSchema.index(
   { projectId: 1, type: 1, version: 1 },
   {
     unique: true,
     partialFilterExpression: {
-      type: { $in: ['proposal', 'final_academic', 'final_journal'] },
+      type: {
+        $in: ['proposal', 'system_design', 'test_results', 'final_academic', 'final_journal'],
+      },
     },
   },
 );
@@ -460,6 +553,8 @@ submissionSchema.index({ projectId: 1, type: 1 });
 submissionSchema.index({ revisionDeadline: 1, status: 1 });
 // Find submissions awaiting revision response
 submissionSchema.index({ status: 1, revisionDeadline: 1, reviewedAt: 1 });
+
+submissionSchema.plugin(softDeletePlugin);
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

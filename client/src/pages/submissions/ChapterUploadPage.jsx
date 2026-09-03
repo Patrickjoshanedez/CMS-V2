@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions, useUploadChapter } from '@/hooks/useSubmissions';
 import { SUBMISSION_STATUSES } from '@cms/shared';
@@ -27,6 +28,14 @@ const ACCEPTED_FILE_TYPES = {
 const ACCEPT_STRING = Object.values(ACCEPTED_FILE_TYPES).join(',');
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
 
+const DOCUMENT_LABELS = {
+  chapter: 'Chapter',
+};
+
+const DOCUMENT_SUCCESS_MESSAGE = {
+  chapter: 'Chapter uploaded successfully! It will now undergo review.',
+};
+
 function toChapterLabel(chapter) {
   if (!chapter || chapter < 1 || chapter > CHAPTER_LABELS.length) return `Chapter ${chapter}`;
   return CHAPTER_LABELS[chapter - 1];
@@ -43,15 +52,30 @@ function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+function formatDeadline(dateStr) {
+  if (!dateStr) return 'No deadline set';
+  return new Date(dateStr).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 /**
  * ChapterUploadPage — Allows a student to upload a chapter document.
  *
  * Query-string support: ?chapter=1 pre-selects the chapter number.
  */
 export default function ChapterUploadPage() {
+  const [now] = useState(() => Date.now());
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedChapter = searchParams.get('chapter');
+  const requestedDocumentType = searchParams.get('document');
+
+  const selectedDocumentLabel = 'Chapter';
 
   // Local state
   const [chapter, setChapter] = useState(preselectedChapter || '');
@@ -59,6 +83,8 @@ export default function ChapterUploadPage() {
   const [remarks, setRemarks] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [clientError, setClientError] = useState('');
+  const [workspaceQueue, setWorkspaceQueue] = useState([]);
+  const [isCommittingWorkspace, setIsCommittingWorkspace] = useState(false);
 
   // Server data
   const { data: project, isLoading: projectLoading, error: projectError } = useMyProject();
@@ -67,10 +93,9 @@ export default function ChapterUploadPage() {
     isLoading: submissionsLoading,
     error: submissionsError,
   } = useProjectSubmissions(project?._id, {}, { enabled: Boolean(project?._id) });
-  const uploadMutation = useUploadChapter({
+  const uploadChapterMutation = useUploadChapter({
     onSuccess: () => {
-      toast.success('Chapter uploaded successfully! It will now undergo review.');
-      // Navigate to the submission overview after successful upload
+      toast.success(DOCUMENT_SUCCESS_MESSAGE.chapter);
       if (project?._id) {
         navigate('/project/submissions');
       }
@@ -81,6 +106,8 @@ export default function ChapterUploadPage() {
       );
     },
   });
+
+  const uploadMutation = uploadChapterMutation;
 
   /**
    * Validate the selected file on the client side before sending.
@@ -114,6 +141,93 @@ export default function ChapterUploadPage() {
     setUploadProgress(0);
   };
 
+  const handleAddToWorkspace = () => {
+    setClientError('');
+    if (!chapter) {
+      setClientError('Please select a chapter before staging.');
+      return;
+    }
+    if (!file) {
+      setClientError('Please select a file before staging.');
+      return;
+    }
+    const fileErr = validateFile(file);
+    if (fileErr) {
+      setClientError(fileErr);
+      return;
+    }
+    if (requiresLateJustification && !remarks.trim()) {
+      setClientError('Late submission detected. Please provide a late-justification note.');
+      return;
+    }
+
+    // Check if chapter is already in queue
+    const exists = workspaceQueue.some((item) => Number(item.chapter) === Number(chapter));
+    if (exists) {
+      setClientError(`Chapter ${chapter} is already staged in the workspace.`);
+      return;
+    }
+
+    setWorkspaceQueue((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        chapter: Number(chapter),
+        file,
+        remarks: remarks.trim(),
+      },
+    ]);
+
+    // Reset current form inputs so student can stage next file
+    setFile(null);
+    setRemarks('');
+    setClientError('');
+    toast.success(`Chapter ${chapter} staged to draft workspace.`);
+  };
+
+  const handleRemoveQueueItem = (id) => {
+    setWorkspaceQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleCommitWorkspace = async () => {
+    if (workspaceQueue.length === 0) return;
+    setIsCommittingWorkspace(true);
+    setClientError('');
+
+    try {
+      for (let i = 0; i < workspaceQueue.length; i++) {
+        const item = workspaceQueue[i];
+        const formData = new FormData();
+        formData.append('file', item.file);
+        formData.append('chapter', item.chapter);
+        if (item.remarks) {
+          formData.append('remarks', item.remarks);
+        }
+
+        await uploadMutation.mutateAsync({
+          projectId: project._id,
+          formData,
+          onUploadProgress: (progressEvent) => {
+            const pct = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+            setUploadProgress(pct);
+          },
+        });
+      }
+
+      toast.success(
+        `All ${workspaceQueue.length} files locked and submitted successfully! Plagiarism analysis queued.`,
+      );
+      setWorkspaceQueue([]);
+      navigate('/project/submissions');
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.error?.message || err?.message || 'Failed to submit workspace.',
+      );
+    } finally {
+      setIsCommittingWorkspace(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setClientError('');
@@ -130,6 +244,10 @@ export default function ChapterUploadPage() {
     const fileErr = validateFile(file);
     if (fileErr) {
       setClientError(fileErr);
+      return;
+    }
+    if (requiresLateJustification && !remarks.trim()) {
+      setClientError('Late submission detected. Please provide a late-justification note.');
       return;
     }
 
@@ -151,7 +269,7 @@ export default function ChapterUploadPage() {
     });
   };
 
-  const isSubmitting = uploadMutation.isPending;
+  const isSubmitting = uploadMutation.isPending || isCommittingWorkspace;
   const serverError =
     uploadMutation.error?.response?.data?.error?.message || uploadMutation.error?.message;
 
@@ -195,6 +313,16 @@ export default function ChapterUploadPage() {
     return selectedLatestSubmission.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED;
   })();
 
+  const selectedDeadlineField =
+    selectedChapterNumber >= 1 && selectedChapterNumber <= 5
+      ? `chapter${selectedChapterNumber}`
+      : null;
+  const selectedDeadline = selectedDeadlineField
+    ? project?.deadlines?.[selectedDeadlineField]
+    : null;
+  const isLateByDeadline = selectedDeadline ? now > new Date(selectedDeadline).getTime() : false;
+  const requiresLateJustification = Boolean(selectedChapterNumber) && isLateByDeadline;
+
   /* ────── Loading / Error ────── */
   if (projectLoading || submissionsLoading) {
     return (
@@ -218,7 +346,7 @@ export default function ChapterUploadPage() {
             <AlertTriangle className="mb-4 h-12 w-12 text-muted-foreground" />
             <h3 className="text-lg font-semibold">No Team Yet</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              You need to join or create a team before uploading chapters.
+              You need to join or create a team before uploading documents.
             </p>
             <Button className="mt-6" onClick={() => navigate('/dashboard')}>
               Go to Dashboard
@@ -235,7 +363,7 @@ export default function ChapterUploadPage() {
             <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
             <h3 className="text-lg font-semibold">No Project Yet</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Your team does not have a project yet. Create a project to start uploading chapters.
+              Your team does not have a project yet. Create a project to start uploading documents.
             </p>
             <Button className="mt-6" onClick={() => navigate('/project/create')}>
               Create Project
@@ -306,13 +434,14 @@ export default function ChapterUploadPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Project
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Upload Chapter</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Upload {selectedDocumentLabel}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Submit a chapter document for your project&nbsp;
+            Submit a {selectedDocumentLabel.toLowerCase()} document for your project&nbsp;
             <span className="font-medium">{project.title}</span>.
           </p>
         </div>
 
+        {/* Chapter Stats */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-5">
@@ -337,11 +466,12 @@ export default function ChapterUploadPage() {
           <Card>
             <CardContent className="pt-5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Next Revision Round
+                Submission Deadline
               </p>
-              <p className="mt-1 text-lg font-semibold">
-                {selectedChapterNumber ? selectedNextRound : '—'}
-              </p>
+              <p className="mt-1 text-sm font-semibold">{formatDeadline(selectedDeadline)}</p>
+              {requiresLateJustification && (
+                <p className="mt-1 text-xs font-medium text-amber-600">Late submission</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -383,6 +513,12 @@ export default function ChapterUploadPage() {
                   Next round number:{' '}
                   <span className="font-medium text-foreground">{selectedNextRound}</span>
                 </p>
+                <p>
+                  Applicable deadline:{' '}
+                  <span className="font-medium text-foreground">
+                    {formatDeadline(selectedDeadline)}
+                  </span>
+                </p>
                 {selectedLatestSubmission && (
                   <p>
                     Latest status:{' '}
@@ -401,9 +537,103 @@ export default function ChapterUploadPage() {
           </CardContent>
         </Card>
 
+        {/* Draft Workspace Buffer */}
+        <Card className="border-primary/30 shadow-sm">
+          <CardHeader className="border-b bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Draft Workspace Buffer</CardTitle>
+                <CardDescription>
+                  Stage, queue, and review multiple deliverable files before final locking.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="font-mono text-xs">
+                {workspaceQueue.length} {workspaceQueue.length === 1 ? 'file' : 'files'} staged
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4">
+            {workspaceQueue.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No files staged in draft workspace yet. Use the form below to stage chapters, or
+                upload directly.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {workspaceQueue.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-6 w-6 text-primary shrink-0" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="font-medium text-xs">
+                            {toChapterLabel(item.chapter)}
+                          </Badge>
+                          <span className="text-sm font-semibold truncate max-w-[220px]">
+                            {item.file.name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatBytes(item.file.size)} {item.remarks ? `• "${item.remarks}"` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveQueueItem(item.id)}
+                      disabled={isSubmitting}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {workspaceQueue.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setWorkspaceQueue([])}
+                  disabled={isSubmitting}
+                >
+                  Clear Workspace
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCommitWorkspace}
+                  disabled={isSubmitting}
+                  className="bg-primary text-primary-foreground"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Locking & Submitting Workspace...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Done / Lock Submission ({workspaceQueue.length})
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Upload / Stage Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Document Upload</CardTitle>
+            <CardTitle>Add File to Workspace</CardTitle>
             <CardDescription>
               Accepted formats: PDF, DOCX, TXT &mdash; Max size: {MAX_FILE_SIZE_MB} MB
             </CardDescription>
@@ -497,45 +727,76 @@ export default function ChapterUploadPage() {
 
               {/* Late-submission remarks (optional — backend enforces if past deadline) */}
               <div className="space-y-2">
-                <Label htmlFor="remarks">Remarks (optional)</Label>
+                <Label htmlFor="remarks">
+                  Late Justification Note {requiresLateJustification ? '(required)' : '(optional)'}
+                </Label>
                 <Textarea
                   id="remarks"
-                  placeholder="If submitting past the deadline, provide an explanation here..."
+                  placeholder={
+                    requiresLateJustification
+                      ? 'Submission is late. Explain the reason for delay.'
+                      : 'If submission becomes late, provide the reason for delay here.'
+                  }
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   disabled={isSubmitting}
                   maxLength={1000}
                   rows={3}
+                  required={requiresLateJustification}
                 />
                 <p className="text-xs text-muted-foreground">{remarks.length}/1000 characters</p>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-wrap justify-between gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate(-1)}
-                  disabled={isSubmitting}
+                  onClick={handleAddToWorkspace}
+                  disabled={
+                    isSubmitting ||
+                    !file ||
+                    !chapter ||
+                    !!clientError ||
+                    !canSubmitSelectedChapter ||
+                    (requiresLateJustification && !remarks.trim())
+                  }
                 >
-                  Cancel
+                  + Stage to Workspace
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !!clientError || !canSubmitSelectedChapter}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Chapter
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate(-1)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      isSubmitting ||
+                      !file ||
+                      !chapter ||
+                      !!clientError ||
+                      !canSubmitSelectedChapter ||
+                      (requiresLateJustification && !remarks.trim())
+                    }
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload {selectedDocumentLabel} Directly
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </CardContent>

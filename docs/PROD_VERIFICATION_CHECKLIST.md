@@ -45,7 +45,7 @@ If you see an error, verify:
 
 ### 3. Test Student Upload
 
-1. Open web app: `http://localhost:5173`
+1. Open web app: `http://localhost:43211`
 2. Log in as **student**
 3. Go to your project → Upload Chapter 1
 4. Select a PDF file → Click Upload
@@ -175,7 +175,7 @@ $env:STORAGE_LOCAL_PATH    # Should show path or be empty (defaults to ./uploads
 
 The `/storage` route must be accessible:
 ```bash
-curl http://localhost:5000/storage/
+curl http://localhost:43210/storage/
 ```
 
 Should return 400 (bad path) not 404 (route not found). If 404, the middleware didn't mount.
@@ -251,7 +251,7 @@ icacls ./uploads /grant:r "$env:USERNAME`:F" /t /c
 **Check path separator is correct:**
 ```powershell
 # Should use forward slashes in URLs
-curl http://localhost:5000/storage/archives/projects/123/chapters/1/v1/file.pdf
+curl http://localhost:43210/storage/archives/projects/123/chapters/1/v1/file.pdf
 ```
 
 ### Disk fills up quickly

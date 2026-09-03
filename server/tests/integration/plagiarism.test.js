@@ -1024,7 +1024,7 @@ describe('Upload triggers plagiarism enqueue', () => {
       {
         $addToSet: { panelistIds: panelistUser._id },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     studentUser = await User.findById(studentUser._id);
   });

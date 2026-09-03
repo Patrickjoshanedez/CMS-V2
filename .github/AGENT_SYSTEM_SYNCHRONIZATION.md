@@ -7,10 +7,10 @@
 
 ## 🎯 Executive Summary
 
-The CMS-V2 agent orchestration system is now fully synchronized with comprehensive prefetching, agent discovery, communication verification, and decision-making coherence validation. All 11 agents are properly registered, discoverable, and communicating through deterministic routing paths with zero circular dependencies or conflicts.
+The CMS-V2 agent orchestration system is now fully synchronized with comprehensive prefetching, agent discovery, communication verification, and decision-making coherence validation. All 10 active orchestrator agents are properly registered, discoverable, and communicating through deterministic routing paths with zero circular dependencies or conflicts.
 
 **Key Metrics:**
-- ✅ **11 Agents** fully discovered and validated
+- ✅ **10 Active Agents** fully discovered and validated
 - ✅ **6 PreToolUse Hooks** active (3 legacy + 3 new synchronization hooks)
 - ✅ **60 Validation Checks** passing (41 baseline + 19 new)
 - ✅ **0 Circular Dependencies** detected
@@ -38,7 +38,7 @@ The CMS-V2 agent orchestration system is now fully synchronized with comprehensi
 {
   "version": "1.0.0",
   "generated_at": "ISO8601_timestamp",
-  "agent_count": 11,
+  "agent_count": 10,
   "agents": {
     "agent_token": {
       "name": "Display Name",
@@ -54,7 +54,7 @@ The CMS-V2 agent orchestration system is now fully synchronized with comprehensi
 ```
 
 #### State File Location:
-`.github/hooks/state/agent_prefetch_registry.json` (11.5 KB)
+`.github/hooks/state/agent_prefetch_registry.json` (~15 KB)
 
 ---
 
@@ -76,7 +76,7 @@ The CMS-V2 agent orchestration system is now fully synchronized with comprehensi
 {
   "version": "1.0.0",
   "generated_at": "ISO8601_timestamp",
-  "agent_count": 11,
+  "agent_count": 10,
   "edges": [
     {
       "from": "orchestrator",
@@ -98,7 +98,7 @@ The CMS-V2 agent orchestration system is now fully synchronized with comprehensi
 `.github/hooks/state/agent_communication_dag.json` (2.5 KB)
 
 #### Current Topology:
-- **11 Agent Nodes** (all discoverable)
+- **10 Agent Nodes** (all discoverable)
 - **1 Edge** (orchestrator ← → researcher primary delegation)
 - **0 Cycles** detected
 - **0 Deadlocks** detected
@@ -192,7 +192,7 @@ The CMS-V2 agent orchestration system is now fully synchronized with comprehensi
 
 ## 📦 Agent Registry (Complete)
 
-All 11 agents successfully discovered:
+All 10 active orchestrator agents successfully discovered:
 
 | Agent Name | Token | Tools Count | File | Status |
 |---|---|---|---|---|
@@ -333,7 +333,7 @@ node scripts/validate-agentic-system.js
 
 | File | Size | Purpose | Refresh Frequency |
 |---|---|---|---|
-| `agent_prefetch_registry.json` | 11.5 KB | Agent metadata cache | Every PreToolUse |
+| `agent_prefetch_registry.json` | ~15 KB | Agent metadata cache | Every PreToolUse |
 | `agent_communication_dag.json` | 2.5 KB | Topology snapshot | Every PreToolUse |
 | `decision_coherence_report.json` | 2.6 KB | Routing validation | Every PreToolUse |
 
@@ -351,7 +351,7 @@ node scripts/validate-agentic-system.js
 - [x] Agent prefetching hook created and active
 - [x] Agent synchronization verifier active
 - [x] Decision coherence validator active
-- [x] All 11 agents discovered and validated
+- [x] All 10 active orchestrator agents discovered and validated
 - [x] 43 skills discoverable
 - [x] 0 circular dependencies
 - [x] 0 routing conflicts

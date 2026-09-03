@@ -1,0 +1,72 @@
+name: CI / Agentic SDLC Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'fix-*'
+      - 'feat/*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+
+jobs:
+  agentic-quality-gate:
+    name: 4-Tier Verification & Governance Gate
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Root & Workspace Dependencies
+        run: npm ci
+
+      - name: Tier 1 - Workspace Cleanliness Guardrail Linter
+        run: python scripts/workspace_guardrail.py
+
+      - name: Tier 2 - Agentic System Governance Audit (60/60 checks)
+        run: npm run validate:agentic
+
+      - name: Tier 3 - Server Integration & Unit Test Suite
+        run: npm test --workspace=server
+        env:
+          NODE_ENV: test
+          BCRYPT_ROUNDS: 4
+          JWT_ACCESS_SECRET: test_jwt_access_secret_ci_key_001
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_ci_key_002
+          SESSION_SECRET: test_session_secret_ci_key_003
+          MONGODB_URI: mongodb://localhost:27017/cms_test_ci
+
+      - name: Tier 4 - Client Frontend Unit & Store Test Suite
+        run: npm test --workspace=client
+
+      - name: Automated CI/CD Semantic Version Tagging & Push
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          python scripts/git-auto-tag.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

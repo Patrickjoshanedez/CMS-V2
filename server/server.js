@@ -7,6 +7,7 @@ import { closeQueues } from './jobs/queue.js';
 import { startPlagiarismWorker, stopPlagiarismWorker } from './jobs/plagiarism.job.js';
 import { startEmailWorker, stopEmailWorker } from './jobs/email.job.js';
 import { initializeSocket } from './services/socket.service.js';
+import { verifyEmailTransport } from './modules/notifications/email.service.js';
 import env from './config/env.js';
 
 const PORT = env.PORT;
@@ -29,6 +30,13 @@ const startServer = async () => {
     // Start BullMQ workers (only if Redis is available)
     startPlagiarismWorker();
     startEmailWorker();
+
+    const smtpHealth = await verifyEmailTransport();
+    if (smtpHealth.status === 'healthy') {
+      console.log(`[server] SMTP health: ${smtpHealth.status} (${smtpHealth.message})`);
+    } else {
+      console.warn(`[server] SMTP health: ${smtpHealth.status} (${smtpHealth.message})`);
+    }
 
     // Create HTTP server from Express app (required for Socket.IO attachment)
     const httpServer = http.createServer(app);

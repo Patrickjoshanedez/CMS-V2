@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createAuthenticatedUserWithRole, createAuthenticatedAgent, createCourseAndSection, createValidProjectPayload } from '../helpers.js';
+import {
+  createAuthenticatedUserWithRole,
+  createAuthenticatedAgent,
+  createCourseAndSection,
+  createValidProjectPayload,
+} from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import Submission from '../../modules/submissions/submission.model.js';
@@ -121,7 +126,9 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
       });
 
       const { course, section } = await createCourseAndSection(user._id);
-      const payload = createValidProjectPayload(team._id, course._id, section._id, [studentUser._id]);
+      const payload = createValidProjectPayload(team._id, course._id, section._id, [
+        studentUser._id,
+      ]);
       payload.title = 'Seed Project For Instructor Stats';
       payload.projectStatus = 'active';
       payload.titleStatus = 'submitted';
@@ -268,9 +275,12 @@ describe('Dashboard API — GET /api/dashboard/stats', () => {
 
 describe('Dashboard API — Panelist topic selection flow', () => {
   it('should list eligible topics and allow panelist selection from dashboard', async () => {
-    const { agent: panelistAgent, user: panelist } = await createAuthenticatedUserWithRole('panelist', {
-      email: 'panelist-topics-flow@example.com',
-    });
+    const { agent: panelistAgent, user: panelist } = await createAuthenticatedUserWithRole(
+      'panelist',
+      {
+        email: 'panelist-topics-flow@example.com',
+      },
+    );
 
     const { user: instructor } = await createAuthenticatedUserWithRole('instructor', {
       email: 'instructor-topics-flow@example.com',
@@ -315,7 +325,7 @@ describe('Dashboard API — Panelist topic selection flow', () => {
     const inactiveProject = await createProjectForStudent(
       'panelist-topic-inactive@example.com',
       'Inactive Dashboard Topic',
-      { projectStatus: 'proposal_submitted' },
+      { projectStatus: 'review' },
     );
 
     const archivedProject = await createProjectForStudent(
@@ -326,7 +336,7 @@ describe('Dashboard API — Panelist topic selection flow', () => {
 
     await createProjectForStudent('panelist-topic-assigned@example.com', 'Already Assigned Topic', {
       panelistIds: [panelist._id],
-      projectStatus: 'proposal_submitted',
+      projectStatus: 'active',
     });
 
     const extraPanelists = [];
@@ -344,7 +354,7 @@ describe('Dashboard API — Panelist topic selection flow', () => {
 
     await createProjectForStudent('panelist-topic-full@example.com', 'Full Slot Topic', {
       panelistIds: extraPanelists,
-      projectStatus: 'proposal_submitted',
+      projectStatus: 'active',
     });
 
     const topicsRes = await panelistAgent.get('/api/dashboard/panelist/topics');
@@ -389,7 +399,9 @@ describe('Dashboard API — Panelist topic selection flow', () => {
     expect(repeatSelectRes.body.data.alreadyAssigned).toBe(true);
 
     const updatedProject = await Project.findById(eligibleProject._id).lean();
-    expect(updatedProject.panelistIds.map((id) => id.toString())).toContain(panelist._id.toString());
+    expect(updatedProject.panelistIds.map((id) => id.toString())).toContain(
+      panelist._id.toString(),
+    );
   });
 });
 

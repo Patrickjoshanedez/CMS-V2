@@ -1,7 +1,16 @@
 import mongoose from 'mongoose';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const MAX_TEAM_MEMBERS = 4;
-const TEAM_MEMBER_ROLES = [
+const STANDARD_CAPSTONE_ROLES = [
+  'Project Lead & Systems Analyst',
+  'Frontend & UI/UX Developer',
+  'Backend & Database Developer',
+  'Full-Stack Developer',
+  'QA & Technical Documentor',
+];
+
+const LEGACY_TEAM_ROLES = [
   'Programmer',
   'Documentor',
   'Pitcher',
@@ -10,7 +19,11 @@ const TEAM_MEMBER_ROLES = [
   'Researcher',
   'Backend Developer',
   'Frontend Developer',
+  'All-Around',
+  'All-around',
 ];
+
+const TEAM_MEMBER_ROLES = [...STANDARD_CAPSTONE_ROLES, ...LEGACY_TEAM_ROLES];
 
 const teamSchema = new mongoose.Schema(
   {
@@ -70,6 +83,26 @@ const teamSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    githubUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    adviserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    secretaryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    panelistIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -97,7 +130,7 @@ teamSchema.virtual('isFull').get(function () {
 });
 
 // --- Pre-validate: enforce max members ---
-teamSchema.pre('validate', function (next) {
+teamSchema.pre('validate', function () {
   if (this.members && this.members.length > MAX_TEAM_MEMBERS) {
     this.invalidate('members', `Team cannot have more than ${MAX_TEAM_MEMBERS} members`);
   }
@@ -120,8 +153,6 @@ teamSchema.pre('validate', function (next) {
       roleOwnerSet.add(targetId);
     });
   }
-
-  next();
 });
 
 // --- Statics ---
@@ -129,6 +160,8 @@ teamSchema.pre('validate', function (next) {
 /** Maximum number of members allowed per team */
 teamSchema.statics.MAX_MEMBERS = MAX_TEAM_MEMBERS;
 teamSchema.statics.MEMBER_ROLES = TEAM_MEMBER_ROLES;
+
+teamSchema.plugin(softDeletePlugin);
 
 const Team = mongoose.model('Team', teamSchema);
 

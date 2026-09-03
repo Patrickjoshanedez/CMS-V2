@@ -1,0 +1,51 @@
+# ==============================================================================
+# BukSU Capstone Management System V2 (CMS-V2)
+# Docker Compose Extension for Ngrok Development Tunnel
+# ==============================================================================
+
+services:
+  ngrok:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.ngrok
+    image: cms-v2-ngrok
+    container_name: cms-ngrok-dev
+    restart: unless-stopped
+    init: true
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+      NGROK_DOMAIN: ${NGROK_DOMAIN:-furuncular-shavonda-unprevalently.ngrok-free.dev}
+      NGROK_TARGET: ${NGROK_TARGET:-client:43211}
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        if [ -z "$${NGROK_AUTHTOKEN}" ]; then
+          echo "================================================================================"
+          echo "[CMS-V2 NGROK] NGROK_AUTHTOKEN is required but not configured!"
+          echo "1. Get your free token at: https://dashboard.ngrok.com/get-started/your-authtoken"
+          echo "2. Add it to your root .env file:"
+          echo "   NGROK_AUTHTOKEN=your_actual_authtoken_here"
+          echo "3. Restart the tunnel container:"
+          echo "   npm run docker:tunnel"
+          echo "================================================================================"
+          sleep 60
+          exit 1
+        fi
+        TARGET="$${NGROK_TARGET:-client:43211}"
+        if [ -n "$${NGROK_DOMAIN}" ]; then
+          echo "Starting ngrok tunnel pointing to $$TARGET with domain $$NGROK_DOMAIN..."
+          exec ngrok http "$$TARGET" --url="https://$${NGROK_DOMAIN}" --authtoken="$${NGROK_AUTHTOKEN}"
+        else
+          echo "Starting ngrok tunnel pointing to $$TARGET..."
+          exec ngrok http "$$TARGET" --authtoken="$${NGROK_AUTHTOKEN}"
+        fi
+    ports:
+      - "4040:4040"
+    networks:
+      - cms_network
+
+networks:
+  cms_network:
+    external: true

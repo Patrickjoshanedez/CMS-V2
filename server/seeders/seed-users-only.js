@@ -29,13 +29,55 @@ import User from '../modules/users/user.model.js';
 // Configuration
 // ──────────────────────────────────────────────────────────────────
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const DEFAULT_DEV_URI = 'mongodb://127.0.0.1:27017/cms_v2';
+const MONGODB_URI =
+  process.env.MONGODB_URI || process.env.MONGODB_DEV_FALLBACK_URI || DEFAULT_DEV_URI;
 const DEFAULT_PASSWORD = 'Password123!';
 
-if (!MONGODB_URI) {
-  console.error('❌ MONGODB_URI is not set in .env');
-  process.exit(1);
-}
+const isTransientMongoConnectionError = (error) => {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  const errorCodes = [error?.code, error?.cause?.code]
+    .filter((code) => typeof code === 'string')
+    .map((code) => code.toUpperCase());
+
+  if (errorCodes.some((code) => ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code))) {
+    return true;
+  }
+
+  return /econnrefused|enotfound|eai_again|etimedout|ehostunreach|network error/i.test(message);
+};
+
+const connectWithFallback = async () => {
+  const fallbackUri = process.env.MONGODB_DEV_FALLBACK_URI || DEFAULT_DEV_URI;
+  const candidates = [MONGODB_URI, fallbackUri].filter(
+    (uri, index, list) => uri && list.indexOf(uri) === index,
+  );
+
+  let lastError;
+  for (const uri of candidates) {
+    try {
+      console.log(`Connecting to MongoDB: ${uri}`);
+      await mongoose.connect(uri);
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (isTransientMongoConnectionError(error)) {
+        console.warn(`Mongo connection failed for ${uri}: ${error.message}`);
+        continue;
+      }
+
+      if (/Invalid scheme/i.test(error?.message || '')) {
+        console.warn(`Mongo URI scheme invalid for ${uri}, trying fallback if available...`);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+};
 
 // ──────────────────────────────────────────────────────────────────
 // User Definitions
@@ -205,7 +247,7 @@ async function seed() {
   try {
     // ─── Connect to MongoDB ─────────────────────────────────────────
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(MONGODB_URI, { autoIndex: true });
+    await connectWithFallback();
     console.log(`Connected to ${mongoose.connection.host}/${mongoose.connection.name}\n`);
 
     // ─── Create/Update Users (idempotent upsert flow) ──────────────
@@ -244,11 +286,7 @@ async function seed() {
         throw new Error(`Failed to load upserted user: ${email}`);
       }
 
-      if (isGoogle) {
-        user.password = undefined;
-      } else {
-        user.password = DEFAULT_PASSWORD;
-      }
+      user.password = DEFAULT_PASSWORD;
       await user.save();
 
       const marker = upsertResult.upsertedCount > 0 ? 'created' : 'updated';
@@ -270,8 +308,7 @@ async function seed() {
     console.log('==========================================================');
     console.log('                    USER CREDENTIALS');
     console.log('==========================================================');
-    console.log(`  Password for LOCAL users: ${DEFAULT_PASSWORD}`);
-    console.log('  Google OAuth account(s) are seeded without a local password.');
+    console.log(`  Password for ALL seeded users: ${DEFAULT_PASSWORD}`);
     console.log('----------------------------------------------------------');
 
     for (const user of [...createdUsers, ...updatedUsers]) {

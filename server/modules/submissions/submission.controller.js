@@ -9,8 +9,9 @@
  * All handlers are wrapped in catchAsync for automatic error forwarding.
  */
 import submissionService from './submission.service.js';
+import Comment from './comment.model.js';
 import catchAsync from '../../utils/catchAsync.js';
-import { HTTP_STATUS } from '@cms/shared';
+import { HTTP_STATUS, ROLES } from '@cms/shared';
 
 /* ═══════════════════ Upload ═══════════════════ */
 
@@ -42,6 +43,38 @@ export const compileProposal = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
     message: 'Proposal compiled and submitted successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/system-design — Upload system design document */
+export const uploadSystemDesign = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadSystemDesign(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'System design document uploaded successfully.',
+    data: { submission },
+  });
+});
+
+/** POST /api/submissions/:projectId/test-results — Upload test results document */
+export const uploadTestResults = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadTestResults(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Test results document uploaded successfully.',
     data: { submission },
   });
 });
@@ -370,5 +403,125 @@ export const getSubmissionVersions = catchAsync(async (req, res) => {
     success: true,
     message: 'Versions retrieved.',
     data: { versions },
+  });
+});
+
+/* ═══════════════════ Inline Document Comments ═══════════════════ */
+
+/** POST /api/submissions/:submissionId/comments — Create inline highlight comment */
+export const createSubmissionComment = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+  const { pageNumber, coordinates, highlightText, commentText } = req.body;
+
+  const authorName =
+    [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
+
+  const comment = await Comment.create({
+    submissionId,
+    authorId: req.user._id,
+    authorName,
+    pageNumber: Number(pageNumber) || 1,
+    coordinates: coordinates || { x: 0, y: 0, width: 0, height: 0 },
+    highlightText: highlightText || '',
+    commentText,
+  });
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Inline comment created.',
+    data: { comment },
+  });
+});
+
+/** GET /api/submissions/:submissionId/comments — Get inline comments for submission */
+export const getSubmissionComments = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+  const { pageNumber } = req.query;
+
+  const query = { submissionId };
+  if (pageNumber) query.pageNumber = Number(pageNumber);
+
+  const comments = await Comment.find(query).sort({ pageNumber: 1, createdAt: 1 });
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { comments },
+  });
+});
+
+/** DELETE /api/submissions/:submissionId/comments/:commentId — Delete inline comment */
+export const deleteSubmissionComment = catchAsync(async (req, res) => {
+  const { commentId } = req.params;
+  const comment = await Comment.findById(commentId);
+
+  if (!comment) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment not found.',
+    });
+  }
+
+  const isOwner = comment.authorId.toString() === req.user._id.toString();
+  const isFaculty = req.user.role === ROLES.INSTRUCTOR || req.user.role === ROLES.ADMIN;
+
+  if (!isOwner && !isFaculty) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({
+      success: false,
+      message: 'Not authorized to delete this comment.',
+    });
+  }
+
+  await Comment.findByIdAndDelete(commentId);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Comment deleted.',
+  });
+});
+
+/**
+ * PATCH /api/submissions/:submissionId/justification
+ * Update late justification note for a submission (FR-4.2).
+ */
+export const updateJustification = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.updateJustification(
+    req.user._id,
+    req.params.submissionId,
+    req.body.justification,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Justification updated successfully.',
+    data: { submission },
+  });
+});
+
+/**
+ * POST /api/submissions/:projectId/chapters/batch
+ * Batch upload chapter files from draft workspace (FR-4.1).
+ */
+export const batchUploadChapters = catchAsync(async (req, res) => {
+  let chaptersData = [];
+  if (req.body.chapters) {
+    try {
+      chaptersData =
+        typeof req.body.chapters === 'string' ? JSON.parse(req.body.chapters) : req.body.chapters;
+    } catch {
+      chaptersData = [];
+    }
+  }
+
+  const { submissions } = await submissionService.batchUploadChapters(
+    req.user._id,
+    req.params.projectId,
+    chaptersData,
+    req.files,
+  );
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: `${submissions.length} chapter(s) uploaded successfully from draft workspace.`,
+    data: { submissions },
   });
 });

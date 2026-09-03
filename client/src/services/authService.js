@@ -31,6 +31,7 @@ export const userService = {
   updateUser: (id, data) => api.patch(`/users/${id}`, data),
   changeRole: (id, data) => api.patch(`/users/${id}/role`, data),
   deleteUser: (id) => api.delete(`/users/${id}`),
+  activateUser: (id) => api.patch(`/users/${id}/activate`),
   importStudents: (formData) =>
     api.post('/users/import-students', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -44,6 +45,8 @@ export const userService = {
 export const teamService = {
   createTeam: (data) => api.post('/teams', data),
   getMyTeam: () => api.get('/teams/me'),
+  listCreateTeamInviteCandidates: (params) =>
+    api.get('/teams/invite-candidates/preview', { params }),
   listInviteCandidates: (teamId, params) =>
     api.get(`/teams/${teamId}/invite-candidates`, { params }),
   inviteMember: (teamId, data) => api.post(`/teams/${teamId}/invite`, data),
@@ -52,9 +55,13 @@ export const teamService = {
   assignMemberRole: (teamId, memberId, data) =>
     api.patch(`/teams/${teamId}/members/${memberId}/role`, data),
   updateGoogleDocLink: (teamId, data) => api.patch(`/teams/${teamId}/google-doc-link`, data),
+  updateGithubLink: (teamId, data) => api.patch(`/teams/${teamId}/github-link`, data),
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
   leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
+  assignCommittee: (teamId, data) => api.put(`/teams/${teamId}/committee`, data),
+  getManuscriptTemplate: (teamId) => api.get(`/teams/${teamId}/manuscript-template`),
+  updateManuscriptTemplate: (data) => api.put('/teams/manuscript-template', data),
 };
 
 /**
@@ -78,7 +85,7 @@ export const projectService = {
   createProject: (data) => api.post('/projects', data),
   getMyProject: () => api.get('/projects/me'),
   updateTitle: (id, data) => api.patch(`/projects/${id}/title`, data),
-  submitTitle: (id) => api.post(`/projects/${id}/title/submit`),
+  submitTitle: (id) => api.post(`/projects/${id}/title/submit`, {}),
   reviseAndResubmit: (id, data) => api.patch(`/projects/${id}/title/revise`, data),
   requestTitleModification: (id, data) => api.post(`/projects/${id}/title/modification`, data),
   generateProposalDeck: (payload) =>
@@ -96,7 +103,7 @@ export const projectService = {
   clearCreateProjectDraft: () => api.delete('/projects/create-draft'),
 
   // Instructor routes
-  approveTitle: (id) => api.post(`/projects/${id}/title/approve`),
+  approveTitle: (id, data = {}) => api.post(`/projects/${id}/title/approve`, data),
   rejectTitle: (id, data) => api.post(`/projects/${id}/title/reject`, data),
   addTitleComment: (projectId, proposalId, data) =>
     api.post(`/projects/${projectId}/title-proposals/${proposalId}/comments`, data),
@@ -144,14 +151,16 @@ export const projectService = {
       } else if (payload.authors) {
         formData.append('authors', payload.authors);
       }
-      if (payload.publicationYear != null) {
+      if (payload.publicationYear !== null && payload.publicationYear !== undefined) {
         formData.append('publicationYear', String(payload.publicationYear));
       }
       if (payload.doi) formData.append('doi', payload.doi);
       if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
       formData.append('academicYear', payload.academicYear);
       formData.append('academicPaperFile', payload.academicPaperFile);
-      formData.append('academicJournalFile', payload.academicJournalFile);
+      if (payload.academicJournalFile) {
+        formData.append('academicJournalFile', payload.academicJournalFile);
+      }
     }
 
     return api.post('/projects/archive/bulk', formData, {
@@ -160,9 +169,35 @@ export const projectService = {
     });
   },
 
+  // Action Done Matrix (ADM) & Secretary Minutes
+  getActionDoneMatrix: (projectId) => api.get(`/projects/${projectId}/action-done-matrix`),
+  createActionDoneMatrixItem: (projectId, data) =>
+    api.post(`/projects/${projectId}/action-done-matrix`, data),
+  updateActionDoneMatrixItem: (projectId, itemId, data) =>
+    api.patch(`/projects/${projectId}/action-done-matrix/${itemId}`, data),
+  deleteActionDoneMatrixItem: (projectId, itemId) =>
+    api.delete(`/projects/${projectId}/action-done-matrix/${itemId}`),
+  patchADMRow: (projectId, rowId, data) => api.patch(`/adm/${projectId}/rows/${rowId}`, data),
+  updateADMMetadata: (projectId, data) => api.patch(`/projects/${projectId}/adm-metadata`, data),
+  signTieredADM: (projectId, data) => api.post(`/projects/${projectId}/adm-signatures`, data),
+  seedInstitutionalADM: (projectId) =>
+    api.post(`/projects/${projectId}/action-done-matrix/seed-institutional`),
+  signADMItem: (projectId, itemId, data) =>
+    api.post(`/projects/${projectId}/action-done-matrix/${itemId}/sign`, data),
+  updateADMStatus: (projectId, data) => api.patch(`/projects/${projectId}/adm-status`, data),
+  uploadSecretaryMinutes: (formData) =>
+    api.post('/submissions/secretary-minutes', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  handleProjectStream: (projectId, data) => api.post(`/projects/${projectId}/stream-routing`, data),
+
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
   listProjects: (params) => api.get('/projects', { params }),
+
+  // Link-based asset updates
+  updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
+  updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
 };
 
 /**
@@ -185,22 +220,4 @@ export const academicService = {
   listAcademicYears: () => api.get('/academics/academic-years'),
   createAcademicYear: (data) => api.post('/academics/academic-years', data),
   getHierarchy: (params) => api.get('/academics/hierarchy', { params }),
-};
-
-/**
- * Document API service — document-related operations.
- */
-export const documentService = {
-  /**
-    * Extract title, abstract, publication year, authors, and keywords metadata from a PDF file.
-   * @param {File} file - The PDF file to extract metadata from
-    * @returns {Promise<{title: string, abstract: string, publicationYear: number|null, authors: string[], keywords: string[], confidence: {title: number, abstract: number, publicationYear: number, authors: number, keywords: number}}>} 
-   */
-  extractPdfMetadata: (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return api.post('/documents/extract-pdf-metadata', formData, {
-      timeout: 120000,
-    });
-  },
 };

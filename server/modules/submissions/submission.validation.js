@@ -47,6 +47,14 @@ export const submissionAnnotationParamSchema = z.object({
   annotationId: objectIdField,
 });
 
+/**
+ * Validate :submissionId + :commentId URL parameters together.
+ */
+export const submissionCommentParamSchema = z.object({
+  submissionId: objectIdField,
+  commentId: objectIdField,
+});
+
 /* ═══════════════════ Body ═══════════════════ */
 
 /**
@@ -190,6 +198,22 @@ export const markAcceptedSchema = z.object({
     .default(''),
 });
 
+export const updateJustificationSchema = z.object({
+  justification: z
+    .string()
+    .trim()
+    .min(5, 'Justification note must be at least 5 characters')
+    .max(1000, 'Justification must not exceed 1000 characters'),
+});
+
+/**
+ * Batch upload chapter items.
+ */
+export const batchUploadChapterSchema = z.object({
+  chapters: z.string().optional(),
+  remarks: z.string().trim().max(1000).optional(),
+});
+
 /* ═══════════════════ Query ═══════════════════ */
 
 /**
@@ -199,5 +223,5 @@ export const listSubmissionsQuerySchema = z.object({
   chapter: z.coerce.number().int().min(1).max(5).optional(),
   status: z.enum(SUBMISSION_STATUS_VALUES).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(10),
 });

@@ -5,9 +5,11 @@ import User from '../users/user.model.js';
 import Section from '../academics/section.model.js';
 import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
+import Evaluation from '../evaluations/evaluation.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
 import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
+import { extractText } from '../../utils/extractText.js';
 import { rankFuzzyConflicts } from '../../utils/similarityAudit.js';
 import storageService from '../../services/storage.index.js';
 import { emitToUser } from '../../services/socket.service.js';
@@ -32,6 +34,14 @@ const DEFAULT_SIMILARITY_THRESHOLD = 0.7;
 const DEFAULT_ABSTRACT_SIMILARITY_THRESHOLD = 0.7;
 const MAX_ARCHIVE_SIMILARITY_CONFLICTS = 10;
 
+const MIN_CORPUS_TEXT_LENGTH = 50;
+
+function normalizeAcademicYearValue(value) {
+  if (typeof value !== 'string') return '';
+  // Normalize unicode dashes so values like "2024–2025" match "2024-2025".
+  return value.trim().replace(/[\u2012\u2013\u2014\u2015]/g, '-');
+}
+
 function toBoundedThreshold(value, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -43,6 +53,29 @@ function toBoundedThreshold(value, fallback) {
  * Handles creation, title workflow, adviser/panelist assignment, and status transitions.
  */
 class ProjectService {
+  async _extractArchiveSubmissionText(file) {
+    if (!file?.buffer) {
+      return null;
+    }
+
+    const fileType = file.validatedMime || file.mimetype;
+    if (!fileType) {
+      return null;
+    }
+
+    try {
+      const text = await extractText(file.buffer, fileType);
+      if (typeof text !== 'string') {
+        return null;
+      }
+
+      const normalized = text.trim();
+      return normalized.length >= MIN_CORPUS_TEXT_LENGTH ? normalized : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
   async getCreateProjectDraft(userId) {
     const user = await User.findById(userId).select(
       '+createProjectDraft +createProjectDraftUpdatedAt',
@@ -144,20 +177,24 @@ class ProjectService {
       throw new AppError('Only students can create projects.', 403, 'FORBIDDEN');
     }
 
-    // Resolve section ID: explicit payload > team > user
+    let team = null;
+    if (user.teamId) {
+      team = await Team.findById(user.teamId).select(
+        'leaderId members isLocked sectionId academicYear courseId',
+      );
+    }
+
+    const payloadAcademicYear = normalizeAcademicYearValue(data.academicYear);
+    const teamAcademicYear = normalizeAcademicYearValue(team?.academicYear);
+    let effectiveAcademicYear = teamAcademicYear || payloadAcademicYear;
+
+    // Resolve section ID: canonical team > explicit payload > user profile
     let effectiveSectionId = data.sectionId;
-    if (!effectiveSectionId) {
-      // Try to get from team context
-      if (user.teamId) {
-        const team = await Team.findById(user.teamId).select('sectionId');
-        if (team?.sectionId) {
-          effectiveSectionId = team.sectionId;
-        }
-      }
+    if (team?.sectionId) {
+      effectiveSectionId = team.sectionId;
+    } else if (!effectiveSectionId && user.sectionId) {
       // Fall back to user section if available
-      if (!effectiveSectionId && user.sectionId) {
-        effectiveSectionId = user.sectionId;
-      }
+      effectiveSectionId = user.sectionId;
     }
 
     if (!effectiveSectionId) {
@@ -173,7 +210,23 @@ class ProjectService {
       throw new AppError('Selected section was not found.', 404, 'SECTION_NOT_FOUND');
     }
 
-    if (section.academicYear !== data.academicYear) {
+    const sectionAcademicYear = normalizeAcademicYearValue(section.academicYear);
+
+    if (!effectiveAcademicYear && sectionAcademicYear) {
+      effectiveAcademicYear = sectionAcademicYear;
+    }
+
+    if (!effectiveAcademicYear) {
+      throw new AppError('Academic year is required.', 400, 'ACADEMIC_YEAR_REQUIRED');
+    }
+
+    const hasCanonicalTeamSection = Boolean(team?.sectionId);
+
+    if (
+      !hasCanonicalTeamSection &&
+      sectionAcademicYear &&
+      sectionAcademicYear !== effectiveAcademicYear
+    ) {
       throw new AppError(
         'Selected section does not belong to the selected academic year.',
         400,
@@ -181,7 +234,10 @@ class ProjectService {
       );
     }
 
-    let team = null;
+    if (sectionAcademicYear) {
+      effectiveAcademicYear = sectionAcademicYear;
+    }
+
     if (!user.teamId) {
       if (!data.allowSoloCapstone || !data.soloCapstoneConfirmed) {
         throw new AppError(
@@ -191,7 +247,7 @@ class ProjectService {
         );
       }
 
-      team = await this._createSoloTeamForStudent(user, data.academicYear);
+      team = await this._createSoloTeamForStudent(user, effectiveAcademicYear);
     }
 
     if (!team) {
@@ -224,9 +280,9 @@ class ProjectService {
       throw new AppError('One or more SDG tags are invalid.', 400, 'INVALID_SDG_TAG');
     }
 
-    if (normalizedTitleProposals.length < 3) {
+    if (normalizedTitleProposals.length < 1) {
       throw new AppError(
-        'At least 3 unique title proposals are required.',
+        'At least 1 unique title proposal is required.',
         400,
         'MIN_TITLE_PROPOSALS',
       );
@@ -330,11 +386,28 @@ class ProjectService {
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
     });
     if (existingProject) {
-      throw new AppError(
-        'Your team already has an active project. Only one active project per team is allowed.',
-        409,
-        'PROJECT_EXISTS',
-      );
+      const isPendingReview = existingProject.titleStatus === TITLE_STATUSES.SUBMITTED;
+      const isDraft = existingProject.titleStatus === TITLE_STATUSES.DRAFT;
+      const isRevisionRequired = existingProject.titleStatus === TITLE_STATUSES.REVISION_REQUIRED;
+      const proposalCount = Array.isArray(existingProject.titleProposals)
+        ? existingProject.titleProposals.length
+        : 0;
+
+      let errorMessage;
+      if (isPendingReview) {
+        errorMessage = `Your team already has ${proposalCount} proposal${proposalCount !== 1 ? 's' : ''} pending instructor review. You cannot submit another set of proposals until the current ones are reviewed. Please wait for the instructor's decision.`;
+      } else if (isDraft) {
+        errorMessage =
+          'Your team already has a project in draft status. Please go to My Capstone to edit and submit your existing proposals instead of creating a new project.';
+      } else if (isRevisionRequired) {
+        errorMessage =
+          'Your team has proposals that require revision. Please go to My Capstone to address the instructor feedback and resubmit instead of creating a new project.';
+      } else {
+        errorMessage =
+          'Your team already has an active project. Only one active project per team is allowed.';
+      }
+
+      throw new AppError(errorMessage, 409, 'PROJECT_EXISTS');
     }
 
     // Similarity check against all non-rejected projects
@@ -355,7 +428,7 @@ class ProjectService {
       abstract: data.abstract || '',
       keywords: data.keywords || [],
       sdgTags: normalizedSdgTags,
-      academicYear: data.academicYear,
+      academicYear: effectiveAcademicYear,
       courseId: section.courseId._id,
       sectionId: section._id,
       memberRoleAssignments,
@@ -423,7 +496,9 @@ class ProjectService {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
-    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(requester?.role);
+    const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(
+      requester?.role,
+    );
     if (!isFaculty) {
       if (requester?.role !== ROLES.STUDENT) {
         throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
@@ -499,6 +574,8 @@ class ProjectService {
       projectStatus,
       search,
       adviserId,
+      panelistId,
+      excludeArchived,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -507,6 +584,14 @@ class ProjectService {
     if (titleStatus) filter.titleStatus = titleStatus;
     if (projectStatus) filter.projectStatus = projectStatus;
     if (adviserId) filter.adviserId = adviserId;
+    if (panelistId) filter.panelistIds = panelistId;
+
+    if (excludeArchived === 'true' || excludeArchived === true) {
+      filter.isArchived = { $ne: true };
+      if (!filter.projectStatus) {
+        filter.projectStatus = { $ne: PROJECT_STATUSES.ARCHIVED };
+      }
+    }
 
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -644,6 +729,46 @@ class ProjectService {
     return { project, similarProjects };
   }
 
+  /**
+   * Update the Gantt chart URL for a project.
+   * Only a team member can perform this action.
+   * @param {string} projectId
+   * @param {string} userId - Requesting student (must be team member).
+   * @param {Object} data - { ganttChartUrl }
+   * @returns {Object} { project }
+   */
+  async updateGanttChartUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+    await this._assertTeamMember(project.teamId, userId);
+
+    if (data.ganttChartUrl !== undefined) {
+      project.ganttChartUrl = data.ganttChartUrl;
+      await project.save();
+    }
+
+    return { project };
+  }
+
+  /**
+   * Update the Demo Video URL (Google Drive link) for a project.
+   * Only a team member can perform this action.
+   * @param {string} projectId
+   * @param {string} userId - Requesting student (must be team member).
+   * @param {Object} data - { demoVideoUrl }
+   * @returns {Object} { project }
+   */
+  async updateDemoVideoUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+    await this._assertTeamMember(project.teamId, userId);
+
+    if (data.demoVideoUrl !== undefined) {
+      project.demoVideoUrl = data.demoVideoUrl;
+      await project.save();
+    }
+
+    return { project };
+  }
+
   /* ═══════════════════ Title workflow ═══════════════════ */
 
   /**
@@ -683,12 +808,16 @@ class ProjectService {
   /**
    * Approve a submitted project title.
    * Transitions titleStatus: SUBMITTED → APPROVED
+   *                   or  SUBMITTED → APPROVED_WITH_REVISION (when approveWithRevision is true)
    * @param {string} projectId
    * @param {string} instructorId
+   * @param {Object} data - { proposalId?, approveWithRevision? }
    * @returns {Object} { project }
    */
-  async approveTitle(projectId, instructorId, data = {}) {
+  async approveTitle(projectId, user, data = {}) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -698,8 +827,17 @@ class ProjectService {
       );
     }
 
+    const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+    const metadataEntries = Array.isArray(project.titleProposalMetadata)
+      ? project.titleProposalMetadata
+      : [];
+    const proposalComments = Array.isArray(project.titleProposalComments)
+      ? project.titleProposalComments
+      : [];
+
+    let selectedProposalIndex = -1;
+
     if (data?.proposalId !== undefined && data?.proposalId !== null && data?.proposalId !== '') {
-      const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
       let proposalIndex = -1;
 
       if (typeof data.proposalId === 'number' && Number.isInteger(data.proposalId)) {
@@ -724,20 +862,54 @@ class ProjectService {
         throw new AppError('Title proposal not found.', 404, 'TITLE_PROPOSAL_NOT_FOUND');
       }
 
+      selectedProposalIndex = proposalIndex;
       project.title = selectedTitle;
     }
 
-    project.titleStatus = TITLE_STATUSES.APPROVED;
+    const approvedTitle = typeof project.title === 'string' ? project.title.trim() : '';
+    if (approvedTitle) {
+      if (selectedProposalIndex === -1 && proposals.length > 0) {
+        selectedProposalIndex = proposals.findIndex((proposal) => {
+          const proposalTitle =
+            typeof proposal === 'string'
+              ? proposal.trim()
+              : typeof proposal?.title === 'string'
+                ? proposal.title.trim()
+                : '';
+          return proposalTitle === approvedTitle;
+        });
+      }
+
+      project.titleProposals = proposals;
+      project.titleProposalMetadata = metadataEntries.map((entry, index) => ({
+        ...entry,
+        status: index === selectedProposalIndex ? 'approved' : 'rejected',
+        reviewedBy: user._id,
+        reviewedAt: new Date(),
+      }));
+    }
+
+    // When approveWithRevision is true, Capstone 1 stays locked until the team submits
+    // and the instructor accepts the revised title (APPROVED_WITH_REVISION → PENDING_MODIFICATION → APPROVED).
+    const approveWithRevision = Boolean(data?.approveWithRevision);
+    project.titleStatus = approveWithRevision
+      ? TITLE_STATUSES.APPROVED_WITH_REVISION
+      : TITLE_STATUSES.APPROVED;
     project.driveFolderId = null;
+    project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+    project.capstonePhase = 1;
 
     await project.save();
 
     // Notify team members
+    const notifMessage = approveWithRevision
+      ? `Your project title "${project.title}" has been approved with revision. Please submit a revised title before proceeding to Capstone 1.`
+      : `Your project title "${project.title}" has been approved.`;
     await this._notifyTeamMembers(project.teamId, {
       type: 'title_approved',
-      title: 'Title Approved',
-      message: `Your project title "${project.title}" has been approved.`,
-      metadata: { projectId: project._id, approvedBy: instructorId },
+      title: approveWithRevision ? 'Title Approved With Revision' : 'Title Approved',
+      message: notifMessage,
+      metadata: { projectId: project._id, approvedBy: user._id, approveWithRevision },
     });
 
     return { project };
@@ -751,8 +923,10 @@ class ProjectService {
    * @param {Object} data - { reason }
    * @returns {Object} { project }
    */
-  async rejectTitle(projectId, instructorId, data) {
+  async rejectTitle(projectId, user, data) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (project.titleStatus !== TITLE_STATUSES.SUBMITTED) {
       throw new AppError(
@@ -770,7 +944,7 @@ class ProjectService {
       type: 'title_rejected',
       title: 'Title Revision Required',
       message: `Your project title "${project.title}" requires revisions. Reason: ${data.reason}`,
-      metadata: { projectId: project._id, rejectedBy: instructorId },
+      metadata: { projectId: project._id, rejectedBy: user._id },
     });
 
     return { project };
@@ -936,7 +1110,8 @@ class ProjectService {
   async requestTitleModification(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
 
-    if (project.titleStatus !== TITLE_STATUSES.APPROVED) {
+    const allowedStatuses = [TITLE_STATUSES.APPROVED, TITLE_STATUSES.APPROVED_WITH_REVISION];
+    if (!allowedStatuses.includes(project.titleStatus)) {
       throw new AppError(
         'Title modification can only be requested for approved titles.',
         400,
@@ -954,12 +1129,17 @@ class ProjectService {
 
     await this._assertTeamLeader(project.teamId, userId);
 
+    // Capture the current status before transitioning, so we can restore it on denial
+    const previousTitleStatus = project.titleStatus;
+
     project.titleStatus = TITLE_STATUSES.PENDING_MODIFICATION;
     project.titleModificationRequest = {
       proposedTitle: data.proposedTitle,
       justification: data.justification,
       status: 'pending',
       requestedAt: new Date(),
+      // Remember the status we came from so a denial can restore it correctly
+      fromStatus: previousTitleStatus,
     };
     await project.save();
 
@@ -981,8 +1161,10 @@ class ProjectService {
    * @param {Object} data - { action: 'approved'|'denied', reviewNote? }
    * @returns {Object} { project }
    */
-  async resolveTitleModification(projectId, instructorId, data) {
+  async resolveTitleModification(projectId, user, data) {
     const project = await this._getProjectOrFail(projectId);
+
+    await this._assertCanReviewTitle(user, project);
 
     if (
       project.titleStatus !== TITLE_STATUSES.PENDING_MODIFICATION ||
@@ -996,16 +1178,22 @@ class ProjectService {
     }
 
     project.titleModificationRequest.status = data.action;
-    project.titleModificationRequest.reviewedBy = instructorId;
+    project.titleModificationRequest.reviewedBy = user._id;
     project.titleModificationRequest.reviewNote = data.reviewNote || '';
     project.titleModificationRequest.reviewedAt = new Date();
 
     if (data.action === 'approved') {
       project.title = project.titleModificationRequest.proposedTitle;
+      // Fully approved — unlock Capstone 1
+      project.titleStatus = TITLE_STATUSES.APPROVED;
+    } else {
+      // Denied — restore to the status the student started from so they can try again
+      const restoredStatus =
+        project.titleModificationRequest.fromStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
+          ? TITLE_STATUSES.APPROVED_WITH_REVISION
+          : TITLE_STATUSES.APPROVED;
+      project.titleStatus = restoredStatus;
     }
-
-    // Return to approved status regardless of decision
-    project.titleStatus = TITLE_STATUSES.APPROVED;
     await project.save();
 
     const verb = data.action === 'approved' ? 'approved' : 'denied';
@@ -1013,7 +1201,7 @@ class ProjectService {
       type: 'title_modification_resolved',
       title: `Title Modification ${verb.charAt(0).toUpperCase() + verb.slice(1)}`,
       message: `Your title modification request has been ${verb}.${data.reviewNote ? ` Note: ${data.reviewNote}` : ''}`,
-      metadata: { projectId: project._id, resolvedBy: instructorId, action: data.action },
+      metadata: { projectId: project._id, resolvedBy: user._id, action: data.action },
     });
 
     return { project };
@@ -1307,8 +1495,8 @@ class ProjectService {
    * Advance a project to the next capstone phase (instructor action).
    *
    * Phase transitions:
-   * - 1 → 2: Requires chapter 1 upload signal OR proposal approved status
-   * - 2 → 3: Allowed once the instructor decides the team is ready
+   * - 1 → 2: Requires chapter 1 upload OR proposal-approved status
+   * - 2 → 3: Requires at least one RELEASED midterm evaluation (Capstone 2 approved)
    * - 3 → 4: Allowed once the instructor decides the team is ready
    * - 4 → (none): Phase 4 is the final phase — cannot advance further.
    *
@@ -1329,7 +1517,7 @@ class ProjectService {
       );
     }
 
-    // Phase 1 → 2 requires chapter 1 evidence (upload exists) or a proposal-approved status.
+    // Phase 1 → 2: Requires chapter 1 upload evidence OR proposal-approved status.
     if (capstonePhase === CAPSTONE_PHASES.PHASE_1) {
       const hasChapterOneSubmission = await Submission.exists({
         projectId: project._id,
@@ -1345,6 +1533,34 @@ class ProjectService {
           'Upload Chapter 1 before advancing to Capstone 2.',
           400,
           'CHAPTER1_REQUIRED_FOR_PHASE_ADVANCE',
+        );
+      }
+    }
+
+    // Phase 2 → 3: Requires the midterm evaluation to have been released AND
+    // project asset URLs (Gantt Chart, Demo Video) to be provided.
+    // This ensures Capstone 2 (midterm defense) is formally approved before
+    // students can proceed to chapters 4-5 (Capstone 3).
+    if (capstonePhase === CAPSTONE_PHASES.PHASE_2) {
+      const hasReleasedMidterm = await Evaluation.exists({
+        projectId: project._id,
+        defenseType: 'midterm',
+        status: 'released',
+      });
+
+      if (!hasReleasedMidterm) {
+        throw new AppError(
+          'Capstone 2 midterm evaluation must be released before advancing to Capstone 3 (chapters 4-5).',
+          400,
+          'MIDTERM_EVALUATION_REQUIRED_FOR_PHASE_ADVANCE',
+        );
+      }
+
+      if (!project.ganttChartUrl || !project.demoVideoUrl) {
+        throw new AppError(
+          'Gantt Chart and Project Demo Video URLs must be provided before advancing to Capstone 3.',
+          400,
+          'ASSET_URLS_REQUIRED',
         );
       }
     }
@@ -1753,7 +1969,7 @@ class ProjectService {
   /**
    * Generate a report of archived projects by academic year.
    * Instructor only. Returns counts and metadata.
-   * @param {Object} query - { academicYear?, adviserId? }
+   * @param {Object} query - report filters, sort, and pagination options
    * @returns {Object} { report }
    */
   async generateReport(query) {
@@ -1767,13 +1983,22 @@ class ProjectService {
       keyword,
       sortBy = 'archivedAt',
       sortOrder = 'desc',
+      page: pageRaw = 1,
+      limit: limitRaw = 10,
     } = query ?? {};
+
+    const page = Math.max(1, Number.parseInt(pageRaw, 10) || 1);
+    const limit = Math.max(1, Math.min(100, Number.parseInt(limitRaw, 10) || 10));
+    const skip = (page - 1) * limit;
 
     const effectiveAcademicYear = academicYearFilter || year;
     const matchStage = { isArchived: true };
+    const postLookupMatchStage = {};
 
     if (effectiveAcademicYear) matchStage.academicYear = effectiveAcademicYear;
-    if (adviserId) matchStage.adviserId = adviserId;
+    if (adviserId && mongoose.Types.ObjectId.isValid(adviserId)) {
+      matchStage.adviserId = new mongoose.Types.ObjectId(adviserId);
+    }
     if (title) {
       matchStage.title = { $regex: title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     }
@@ -1784,184 +2009,563 @@ class ProjectService {
       };
     }
 
-    const normalizeFullName = (person) =>
-      [person?.firstName, person?.middleName, person?.lastName].filter(Boolean).join(' ').trim();
+    if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
+      postLookupMatchStage.courseResolvedId = new mongoose.Types.ObjectId(courseId);
+    }
 
-    const toComparableValue = (value) => {
-      if (value instanceof Date) return value.getTime();
-      if (value && typeof value === 'object' && typeof value.valueOf === 'function') {
-        const valueOf = value.valueOf();
-        if (typeof valueOf === 'number') return valueOf;
-      }
-      if (typeof value === 'string') return value.toLowerCase();
-      if (value === null || value === undefined) return '';
-      return value;
+    if (author) {
+      const escapedAuthor = author.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      postLookupMatchStage.$expr = {
+        $gt: [
+          {
+            $size: {
+              $filter: {
+                input: '$authorsNames',
+                as: 'authorName',
+                cond: {
+                  $regexMatch: {
+                    input: '$$authorName',
+                    regex: escapedAuthor,
+                    options: 'i',
+                  },
+                },
+              },
+            },
+          },
+          0,
+        ],
+      };
+    }
+
+    const plagiarismFlagThreshold = Number.isFinite(
+      Number(process.env.PLAGIARISM_WARNING_THRESHOLD),
+    )
+      ? Number(process.env.PLAGIARISM_WARNING_THRESHOLD)
+      : 30;
+
+    const sortFieldMap = {
+      title: 'title',
+      academicYear: 'academicYear',
+      archivedAt: 'archivedAt',
+      status: 'status',
     };
 
-    const compareRecords = (left, right) => {
-      const direction = sortOrder === 'asc' ? 1 : -1;
-      const leftValue = toComparableValue(left?.[sortBy]);
-      const rightValue = toComparableValue(right?.[sortBy]);
-
-      if (leftValue < rightValue) return -1 * direction;
-      if (leftValue > rightValue) return 1 * direction;
-
-      const leftArchivedAt = left?.archivedAt ? new Date(left.archivedAt).getTime() : 0;
-      const rightArchivedAt = right?.archivedAt ? new Date(right.archivedAt).getTime() : 0;
-      if (leftArchivedAt !== rightArchivedAt) return rightArchivedAt - leftArchivedAt;
-
-      return (left?.title || '').localeCompare(right?.title || '');
+    const sortField = sortFieldMap[sortBy] || 'archivedAt';
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const sortSpec = {
+      [sortField]: sortDirection,
+      archivedAt: -1,
+      title: 1,
+      _id: 1,
     };
 
-    const projects = await Project.find(matchStage)
-      .select(
-        'title abstract keywords academicYear archivedAt adviserId teamId courseId projectStatus isArchived capstonePhase archiveMetadata',
-      )
-      .populate([
-        {
-          path: 'teamId',
-          select: 'name members academicYear courseId sectionId',
-          populate: [
-            { path: 'members', select: 'firstName middleName lastName' },
-            { path: 'courseId', select: 'name code' },
-          ],
+    const [result] = await Project.aggregate([
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: Team.collection.name,
+          localField: 'teamId',
+          foreignField: '_id',
+          as: 'teamDoc',
         },
-        { path: 'adviserId', select: 'firstName middleName lastName' },
-        { path: 'courseId', select: 'name code' },
-      ])
-      .lean();
+      },
+      {
+        $lookup: {
+          from: User.collection.name,
+          localField: 'adviserId',
+          foreignField: '_id',
+          as: 'adviserDoc',
+        },
+      },
+      {
+        $lookup: {
+          from: User.collection.name,
+          localField: 'teamDoc.members',
+          foreignField: '_id',
+          as: 'teamMemberDocs',
+        },
+      },
+      {
+        $lookup: {
+          from: Submission.collection.name,
+          let: { projectId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$projectId', '$$projectId'] },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                plagiarismResult: 1,
+              },
+            },
+          ],
+          as: 'submissionDocs',
+        },
+      },
+      {
+        $lookup: {
+          from: 'courses',
+          let: {
+            directCourseId: '$courseId',
+            teamCourseId: { $first: '$teamDoc.courseId' },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    '$_id',
+                    {
+                      $setDifference: [['$$directCourseId', '$$teamCourseId'], [null]],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                name: 1,
+                code: 1,
+              },
+            },
+          ],
+          as: 'courseDoc',
+        },
+      },
+      {
+        $addFields: {
+          adviserDoc: { $first: '$adviserDoc' },
+          courseDoc: { $first: '$courseDoc' },
+          archiveAuthors: {
+            $filter: {
+              input: { $ifNull: ['$archiveMetadata.authors', []] },
+              as: 'archiveAuthor',
+              cond: {
+                $gt: [{ $strLenCP: { $trim: { input: '$$archiveAuthor' } } }, 0],
+              },
+            },
+          },
+          teamMemberNames: {
+            $map: {
+              input: '$teamMemberDocs',
+              as: 'member',
+              in: {
+                $trim: {
+                  input: {
+                    $concat: [
+                      { $ifNull: ['$$member.firstName', ''] },
+                      ' ',
+                      { $ifNull: ['$$member.middleName', ''] },
+                      ' ',
+                      { $ifNull: ['$$member.lastName', ''] },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          authorsNames: {
+            $cond: [
+              { $gt: [{ $size: '$archiveAuthors' }, 0] },
+              '$archiveAuthors',
+              {
+                $filter: {
+                  input: '$teamMemberNames',
+                  as: 'memberName',
+                  cond: { $gt: [{ $strLenCP: '$$memberName' }, 0] },
+                },
+              },
+            ],
+          },
+          adviserName: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ['$adviserDoc.firstName', ''] },
+                  ' ',
+                  { $ifNull: ['$adviserDoc.middleName', ''] },
+                  ' ',
+                  { $ifNull: ['$adviserDoc.lastName', ''] },
+                ],
+              },
+            },
+          },
+          courseResolvedId: '$courseDoc._id',
+          courseResolvedName: '$courseDoc.name',
+          courseResolvedCode: '$courseDoc.code',
+          courseResolvedLabel: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ['$courseDoc.name', ''] },
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ifNull: ['$courseDoc.name', false] },
+                          { $ifNull: ['$courseDoc.code', false] },
+                        ],
+                      },
+                      ' (',
+                      '',
+                    ],
+                  },
+                  { $ifNull: ['$courseDoc.code', ''] },
+                  {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ifNull: ['$courseDoc.name', false] },
+                          { $ifNull: ['$courseDoc.code', false] },
+                        ],
+                      },
+                      ')',
+                      '',
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+          categoryLabel: {
+            $let: {
+              vars: {
+                firstMetadata: {
+                  $first: { $ifNull: ['$titleProposalMetadata', []] },
+                },
+              },
+              in: {
+                $ifNull: [
+                  {
+                    $cond: [
+                      { $isArray: '$$firstMetadata.capstoneType' },
+                      { $first: '$$firstMetadata.capstoneType' },
+                      '$$firstMetadata.capstoneType',
+                    ],
+                  },
+                  'Uncategorized',
+                ],
+              },
+            },
+          },
+          isPlagiarismFlagged: {
+            $gt: [
+              {
+                $size: {
+                  $filter: {
+                    input: '$submissionDocs',
+                    as: 'submission',
+                    cond: {
+                      $and: [
+                        {
+                          $eq: [
+                            '$$submission.plagiarismResult.status',
+                            PLAGIARISM_STATUSES.COMPLETED,
+                          ],
+                        },
+                        {
+                          $gte: [
+                            {
+                              $ifNull: ['$$submission.plagiarismResult.similarityPercentage', 0],
+                            },
+                            plagiarismFlagThreshold,
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+              0,
+            ],
+          },
+          status: {
+            $cond: ['$isArchived', 'Archived', { $ifNull: ['$projectStatus', 'Active'] }],
+          },
+          keywords: {
+            $ifNull: ['$keywords', []],
+          },
+        },
+      },
+      ...(Object.keys(postLookupMatchStage).length > 0 ? [{ $match: postLookupMatchStage }] : []),
+      {
+        $facet: {
+          summary: [
+            {
+              $group: {
+                _id: null,
+                totalCapstonesArchived: { $sum: 1 },
+                flaggedByPlagiarism: {
+                  $sum: { $cond: ['$isPlagiarismFlagged', 1, 0] },
+                },
+                authorBuckets: {
+                  $addToSet: '$authorsNames',
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                totalCapstonesArchived: 1,
+                flaggedByPlagiarism: 1,
+                totalAuthorsStudents: {
+                  $size: {
+                    $reduce: {
+                      input: '$authorBuckets',
+                      initialValue: [],
+                      in: { $setUnion: ['$$value', '$$this'] },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+          byYear: [
+            {
+              $group: {
+                _id: { $ifNull: ['$academicYear', 'Unspecified'] },
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $sort: { count: -1, _id: -1 },
+            },
+          ],
+          trend: [
+            {
+              $group: {
+                _id: { $ifNull: ['$academicYear', 'Unspecified'] },
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $sort: { _id: 1 },
+            },
+            {
+              $project: {
+                _id: 0,
+                year: '$_id',
+                count: 1,
+              },
+            },
+          ],
+          categoryBreakdown: [
+            {
+              $group: {
+                _id: { $ifNull: ['$categoryLabel', 'Uncategorized'] },
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $sort: { count: -1, _id: 1 },
+            },
+            {
+              $project: {
+                _id: 0,
+                category: '$_id',
+                count: 1,
+              },
+            },
+          ],
+          filterAcademicYears: [
+            {
+              $group: {
+                _id: '$academicYear',
+              },
+            },
+            {
+              $match: { _id: { $ne: null } },
+            },
+            {
+              $sort: { _id: -1 },
+            },
+          ],
+          filterAuthors: [
+            {
+              $unwind: {
+                path: '$authorsNames',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $group: {
+                _id: '$authorsNames',
+              },
+            },
+            {
+              $sort: { _id: 1 },
+            },
+          ],
+          filterAdvisers: [
+            {
+              $match: {
+                adviserDoc: { $ne: null },
+              },
+            },
+            {
+              $group: {
+                _id: '$adviserDoc._id',
+                fullName: { $first: '$adviserName' },
+              },
+            },
+            {
+              $match: {
+                fullName: { $ne: '' },
+              },
+            },
+            {
+              $sort: { fullName: 1 },
+            },
+          ],
+          filterPrograms: [
+            {
+              $match: {
+                courseResolvedId: { $ne: null },
+              },
+            },
+            {
+              $group: {
+                _id: '$courseResolvedId',
+                name: { $first: '$courseResolvedName' },
+                code: { $first: '$courseResolvedCode' },
+                label: { $first: '$courseResolvedLabel' },
+              },
+            },
+            {
+              $sort: { label: 1 },
+            },
+          ],
+          filterKeywords: [
+            {
+              $unwind: {
+                path: '$keywords',
+                preserveNullAndEmptyArrays: false,
+              },
+            },
+            {
+              $group: {
+                _id: '$keywords',
+              },
+            },
+            {
+              $sort: { _id: 1 },
+            },
+          ],
+          table: [
+            { $sort: sortSpec },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                academicYear: 1,
+                archivedAt: 1,
+                keywords: 1,
+                status: 1,
+                category: '$categoryLabel',
+                isPlagiarismFlagged: 1,
+                authors: {
+                  $map: {
+                    input: '$authorsNames',
+                    as: 'authorName',
+                    in: {
+                      _id: null,
+                      fullName: '$$authorName',
+                    },
+                  },
+                },
+                adviser: {
+                  $cond: [
+                    {
+                      $and: [{ $ne: ['$adviserDoc', null] }, { $ne: ['$adviserName', ''] }],
+                    },
+                    {
+                      _id: '$adviserDoc._id',
+                      fullName: '$adviserName',
+                    },
+                    null,
+                  ],
+                },
+                course: {
+                  $cond: [
+                    { $ne: ['$courseResolvedId', null] },
+                    {
+                      _id: '$courseResolvedId',
+                      name: { $ifNull: ['$courseResolvedName', ''] },
+                      code: { $ifNull: ['$courseResolvedCode', ''] },
+                      label: { $ifNull: ['$courseResolvedLabel', ''] },
+                    },
+                    null,
+                  ],
+                },
+              },
+            },
+          ],
+          totalCount: [{ $count: 'count' }],
+        },
+      },
+    ]).allowDiskUse(true);
 
-    const records = projects
-      .map((project) => {
-        const projectCourse = project.courseId || project.teamId?.courseId || null;
-        const archiveAuthors = Array.isArray(project.archiveMetadata?.authors)
-          ? project.archiveMetadata.authors
-              .map((author) => (typeof author === 'string' ? author.trim() : ''))
-              .filter(Boolean)
-              .map((fullName) => ({ _id: null, fullName }))
-          : [];
+    const summary = result?.summary?.[0] || {
+      totalCapstonesArchived: 0,
+      totalAuthorsStudents: 0,
+      flaggedByPlagiarism: 0,
+    };
 
-        const teamAuthors = Array.isArray(project.teamId?.members)
-          ? project.teamId.members
-              .map((member) => {
-                const fullName = normalizeFullName(member);
-                return fullName
-                  ? {
-                      _id: member._id,
-                      fullName,
-                    }
-                  : null;
-              })
-              .filter(Boolean)
-          : [];
-        const authors = archiveAuthors.length > 0 ? archiveAuthors : teamAuthors;
-        const adviserFullName = project.adviserId ? normalizeFullName(project.adviserId) : '';
+    const byYear = (result?.byYear || []).map((item) => ({
+      _id: item._id,
+      academicYear: item._id,
+      count: item.count,
+      projects: [],
+    }));
 
-        return {
-          _id: project._id,
-          title: project.title ?? '',
-          abstract: project.abstract ?? '',
-          keywords: Array.isArray(project.keywords) ? project.keywords : [],
-          academicYear: project.academicYear ?? null,
-          semester: project.capstonePhase ?? null,
-          course: projectCourse
-            ? {
-                _id: projectCourse._id,
-                name: projectCourse.name ?? '',
-                code: projectCourse.code ?? '',
-              }
-            : null,
-          adviser:
-            project.adviserId && adviserFullName
-              ? { _id: project.adviserId._id, fullName: adviserFullName }
-              : null,
-          authors,
-          status: project.isArchived ? 'Archived' : project.projectStatus || 'Active',
-          grade: null,
-          archivedAt: project.archivedAt ?? null,
-        };
-      })
-      .filter((record) => {
-        if (courseId && String(record.course?._id ?? '') !== String(courseId)) {
-          return false;
-        }
-
-        if (author) {
-          const authorMatch = record.authors.some((item) =>
-            item.fullName.toLowerCase().includes(author.toLowerCase()),
-          );
-
-          if (!authorMatch) return false;
-        }
-
-        return true;
-      })
-      .sort(compareRecords);
-
-    const yearGroups = new Map();
-
-    for (const record of records) {
-      const yearKey = record.academicYear ?? 'Unspecified';
-      if (!yearGroups.has(yearKey)) {
-        yearGroups.set(yearKey, []);
-      }
-      yearGroups.get(yearKey).push(record);
-    }
-
-    const sortedAcademicYears = [...yearGroups.keys()].sort((a, b) => b.localeCompare(a));
-
-    const uniqueAdvisers = new Map();
-    const uniquePrograms = new Map();
-    for (const record of records) {
-      if (record.adviser?._id && record.adviser?.fullName) {
-        uniqueAdvisers.set(String(record.adviser._id), {
-          _id: String(record.adviser._id),
-          fullName: record.adviser.fullName,
-        });
-      }
-
-      if (record.course?._id) {
-        uniquePrograms.set(String(record.course._id), {
-          _id: String(record.course._id),
-          name: record.course.name || '',
-          code: record.course.code || '',
-          label:
-            record.course.code && record.course.name
-              ? `${record.course.name} (${record.course.code})`
-              : record.course.name || record.course.code || '',
-        });
-      }
-    }
+    const mostActiveYear = byYear.length > 0 ? byYear[0].academicYear : null;
+    const totalCount = result?.totalCount?.[0]?.count || 0;
 
     return {
       report: {
-        totalProjects: records.length,
-        matchingCount: records.length,
-        records,
-        byYear: sortedAcademicYears.map((yearKey) => ({
-          _id: yearKey,
-          academicYear: yearKey,
-          count: yearGroups.get(yearKey).length,
-          projects: yearGroups.get(yearKey),
-        })),
+        totalProjects: totalCount,
+        matchingCount: totalCount,
+        summary: {
+          totalCapstonesArchived: summary.totalCapstonesArchived,
+          mostActiveYear,
+          totalAuthorsStudents: summary.totalAuthorsStudents,
+          flaggedByPlagiarism: summary.flaggedByPlagiarism,
+        },
+        trend: result?.trend || [],
+        categoryBreakdown: result?.categoryBreakdown || [],
+        byYear,
+        records: result?.table || [],
+        table: {
+          rows: result?.table || [],
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.max(1, Math.ceil(totalCount / limit)),
+        },
         filterOptions: {
-          academicYears: [
-            ...new Set(records.map((record) => record.academicYear).filter(Boolean)),
-          ].sort((a, b) => b.localeCompare(a)),
-          authors: [
-            ...new Set(
-              records
-                .flatMap((record) => record.authors.map((item) => item.fullName))
-                .filter(Boolean),
-            ),
-          ].sort((a, b) => a.localeCompare(b)),
-          advisers: [...uniqueAdvisers.values()].sort((a, b) =>
-            a.fullName.localeCompare(b.fullName),
-          ),
-          programs: [...uniquePrograms.values()].sort((a, b) => a.label.localeCompare(b.label)),
-          keywords: [
-            ...new Set(records.flatMap((record) => record.keywords || []).filter(Boolean)),
-          ].sort((a, b) => a.localeCompare(b)),
+          academicYears: (result?.filterAcademicYears || []).map((item) => item._id),
+          authors: (result?.filterAuthors || []).map((item) => item._id),
+          advisers: (result?.filterAdvisers || []).map((item) => ({
+            _id: String(item._id),
+            fullName: item.fullName,
+          })),
+          programs: (result?.filterPrograms || []).map((item) => ({
+            _id: String(item._id),
+            name: item.name || '',
+            code: item.code || '',
+            label: item.label || item.name || item.code || '',
+          })),
+          keywords: (result?.filterKeywords || []).map((item) => item._id),
         },
       },
     };
@@ -2031,24 +2635,24 @@ class ProjectService {
 
   /**
    * Bulk-upload an archived capstone bundle in one request.
-   * Creates one archived project record linked to exactly two final submissions:
-   * - final_academic (academic paper)
-   * - final_journal (journal paper)
+   * Creates one archived project record linked to:
+   * - required final_academic (academic paper)
+   * - optional final_journal (journal paper)
    *
    * @param {string} instructorId - The instructor performing the bulk upload
    * @param {Object} data - { title, abstract?, keywords?, academicYear }
-   * @param {Object} files - { academicPaperFile, academicJournalFile }
+   * @param {Object} files - { academicPaperFile, academicJournalFile? }
    * @returns {Object} { project, submissions }
    */
   async bulkUploadArchive(instructorId, data, files) {
     const academicPaperFile = files?.academicPaperFile;
     const academicJournalFile = files?.academicJournalFile;
 
-    if (!academicPaperFile || !academicJournalFile) {
+    if (!academicPaperFile) {
       throw new AppError(
-        'Exactly one Academic Paper file and one Academic Journal file are required.',
+        'Academic Paper file is required. Academic Journal is optional.',
         400,
-        'DUAL_ARCHIVE_FILES_REQUIRED',
+        'ACADEMIC_PAPER_REQUIRED',
       );
     }
 
@@ -2075,9 +2679,14 @@ class ProjectService {
     let resolvedPublicationYear = Number.isInteger(data.publicationYear)
       ? data.publicationYear
       : null;
-    const resolvedDoi = (data.doi || '').trim();
-    const resolvedPublicationVenue = (data.publicationVenue || '').trim();
+    let resolvedDoi = (data.doi || '').trim();
+    let resolvedPublicationVenue = (data.publicationVenue || '').trim();
     let metadataExtractedAt = null;
+    let metadataReview = {
+      required: false,
+      reasons: [],
+      fieldSources: {},
+    };
     let similarityAudit = {
       checkedAt: null,
       titleThreshold: DEFAULT_SIMILARITY_THRESHOLD,
@@ -2123,6 +2732,22 @@ class ProjectService {
               .map((item) => item?.trim())
               .filter(Boolean)
               .slice(0, 10);
+          }
+          if (!resolvedDoi && extracted?.doi) {
+            resolvedDoi = String(extracted.doi).trim();
+          }
+          if (!resolvedPublicationVenue && extracted?.publicationVenue) {
+            resolvedPublicationVenue = String(extracted.publicationVenue).trim();
+          }
+          if (extracted?.review && typeof extracted.review === 'object') {
+            metadataReview = {
+              required: Boolean(extracted.review.required),
+              reasons: Array.isArray(extracted.review.reasons) ? extracted.review.reasons : [],
+              fieldSources:
+                extracted.fieldSources && typeof extracted.fieldSources === 'object'
+                  ? extracted.fieldSources
+                  : {},
+            };
           }
           metadataExtractedAt = new Date();
         } catch (error) {
@@ -2173,6 +2798,7 @@ class ProjectService {
           doi: resolvedDoi,
           publicationVenue: resolvedPublicationVenue,
           extractedAt: metadataExtractedAt,
+          review: metadataReview,
           similarityAudit,
         },
         academicYear: data.academicYear,
@@ -2199,11 +2825,18 @@ class ProjectService {
         1,
         academicPaperFile.originalname,
       );
-      const finalJournalStorageKey = storageService.buildFinalJournalKey(
-        project._id,
-        1,
-        academicJournalFile.originalname,
-      );
+      const finalJournalStorageKey = academicJournalFile
+        ? storageService.buildFinalJournalKey(project._id, 1, academicJournalFile.originalname)
+        : null;
+
+      const extractionTasks = [this._extractArchiveSubmissionText(academicPaperFile)];
+      if (academicJournalFile) {
+        extractionTasks.push(this._extractArchiveSubmissionText(academicJournalFile));
+      }
+
+      const [finalAcademicExtractedText, maybeFinalJournalExtractedText] =
+        await Promise.all(extractionTasks);
+      const finalJournalExtractedText = academicJournalFile ? maybeFinalJournalExtractedText : null;
 
       try {
         await storageService.uploadFile(
@@ -2213,12 +2846,14 @@ class ProjectService {
         );
         uploadedKeys.push(finalAcademicStorageKey);
 
-        await storageService.uploadFile(
-          academicJournalFile.buffer,
-          finalJournalStorageKey,
-          academicJournalFile.validatedMime || academicJournalFile.mimetype,
-        );
-        uploadedKeys.push(finalJournalStorageKey);
+        if (academicJournalFile && finalJournalStorageKey) {
+          await storageService.uploadFile(
+            academicJournalFile.buffer,
+            finalJournalStorageKey,
+            academicJournalFile.validatedMime || academicJournalFile.mimetype,
+          );
+          uploadedKeys.push(finalJournalStorageKey);
+        }
       } catch (error) {
         // Clean up the project record if upload failed
         await Project.findByIdAndDelete(project._id);
@@ -2234,7 +2869,7 @@ class ProjectService {
         );
       }
 
-      const [finalAcademicSubmission, finalJournalSubmission] = await Submission.create([
+      const submissionsToCreate = [
         {
           projectId: project._id,
           submittedBy: instructorObjectId,
@@ -2245,9 +2880,13 @@ class ProjectService {
           fileType: academicPaperFile.validatedMime || academicPaperFile.mimetype,
           fileSize: academicPaperFile.size,
           storageKey: finalAcademicStorageKey,
+          extractedText: finalAcademicExtractedText,
           status: 'approved',
         },
-        {
+      ];
+
+      if (academicJournalFile && finalJournalStorageKey) {
+        submissionsToCreate.push({
           projectId: project._id,
           submittedBy: instructorObjectId,
           type: 'final_journal',
@@ -2257,9 +2896,16 @@ class ProjectService {
           fileType: academicJournalFile.validatedMime || academicJournalFile.mimetype,
           fileSize: academicJournalFile.size,
           storageKey: finalJournalStorageKey,
+          extractedText: finalJournalExtractedText,
           status: 'approved',
-        },
-      ]);
+        });
+      }
+
+      const createdSubmissions = await Submission.create(submissionsToCreate);
+      const finalAcademicSubmission =
+        createdSubmissions.find((entry) => entry.type === 'final_academic') || null;
+      const finalJournalSubmission =
+        createdSubmissions.find((entry) => entry.type === 'final_journal') || null;
 
       return {
         project,
@@ -2341,6 +2987,43 @@ class ProjectService {
     const isMember = team.members.some((id) => id.toString() === userId.toString());
     if (!isMember) {
       throw new AppError('You are not a member of this project team.', 403, 'FORBIDDEN');
+    }
+  }
+
+  async _assertCanReviewTitle(user, project) {
+    let resolvedUser = user;
+    if (!user || typeof user !== 'object' || !user.role) {
+      const userId = user?._id || user;
+      resolvedUser = await User.findById(userId);
+      if (!resolvedUser) {
+        throw new AppError('User session invalid.', 401, 'UNAUTHORIZED');
+      }
+    }
+
+    if (resolvedUser.role === ROLES.INSTRUCTOR) {
+      return;
+    }
+
+    const userId = (resolvedUser._id || resolvedUser).toString();
+    const projectAdviserId = project.adviserId?._id || project.adviserId;
+    const isAdviser = projectAdviserId && projectAdviserId.toString() === userId;
+
+    const isPanelist =
+      Array.isArray(project.panelistIds) &&
+      project.panelistIds.some((p) => {
+        const pId = p?._id || p;
+        return pId && pId.toString() === userId;
+      });
+
+    if (!isAdviser && !isPanelist) {
+      console.warn(
+        `[ProjectService] Permission denied for user ${userId} on project ${project._id}. Role: ${resolvedUser.role}`,
+      );
+      throw new AppError(
+        'Only the assigned instructor, adviser, or panelists can review the title proposal.',
+        403,
+        'FORBIDDEN',
+      );
     }
   }
 

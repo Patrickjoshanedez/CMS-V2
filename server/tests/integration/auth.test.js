@@ -31,12 +31,11 @@ describe('Auth API — /api/auth', () => {
     });
 
     it('should reject duplicate email with 409', async () => {
-      await request.post('/api/auth/register').send({
+      await createVerifiedUser({
         firstName: 'Bob',
         lastName: 'Smith',
         email: 'bob@example.com',
         password: 'Password123',
-        confirmPassword: 'Password123',
       });
 
       const res = await request.post('/api/auth/register').send({

@@ -30,13 +30,33 @@ const EXTENSION_FALLBACK_TYPES = {
 
 const DOCUMENT_ALLOWLIST = { ...ALLOWED_MIME_TYPES, 'text/plain': 'TXT' };
 
+/**
+ * MIME types that file-type reports as a container format but which map
+ * to a specific document type based on file extension.
+ *
+ * DOCX / XLSX / PPTX are all ZIP-based Office Open XML formats.
+ * file-type only sees the ZIP magic bytes and returns 'application/zip'.
+ * We refine the result using the original file extension.
+ */
+const ZIP_EXTENSION_REMAP = {
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
 const detectDocumentMime = async (buffer, originalname) => {
   // file-type is ESM-only since v17; dynamic import for compatibility
   const { fileTypeFromBuffer } = await import('file-type');
   const typeResult = await fileTypeFromBuffer(buffer);
 
   if (typeResult) {
-    return typeResult.mime;
+    const detected = typeResult.mime;
+
+    // Remap ZIP-based Office formats using the declared file extension
+    if (detected === 'application/zip') {
+      const ext = '.' + originalname.split('.').pop().toLowerCase();
+      return ZIP_EXTENSION_REMAP[ext] || detected; // fallthrough keeps 'application/zip' → rejected
+    }
+
+    return detected;
   }
 
   // Fallback for types without magic bytes (e.g. .txt)
@@ -89,12 +109,21 @@ const assertValidDocumentFile = async (file, fieldLabel = 'File') => {
  */
 const validateFile = async (req, _res, next) => {
   try {
-    if (!req.file) {
+    if (!req.file && (!req.files || req.files.length === 0)) {
       return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
     }
 
-    // Attach validated MIME type to the request for downstream use
-    req.file.validatedMime = await assertValidDocumentFile(req.file, 'File');
+    // Single file upload
+    if (req.file) {
+      req.file.validatedMime = await assertValidDocumentFile(req.file, 'File');
+    }
+
+    // Array of files (batch upload)
+    if (Array.isArray(req.files)) {
+      for (const f of req.files) {
+        f.validatedMime = await assertValidDocumentFile(f, 'File');
+      }
+    }
 
     next();
   } catch (error) {
@@ -103,22 +132,23 @@ const validateFile = async (req, _res, next) => {
 };
 
 /**
- * Validate the dual-file archive bundle payload.
- * Requires exactly one file for each field:
- * - academicPaperFile
- * - academicJournalFile
+ * Validate the archive bundle payload.
+ * Requires:
+ * - exactly one academicPaperFile
+ * Allows:
+ * - zero or one academicJournalFile
  */
 const validateDualArchiveFiles = async (req, _res, next) => {
   try {
     const academicPaperFiles = req.files?.academicPaperFile || [];
     const academicJournalFiles = req.files?.academicJournalFile || [];
 
-    if (academicPaperFiles.length !== 1 || academicJournalFiles.length !== 1) {
+    if (academicPaperFiles.length !== 1 || academicJournalFiles.length > 1) {
       return next(
         new AppError(
-          'Exactly one Academic Paper file and one Academic Journal file are required.',
+          'Exactly one Academic Paper file is required. Academic Journal is optional (max one).',
           400,
-          'DUAL_ARCHIVE_FILES_REQUIRED',
+          'ACADEMIC_PAPER_REQUIRED',
         ),
       );
     }
@@ -130,10 +160,13 @@ const validateDualArchiveFiles = async (req, _res, next) => {
       academicPaperFile,
       'Academic Paper',
     );
-    academicJournalFile.validatedMime = await assertValidDocumentFile(
-      academicJournalFile,
-      'Academic Journal',
-    );
+
+    if (academicJournalFile) {
+      academicJournalFile.validatedMime = await assertValidDocumentFile(
+        academicJournalFile,
+        'Academic Journal',
+      );
+    }
 
     next();
   } catch (error) {
@@ -164,9 +197,7 @@ export const validatePdfFile = async (req, _res, next) => {
 
     const detectedMime = await detectDocumentMime(req.file.buffer, req.file.originalname);
     if (detectedMime !== 'application/pdf') {
-      return next(
-        new AppError('Invalid file type. Only PDF allowed.', 400, 'INVALID_FILE_TYPE'),
-      );
+      return next(new AppError('Invalid file type. Only PDF allowed.', 400, 'INVALID_FILE_TYPE'));
     }
 
     req.file.validatedMime = detectedMime;

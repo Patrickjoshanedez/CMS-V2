@@ -17,6 +17,7 @@ import { connectSocket, disconnectSocket } from '../services/socket';
 import { useAuthStore } from '../stores/authStore';
 import { notificationKeys } from './useNotifications';
 import { projectKeys } from './useProjects';
+import { submissionKeys } from './useSubmissions';
 
 /**
  * Connects to Socket.IO when authenticated, listens for real-time notifications.
@@ -77,6 +78,7 @@ export function useSocket() {
         queryClient.invalidateQueries({ queryKey: projectKeys.detail(notificationProjectId) });
         queryClient.invalidateQueries({ queryKey: projectKeys.my() });
         queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: submissionKeys.all });
         return;
       }
 

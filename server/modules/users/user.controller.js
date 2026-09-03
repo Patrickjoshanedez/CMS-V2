@@ -122,3 +122,14 @@ export const deleteUser = catchAsync(async (req, res) => {
     message: 'User deactivated successfully.',
   });
 });
+
+/** PATCH /api/users/:id/activate — Re-activate a deactivated user (Instructor only) */
+export const activateUser = catchAsync(async (req, res) => {
+  const { user } = await userService.activateUser(req.params.id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'User activated successfully.',
+    data: { user },
+  });
+});

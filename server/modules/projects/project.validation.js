@@ -20,8 +20,7 @@ const titleProposalSchema = z.object({
   description: z
     .string()
     .trim()
-    .min(20, 'Each proposal description must be at least 20 characters')
-    .max(1000, 'Each proposal description must not exceed 1000 characters'),
+    .min(20, 'Each proposal description must be at least 20 characters'),
   capstoneType: z
     .array(
       z
@@ -100,7 +99,7 @@ export const createProjectSchema = z.object({
     .max(300, 'Title must not exceed 300 characters'),
   titleProposals: z
     .array(titleProposalSchema)
-    .min(3, 'At least 3 title proposals are required')
+    .min(1, 'At least 1 title proposal is required')
     .max(10, 'At most 10 title proposals are allowed'),
   abstract: z
     .string()
@@ -155,6 +154,7 @@ export const submitTitleSchema = z.object({}).strict();
 
 export const approveTitleSchema = z.object({
   proposalId: z.union([z.string().trim().min(1), z.number().int().nonnegative()]).optional(),
+  approveWithRevision: z.boolean().optional().default(false),
 });
 
 /* ───── Reject title (instructor action) ───── */
@@ -260,6 +260,8 @@ export const listProjectsQuerySchema = z.object({
   projectStatus: z.enum(PROJECT_STATUS_VALUES).optional(),
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
+  panelistId: z.string().regex(objectIdPattern).optional(),
+  excludeArchived: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
 });
 
 /* ───── Advance capstone phase (instructor action) ───── */
@@ -351,12 +353,14 @@ export const reportQuerySchema = z.object({
   keyword: z.string().trim().max(100, 'Keyword must not exceed 100 characters').optional(),
   sortBy: z.enum(['title', 'academicYear', 'archivedAt', 'status']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
 });
 
 /** Bulk-upload archived capstone bundle metadata (Instructor only). */
 export const bulkUploadSchema = z.object({
   title: z.string().trim().max(300).optional().default(''),
-  abstract: z.string().trim().max(500).optional().default(''),
+  abstract: z.string().trim().max(5000).optional().default(''),
   keywords: z.preprocess(
     (val) =>
       typeof val === 'string'
@@ -387,4 +391,14 @@ export const bulkUploadSchema = z.object({
   doi: z.string().trim().max(255).optional().default(''),
   publicationVenue: z.string().trim().max(255).optional().default(''),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
+});
+
+/* ───── Update Asset URLs (student action) ───── */
+
+export const updateGanttChartUrlSchema = z.object({
+  ganttChartUrl: z.string().trim().url('Invalid Gantt chart URL').max(2000),
+});
+
+export const updateDemoVideoUrlSchema = z.object({
+  demoVideoUrl: z.string().trim().url('Invalid Demo video URL').max(2000),
 });

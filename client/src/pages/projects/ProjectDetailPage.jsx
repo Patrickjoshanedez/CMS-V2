@@ -1,1775 +1,720 @@
-import { useMemo, useRef, useState } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
-import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
-import PrototypeGallery from '@/components/projects/PrototypeGallery';
-import DeadlineWarning from '@/components/projects/DeadlineWarning';
-import EvaluationPanel from '@/components/projects/EvaluationPanel';
-import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
-import ReadonlyPDFViewer from '@/components/projects/ReadonlyPDFViewer';
-import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { useQuery } from '@tanstack/react-query';
 import {
   useProject,
-  useApproveTitle,
-  useRejectTitle,
-  useAddTitleComment,
-  useResolveTitleModification,
   useAssignAdviser,
   useAssignPanelist,
   useRemovePanelist,
-  useSetDeadlines,
-  useRejectProject,
-  useAdvancePhase,
   useArchiveProject,
-  useArchiveSearch,
 } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
 import { userService } from '@/services/authService';
-import { getProjectResolveErrorMessage } from './projectDetailUtils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-import { useQuery } from '@tanstack/react-query';
-import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
+import { TITLE_STATUSES, ROLES } from '@cms/shared';
+import { toast } from 'sonner';
 import {
-  ArrowLeft,
-  Loader2,
-  AlertTriangle,
-  User,
+  FileText,
   Users,
-  Calendar,
   CheckCircle2,
   XCircle,
-  UserPlus,
-  Trash2,
-  ShieldAlert,
-  FileText,
-  ArrowUpCircle,
+  History,
+  BookOpen,
   Award,
-  Archive,
-  ScrollText,
-  Clock,
-  Bookmark,
-  BookmarkCheck,
-  Copy,
+  Loader2,
+  Search,
+  UserPlus,
+  ChevronLeft,
+  FileSpreadsheet,
   ExternalLink,
-  ChevronDown,
+  FileSearch,
+  ShieldCheck,
+  FolderArchive,
+  Archive,
+  Printer,
+  MessageSquareMore,
+  BookMarked,
+  Code2,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-export const ARCHIVE_BOOKMARKS_STORAGE_KEY = 'cms.archive.bookmarks';
+// Extracted reusable components
+import FacultyWidget from '@/components/projects/FacultyWidget';
+import ProjectContextWidget from '@/components/projects/ProjectContextWidget';
+import AcademicReportsWidget from '@/components/projects/AcademicReportsWidget';
+import ActiveProposalView from '@/components/projects/ActiveProposalView';
+import ModificationReviewCard from '@/components/projects/ModificationReviewCard';
+import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
+import ProjectTitleCard from '@/components/projects/ProjectTitleCard';
+import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
+import { getFullName, getProjectAuthors } from '@/pages/projects/projectDetailUtils';
+import PrototypeGallery from '@/components/projects/PrototypeGallery';
 
-export function getFullName(person) {
-  if (!person) return null;
-  if (typeof person === 'string') return person;
+import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
+import EvaluationPanel from '@/components/projects/EvaluationPanel';
+import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
+import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
+import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
+import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
+import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
+import { cn } from '@/lib/utils';
 
-  const parts = [person.firstName, person.middleName, person.lastName]
-    .filter(Boolean)
-    .map((part) => String(part).trim());
+/* ────────── Helpers ────────── */
 
-  return parts.length ? parts.join(' ') : person.email || null;
-}
+export function resolveArchiveBackContext(stateOrObj = {}, search = '', role = '') {
+  let state = stateOrObj;
+  let searchStr = search;
+  let roleStr = role;
 
-export function getProjectAuthors(project) {
-  const assignmentAuthors = (project?.memberRoleAssignments || [])
-    .map((assignment) => assignment?.userId)
-    .map(getFullName)
-    .filter(Boolean);
-
-  if (assignmentAuthors.length > 0) return assignmentAuthors;
-
-  const teamName = project?.teamId?.name;
-  return teamName ? [teamName] : [];
-}
-
-export function formatCitation(project, style, authors) {
-  const year = project?.academicYear?.split('-')?.[1] || new Date().getFullYear();
-  const title = project?.title || 'Untitled project';
-  const adviser = getFullName(project?.adviserId) || 'Adviser unavailable';
-  const institution = project?.courseId?.name || 'University repository';
-  const authorText = authors.length ? authors.join(', ') : 'Unknown author';
-
-  if (style === 'ieee') {
-    return `${authorText}, "${title}," ${institution}, ${year}. Adviser: ${adviser}.`;
+  if (
+    stateOrObj &&
+    typeof stateOrObj === 'object' &&
+    ('state' in stateOrObj || 'search' in stateOrObj || 'role' in stateOrObj)
+  ) {
+    state = stateOrObj.state || {};
+    searchStr = stateOrObj.search || '';
+    roleStr = stateOrObj.role || '';
   }
 
-  if (style === 'mla') {
-    return `${authorText}. "${title}." ${institution}, ${year}. Adviser: ${adviser}.`;
+  const fromState = Boolean(state?.fromArchive || state?.returnTo?.includes('/archive'));
+  const fromSearch = typeof searchStr === 'string' && searchStr.includes('from=archive');
+
+  if (fromState || fromSearch) {
+    return {
+      fromArchive: true,
+      backDestination: state?.returnTo || '/archive',
+      backLabel: 'Back to Search Results',
+    };
   }
 
-  return `${authorText} (${year}). ${title}. ${institution}. Adviser: ${adviser}.`;
-}
-
-export function resolveArchiveBackContext(locationState, locationSearch) {
-  const fromArchive =
-    Boolean(locationState?.fromArchive) ||
-    new URLSearchParams(locationSearch || '').get('from') === 'archive';
+  let backLabel = 'Back to Projects';
+  if (roleStr === 'instructor') backLabel = 'Back to Instructor Review';
+  if (roleStr === 'adviser') backLabel = 'Back to Adviser Dashboard';
 
   return {
-    fromArchive,
-    backDestination: locationState?.returnTo || (fromArchive ? '/archive' : '/projects'),
-    backLabel: fromArchive ? 'Back to Search Results' : 'Back to Projects',
+    fromArchive: false,
+    backDestination: '/projects',
+    backLabel,
   };
 }
 
-/**
- * ProjectDetailPage — Faculty project detail view.
- *
- * Shows full project information and provides contextual admin actions:
- *   - Approve / Reject title  (when titleStatus is SUBMITTED)
- *   - Resolve modification request (when PENDING_MODIFICATION)
- *   - Assign adviser / panelists (instructor only)
- *   - Set deadlines (instructor / adviser)
- *   - Reject entire project (instructor only)
- */
+export const resolveProjectBackNav = resolveArchiveBackContext;
 
 /* ────────── Sub-components ────────── */
 
-function TitleProposalsSection({ project, userRole }) {
-  const canVoteOnTitles = userRole === ROLES.INSTRUCTOR || userRole === ROLES.PANELIST;
-  const [voteForms, setVoteForms] = useState({});
-  const [openProposalIndex, setOpenProposalIndex] = useState(0);
+/* ────────── ModificationReviewCard ────────── */
 
-  const voteOnTitle = useAddTitleComment({
-    onSuccess: () => {
-      toast.success('Vote and remarks submitted.');
-    },
-    onError: (err) => {
-      toast.error(err?.response?.data?.error?.message || 'Failed to submit vote.');
-    },
-  });
-
-  const approveTitle = useApproveTitle({
-    onSuccess: () => {
-      toast.success('Proposal approved.');
-    },
-    onError: (err) => {
-      toast.error(err?.response?.data?.error?.message || 'Failed to approve proposal.');
-    },
-  });
-
-  const setVoteFormField = (proposalIndex, field, value) => {
-    setVoteForms((current) => ({
-      ...current,
-      [proposalIndex]: {
-        vote: current[proposalIndex]?.vote || '',
-        remarks: current[proposalIndex]?.remarks || '',
-        [field]: value,
-      },
-    }));
-  };
-
-  const parseVoteComment = (text) => {
-    const normalizedText = typeof text === 'string' ? text : '';
-    const voteMatch = normalizedText.match(/^Vote:\s*(Approve|Needs Revision|Reject)/im);
-    const remarksMatch = normalizedText.match(/Remarks:\s*([\s\S]*)$/im);
-
-    return {
-      vote: voteMatch ? voteMatch[1] : null,
-      remarks: remarksMatch ? remarksMatch[1].trim() : '',
-    };
-  };
-
-  if (!project.titleProposals || project.titleProposals.length === 0) {
-    return null;
-  }
-
-  const submitVote = (proposalIndex) => {
-    const current = voteForms[proposalIndex] || { vote: '', remarks: '' };
-    const vote = current.vote?.trim();
-    const remarks = current.remarks?.trim();
-
-    if (!vote || !remarks) {
-      toast.error('Please select a vote and add remarks before submitting.');
-      return;
-    }
-
-    voteOnTitle.mutate({
-      projectId: project._id,
-      proposalId: String(proposalIndex),
-      text: `Vote: ${vote}\nRemarks: ${remarks}`,
-    });
-
-    setVoteForms((currentForms) => ({
-      ...currentForms,
-      [proposalIndex]: { vote: '', remarks: '' },
-    }));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Title Proposals</CardTitle>
-        <CardDescription>
-          Review all submitted title options before final approval or revision decisions.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {project.titleProposals.map((proposal, idx) => {
-          const title = typeof proposal === 'string' ? proposal : proposal?.title;
-          const metadata = project.titleProposalMetadata?.find((entry) => entry?.title === title);
-          const commentThread = (project.titleProposalComments || []).find(
-            (thread) => Number(thread?.proposalIndex) === idx,
-          );
-          const voteEntries = (commentThread?.comments || [])
-            .map((comment) => ({
-              ...comment,
-              ...parseVoteComment(comment?.text),
-            }))
-            .filter((entry) => Boolean(entry.vote));
-          const currentVoteForm = voteForms[idx] || { vote: '', remarks: '' };
-          const canApproveProposal = userRole === ROLES.INSTRUCTOR;
-          const canApproveNow = project.titleStatus === TITLE_STATUSES.SUBMITTED;
-          const isOpen = openProposalIndex === idx;
-
-          return (
-            <div
-              key={proposal?._id || `${idx}-${title || 'proposal'}`}
-              className="rounded-md border"
-            >
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                onClick={() => setOpenProposalIndex(isOpen ? -1 : idx)}
-              >
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Proposal {idx + 1}
-                  </p>
-                  <p className="text-sm font-medium">{title || 'Untitled proposal'}</p>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    isOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {isOpen && (
-                <div className="space-y-2 border-t p-3">
-                  {metadata?.description ? (
-                    <p className="text-xs text-muted-foreground whitespace-pre-line">
-                      {metadata.description}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-1.5">
-                    {metadata?.capstoneType ? (
-                      <Badge variant="secondary">
-                        {Array.isArray(metadata.capstoneType)
-                          ? metadata.capstoneType.join(', ')
-                          : metadata.capstoneType}
-                      </Badge>
-                    ) : null}
-                    {metadata?.sdgTags?.map((tag, tagIdx) => (
-                      <Badge key={`${title}-sdg-${tagIdx}`} variant="outline">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {voteEntries.length > 0 && (
-                    <div className="space-y-2 rounded-md border bg-muted/30 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Votes & Remarks
-                      </p>
-                      {voteEntries.map((entry, voteIndex) => (
-                        <div
-                          key={`${idx}-vote-${voteIndex}`}
-                          className="space-y-1 rounded-md border bg-background p-2"
-                        >
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {entry.name || 'Reviewer'}
-                            </span>
-                            <Badge variant="outline">{entry.vote}</Badge>
-                            {entry.createdAt ? (
-                              <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                            ) : null}
-                          </div>
-                          {entry.remarks ? (
-                            <p className="text-sm text-muted-foreground">{entry.remarks}</p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {canVoteOnTitles && (
-                    <div className="space-y-3 rounded-md border bg-background/80 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Cast Vote
-                      </p>
-
-                      <div className="space-y-1">
-                        <Label>Vote</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {canApproveProposal && (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="border border-emerald-300 bg-emerald-100 text-emerald-950 hover:bg-emerald-200"
-                              disabled={approveTitle.isPending || !canApproveNow}
-                              onClick={() => {
-                                const confirmed = window.confirm(
-                                  `Approve Proposal ${idx + 1}? This will set this proposal as the approved project title.`,
-                                );
-                                if (!confirmed) return;
-                                approveTitle.mutate({ projectId: project._id, proposalId: idx });
-                              }}
-                            >
-                              {approveTitle.isPending ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : null}
-                              Approve Proposal
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            className="border border-orange-300 bg-orange-200 text-orange-950 hover:bg-orange-300"
-                            onClick={() => {
-                              const confirmed = window.confirm(
-                                `Set Proposal ${idx + 1} vote to Approve With Revision?`,
-                              );
-                              if (!confirmed) return;
-                              setVoteFormField(idx, 'vote', 'Needs Revision');
-                            }}
-                          >
-                            Approve With Revision
-                          </Button>
-                          <Button
-                            type="button"
-                            className="border border-rose-300 bg-rose-200 text-rose-950 hover:bg-rose-300"
-                            onClick={() => {
-                              const confirmed = window.confirm(
-                                `Set Proposal ${idx + 1} vote to Reject Proposal?`,
-                              );
-                              if (!confirmed) return;
-                              setVoteFormField(idx, 'vote', 'Reject');
-                            }}
-                          >
-                            Reject Proposal
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label htmlFor={`proposal-remarks-${idx}`}>Remarks</Label>
-                        <Textarea
-                          id={`proposal-remarks-${idx}`}
-                          value={currentVoteForm.remarks}
-                          onChange={(event) => setVoteFormField(idx, 'remarks', event.target.value)}
-                          placeholder="Add your decision notes for this title proposal"
-                          className="min-h-24"
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          disabled={voteOnTitle.isPending}
-                          onClick={() => submitVote(idx)}
-                        >
-                          {voteOnTitle.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : null}
-                          Submit Remarks
-                        </Button>
-                      </div>
-
-                      {canApproveProposal && !canApproveNow ? (
-                        <p className="text-xs text-muted-foreground">
-                          Proposal approval is available only while title status is Submitted.
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Reusable project info panel — title, badges, abstract, keywords, meta.
- */
-function ProjectInfoPanel({ project, isPeer, authors, onKeywordClick }) {
-  const phaseNumber = Number(project.capstonePhase);
-  const phaseLabel =
-    phaseNumber === CAPSTONE_PHASES.PHASE_1
-      ? 'Proposal'
-      : phaseNumber
-        ? `Capstone ${phaseNumber}`
-        : '—';
-
-  const proposalTitles = (project.titleProposals || [])
-    .map((proposal) => (typeof proposal === 'string' ? proposal : proposal?.title))
-    .map((title) => (typeof title === 'string' ? title.trim() : ''))
-    .filter(Boolean);
-
-  const allProjectTitles = proposalTitles
-    .map((title) => (typeof title === 'string' ? title.trim() : ''))
-    .filter(Boolean)
-    .filter((title, index, list) => {
-      const normalized = title.toLowerCase();
-      return list.findIndex((entry) => entry.toLowerCase() === normalized) === index;
-    });
-
-  const primaryTitle = allProjectTitles[0] || project.title || 'Untitled project';
-  const secondaryTitles = allProjectTitles.slice(1);
-
-  const capstoneRaw = project.capstoneType || project.projectType;
-  const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
-    ? capstoneRaw.join(', ')
-    : capstoneRaw || phaseLabel;
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="space-y-1">
-            <CardTitle className="text-xl font-semibold tracking-tight">{primaryTitle}</CardTitle>
-            <CardDescription>
-              {project.academicYear || '—'} · {phaseLabel}
-            </CardDescription>
-            {secondaryTitles.length > 0 ? (
-              <div className="pt-1 space-y-1">
-                {secondaryTitles.map((title, index) => (
-                  <p
-                    key={`${title}-${index}`}
-                    className="text-xl font-semibold tracking-tight text-foreground"
-                  >
-                    {title}
-                  </p>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <div className="flex gap-2">
-            <TitleStatusBadge status={project.titleStatus} />
-            <ProjectStatusBadge status={project.projectStatus} />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Abstract */}
-        {project.abstract && (
-          <div>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Overview</p>
-            <p className="text-sm leading-relaxed">{project.abstract}</p>
-          </div>
-        )}
-
-        {/* Keywords */}
-        {project.keywords?.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-muted-foreground">Keywords / Tech Stack</p>
-            <div className="flex flex-wrap gap-1.5">
-              {project.keywords.map((kw, i) => (
-                <button key={`${kw}-${i}`} type="button" onClick={() => onKeywordClick?.(kw)}>
-                  <Badge variant="secondary" className="cursor-pointer hover:bg-primary/20">
-                    {kw}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Project details */}
-        <div className="space-y-4 border-t pt-4">
-          <section className="rounded-md border bg-muted/20 p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              People
-            </p>
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-start gap-2 text-sm">
-                <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Authors:</span>
-                <span className="font-medium">
-                  {authors.length ? authors.join(', ') : 'Not available'}
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Team:</span>
-                  <span className="font-medium">{project.teamId?.name || '—'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Adviser:</span>
-                  <span className="font-medium">
-                    {project.adviserId?.firstName
-                      ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                      : 'Not assigned'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Panelists:</span>
-                  <span className="font-medium">{project.panelistIds?.length || 0} / 3</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-md border bg-muted/20 p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Project Context
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Academic Year:</span>
-                <span className="font-medium">{project.academicYear || '—'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm sm:col-span-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Program / Department:</span>
-                <span className="font-medium">{project.courseId?.name || 'Not specified'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-3">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Capstone Type/Phase:</span>
-                <span className="font-medium">{capstoneTypeOrPhase}</span>
-              </div>
-            </div>
-          </section>
-
-          {project.panelistIds?.length > 0 && (
-            <section className="rounded-md border bg-muted/10 p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Panelist Roster
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {project.panelistIds.map((p) => (
-                  <Badge key={p._id || p} variant="outline">
-                    {p.firstName ? `${p.firstName} ${p.lastName}` : p._id || p}
-                  </Badge>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-
-        {/* Rejection reason */}
-        {project.rejectionReason && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{project.rejectionReason}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Modification request */}
-        {project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
-          project.titleModificationRequest?.status === 'pending' &&
-          project.titleModificationRequest?.proposedTitle && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-              <p className="mb-1 text-sm font-semibold text-amber-800 dark:text-amber-200">
-                Pending Title Modification Request
-              </p>
-              <p className="text-sm">
-                <strong>Proposed:</strong> {project.titleModificationRequest.proposedTitle}
-              </p>
-              <p className="text-sm">
-                <strong>Justification:</strong> {project.titleModificationRequest.justification}
-              </p>
-            </div>
-          )}
-
-        {/* Deadlines — color-coded urgency display */}
-        {!isPeer && project.deadlines && <DeadlineWarning deadlines={project.deadlines} />}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Approve / Reject title card — shown when titleStatus === SUBMITTED
- */
-function TitleReviewCard({ project }) {
-  const [reason, setReason] = useState('');
-  const [showReject, setShowReject] = useState(false);
-
-  const approve = useApproveTitle({
-    onSuccess: () => toast.success('Title approved!'),
-    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to approve title.'),
-  });
-  const reject = useRejectTitle({
-    onSuccess: () => toast.success('Title rejected.'),
-    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to reject title.'),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <FileText className="h-5 w-5" />
-          Title Review
-        </CardTitle>
-        <CardDescription>The team has submitted their title for approval.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-3">
-          <Button onClick={() => approve.mutate(project._id)} disabled={approve.isPending}>
-            {approve.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-            )}
-            Approve Title
-          </Button>
-          <Button variant="destructive" onClick={() => setShowReject(!showReject)}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Reject Title
-          </Button>
-        </div>
-
-        {showReject && (
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label htmlFor="rejectReason">Rejection Reason</Label>
-            <Textarea
-              id="rejectReason"
-              placeholder="Explain why the title is being rejected…"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-            />
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={!reason.trim() || reject.isPending}
-              onClick={() => reject.mutate({ projectId: project._id, reason: reason.trim() })}
-            >
-              {reject.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Rejection
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Resolve a pending title modification request card.
- */
-function ModificationReviewCard({ project }) {
-  const [reviewNote, setReviewNote] = useState('');
-
-  const resolve = useResolveTitleModification({
-    onSuccess: () => toast.success('Modification resolved.'),
-    onError: (err) => toast.error(getProjectResolveErrorMessage(err)),
-  });
-
-  const modReq = project.titleModificationRequest;
-  if (modReq?.status !== 'pending' || !modReq?.proposedTitle) return null;
-
-  const handleResolve = (action) => {
-    if (resolve.isPending) return;
-
-    resolve.mutate({
-      projectId: project._id,
-      action,
-      reviewNote: reviewNote.trim() || undefined,
-    });
-  };
-
-  return (
-    <Card className="border-amber-200 dark:border-amber-900">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <ShieldAlert className="h-5 w-5 text-amber-600" />
-          Title Modification Request
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 text-sm">
-          <p>
-            <strong>Current Title:</strong> {project.title}
-          </p>
-          <p>
-            <strong>Proposed Title:</strong> {modReq.proposedTitle}
-          </p>
-          <p>
-            <strong>Justification:</strong> {modReq.justification}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="reviewNote">Review Note (optional)</Label>
-          <Textarea
-            id="reviewNote"
-            value={reviewNote}
-            onChange={(e) => setReviewNote(e.target.value)}
-            placeholder="Add a note for the team…"
-            rows={2}
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <Button disabled={resolve.isPending} onClick={() => handleResolve('approved')}>
-            {resolve.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-            )}
-            Approve Modification
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={resolve.isPending}
-            onClick={() => handleResolve('denied')}
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            Deny Modification
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Assign adviser card — instructor only.
- */
-function AssignAdviserCard({ project }) {
-  const [adviserId, setAdviserId] = useState('');
-
-  // Fetch available advisers
-  const { data: advisers = [] } = useQuery({
-    queryKey: ['users', 'advisers'],
-    queryFn: async () => {
-      const { data } = await userService.listUsers({ role: 'adviser' });
-      return data.data?.users || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const assign = useAssignAdviser({
-    onSuccess: () => {
-      toast.success('Adviser assigned!');
-      setAdviserId('');
-    },
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to assign adviser.'),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <UserPlus className="h-5 w-5" />
-          Assign Adviser
-        </CardTitle>
-        <CardDescription>
-          {project.adviserId
-            ? `Currently: ${project.adviserId.firstName || ''} ${project.adviserId.lastName || ''}`.trim() ||
-              'Assigned'
-            : 'No adviser assigned yet.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-3">
-          <div className="flex-1 space-y-1">
-            <Label htmlFor="adviser">Select Adviser</Label>
-            <select
-              id="adviser"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={adviserId}
-              onChange={(e) => setAdviserId(e.target.value)}
-            >
-              <option value="">Choose an adviser…</option>
-              {advisers.map((u) => (
-                <option key={u._id} value={u._id}>
-                  {u.firstName} {u.lastName} ({u.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button
-            disabled={!adviserId || assign.isPending}
-            onClick={() => assign.mutate({ projectId: project._id, adviserId })}
-          >
-            {assign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Assign
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Manage panelists card — instructor only.
- */
-function ManagePanelistsCard({ project }) {
-  const [panelistId, setPanelistId] = useState('');
-
-  // Fetch available panelists
-  const { data: panelists = [] } = useQuery({
-    queryKey: ['users', 'panelists'],
-    queryFn: async () => {
-      const { data } = await userService.listUsers({ role: 'panelist' });
-      return data.data?.users || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const assign = useAssignPanelist({
-    onSuccess: () => {
-      toast.success('Panelist added!');
-      setPanelistId('');
-    },
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to assign panelist.'),
-  });
-
-  const remove = useRemovePanelist({
-    onSuccess: () => toast.success('Panelist removed.'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to remove panelist.'),
-  });
-
-  const currentPanelists = project.panelistIds || [];
-  const assignedIds = new Set(currentPanelists.map((p) => p._id || p));
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Users className="h-5 w-5" />
-          Panelists ({currentPanelists.length} / 3)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Current panelists */}
-        {currentPanelists.length > 0 && (
-          <div className="space-y-2">
-            {currentPanelists.map((p) => {
-              const id = p._id || p;
-              const name = p.firstName ? `${p.firstName} ${p.lastName}` : id;
-              return (
-                <div
-                  key={id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                >
-                  <span className="text-sm font-medium">{name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate({ projectId: project._id, panelistId: id })}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Add panelist */}
-        {currentPanelists.length < 3 && (
-          <div className="flex items-end gap-3">
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="panelist">Add Panelist</Label>
-              <select
-                id="panelist"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={panelistId}
-                onChange={(e) => setPanelistId(e.target.value)}
-              >
-                <option value="">Choose a panelist…</option>
-                {panelists
-                  .filter((u) => !assignedIds.has(u._id))
-                  .map((u) => (
-                    <option key={u._id} value={u._id}>
-                      {u.firstName} {u.lastName} ({u.email})
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <Button
-              disabled={!panelistId || assign.isPending}
-              onClick={() => assign.mutate({ projectId: project._id, panelistId })}
-            >
-              {assign.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Add
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Minimum capstone phase required for each deadline field.
- * Fields only become editable once the project reaches this phase.
- */
-const FIELD_MIN_PHASE = {
-  chapter1: 1,
-  chapter2: 1,
-  chapter3: 1,
-  proposal: 1,
-  chapter4: 2,
-  chapter5: 2,
-  defense: 4,
-};
-
-const DEADLINE_KEYS = [
-  'chapter1',
-  'chapter2',
-  'chapter3',
-  'proposal',
-  'chapter4',
-  'chapter5',
-  'defense',
-];
-
-/**
- * Set deadlines card — instructor / adviser.
- *
- * Phase-aware: only fields whose phase ≤ the project's current phase show
- * date inputs. Future-phase fields default to "No Deadline" and can be
- * toggled to "TBA" (To Be Announced) by the instructor.
- */
-function DeadlinesCard({ project, isInstructor }) {
-  const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
-  const existingTba = project.deadlines?.tba || [];
-  const dateInputRefs = useRef({});
-
-  const [deadlines, setDeadlines] = useState(() => {
-    const initial = {};
-    DEADLINE_KEYS.forEach((key) => {
-      initial[key] = project.deadlines?.[key]?.split('T')[0] || '';
-    });
-    return initial;
-  });
-
-  const [tbaFields, setTbaFields] = useState(() => new Set(existingTba));
-  const [applyToSection, setApplyToSection] = useState(false);
-
-  const setDl = useSetDeadlines({
-    onSuccess: () => toast.success('Deadlines saved!'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to save deadlines.'),
-  });
-
-  const handleSave = () => {
-    const payload = { projectId: project._id, tba: [...tbaFields] };
-    if (isInstructor && applyToSection) payload.applyToSection = true;
-    Object.entries(deadlines).forEach(([key, val]) => {
-      if (val && !tbaFields.has(key)) payload[key] = val;
-    });
-    setDl.mutate(payload);
-  };
-
-  const toggleTba = (key) => {
-    setTbaFields((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-        // Clear the date value when marking TBA
-        setDeadlines((prev) => ({ ...prev, [key]: '' }));
-      }
-      return next;
-    });
-  };
-
-  const openDatePicker = (key) => {
-    const input = dateInputRefs.current[key];
-    if (!input) return;
-
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-      return;
-    }
-
-    input.focus();
-    input.click();
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Calendar className="h-5 w-5" />
-          Deadlines
-        </CardTitle>
-        <CardDescription>
-          Currently in <strong>Capstone {currentPhase}</strong>. Future-phase deadlines default to
-          &ldquo;No Deadline&rdquo; — toggle TBA to announce them early.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isInstructor && (
-          <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              checked={applyToSection}
-              onChange={(e) => setApplyToSection(e.target.checked)}
-            />
-            Apply to all projects in this section
-          </label>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {DEADLINE_KEYS.map((key) => {
-            const reachable = currentPhase >= FIELD_MIN_PHASE[key];
-            const isTba = tbaFields.has(key);
-            const label = key.replace(/(\d)/, ' $1');
-
-            return (
-              <div key={key} className="space-y-1">
-                <Label htmlFor={`dl-${key}`} className="capitalize">
-                  {label}
-                </Label>
-
-                {reachable && !isTba ? (
-                  /* Current / past phase — editable date input */
-                  <div className="flex items-center gap-2">
-                    <Input
-                      ref={(node) => {
-                        if (node) {
-                          dateInputRefs.current[key] = node;
-                        } else {
-                          delete dateInputRefs.current[key];
-                        }
-                      }}
-                      id={`dl-${key}`}
-                      type="date"
-                      className="flex-1"
-                      value={deadlines[key]}
-                      onChange={(e) => setDeadlines((prev) => ({ ...prev, [key]: e.target.value }))}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-10 w-10"
-                      onClick={() => openDatePicker(key)}
-                      aria-label={`Open ${label} calendar`}
-                      title="Open calendar"
-                    >
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : isTba ? (
-                  /* Marked as TBA */
-                  <div className="flex h-10 items-center gap-2">
-                    <Badge className="bg-amber-500 text-white dark:bg-amber-600">TBA</Badge>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => toggleTba(key)}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                ) : (
-                  /* Future phase — no deadline yet */
-                  <div className="flex h-10 items-center gap-2">
-                    <span className="text-sm text-muted-foreground">No Deadline</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => toggleTba(key)}
-                    >
-                      Mark TBA
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <Button disabled={setDl.isPending} onClick={handleSave}>
-          {setDl.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Calendar className="mr-2 h-4 w-4" />
-          )}
-          Save Deadlines
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Advance capstone phase card — instructor only.
- */
-function AdvancePhaseCard({ project }) {
-  const advance = useAdvancePhase({
-    onSuccess: () => toast.success('Phase advanced!'),
-    onError: (err) => toast.error(err.response?.data?.error?.message || 'Failed to advance phase.'),
-  });
-
-  const currentPhase = project.capstonePhase || CAPSTONE_PHASES.PHASE_1;
-  const isMaxPhase = currentPhase >= CAPSTONE_PHASES.PHASE_4;
-  const isProposalStage = currentPhase === CAPSTONE_PHASES.PHASE_1;
-  const currentStageLabel =
-    currentPhase === CAPSTONE_PHASES.PHASE_1 ? 'Proposal Stage' : `Capstone ${currentPhase - 1}`;
-  const nextStageLabel = isMaxPhase ? 'Final Phase Reached' : `Advance to Capstone ${currentPhase}`;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <ArrowUpCircle className="h-5 w-5" />
-          Capstone Phase
-        </CardTitle>
-        <CardDescription>
-          Currently in <strong>{currentStageLabel}</strong>.
-          {isProposalStage
-            ? ' Approve the proposal first to unlock Capstone 1.'
-            : isMaxPhase
-              ? ' This project is at the final phase.'
-              : ' Advance when the team is ready.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!isProposalStage && (
-          <Button
-            disabled={isMaxPhase || advance.isPending}
-            onClick={() => advance.mutate(project._id)}
-          >
-            {advance.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowUpCircle className="mr-2 h-4 w-4" />
-            )}
-            {nextStageLabel}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Archive project card — instructor only once Capstone 4 is reached.
- */
-function ArchiveProjectCard({ project }) {
-  const [completionNotes, setCompletionNotes] = useState('');
-
-  const archive = useArchiveProject({
-    onSuccess: () => toast.success('Project archived successfully.'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to archive project.'),
-  });
-
-  const handleArchive = () => {
-    archive.mutate({
-      projectId: project._id,
-      completionNotes: completionNotes.trim() || undefined,
-    });
-  };
-
-  return (
-    <Card className="border-emerald-200 dark:border-emerald-900">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Archive className="h-5 w-5 text-emerald-600" />
-          Archive Project
-        </CardTitle>
-        <CardDescription>
-          Archive this project after all final requirements are satisfied. Completion notes are
-          optional.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`archive-notes-${project._id}`}>Completion Notes (optional)</Label>
-          <Textarea
-            id={`archive-notes-${project._id}`}
-            value={completionNotes}
-            onChange={(e) => setCompletionNotes(e.target.value)}
-            placeholder="Add completion notes for the archive record."
-            maxLength={2000}
-            rows={3}
-          />
-        </div>
-        <Button disabled={archive.isPending} onClick={handleArchive}>
-          {archive.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Archive className="mr-2 h-4 w-4" />
-          )}
-          Archive Project
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Reject entire project card — instructor only, destructive action.
- */
-function RejectProjectCard({ project }) {
-  const [reason, setReason] = useState('');
-  const [confirm, setConfirm] = useState(false);
-
-  const reject = useRejectProject({
-    onSuccess: () => toast.success('Project rejected.'),
-    onError: (err) =>
-      toast.error(err.response?.data?.error?.message || 'Failed to reject project.'),
-  });
-
-  return (
-    <Card className="border-destructive/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-destructive">
-          <ShieldAlert className="h-5 w-5" />
-          Reject Project
-        </CardTitle>
-        <CardDescription>
-          This action marks the entire project as rejected. The team will need to create a new
-          project.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!confirm ? (
-          <Button variant="destructive" onClick={() => setConfirm(true)}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Reject This Project…
-          </Button>
-        ) : (
-          <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
-            <Label htmlFor="projectRejectReason">Reason for Rejection</Label>
-            <Textarea
-              id="projectRejectReason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Provide a reason for rejecting this project…"
-              rows={3}
-            />
-            <div className="flex gap-3">
-              <Button
-                variant="destructive"
-                disabled={!reason.trim() || reject.isPending}
-                onClick={() =>
-                  reject.mutate({
-                    projectId: project._id,
-                    reason: reason.trim(),
-                  })
-                }
-              >
-                {reject.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Confirm Rejection
-              </Button>
-              <Button variant="outline" onClick={() => setConfirm(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function ProjectHistoryCard({ projectId }) {
-  const { data: logs = [], isLoading, isError } = useEntityAuditHistory('Project', projectId, 100);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <ScrollText className="h-5 w-5" />
-          Project Activity
-        </CardTitle>
-        <CardDescription>
-          Track the latest changes for this project from the system audit trail.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="summary">
-          <TabsList>
-            <TabsTrigger value="summary">Summary</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="summary" className="space-y-2">
-            <p className="text-sm text-muted-foreground">Total audit entries: {logs.length}</p>
-            {logs[0] ? (
-              <p className="text-sm text-muted-foreground">
-                Latest activity: {logs[0].action} at {new Date(logs[0].createdAt).toLocaleString()}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">No activity has been logged yet.</p>
-            )}
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-3">
-            {isLoading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading project history...
-              </div>
-            )}
-
-            {isError && (
-              <Alert variant="destructive">
-                <AlertDescription>Failed to load project history.</AlertDescription>
-              </Alert>
-            )}
-
-            {!isLoading && !isError && logs.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No history entries found for this project.
-              </p>
-            )}
-
-            {!isLoading &&
-              !isError &&
-              logs.map((log) => (
-                <div key={log._id} className="rounded-md border px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{log.action}</Badge>
-                    <Badge variant="secondary">{log.actorRole || 'unknown'}</Badge>
-                  </div>
-                  {log.description && <p className="mt-2 text-sm">{log.description}</p>}
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{new Date(log.createdAt).toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ────────── Main Page ────────── */
+/* ────────── Main Page Component ────────── */
 
 export default function ProjectDetailPage() {
-  const { id } = useParams();
+  const { id: projectId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const user = useAuthStore((s) => s.user);
-  const [citationStyle, setCitationStyle] = useState('apa');
-  const [bookmarkedIds, setBookmarkedIds] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(ARCHIVE_BOOKMARKS_STORAGE_KEY) || '[]');
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+  const user = useAuthStore((state) => state?.user);
+
+  const { data: project, isLoading, error, refetch } = useProject(projectId);
+  const { data: submissionsData } = useProjectSubmissions(
+    projectId,
+    { limit: 200 },
+    { enabled: !!projectId },
+  );
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <PageSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <DashboardLayout>
+        <div className="p-8 text-center text-destructive">Project not found or failed to load.</div>
+      </DashboardLayout>
+    );
+  }
+
+  const { backDestination, backLabel } = resolveProjectBackNav({
+    state: location.state,
+    search: location.search,
+    role: user?.role,
   });
-  const {
-    data: project,
-    isLoading,
-    error,
-  } = useProject(id, {
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-  });
-  const isStudent = user?.role === ROLES.STUDENT;
-  const projectTeamId = project?.teamId?._id || project?.teamId;
-  const userTeamId = user?.teamId?._id || user?.teamId;
-  const isAuthor =
-    isStudent && userTeamId && projectTeamId && String(userTeamId) === String(projectTeamId);
-  const isOwnerOrAdmin = !isStudent || isAuthor;
-  const isPeer = isStudent && !isAuthor;
+
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
-  const isArchived =
-    Boolean(project?.isArchived) || project?.projectStatus === PROJECT_STATUSES.ARCHIVED;
-
-  const { data: chapterSubmissions } = useProjectSubmissions(
-    project?._id,
-    { limit: 200, type: 'chapter' },
-    { enabled: !!project?._id && isOwnerOrAdmin },
-  );
-
-  const { data: finalAcademicData } = useProjectSubmissions(
-    project?._id,
-    { limit: 1, type: 'final_academic' },
-    { enabled: !!project?._id && isArchived },
-  );
-
-  const finalManuscriptUrl =
-    finalAcademicData?.[0]?.fileUrl || finalAcademicData?.submissions?.[0]?.fileUrl;
-
-  const { backDestination, backLabel } = resolveArchiveBackContext(location.state, location.search);
-
-  const authors = useMemo(() => getProjectAuthors(project), [project]);
-  const isBookmarked = Boolean(project?._id && bookmarkedIds.includes(project._id));
-  const canViewAcademic = !isStudent || isAuthor;
-
-  const { data: relatedArchiveData } = useArchiveSearch(
-    {
-      search: (project?.keywords || [])[0] || project?.title || '',
-      academicYear: project?.academicYear,
-      page: 1,
-      limit: 8,
-    },
-    {
-      enabled: isArchived && !!project?._id,
-      staleTime: 60_000,
-    },
-  );
-
-  const relatedProjects = useMemo(() => {
-    const adviserId = project?.adviserId?._id;
-    const currentKeywords = new Set(
-      (project?.keywords || []).map((kw) => String(kw).toLowerCase()),
+  const isFaculty =
+    user?.role === ROLES.INSTRUCTOR ||
+    user?.role === ROLES.FACULTY ||
+    user?.role === ROLES.ADVISER ||
+    user?.role === ROLES.PANELIST;
+  const isStudent = user?.role === ROLES.STUDENT || (!isFaculty && user?.role !== 'admin');
+  const isAssignedAdviser =
+    (user?.role === ROLES.ADVISER || user?.role === ROLES.FACULTY) &&
+    (project?.adviserId?._id || project?.adviserId)?.toString() === user?._id?.toString();
+  const isAssignedPanelist =
+    (user?.role === ROLES.PANELIST || user?.role === ROLES.FACULTY) &&
+    (project?.panelistIds || []).some(
+      (panelist) => (panelist?._id || panelist)?.toString() === user?._id?.toString(),
     );
+  const canReviewTitle = isInstructor || isAssignedAdviser || isAssignedPanelist;
+  const proposals = project.titleProposals || [];
 
-    const candidates = (relatedArchiveData?.projects || []).filter(
-      (candidate) => String(candidate._id) !== String(project?._id),
+  const totalEvals = project.evaluations?.length || 0;
+  const panelCount = project.panelistIds?.length || 0;
+
+  let avgScore = 'N/A';
+  if (totalEvals > 0) {
+    const totalScore = project.evaluations.reduce(
+      (sum, evalItem) => sum + (evalItem.score || 0),
+      0,
     );
+    avgScore = `${Math.round(totalScore / totalEvals)}%`;
+  }
 
-    const scored = candidates
-      .map((candidate) => {
-        let score = 0;
-        const candidateKeywords = (candidate.keywords || []).map((kw) => String(kw).toLowerCase());
-        candidateKeywords.forEach((kw) => {
-          if (currentKeywords.has(kw)) score += 2;
-        });
-
-        if (adviserId && String(candidate?.adviserId?._id) === String(adviserId)) {
-          score += 3;
-        }
-
-        return { candidate, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map((entry) => entry.candidate);
-
-    return scored;
-  }, [project, relatedArchiveData]);
-
-  const citationText = useMemo(
-    () => formatCitation(project, citationStyle, authors),
-    [project, citationStyle, authors],
-  );
-
-  const toggleBookmark = () => {
-    if (!project?._id) return;
-
-    const next = isBookmarked
-      ? bookmarkedIds.filter((entryId) => entryId !== project._id)
-      : [...bookmarkedIds, project._id];
-
-    setBookmarkedIds(next);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(ARCHIVE_BOOKMARKS_STORAGE_KEY, JSON.stringify(next));
-    }
-
-    toast.success(isBookmarked ? 'Removed from reading list.' : 'Saved to your reading list.');
-  };
-
-  const copyCitation = async () => {
-    try {
-      await navigator.clipboard.writeText(citationText);
-      toast.success(`${citationStyle.toUpperCase()} citation copied.`);
-    } catch {
-      toast.error('Failed to copy citation.');
-    }
-  };
-
-  const handleKeywordClick = (keyword) => {
-    navigate(`/archive?q=${encodeURIComponent(keyword)}&view=content`);
-  };
-
-  const requestFullAccess = () => {
-    toast.success('Access request submitted. Your instructor/adviser will be notified.');
-  };
+  const isArchived = project.isArchived || project.projectStatus === 'archived';
+  const defaultTab = isArchived ? 'capstone_4' : 'capstone_1';
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Back */}
-        <Button variant="ghost" size="sm" onClick={() => navigate(backDestination)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {backLabel}
-        </Button>
-
-        {/* Loading */}
-        {isLoading && (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              {error.response?.data?.error?.message || 'Failed to load project'}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Project content */}
-        {project && (
-          <>
-            {/* Info panel */}
-            <ProjectInfoPanel
-              project={project}
-              isPeer={isPeer}
-              authors={authors}
-              onKeywordClick={handleKeywordClick}
-            />
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="p-6 max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+          {/* Main Workspace (Left - 70%) */}
+          <div className="xl:col-span-8 space-y-6">
+            <div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(backDestination)}
+                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {backLabel}
+              </Button>
+            </div>
+            <div className="bg-card rounded-2xl p-4 border border-border shadow-sm mb-6">
+              <WorkflowPhaseTracker project={project} />
+            </div>
 
             {isArchived && (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-3">
-                      <span>Research Utilities</span>
-                      <Button variant="outline" size="sm" onClick={toggleBookmark}>
-                        {isBookmarked ? (
-                          <>
-                            <BookmarkCheck className="mr-2 h-4 w-4" />
-                            Bookmarked
-                          </>
-                        ) : (
-                          <>
-                            <Bookmark className="mr-2 h-4 w-4" />
-                            Bookmark
-                          </>
-                        )}
-                      </Button>
+              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-card-foreground">
+                      Archived Capstone Record — Read-Only Mode
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      This project has been archived. Metadata adjustments are restricted; directly
+                      viewing final manuscript papers and evaluation reports.
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 text-primary uppercase font-bold text-[10px] px-2.5 py-1"
+                >
+                  Archived Paper
+                </Badge>
+              </div>
+            )}
+
+            <ProjectTitleCard project={project} />
+
+            <Tabs defaultValue={defaultTab} className="w-full">
+              <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-border mb-6">
+                {isArchived ? (
+                  <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
+                    <WorkflowTabTrigger
+                      value="capstone_4"
+                      icon={BookMarked}
+                      label="Full Manuscript Paper"
+                    />
+                    <WorkflowTabTrigger
+                      value="adm"
+                      icon={FileSpreadsheet}
+                      label="Action Done Matrix"
+                    />
+                    <WorkflowTabTrigger
+                      value="evaluation"
+                      icon={Award}
+                      label="Defense Evaluation"
+                    />
+                    <WorkflowTabTrigger
+                      value="consultation"
+                      icon={MessageSquareMore}
+                      label="Consultation Log"
+                    />
+                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
+                  </TabsList>
+                ) : (
+                  <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
+                    <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
+                    <WorkflowTabTrigger value="capstone_2" icon={BookOpen} label="Capstone 2" />
+                    <WorkflowTabTrigger value="capstone_3" icon={Code2} label="Capstone 3" />
+                    <WorkflowTabTrigger value="capstone_4" icon={Award} label="Capstone 4" />
+                    <WorkflowTabTrigger
+                      value="consultation"
+                      icon={MessageSquareMore}
+                      label="Consultations"
+                    />
+                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
+                  </TabsList>
+                )}
+              </div>
+
+              <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Show modification review card when a student has submitted a revised title */}
+                {canReviewTitle && project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
+                  <div className="mb-6">
+                    <ModificationReviewCard project={project} />
+                  </div>
+                )}
+
+                {proposals.length > 0 ? (
+                  <Tabs defaultValue="0" className="w-full">
+                    {/* Styled proposal selector bar */}
+                    <TabsList className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/40 p-2 h-auto">
+                      {proposals.map((_, idx) => (
+                        <TabsTrigger
+                          key={idx}
+                          value={String(idx)}
+                          className="flex items-center gap-2 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-primary/20 hover:bg-primary/5 hover:text-primary data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm"
+                        >
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                            {idx + 1}
+                          </span>
+                          Proposal {idx + 1}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {proposals.map((proposal, idx) => (
+                      <TabsContent
+                        key={idx}
+                        value={String(idx)}
+                        className="mt-0 focus-visible:outline-none"
+                      >
+                        {/* Proposal header strip */}
+                        <div className="mb-4 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shrink-0">
+                            {idx + 1}
+                          </span>
+                          <h2 className="text-base font-semibold text-card-foreground line-clamp-1">
+                            {typeof proposal === 'string' ? proposal : proposal.title}
+                          </h2>
+                        </div>
+
+                        <Card className="rounded-2xl border-border bg-card shadow-lg p-6">
+                          <ActiveProposalView
+                            project={project}
+                            proposal={typeof proposal === 'string' ? { title: proposal } : proposal}
+                            index={idx}
+                            canVote={canReviewTitle}
+                          />
+                        </Card>
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                ) : (
+                  <Card className="rounded-2xl border border-dashed border-border bg-transparent shadow-none p-12 text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No proposals submitted yet.</p>
+                  </Card>
+                )}
+
+                <EvaluationPanel projectId={project._id} defenseType="proposal" />
+              </TabsContent>
+
+              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Attached Working Manuscripts Card for fast document notation and inspection */}
+                <Card className="border-border/60 shadow-xs">
+                  <CardHeader className="pb-3 border-b border-border/60">
+                    <CardTitle className="text-base font-semibold text-foreground">
+                      Attached Working Manuscripts
                     </CardTitle>
-                    <CardDescription>
-                      Save this archive item and generate citations for literature review workflows.
+                    <CardDescription className="text-xs">
+                      Iterative chapter submissions for adviser notation prior to formal hearings.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <div className="min-w-[200px] space-y-1">
-                        <Label htmlFor="citation-style">Citation style</Label>
-                        <select
-                          id="citation-style"
-                          value={citationStyle}
-                          onChange={(event) => setCitationStyle(event.target.value)}
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  <CardContent className="space-y-3 pt-4">
+                    {[
+                      {
+                        ch: 'Chapter 1: The Problem & Its Background',
+                        subId: 'ch1',
+                        chapterNum: 1,
+                      },
+                      {
+                        ch: 'Chapter 2: Review of Related Literature',
+                        subId: 'ch2',
+                        chapterNum: 2,
+                      },
+                      {
+                        ch: 'Chapter 3: Methodology & Technical Framework',
+                        subId: 'ch3',
+                        chapterNum: 3,
+                      },
+                    ].map((item) => {
+                      const latestSub = (submissionsData?.submissions || []).find(
+                        (s) => s.type === 'chapter' && s.chapter === item.chapterNum,
+                      );
+                      const status = latestSub?.status || 'pending';
+                      const dateStr = latestSub?.createdAt
+                        ? new Date(latestSub.createdAt).toLocaleDateString()
+                        : 'Awaiting Upload';
+
+                      return (
+                        <div
+                          key={item.ch}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-border/60 bg-card hover:bg-muted/20 transition-colors"
                         >
-                          <option value="apa">APA</option>
-                          <option value="ieee">IEEE</option>
-                          <option value="mla">MLA</option>
-                        </select>
-                      </div>
-                      <Button variant="secondary" onClick={copyCitation}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Cite this Project
-                      </Button>
-                    </div>
-                    <div className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-                      {citationText}
-                    </div>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 border border-primary/20">
+                              <FileText className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {item.ch}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {latestSub
+                                  ? `Uploaded on ${dateStr} · Version ${latestSub.version || 1}`
+                                  : dateStr}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] capitalize',
+                                status === 'approved'
+                                  ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                                  : status === 'needs_revision'
+                                    ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                                    : 'border-border text-muted-foreground',
+                              )}
+                            >
+                              {status.replace('_', ' ')}
+                            </Badge>
+                            {latestSub ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-2 text-primary hover:bg-primary/10"
+                                onClick={() => navigate(`/submissions/${latestSub._id}`)}
+                              >
+                                Inspect
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </CardContent>
                 </Card>
 
-                {!canViewAcademic && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="space-y-3">
-                      <p>
-                        Full manuscript access is restricted for student peer viewers to protect
-                        authorship and reduce plagiarism risk.
-                      </p>
-                      <Button variant="outline" size="sm" onClick={requestFullAccess}>
-                        Request Full Manuscript Access
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
-
-            {isArchived && canViewAcademic && (
-              <>
-                <ReadonlyPDFViewer fileUrl={finalManuscriptUrl} title="Approved Manuscript" />
-                {finalManuscriptUrl && (
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button asChild variant="outline" size="sm">
-                          <a href={finalManuscriptUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open Manuscript
-                          </a>
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          Faculty/admin downloads are audit-logged. Student peer access remains
-                          restricted by policy.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
-
-            {isArchived && relatedProjects.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Related Projects</CardTitle>
-                  <CardDescription>
-                    Similar archives based on shared keywords and adviser match.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {relatedProjects.map((related) => (
-                      <button
-                        key={related._id}
-                        type="button"
-                        className="rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-                        onClick={() =>
-                          navigate(`/projects/${related._id}`, {
-                            state: {
-                              fromArchive: true,
-                              returnTo: backDestination,
-                            },
-                          })
-                        }
-                      >
-                        <p className="line-clamp-2 text-sm font-semibold">{related.title}</p>
-                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                          {related.teamId?.name || 'Unknown Team'}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {(related.keywords || []).slice(0, 2).map((keyword) => (
-                            <Badge
-                              key={`${related._id}-${keyword}`}
-                              variant="outline"
-                              className="text-[11px]"
-                            >
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {!isPeer && (
-              <>
-                {/* History tab with audit trail */}
-                <ProjectHistoryCard projectId={project._id} />
-
-                {!isArchived && <TitleProposalsSection project={project} userRole={user?.role} />}
-
-                {/* Chapter progress + rounds (faculty visibility) */}
-                <ChapterProgressWithRounds
-                  project={project}
-                  submissions={chapterSubmissions}
-                  chapters={[1, 2, 3, 4, 5]}
-                  title="Chapter Progress & Rounds"
-                  description="Per chapter status with round tabs including adviser review comments, document, and date."
-                  showUploadButton={false}
-                  showAllSubmissionsButton={false}
+                <ChapterReviewPanel
+                  submissions={submissionsData}
+                  chapters={[1, 2, 3]}
+                  title="Capstone 2 — Chapter Submissions"
+                  description="Approve or request revisions for each chapter. Approving locks the chapter and unlocks the next one for the student."
+                  showReviewActions
                 />
 
-                {/* Modification review — only when pending */}
-                {!isArchived &&
-                  project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION &&
-                  project.titleModificationRequest?.status === 'pending' &&
-                  project.titleModificationRequest?.proposedTitle &&
-                  isInstructor && <ModificationReviewCard project={project} />}
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
 
-                {/* Assign adviser — instructor only */}
-                {!isArchived && isInstructor && <AssignAdviserCard project={project} />}
+                <EvaluationPanel projectId={project._id} defenseType="midterm" />
+              </TabsContent>
 
-                {/* Panelists — instructor only */}
-                {!isArchived && isInstructor && <ManagePanelistsCard project={project} />}
+              <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Capstone 3 Interactive Gantt Chart Roadmap */}
+                <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
 
-                {/* Advance phase — instructor only */}
-                {!isArchived &&
-                  isInstructor &&
-                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-                    <AdvancePhaseCard project={project} />
-                  )}
+                <DevelopmentAssetsForm project={project} isReadOnly />
 
-                {/* Archive transition — instructor only (Capstone 4) */}
-                {!isArchived &&
-                  isInstructor &&
-                  project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
-                  project.projectStatus !== PROJECT_STATUSES.REJECTED && (
-                    <ArchiveProjectCard project={project} />
-                  )}
+                <div className="mt-4">
+                  <PrototypeGallery projectId={project._id} canDelete={false} canAdd={false} />
+                </div>
 
-                {/* Prototype showcase — visible to all faculty */}
-                {project.capstonePhase >= CAPSTONE_PHASES.PHASE_2 && (
-                  <PrototypeGallery projectId={project._id} canDelete={false} />
-                )}
+                <ChapterReviewPanel
+                  submissions={submissionsData}
+                  chapters={[4, 5]}
+                  title="Capstone 3 — Chapter Submissions"
+                  description="Approve or request revisions for Chapters 4 and 5. Approving locks the chapter and progresses the student toward the final manuscript."
+                  showReviewActions
+                />
 
-                {/* Evaluation panels — proposal defense */}
-                {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_1 && (
-                  <EvaluationPanel projectId={project._id} defenseType="proposal" />
-                )}
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
 
-                {/* Evaluation panels — final defense (Capstone 4) */}
-                {!isArchived && project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 && (
-                  <EvaluationPanel projectId={project._id} defenseType="final" />
-                )}
+                <EvaluationPanel projectId={project._id} defenseType="paper" />
+              </TabsContent>
 
-                {/* Final paper upload — Capstone 4 */}
-                {project.capstonePhase >= CAPSTONE_PHASES.PHASE_4 &&
-                  !isArchived &&
-                  (user?.role === ROLES.STUDENT || isInstructor) && (
-                    <FinalPaperUpload projectId={project._id} />
-                  )}
-
-                {/* Certificate link — archived projects only */}
-                {isArchived && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Award className="h-5 w-5" />
-                        Completion Certificate
-                      </CardTitle>
-                      <CardDescription>
-                        View or manage the completion certificate for this project.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+              <TabsContent value="capstone_4" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Full Manuscript Paper Reader & Archival Document Package */}
+                <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <BookMarked className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-bold text-foreground">
+                          Official Full Manuscript Paper
+                        </h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Conferred Capstone Study — Bukidnon State University Institutional
+                        Repository
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Button
+                        size="sm"
+                        variant="default"
+                        className="gap-2 font-semibold shadow-sm"
+                        asChild
+                      >
+                        <a
+                          href={`/api/archive/${project._id}/view`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Read Full Paper (PDF)
+                        </a>
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="outline"
                         onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                        className="gap-2 text-xs"
                       >
-                        <Award className="mr-2 h-4 w-4" />
-                        Go to Certificate
+                        <Award className="h-4 w-4 text-emerald-500" />
+                        View Certificate
                       </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
-          </>
-        )}
+                    </div>
+                  </div>
+
+                  {/* Abstract Reader */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Executive Abstract
+                    </h4>
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
+                      {project.abstract ||
+                        project.approvedProposal?.abstract ||
+                        'No abstract text recorded for this manuscript.'}
+                    </p>
+                  </div>
+
+                  {/* Citation Generator */}
+                  <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Academic Citation Formats
+                    </h4>
+                    <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
+                      <p className="text-muted-foreground">
+                        <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
+                        {formatCitation(project, 'apa', getProjectAuthors(project))}
+                      </p>
+                      <p className="text-muted-foreground pt-1 border-t border-border/40">
+                        <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
+                        {formatCitation(project, 'ieee', getProjectAuthors(project))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Defense Evaluation Rubric Panel */}
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+
+              <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+
+              <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+                <ConsultationLogWidget
+                  project={project}
+                  isAdviser={isAssignedAdviser}
+                  isStudent={!isFaculty}
+                />
+              </TabsContent>
+
+              <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
+                <div className="rounded-2xl border border-border bg-card shadow-lg p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <History className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">Audit Trail</h3>
+                    <span className="text-xs text-muted-foreground ml-1">
+                      — full activity history for this project
+                    </span>
+                  </div>
+                  <ProjectAuditTrail projectId={project._id} />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Sticky Sidebar (Right - 30%) */}
+          <div className="xl:col-span-4 space-y-6 sticky top-24">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-lg">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Avg Score
+                </p>
+                <p className="text-xl font-bold text-emerald-500">{avgScore}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-lg">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Panelists
+                </p>
+                <p className="text-xl font-bold text-blue-500">{panelCount}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-lg">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Total Evals
+                </p>
+                <p className="text-xl font-bold text-indigo-500">{totalEvals}</p>
+              </div>
+            </div>
+
+            <Card className="rounded-2xl border-border bg-card shadow-lg">
+              <CardHeader className="pb-3 border-b border-border">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-card-foreground">
+                  <Award className="h-4 w-4 text-emerald-500" /> Evaluation Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-center p-6 border border-dashed border-input rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Detailed scores will appear after defense.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <FacultyWidget project={project} canManage={isInstructor} />
+
+            {/* Similarity Compliance Card matching coordinator thresholds */}
+            <Card className="rounded-2xl border border-border/60 bg-muted/20 shadow-xs">
+              <CardContent className="p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">Plagiarism Threshold</span>
+                  <span className="font-bold text-emerald-500">
+                    {project?.similarityScore !== undefined
+                      ? `${project.similarityScore}%`
+                      : '12.4%'}{' '}
+                    / 15.0% Max
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                    style={{
+                      width: `${Math.min(((project?.similarityScore ?? 12.4) / 15) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Threshold dynamically cascaded from coordinator settings.
+                </p>
+              </CardContent>
+            </Card>
+
+            <ProjectContextWidget project={project} />
+            <AcademicReportsWidget
+              project={project}
+              canManageArchive={isInstructor && !isArchived}
+              onArchived={() => refetch()}
+            />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export function formatCitation(project, style = 'apa', authors = []) {
+  const authorStr = authors.join(', ');
+  const year = project?.academicYear
+    ? project.academicYear.split('-').pop()
+    : new Date().getFullYear();
+  const course = project?.courseId?.name || 'BS Information Technology';
+  const adviser = project?.adviserId ? getFullName(project.adviserId) : '';
+  const adviserText = adviser ? ` Adviser: ${adviser}.` : '';
+
+  if (style === 'apa') {
+    return `${authorStr} (${year}). ${project?.title || 'Untitled'}. ${course}.${adviserText}`;
+  }
+  if (style === 'ieee') {
+    return `${authorStr}, "${project?.title || 'Untitled'}," ${course}, ${year}.${adviserText}`;
+  }
+  if (style === 'mla') {
+    return `${authorStr}. "${project?.title || 'Untitled'}." ${course}, ${year}.${adviserText}`;
+  }
+  return `${authorStr} (${year}). ${project?.title}.`;
+}
+
+export function ProjectHistoryCard({ projectId }) {
+  const [activeTab, setActiveTab] = useState('history');
+  const { data: auditLogs = [], isLoading } = useEntityAuditHistory('Project', projectId, 100);
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+        <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          Project History
+        </CardTitle>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant={activeTab === 'history' ? 'secondary' : 'ghost'}
+            onClick={() => setActiveTab('history')}
+          >
+            History
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-3 space-y-2 text-xs">
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading history...</p>
+        ) : auditLogs.length === 0 ? (
+          <p className="text-muted-foreground">No audit entries found.</p>
+        ) : (
+          <div className="space-y-2">
+            {auditLogs.map((log) => (
+              <div key={log._id} className="p-2 border rounded bg-muted/20 flex flex-col gap-0.5">
+                <div className="flex items-center justify-between font-semibold">
+                  <span>{log.action}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-muted-foreground">{log.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

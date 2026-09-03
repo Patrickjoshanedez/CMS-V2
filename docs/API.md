@@ -1,6 +1,6 @@
 # API Reference — CMS V2
 
-Base URL: `http://localhost:5000/api`
+Base URL: `http://localhost:43210/api`
 
 All responses follow a consistent format:
 
@@ -1483,7 +1483,7 @@ List all prototypes for a project.
 
 ### Connection
 
-Connect to `ws://localhost:5000` with `accessToken` cookie for authentication.
+Connect to `ws://localhost:43210` with `accessToken` cookie for authentication.
 
 ### Events (Server → Client)
 

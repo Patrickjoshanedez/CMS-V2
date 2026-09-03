@@ -8,6 +8,7 @@ import AppError from './utils/AppError.js';
 import env from './config/env.js';
 import authenticate from './middleware/authenticate.js';
 import auditRequestCapture from './middleware/auditRequestCapture.js';
+import { getEmailTransportHealth } from './modules/notifications/email.service.js';
 
 import checkMaintenance from './middleware/checkMaintenance.js';
 
@@ -17,6 +18,7 @@ import userRoutes from './modules/users/user.routes.js';
 import teamRoutes from './modules/teams/team.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
+import admRoutes from './modules/projects/adm.routes.js';
 import proposalRoutes from './modules/proposals/proposal.routes.js';
 import submissionRoutes from './modules/submissions/submission.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
@@ -28,6 +30,7 @@ import plagiarismRoutes from './modules/plagiarism/plagiarism.routes.js';
 import academicRoutes from './modules/academics/academic.routes.js';
 import agentRuntimeRoutes from './modules/agent-runtime/agentRuntime.routes.js';
 import storageFileServerRouter from './middleware/storage-file-server.middleware.js';
+import evaluationTemplateRoutes from './modules/evaluations/evaluationTemplate.routes.js';
 
 const app = express();
 
@@ -52,15 +55,22 @@ app.use(
     origin: env.CORS_ALLOWED_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'ngrok-skip-browser-warning',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
   }),
 );
 
-// Parse JSON request bodies (limit to 10kb to mitigate large-payload attacks)
-app.use(express.json({ limit: '10kb' }));
+// Parse JSON request bodies (limit to 50mb to allow large payloads like PDFs)
+app.use(express.json({ limit: '50mb' }));
 
 // Parse URL-encoded bodies
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Parse cookies (for JWT access/refresh tokens)
 app.use(cookieParser());
@@ -77,10 +87,15 @@ app.use('/api', (req, res, next) => {
 // ---------- Health Check ----------
 
 app.get('/api/health', (req, res) => {
+  const smtp = getEmailTransportHealth();
+
   res.status(200).json({
     success: true,
     message: 'CMS API is running.',
     environment: env.NODE_ENV,
+    integrations: {
+      smtp,
+    },
     timestamp: new Date().toISOString(),
   });
 });
@@ -103,6 +118,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/adm', admRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -113,10 +129,11 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/submissions', plagiarismRoutes);
 app.use('/api/academics', academicRoutes);
 app.use('/api/agent-runtime', agentRuntimeRoutes);
+app.use('/api/evaluation-templates', evaluationTemplateRoutes);
 
 // ---------- 404 Handler ----------
 
-app.all('*', (req, res, next) => {
+app.all('/{*path}', (req, res, next) => {
   next(new AppError(`Cannot ${req.method} ${req.originalUrl}`, 404, 'NOT_FOUND'));
 });
 

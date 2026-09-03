@@ -20,7 +20,7 @@ function createRouteHarness(basePath, router) {
   app.use(express.json());
   app.use(cookieParser());
   app.use(basePath, router);
-  app.all('*', (req, _res, next) => {
+  app.all('/{*path}', (req, _res, next) => {
     next(new AppError(`Cannot ${req.method} ${req.originalUrl}`, 404, 'NOT_FOUND'));
   });
   app.use(errorHandler);

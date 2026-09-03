@@ -1,7 +1,7 @@
 /**
  * Storage file serving middleware — Serve uploaded files from local filesystem
  *
- * Mounts at /storage/:* to serve files uploaded via filesystem storage service
+ * Mounts at /storage/* to serve files uploaded via filesystem storage service
  * Example: /storage/archives/projects/xxx/chapters/1/v1/file.pdf
  *
  * Security:
@@ -11,6 +11,7 @@
 
 import express from 'express';
 import path from 'path';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import env from '../config/env.js';
 
@@ -24,10 +25,16 @@ const baseDir = env.STORAGE_LOCAL_PATH || path.join(__dirname, '..', '..', 'uplo
  * Serve file from filesystem storage
  * GET /storage/archives/projects/{projectId}/chapters/1/v1/file.pdf
  */
-router.get('/*', (req, res, _next) => {
+// Use a RegExp catch-all to avoid path-to-regexp wildcard parsing differences.
+router.get(/.*/, async (req, res, _next) => {
   try {
     // Sanitize path — prevent path traversal attacks
-    const requestedPath = req.params[0];
+    let requestedPath = req.path;
+
+    // Remove leading slash if present
+    if (requestedPath.startsWith('/')) {
+      requestedPath = requestedPath.slice(1);
+    }
 
     if (requestedPath.includes('..')) {
       return res.status(400).json({ error: 'Invalid path' });
@@ -39,6 +46,18 @@ router.get('/*', (req, res, _next) => {
     const resolvedPath = path.resolve(filePath);
     if (!resolvedPath.startsWith(path.resolve(baseDir))) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Try to read sidecar meta file for content type
+    try {
+      const metaPath = `${resolvedPath}.meta.json`;
+      const metaContent = await fs.readFile(metaPath, 'utf-8');
+      const meta = JSON.parse(metaContent);
+      if (meta.contentType) {
+        res.setHeader('Content-Type', meta.contentType);
+      }
+    } catch (e) {
+      // Ignore errors if meta file doesn't exist
     }
 
     // Serve the file

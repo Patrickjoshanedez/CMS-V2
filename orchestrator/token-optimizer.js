@@ -21,6 +21,29 @@ export const TOKEN_BUDGETS = {
 };
 
 /**
+ * Return adaptive budgets for a given task complexity tier.
+ *
+ * @param {('low'|'normal'|'high')} [complexity='normal'] - Complexity bucket
+ * @returns {Object} Token budget object for the selected complexity
+ */
+export function getAdaptiveBudgets(complexity = 'normal') {
+  const multipliers = {
+    low: 0.75,
+    normal: 1,
+    high: 1.75,
+  };
+
+  const multiplier = multipliers[complexity] || multipliers.normal;
+
+  return {
+    working: Math.round(TOKEN_BUDGETS.working * multiplier),
+    session: Math.round(TOKEN_BUDGETS.session * multiplier),
+    longTerm: Math.round(TOKEN_BUDGETS.longTerm * multiplier),
+    toolOutput: TOKEN_BUDGETS.toolOutput,
+  };
+}
+
+/**
  * Bounded output with head and tail preservation.
  * When text exceeds the maximum character limit, preserves the first
  * and last portions while indicating how much was truncated.
@@ -568,5 +591,6 @@ export default {
   truncateToTokenBudget,
   enforceBudget,
   getTokenStats,
+  getAdaptiveBudgets,
   TOKEN_BUDGETS,
 };

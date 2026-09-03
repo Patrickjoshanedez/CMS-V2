@@ -137,10 +137,10 @@ export default function AuditLogPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
               <ScrollText className="h-6 w-6 text-primary" />
               Activity Log
-            </h3>
+            </h1>
             <p className="text-muted-foreground">
               View all system activity and administrative actions.
             </p>

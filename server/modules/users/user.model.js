@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import { ROLES, ROLE_VALUES } from '@cms/shared';
+import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES, FACULTY_ROLE_VALUES } from '@cms/shared';
+import softDeletePlugin from '../../middleware/softDelete.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -61,6 +62,19 @@ const userSchema = new mongoose.Schema(
       },
       default: ROLES.STUDENT,
     },
+    /**
+     * Sub-role for faculty accounts. Determines whether a faculty member primarily
+     * functions as an adviser or panelist. A single user can serve both roles across
+     * different projects — the per-project differentiation is done via panelistAssignmentSchema.
+     */
+    facultyRole: {
+      type: String,
+      enum: {
+        values: [...FACULTY_ROLE_VALUES, null],
+        message: 'Faculty role must be one of: ' + FACULTY_ROLE_VALUES.join(', '),
+      },
+      default: null,
+    },
     isVerified: {
       type: Boolean,
       default: false,
@@ -92,6 +106,23 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    panelAssignments: [
+      {
+        projectId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Project',
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: {
+            values: PANEL_ROLE_VALUES,
+            message: 'Panel role must be one of: ' + PANEL_ROLE_VALUES.join(', '),
+          },
+          required: true,
+        },
+      },
+    ],
     createProjectDraft: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
@@ -143,19 +174,16 @@ userSchema.index({ email: 1, role: 1 });
 userSchema.index({ firstName: 1, lastName: 1 });
 userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 userSchema.index({ role: 1, isActive: 1, firstName: 1, lastName: 1 });
+userSchema.index({ role: 1, facultyRole: 1 });
 
 // --- Pre-save hook: hash password ---
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   // Skip hashing for Google OAuth users (no password) or unmodified passwords
-  if (!this.password || !this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 12;
+  const salt = await bcrypt.genSalt(rounds);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // --- Instance methods ---
@@ -168,6 +196,8 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+userSchema.plugin(softDeletePlugin);
 
 const User = mongoose.model('User', userSchema);
 

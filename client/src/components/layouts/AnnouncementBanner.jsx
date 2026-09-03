@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { X, AlertCircle } from 'lucide-react';
-import api from '@/services/api';
+import { useSettings } from '@/hooks/useSettings';
 
 /**
  * AnnouncementBanner — displays the system announcement from settings.
  *
- * Fetches settings from /api/settings and shows systemAnnouncement if present.
+ * Fetches settings via useSettings hook and shows systemAnnouncement if present.
  * Users can dismiss the banner, which hides it until page reload.
  *
  * @example
@@ -15,16 +14,8 @@ import api from '@/services/api';
 export default function AnnouncementBanner({ className = '' }) {
   const [dismissed, setDismissed] = useState(false);
 
-  // Fetch system settings to get the announcement
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['system-settings'],
-    queryFn: async () => {
-      const res = await api.get('/settings');
-      return res.data?.data || res.data;
-    },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    retry: 1,
-  });
+  // Fetch system settings using standard hook
+  const { data: settings, isLoading } = useSettings();
 
   const announcement = settings?.systemAnnouncement?.trim() || '';
 
@@ -40,9 +31,7 @@ export default function AnnouncementBanner({ className = '' }) {
     >
       <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-300 mt-0.5" />
       <div className="flex-1">
-        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-          System Announcement
-        </p>
+        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">System Announcement</p>
         <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">{announcement}</p>
       </div>
       <button

@@ -119,19 +119,14 @@ const connectDB = async () => {
   const primaryCandidates = buildConnectionCandidates(env.MONGODB_URI);
   let lastError = await tryConnectCandidates(primaryCandidates);
 
-  if (
-    lastError &&
-    env.isDevelopment &&
-    isSrvUri(env.MONGODB_URI) &&
-    isSrvDnsLookupFailure(lastError)
-  ) {
+  if (lastError && env.isDevelopment) {
     const fallbackCandidates = buildConnectionCandidates(env.MONGODB_DEV_FALLBACK_URI).filter(
       (uri) => !primaryCandidates.includes(uri),
     );
 
     if (fallbackCandidates.length > 0) {
       console.warn(
-        '[db] Atlas SRV DNS lookup failed in development. Trying local MongoDB fallback URI.',
+        '[db] Primary MongoDB connection failed in development. Trying fallback MongoDB URI.',
       );
       lastError = await tryConnectCandidates(fallbackCandidates);
     }

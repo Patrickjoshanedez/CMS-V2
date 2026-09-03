@@ -10,7 +10,7 @@ import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES, PROJECT_STATUSES } from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES } from '@cms/shared';
 
 class EvaluationService {
   /* ═══════════════════ Default Rubric ═══════════════════ */
@@ -142,6 +142,9 @@ class EvaluationService {
     if (data.overallComment !== undefined) {
       evaluation.overallComment = data.overallComment;
     }
+    if (data.decision !== undefined) {
+      evaluation.decision = data.decision;
+    }
 
     await evaluation.save();
     return { evaluation };
@@ -195,6 +198,11 @@ class EvaluationService {
       }
     }
 
+    // Default decision if not set
+    if (!evaluation.decision) {
+      evaluation.decision = 'passed';
+    }
+
     // Compute totals
     evaluation.totalScore = evaluation.criteria.reduce((sum, c) => sum + c.score, 0);
     evaluation.maxTotalScore = evaluation.criteria.reduce((sum, c) => sum + c.maxScore, 0);
@@ -223,11 +231,61 @@ class EvaluationService {
     return { evaluation };
   }
 
+  /* ═══════════════════ Unlock Evaluation (Instructor) ═══════════════════ */
+
+  /**
+   * Reopen a submitted or released evaluation for editing.
+   *
+   * @param {string} instructorId
+   * @param {string} evaluationId
+   * @param {string} reason
+   * @returns {Object} { evaluation }
+   */
+  async unlockEvaluation(instructorId, evaluationId, reason) {
+    const evaluation = await Evaluation.findById(evaluationId);
+    if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
+
+    if (!reason || !reason.trim()) {
+      throw new AppError('Unlock reason is required.', 400, 'UNLOCK_REASON_REQUIRED');
+    }
+
+    if (evaluation.status === EVALUATION_STATUSES.DRAFT) {
+      throw new AppError('Draft evaluations do not need to be unlocked.', 400, 'ALREADY_DRAFT');
+    }
+
+    evaluation.status = EVALUATION_STATUSES.DRAFT;
+    evaluation.totalScore = null;
+    evaluation.maxTotalScore = null;
+    evaluation.submittedAt = null;
+    evaluation.releasedAt = null;
+    await evaluation.save();
+
+    const notification = await Notification.create({
+      userId: evaluation.panelistId,
+      type: 'evaluation_unlocked',
+      title: 'Evaluation Unlocked',
+      message: `Your ${evaluation.defenseType} evaluation was unlocked for revision. Reason: ${reason}`,
+      metadata: {
+        projectId: evaluation.projectId,
+        evaluationId: evaluation._id,
+        defenseType: evaluation.defenseType,
+        reason,
+        unlockedBy: instructorId,
+      },
+    });
+    emitToUser(evaluation.panelistId, 'notification:new', notification);
+
+    return { evaluation };
+  }
+
   /* ═══════════════════ Release Evaluations (Instructor) ═══════════════════ */
 
   /**
    * Release all submitted evaluations for a project's defense so students can view grades.
    * Only instructors can release.
+   *
+   * Grade Leakage Prevention (Abella #1):
+   * Release is blocked unless every assigned panelist has submitted their evaluation.
    *
    * @param {string} projectId - The project
    * @param {string} defenseType - 'proposal' or 'final'
@@ -236,6 +294,29 @@ class EvaluationService {
   async releaseEvaluations(projectId, defenseType) {
     const project = await Project.findById(projectId).populate('teamId');
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    // --- Grade Leakage Prevention Guard ---
+    // All assigned panelists must have submitted before grades can be released.
+    const assignedPanelistIds = (project.panelists || []).map((p) => String(p.userId));
+    if (assignedPanelistIds.length > 0) {
+      const submittedEvals = await Evaluation.find({
+        projectId,
+        defenseType,
+        status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
+      }).select('panelistId');
+
+      const submittedIds = submittedEvals.map((e) => String(e.panelistId));
+      const pendingPanelistIds = assignedPanelistIds.filter((id) => !submittedIds.includes(id));
+
+      if (pendingPanelistIds.length > 0) {
+        throw new AppError(
+          `Cannot release grades: ${pendingPanelistIds.length} panelist(s) have not yet submitted their evaluations. ` +
+            'All panel members must complete their scoring and remarks before grades can be released to students.',
+          403,
+          'EVALUATIONS_INCOMPLETE',
+        );
+      }
+    }
 
     const result = await Evaluation.updateMany(
       {
@@ -251,6 +332,23 @@ class EvaluationService {
       },
     );
 
+    // Check if passed defense verdict triggers auto-archive
+    const allEvaluations = await Evaluation.find({ projectId, defenseType });
+    const isPassedVerdict =
+      allEvaluations.length > 0 &&
+      allEvaluations.every(
+        (e) =>
+          e.decision &&
+          ['passed', 'passed_with_revision', 'approved'].includes(String(e.decision).toLowerCase()),
+      );
+
+    if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
+      project.isArchived = true;
+      project.archivedAt = new Date();
+      project.projectStatus = 'archived';
+      await project.save();
+    }
+
     // Notify team members that grades are available
     if (result.modifiedCount > 0 && project.teamId?.members) {
       const notifications = project.teamId.members.map((memberId) => ({
@@ -261,13 +359,14 @@ class EvaluationService {
         metadata: {
           projectId,
           defenseType,
+          isArchived: project.isArchived,
         },
       }));
       const releasedNotifs = await Notification.insertMany(notifications);
       releasedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
 
-    return { releasedCount: result.modifiedCount };
+    return { releasedCount: result.modifiedCount, isArchived: project.isArchived };
   }
 
   /* ═══════════════════ Read ═══════════════════ */
@@ -297,7 +396,9 @@ class EvaluationService {
       .sort({ createdAt: 1 });
 
     // Compute summary: average across all submitted/released evaluations
-    const scoredEvals = evaluations.filter((e) => e.totalScore !== null);
+    const scoredEvals = evaluations.filter(
+      (e) => typeof e.totalScore === 'number' && !isNaN(e.totalScore),
+    );
     const summary = {
       totalPanelists: evaluations.length,
       submittedCount: scoredEvals.length,
@@ -310,7 +411,9 @@ class EvaluationService {
       averageMaxScore:
         scoredEvals.length > 0
           ? Math.round(
-              (scoredEvals.reduce((sum, e) => sum + e.maxTotalScore, 0) / scoredEvals.length) * 100,
+              (scoredEvals.reduce((sum, e) => sum + (e.maxTotalScore || 100), 0) /
+                scoredEvals.length) *
+                100,
             ) / 100
           : null,
       averagePercentage: null,
@@ -337,6 +440,101 @@ class EvaluationService {
 
     if (!evaluation) throw new AppError('Evaluation not found.', 404, 'EVALUATION_NOT_FOUND');
     return { evaluation };
+  }
+
+  /**
+   * Grade Visibility Guard — Retrieve consolidated defense grades for students.
+   * Locked until all assigned panelists have submitted their criteria ratings and remarks.
+   */
+  async getStudentConsolidatedGrades(user, projectId, defenseType = 'proposal') {
+    const project = await Project.findById(projectId);
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    const expectedEvaluatorCount =
+      (project.panelists || []).length || (project.panelistIds || []).length || 1;
+
+    // Fetch submitted or released evaluations
+    const submittedEvaluations = await Evaluation.find({
+      projectId,
+      defenseType,
+      status: { $in: [EVALUATION_STATUSES.SUBMITTED, EVALUATION_STATUSES.RELEASED] },
+    });
+
+    if (user.role === ROLES.STUDENT && submittedEvaluations.length < expectedEvaluatorCount) {
+      throw new AppError(
+        'Defense results and grading rubrics are locked. Scores will be made visible once all panel members have submitted their criteria ratings and final remarks.',
+        403,
+        'GRADES_LOCKED_PENDING_PANEL_COMPLETION',
+      );
+    }
+
+    return this.getProjectEvaluations(user, projectId, defenseType);
+  }
+
+  /**
+   * Generate a structured evaluation report for a project defense (FRINS6).
+   * Includes all panelist scores, decisions, and overall comments.
+   *
+   * @param {string} projectId
+   * @param {string} defenseType
+   * @returns {Object} { report }
+   */
+  async generateReport(projectId, defenseType) {
+    const project = await Project.findById(projectId)
+      .populate('teamId', 'name members')
+      .populate('adviserId', 'firstName lastName');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    const evaluations = await Evaluation.find({ projectId, defenseType })
+      .populate('panelistId', 'firstName lastName facultyRole')
+      .sort({ createdAt: 1 });
+
+    const reportRows = evaluations.map((ev) => ({
+      panelistName: ev.panelistId
+        ? `${ev.panelistId.firstName} ${ev.panelistId.lastName}`
+        : 'Unknown',
+      panelRole:
+        (project.panelists || []).find((p) => String(p.userId) === String(ev.panelistId?._id))
+          ?.role || 'member',
+      status: ev.status,
+      decision: ev.decision,
+      totalScore: ev.totalScore,
+      maxTotalScore: ev.maxTotalScore,
+      overallComment: ev.overallComment,
+      submittedAt: ev.submittedAt,
+      criteria: ev.criteria.map((c) => ({
+        name: c.name,
+        maxScore: c.maxScore,
+        score: c.score,
+        comment: c.comment,
+      })),
+    }));
+
+    const avgScore =
+      reportRows.length > 0
+        ? reportRows.reduce((sum, r) => sum + (r.totalScore || 0), 0) / reportRows.length
+        : null;
+
+    return {
+      report: {
+        projectId,
+        projectTitle: project.title,
+        defenseType,
+        generatedAt: new Date().toISOString(),
+        panelists: reportRows,
+        summary: {
+          totalPanelists: reportRows.length,
+          submitted: reportRows.filter((r) => r.status !== 'draft').length,
+          averageScore: avgScore !== null ? Math.round(avgScore * 100) / 100 : null,
+          overallDecision: reportRows.every(
+            (r) =>
+              r.decision && ['passed', 'passed_with_revision', 'approved'].includes(r.decision),
+          )
+            ? 'passed'
+            : 'pending',
+        },
+      },
+    };
   }
 }
 

@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -e
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Check if commit message follows conventional commits or AGENTS.md versioning rules
+PATTERN="^(feat(\(.*\))?(\:\s*\[(major|minor)\]|\:)|fix(\(.*\))?\:|chore(\(.*\))?\:|refactor(\(.*\))?\:|docs(\(.*\))?\:|test(\(.*\))?\:|ci(\(.*\))?\:|perf(\(.*\))?\:|build(\(.*\))?\:|revert(\(.*\))?\:|merge|Merge|v[0-9]+\.[0-9]+\.[0-9]+)"
+
+if ! echo "$COMMIT_MSG" | grep -Eq "$PATTERN"; then
+  echo ""
+  echo "❌ [Git Hook Error] Invalid commit message format."
+  echo "Commit message must follow conventional commits with optional version flags, e.g.:"
+  echo "  - fix: resolve sidebar team display"
+  echo "  - feat: [minor] add action done matrix tab"
+  echo "  - feat: [major] redesign evaluation workflow"
+  echo "  - docs: update algorithm justifications"
+  echo ""
+  exit 1
+fi

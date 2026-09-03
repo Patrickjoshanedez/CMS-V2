@@ -1,0 +1,46 @@
+{
+  "sessionId": "2026-09-03_capstone-workflow-stepper-gantt-and-adm-phase-scoping",
+  "timestamp": "2026-09-03T02:28:30+08:00",
+  "author": "Antigravity Systems Architect",
+  "task": "Overhaul Capstone Workflow Stepper, Interactive Gantt Chart Builder, Attached Working Manuscripts Card, and Multi-Milestone Action Done Matrix (Capstones 2 to 4)",
+  "stagesExecuted": [
+    "STAGE 4 (STATECHART-DRIVEN ORCHESTRATION)",
+    "STAGE 5 (SURGICAL CST EDITING)",
+    "STAGE 6 (BOUNDED RE-DEFENSE COMPLIANCE)"
+  ],
+  "deliverables": [
+    {
+      "component": "CapstoneWorkflowStepper.jsx",
+      "purpose": "5-phase milestone progress cards (Team Formation -> Capstone 1 -> Capstone 2 -> Capstone 3 -> Capstone 4) with dynamic state resolution and status badges"
+    },
+    {
+      "component": "InteractiveGanttChart.jsx",
+      "purpose": "Capstone 3 sprint deliverables and Gantt roadmap modeled after institutional schedule with owner filter, add task modal, and duration meters"
+    },
+    {
+      "component": "ADMPhaseSelector.jsx",
+      "purpose": "Milestone phase scoping selector (ALL, CAPSTONE_2, CAPSTONE_3, CAPSTONE_4) for Action Done Matrix"
+    },
+    {
+      "component": "ActionDoneMatrixTab.jsx",
+      "purpose": "Multi-milestone ADM scoping integration, filtered row rendering, and milestone tagging upon creation"
+    },
+    {
+      "component": "ProjectDetailPage.jsx",
+      "purpose": "Integrated new milestone stepper, attached working manuscripts card, interactive Gantt chart, and similarity gauge"
+    },
+    {
+      "component": "project.model.js & project.controller.js",
+      "purpose": "Backend milestone support for Action Done Matrix entries"
+    }
+  ],
+  "verificationSuite": {
+    "clientTests": "34 files, 105 passed, 0 failed",
+    "serverIntegrationTests": "13 workflows passed, 0 failed",
+    "endpointParity": "185 server, 164 client, UNMATCHED_COUNT = 0",
+    "agenticAudit": "60/60 passed",
+    "governancePipeline": "0 errors, 0 warnings",
+    "workspaceGuardrail": "Pristine, 0 cognitive load violations"
+  },
+  "status": "COMPLETED"
+}

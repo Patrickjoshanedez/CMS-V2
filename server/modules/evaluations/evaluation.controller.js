@@ -7,6 +7,7 @@
  *  3. Returns a consistent JSON response
  */
 import evaluationService from './evaluation.service.js';
+import { generateEvaluationReportPdf } from './evaluation.report.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
 
@@ -55,6 +56,21 @@ export const submitEvaluation = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/evaluations/:evaluationId/unlock — Reopen an evaluation for editing */
+export const unlockEvaluation = catchAsync(async (req, res) => {
+  const { evaluation } = await evaluationService.unlockEvaluation(
+    req.user._id,
+    req.params.evaluationId,
+    req.body.reason,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Evaluation unlocked successfully.',
+    data: { evaluation },
+  });
+});
+
 /* ═══════════════════ Instructor ═══════════════════ */
 
 /** POST /api/evaluations/:projectId/:defenseType/release — Release evaluations to students */
@@ -94,5 +110,45 @@ export const getEvaluation = catchAsync(async (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
     data: { evaluation },
+  });
+});
+
+/** GET /api/evaluations/:evaluationId/pdf — Download official evaluation & similarity PDF report */
+export const downloadEvaluationReportPdf = catchAsync(async (req, res) => {
+  const pdfBytes = await generateEvaluationReportPdf(req.params.evaluationId);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="evaluation-report-${req.params.evaluationId}.pdf"`,
+  );
+  res.send(Buffer.from(pdfBytes));
+});
+
+/** GET /api/evaluations/project/:projectId/consolidated-grades — Grade Visibility Guard */
+export const getStudentConsolidatedGrades = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const { defenseType } = req.query;
+
+  const result = await evaluationService.getStudentConsolidatedGrades(
+    req.user,
+    projectId,
+    defenseType || 'proposal',
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    status: 'grades_released',
+    data: result,
+  });
+});
+
+/** GET /api/evaluations/project/:projectId/:defenseType/report — Generate structured evaluation report (FRINS6) */
+export const getEvaluationReport = catchAsync(async (req, res) => {
+  const { projectId, defenseType } = req.params;
+  const { report } = await evaluationService.generateReport(projectId, defenseType);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: { report },
   });
 });

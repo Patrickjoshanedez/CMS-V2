@@ -2,7 +2,7 @@
  * VirtualizedPlagiarismViewer
  *
  * Renders a long plain-text document with matched plagiarism spans highlighted
- * in-place.  Uses react-window's FixedSizeList to efficiently handle documents
+ * in-place.  Uses react-window's List to efficiently handle documents
  * with hundreds of paragraphs without DOM bloat.
  *
  * Props
@@ -27,14 +27,13 @@
  * Highlighted spans carry aria-label + role="mark" so screen readers announce
  * the similarity score alongside the matched excerpt.
  */
-import React, { useMemo, useRef, useCallback } from 'react';
-import * as ReactWindow from 'react-window';
-const { FixedSizeList: List } = ReactWindow;
+import React, { useEffect, useMemo, useRef } from 'react';
+import { List } from 'react-window';
 import PropTypes from 'prop-types';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
-const ROW_HEIGHT = 56; // px — approximate height of one paragraph row
+const ROW_HEIGHT = 64; // px — approximate height of one paragraph row
 const VIEWER_HEIGHT = 640; // px — overall list height
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -115,29 +114,47 @@ function buildFragments(paraText, paraStart, paraEnd, sortedMatches) {
  * Map a 0-1 similarity_score to a Tailwind  highlight colour class.
  */
 function highlightClass(score) {
-  if (score >= 0.85) return 'bg-red-200 text-red-900';
-  if (score >= 0.65) return 'bg-orange-200 text-orange-900';
+  if (score >= 0.9) return 'bg-red-200 text-red-900';
+  if (score >= 0.7) return 'bg-orange-200 text-orange-900';
   return 'bg-yellow-200 text-yellow-900';
+}
+
+function resolveMatchHighlightClass(match) {
+  if (typeof match?.highlightClass === 'string' && match.highlightClass.trim()) {
+    return match.highlightClass;
+  }
+  return highlightClass(Number(match?.similarity_score ?? 0));
+}
+
+function resolveMatchBadgeClass(match) {
+  if (typeof match?.badgeClass === 'string' && match.badgeClass.trim()) {
+    return match.badgeClass;
+  }
+  return 'border-slate-300 bg-slate-100 text-slate-700';
 }
 
 /* ─── ParagraphRow ───────────────────────────────────────────────────────── */
 
 const ParagraphRow = React.memo(function ParagraphRow({
+  index,
   style,
-  para,
+  paragraphs,
   sortedMatches,
   selectedMatchId,
   onSelectMatch,
 }) {
-  const fragments = useMemo(
-    () => buildFragments(para.text, para.start, para.end, sortedMatches),
-    [para, sortedMatches],
-  );
+  const para = paragraphs[index];
+
+  if (!para) {
+    return null;
+  }
+
+  const fragments = buildFragments(para.text, para.start, para.end, sortedMatches);
 
   return (
     <div
       style={style}
-      className="px-4 py-2 text-sm leading-relaxed text-gray-800 border-b border-gray-100"
+      className="px-6 py-3 text-[0.95rem] leading-7 text-foreground border-b border-border/40"
     >
       {fragments.map((frag, idx) => {
         if (!frag.isMatch) {
@@ -146,6 +163,8 @@ const ParagraphRow = React.memo(function ParagraphRow({
 
         const isSelected = selectedMatchId === frag.match.match_id;
         const pct = Math.round(frag.match.similarity_score * 100);
+        const sourceNumber = Number(frag.match?.source_number);
+        const sourceBadgeClass = resolveMatchBadgeClass(frag.match);
 
         return (
           <mark
@@ -154,15 +173,30 @@ const ParagraphRow = React.memo(function ParagraphRow({
             aria-label={`Matched excerpt — similarity ${pct}%`}
             tabIndex={0}
             onClick={() => onSelectMatch(frag.match)}
-            onKeyDown={(e) => e.key === 'Enter' && onSelectMatch(frag.match)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectMatch(frag.match);
+              }
+            }}
             className={[
-              'cursor-pointer rounded px-0.5 transition-all',
-              highlightClass(frag.match.similarity_score),
+              'cursor-pointer rounded px-0.5 transition-all whitespace-pre-wrap',
+              resolveMatchHighlightClass(frag.match),
               isSelected
-                ? 'ring-2 ring-offset-1 ring-blue-500'
-                : 'hover:ring-1 hover:ring-offset-1 hover:ring-blue-300',
+                ? 'ring-2 ring-offset-1 ring-primary'
+                : 'hover:ring-1 hover:ring-offset-1 hover:ring-primary/50',
             ].join(' ')}
           >
+            {Number.isFinite(sourceNumber) && sourceNumber > 0 && (
+              <span
+                className={[
+                  'mr-1 inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold leading-none align-middle',
+                  sourceBadgeClass,
+                ].join(' ')}
+              >
+                {sourceNumber}
+              </span>
+            )}
             {frag.text}
           </mark>
         );
@@ -172,12 +206,15 @@ const ParagraphRow = React.memo(function ParagraphRow({
 });
 
 ParagraphRow.propTypes = {
+  index: PropTypes.number.isRequired,
   style: PropTypes.object.isRequired,
-  para: PropTypes.shape({
-    text: PropTypes.string.isRequired,
-    start: PropTypes.number.isRequired,
-    end: PropTypes.number.isRequired,
-  }).isRequired,
+  paragraphs: PropTypes.arrayOf(
+    PropTypes.shape({
+      text: PropTypes.string.isRequired,
+      start: PropTypes.number.isRequired,
+      end: PropTypes.number.isRequired,
+    }),
+  ).isRequired,
   sortedMatches: PropTypes.array.isRequired,
   selectedMatchId: PropTypes.string,
   onSelectMatch: PropTypes.func.isRequired,
@@ -190,6 +227,7 @@ export default function VirtualizedPlagiarismViewer({
   matches,
   selectedMatchId,
   onSelectMatch,
+  sourceLegend,
 }) {
   const listRef = useRef(null);
 
@@ -201,21 +239,8 @@ export default function VirtualizedPlagiarismViewer({
     [matches],
   );
 
-  const renderRow = useCallback(
-    ({ index, style }) => (
-      <ParagraphRow
-        style={style}
-        para={paragraphs[index]}
-        sortedMatches={sortedMatches}
-        selectedMatchId={selectedMatchId}
-        onSelectMatch={onSelectMatch}
-      />
-    ),
-    [paragraphs, sortedMatches, selectedMatchId, onSelectMatch],
-  );
-
   // Scroll to the first paragraph containing the selected match
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedMatchId || !listRef.current) return;
     const match = sortedMatches.find((m) => m.match_id === selectedMatchId);
     if (!match) return;
@@ -224,47 +249,86 @@ export default function VirtualizedPlagiarismViewer({
       (p) => p.start <= match.start_index && p.end >= match.start_index,
     );
     if (rowIndex >= 0) {
-      listRef.current.scrollToItem(rowIndex, 'center');
+      listRef.current.scrollToRow({ index: rowIndex, align: 'center', behavior: 'auto' });
     }
   }, [selectedMatchId, paragraphs, sortedMatches]);
 
+  const legendItems = useMemo(() => {
+    if (Array.isArray(sourceLegend) && sourceLegend.length > 0) {
+      return sourceLegend;
+    }
+
+    const deduped = new Map();
+    for (const match of sortedMatches) {
+      const sourceKey =
+        (typeof match?.source_key === 'string' && match.source_key.trim()) ||
+        match?.source_metadata?.document_id ||
+        match?.source_metadata?.title ||
+        match?.match_id;
+
+      if (!sourceKey || deduped.has(sourceKey)) continue;
+
+      deduped.set(sourceKey, {
+        sourceKey,
+        sourceNumber: Number(match?.source_number) || null,
+        sourceLabel: match?.source_metadata?.title || 'Source',
+        badgeClass: resolveMatchBadgeClass(match),
+        colorHex: match?.colorHex || null,
+      });
+    }
+
+    return [...deduped.values()]
+      .filter((item) => Number.isFinite(item.sourceNumber))
+      .sort((left, right) => (left.sourceNumber || 0) - (right.sourceNumber || 0))
+      .slice(0, 10);
+  }, [sortedMatches, sourceLegend]);
+
   if (!text) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
         No extracted text available for this submission.
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border border-border rounded-lg overflow-hidden bg-background/60">
       {/* Legend */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-gray-200 bg-gray-50 text-xs text-gray-600">
-        <span className="font-medium">Highlight key:</span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-300" />
-          Low (50–64%)
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-orange-200 border border-orange-300" />
-          Medium (65–84%)
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-red-200 border border-red-300" />
-          High (≥85%)
-        </span>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-border bg-muted/40 text-xs text-muted-foreground">
+        <span className="font-medium mr-1">Top sources:</span>
+        {legendItems.length === 0 ? (
+          <span>No source-number palette available for this report.</span>
+        ) : (
+          legendItems.map((item) => (
+            <span
+              key={item.sourceKey}
+              className="inline-flex max-w-[18rem] items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1"
+              title={item.sourceLabel}
+            >
+              <span
+                className={[
+                  'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold',
+                  item.badgeClass || 'border-slate-300 bg-slate-100 text-slate-700',
+                ].join(' ')}
+              >
+                {item.sourceNumber}
+              </span>
+              <span className="truncate">{item.sourceLabel}</span>
+            </span>
+          ))
+        )}
       </div>
 
       <List
-        ref={listRef}
-        height={VIEWER_HEIGHT}
-        itemCount={paragraphs.length}
-        itemSize={ROW_HEIGHT}
-        width="100%"
+        listRef={listRef}
+        rowComponent={ParagraphRow}
+        rowCount={paragraphs.length}
+        rowHeight={ROW_HEIGHT}
+        rowProps={{ paragraphs, sortedMatches, selectedMatchId, onSelectMatch }}
+        defaultHeight={VIEWER_HEIGHT}
+        className="h-[640px] w-full"
         overscanCount={8}
-      >
-        {renderRow}
-      </List>
+      />
     </div>
   );
 }
@@ -279,12 +343,26 @@ VirtualizedPlagiarismViewer.propTypes = {
       start_index: PropTypes.number.isRequired,
       end_index: PropTypes.number.isRequired,
       similarity_score: PropTypes.number.isRequired,
+      source_number: PropTypes.number,
+      source_key: PropTypes.string,
+      highlightClass: PropTypes.string,
+      badgeClass: PropTypes.string,
     }),
   ),
   /** Currently focused match ID (drives scroll + ring highlight). */
   selectedMatchId: PropTypes.string,
   /** Callback fired when user clicks a matched span. */
   onSelectMatch: PropTypes.func,
+  /** Optional source legend entries in ranked source-number order. */
+  sourceLegend: PropTypes.arrayOf(
+    PropTypes.shape({
+      sourceKey: PropTypes.string,
+      sourceNumber: PropTypes.number,
+      sourceLabel: PropTypes.string,
+      badgeClass: PropTypes.string,
+      colorHex: PropTypes.string,
+    }),
+  ),
 };
 
 VirtualizedPlagiarismViewer.defaultProps = {
@@ -292,4 +370,5 @@ VirtualizedPlagiarismViewer.defaultProps = {
   matches: [],
   selectedMatchId: null,
   onSelectMatch: () => {},
+  sourceLegend: [],
 };

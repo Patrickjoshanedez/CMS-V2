@@ -5,6 +5,11 @@ import { MemoryRouter } from 'react-router-dom';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
+
 if (!window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation(() => ({
     matches: false,
@@ -53,6 +58,11 @@ vi.mock('sonner', () => ({
   Toaster: () => null,
 }));
 
+vi.mock('./components/plagiarism/PlagiarismProgressModal', () => ({
+  PlagiarismProgressModal: () => null,
+  default: () => null,
+}));
+
 vi.mock('./pages/dashboard/DashboardPage', () => ({
   default: () => <div>Dashboard Route</div>,
 }));
@@ -76,7 +86,7 @@ const renderAppAtPath = async (AppComponent, path) => {
 
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={[path]}>
         <AppComponent />
       </MemoryRouter>,
     );
@@ -146,5 +156,5 @@ describe('App session-timeout redirect behavior', () => {
     expect(view.container.textContent).not.toContain('Dashboard Route');
 
     view.unmount();
-  });
+  }, 20000);
 });

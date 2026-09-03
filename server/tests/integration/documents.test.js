@@ -3,18 +3,19 @@ import {
   createAuthenticatedUserWithRole,
   createCourseAndSection,
   createValidProjectPayload,
-  request,
 } from '../helpers.js';
 import Team from '../../modules/teams/team.model.js';
 import Project from '../../modules/projects/project.model.js';
 import User from '../../modules/users/user.model.js';
-import Manuscript from '../../modules/documents/document.model.js';
+import Manuscript, { MetadataExtractionFeedback } from '../../modules/documents/document.model.js';
 import storageService from '../../services/storage.service.js';
 import * as pdfMetadataExtractor from '../../utils/pdfMetadataExtractor.js';
 import { DOCUMENT_TYPES } from '@cms/shared';
 
 vi.spyOn(storageService, 'uploadFile').mockResolvedValue(undefined);
-vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue('https://mock-s3.example.com/signed-url');
+vi.spyOn(storageService, 'getSignedUrl').mockResolvedValue(
+  'https://mock-s3.example.com/signed-url',
+);
 vi.spyOn(storageService, 'deleteFile').mockResolvedValue(undefined);
 
 function createPdfBuffer() {
@@ -92,37 +93,102 @@ describe('Documents API — /api/documents', () => {
       email: 'documents-metadata@test.com',
     });
 
-    const metadataSpy = vi
-      .spyOn(pdfMetadataExtractor, 'extractPdfMetadata')
-      .mockResolvedValue({
-        title: 'Document Automation for Capstone Projects',
-        abstract: 'This paper validates the document metadata pipeline.',
-        publicationYear: 2025,
-        authors: ['Jane Doe', 'John Smith'],
-        keywords: ['document automation', 'metadata pipeline'],
-        extractionProvider: 'heuristic',
-        confidence: {
-          title: 0.93,
-          abstract: 0.88,
-          publicationYear: 0.82,
-          authors: 0.76,
-          keywords: 0.79,
-        },
-      });
+    const metadataSpy = vi.spyOn(pdfMetadataExtractor, 'extractPdfMetadata').mockResolvedValue({
+      title: 'Document Automation for Capstone Projects',
+      abstract: 'This paper validates the document metadata pipeline.',
+      publicationYear: 2025,
+      authors: ['Jane Doe', 'John Smith'],
+      keywords: ['document automation', 'metadata pipeline'],
+      extractionProvider: 'heuristic',
+      confidence: {
+        title: 0.93,
+        abstract: 0.88,
+        publicationYear: 0.82,
+        authors: 0.76,
+        keywords: 0.79,
+      },
+    });
 
     const res = await agent
       .post('/api/documents/extract-pdf-metadata')
       .attach('file', createPdfBuffer(), 'paper.pdf');
 
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.title).toBe('Document Automation for Capstone Projects');
-    expect(res.body.data.abstract).toContain('document metadata pipeline');
-    expect(res.body.data.publicationYear).toBe(2025);
-    expect(res.body.data.authors).toEqual(['Jane Doe', 'John Smith']);
-    expect(res.body.data.keywords).toEqual(['document automation', 'metadata pipeline']);
-    expect(res.body.data.extractionProvider).toBe('heuristic');
+    expect(res.body.metadata.title).toBe('Document Automation for Capstone Projects');
+    expect(res.body.metadata.abstract).toContain('document metadata pipeline');
+    expect(res.body.metadata.year).toBe('2025');
+    expect(res.body.metadata.authors).toBe('Jane Doe, John Smith');
+    expect(res.body.metadata.keywords).toBe('document automation, metadata pipeline');
+    expect(res.body.metadata.venue).toBe('');
+    expect(res.body.confidence.title).toBe(93);
+    expect(res.body.confidence.abstract).toBe(88);
+    expect(res.body.confidence.year).toBe(82);
+    expect(res.body.confidence.authors).toBe(76);
+    expect(res.body.confidence.keywords).toBe(79);
     expect(metadataSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to filename title when extractor returns empty metadata', async () => {
+    const { agent } = await createAuthenticatedUserWithRole('student', {
+      email: 'documents-metadata-fallback@test.com',
+    });
+
+    const metadataSpy = vi.spyOn(pdfMetadataExtractor, 'extractPdfMetadata').mockResolvedValue({
+      title: '',
+      abstract: '',
+      publicationYear: null,
+      authors: [],
+      keywords: [],
+      extractionProvider: 'heuristic',
+      confidence: {
+        title: 0,
+        abstract: 0,
+        publicationYear: 0,
+        authors: 0,
+        keywords: 0,
+      },
+    });
+
+    const res = await agent
+      .post('/api/documents/extract-pdf-metadata')
+      .attach('file', createPdfBuffer(), 'Project Workspace_ Capstone Management System.pdf');
+
+    expect(res.status).toBe(200);
+    expect(res.body.metadata.title).toBe('Project Workspace Capstone Management System');
+    expect(res.body.confidence.title).toBe(35);
+    expect(metadataSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('records field-level metadata feedback for OCR learning', async () => {
+    const { agent, user } = await createAuthenticatedUserWithRole('instructor', {
+      email: 'documents-feedback@test.com',
+    });
+
+    const res = await agent.post('/api/documents/metadata-feedback').send({
+      fieldName: 'title',
+      extractedValue: 'Abstract:',
+      correctedValue: 'Interstellar Wormhole Visualization',
+      confidence: 42,
+      sourceFileName: 'interstellar-capstone.pdf',
+      context: 'archive/capstone-upload',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.feedbackId).toBeTruthy();
+
+    const savedFeedback = await MetadataExtractionFeedback.findById(
+      res.body.data.feedbackId,
+    ).lean();
+
+    expect(savedFeedback).toBeTruthy();
+    expect(savedFeedback.fieldName).toBe('title');
+    expect(savedFeedback.extractedValue).toBe('Abstract:');
+    expect(savedFeedback.correctedValue).toBe('Interstellar Wormhole Visualization');
+    expect(savedFeedback.confidence).toBe(42);
+    expect(savedFeedback.sourceFileName).toBe('interstellar-capstone.pdf');
+    expect(savedFeedback.context).toBe('archive/capstone-upload');
+    expect(savedFeedback.submittedBy.toString()).toBe(user._id.toString());
   });
 
   it('uploads a manuscript and lists it with a resolved edit link', async () => {

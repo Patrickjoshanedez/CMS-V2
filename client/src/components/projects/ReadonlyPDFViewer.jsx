@@ -1,15 +1,19 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { ScrollText, FileText } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
 
+/**
+ * ReadonlyPDFViewer — embeds an approved manuscript PDF in a styled card.
+ * Uses the CMS design-token system (var(--color-*)) for consistent theming.
+ */
 export default function ReadonlyPDFViewer({ fileUrl, title }) {
   if (!fileUrl) {
     return (
-      <Alert>
-        <FileText className="h-4 w-4" />
-        <AlertDescription>No manuscript has been published for this project yet.</AlertDescription>
-      </Alert>
+      <div className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 [font-family:var(--font-body)]">
+        <FileText className="h-5 w-5 shrink-0 text-[var(--color-text-secondary)]" />
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          No manuscript has been published for this project yet.
+        </p>
+      </div>
     );
   }
 
@@ -17,28 +21,31 @@ export default function ReadonlyPDFViewer({ fileUrl, title }) {
   const viewerUrl = fileUrl.includes('#') ? fileUrl : `${fileUrl}#toolbar=0`;
 
   return (
-    <Card className="flex flex-col h-[800px] shadow-sm">
-      <CardHeader className="py-4 border-b bg-muted/20">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <ScrollText className="h-5 w-5 text-primary" />
+    <div className="flex h-[800px] flex-col overflow-hidden rounded-xl border border-[var(--color-border)] shadow-sm [font-family:var(--font-body)]">
+      {/* Card header */}
+      <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
+        <ScrollText className="h-5 w-5 text-[var(--color-neutral)]" />
+        <h3 className="text-base font-semibold text-[var(--color-text-primary)] [font-family:var(--font-display)]">
           {title || 'Approved Manuscript'}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 relative bg-slate-50">
-        {/* Anti-right-click overlay (pointer-events-none won't block scroll but lets events pass to iframe. A generic div catching onContextMenu protects the iframe boundary) */}
-        <div 
-          className="absolute inset-0 z-10 pointer-events-none" 
+        </h3>
+      </div>
+
+      {/* PDF frame area */}
+      <div className="relative flex-1 bg-[var(--color-bg)]">
+        {/* Anti-right-click overlay (pointer-events-none won't block scroll but lets events pass to iframe) */}
+        <div
+          className="absolute inset-0 z-10 pointer-events-none"
           onContextMenu={(e) => e.preventDefault()}
           aria-hidden="true"
         />
         <iframe
           src={viewerUrl}
           title="Manuscript PDF Viewer"
-          className="w-full h-full border-0 rounded-b-lg"
+          className="h-full w-full border-0"
           onContextMenu={(e) => e.preventDefault()}
           sandbox="allow-scripts allow-same-origin"
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

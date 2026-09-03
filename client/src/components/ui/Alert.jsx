@@ -9,8 +9,12 @@ import { AlertCircle, CheckCircle2, Info, XCircle } from 'lucide-react';
 
 const alertVariants = {
   default: 'bg-background text-foreground border',
-  success: 'border-green-500/50 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20',
-  destructive: 'border-destructive/50 text-destructive dark:text-red-400 bg-red-50 dark:bg-red-950/20',
+  success:
+    'border-green-500/50 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20',
+  destructive:
+    'border-destructive/50 text-destructive dark:text-red-400 bg-red-50 dark:bg-red-950/20',
+  warning:
+    'border-amber-500/50 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20',
   info: 'border-blue-500/50 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20',
 };
 
@@ -18,11 +22,13 @@ const alertIcons = {
   default: Info,
   success: CheckCircle2,
   destructive: XCircle,
+  warning: AlertCircle,
   info: AlertCircle,
 };
 
 const Alert = forwardRef(({ className, variant = 'default', children, ...props }, ref) => {
-  const Icon = alertIcons[variant];
+  const resolvedVariant = alertVariants[variant] ? variant : 'default';
+  const Icon = alertIcons[resolvedVariant] || alertIcons.default;
 
   return (
     <div
@@ -30,7 +36,7 @@ const Alert = forwardRef(({ className, variant = 'default', children, ...props }
       role="alert"
       className={cn(
         'relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground',
-        alertVariants[variant],
+        alertVariants[resolvedVariant],
         className,
       )}
       {...props}

@@ -27,9 +27,12 @@ process.env.RECAPTCHA_SECRET_KEY = ''; // Disable reCAPTCHA in tests
 process.env.RECAPTCHA_ENABLED = 'false';
 process.env.COOKIE_SECURE = 'false';
 process.env.COOKIE_SAME_SITE = 'lax';
+process.env.BCRYPT_ROUNDS = '4';
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    instance: { launchTimeout: 60000 },
+  });
   const uri = mongoServer.getUri();
   process.env.MONGODB_URI = uri;
 
@@ -49,8 +52,18 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  if (mongoServer) {
-    await mongoServer.stop();
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+  } catch (_err) {
+    // Ignore disconnect errors on teardown
+  }
+  try {
+    if (mongoServer) {
+      await mongoServer.stop({ force: true });
+    }
+  } catch (_err) {
+    // Ignore server stop errors on teardown
   }
 });

@@ -1,13 +1,18 @@
 import Submission from '../submissions/submission.model.js';
 import PlagiarismResult from './plagiarism.model.js';
-import AppError from '../../utils/AppError.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { enqueuePlagiarismJob } from '../../jobs/queue.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import storageService from '../../services/storage.index.js';
 import { extractText } from '../../utils/extractText.js';
+import env from '../../config/env.js';
 import submissionService from '../submissions/submission.service.js';
-import { PLAGIARISM_STATUSES } from '@cms/shared';
+import {
+  removeSubmissionFingerprints,
+  upsertSubmissionFingerprints,
+} from '../../services/fingerprintIndex.service.js';
+import { PLAGIARISM_STATUSES, ROLES } from '@cms/shared';
+import { runArchivePdfPlagiarismScan } from '../../services/archivePlagiarismScan.service.js';
 
 const resolveCorpusMetadata = (...candidates) => {
   for (const candidate of candidates) {
@@ -141,18 +146,26 @@ const mapSubmissionResult = (submission, collectionResult) => {
 
 export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
+  const requestedMode = String(req.body?.mode || '')
+    .trim()
+    .toLowerCase();
+  const allowManualMockOverride =
+    requestedMode === 'mock' && [ROLES.INSTRUCTOR, ROLES.ADVISER].includes(req.user?.role);
 
   const { submission } = await submissionService.getSubmissionViewContext(
     submissionId,
     req.user._id,
     {
       submissionSelect:
-        'storageKey fileType projectId chapter plagiarismResult type documentTitle documentAbstract',
+        'storageKey fileType projectId chapter plagiarismResult type status documentTitle documentAbstract',
     },
   );
 
   const status = submission.plagiarismResult?.status;
-  if (status === PLAGIARISM_STATUSES.QUEUED || status === PLAGIARISM_STATUSES.PROCESSING) {
+  if (
+    (status === PLAGIARISM_STATUSES.QUEUED || status === PLAGIARISM_STATUSES.PROCESSING) &&
+    !allowManualMockOverride
+  ) {
     return res.status(202).json({
       success: true,
       message: 'Plagiarism check is already in progress.',
@@ -170,9 +183,71 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
     fileType: submission.fileType,
     projectId: submission.projectId.toString(),
     chapter: submission.chapter,
+    type: submission.type,
+    isFinalSubmission: ['final_academic', 'final_journal'].includes(
+      String(submission.type || '').toLowerCase(),
+    ),
+    indexInCorpus: ['approved', 'locked'].includes(String(submission.status || '').toLowerCase()),
     title: submission.documentTitle || undefined,
     abstract: submission.documentAbstract || undefined,
   };
+
+  if (env.PLAGIARISM_FORCE_MOCK_SCORE || allowManualMockOverride) {
+    const now = new Date();
+    const mock = {
+      originalityScore: 100,
+      matchedSources: [],
+    };
+    const similarityPercentage = Math.max(0, Math.min(100, 100 - mock.originalityScore));
+    const mockJobId = `mock-${submission._id.toString()}`;
+
+    await Submission.findByIdAndUpdate(submission._id, {
+      originalityScore: mock.originalityScore,
+      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+      'plagiarismResult.jobId': mockJobId,
+      'plagiarismResult.error': null,
+      'plagiarismResult.originalityScore': mock.originalityScore,
+      'plagiarismResult.matchedSources': mock.matchedSources,
+      'plagiarismResult.processedAt': now,
+    });
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          taskId: mockJobId,
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          similarityPercentage,
+          textMatches: [],
+          checkedAt: now,
+          completedAt: now,
+          warningFlag: false,
+          rawData: {
+            ...mock,
+            mode: 'mock',
+            reason: allowManualMockOverride
+              ? 'Manual mock override requested from review UI'
+              : 'PLAGIARISM_FORCE_MOCK_SCORE enabled',
+          },
+          error: null,
+          errorMessage: null,
+        },
+      },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Plagiarism check completed with mock score.',
+      data: {
+        submissionId,
+        status: PLAGIARISM_STATUSES.COMPLETED,
+        jobId: mockJobId,
+        mode: allowManualMockOverride ? 'mock-manual' : 'mock',
+        originalityScore: mock.originalityScore,
+      },
+    });
+  }
 
   const jobId = await enqueuePlagiarismJob(payload);
   const effectiveJobId = jobId || `sync-${submission._id.toString()}`;
@@ -193,7 +268,7 @@ export const checkSubmissionPlagiarism = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   // Fallback for environments without Redis.
@@ -247,30 +322,60 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
     submissionId,
     req.user._id,
     {
-      submissionSelect: 'storageKey fileType extractedText projectId type',
+      submissionSelect: 'storageKey fileType extractedText projectId type chapter',
     },
   );
 
-  if (!submission.extractedText || submission.extractedText.trim().length === 0) {
+  let extractedText =
+    typeof submission.extractedText === 'string' ? submission.extractedText.trim() : '';
+
+  if (!extractedText) {
     const fileBuffer = await storageService.downloadFile(submission.storageKey);
     const text = await extractText(fileBuffer, submission.fileType);
+    extractedText = typeof text === 'string' ? text.trim() : '';
 
     await Submission.findByIdAndUpdate(submission._id, {
-      extractedText: text,
+      extractedText,
     });
   }
 
+  await upsertSubmissionFingerprints({
+    submissionId: submission._id.toString(),
+    projectId: submission.projectId.toString(),
+    chapter: submission.chapter,
+    type: submission.type,
+    text: extractedText,
+  });
+
   const indexedAt = new Date().toISOString();
+
+  const existingResult = await PlagiarismResult.findOne({ submissionId: submission._id })
+    .select('rawData')
+    .lean();
+  const existingRawData =
+    existingResult?.rawData && typeof existingResult.rawData === 'object'
+      ? existingResult.rawData
+      : {};
+  const existingCorpus =
+    existingRawData.corpus && typeof existingRawData.corpus === 'object'
+      ? existingRawData.corpus
+      : {};
 
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
         checkedAt: new Date(),
-        'rawData.indexedAt': indexedAt,
-        'rawData.removedFromCorpusAt': null,
-        'rawData.corpus.indexedAt': indexedAt,
-        'rawData.corpus.removedFromCorpusAt': null,
+        rawData: {
+          ...existingRawData,
+          indexedAt,
+          removedFromCorpusAt: null,
+          corpus: {
+            ...existingCorpus,
+            indexedAt,
+            removedFromCorpusAt: null,
+          },
+        },
       },
       $setOnInsert: {
         taskId: `corpus-manual-${submission._id.toString()}`,
@@ -279,7 +384,7 @@ export const indexSubmissionInCorpus = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({
@@ -300,16 +405,35 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
   );
 
   await Submission.findByIdAndUpdate(submission._id, { extractedText: null });
+  await removeSubmissionFingerprints(submission._id.toString());
 
   const removedFromCorpusAt = new Date().toISOString();
+
+  const existingResult = await PlagiarismResult.findOne({ submissionId: submission._id })
+    .select('rawData')
+    .lean();
+  const existingRawData =
+    existingResult?.rawData && typeof existingResult.rawData === 'object'
+      ? existingResult.rawData
+      : {};
+  const existingCorpus =
+    existingRawData.corpus && typeof existingRawData.corpus === 'object'
+      ? existingRawData.corpus
+      : {};
 
   await PlagiarismResult.findOneAndUpdate(
     { submissionId: submission._id },
     {
       $set: {
         checkedAt: new Date(),
-        'rawData.removedFromCorpusAt': removedFromCorpusAt,
-        'rawData.corpus.removedFromCorpusAt': removedFromCorpusAt,
+        rawData: {
+          ...existingRawData,
+          removedFromCorpusAt,
+          corpus: {
+            ...existingCorpus,
+            removedFromCorpusAt,
+          },
+        },
       },
       $setOnInsert: {
         taskId: `corpus-manual-${submission._id.toString()}`,
@@ -318,11 +442,140 @@ export const removeSubmissionFromCorpus = catchAsync(async (req, res) => {
         errorMessage: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   return res.status(200).json({
     success: true,
     message: 'Submission removed from corpus comparison set.',
   });
+});
+
+export const scanArchivedPdfPlagiarism = catchAsync(async (req, res) => {
+  const file = req.file;
+
+  const result = await runArchivePdfPlagiarismScan({
+    fileBuffer: file?.buffer,
+    fileType: file?.validatedMime || file?.mimetype || 'application/pdf',
+    fileName: file?.originalname || null,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: 'Archive plagiarism scan completed.',
+    data: result,
+  });
+});
+
+export const scanSubmissionAgainstArchive = catchAsync(async (req, res) => {
+  const { submissionId } = req.params;
+
+  // 1. Get submission context
+  const { submission } = await submissionService.getSubmissionViewContext(
+    submissionId,
+    req.user._id,
+    {
+      submissionSelect: 'storageKey fileType fileName chapter projectId type',
+    },
+  );
+
+  // 2. Set status to processing
+  const taskId = `archive-scan-${Date.now()}`;
+
+  // Update central PlagiarismResult record
+  await PlagiarismResult.findOneAndUpdate(
+    { submissionId: submission._id },
+    {
+      $set: {
+        status: PLAGIARISM_STATUSES.PROCESSING,
+        taskId,
+        error: null,
+        errorMessage: null,
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
+
+  // Update embedded status in Submission document
+  await Submission.findByIdAndUpdate(submission._id, {
+    'plagiarismResult.status': PLAGIARISM_STATUSES.PROCESSING,
+    'plagiarismResult.jobId': taskId,
+    'plagiarismResult.error': null,
+  });
+
+  try {
+    // 3. Download file from storage
+    const fileBuffer = await storageService.downloadFile(submission.storageKey);
+
+    // 4. Run the scan against the archive
+    const result = await runArchivePdfPlagiarismScan({
+      fileBuffer,
+      fileType: submission.fileType,
+      fileName: submission.fileName,
+    });
+
+    // 5. Update central PlagiarismResult record with full data
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          status: PLAGIARISM_STATUSES.COMPLETED,
+          overallScore: result.overallScore,
+          similarityPercentage: result.overallScore,
+          warningFlag: result.warningFlag,
+          textMatches: result.textMatches,
+          rawData: result.fullReport,
+          checkedAt: new Date(result.processedAt),
+          completedAt: new Date(result.processedAt),
+          error: null,
+          errorMessage: null,
+        },
+      },
+    );
+
+    // 6. Update embedded results in Submission document
+    await Submission.findByIdAndUpdate(submission._id, {
+      originalityScore: result.originalityScore,
+      'plagiarismResult.status': PLAGIARISM_STATUSES.COMPLETED,
+      'plagiarismResult.originalityScore': result.originalityScore,
+      'plagiarismResult.overallScore': result.overallScore,
+      'plagiarismResult.processedAt': result.processedAt,
+      'plagiarismResult.matchedSources': result.matchedSources,
+      'plagiarismResult.fullReport': result.fullReport,
+      'plagiarismResult.textMatches': result.textMatches,
+      'plagiarismResult.error': null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Archive plagiarism scan completed.',
+      data: result,
+    });
+  } catch (error) {
+    console.error(`[plagiarism.controller] Archive scan failed for ${submissionId}:`, error);
+
+    const errorMessage = error?.message || 'Archive scan failed';
+
+    await PlagiarismResult.findOneAndUpdate(
+      { submissionId: submission._id },
+      {
+        $set: {
+          status: PLAGIARISM_STATUSES.FAILED,
+          error: errorMessage,
+          errorMessage,
+        },
+      },
+    );
+
+    await Submission.findByIdAndUpdate(submission._id, {
+      'plagiarismResult.status': PLAGIARISM_STATUSES.FAILED,
+      'plagiarismResult.error': errorMessage,
+    });
+
+    return res.status(error?.statusCode || 500).json({
+      success: false,
+      message: errorMessage,
+      error: error?.message || 'Internal Server Error',
+    });
+  }
 });

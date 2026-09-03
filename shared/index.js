@@ -1,4 +1,11 @@
-export { ROLES, ROLE_VALUES } from './constants/roles.js';
+export {
+  ROLES,
+  ROLE_VALUES,
+  PANEL_ROLES,
+  PANEL_ROLE_VALUES,
+  FACULTY_ROLES,
+  FACULTY_ROLE_VALUES,
+} from './constants/roles.js';
 export { HTTP_STATUS } from './constants/statusCodes.js';
 export { TITLE_STATUSES, TITLE_STATUS_VALUES } from './constants/titleStatuses.js';
 export { PROJECT_STATUSES, PROJECT_STATUS_VALUES } from './constants/projectStatuses.js';
@@ -8,6 +15,7 @@ export { PROTOTYPE_TYPES, PROTOTYPE_TYPE_VALUES } from './constants/prototypeTyp
 export { CAPSTONE_PHASES, CAPSTONE_PHASE_VALUES } from './constants/capstonePhases.js';
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
+export { DEFENSE_DECISIONS, DEFENSE_DECISION_VALUES } from './constants/defenseDecisions.js';
 export { DOCUMENT_TYPES, DOCUMENT_TYPE_VALUES } from './constants/documentTypes.js';
 export {
   STORAGE_BUCKETS,
@@ -20,3 +28,4 @@ export {
   CAPSTONE_TITLE_MAPPING,
 } from './constants/capstoneTitles.js';
 export { SDG_GOALS, SDG_TAG_SUGGESTIONS, getSDGById, parseSDGTag } from './constants/sdg.js';
+export { STRICT_EMAIL_REGEX } from './constants/validation.js';

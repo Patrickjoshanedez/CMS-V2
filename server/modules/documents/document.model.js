@@ -184,6 +184,75 @@ manuscriptSchema.index({ projectId: 1, documentType: 1 }, { unique: true });
 manuscriptSchema.index({ uploadedBy: 1, createdAt: -1 });
 manuscriptSchema.index({ reviewStatus: 1, updatedAt: -1 });
 
+const metadataFeedbackSchema = new mongoose.Schema(
+  {
+    fieldName: {
+      type: String,
+      required: [true, 'Feedback field name is required'],
+      enum: ['title', 'abstract', 'authors', 'year', 'doi', 'venue', 'keywords'],
+      trim: true,
+    },
+    extractedValue: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [4000, 'Extracted value must not exceed 4000 characters'],
+    },
+    correctedValue: {
+      type: String,
+      required: [true, 'Corrected value is required'],
+      trim: true,
+      maxlength: [4000, 'Corrected value must not exceed 4000 characters'],
+    },
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    sourceFileName: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [255, 'Source file name must not exceed 255 characters'],
+    },
+    sourceHash: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [128, 'Source hash must not exceed 128 characters'],
+    },
+    feedbackNotes: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [1000, 'Feedback notes must not exceed 1000 characters'],
+    },
+    context: {
+      type: String,
+      default: 'archive/capstone-upload',
+      trim: true,
+      maxlength: [120, 'Feedback context must not exceed 120 characters'],
+    },
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+
+metadataFeedbackSchema.index({ fieldName: 1, createdAt: -1 });
+metadataFeedbackSchema.index({ sourceHash: 1, fieldName: 1, createdAt: -1 });
+
 const Manuscript = mongoose.model('Manuscript', manuscriptSchema);
+export const MetadataExtractionFeedback = mongoose.model(
+  'MetadataExtractionFeedback',
+  metadataFeedbackSchema,
+);
 
 export default Manuscript;

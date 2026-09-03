@@ -51,9 +51,9 @@ Important compose precedence rule: this repository includes both `compose.yaml` 
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Frontend** | http://localhost:5173 | Main React UI |
-| **Backend API** | http://localhost:5000/api | REST API |
-| **API Health** | http://localhost:5000/api/health | Backend status |
+| **Frontend** | http://localhost:43211 | Main React UI |
+| **Backend API** | http://localhost:43210/api | REST API |
+| **API Health** | http://localhost:43210/api/health | Backend status |
 | **Plagiarism API** | http://localhost:8001 | Plagiarism engine |
 | **Plagiarism Health** | http://localhost:8001/health | Engine status |
 
@@ -80,7 +80,7 @@ cms-client              Up
 
 ### 2. Test CMS API:
 ```powershell
-curl http://localhost:5000/api/health
+curl http://localhost:43210/api/health
 ```
 
 **Expected response:**
@@ -115,8 +115,8 @@ If you get `Error 400: origin_mismatch`, add your active frontend origin to Goog
 `APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins`
 
 Common local origins:
-- `http://localhost:5173`
-- `http://127.0.0.1:5173`
+- `http://localhost:43211`
+- `http://127.0.0.1:43211`
 
 For tunnel/dev URLs, add the exact HTTPS origin currently in use (for example your ngrok URL), then restart the client container.
 
@@ -319,6 +319,6 @@ curl http://localhost:8001/result/abc-123-def
 
 Your CMS V2 with integrated plagiarism detection is now running!
 
-**Access the frontend:** http://localhost:5173
+**Access the frontend:** http://localhost:43211
 
 **Next:** Follow `NEXT_STEPS.md` Phase 2 to add the UI component.

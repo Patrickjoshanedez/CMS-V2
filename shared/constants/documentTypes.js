@@ -9,6 +9,8 @@ export const DOCUMENT_TYPES = Object.freeze({
   CHAPTER_4: 'chapter_4',
   CHAPTER_5: 'chapter_5',
   PROPOSAL: 'proposal',
+  SYSTEM_DESIGN: 'system_design',
+  TEST_RESULTS: 'test_results',
   FINAL_ACADEMIC: 'final_academic',
   FINAL_JOURNAL: 'final_journal',
 });

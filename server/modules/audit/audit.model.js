@@ -73,6 +73,7 @@ const auditLogSchema = new mongoose.Schema(
 auditLogSchema.index({ createdAt: -1 });
 auditLogSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 auditLogSchema.index({ actor: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
 
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 

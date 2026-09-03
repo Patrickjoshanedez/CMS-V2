@@ -42,7 +42,7 @@ class DocumentService {
           permissionSnapshot,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
 
     return { manuscript };

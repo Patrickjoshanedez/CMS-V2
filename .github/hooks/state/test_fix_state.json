@@ -1,144 +1,56 @@
 {
   "pendingFailures": [
     {
-      "commandLabel": "npm run test\\nIt was run in the directory:\\nC:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\server\\nIt exited with code: 1\\nIt has the following output:\\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDr",
-      "commandLabelNormalized": "npm run test\\nit was run in the directory:\\nc:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\server\\nit exited with code: 1\\nit has the following output:\\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedr",
-      "firstFailedAt": "2026-04-09T13:45:02+00:00",
-      "lastFailedAt": "2026-04-09T13:46:05+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u276f src/App.error-routes.test.jsx [queued]\\n \\u276f src/App.routes.test.jsx [queued]\\n \\u276f src/comp",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u276f src/app.error-routes.test.jsx [queued]\\n \\u276f src/app.routes.test.jsx [queued]\\n \\u276f src/comp",
-      "firstFailedAt": "2026-04-09T16:24:17+00:00",
-      "lastFailedAt": "2026-04-09T16:24:17+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/App.error-routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/App.routes.test.jsx [q",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/app.error-routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/app.routes.test.jsx [q",
-      "firstFailedAt": "2026-04-09T16:24:18+00:00",
-      "lastFailedAt": "2026-04-12T12:21:15+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u276f src/App.error-routes.test.jsx [queued]\\n\\n \\u276f src/App.error-routes.test.jsx [queued]\\n\\n \\u276",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u276f src/app.error-routes.test.jsx [queued]\\n\\n \\u276f src/app.error-routes.test.jsx [queued]\\n\\n \\u276",
-      "firstFailedAt": "2026-04-11T07:28:38+00:00",
-      "lastFailedAt": "2026-04-11T07:28:38+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/App.error-routes.test.jsx [queued]\\n\\n \\u00e2\\udc9d\\u00af src/App.error-routes.tes",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/app.error-routes.test.jsx [queued]\\n\\n \\u00e2\\udc9d\\u00af src/app.error-routes.tes",
-      "firstFailedAt": "2026-04-11T07:28:39+00:00",
-      "lastFailedAt": "2026-04-11T07:28:39+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n\\n \\u276f src/App.routes.test.jsx [queued]\\n \\u276f src/App.session-timeout.test.jsx [queued]\\n\\n \\u276f s",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n\\n \\u276f src/app.routes.test.jsx [queued]\\n \\u276f src/app.session-timeout.test.jsx [queued]\\n\\n \\u276f s",
-      "firstFailedAt": "2026-04-11T07:35:00+00:00",
-      "lastFailedAt": "2026-04-11T07:35:00+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n\\n \\u00e2\\udc9d\\u00af src/App.routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/App.session-timeout.test.j",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n\\n \\u00e2\\udc9d\\u00af src/app.routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/app.session-timeout.test.j",
-      "firstFailedAt": "2026-04-11T07:35:01+00:00",
-      "lastFailedAt": "2026-04-11T07:35:01+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
-      "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
-      "firstFailedAt": "2026-04-11T09:18:49+00:00",
-      "lastFailedAt": "2026-04-11T09:18:50+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u276f src/App.error-routes.test.jsx [queued]\\n \\u276f src/App.routes.test.jsx [queued]\\n\\n \\u276f src/Ap",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u276f src/app.error-routes.test.jsx [queued]\\n \\u276f src/app.routes.test.jsx [queued]\\n\\n \\u276f src/ap",
-      "firstFailedAt": "2026-04-12T12:21:14+00:00",
-      "lastFailedAt": "2026-04-12T12:21:14+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "vitest/runner/dist/index.js:296:11\\n    at file:///C:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/node_modules/@vitest/runner/dist/index.js:1258:26\\n    at file:///C:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/node_modules/@vit",
-      "commandLabelNormalized": "vitest/runner/dist/index.js:296:11\\n at file:///c:/users/patri/onedrive/desktop/holy%20folder/cms-v2/node_modules/@vitest/runner/dist/index.js:1258:26\\n at file:///c:/users/patri/onedrive/desktop/holy%20folder/cms-v2/node_modules/@vit",
-      "firstFailedAt": "2026-04-12T16:48:09+00:00",
-      "lastFailedAt": "2026-04-12T16:48:11+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\n \\u276f tests/integration/proposal-similarity.comprehensive.test.js (11 tests | 11 failed) 9938ms\\n       \\u",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\n \\u276f tests/integration/proposal-similarity.comprehensive.test.js (11 tests | 11 failed) 9938ms\\n \\u",
-      "firstFailedAt": "2026-04-12T17:16:15+00:00",
-      "lastFailedAt": "2026-04-12T17:16:15+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\n \\u00e2\\udc9d\\u00af tests/integration/proposal-similarity.comprehensive.test.js (11 tests | 11 failed) 9938m",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\n \\u00e2\\udc9d\\u00af tests/integration/proposal-similarity.comprehensive.test.js (11 tests | 11 failed) 9938m",
-      "firstFailedAt": "2026-04-12T17:16:17+00:00",
-      "lastFailedAt": "2026-04-12T17:16:17+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n \\u2713 src/pages/projects/myProjectTabs.test.js (4 tests) 17ms\\n \\u2713 src/services/authService.test.js (3",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n \\u2713 src/pages/projects/myprojecttabs.test.js (4 tests) 17ms\\n \\u2713 src/services/authservice.test.js (3",
-      "firstFailedAt": "2026-04-13T02:04:48+00:00",
-      "lastFailedAt": "2026-04-13T02:04:48+00:00",
-      "fixAttempts": 0,
-      "lastExitCode": 1
-    },
-    {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n \\u00e2\\u0153\\u201c src/pages/projects/myProjectTabs.test.js (4 tests) 17ms\\n \\u00e2\\u0153\\u201c src/service",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n \\u00e2\\u0153\\u201c src/pages/projects/myprojecttabs.test.js (4 tests) 17ms\\n \\u00e2\\u0153\\u201c src/service",
-      "firstFailedAt": "2026-04-13T02:04:50+00:00",
-      "lastFailedAt": "2026-04-13T02:04:50+00:00",
+      "commandLabel": "Jest test for a function that adds two numbers. Output only the code.',\\n+    );\\n+\\n+    console.log('\\\\n--- TEST SUCCESS: Model Output ---');\\n+    console.log(result);\\n+    console.log('----------------------------------\\\\n');\\n+  } cat",
+      "commandLabelNormalized": "jest test for a function that adds two numbers. output only the code.',\\n+ );\\n+\\n+ console.log('\\\\n--- test success: model output ---');\\n+ console.log(result);\\n+ console.log('----------------------------------\\\\n');\\n+ } cat",
+      "firstFailedAt": "2026-04-15T17:54:22+00:00",
+      "lastFailedAt": "2026-04-15T17:54:33+00:00",
       "fixAttempts": 0,
       "lastExitCode": 1
     },
     {
       "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
       "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\client\\nnpm error workspace client@0.0.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
-      "firstFailedAt": "2026-04-13T04:45:45+00:00",
-      "lastFailedAt": "2026-04-13T04:45:48+00:00",
+      "firstFailedAt": "2026-04-16T13:10:04+00:00",
+      "lastFailedAt": "2026-04-26T17:53:29+00:00",
       "fixAttempts": 0,
       "lastExitCode": 1
     },
     {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u276f src/App.routes.test.jsx [queued]\\n \\u276f src/App.session-timeout.test.jsx [queued]\\n \\u276f src/c",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u276f src/app.routes.test.jsx [queued]\\n \\u276f src/app.session-timeout.test.jsx [queued]\\n \\u276f src/c",
-      "firstFailedAt": "2026-04-13T04:50:04+00:00",
-      "lastFailedAt": "2026-04-13T04:50:04+00:00",
+      "commandLabel": "npm error Lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path C:\\\\Users\\\\patri\\\\OneDrive\\\\Desktop\\\\Holy folder\\\\CMS-V2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location C:\\\\Users\\\\patri\\\\OneDrive\\\\Deskto",
+      "commandLabelNormalized": "npm error lifecycle script `test` failed with error:\\nnpm error code 1\\nnpm error path c:\\\\users\\\\patri\\\\onedrive\\\\desktop\\\\holy folder\\\\cms-v2\\\\server\\nnpm error workspace server@0.1.0\\nnpm error location c:\\\\users\\\\patri\\\\onedrive\\\\deskto",
+      "firstFailedAt": "2026-04-17T10:02:20+00:00",
+      "lastFailedAt": "2026-04-17T10:02:21+00:00",
       "fixAttempts": 0,
       "lastExitCode": 1
     },
     {
-      "commandLabel": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.0 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/App.routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/App.session-timeout.test.jsx",
-      "commandLabelNormalized": "npm run test \\n\\n\\n> client@0.0.0 test\\n> vitest run\\n\\n\\n run v4.1.0 c:/users/patri/onedrive/desktop/holy folder/cms-v2/client\\n\\n\\n \\u00e2\\udc9d\\u00af src/app.routes.test.jsx [queued]\\n \\u00e2\\udc9d\\u00af src/app.session-timeout.test.jsx",
-      "firstFailedAt": "2026-04-13T04:50:08+00:00",
-      "lastFailedAt": "2026-04-13T04:50:08+00:00",
+      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.4 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u25c7 injected env (46) from .env // tip: \\u25c8 encrypted .en",
+      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.4 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u25c7 injected env (46) from .env // tip: \\u25c8 encrypted .en",
+      "firstFailedAt": "2026-04-26T19:03:33+00:00",
+      "lastFailedAt": "2026-04-26T19:03:33+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n RUN  v4.1.4 C:/Users/patri/OneDrive/Desktop/Holy folder/CMS-V2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u00e2\\u2014\\u2021 injected env (46) from .env // tip: \\u00e2\\u",
+      "commandLabelNormalized": "npm run test \\n\\n\\n> server@0.1.0 test\\n> vitest run\\n\\n\\n run v4.1.4 c:/users/patri/onedrive/desktop/holy folder/cms-v2/server\\n\\nstdout | tests/integration/projects.test.js\\n\\u00e2\\u2014\\u2021 injected env (46) from .env // tip: \\u00e2\\u",
+      "firstFailedAt": "2026-04-26T19:03:34+00:00",
+      "lastFailedAt": "2026-04-26T19:03:34+00:00",
+      "fixAttempts": 0,
+      "lastExitCode": 1
+    },
+    {
+      "commandLabel": "vitest] No \\\"useMyProject\\\" export is defined on the \\\"@/hooks/useProjects\\\" mock. Did you forget to return it from \\\"vi.mock\\\"?\\nIf you need to partially mock a module, you can use \\\"importOriginal\\\" helper inside:\\n\\nvi.mock(import(\\\"@/ho",
+      "commandLabelNormalized": "vitest] no \\\"usemyproject\\\" export is defined on the \\\"@/hooks/useprojects\\\" mock. did you forget to return it from \\\"vi.mock\\\"?\\nif you need to partially mock a module, you can use \\\"importoriginal\\\" helper inside:\\n\\nvi.mock(import(\\\"@/ho",
+      "firstFailedAt": "2026-04-26T20:15:49+00:00",
+      "lastFailedAt": "2026-04-26T20:15:55+00:00",
       "fixAttempts": 0,
       "lastExitCode": 1
     }
   ],
   "observedTestActivity": true,
-  "updatedAt": "2026-04-13T04:50:08+00:00",
+  "updatedAt": "2026-04-26T20:15:55+00:00",
   "integrityAnomaly": null,
   "publicExposureGate": {
     "pending": false,
@@ -148,6 +60,6 @@
     "lastAttemptedCommand": "",
     "lastBlockedAt": null,
     "evidenceMap": {},
-    "updatedAt": "2026-04-09T12:05:00+00:00"
+    "updatedAt": null
   }
 }

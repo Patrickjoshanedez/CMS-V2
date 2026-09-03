@@ -10,11 +10,20 @@ const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again.';
 const LOGIN_ERROR_MESSAGES_BY_CODE = {
   INVALID_CREDENTIALS: 'Invalid email or password.',
   EMAIL_NOT_VERIFIED: 'Please verify your email before logging in.',
-  ACCOUNT_DEACTIVATED: 'Your account has been deactivated.',
+  ACCOUNT_DEACTIVATED: 'The instructor deactivated your account.',
   GOOGLE_ACCOUNT_PASSWORD_LOGIN_BLOCKED:
     'This account uses Google sign-in. Please continue with Google.',
   AUTH_REQUIRED: 'Your session expired. Please log in again.',
   TOO_MANY_REQUESTS: 'Too many login attempts. Please wait a moment and try again.',
+};
+
+const REGISTER_ERROR_MESSAGES_BY_CODE = {
+  DUPLICATE_EMAIL: 'An account with this email already exists.',
+  CAPTCHA_REQUIRED: 'Please complete the reCAPTCHA verification.',
+  CAPTCHA_FAILED: 'reCAPTCHA verification failed. Please try again.',
+  CAPTCHA_SERVICE_UNAVAILABLE: 'reCAPTCHA service is unavailable. Please try again later.',
+  EMAIL_SERVICE_ERROR:
+    'The server is having trouble sending verification emails. Please contact an administrator or try again later.',
 };
 
 const GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE = {
@@ -24,7 +33,7 @@ const GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE = {
   GOOGLE_TOKEN_INVALID: 'Google sign-in token is invalid or expired. Please try again.',
   GOOGLE_PAYLOAD_INVALID: 'Google sign-in payload is invalid. Please try again.',
   GOOGLE_EMAIL_NOT_VERIFIED: 'Your Google account email is not verified.',
-  ACCOUNT_DEACTIVATED: 'Your account has been deactivated.',
+  ACCOUNT_DEACTIVATED: 'The instructor deactivated your account.',
   MISSING_CREDENTIAL: 'Google sign-in did not return a valid credential. Please try again.',
   TOO_MANY_REQUESTS: 'Too many login attempts. Please wait a moment and try again.',
 };
@@ -55,11 +64,22 @@ const extractErrorMessage = (error, fallbackMessage, codeMessages = {}) => {
   }
 
   if (error?.response?.status >= 500) {
-    return 'The server encountered an error. Please try again shortly.';
+    return (
+      apiMessage || fallbackMessage || 'The server encountered an error. Please try again shortly.'
+    );
   }
 
   if (typeof apiMessage === 'string' && apiMessage.trim().length > 0) {
     return apiMessage;
+  }
+
+  // If it's a 4xx error and we have a status text, use it as a last resort
+  if (
+    error?.response?.status >= 400 &&
+    error?.response?.status < 500 &&
+    error?.response?.statusText
+  ) {
+    return `Error ${error.response.status}: ${error.response.statusText}`;
   }
 
   return fallbackMessage;
@@ -113,6 +133,7 @@ export const useAuthStore = create((set, _get) => ({
       set,
       request: () => authService.register(data),
       fallbackMessage: 'Registration failed.',
+      codeMessages: REGISTER_ERROR_MESSAGES_BY_CODE,
     });
   },
 
@@ -140,44 +161,67 @@ export const useAuthStore = create((set, _get) => ({
 
   /**
    * Log in — on success, cookies are set by the server.
-   * We fetch the user profile to populate the store.
+   * Prefer the user payload returned by the login response so a follow-up
+   * profile fetch cannot turn a successful login into a false failure.
    */
   login: async (data) => {
     return runAuthRequest({
       set,
       request: async () => {
         const loginResponse = await authService.login(data);
+        const responseUser = loginResponse?.data?.data?.user;
+
+        if (responseUser) {
+          return { data: loginResponse.data, loginResponse, user: responseUser };
+        }
+
         const userResponse = await userService.getMe();
-        return { loginResponse, userResponse };
+        return {
+          data: loginResponse.data,
+          loginResponse,
+          userResponse,
+          user: userResponse.data.data.user,
+        };
       },
       fallbackMessage: 'Login failed.',
       codeMessages: LOGIN_ERROR_MESSAGES_BY_CODE,
-      onSuccess: ({ userResponse }) => {
-        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      onSuccess: ({ user }) => {
+        set({ user, isAuthenticated: true });
       },
-    })
-      .catch((error) => {
-        set({ isAuthenticated: false, user: null });
-        throw error;
-      })
-      .then((response) => response.loginResponse.data);
+    }).catch((error) => {
+      set({ isAuthenticated: false, user: null });
+      throw error;
+    });
   },
 
   /**
    * Log in with Google — server verifies the ID token and sets cookies.
-   * We fetch the user profile to populate the store.
+   * Prefer the user payload returned by the Google auth response so a follow-up
+   * profile fetch cannot turn a successful login into a false failure.
    */
   googleLogin: async (credential) => {
     return runAuthRequest({
       set,
       request: async () => {
-        await authService.googleLogin({ credential });
-        return userService.getMe();
+        const googleLoginResponse = await authService.googleLogin({ credential });
+        const responseUser = googleLoginResponse?.data?.data?.user;
+
+        if (responseUser) {
+          return { data: googleLoginResponse.data, googleLoginResponse, user: responseUser };
+        }
+
+        const userResponse = await userService.getMe();
+        return {
+          data: googleLoginResponse.data,
+          googleLoginResponse,
+          userResponse,
+          user: userResponse.data.data.user,
+        };
       },
       fallbackMessage: 'Google login failed.',
       codeMessages: GOOGLE_LOGIN_ERROR_MESSAGES_BY_CODE,
-      onSuccess: (userResponse) => {
-        set({ user: userResponse.data.data.user, isAuthenticated: true });
+      onSuccess: ({ user }) => {
+        set({ user, isAuthenticated: true });
       },
     }).catch((error) => {
       set({ isAuthenticated: false, user: null });
