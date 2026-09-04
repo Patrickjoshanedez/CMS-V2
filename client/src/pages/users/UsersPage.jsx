@@ -23,7 +23,7 @@ import {
   FolderTree,
   UserCheck,
 } from 'lucide-react';
-import { ROLES, ROLE_VALUES } from '@cms/shared';
+import { ROLES, PRIMARY_ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
 import {
   useUsers,
@@ -54,11 +54,11 @@ import { cn } from '@/lib/utils';
 /* ────────── Role Badge ────────── */
 
 function RoleBadge({ role }) {
+  const isFacultyRole = ['faculty', 'adviser', 'panelist', 'chair', 'secretary'].includes(role);
+  const displayRole = isFacultyRole ? 'faculty' : role;
   const roleStyles = {
     instructor: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
-    adviser: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
-    panelist: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
-    faculty: 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+    faculty: 'border-indigo-500/40 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10',
     student: 'border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-500/10',
     admin: 'border-purple-500/40 text-purple-600 dark:text-purple-400 bg-purple-500/10',
     coordinator: 'border-purple-500/40 text-purple-600 dark:text-purple-400 bg-purple-500/10',
@@ -69,10 +69,10 @@ function RoleBadge({ role }) {
       variant="outline"
       className={cn(
         'capitalize text-[10px] py-0 px-2 font-medium tracking-wide',
-        roleStyles[role] || 'border-border text-muted-foreground',
+        roleStyles[displayRole] || 'border-border text-muted-foreground',
       )}
     >
-      {role}
+      {displayRole}
     </Badge>
   );
 }
@@ -681,6 +681,9 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
   const isSelf = user._id === currentUserId;
   const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ');
   const initials = (user.firstName?.[0] || user.email?.[0] || '?').toUpperCase();
+  const normalizedRole = ['faculty', 'adviser', 'panelist'].includes(user.role)
+    ? 'faculty'
+    : user.role;
 
   return (
     <div className="user-row-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3.5 transition-colors hover:border-primary/40 min-w-0">
@@ -730,11 +733,11 @@ function UserRow({ user, currentUserId, onChangeRole, onDeactivate, onActivate }
           <select
             aria-label={`Change role for ${fullName}`}
             className="h-8 w-[130px] rounded-md border border-input bg-muted/30 px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={user.role}
+            value={normalizedRole}
             onChange={(e) => onChangeRole(user._id, e.target.value)}
             disabled={!user.isActive}
           >
-            {ROLE_VALUES.map((r) => (
+            {PRIMARY_ROLE_VALUES.map((r) => (
               <option key={r} value={r}>
                 {r.charAt(0).toUpperCase() + r.slice(1)}
               </option>
@@ -909,7 +912,7 @@ function CreateUserForm({ onCancel }) {
               onChange={handleChange('role')}
               disabled={createUser.isPending}
             >
-              {ROLE_VALUES.map((r) => (
+              {PRIMARY_ROLE_VALUES.map((r) => (
                 <option key={r} value={r}>
                   {r.charAt(0).toUpperCase() + r.slice(1)}
                 </option>
@@ -1147,7 +1150,7 @@ export default function UsersPage() {
                     onChange={handleRoleFilter}
                   >
                     <option value="">All Roles</option>
-                    {ROLE_VALUES.map((r) => (
+                    {PRIMARY_ROLE_VALUES.map((r) => (
                       <option key={r} value={r}>
                         {r.charAt(0).toUpperCase() + r.slice(1)}
                       </option>

@@ -14,6 +14,14 @@
 * **Shared Workspace (`shared/`)**: Canonical JSON schemas, role constants, and cross-platform validation utilities.
 * **Tooling & Environment**: Node.js via `npm` workspaces; Python runtime via root `.venv/` virtual environment.
 
+### Canonical Academic Capstone Progression
+* **Phase 0: Team Formation & Roster Locking**: 2–4 members, 5 proponent roles, locked via `PATCH /api/teams/:id/lock`, Instructor assigns committee (Adviser, Chair, Secretary, Panelists).
+* **Phase 1: Capstone 1 (Title Proposal & Similarity Pre-Scan)**: 1..10 titles, SDG tagging (1..17), live cosine similarity check, proposal defense hearing rubrics, title approval (`titleStatus = 'approved'`).
+* **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense)**: Chapters 1–3 uploaded, dual plagiarism scan (<25%), midterm oral defense, and Action Done Matrix (`ADM v1`) sign-off.
+* **Phase 3: Capstone 3 (System Development & Progress Defense)**: Prototype build, 4-section Interactive Gantt Tracker, late justification interceptor, Chapters 4–5, progress demo, and `ADM v2` sign-off.
+* **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival)**: Full 5-chapter manuscript, deep vector scan, final oral defense, 3-Tier Multi-Signatory ADM verification, auto-archival (`projectStatus = 'archived'`), and sealed completion certificate PDF.
+
+
 ---
 
 ## 2. THE TWO-PILE INSTRUCTION ARCHITECTURE
@@ -28,10 +36,10 @@ Every agent operates under a strict **Two-Pile Governance Model**:
 ### Pile B: Hard Survival Rules (Deterministic & Externally Enforced)
 * **Protected Files (Strict Lock)**: Never edit or overwrite environment secret files (`.env*`). Never modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
 * **Directory Containment Whitelist**:
-  * **Allowed Write Areas**: `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, and `scratch/`.
+  * **Allowed Write Areas**: `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, `memories/`, and `scratch/`.
   * **Strictly Prohibited**: No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (all scripts must reside under `scripts/`).
   * **Zero Shadow Trees**: Never read from or write to dead trees (e.g. `staging/`, `dashboard-ui/`, `references/`).
-* **Single Memory Namespace**: Persistent agent memory, lessons, and trajectories must live strictly under `.agents/` or `.github/hooks/state/`.
+* **Dual-Persistence Memory Namespace**: Persistent agent memory, execution trajectories, and HLLM lessons live in `.agents/ptss/` (structured session state and `index.jsonl`) and `memories/repo/` (lessons and technical context).
 * **No Direct DB Mutations**: Direct raw database mutations via terminal scripts are blocked; all mutations must flow through official API service layers.
 
 ---
@@ -158,9 +166,13 @@ Lifecycle thresholds:
 
 **Curator constraints**: never deletes; always snapshots before a pass; respects `.agents/skills/_CURATOR_SKIP`; max 8 LLM patch iterations per run.
 
-### 7.4 Memory Namespace
+### 7.4 Dual-Persistence Memory Architecture
 
-All PTSS files must remain under `.agents/ptss/`. No session state may be written to the workspace root, `memories/`, or `context/`.
+Agent memory operates across two complementary tiers:
+1. **Session State Trajectories (`.agents/ptss/`)**: Structured task snapshots saved under `.agents/ptss/sessions/` and indexed in `.agents/ptss/index.jsonl`.
+2. **Durable HLLM Lessons & Context (`memories/repo/`)**: Reusable prevention rules, runbooks, and domain constraints stored in `memories/repo/CMS-V2-Technical-Context.md` and `memories/repo/lessons/`.
+
+**Session Startup Requirement**: At the start of every chat, agents must query `.agents/ptss/index.jsonl` (last 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context before taking action.
 
 ### 7.5 Continuous Autonomous Skill Harvesting (CASS)
 

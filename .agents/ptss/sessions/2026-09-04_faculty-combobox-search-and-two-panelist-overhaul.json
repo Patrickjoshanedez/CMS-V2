@@ -1,0 +1,25 @@
+{
+  "sessionId": "2026-09-04_faculty-combobox-search-and-two-panelist-overhaul",
+  "timestamp": "2026-09-04T06:06:30.000Z",
+  "taskSummary": "Implemented searchable combobox for faculty committee appointments, enforced institutional 'Faculty' role nomenclature for non-instructor academic staff, standardized 3 defense panelists (Panelist 1, Panelist 2, Panel Member 3 without optional label), and enforced mutual exclusion preventing adviser or secretary from serving as panelist or duplicating roles on the same team.",
+  "taskCategory": "ui_combobox_and_committee_structure_overhaul",
+  "filesModified": [
+    "client/src/components/teams/AssignCommitteeDialog.jsx",
+    "client/src/components/teams/AssignCommitteeDialog.test.jsx",
+    "server/modules/teams/team.service.js"
+  ],
+  "verification": {
+    "endpoints": "UNMATCHED_COUNT=0",
+    "agentic": "60/60 passed",
+    "governance": "passed",
+    "clientTests": "12/12 passed",
+    "serverTests": "13/13 passed",
+    "guardrail": "pristine"
+  },
+  "keyLessons": [
+    "Default array parameters in React components (e.g. initialPanelistIds = []) create a new array reference on every render, causing useEffect dependencies to falsely trigger and reset form state. Stabilize with Object.freeze([]) and serialized dependency strings.",
+    "Institutional BukSU role presentation: course instructors are designated [Instructor], while all other faculty appointees (advisers, panelists, secretaries, chairs) must display under the unified [Faculty] title.",
+    "Defense Panel Committee Structure: strictly 3 defense panelists (Panelist 1 Lead/Chair, Panelist 2 Member, Panel Member 3), none labeled optional.",
+    "Role Conflict Prevention & Mutual Exclusion: in both client and backend service layers, an adviser cannot be a secretary or panelist on the same team, a secretary cannot be a panelist, and defense panelists must be distinct faculty members."
+  ]
+}

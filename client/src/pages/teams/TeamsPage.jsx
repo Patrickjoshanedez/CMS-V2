@@ -66,6 +66,7 @@ import {
   useUpdateGithubLink,
   useLockTeam,
   useLeaveTeam,
+  useTeamManuscriptTemplate,
   teamKeys,
 } from '@/hooks/useTeams';
 import { useUsers } from '@/hooks/useUsers';
@@ -895,6 +896,12 @@ function StudentTeamDetail({ team, userId }) {
   const panelists = assignment.panelists || [];
   const capstonePhase = Number(assignment.capstonePhase) || 1;
   const isTitleApproved = assignment.titleStatus === 'approved';
+  // Manuscript template gate (unlocks working manuscript document)
+  const { data: serverGate } = useTeamManuscriptTemplate(team._id, {
+    enabled: Boolean(team._id),
+  });
+  const isTemplateUnlocked = Boolean(serverGate?.isUnlocked) || isTitleApproved;
+
   // Source code is accessible only when reaching Development Stage (Capstone 2/3 or title approved, or if already linked)
   const isDevelopmentStage = Boolean(team.githubUrl) || capstonePhase >= 2 || isTitleApproved;
 
@@ -1364,7 +1371,7 @@ function StudentTeamDetail({ team, userId }) {
                               Launch Repository
                             </a>
                           </Button>
-                          {isLeader && !team.isLocked && (
+                          {isLeader && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1376,7 +1383,7 @@ function StudentTeamDetail({ team, userId }) {
                             </Button>
                           )}
                         </>
-                      ) : isDevelopmentStage && isLeader && !team.isLocked ? (
+                      ) : isDevelopmentStage && isLeader ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1403,8 +1410,14 @@ function StudentTeamDetail({ team, userId }) {
                   )}
                 </div>
 
-                {/* Google Docs Card */}
-                <div className="flex flex-col justify-between rounded-lg border border-border/60 p-4 transition-colors hover:border-primary/40 bg-card/60">
+                {/* Google Docs Card (Manuscript Document — Gated to Template Unlock) */}
+                <div
+                  className={`flex flex-col justify-between rounded-lg border p-4 transition-colors ${
+                    isTemplateUnlocked || team.googleDocUrl
+                      ? 'border-border/60 hover:border-primary/40 bg-card/60'
+                      : 'border-dashed border-border/70 bg-muted/20 opacity-90'
+                  }`}
+                >
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
@@ -1421,10 +1434,21 @@ function StudentTeamDetail({ team, userId }) {
                         className={
                           team.googleDocUrl
                             ? 'border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px]'
-                            : 'text-[10px]'
+                            : !isTemplateUnlocked
+                              ? 'text-[10px] gap-1 text-muted-foreground border-border/80'
+                              : 'text-[10px]'
                         }
                       >
-                        {team.googleDocUrl ? 'Connected' : 'Not Linked'}
+                        {team.googleDocUrl ? (
+                          'Connected'
+                        ) : !isTemplateUnlocked ? (
+                          <>
+                            <Lock className="h-2.5 w-2.5 inline mr-1" />
+                            Locked
+                          </>
+                        ) : (
+                          'Not Linked'
+                        )}
                       </Badge>
                     </div>
 
@@ -1434,7 +1458,20 @@ function StudentTeamDetail({ team, userId }) {
                       </p>
                     )}
 
-                    {isEditingGoogleDoc && isLeader && !team.isLocked && (
+                    {!isTemplateUnlocked && !team.googleDocUrl && (
+                      <div className="mt-3 rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground text-[11px] flex items-center gap-1.5">
+                          <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                          Locked in Proposal Stage
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed">
+                          Working manuscript submission unlocks once your Capstone 1 title proposal
+                          is approved and the official template is unlocked.
+                        </p>
+                      </div>
+                    )}
+
+                    {isEditingGoogleDoc && isLeader && isTemplateUnlocked && (
                       <div className="mt-3 space-y-2">
                         <Input
                           type="url"
@@ -1489,7 +1526,7 @@ function StudentTeamDetail({ team, userId }) {
                               Open Document
                             </a>
                           </Button>
-                          {isLeader && !team.isLocked && (
+                          {isLeader && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1501,7 +1538,17 @@ function StudentTeamDetail({ team, userId }) {
                             </Button>
                           )}
                         </>
-                      ) : isLeader && !team.isLocked ? (
+                      ) : !isTemplateUnlocked ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="w-full text-xs gap-1.5 cursor-not-allowed opacity-60"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          Available after Template Unlock
+                        </Button>
+                      ) : isLeader ? (
                         <Button
                           variant="outline"
                           size="sm"

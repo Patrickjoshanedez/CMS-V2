@@ -6,7 +6,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "node scripts/dev-preflight.js && nodemon --watch . --ext js,mjs,json --exec \"node server.js\"",
+    "dev": "node scripts/dev-preflight.js && nodemon -L --watch . --ext js,mjs,json --exec \"node server.js\"",
     "start": "node server.js",
     "seed": "node seeders/index.js",
     "seed:similarity": "node seeders/seed-similarity.js",

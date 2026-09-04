@@ -151,11 +151,35 @@ describe('ProfilePage academic info dropdowns', () => {
     view.unmount();
   });
 
-  it('shows guidance when no active sections or instructors exist', () => {
-    const view = renderProfilePage();
+  it('formats section option cleanly without redundant course prefixes', () => {
+    mockUseSections.mockReturnValue(
+      makeQueryState({
+        data: [
+          {
+            _id: 'sec-1',
+            name: 'BSIT 4-A',
+            code: 'BSIT-4A',
+            academicYear: '2025-2026',
+            courseId: { code: 'BSIT' },
+          },
+          {
+            _id: 'sec-2',
+            name: 'BSIT 4-B',
+            code: 'BSIT-4B',
+            academicYear: '2025-2026',
+            courseId: { code: 'BSIT' },
+          },
+        ],
+      }),
+    );
 
-    expect(view.container.textContent).toContain('No active sections are available');
-    expect(view.container.textContent).toContain('No active instructors are available');
+    const view = renderProfilePage();
+    const select = view.container.querySelector('#profile-section');
+    expect(select).not.toBeNull();
+    const options = Array.from(select.querySelectorAll('option'));
+    expect(options[1].textContent.trim()).toBe('BSIT-4A (2025-2026)');
+    expect(options[2].textContent.trim()).toBe('BSIT-4B (2025-2026)');
+    expect(options[1].textContent).not.toContain('[BSIT]');
 
     view.unmount();
   });

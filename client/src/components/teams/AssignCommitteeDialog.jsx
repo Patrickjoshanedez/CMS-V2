@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { UserCheck, X, Loader2 } from 'lucide-react';
+import { UserCheck, X, Loader2, Search, ChevronDown, Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -9,18 +9,345 @@ import { Label } from '@/components/ui/Label';
 import { useUsers } from '@/hooks/useUsers';
 import { useAssignCommittee } from '@/hooks/useTeams';
 import { ROLES } from '@cms/shared';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+/**
+ * Maps system roles to institutional display nomenclature:
+ * - 'instructor' -> 'Instructor'
+ * - Any other faculty role (adviser, panelist, chair, secretary, faculty, etc.) -> 'Faculty'
+ */
+export function getDisplayRole(role) {
+  if (!role) return 'Faculty';
+  const normalized = String(role).toLowerCase().trim();
+  if (normalized === 'instructor') return 'Instructor';
+  return 'Faculty';
+}
 
 /**
  * Format a user option for select displays.
  */
-function formatUserOption(user) {
+export function formatUserOption(user) {
   if (!user) return '';
   const fullName = [user.firstName, user.middleName, user.lastName].filter(Boolean).join(' ');
   const email = user.email ? ` (${user.email})` : '';
-  const role = user.role ? ` [${user.role}]` : '';
-  return `${fullName}${role}${email}`;
+  const displayRole = getDisplayRole(user.role);
+  return `${fullName} [${displayRole}]${email}`;
 }
+
+/**
+ * FacultySearchCombobox — Accessible, searchable dropdown combobox for assigning faculty members.
+ * Supports real-time text search by full name, email, or institutional role.
+ */
+export function FacultySearchCombobox({
+  id,
+  value,
+  onChange,
+  facultyList = [],
+  conflictMap = {},
+  placeholder = '-- Select faculty member --',
+  isLoading = false,
+  disabled = false,
+  className = '',
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const selectedFaculty = useMemo(
+    () => facultyList.find((f) => String(f._id) === String(value)),
+    [facultyList, value],
+  );
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const filteredFaculty = useMemo(() => {
+    if (!searchTerm.trim()) return facultyList;
+    const q = searchTerm.toLowerCase().trim();
+    return facultyList.filter((fac) => {
+      const name = [fac.firstName, fac.middleName, fac.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      const email = (fac.email || '').toLowerCase();
+      const rawRole = (fac.role || '').toLowerCase();
+      const displayRole = getDisplayRole(fac.role).toLowerCase();
+      return (
+        name.includes(q) || email.includes(q) || rawRole.includes(q) || displayRole.includes(q)
+      );
+    });
+  }, [facultyList, searchTerm]);
+
+  const placeholderText = useMemo(() => {
+    if (isLoading) return '-- Loading faculty members... --';
+    if (facultyList.length === 0) return '-- No eligible faculty found --';
+    return placeholder;
+  }, [isLoading, facultyList.length, placeholder]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn('relative w-full', isOpen ? 'z-30' : 'z-auto', className)}
+    >
+      {/* Combobox Trigger */}
+      <button
+        id={id}
+        type="button"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        disabled={disabled || isLoading}
+        onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && isOpen) {
+            e.stopPropagation();
+            setIsOpen(false);
+            setSearchTerm('');
+          }
+        }}
+        className={cn(
+          'w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs flex items-center justify-between transition-colors focus:outline-none focus:ring-1 focus:ring-primary select-none text-left',
+          (disabled || isLoading) && 'opacity-50 cursor-not-allowed',
+          isOpen && 'ring-1 ring-primary border-primary',
+        )}
+      >
+        <div className="flex items-center gap-1.5 truncate min-w-0 flex-1 mr-2">
+          {selectedFaculty ? (
+            <>
+              <span className="truncate font-medium text-foreground">
+                {[selectedFaculty.firstName, selectedFaculty.middleName, selectedFaculty.lastName]
+                  .filter(Boolean)
+                  .join(' ')}
+              </span>
+              <span
+                className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded font-normal shrink-0',
+                  getDisplayRole(selectedFaculty.role) === 'Instructor'
+                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                    : 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+                )}
+              >
+                [{getDisplayRole(selectedFaculty.role)}]
+              </span>
+              {selectedFaculty.email && (
+                <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                  ({selectedFaculty.email})
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground truncate">{placeholderText}</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {selectedFaculty && !disabled && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+                setSearchTerm('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  onChange('');
+                  setSearchTerm('');
+                }
+              }}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Clear selection"
+              aria-label="Clear selection"
+            >
+              <X className="h-3 w-3" />
+            </span>
+          )}
+          <ChevronDown
+            className={cn(
+              'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0',
+              isOpen && 'rotate-180',
+            )}
+          />
+        </div>
+      </button>
+
+      {/* Dropdown Floating Panel */}
+      {isOpen && (
+        <div
+          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in-80 zoom-in-95 duration-100 overflow-hidden"
+          role="listbox"
+          aria-labelledby={id}
+        >
+          {/* Search Input Box */}
+          <div className="p-1.5 border-b border-border/60 bg-muted/30">
+            <div className="relative flex items-center">
+              <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }
+                }}
+                placeholder="Search faculty by name or email..."
+                className="w-full h-8 pl-8 pr-7 text-xs rounded bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 p-0.5 text-muted-foreground hover:text-foreground rounded"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-52 overflow-y-auto p-1 space-y-0.5">
+            {/* Unassign / None Option */}
+            <button
+              type="button"
+              role="option"
+              aria-selected={!value}
+              onClick={() => {
+                onChange('');
+                setIsOpen(false);
+                setSearchTerm('');
+              }}
+              className={cn(
+                'w-full text-left px-2.5 py-1.5 text-xs rounded transition-colors flex items-center justify-between cursor-pointer',
+                !value
+                  ? 'bg-accent text-accent-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              )}
+            >
+              <span>-- None (Unassigned) --</span>
+              {!value && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+            </button>
+
+            {filteredFaculty.map((fac) => {
+              const isSelected = String(fac._id) === String(value);
+              const conflictRole = conflictMap?.[fac._id];
+              const isConflicted = Boolean(conflictRole);
+              const displayRole = getDisplayRole(fac.role);
+              const fullName = [fac.firstName, fac.middleName, fac.lastName]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
+                <button
+                  key={fac._id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  aria-disabled={isConflicted}
+                  disabled={isConflicted}
+                  onClick={() => {
+                    if (isConflicted) {
+                      toast.error(
+                        `${fullName} is already assigned as ${conflictRole} on this team.`,
+                      );
+                      return;
+                    }
+                    onChange(fac._id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={cn(
+                    'w-full text-left px-2.5 py-1.5 text-xs rounded transition-colors flex items-center justify-between group cursor-pointer',
+                    isSelected
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : isConflicted
+                        ? 'opacity-50 cursor-not-allowed bg-muted/20 text-muted-foreground'
+                        : 'text-foreground hover:bg-muted/80',
+                  )}
+                >
+                  <div className="flex flex-col min-w-0 pr-2">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="truncate font-medium">{fullName}</span>
+                      <span
+                        className={cn(
+                          'text-[10px] px-1.5 py-0.2 rounded font-normal shrink-0',
+                          displayRole === 'Instructor'
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                            : 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+                        )}
+                      >
+                        [{displayRole}]
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 truncate">
+                      {fac.email && (
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {fac.email}
+                        </span>
+                      )}
+                      {isConflicted && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic truncate">
+                          · Already {conflictRole}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-primary ml-2" />}
+                </button>
+              );
+            })}
+
+            {filteredFaculty.length === 0 && (
+              <div className="py-4 text-center text-xs text-muted-foreground">
+                {searchTerm ? `No faculty found matching "${searchTerm}"` : 'No faculty available'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+FacultySearchCombobox.propTypes = {
+  id: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  facultyList: PropTypes.arrayOf(PropTypes.object),
+  conflictMap: PropTypes.objectOf(PropTypes.string),
+  placeholder: PropTypes.string,
+  isLoading: PropTypes.bool,
+  disabled: PropTypes.bool,
+  className: PropTypes.string,
+};
+
+const DEFAULT_PANELIST_IDS = Object.freeze([]);
 
 export function AssignCommitteeDialog({
   open,
@@ -29,7 +356,7 @@ export function AssignCommitteeDialog({
   teamName,
   initialAdviserId = '',
   initialSecretaryId = '',
-  initialPanelistIds = [],
+  initialPanelistIds = DEFAULT_PANELIST_IDS,
   onSuccess,
 }) {
   const [adviserId, setAdviserId] = useState(initialAdviserId || '');
@@ -37,6 +364,8 @@ export function AssignCommitteeDialog({
   const [panelist1Id, setPanelist1Id] = useState(initialPanelistIds[0] || '');
   const [panelist2Id, setPanelist2Id] = useState(initialPanelistIds[1] || '');
   const [panelist3Id, setPanelist3Id] = useState(initialPanelistIds[2] || '');
+
+  const serializedPanelists = initialPanelistIds.join(',');
 
   useEffect(() => {
     if (open) {
@@ -46,7 +375,53 @@ export function AssignCommitteeDialog({
       setPanelist2Id(initialPanelistIds[1] || '');
       setPanelist3Id(initialPanelistIds[2] || '');
     }
-  }, [open, initialAdviserId, initialSecretaryId, initialPanelistIds]);
+  }, [open, initialAdviserId, initialSecretaryId, serializedPanelists]);
+
+  // Conflict maps: prevent selecting the same faculty member across roles on the same team
+  const adviserConflictMap = useMemo(() => {
+    const map = {};
+    if (secretaryId) map[secretaryId] = 'Committee Secretary';
+    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
+    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    return map;
+  }, [secretaryId, panelist1Id, panelist2Id, panelist3Id]);
+
+  const secretaryConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserId) map[adviserId] = 'Capstone Adviser';
+    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
+    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    return map;
+  }, [adviserId, panelist1Id, panelist2Id, panelist3Id]);
+
+  const panelist1ConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserId) map[adviserId] = 'Capstone Adviser';
+    if (secretaryId) map[secretaryId] = 'Committee Secretary';
+    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    return map;
+  }, [adviserId, secretaryId, panelist2Id, panelist3Id]);
+
+  const panelist2ConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserId) map[adviserId] = 'Capstone Adviser';
+    if (secretaryId) map[secretaryId] = 'Committee Secretary';
+    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    return map;
+  }, [adviserId, secretaryId, panelist1Id, panelist3Id]);
+
+  const panelist3ConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserId) map[adviserId] = 'Capstone Adviser';
+    if (secretaryId) map[secretaryId] = 'Committee Secretary';
+    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
+    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
+    return map;
+  }, [adviserId, secretaryId, panelist1Id, panelist2Id]);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -58,22 +433,36 @@ export function AssignCommitteeDialog({
     };
   }, [open]);
 
-  // Fetch candidate faculty users
+  // Fetch candidate faculty users (instructors, advisers, panelists, faculty accounts)
   const { data: facultyData, isLoading: isFacultyLoading } = useUsers(
-    { isActive: true, page: 1, limit: 200 },
+    {
+      role: [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY]
+        .filter(Boolean)
+        .join(','),
+      isActive: true,
+      page: 1,
+      limit: 200,
+    },
     { enabled: open },
   );
 
   const allFaculty = useMemo(() => {
     const list = facultyData?.users || [];
-    return list.filter(
-      (u) =>
-        u.role === ROLES.INSTRUCTOR ||
-        u.role === ROLES.ADVISER ||
-        u.role === ROLES.PANELIST ||
-        u.role === 'faculty' ||
-        u.role === ROLES.ADMIN,
-    );
+    return list
+      .filter(
+        (u) =>
+          u.role === ROLES.INSTRUCTOR ||
+          u.role === ROLES.ADVISER ||
+          u.role === ROLES.PANELIST ||
+          u.role === ROLES.FACULTY ||
+          u.role === 'faculty' ||
+          u.role === ROLES.ADMIN,
+      )
+      .sort((a, b) => {
+        const nameA = [a.firstName, a.lastName].filter(Boolean).join(' ').toLowerCase();
+        const nameB = [b.firstName, b.lastName].filter(Boolean).join(' ').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
   }, [facultyData]);
 
   const assignCommitteeMutation = useAssignCommittee({
@@ -87,7 +476,7 @@ export function AssignCommitteeDialog({
     },
   });
 
-  // Handle ESC key press to close modal
+  // Handle ESC key press to close modal (only if no combobox dropdown is open)
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e) => {
@@ -106,6 +495,27 @@ export function AssignCommitteeDialog({
     if (!teamId) {
       toast.error('Team ID is required.');
       return;
+    }
+
+    // Validate mutual exclusion between roles on this team
+    const assignments = [
+      { role: 'Capstone Adviser', id: adviserId },
+      { role: 'Committee Secretary', id: secretaryId },
+      { role: 'Panelist 1 (Lead / Chair)', id: panelist1Id },
+      { role: 'Panelist 2 (Member)', id: panelist2Id },
+      { role: 'Panel Member 3', id: panelist3Id },
+    ].filter((item) => Boolean(item.id));
+
+    const seenIds = new Map();
+    for (const { role, id } of assignments) {
+      if (seenIds.has(id)) {
+        const existingRole = seenIds.get(id);
+        toast.error(
+          `A faculty member cannot serve as both ${existingRole} and ${role} on the same team.`,
+        );
+        return;
+      }
+      seenIds.set(id, role);
     }
 
     const panelistIds = [panelist1Id, panelist2Id, panelist3Id].filter(Boolean);
@@ -165,7 +575,7 @@ export function AssignCommitteeDialog({
           </div>
 
           {/* Body Content - Scrollable when vertical viewport is constrained */}
-          <CardContent className="flex-1 overflow-y-auto space-y-4 p-5">
+          <CardContent className="flex-1 overflow-y-auto space-y-4.5 p-5 pb-28">
             {/* Adviser Assignment */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -174,20 +584,16 @@ export function AssignCommitteeDialog({
                 </Label>
                 <span className="text-[10px] text-muted-foreground">Technical mentor</span>
               </div>
-              <select
+              <FacultySearchCombobox
                 id="adviser-select"
                 value={adviserId}
-                onChange={(e) => setAdviserId(e.target.value)}
+                onChange={setAdviserId}
+                facultyList={allFaculty}
+                conflictMap={adviserConflictMap}
+                placeholder="-- Select faculty adviser --"
+                isLoading={isFacultyLoading}
                 disabled={isFacultyLoading || assignCommitteeMutation.isPending}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">-- Select faculty adviser --</option>
-                {allFaculty.map((fac) => (
-                  <option key={fac._id} value={fac._id}>
-                    {formatUserOption(fac)}
-                  </option>
-                ))}
-              </select>
+              />
               <p className="text-[11px] text-muted-foreground">
                 Will guide technical development and approve manuscript drafts.
               </p>
@@ -201,20 +607,16 @@ export function AssignCommitteeDialog({
                 </Label>
                 <span className="text-[10px] text-muted-foreground">Compliance & minutes</span>
               </div>
-              <select
+              <FacultySearchCombobox
                 id="secretary-select"
                 value={secretaryId}
-                onChange={(e) => setSecretaryId(e.target.value)}
+                onChange={setSecretaryId}
+                facultyList={allFaculty}
+                conflictMap={secretaryConflictMap}
+                placeholder="-- Assign committee secretary --"
+                isLoading={isFacultyLoading}
                 disabled={isFacultyLoading || assignCommitteeMutation.isPending}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">-- Assign committee secretary --</option>
-                {allFaculty.map((fac) => (
-                  <option key={fac._id} value={fac._id}>
-                    {formatUserOption(fac)}
-                  </option>
-                ))}
-              </select>
+              />
               <p className="text-[11px] text-muted-foreground">
                 Responsible for minutes, defense scoring sheets, and compliance verification.
               </p>
@@ -226,64 +628,56 @@ export function AssignCommitteeDialog({
                 <Label className="text-xs font-semibold">Defense Panelists</Label>
                 <span className="text-[10px] text-muted-foreground">1 to 3 panelists</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
                   <span className="text-[10px] font-medium text-muted-foreground">
                     Panelist 1 (Lead / Chair)
                   </span>
-                  <select
+                  <FacultySearchCombobox
+                    id="panelist-1-select"
                     value={panelist1Id}
-                    onChange={(e) => setPanelist1Id(e.target.value)}
+                    onChange={setPanelist1Id}
+                    facultyList={allFaculty}
+                    conflictMap={panelist1ConflictMap}
+                    placeholder="-- Panelist 1 (Lead / Chair) --"
+                    isLoading={isFacultyLoading}
                     disabled={isFacultyLoading || assignCommitteeMutation.isPending}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">-- Panelist 1 --</option>
-                    {allFaculty.map((fac) => (
-                      <option key={fac._id} value={fac._id}>
-                        {formatUserOption(fac)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-medium text-muted-foreground">
                     Panelist 2 (Member)
                   </span>
-                  <select
+                  <FacultySearchCombobox
+                    id="panelist-2-select"
                     value={panelist2Id}
-                    onChange={(e) => setPanelist2Id(e.target.value)}
+                    onChange={setPanelist2Id}
+                    facultyList={allFaculty}
+                    conflictMap={panelist2ConflictMap}
+                    placeholder="-- Panelist 2 (Member) --"
+                    isLoading={isFacultyLoading}
                     disabled={isFacultyLoading || assignCommitteeMutation.isPending}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">-- Panelist 2 --</option>
-                    {allFaculty.map((fac) => (
-                      <option key={fac._id} value={fac._id}>
-                        {formatUserOption(fac)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 
-              <div className="pt-1">
+              <div className="space-y-1 pt-1">
                 <span className="text-[10px] font-medium text-muted-foreground">
-                  Panelist 3 (Optional Member)
+                  Panel Member 3
                 </span>
-                <select
+                <FacultySearchCombobox
+                  id="panelist-3-select"
                   value={panelist3Id}
-                  onChange={(e) => setPanelist3Id(e.target.value)}
+                  onChange={setPanelist3Id}
+                  facultyList={allFaculty}
+                  conflictMap={panelist3ConflictMap}
+                  placeholder="-- Panel Member 3 --"
+                  isLoading={isFacultyLoading}
                   disabled={isFacultyLoading || assignCommitteeMutation.isPending}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-primary mt-0.5"
-                >
-                  <option value="">-- None (Optional) --</option>
-                  {allFaculty.map((fac) => (
-                    <option key={fac._id} value={fac._id}>
-                      {formatUserOption(fac)}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
+
               <p className="text-[11px] text-muted-foreground pt-0.5">
                 Evaluates proposal, midterm progress, and final oral defense presentations.
               </p>

@@ -35,3 +35,15 @@ export const PANEL_ROLES = Object.freeze({
 export const ROLE_VALUES = Object.values(ROLES);
 export const PANEL_ROLE_VALUES = Object.values(PANEL_ROLES);
 export const FACULTY_ROLE_VALUES = Object.values(FACULTY_ROLES);
+
+/**
+ * Primary user account roles visible in user management dropdowns and registration.
+ * Adviser, Panelist, Secretary, and Chair roles are committee/faculty appointments under the Faculty umbrella.
+ */
+export const PRIMARY_ROLES = Object.freeze({
+  STUDENT: 'student',
+  INSTRUCTOR: 'instructor',
+  FACULTY: 'faculty',
+});
+
+export const PRIMARY_ROLE_VALUES = Object.values(PRIMARY_ROLES);

@@ -1609,6 +1609,50 @@ class TeamService {
 
     const { adviserId, secretaryId, panelistIds = [] } = data;
 
+    // Validate mutual exclusion between roles on the same team
+    if (adviserId && secretaryId && adviserId.toString() === secretaryId.toString()) {
+      throw new AppError(
+        'The adviser and committee secretary cannot be the same faculty member on the same team.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    if (
+      adviserId &&
+      Array.isArray(panelistIds) &&
+      panelistIds.some((p) => p.toString() === adviserId.toString())
+    ) {
+      throw new AppError(
+        'A faculty adviser cannot serve as a defense panelist on the same team.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    if (
+      secretaryId &&
+      Array.isArray(panelistIds) &&
+      panelistIds.some((p) => p.toString() === secretaryId.toString())
+    ) {
+      throw new AppError(
+        'A committee secretary cannot serve as a defense panelist on the same team.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    if (Array.isArray(panelistIds) && panelistIds.length > 0) {
+      const uniquePanelists = new Set(panelistIds.map((p) => p.toString()));
+      if (uniquePanelists.size !== panelistIds.length) {
+        throw new AppError(
+          'Defense panelists cannot contain duplicate faculty members.',
+          400,
+          'DUPLICATE_PANELISTS',
+        );
+      }
+    }
+
     // Validate adviser if provided
     let adviser = null;
     if (adviserId) {

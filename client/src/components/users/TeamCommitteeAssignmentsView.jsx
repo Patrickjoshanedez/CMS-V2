@@ -99,6 +99,9 @@ export default function TeamCommitteeAssignmentsView() {
   });
 
   const { data: facultyData, isLoading: isFacultyLoading } = useUsers({
+    role: [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY]
+      .filter(Boolean)
+      .join(','),
     isActive: true,
     page: 1,
     limit: 200,

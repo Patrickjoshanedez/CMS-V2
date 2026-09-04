@@ -492,13 +492,14 @@ export default function ProfilePage() {
                   <option value="">
                     {sectionsLoading || sectionsFetching ? 'Loading...' : 'Select your section'}
                   </option>
-                  {sections.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.courseId?.code ? `[${s.courseId.code}] ` : ''}
-                      {s.name}
-                      {s.code ? ` - ${s.code}` : ''} ({s.academicYear})
-                    </option>
-                  ))}
+                  {sections.map((s) => {
+                    const label = s.code || s.name;
+                    return (
+                      <option key={s._id} value={s._id}>
+                        {label} {s.academicYear ? `(${s.academicYear})` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 {sectionsError && (
                   <Alert variant="destructive" className="mt-2">

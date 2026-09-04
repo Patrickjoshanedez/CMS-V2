@@ -83,11 +83,26 @@ export const changeRoleSchema = z.object({
 
 export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  role: z.enum(ROLE_VALUES).optional(),
-  search: z.string().trim().max(100).optional(),
-  isActive: z
-    .string()
-    .transform((val) => val === 'true')
+  limit: z.coerce.number().int().positive().max(500).default(20),
+  role: z
+    .union([
+      z.enum(ROLE_VALUES),
+      z.array(z.enum(ROLE_VALUES)),
+      z
+        .string()
+        .transform((val) =>
+          val
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        )
+        .pipe(z.array(z.enum(ROLE_VALUES))),
+    ])
     .optional(),
+  search: z.string().trim().max(100).optional(),
+  isActive: z.preprocess((val) => {
+    if (val === 'true' || val === true) return true;
+    if (val === 'false' || val === false) return false;
+    return undefined;
+  }, z.boolean().optional()),
 });

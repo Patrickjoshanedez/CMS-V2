@@ -5,6 +5,8 @@ export {
   PANEL_ROLE_VALUES,
   FACULTY_ROLES,
   FACULTY_ROLE_VALUES,
+  PRIMARY_ROLES,
+  PRIMARY_ROLE_VALUES,
 } from './constants/roles.js';
 export { HTTP_STATUS } from './constants/statusCodes.js';
 export { TITLE_STATUSES, TITLE_STATUS_VALUES } from './constants/titleStatuses.js';

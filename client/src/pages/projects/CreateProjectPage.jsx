@@ -720,6 +720,45 @@ export default function CreateProjectPage() {
                         className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
                       />
                     </div>
+
+                    {/* Beneficiaries and Impact */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">
+                          Target Users / Beneficiaries <span className="text-destructive">*</span>
+                        </label>
+                        <Input
+                          value={currentProposal.pitchDeck?.targetUsers || ''}
+                          onChange={(e) =>
+                            handlePitchDeckFieldChange(
+                              activeProposalIndex,
+                              'targetUsers',
+                              e.target.value,
+                            )
+                          }
+                          placeholder="IT Faculty Instructors, Capstone Proponents, Defense Panelists..."
+                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground">
+                          Expected Value / Impact <span className="text-destructive">*</span>
+                        </label>
+                        <Input
+                          value={currentProposal.pitchDeck?.expectedImpact || ''}
+                          onChange={(e) =>
+                            handlePitchDeckFieldChange(
+                              activeProposalIndex,
+                              'expectedImpact',
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Eliminates physical matrix routing overhead and enforces compliance..."
+                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
+                        />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -778,44 +817,6 @@ export default function CreateProjectPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          Target Users / Beneficiaries <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                          value={currentProposal.pitchDeck?.targetUsers || ''}
-                          onChange={(e) =>
-                            handlePitchDeckFieldChange(
-                              activeProposalIndex,
-                              'targetUsers',
-                              e.target.value,
-                            )
-                          }
-                          placeholder="IT Faculty Instructors, Capstone Proponents, Defense Panelists..."
-                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          Expected Value / Impact <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                          value={currentProposal.pitchDeck?.expectedImpact || ''}
-                          onChange={(e) =>
-                            handlePitchDeckFieldChange(
-                              activeProposalIndex,
-                              'expectedImpact',
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Eliminates physical matrix routing overhead and enforces compliance..."
-                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
-                        />
                       </div>
                     </div>
                   </CardContent>

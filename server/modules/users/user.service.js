@@ -127,7 +127,33 @@ class UserService {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (role) filter.role = role;
+    if (role) {
+      let roleList = [];
+      if (Array.isArray(role)) {
+        roleList = [...role];
+      } else if (typeof role === 'string' && role.includes(',')) {
+        roleList = role
+          .split(',')
+          .map((r) => r.trim())
+          .filter(Boolean);
+      } else if (typeof role === 'string') {
+        roleList = [role.trim()];
+      }
+
+      // If 'faculty' is queried, expand to include all faculty appointments (faculty, adviser, panelist)
+      if (roleList.includes('faculty')) {
+        const facultyExpanded = ['faculty', 'adviser', 'panelist'];
+        roleList = Array.from(
+          new Set([...roleList.filter((r) => r !== 'faculty'), ...facultyExpanded]),
+        );
+      }
+
+      if (roleList.length === 1) {
+        filter.role = roleList[0];
+      } else if (roleList.length > 1) {
+        filter.role = { $in: roleList };
+      }
+    }
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) {
       filter.$or = [

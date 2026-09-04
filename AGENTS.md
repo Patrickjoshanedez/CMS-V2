@@ -11,6 +11,14 @@ This document establishes the **immutable operational boundaries, architectural 
 
 To prevent **workspace clutter, split-brain desynchronisation, and "silent gray errors,"** every agent MUST read, parse, and strictly comply with these instructions before executing tool actions or modifying files.
 
+### Canonical Academic Capstone Workflow (Ground Truth)
+The BukSU IT Department capstone progression operates under a strictly sequenced **4-Phase Capstone Progression** preceded by Phase 0:
+*   **Phase 0: Team Formation & Roster Locking:** Teams of 2–4 members assemble, bind to Academic Year / Course / Section, and assign 5 standardized roles (`Project Lead & Systems Analyst`, `Frontend & UI/UX Developer`, `Backend & Database Developer`, `Full-Stack Developer`, `QA & Technical Documentor`). Roster locked via `PATCH /api/teams/:id/lock`. Instructor appoints committee (Adviser, Chair, Secretary, Panelists).
+*   **Phase 1: Capstone 1 (Title Defense & Proposal Pre-Scan):** Proponents draft 1..10 title proposals tagged with SDGs (1..17). Live archive cosine similarity pre-scan. Proposal defense hearing rubrics determine title approval (`titleStatus = 'approved'`).
+*   **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense):** Chapters 1–3 uploaded. Plagiarism Scan v1 (Winnowing + SentenceTransformers, `< 25%`). Midterm defense evaluation. Action Done Matrix (`ADM v1`) logs panel remarks and multi-signatory digital sign-off.
+*   **Phase 3: Capstone 3 (System Development & Progress Defense):** Full prototype implementation with Interactive Gantt Chart (4 milestone sections), late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress defense rubric evaluation, and `ADM v2` sign-off.
+*   **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival):** Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
+
 ---
 
 ## 2. THE TWO-PILE INSTRUCTION ARCHITECTURE
@@ -26,7 +34,7 @@ Every agent operates under a strict **Two-Pile Governance Model** to prevent con
 *   **Restricted Files:** Do not edit or overwrite environment secret files (`.env*`). Do not modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
 *   **No Unbounded File Reading:** Full repository dumps, broad wildcard searches, and recursive `cat` style dumps are strictly prohibited. Agents must use structured file indexers or targeted line-range viewers.
 *   **No Direct Database Mutations:** Direct raw MongoDB, Redis, or ChromaDB mutations via terminal scripts are blocked. All state changes must occur via the official API service layers.
-*   **Single Memory Namespace:** Agents are forbidden from writing context files, status logs, or memories outside of the `.agents/` or `.github/hooks/state/` directories. Any auxiliary memory file written to the workspace root will trigger an immediate pre-commit rejection.
+*   **Dual-Persistence Memory Architecture:** Persistent agent execution trajectories, session states, and HLLM lessons are maintained strictly under `.agents/ptss/` (structured session JSONs & `index.jsonl`) and `memories/repo/` (technical context & lessons). Any auxiliary memory file written to the workspace root or unapproved paths will trigger an immediate pre-commit rejection.
 
 ---
 
@@ -43,15 +51,16 @@ To prevent a **Workspace Clutter Crisis**, the workspace maintains a strict whit
 ├── scripts/                          ← All deployment, migration, and seeder scripts
 ├── docs/                             ← System specifications, guidelines, and manuals
 ├── assets/                           ← Media, logos, and static graphics
+├── memories/                         ← HLLM repo lessons, interaction hooks, and technical context
 ├── .git/                             ← Local Git repository metadata
-├── .agents/                          ← Shared memory and execution trajectories
+├── .agents/                          ← Shared memory, PTSS sessions, and execution trajectories
 └── scratch/                          ← Intermediate developer scratch space
 ```
 
 ### File Write Whitelist
-*   **Allowed Write Areas:** `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, and `scratch/`.
+*   **Allowed Write Areas:** `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, `memories/`, and `scratch/`.
 *   **Strictly Prohibited:** No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (all scripts must live under `scripts/`).
-*   **Shadow Tree Ban:** Files must never be written to or read from dead development trees (e.g., `staging/`, `dashboard-ui/`, `memories/`, `context/`).
+*   **Shadow Tree Ban:** Files must never be written to or read from dead development trees (e.g., `staging/`, `dashboard-ui/`, `references/`).
 
 ---
 
@@ -122,7 +131,8 @@ To maximize agent performance, eliminate context compaction errors, and streamli
 2.  **Bounded Context Inspection:** Agents must NEVER perform unbounded file dumps or full-directory `cat` commands. Search symbols via targeted `grep_search` and inspect code via bounded line-ranges (`StartLine`/`EndLine`).
 3.  **AST / CST Precision Patching:** Full-file rewrites are strictly prohibited. Edits must be surgical CST diffs targeting specific function or schema nodes, preserving all existing developer comments and JSDocs.
 4.  **Zero-Slop Standard:** Code must use production-grade design tokens (`bg-background`, `text-foreground`, `border-border/60`), proper error boundaries, explicit prop validation, and zero mock placeholders.
-5.  **Hermes Session Continuity:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json` and append to `.agents/ptss/index.jsonl`.
+5.  **Session Startup Memory Recall:** At the start of ANY new session/chat, the agent MUST inspect the recent sessions in `.agents/ptss/index.jsonl` (latest 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context and verify the current architectural state before taking action.
+6.  **Dual-Persistence Session Memory:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json`, append to `.agents/ptss/index.jsonl`, and record learned runbooks to `memories/repo/CMS-V2-Technical-Context.md` or `memories/repo/lessons/` (with required keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
 
 ---
 

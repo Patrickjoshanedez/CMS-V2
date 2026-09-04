@@ -1,0 +1,29 @@
+{
+  "id": "2026-09-04_assign-committee-faculty-query-and-limit-fix",
+  "timestamp": "2026-09-04T05:25:00Z",
+  "task": "Resolve empty faculty committee dropdowns by fixing Zod query limit rejection and enabling multi-role candidate filtering",
+  "summary": "Diagnosed and resolved the root cause of empty faculty committee dropdowns ('-- Select faculty adviser --' with no selectable faculty): (1) In user.validation.js, listUsersQuerySchema capped limit at max(100), whereas AssignCommitteeDialog, TeamsPage, and TeamCommitteeAssignmentsView passed limit: 200. This caused Zod validation to fail with HTTP 400 'Too big: expected number to be <=100', silently failing the React Query user fetch. Increased limit cap to max(500). (2) AssignCommitteeDialog fetched all users without role filtering, causing student accounts to fill up the pagination page ahead of faculty due to createdAt sorting. Upgraded listUsersQuerySchema to support multi-role filtering via comma-separated strings or arrays (piped into Zod enum validation), updated userService.listUsers to support { role: { $in: roles } }, and updated AssignCommitteeDialog to query for instructor, adviser, panelist, and faculty roles directly. (3) Added alphabetical sorting for candidate faculty options, dynamic select placeholders indicating loading and empty states, added comprehensive unit tests, and passed all 6 quality gates.",
+  "skillsUsed": [
+    "senior-backend",
+    "frontend-patterns",
+    "anti-regression-and-ci-governance",
+    "verification-loop",
+    "ptss"
+  ],
+  "filesModified": [
+    "server/modules/users/user.validation.js",
+    "server/modules/users/user.service.js",
+    "server/tests/unit/user.list-query.validation.test.js",
+    "client/src/components/teams/AssignCommitteeDialog.jsx",
+    "client/src/components/teams/AssignCommitteeDialog.test.jsx",
+    "client/src/components/users/TeamCommitteeAssignmentsView.jsx"
+  ],
+  "verification": {
+    "endpointParity": "187 Server / 166 Client, UNMATCHED_COUNT = 0",
+    "agenticAudit": "60/60 checks passed",
+    "governancePipeline": "Passed, DAG & Coherence valid",
+    "clientTests": "AssignCommitteeDialog.test.jsx (7/7 passed)",
+    "serverTests": "user.list-query.validation.test.js (6/6 passed), comprehensive-all-workflows.test.js (13/13 passed)",
+    "workspaceGuardrail": "Pristine, 0 cognitive load errors"
+  }
+}

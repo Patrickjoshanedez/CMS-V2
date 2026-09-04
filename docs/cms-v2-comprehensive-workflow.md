@@ -52,63 +52,49 @@ The academic workflow operates as a "lock-step" state machine, preventing studen
 
 ```
  ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
- │   PHASE 1     │     │   PHASE 2     │     │   PHASE 3     │
- │Team & Section │────►│Chapters 1-3 & │────►│Dual-Pipeline  │
- │ Roster Lock   │     │Async Ingestion│     │Plagiarism Scan│
+ │    PHASE 0    │     │    PHASE 1    │     │    PHASE 2    │
+ │Team Formation │────►│ Capstone 1    │────►│  Capstone 2   │
+ │ & Roster Lock │     │Title Proposals│     │Chapters 1–3   │
  └───────────────┘     └───────────────┘     └───────┬───────┘
                                                      │
- ┌───────────────┐     ┌───────────────┐     ┌───────▼───────┐
- │   PHASE 6     │     │   PHASE 5     │     │   PHASE 4     │
- │Auto-Archive & │◄────│Evaluation &   │◄────│Defense Hearing│
- │Certificate PDF│     │ADM Sign-off   │     │  Scheduling   │
- └───────────────┘     └───────────────┘     └───────────────┘
+ ┌───────────────┐     ┌───────────────┐             │
+ │    PHASE 4    │     │    PHASE 3    │     ┌───────▼───────┐
+ │  Capstone 4   │◄────│  Capstone 3   │◄────│   ADM v1      │
+ │ Final Defense │     │  System Dev   │     │  Sign-off     │
+ │ & Archival    │     │ & Gantt Chart │     └───────────────┘
+ └───────────────┘     └───────────────┘
 ```
 
-### Phase 1: Team Formation, Discipline Alignment & Roster Locking
+### Phase 0: Team Formation, Discipline Alignment & Roster Locking
 *   **Team Capacity Constraint:** Students initiate team profiles under `TeamsPage.jsx`, generating secure invitation tokens [738]. In alignment with BukSU IT department mandates, teams are capped at a **minimum of 2 and a maximum of 4 members** [251, 504].
+*   **5 Standard Proponent Roles:** Teams assign standardized roles: (1) `Project Lead & Systems Analyst`, (2) `Frontend & UI/UX Developer`, (3) `Backend & Database Developer`, (4) `Full-Stack Developer`, (5) `QA & Technical Documentor`.
 *   **Academic Taxonomy Tagging:** Teams are bound to a strict relational hierarchy: `Academic Year` → `Course (e.g., BSIT)` → `Section` [251, 951].
 *   **The Team Lock Protocol:** Once the student group roster is complete, the Team Leader locks the group via `PATCH /api/teams/:id/lock` [251, 954]. This sets `isLocked: true`, freezes the team membership, and updates a **sticky, color-coded visual banner at the top of the interface** (Emerald Green for Open, Crimson Red for Locked) [140, 251, 812].
-*   **Title Pre-Scan Screening:** To prevent topic duplication, teams draft up to three titles [738, 936]. As they type inside `CreateProjectPage.jsx`, a real-time pre-scan endpoint (`POST /api/projects/title-check`) computes string distances against the historical database, displaying an interactive visual similarity gauge [616, 738, 1058].
+*   **Committee Appointment:** Instructors assign committee members via `AssignCommitteeDialog`: Adviser, Secretary, and 3 Panelists (Panelist 1 designated as Chair).
 
-### Phase 2: Milestone submissions, Queue Ingestion & Late Justification
-*   **Dynamic Submission Buffer:** Rather than enforcing a rigid three-upload constraint, the client uses an editable upload workspace with "Add More" and "Done" batched buffers, resolving file upload limits [125, 336].
-*   **Magic-Byte Validation Gate:** Files are received via Multer. To block spoofed extensions, a custom middleware (`fileValidation.js`) performs binary validation, checking the first 1024 bytes for the `%PDF` signature (0x25 0x50 0x44 0x46) and preventing malicious uploads [46, 266].
-*   **Asynchronous Queue Offloading:** Valid files are uploaded to S3 and mapped in MongoDB as `Submission` documents [212, 336]. A task is pushed to the BullMQ `plagiarism-check` queue [207, 336]. If a document lacks metadata, a local **Ollama (`llama3.2:3b`) parser** reads text buffers via pdf-parse, extracting Title, Authors, Abstract, and Keywords according to a strict, JSON schema [209, 633].
-*   **Late Justification Locking:** If a student submits work after the deadline defined in `settings.model.js`, the submission API flags the entry as `isLate: true` [126]. The UI renders a `JustificationCard` locking further submissions and requiring the student to input a valid explanation, which alerts the adviser [126, 809].
+### Phase 1: Capstone 1 — Dynamic Title Proposals, Similarity Pre-Scan & Proposal Defense
+*   **Dynamic Title Proposals:** Proponents submit between **1 and 10** title proposals with dynamic "Add More" / "Done" UI actions. Proposals are categorized by IT Field of Discipline with matching UN SDG alignments (1..17).
+*   **Real-Time Title Similarity Pre-Scan:** As students draft titles inside `CreateProjectPage.jsx`, the system queries `POST /api/projects/title-check` to calculate cosine similarity against past approved BukSU capstones, rendering an interactive live compliance meter.
+*   **Proposal Defense Hearing & Rubric Scoring:** Committee evaluates proposals using institutional rubrics (`DEFENSE_TYPES.PROPOSAL`). Scoring $\ge 75\%$ yields `titleStatus = 'approved'`, atomically advancing the project to Phase 2 (`capstonePhase = 2`).
 
-### Phase 3: The Dual-Pipeline Plagiarism Detection Engine
-Once enqueued, submissions are parsed using two complementary, highly specialized pipelines to detect both literal matching and semantic paraphrasing [208]:
+### Phase 2: Capstone 2 — Chapters 1–3 Manuscript Ingestion, Plagiarism Scan v1 & ADM v1
+*   **Manuscript Upload & Validation:** Students upload Chapters 1–3. Binary magic-byte validation enforces `%PDF` (0x25 0x50 0x44 0x46) signatures.
+*   **Dual-Engine Plagiarism Screening (v1):** Fast Karp-Rabin $k$-gram Winnowing fingerprinting combined with PyTorch SentenceTransformers (`all-MiniLM-L6-v2`) via Celery/FastAPI. The institutional threshold (`< 25%`) is validated before defense endorsement.
+*   **Midterm Oral Defense Hearing:** Committee conducts the oral proposal hearing (`DEFENSE_TYPES.MIDTERM`). Secretary logs panel minutes and recommendations.
+*   **Action Done Matrix (ADM v1):** Panel suggestions auto-populate into ADM rows. Students log `actionsTaken` and `pageNumbers`. Multi-signatory digital sign-off (Tier 1: Adviser, Tier 2: Panelists, Tier 3: Chair) clears the milestone, advancing to Phase 3 (`capstonePhase = 3`).
 
-1.  **Syntactic Matcher (Winnowing Rolling-Hash):**
-    *   The document's raw text is normalized (whitespace stripped, lowercase conversion) [81, 454].
-    *   The normalized stream is chunked into character \(k\)-grams [81, 208].
-    *   **Karp-Rabin Rolling Hashing:** Hashes are generated recursively:  
-        $$H(c_{i+1}...c_{i+k}) = (H(c_i...c_{i+k-1}) - c_i \cdot b^{k-1}) \cdot b + c_{i+k}$$
-    *   A sliding window of size \(w\) selects the minimum hash value per frame as a positional fingerprint, which is saved to `DocumentFingerprint` [208].
-    *   The index computes exact syntactic similarity against the corpus using Jaccard span-union metrics [81, 208].
-2.  **Semantic Matcher (PyTorch Vector Projections):**
-    *   Celery workers pass text segments to FastAPI [207, 208].
-    *   Paragraphs are tokenized and projected into 384-dimensional dense vectors using the **PyTorch `all-MiniLM-L6-v2` transformer model** [2, 208].
-    *   The vector coordinates are indexed inside **ChromaDB** [2, 207].
-    *   The engine calculates Cosine Proximity to identify conceptual matches [208]:  
-        $$	ext{Similarity}(ec{u}, ec{v}) = rac{ec{u} \cdot ec{v}}{\|ec{u}\| \|ec{v}\|}$$
-    *   Results are separated inside `PlagiarismChecker.jsx` into two distinct tabs: "Similarity" (Winnowing) and "Plagiarism" (Semantic) [141, 809].
+### Phase 3: Capstone 3 — System Implementation, Interactive Gantt Tracker & Progress Defense
+*   **Interactive Gantt Chart Tracker:** Tracks build velocity across 4 institutional sections: Planning & Research, Architecture & Design, System Dev & Infrastructure, Testing & Optimization.
+*   **Late Justification Interceptor:** If uploads occur past deadline dates configured in system settings, submissions are flagged with `isLate: true`, rendering a `JustificationCard` locking further submissions until the adviser reviews and endorses the justification.
+*   **Chapters 4–5 Progress & System Demo Defense:** Students submit working prototypes and draft Chapter 4 (Results & Discussion) and Chapter 5 (Conclusions & Recommendations). Committee conducts progress defense evaluation (`DEFENSE_TYPES.PAPER`).
+*   **ADM v2 Sign-off:** Panel feedback from the prototype/progress defense is verified and signed off via `ADM v2`, advancing to Phase 4 (`capstonePhase = 4`).
 
-### Phase 4: Faculty Self-Selection, Scheduling & Hearings
-*   **Panel Role Definitions:** Each capstone project is mapped to explicit panel roles: **Chair, Panel Member, and Secretary** [122, 123].
-*   **Workload-Balanced Staffing Optimization:** Coordinators use an automated allocation engine (`workloadOptimizationStrategy.js`) that models teacher assignment as a Constraint Satisfaction Problem (CSP), balancing section, section limit, and department capacity parameters to prevent faculty overallocation [43, 743].
-*   **Faculty Self-Selection:** Faculty members can also browse open capstone topics on their portal and self-assign to available slots up to the team cap [624].
-*   **Interactive Visual Scheduler:** Approved defense schedules, milestone dates, and upcoming consultation windows are dynamically mapped onto month views inside `CalendarScheduler.jsx` [136, 500].
-
-### Phase 5: Gated Evaluations, Inline Annotations & ADM checklist
-*   **Grade Leakage Gating:** Panelists input rubrics on `EvaluationPanel.jsx` [739]. To prevent premature score leaks, final grading cards, weighted sums, and defense decisions are locked behind the `/consolidated-grades` route, returning a `HTTP 403 EVALUATIONS_INCOMPLETE` response until *all* assigned panelists submit their marks [86, 139, 809].
-*   **Inline Coordinate Comments Drawer:** To provide Google-Doc-style feedback, panelists use `DocumentPreview.jsx` [141, 144]. Highlighting text selections captures viewport client rectangles, saving coordinates `{ x, y, width, height }` as `SubmissionComments` in MongoDB [137, 144, 482]. Students review annotations inside an expandable sidebar drawer [141].
-*   **Action Done Matrix (ADM) Sign-off:** Revisions requested during defense are compiled into the ADM [122]. Panelists review student adjustments, and clicking approve fires `POST /:projectId/action-done-matrix/:itemId/sign`, capturing a base64 digital canvas signature and compiling a cryptographically signed signature block [119, 120, 809].
-
-### Phase 6: Automatic Archiving, Read-Only Redirection & Verification
-*   **Auto-Archiving Database Hook:** When the Panel Chair logs the final digital signature, the `Project` Mongoose model executes a pre-save check [120, 809]. If all ADM rows are marked as `'verified'`, the database triggers an automatic transition: setting `isArchived = true`, setting `projectStatus = 'archived'`, and locking editable metadata [119, 120, 140].
-*   **Public Redirection Gate:** When guest or student users query the public catalog and click on an archived capstone, the system automatically redirects them to a read-only view (`GET /api/archive/:id/view`) [809]. This streams the raw PDF manuscript binary from S3 directly to `DocumentViewer.jsx`, completely hiding internal panelists’ remarks, scorecards, and administrative metadata [809].
-*   **Certificate Compilation:** On archiving, the backend compiles dynamic, golden-bordered **Capstone Completion Certificates** complete with the BUKSU seal and a verification hash, downloadable via `CertificatePage.jsx` [738, 1061].
+### Phase 4: Capstone 4 — Final Defense, Multi-Tier ADM Sign-Off, Auto-Archiving & Certificates
+*   **Full Manuscript Compilation:** Chapters 1–5 merged into final institutional manuscript with title defense approval gating.
+*   **Deep Vector Plagiarism Scan:** Deep indexing and cross-corpus verification across ChromaDB.
+*   **Blind Evaluation Shield & Final Defense:** Committee scores the final oral defense (`DEFENSE_TYPES.FINAL`). Panelist rubrics remain masked until the Chair concludes deliberations.
+*   **3-Tier Multi-Signatory Sign-Off:** Digital signatures captured across Adviser, Panel Members, Panel Chair, and Dean.
+*   **Auto-Archiving Database Hook:** Atomic transition setting `isArchived = true`, `projectStatus = 'archived'`, populating the public read-only **Research Archive** (`GET /api/archive/:id/view`), and issuing cryptographically sealed **Capstone Completion Certificates** with BUKSU seals via `CertificatePage.jsx`.
 
 ---
 

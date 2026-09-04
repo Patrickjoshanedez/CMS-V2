@@ -18,6 +18,9 @@ const mockUseAssignAdviser = vi.fn();
 const mockUseAssignPanelist = vi.fn();
 const mockUseRemovePanelist = vi.fn();
 
+const mockUseMyTeam = vi.fn(() => ({ data: null, isLoading: false, isError: false, error: null }));
+const mockUseTeamManuscriptTemplate = vi.fn(() => ({ data: null, isLoading: false }));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
@@ -32,7 +35,7 @@ vi.mock('@/stores/authStore', () => ({
 }));
 
 vi.mock('@/hooks/useTeams', () => ({
-  useMyTeam: () => ({ data: null, isLoading: false, isError: false, error: null }),
+  useMyTeam: () => mockUseMyTeam(),
   useTeams: (...args) => mockUseTeams(...args),
   useCreateTeam: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useInviteMember: () => ({ mutate: vi.fn(), isPending: false, error: null }),
@@ -44,7 +47,7 @@ vi.mock('@/hooks/useTeams', () => ({
   useLockTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useLeaveTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateManuscriptTemplate: () => ({ mutate: vi.fn(), isPending: false }),
-  useTeamManuscriptTemplate: () => ({ data: null, isLoading: false }),
+  useTeamManuscriptTemplate: (...args) => mockUseTeamManuscriptTemplate(...args),
   teamKeys: {
     all: ['teams'],
   },
@@ -206,6 +209,88 @@ describe('TeamsPage', () => {
     expect(
       view.container.querySelector('input[placeholder="Type to search panelists"]'),
     ).toBeTruthy();
+
+    view.unmount();
+  });
+
+  it('locks Manuscript Document in Proposal Stage until template is unlocked', () => {
+    mockUseAuthStore.mockReturnValue({
+      user: {
+        _id: 'student-1',
+        role: ROLES.STUDENT,
+        email: 'student@example.com',
+      },
+    });
+
+    mockUseMyTeam.mockReturnValue({
+      data: {
+        _id: 'team-1',
+        name: 'Team Beta',
+        isLocked: true,
+        leaderId: 'student-1',
+        members: [{ _id: 'student-1', firstName: 'Student', lastName: 'One' }],
+        memberRoles: [{ userId: 'student-1', role: 'Lead Developer' }],
+        googleDocUrl: '',
+        assignment: {
+          titleStatus: 'pending',
+          capstonePhase: 1,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockUseTeamManuscriptTemplate.mockReturnValue({
+      data: { isUnlocked: false },
+      isLoading: false,
+    });
+
+    const view = renderTeamsPage();
+
+    expect(view.container.textContent).toContain('Manuscript Document');
+    expect(view.container.textContent).toContain('Locked in Proposal Stage');
+    expect(view.container.textContent).toContain('Available after Template Unlock');
+
+    view.unmount();
+  });
+
+  it('unlocks Manuscript Document and provides Attach Document button when template is unlocked', () => {
+    mockUseAuthStore.mockReturnValue({
+      user: {
+        _id: 'student-1',
+        role: ROLES.STUDENT,
+        email: 'student@example.com',
+      },
+    });
+
+    mockUseMyTeam.mockReturnValue({
+      data: {
+        _id: 'team-1',
+        name: 'Team Beta',
+        isLocked: true,
+        leaderId: 'student-1',
+        members: [{ _id: 'student-1', firstName: 'Student', lastName: 'One' }],
+        memberRoles: [{ userId: 'student-1', role: 'Lead Developer' }],
+        googleDocUrl: '',
+        assignment: {
+          titleStatus: 'approved',
+          capstonePhase: 2,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockUseTeamManuscriptTemplate.mockReturnValue({
+      data: { isUnlocked: true },
+      isLoading: false,
+    });
+
+    const view = renderTeamsPage();
+
+    expect(view.container.textContent).toContain('Manuscript Document');
+    expect(view.container.textContent).toContain('Attach Document');
+    expect(view.container.textContent).not.toContain('Available after Template Unlock');
 
     view.unmount();
   });
