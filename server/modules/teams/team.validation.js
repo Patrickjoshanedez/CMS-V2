@@ -42,6 +42,10 @@ export const listTeamsQuerySchema = z.object({
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid sectionId')
     .optional(),
   search: z.string().trim().max(100).optional(),
+  teamId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid teamId')
+    .optional(),
 });
 
 const TEAM_MEMBER_ROLES = [

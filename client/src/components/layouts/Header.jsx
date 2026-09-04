@@ -81,7 +81,15 @@ export const ROUTE_TITLE_RULES = [
  * @param {string} search
  * @returns {string}
  */
-export function getPageTitle(pathname = '', search = '') {
+export function getPageTitle(pathname = '', search = '', role = null) {
+  if (
+    role &&
+    role !== ROLES.STUDENT &&
+    (/^\/teams\/?$/.test(pathname) || /^\/team\/?$/.test(pathname))
+  ) {
+    return 'Teams';
+  }
+
   for (const rule of ROUTE_TITLE_RULES) {
     if (rule.matcher && rule.matcher(pathname, search)) {
       return rule.title;
@@ -148,7 +156,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
     [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const roleLabel = getRoleLabel(user?.role);
-  const pageTitle = getPageTitle(pathname, search);
+  const pageTitle = getPageTitle(pathname, search, user?.role);
 
   const backDestination = getBackDestination(pathname);
 

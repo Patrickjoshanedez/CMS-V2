@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/authStore';
 export const teamKeys = {
   all: ['teams'],
   my: (userId) => [...teamKeys.all, 'my', userId],
+  detail: (teamId) => [...teamKeys.all, 'detail', teamId],
   lists: () => [...teamKeys.all, 'list'],
   list: (filters) => [...teamKeys.lists(), filters],
   createInviteCandidates: (search) => [...teamKeys.all, 'create-invite-candidates', search],
@@ -42,6 +43,24 @@ export function useMyTeam(userId, options = {}) {
     },
     enabled: Boolean(userId) && (enabledOption ?? true),
     staleTime: 2 * 60 * 1000, // 2 min
+    ...restOptions,
+  });
+}
+
+/**
+ * Fetch a single team by its ID (for deep-linking or inspector views).
+ */
+export function useTeamById(teamId, options = {}) {
+  const { enabled: enabledOption, ...restOptions } = options;
+
+  return useQuery({
+    queryKey: teamKeys.detail(teamId),
+    queryFn: async () => {
+      const { data } = await teamService.listTeams({ teamId, limit: 1 });
+      return data.data?.teams?.[0] || null;
+    },
+    enabled: Boolean(teamId) && (enabledOption ?? true),
+    staleTime: 1 * 60 * 1000, // 1 min
     ...restOptions,
   });
 }

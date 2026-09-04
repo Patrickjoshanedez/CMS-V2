@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -48,14 +48,17 @@ import {
   ChevronDown,
   UserCheck,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ROLES } from '@cms/shared';
 import { useSettingsStore } from '@/stores/settingsStore';
 import AssignCommitteeDialog from '@/components/teams/AssignCommitteeDialog';
 import { ManuscriptTemplateWidget } from '@/components/teams/ManuscriptTemplateWidget';
 import { InstructorTemplateConfigModal } from '@/components/teams/InstructorTemplateConfigModal';
+import { InspectRosterDialog } from '@/components/teams/InspectRosterDialog';
 import {
   useMyTeam,
   useTeams,
+  useTeamById,
   useCreateTeam,
   useInviteMember,
   useCreateTeamInviteCandidates,
@@ -1763,16 +1766,36 @@ function StudentTeamDetail({ team, userId }) {
 
 /* ────────── Faculty Team Card ────────── */
 
-function TeamCard({ team }) {
+function TeamCard({ team, onInspect, onAssign, canAssignCommittee, isSelected }) {
   const leaderName = team.leaderId ? formatName(team.leaderId) : 'Unknown';
+  const isLocked = Boolean(team.isLocked);
+  const assignment = team.assignment || {};
+  const adviser = team.adviserId || assignment.adviser;
+  const panelists = team.panelistIds || assignment.panelists || [];
+  const hasCommittee = Boolean(adviser && panelists.length >= 3);
+  const isAwaitingCommittee = isLocked && !hasCommittee;
+
+  const sectionName =
+    team.sectionId?.name ||
+    team.section?.name ||
+    (typeof team.sectionId === 'string' ? team.sectionId : null);
+  const sectionCode = team.sectionId?.courseId?.code || team.sectionCode || null;
 
   return (
-    <Card className="transition-shadow hover:shadow-md">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{team.name || 'Untitled Team'}</CardTitle>
-            <CardDescription className="flex flex-wrap items-center gap-1.5">
+    <Card
+      className={cn(
+        'transition-all duration-200 hover:shadow-md hover:border-primary/40 bg-card/80 flex flex-col justify-between h-full border-border/60 text-left',
+        isSelected &&
+          'ring-2 ring-primary ring-offset-2 ring-offset-background border-primary shadow-md shadow-primary/10',
+      )}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0">
+            <CardTitle className="text-base font-semibold truncate text-foreground">
+              {team.name || 'Untitled Team'}
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               <span>
                 {team.members?.length || 0} member{team.members?.length !== 1 ? 's' : ''}
               </span>
@@ -1782,41 +1805,155 @@ function TeamCard({ team }) {
                   <span>{team.academicYear}</span>
                 </>
               )}
-            </CardDescription>
+              {(sectionName || sectionCode) && (
+                <>
+                  <span>&bull;</span>
+                  <span className="truncate">{sectionName || sectionCode}</span>
+                </>
+              )}
+            </div>
           </div>
-          <div className="rounded-md bg-muted p-2 text-primary">
-            <UsersRound className="h-5 w-5" />
+
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {isLocked ? (
+              <Badge
+                variant="outline"
+                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 gap-1 text-[10px] py-0 px-1.5 font-medium"
+              >
+                <Lock className="h-2.5 w-2.5" />
+                Locked
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 bg-amber-500/10 text-amber-400 gap-1 text-[10px] py-0 px-1.5 font-medium"
+              >
+                <Clock className="h-2.5 w-2.5" />
+                Forming
+              </Badge>
+            )}
+
+            {hasCommittee ? (
+              <Badge
+                variant="outline"
+                className="border-sky-500/40 bg-sky-500/10 text-sky-400 gap-1 text-[10px] py-0 px-1.5 font-medium"
+              >
+                <ShieldCheck className="h-2.5 w-2.5" />
+                Committee Set
+              </Badge>
+            ) : isAwaitingCommittee ? (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 bg-amber-500/10 text-amber-400 gap-1 text-[10px] py-0 px-1.5 font-medium animate-pulse"
+              >
+                <UserCheck className="h-2.5 w-2.5" />
+                Needs Committee
+              </Badge>
+            ) : null}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Crown className="h-3.5 w-3.5" />
-          <span>Leader: {leaderName}</span>
-        </div>
-        {/* Member avatars row */}
-        {team.members?.length > 0 && (
-          <div className="flex -space-x-2">
-            {team.members.slice(0, 4).map((member) => {
-              const memberId = member._id || member;
-              return (
-                <div
-                  key={memberId}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-xs font-semibold text-primary"
-                  title={formatName(member)}
-                >
-                  {member.firstName?.[0]?.toUpperCase() || '?'}
-                </div>
-              );
-            })}
+
+      <CardContent className="space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <span className="truncate">
+              Leader: <strong className="font-medium text-foreground">{leaderName}</strong>
+            </span>
           </div>
-        )}
+
+          {/* Member avatars row */}
+          {team.members?.length > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2 shrink-0">
+                {team.members.slice(0, 4).map((member) => {
+                  const memberId = member._id || member;
+                  return (
+                    <div
+                      key={memberId}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-[11px] font-semibold text-primary"
+                      title={formatName(member)}
+                    >
+                      {member.firstName?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  );
+                })}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {team.members.length} / 4 registered
+              </span>
+            </div>
+          )}
+
+          {/* Committee Quick Glance */}
+          <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-xs space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Adviser:</span>
+              <span className="font-medium text-foreground truncate max-w-[140px]">
+                {adviser ? formatName(adviser) : 'Not appointed'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-[11px]">Panelists:</span>
+              <span className="font-medium text-foreground">
+                {panelists.length ? `${panelists.length} of 3 appointed` : 'Pending'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card action buttons */}
+        <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+          <span
+            role="button"
+            tabIndex={0}
+            data-testid="inspect-roster-btn"
+            className="flex-1 inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 text-xs font-medium gap-1.5 transition-colors cursor-pointer select-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInspect?.(team);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                e.preventDefault();
+                onInspect?.(team);
+              }
+            }}
+          >
+            <UsersRound className="h-3.5 w-3.5" />
+            Inspect Roster
+          </span>
+          {canAssignCommittee && (
+            <span
+              role="button"
+              tabIndex={0}
+              data-testid="assign-committee-btn"
+              className="inline-flex items-center justify-center rounded-md bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-3 text-xs font-medium gap-1.5 transition-colors cursor-pointer select-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAssign?.(team);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onAssign?.(team);
+                }
+              }}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              Assign
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function FacultyTeamDetail({ team, canAssignCommittee }) {
+function FacultyTeamDetail({ team, canAssignCommittee, onInspectRoster }) {
   const queryClient = useQueryClient();
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const leader = team.leaderId;
@@ -1944,17 +2081,31 @@ function FacultyTeamDetail({ team, canAssignCommittee }) {
             )}
           </CardDescription>
         </div>
-        {canAssignCommittee && (
-          <Button
-            type="button"
-            size="sm"
-            className="text-xs bg-primary hover:bg-primary/90 gap-1.5 font-medium shrink-0"
-            onClick={() => setIsCommitteeModalOpen(true)}
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            Assign Committee
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {onInspectRoster && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-xs gap-1.5 font-medium shrink-0"
+              onClick={() => onInspectRoster(team)}
+            >
+              <UsersRound className="h-3.5 w-3.5" />
+              Inspect Full Roster
+            </Button>
+          )}
+          {canAssignCommittee && (
+            <Button
+              type="button"
+              size="sm"
+              className="text-xs bg-primary hover:bg-primary/90 gap-1.5 font-medium shrink-0"
+              onClick={() => setIsCommitteeModalOpen(true)}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              Assign Committee
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border p-3">
@@ -2147,9 +2298,16 @@ function FacultyTeamDetail({ team, canAssignCommittee }) {
 /* ────────── Faculty Team List View ────────── */
 
 function FacultyTeamsView({ canAssignCommittee }) {
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTeamId = searchParams.get('teamId');
+
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({});
-  const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const [selectedTeamId, setSelectedTeamId] = useState(urlTeamId || null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [inspectingTeam, setInspectingTeam] = useState(null);
+  const [committeeModalTeam, setCommitteeModalTeam] = useState(null);
   const [academicYear, setAcademicYear] = useState('');
   const [sectionId, setSectionId] = useState('');
 
@@ -2161,6 +2319,42 @@ function FacultyTeamsView({ canAssignCommittee }) {
 
   const { data, isLoading: isLoadingTeams, isError, error } = useTeams(filters);
 
+  // Targeted direct team lookup when deep-linked via URL
+  const { data: directTeam } = useTeamById(urlTeamId, {
+    enabled: Boolean(urlTeamId),
+  });
+
+  const teams = data?.teams || [];
+  const pagination = data?.pagination;
+
+  // Sync deep-linked team from URL and auto-open roster inspection
+  useEffect(() => {
+    if (urlTeamId) {
+      setSelectedTeamId(urlTeamId);
+      const found = teams.find((t) => t._id === urlTeamId) || directTeam;
+      if (found) {
+        setInspectingTeam(found);
+      }
+    }
+  }, [urlTeamId, teams, directTeam]);
+
+  const handleInspectTeam = (team) => {
+    setSelectedTeamId(team._id);
+    setInspectingTeam(team);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('teamId', team._id);
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const handleCloseInspect = () => {
+    setInspectingTeam(null);
+    if (urlTeamId) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('teamId');
+      setSearchParams(newParams, { replace: true });
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     setFilters({
@@ -2170,6 +2364,49 @@ function FacultyTeamsView({ canAssignCommittee }) {
       page: 1,
     });
   };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setAcademicYear('');
+    setSectionId('');
+    setStatusFilter('all');
+    setFilters({ page: 1 });
+    handleCloseInspect();
+    setSelectedTeamId(null);
+  };
+
+  // Phase 0 metrics computed across current team catalog
+  const stats = useMemo(() => {
+    const total = pagination?.total ?? teams.length;
+    const finalized = teams.filter((t) => t.isLocked).length;
+    const forming = teams.filter((t) => !t.isLocked).length;
+    const awaitingCommittee = teams.filter((t) => {
+      const isLocked = Boolean(t.isLocked);
+      const adviser = t.adviserId || t.assignment?.adviser;
+      const panelists = t.panelistIds || t.assignment?.panelists || [];
+      return isLocked && (!adviser || panelists.length < 3);
+    }).length;
+
+    return { total, finalized, forming, awaitingCommittee };
+  }, [teams, pagination?.total]);
+
+  // Client-side workflow status tab filtering
+  const displayTeams = useMemo(() => {
+    let list = teams;
+    if (statusFilter === 'awaiting_committee') {
+      list = list.filter((t) => {
+        const isLocked = Boolean(t.isLocked);
+        const adviser = t.adviserId || t.assignment?.adviser;
+        const panelists = t.panelistIds || t.assignment?.panelists || [];
+        return isLocked && (!adviser || panelists.length < 3);
+      });
+    } else if (statusFilter === 'finalized') {
+      list = list.filter((t) => t.isLocked);
+    } else if (statusFilter === 'forming') {
+      list = list.filter((t) => !t.isLocked);
+    }
+    return list;
+  }, [teams, statusFilter]);
 
   if (isLoadingTeams) {
     return <PageSkeleton />;
@@ -2186,110 +2423,349 @@ function FacultyTeamsView({ canAssignCommittee }) {
     );
   }
 
-  const teams = data?.teams || [];
-  const selectedTeam = teams.find((team) => team._id === selectedTeamId) || null;
-  const pagination = data?.pagination;
+  const selectedTeam =
+    teams.find((team) => team._id === selectedTeamId) ||
+    (directTeam?._id === selectedTeamId ? directTeam : null);
 
   return (
-    <div className="space-y-4">
-      {canAssignCommittee && (
-        <div className="flex justify-end">
-          <InstructorTemplateConfigModal academicYear={academicYear || '2025-2026'} />
+    <div className="space-y-5">
+      {/* Top Banner / Template Config */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h4 className="text-base font-bold text-foreground tracking-tight">
+            Phase 0: Team Roster & Committee Directory
+          </h4>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Monitor proponent groupings, verify locked rosters, and appoint faculty committees.
+          </p>
+        </div>
+
+        {canAssignCommittee && (
+          <div className="shrink-0">
+            <InstructorTemplateConfigModal academicYear={academicYear || '2025-2026'} />
+          </div>
+        )}
+      </div>
+
+      {/* Phase 0 Metric Cards Ribbon */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStatusFilter('all')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('all');
+            }
+          }}
+          className={cn(
+            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            statusFilter === 'all'
+              ? 'border-primary bg-primary/10 shadow-xs'
+              : 'border-border/70 bg-card hover:border-border',
+          )}
+        >
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block">
+            Total Teams
+          </span>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-foreground">{stats.total}</span>
+            <UsersRound className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStatusFilter('awaiting_committee')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('awaiting_committee');
+            }
+          }}
+          className={cn(
+            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            statusFilter === 'awaiting_committee'
+              ? 'border-amber-500 bg-amber-500/10 shadow-xs'
+              : 'border-border/70 bg-card hover:border-border',
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wider text-amber-400 font-medium">
+              Awaiting Committee
+            </span>
+            {stats.awaitingCommittee > 0 && (
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            )}
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-amber-400">{stats.awaitingCommittee}</span>
+            <UserCheck className="h-4 w-4 text-amber-400" />
+          </div>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStatusFilter('finalized')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('finalized');
+            }
+          }}
+          className={cn(
+            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            statusFilter === 'finalized'
+              ? 'border-emerald-500 bg-emerald-500/10 shadow-xs'
+              : 'border-border/70 bg-card hover:border-border',
+          )}
+        >
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block">
+            Rosters Finalized
+          </span>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-emerald-400">{stats.finalized}</span>
+            <Lock className="h-4 w-4 text-emerald-400" />
+          </div>
+        </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setStatusFilter('forming')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setStatusFilter('forming');
+            }
+          }}
+          className={cn(
+            'cursor-pointer rounded-lg border p-3 text-left transition-all',
+            statusFilter === 'forming'
+              ? 'border-sky-500 bg-sky-500/10 shadow-xs'
+              : 'border-border/70 bg-card hover:border-border',
+          )}
+        >
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block">
+            In Formation
+          </span>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-2xl font-bold text-sky-400">{stats.forming}</span>
+            <Clock className="h-4 w-4 text-sky-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Deep-Link Notification Focus Banner */}
+      {urlTeamId && (
+        <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-xs text-primary animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <UsersRound className="h-4 w-4 shrink-0" />
+            <span>
+              Direct roster inspection for{' '}
+              <strong className="font-semibold text-foreground">
+                {selectedTeam?.name || 'Linked Team'}
+              </strong>{' '}
+              (Navigated from notification)
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-primary hover:bg-primary/20"
+            onClick={handleClearFilters}
+          >
+            Show All Teams
+          </Button>
         </div>
       )}
 
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="grid gap-2 md:grid-cols-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search teams..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <select
-          value={academicYear}
-          onChange={(e) => {
-            setAcademicYear(e.target.value);
-            setSectionId('');
-          }}
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">All academic years</option>
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sectionId}
-          onChange={(e) => setSectionId(e.target.value)}
-          disabled={!academicYear}
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">All sections</option>
-          {sections.map((section) => (
-            <option key={section._id} value={section._id}>
-              {section.courseId?.code} - {section.name}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="outline">
-          Search
-        </Button>
-      </form>
+      {/* Modern Control Toolbar */}
+      <div className="rounded-lg border border-border/70 bg-card/60 p-3.5 space-y-3">
+        <form onSubmit={handleSearch} className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by team name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="teamQuickSelect">Quick Team Select</Label>
-        <select
-          id="teamQuickSelect"
-          value={selectedTeamId || ''}
-          onChange={(e) => setSelectedTeamId(e.target.value || null)}
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">Select a team to view details</option>
-          {teams.map((team) => (
-            <option key={team._id} value={team._id}>
-              {team.name || 'Untitled Team'}
-              {team.academicYear ? ` • ${team.academicYear}` : ''}
-            </option>
-          ))}
-        </select>
+          <select
+            value={academicYear}
+            onChange={(e) => {
+              setAcademicYear(e.target.value);
+              setSectionId('');
+            }}
+            className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
+          >
+            <option value="">All Academic Years</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={sectionId}
+            onChange={(e) => setSectionId(e.target.value)}
+            disabled={!academicYear}
+            className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground disabled:opacity-50"
+          >
+            <option value="">All Sections</option>
+            {sections.map((section) => (
+              <option key={section._id} value={section._id}>
+                {section.courseId?.code} - {section.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex gap-2">
+            <Button type="submit" variant="secondary" className="flex-1 h-9 text-xs">
+              Filter
+            </Button>
+            {(search || academicYear || sectionId || statusFilter !== 'all') && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleClearFilters}
+                className="h-9 text-xs text-muted-foreground hover:text-foreground px-2"
+                title="Reset filters"
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+        </form>
+
+        {/* Quick Team Jump Dropdown & Tabs */}
+        <div className="pt-1 border-t border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <Button
+              type="button"
+              variant={statusFilter === 'all' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setStatusFilter('all')}
+            >
+              All ({stats.total})
+            </Button>
+            <Button
+              type="button"
+              variant={statusFilter === 'awaiting_committee' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 text-xs text-amber-400 gap-1.5"
+              onClick={() => setStatusFilter('awaiting_committee')}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              Awaiting Committee ({stats.awaitingCommittee})
+            </Button>
+            <Button
+              type="button"
+              variant={statusFilter === 'finalized' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setStatusFilter('finalized')}
+            >
+              Finalized ({stats.finalized})
+            </Button>
+            <Button
+              type="button"
+              variant={statusFilter === 'forming' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setStatusFilter('forming')}
+            >
+              Forming ({stats.forming})
+            </Button>
+          </div>
+
+          <div className="w-full sm:w-72 shrink-0">
+            <select
+              id="teamQuickSelect"
+              value={selectedTeamId || ''}
+              onChange={(e) => {
+                const id = e.target.value;
+                if (!id) {
+                  setSelectedTeamId(null);
+                  return;
+                }
+                setSelectedTeamId(id);
+                const found = teams.find((t) => t._id === id);
+                if (found) {
+                  handleInspectTeam(found);
+                }
+              }}
+              className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs text-foreground"
+            >
+              <option value="">Quick Jump to Inspect Team...</option>
+              {teams.map((team) => (
+                <option key={team._id} value={team._id}>
+                  {team.name || 'Untitled Team'}
+                  {team.isLocked ? ' [Locked]' : ' [Forming]'}
+                  {team.academicYear ? ` • ${team.academicYear}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Team grid */}
-      {teams.length === 0 ? (
+      {/* Selected Team Detail View (Maintains backwards compatibility for integration suites) */}
+      {selectedTeam && (
+        <FacultyTeamDetail
+          team={selectedTeam}
+          canAssignCommittee={canAssignCommittee}
+          onInspectRoster={handleInspectTeam}
+        />
+      )}
+
+      {/* Team Grid */}
+      {displayTeams.length === 0 ? (
         <EmptyTeamState role={ROLES.INSTRUCTOR} />
       ) : (
-        <>
-          {selectedTeam && (
-            <FacultyTeamDetail team={selectedTeam} canAssignCommittee={canAssignCommittee} />
-          )}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {displayTeams.map((team) => {
+            const isSelected = selectedTeamId === team._id;
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => {
-              const isSelected = selectedTeamId === team._id;
-
-              return (
-                <button
-                  key={team._id}
-                  type="button"
-                  onClick={() => setSelectedTeamId(team._id)}
-                  className={`text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                    isSelected ? 'rounded-lg ring-2 ring-primary' : 'rounded-lg'
-                  }`}
-                  aria-pressed={isSelected}
-                  aria-label={`View details for ${team.name || 'team'}`}
-                >
-                  <TeamCard team={team} />
-                </button>
-              );
-            })}
-          </div>
-        </>
+            return (
+              <button
+                key={team._id}
+                type="button"
+                onClick={() => {
+                  setSelectedTeamId(team._id);
+                }}
+                className="text-left rounded-lg transition-transform focus:outline-none"
+                aria-pressed={isSelected}
+                aria-label={`View details for ${team.name || 'team'}`}
+              >
+                <TeamCard
+                  team={team}
+                  isSelected={isSelected}
+                  canAssignCommittee={canAssignCommittee}
+                  onInspect={handleInspectTeam}
+                  onAssign={(teamToAssign) => setCommitteeModalTeam(teamToAssign)}
+                />
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {/* Pagination */}
@@ -2303,7 +2779,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
           >
             Previous
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Page {pagination.page} of {pagination.totalPages}
           </span>
           <Button
@@ -2315,6 +2791,49 @@ function FacultyTeamsView({ canAssignCommittee }) {
             Next
           </Button>
         </div>
+      )}
+
+      {/* Dedicated Roster Inspection Modal */}
+      <InspectRosterDialog
+        open={Boolean(inspectingTeam)}
+        onOpenChange={(open) => {
+          if (!open) handleCloseInspect();
+        }}
+        team={inspectingTeam}
+        canAssignCommittee={canAssignCommittee}
+        onAssignCommittee={(teamToAssign) => {
+          setCommitteeModalTeam(teamToAssign);
+        }}
+      />
+
+      {/* Assigned Committee Dialog */}
+      {committeeModalTeam && (
+        <AssignCommitteeDialog
+          open={Boolean(committeeModalTeam)}
+          onOpenChange={(open) => {
+            if (!open) setCommitteeModalTeam(null);
+          }}
+          teamId={committeeModalTeam._id}
+          teamName={committeeModalTeam.name}
+          initialAdviserId={
+            committeeModalTeam.adviserId?._id ||
+            committeeModalTeam.adviserId ||
+            committeeModalTeam.assignment?.adviser?._id
+          }
+          initialSecretaryId={
+            committeeModalTeam.secretaryId?._id ||
+            committeeModalTeam.secretaryId ||
+            committeeModalTeam.assignment?.secretary?._id
+          }
+          initialPanelistIds={(
+            committeeModalTeam.panelistIds ||
+            committeeModalTeam.assignment?.panelists ||
+            []
+          ).map((p) => p._id || p)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: teamKeys.all });
+          }}
+        />
       )}
     </div>
   );

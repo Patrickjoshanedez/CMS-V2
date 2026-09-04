@@ -1499,10 +1499,11 @@ class TeamService {
    * @returns {Object} { teams, pagination }
    */
   async listTeams(query) {
-    const { page = 1, limit = 20, academicYear, sectionId, search } = query;
+    const { page = 1, limit = 20, academicYear, sectionId, search, teamId } = query;
     const skip = (page - 1) * limit;
 
     const filter = {};
+    if (teamId) filter._id = teamId;
     if (academicYear) filter.academicYear = academicYear;
     if (sectionId) filter.sectionId = sectionId;
     if (search) {

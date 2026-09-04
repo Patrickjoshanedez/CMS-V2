@@ -19,7 +19,19 @@ const mockUseAssignPanelist = vi.fn();
 const mockUseRemovePanelist = vi.fn();
 
 const mockUseMyTeam = vi.fn(() => ({ data: null, isLoading: false, isError: false, error: null }));
+const mockUseTeamById = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamManuscriptTemplate = vi.fn(() => ({ data: null, isLoading: false }));
+
+let mockSearchParams = new URLSearchParams();
+const mockSetSearchParams = vi.fn((params) => {
+  if (typeof params === 'function') {
+    mockSearchParams = params(mockSearchParams);
+  } else if (params instanceof URLSearchParams) {
+    mockSearchParams = params;
+  } else {
+    mockSearchParams = new URLSearchParams(params);
+  }
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -27,6 +39,7 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => mockUseNavigate(),
     useParams: () => mockUseParams(),
+    useSearchParams: () => [mockSearchParams, mockSetSearchParams],
   };
 });
 
@@ -36,6 +49,7 @@ vi.mock('@/stores/authStore', () => ({
 
 vi.mock('@/hooks/useTeams', () => ({
   useMyTeam: () => mockUseMyTeam(),
+  useTeamById: (...args) => mockUseTeamById(...args),
   useTeams: (...args) => mockUseTeams(...args),
   useCreateTeam: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useInviteMember: () => ({ mutate: vi.fn(), isPending: false, error: null }),
@@ -109,6 +123,9 @@ const renderTeamsPage = () => {
 describe('TeamsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
+    mockSetSearchParams.mockClear();
+    mockUseTeamById.mockReturnValue({ data: null, isLoading: false });
     mockUseNavigate.mockReturnValue(vi.fn());
     mockUseAuthStore.mockReturnValue({
       user: { _id: 'inst-1', role: ROLES.INSTRUCTOR },
@@ -291,6 +308,37 @@ describe('TeamsPage', () => {
     expect(view.container.textContent).toContain('Manuscript Document');
     expect(view.container.textContent).toContain('Attach Document');
     expect(view.container.textContent).not.toContain('Available after Template Unlock');
+
+    view.unmount();
+  });
+
+  it('opens Inspect Roster dialog when Inspect button is clicked', () => {
+    const view = renderTeamsPage();
+
+    const inspectBtn = view.container.querySelector('[data-testid="inspect-roster-btn"]');
+    expect(inspectBtn).toBeTruthy();
+
+    act(() => {
+      inspectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const modal = document.body.querySelector('[role="dialog"]');
+    expect(modal).toBeTruthy();
+    expect(modal.textContent).toContain('Team One');
+    expect(modal.textContent).toContain('Phase 0 Active');
+
+    view.unmount();
+  });
+
+  it('auto-opens Inspect Roster dialog when teamId search parameter is provided', () => {
+    mockSearchParams = new URLSearchParams({ teamId: 'team-1' });
+
+    const view = renderTeamsPage();
+
+    const modal = document.body.querySelector('[role="dialog"]');
+    expect(modal).toBeTruthy();
+    expect(modal.textContent).toContain('Team One');
+    expect(modal.textContent).toContain('Phase 0 Active');
 
     view.unmount();
   });
