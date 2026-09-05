@@ -324,42 +324,43 @@ def _result(decision: str, reason: str, tool: str) -> dict[str, Any]:
     }
 
 
+def evaluate_hllm_preflight(payload: dict[str, Any]) -> dict[str, Any]:
+    """In-process evaluator for HLLM regex preflight."""
+    if not _is_pretool_event(payload):
+        return _result("allow", "HLLM preflight skipped for non-PreToolUse event.", "")
+
+    tool = _tool_name(payload)
+    if not _is_mutation_tool(tool):
+        return _result("allow", "HLLM preflight skipped: tool is not a code-mutation tool.", tool)
+
+    candidate_text = _extract_candidate_text(payload)
+    if not candidate_text:
+        return _result("allow", "HLLM preflight skipped: no candidate patch text found.", tool)
+
+    rules = _dedupe_rules(_load_json_patterns() + _load_lesson_patterns())
+    if not rules:
+        return _result("allow", "HLLM preflight active: no blacklist patterns currently defined.", tool)
+
+    match_rule, snippet = _find_match(candidate_text, rules)
+    if match_rule is None:
+        return _result("allow", f"HLLM preflight passed against {len(rules)} blacklist regex pattern(s).", tool)
+
+    reason = (
+        f"Blocked by HLLM regex preflight ({match_rule.rule_id}): {match_rule.reason}. "
+        f"Source={match_rule.source}. MatchSnippet={snippet}"
+    )
+    return _result("deny", reason, tool)
+
+
 def main() -> int:
     payload, error = _read_payload()
     if payload is None:
         print(json.dumps(_result("deny", f"Invalid payload: {error}", ""), ensure_ascii=True))
         return 2
 
-    if not _is_pretool_event(payload):
-        print(json.dumps(_result("allow", "HLLM preflight skipped for non-PreToolUse event.", ""), ensure_ascii=True))
-        return 0
-
-    tool = _tool_name(payload)
-    if not _is_mutation_tool(tool):
-        print(json.dumps(_result("allow", "HLLM preflight skipped: tool is not a code-mutation tool.", tool), ensure_ascii=True))
-        return 0
-
-    candidate_text = _extract_candidate_text(payload)
-    if not candidate_text:
-        print(json.dumps(_result("allow", "HLLM preflight skipped: no candidate patch text found.", tool), ensure_ascii=True))
-        return 0
-
-    rules = _dedupe_rules(_load_json_patterns() + _load_lesson_patterns())
-    if not rules:
-        print(json.dumps(_result("allow", "HLLM preflight active: no blacklist patterns currently defined.", tool), ensure_ascii=True))
-        return 0
-
-    match_rule, snippet = _find_match(candidate_text, rules)
-    if match_rule is None:
-        print(json.dumps(_result("allow", f"HLLM preflight passed against {len(rules)} blacklist regex pattern(s).", tool), ensure_ascii=True))
-        return 0
-
-    reason = (
-        f"Blocked by HLLM regex preflight ({match_rule.rule_id}): {match_rule.reason}. "
-        f"Source={match_rule.source}. MatchSnippet={snippet}"
-    )
-    print(json.dumps(_result("deny", reason, tool), ensure_ascii=True))
-    return 2
+    res = evaluate_hllm_preflight(payload)
+    print(json.dumps(res, ensure_ascii=True))
+    return 0 if res.get("allow", True) else 2
 
 
 if __name__ == "__main__":

@@ -170,4 +170,36 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(container.textContent).toContain('Revision No. : 002');
     expect(container.textContent).toContain('Issue Date: May 15, 2018');
   });
+
+  it('renders Secretary Compliance Verification Gate and locks signatures until endorsed', async () => {
+    await renderComponent({
+      user: { _id: 'chair-1', role: 'faculty', facultyRole: 'chair' },
+    });
+
+    expect(container.textContent).toContain('Secretary Compliance Verification Gate');
+    expect(container.textContent).toContain('Endorsement Pending');
+    expect(container.textContent).toContain('Awaiting Secretary Endorsement');
+  });
+
+  it('unlocks signatures when Secretary has endorsed the matrix', async () => {
+    const endorsedProject = {
+      ...mockProject,
+      admSignatures: {
+        ...mockProject.admSignatures,
+        secretary: {
+          endorsed: true,
+          endorsedAt: new Date().toISOString(),
+          signatoryName: 'Secretary Test',
+        },
+      },
+    };
+
+    await renderComponent({
+      project: endorsedProject,
+      user: { _id: 'chair-1', role: 'faculty', facultyRole: 'chair' },
+    });
+
+    expect(container.textContent).toContain('Endorsed & Unlocked');
+    expect(container.textContent).toContain('Sign Digitally');
+  });
 });

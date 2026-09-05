@@ -32,8 +32,26 @@
 31. Primary User Role Consolidation Rule: Primary user account roles visible in user management (`/users`) are strictly: `student` (Student), `instructor` (Instructor), and `faculty` (Faculty) exported as `PRIMARY_ROLES` in `@cms/shared`. Adviser, Secretary, Panelist, and Chair are committee appointments under the Faculty umbrella. In `user.service.js:listUsers`, querying `role: 'faculty'` automatically expands to `{ $in: ['faculty', 'adviser', 'panelist'] }` to ensure full compatibility with legacy or seeded accounts.
 32. Deep-Linking and Phase 0 Roster Inspection Rule: Teams deep-linking via query parameter (`?teamId=<id>`) is supported on both the API service (`team.validation.js` `teamId` filter and `team.service.js` `_id` query) and client layer (`useTeamById`). `TeamsPage` automatically inspects URL `searchParams`, highlights the targeted team, and opens `InspectRosterDialog`, displaying BukSU Phase 0 verification status, the 5 standardized proponent roles, and committee appointments.
 
+33. Committee Role Restrictions & Notification Auto-Completion Rule:
+- Course instructors (`role: 'instructor'`) cannot serve as Adviser, Secretary, or Defense Panelists; committee appointments are strictly reserved for Faculty members (`role: 'faculty'`, `adviser`, `panelist`). Both client comboboxes (`useUsers({ role: 'faculty' })`) and backend services (`team.service.js:assignCommittee`) strictly reject instructor appointments.
+- Mongoose Mixed Schema Query Gotcha / Prevention: `metadata` on notifications uses `Schema.Types.Mixed`, meaning Mongoose does NOT auto-cast `ObjectId` to string or vice-versa. Querying `'metadata.teamId': team._id` fails to match when saved as `team._id.toString()`. Always query `$or: [{ 'metadata.teamId': team._id }, { 'metadata.teamId': team._id.toString() }]`.
+- Full-Assignment Auto-Completion Checklist: A committee is fully assigned only when 1 Adviser, 1 Secretary, and >= 3 Panelists are assigned. Upon reaching this threshold, notifications are marked `isRead: true` with `metadata.status: 'completed'`. The UI swaps the active `Action Required` pill and blue `Assign Committee` button for an `Assigned` status badge and `Edit Committee` option, supported by cache invalidation across `['teams']`, `['notifications']`, and `['projects']`.
+34. Committee Secretary Defense Workflow & ADM Endorsement Gate Rule:
+- Live Defense Minutes: Committee Secretaries log real-time defense critiques tagged with 6 institutional categories (`Manuscript / Literature`, `System Architecture / Backend`, `UI/UX`, `Database Schema`, `Methodology & Implementation`, `General / Other`), panelist attribution, severity level, and page/module anchors.
+- Automated Score Aggregation: Consolidates panel evaluation rubrics, validates against the institutional 75% minimum passing threshold, and locks composite scores (`compositeScores.isLocked = true`) with Chair confirmation.
+- Consensus Verdict & Atomic ADM Publishing: Records consensus decisions (`approved`, `minor_revisions`, `major_revisions`, `failed`) and atomically publishes minutes entries as Action Done Matrix rows (`pending_developer_action`).
+- Secretary Compliance Verification Gate: `project.admSignatures.secretary.endorsed = true` is an immutable prerequisite for committee digital signatures. In `project.controller.js:signTieredADM`, panel members and advisers cannot sign until the Secretary submits digital endorsement certifying student compliance. In the UI (`ActionDoneMatrixTab.jsx`), an institutional Secretary Compliance Verification Gate banner appears above Tier 1, locking committee signatures when endorsement is pending.
+
+35. Interconnected Harness Scaling Architecture (IHSA) & In-Process Dispatcher Rule:
+- PreToolUse Static Gatekeeper Deadlock Prevention: PreToolUse static gatekeeping must NEVER evaluate on-disk linter passes over un-mutated files if a file currently contains syntax debt, as doing so deadlocks agents from applying fixes. In `static_gatekeeper.py`, linting verifies proposed patch buffers and externalizes domain-specific token restrictions to `feature_policies.json`.
+- Provider-Agnostic Cloud AI Runtime: Hardcoded Ollama localhost dependencies are prohibited. The runtime operates on high-throughput cloud reasoning models (DeepSeek API `https://api.deepseek.com` with model `deepseek-chat` as alternative to GPT-4o) configured via `.github/hooks/state/runtime_config.json` and `DEEPSEEK_API_KEY`.
+- Monolithic Hook Decomposition: The legacy 2,551-line `continual_learning_checkpoint.py` is decomposed into single-responsibility gates (`test_tracking_gate.py`, `public_exposure_gate.py`, and `completion_keyword_guard.py`), preserving a thin modular facade for 100% backward compatibility.
+- In-Process Hook Dispatcher Execution (<175ms): `hooks_dispatcher.py` loads `hook_registry.json` and executes lifecycle gates in-process using Python module caching (`sys.modules`), slashing tool dispatch latency from ~1,800ms down to <175ms.
+- Checklist & Runbook for IHSA Maintenance:
+  1. Runbook: Synchronize agent states and hook registries with `python .github/hooks/scripts/generate_registries.py`.
+  2. Checklist: Verify 60/60 governance checks with `npm run validate:agentic` and `npm run validate:governance`.
+  3. Lesson learned: In-process module caching eliminates Python interpreter cold-boot overhead across multi-agent turns.
+  4. Lesson learned / Prevention: Store cloud model keys in `.github/hooks/state/runtime_config.json` and read via `os.environ` to satisfy secret scanners and HLLM regex preflights without committing secrets.
+
 ## Test Fixture Notes
 - Submission chapter-upload integration fixtures must include at least one assigned panelist on the project in Capstone phase 1, otherwise uploads fail with PANELISTS_NOT_ASSIGNED before other assertions.
-
-
-

@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "2.0.0",
   "schemaVersion": 1,
   "description": "Workspace hook registry for orchestrator lifecycle enforcement.",
   "hooks": {
@@ -15,7 +15,7 @@
         "cwd": "./",
         "timeout": 30,
         "failMode": "error",
-        "description": "Load and validate all agent metadata, build registry"
+        "description": "Load and validate agent metadata, build registry"
       },
       {
         "id": "agent-sync-verify",
@@ -44,50 +44,84 @@
         "description": "Validate orchestrator routing rules for coherence"
       },
       {
+        "id": "public-exposure-gate",
+        "type": "command",
+        "script": ".github/hooks/scripts/public_exposure_gate.py",
+        "command": "python3 .github/hooks/scripts/public_exposure_gate.py",
+        "windows": "py -3 .github/hooks/scripts/public_exposure_gate.py",
+        "linux": "python3 .github/hooks/scripts/public_exposure_gate.py",
+        "osx": "python3 .github/hooks/scripts/public_exposure_gate.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error",
+        "description": "Prevent unauthorized public internet exposure via Docker/ngrok"
+      },
+      {
+        "id": "static-gatekeeper",
+        "type": "command",
+        "script": ".github/hooks/scripts/static_gatekeeper.py",
+        "command": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "windows": "py -3 .github/hooks/scripts/static_gatekeeper.py",
+        "linux": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "osx": "python3 .github/hooks/scripts/static_gatekeeper.py",
+        "cwd": "./",
+        "timeout": 60,
+        "failMode": "error",
+        "description": "Buffer-based dynamic syntax and policy verification"
+      },
+      {
         "id": "hllm-regex-preflight",
         "type": "command",
+        "script": ".github/hooks/scripts/hllm_regex_preflight.py",
         "command": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
         "windows": "py -3 .github/hooks/scripts/hllm_regex_preflight.py",
         "linux": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
         "osx": "python3 .github/hooks/scripts/hllm_regex_preflight.py",
         "cwd": "./",
         "timeout": 20,
-        "failMode": "error"
-      },
-      {
-        "id": "static-gatekeeper",
-        "type": "command",
-        "command": "python3 .github/hooks/scripts/static_gatekeeper.py",
-        "windows": "py -3 .github/hooks/scripts/static_gatekeeper.py",
-        "linux": "python3 .github/hooks/scripts/static_gatekeeper.py",
-        "osx": "python3 .github/hooks/scripts/static_gatekeeper.py",
-        "cwd": "./",
-        "timeout": 120,
-        "failMode": "error"
-      },
-      {
-        "id": "public-internet-exposure-gate",
-        "type": "command",
-        "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
-        "windows": "py -3 .github/hooks/scripts/continual_learning_checkpoint.py",
-        "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
-        "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
-        "cwd": "./",
-        "timeout": 20,
-        "failMode": "error"
+        "failMode": "error",
+        "description": "Pattern matching guard against secrets and slop"
       }
     ],
     "PostToolUse": [
       {
+        "id": "test-tracking-gate",
+        "type": "command",
+        "script": ".github/hooks/scripts/test_tracking_gate.py",
+        "command": "python3 .github/hooks/scripts/test_tracking_gate.py",
+        "windows": "py -3 .github/hooks/scripts/test_tracking_gate.py",
+        "linux": "python3 .github/hooks/scripts/test_tracking_gate.py",
+        "osx": "python3 .github/hooks/scripts/test_tracking_gate.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error",
+        "description": "Track failing tests and enforce binary fail-to-pass / pass-to-pass gates"
+      },
+      {
+        "id": "completion-keyword-guard",
+        "type": "command",
+        "script": ".github/hooks/scripts/completion_keyword_guard.py",
+        "command": "python3 .github/hooks/scripts/completion_keyword_guard.py",
+        "windows": "py -3 .github/hooks/scripts/completion_keyword_guard.py",
+        "linux": "python3 .github/hooks/scripts/completion_keyword_guard.py",
+        "osx": "python3 .github/hooks/scripts/completion_keyword_guard.py",
+        "cwd": "./",
+        "timeout": 20,
+        "failMode": "error",
+        "description": "Verify continual learning keywords and pending failure clearance"
+      },
+      {
         "id": "continual-learning-checkpoint",
         "type": "command",
+        "script": ".github/hooks/scripts/continual_learning_checkpoint.py",
         "command": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
         "windows": "py -3 .github/hooks/scripts/continual_learning_checkpoint.py",
         "linux": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
         "osx": "python3 .github/hooks/scripts/continual_learning_checkpoint.py",
         "cwd": "./",
         "timeout": 20,
-        "failMode": "error"
+        "failMode": "error",
+        "description": "Unified continual learning checkpoint facade"
       }
     ]
   }

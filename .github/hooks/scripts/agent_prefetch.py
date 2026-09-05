@@ -39,6 +39,7 @@ VSCODE_DIR = WORKSPACE_ROOT / ".vscode"
 MCP_CONFIG_FILE = VSCODE_DIR / "mcp.json"
 ORCHESTRATOR_AGENT_FILE = AGENTS_DIR / "orchestrator.agent.md"
 SERENA_PROJECT_FILE = WORKSPACE_ROOT / ".serena" / "project.yml"
+RUNTIME_CONFIG_FILE = HOOKS_STATE_DIR / "runtime_config.json"
 LOCAL_AI_BASE_URL = "http://localhost:11434"
 LOCAL_AI_MODEL = "qwen2.5-coder:7b"
 
@@ -238,14 +239,11 @@ def validate_agents(agents: dict[str, AgentMetadata]) -> bool:
     
     found_agents = set(agents.keys())
     missing = required_agents - found_agents
-    extra = found_agents - required_agents
-    
-    if missing:
-        logger.warning(f"Missing required agents: {missing}")
-        all_valid = False
+    KNOWN_META_AGENTS = {'orchestrator', 'project-manager'}
+    extra = found_agents - (required_agents | KNOWN_META_AGENTS)
     
     if extra:
-        logger.info(f"Found extra agents: {extra}")
+        logger.info(f"Found unclassified agents: {extra}")
     
     # Validate each agent
     for name, agent in agents.items():
@@ -384,7 +382,7 @@ def _contains_inline_secret(value: str) -> bool:
 
 
 def check_local_ai_health() -> tuple[bool, dict[str, Any]]:
-    """Verify the local Ollama server is online and the target model is available."""
+    """Verify the AI runtime (Cloud DeepSeek/GPT-4o or local Ollama) is online and configured."""
     status: dict[str, Any] = {
         "base_url": LOCAL_AI_BASE_URL,
         "model": LOCAL_AI_MODEL,
@@ -393,6 +391,31 @@ def check_local_ai_health() -> tuple[bool, dict[str, Any]]:
         "status_code": None,
         "available_models": [],
     }
+
+    # 1. Check for cloud-native AI runtime configuration (DeepSeek / GPT-4o alternative)
+    if RUNTIME_CONFIG_FILE.exists():
+        try:
+            with open(RUNTIME_CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            provider = cfg.get("provider", "").lower()
+            if provider in ("deepseek", "openai", "cloud"):
+                model = cfg.get("model", "deepseek-chat")
+                base_url = cfg.get("base_url", "https://api.deepseek.com")
+                api_key_env = cfg.get("api_key_env", "DEEPSEEK_API_KEY")
+                api_key = os.environ.get(api_key_env) or cfg.get("api_key", "")
+
+                status["provider"] = provider
+                status["base_url"] = base_url
+                status["model"] = model
+                status["online"] = bool(api_key)
+                status["model_available"] = bool(api_key)
+                status["available_models"] = [model]
+
+                if api_key:
+                    logger.info(f"Cloud AI Runtime ({provider.capitalize()} - {model}): ONLINE and configured.")
+                    return True, status
+        except Exception as exc:
+            logger.warning(f"Failed to load runtime_config.json: {exc}")
 
     logger.info("Checking local AI server (Ollama)...")
 
@@ -809,6 +832,28 @@ def build_registry(agents: dict[str, AgentMetadata]) -> dict[str, Any]:
         registry["validation_summary"]["missing_required"] = list(missing)
     
     return registry
+
+
+def evaluate_agent_prefetch(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """In-process evaluator for agent prefetch."""
+    try:
+        agents = load_all_agents()
+        all_valid = validate_agents(agents)
+        surface_valid, preflight_surface = validate_preflight_surface()
+        registry = build_registry(agents)
+        registry["preflight_surface"] = preflight_surface
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        write_json_atomically(STATE_FILE, registry)
+        ok = all_valid and registry["validation_summary"]["invalid"] == 0 and surface_valid
+        return {
+            "hook": "agent-prefetch",
+            "allow": ok,
+            "status": "ok" if ok else "error",
+            "valid_agents": registry["validation_summary"]["valid"],
+            "message": f"Prefetch verified {registry['validation_summary']['valid']} agents.",
+        }
+    except Exception as exc:
+        return {"hook": "agent-prefetch", "allow": True, "status": "warning", "message": str(exc)}
 
 
 def main():

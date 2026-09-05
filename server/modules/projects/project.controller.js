@@ -619,9 +619,10 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId)
     .select(
-      'actionDoneMatrix admStatus admReviewType admSignatures capstoneCourse title adviserId panelistIds panelists teamId',
+      'actionDoneMatrix admStatus admReviewType admSignatures capstoneCourse title adviserId secretaryId panelistIds panelists teamId',
     )
     .populate('adviserId', 'firstName lastName email avatar')
+    .populate('secretaryId', 'firstName lastName email avatar')
     .populate('panelistIds', 'firstName lastName email avatar')
     .populate('panelists.userId', 'firstName lastName email avatar')
     .populate({
@@ -654,6 +655,7 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
       capstoneCourse: project.capstoneCourse,
       title: project.title,
       adviser: project.adviserId,
+      secretary: project.secretaryId,
       panelists: project.panelists,
       team: project.teamId,
     },
@@ -869,6 +871,16 @@ export const signTieredADM = catchAsync(async (req, res) => {
     project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
   }
 
+  // Institutional Gate: Secretary Endorsement prerequisite
+  const isInstructorUser = req.user.role === ROLES.INSTRUCTOR;
+  if (!project.admSignatures?.secretary?.endorsed && !isInstructorUser) {
+    return res.status(HTTP_STATUS.FORBIDDEN).json({
+      success: false,
+      message:
+        'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+    });
+  }
+
   const name = signatoryName || `${req.user.firstName} ${req.user.lastName}`;
   const now = new Date();
 
@@ -937,6 +949,140 @@ export const signTieredADM = catchAsync(async (req, res) => {
     message: `Signed ADM as ${role || 'signatory'}.`,
     data: {
       admSignatures: project.admSignatures,
+      admStatus: project.admStatus,
+      actionDoneMatrix: project.actionDoneMatrix,
+    },
+  });
+});
+
+/** POST /api/adm/:projectId/endorse — Endorse ADM by Committee Secretary */
+export const endorseADMBySecretary = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const { notes = '', signatoryName, signatureDataUrl } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Project not found.',
+    });
+  }
+
+  const rows = project.actionDoneMatrix || [];
+  if (rows.length === 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: 'Cannot endorse an empty Action Done Matrix.',
+    });
+  }
+
+  const unaddressed = rows.filter((r) => r.status === 'pending');
+  if (unaddressed.length > 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: `Cannot endorse Action Done Matrix: ${unaddressed.length} revision item(s) are still pending action from the student team.`,
+    });
+  }
+
+  if (!project.admSignatures) {
+    project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
+  }
+
+  const name = signatoryName || `${req.user.firstName} ${req.user.lastName}`;
+  project.admSignatures.secretary = {
+    endorsed: true,
+    endorsedAt: new Date(),
+    signatoryName: name,
+    notes: notes.trim(),
+    signatureDataUrl: signatureDataUrl || null,
+    userId: req.user._id,
+  };
+
+  project.admStatus = 'under_panel_review';
+  await project.save();
+
+  // Notify team members
+  try {
+    const team = await (await import('../teams/team.model.js')).default.findById(project.teamId);
+    if (team?.members?.length > 0) {
+      const notifications = team.members.map((memberId) => ({
+        userId: memberId,
+        type: 'adm_endorsed',
+        title: 'Action Done Matrix Endorsed by Secretary',
+        message: `Committee Secretary ${name} has endorsed your Action Done Matrix. The matrix is now unlocked for panel digital signatures.`,
+        metadata: { projectId: project._id, admStatus: project.admStatus },
+      }));
+      const createdNotifs = await Notification.insertMany(notifications);
+      createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+    }
+  } catch {
+    // Non-blocking notification
+  }
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Action Done Matrix successfully endorsed by Committee Secretary.',
+    data: {
+      admSignatures: project.admSignatures,
+      admStatus: project.admStatus,
+      actionDoneMatrix: project.actionDoneMatrix,
+    },
+  });
+});
+
+/** POST /api/adm/:projectId/submit-for-endorsement — Student submits ADM for Secretary Review */
+export const submitADMForEndorsement = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Project not found.',
+    });
+  }
+
+  const rows = project.actionDoneMatrix || [];
+  if (rows.length === 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: 'Cannot submit an empty Action Done Matrix.',
+    });
+  }
+
+  const unaddressed = rows.filter((r) => r.status === 'pending');
+  if (unaddressed.length > 0) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: `Cannot submit for endorsement: ${unaddressed.length} item(s) are still pending student action.`,
+    });
+  }
+
+  project.admStatus = 'pending_secretary_endorsement';
+  await project.save();
+
+  // Notify Secretary
+  try {
+    const secId =
+      project.secretaryId || (project.panelists || []).find((p) => p.role === 'secretary')?.userId;
+    if (secId) {
+      const notif = await Notification.create({
+        userId: secId,
+        type: 'adm_submitted_for_review',
+        title: 'Action Done Matrix Ready for Endorsement',
+        message: `Team has submitted their completed Action Done Matrix for "${project.title}" for your compliance review.`,
+        metadata: { projectId: project._id },
+      });
+      emitToUser(secId, 'notification:new', notif);
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Action Done Matrix submitted for Secretary endorsement.',
+    data: {
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
     },

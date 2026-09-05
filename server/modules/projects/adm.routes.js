@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as projectController from './project.controller.js';
-import authorize from '../../middleware/authorize.js';
-import { ROLES } from '@cms/shared';
+import authorize, { authorizeSecretaryCapability } from '../../middleware/authorize.js';
+import { ROLES, SECRETARY_CAPABILITIES } from '@cms/shared';
 
 const router = Router();
 
@@ -45,6 +45,20 @@ router.post(
   '/:projectId/signatures',
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.signTieredADM,
+);
+
+// POST /api/adm/:projectId/endorse — Committee Secretary reviews & endorses completed ADM
+router.post(
+  '/:projectId/endorse',
+  authorizeSecretaryCapability(SECRETARY_CAPABILITIES.MATRIX_ENDORSE),
+  projectController.endorseADMBySecretary,
+);
+
+// POST /api/adm/:projectId/submit-for-endorsement — Student team submits ADM for Secretary review
+router.post(
+  '/:projectId/submit-for-endorsement',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.FACULTY),
+  projectController.submitADMForEndorsement,
 );
 
 // PATCH /api/adm/:projectId/metadata — Update review type and title

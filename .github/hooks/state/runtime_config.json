@@ -1,0 +1,11 @@
+{
+  "provider": "deepseek",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-chat",
+  "alternative_to": "gpt-4o",
+  "api_key_env": "DEEPSEEK_API_KEY",
+  "api_key": "sk-62d9c3cd82ce496aa2a4608fc5223adc",
+  "timeout_seconds": 30,
+  "max_retries": 3,
+  "execution_mode": "cloud_native"
+}

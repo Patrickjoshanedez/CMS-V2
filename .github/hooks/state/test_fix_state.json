@@ -50,16 +50,16 @@
     }
   ],
   "observedTestActivity": true,
-  "updatedAt": "2026-04-26T20:15:55+00:00",
+  "updatedAt": "2026-09-05T04:02:55.670255+00:00",
   "integrityAnomaly": null,
   "publicExposureGate": {
-    "pending": false,
+    "pending": true,
     "pendingContext": null,
     "passed": false,
     "lastVerifiedAt": null,
-    "lastAttemptedCommand": "",
-    "lastBlockedAt": null,
+    "lastAttemptedCommand": "npm run tunnel",
+    "lastBlockedAt": "2026-09-05T04:02:55.658601+00:00",
     "evidenceMap": {},
-    "updatedAt": null
+    "updatedAt": "2026-09-05T04:02:55.659208+00:00"
   }
 }

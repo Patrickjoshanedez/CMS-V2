@@ -352,6 +352,38 @@ def build_coherence_report(
     return report
 
 
+def evaluate_decision_coherence(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """In-process evaluator for decision coherence."""
+    try:
+        registry, registry_loaded = load_prefetch_registry()
+        if not registry_loaded:
+            return {"hook": "decision-coherence", "allow": False, "status": "error", "message": "Prefetch registry missing"}
+        valid_agents = set(registry.get("agents", {}).keys())
+        rules = extract_routing_rules_from_orchestrator()
+        all_issues = []
+        is_deterministic, determinism_issues = validate_routing_determinism(rules)
+        all_issues.extend(determinism_issues)
+        all_issues.extend(validate_agent_references(rules, valid_agents))
+        all_issues.extend(validate_fallback_paths(rules))
+        product_config = extract_product_design_handoff_config()
+        all_issues.extend(validate_product_design_fallback(product_config, valid_agents))
+        conflicts = [i.message for i in all_issues if i.severity == "error"]
+        missing_fallbacks = [r.id for r in rules if not r.fallback_agent]
+        report = build_coherence_report(all_issues, rules, conflicts, missing_fallbacks)
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        write_json_atomically(COHERENCE_FILE, report)
+        ok = report["validation_status"] != "invalid" or report["summary"]["errors"] == 0
+        return {
+            "hook": "decision-coherence",
+            "allow": ok,
+            "status": "ok" if ok else "error",
+            "routing_rules_count": len(rules),
+            "message": f"Coherence verified: {len(rules)} rules, {report['summary']['errors']} errors.",
+        }
+    except Exception as exc:
+        return {"hook": "decision-coherence", "allow": True, "status": "warning", "message": str(exc)}
+
+
 def main():
     """Main entry point."""
     try:

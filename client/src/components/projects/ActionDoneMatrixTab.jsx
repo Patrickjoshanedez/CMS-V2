@@ -8,6 +8,7 @@ import { ROLES, PANEL_ROLES } from '@cms/shared';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import ADMPhaseSelector from '@/components/projects/ADMPhaseSelector';
 import buksuLogo from '@/assets/buksu-logo.png';
+import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
 import {
   Printer,
   Upload,
@@ -21,6 +22,8 @@ import {
   PenTool,
   Sparkles,
   Lock,
+  Send,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,6 +70,16 @@ export default function ActionDoneMatrixTab({
   const [isUploadingMinutes, setIsUploadingMinutes] = useState(false);
   const [isSeedingTemplate, setIsSeedingTemplate] = useState(false);
 
+  // Live Defense Minutes Modal
+  const [isLiveMinutesModalOpen, setIsLiveMinutesModalOpen] = useState(false);
+
+  // Secretary Endorsement Modal
+  const [isEndorsementModalOpen, setIsEndorsementModalOpen] = useState(false);
+  const [endorsementNotes, setEndorsementNotes] = useState('');
+  const [endorsementTypedName, setEndorsementTypedName] = useState('');
+  const [isSubmittingEndorsement, setIsSubmittingEndorsement] = useState(false);
+  const [isSubmittingForEndorsement, setIsSubmittingForEndorsement] = useState(false);
+
   // Digital Signature Modal
   const [signingSignatory, setSigningSignatory] = useState(null); // { tier, role, defaultName }
   const [signatoryTypedName, setSignatoryTypedName] = useState('');
@@ -103,6 +116,10 @@ export default function ActionDoneMatrixTab({
   );
 
   const adviser = project?.adviserId || project?.teamId?.adviserId;
+  const secretary =
+    project?.secretaryId ||
+    (panelists || []).find((p) => p.role === 'secretary' || p.role === PANEL_ROLES.SECRETARY)
+      ?.userId;
   const instructor =
     project?.teamId?.sectionId?.instructorId || (user?.role === ROLES.INSTRUCTOR ? user : null);
 
@@ -120,9 +137,33 @@ export default function ActionDoneMatrixTab({
       panelists.some(
         (p) => p.userId === user._id || p.userId?._id === user._id || p._id === user._id,
       ));
+  const isUserSecretary =
+    user &&
+    (secretary?._id === user._id ||
+      String(secretary) === String(user._id) ||
+      panelists.some(
+        (p) =>
+          (p.userId === user._id || p.userId?._id === user._id || p._id === user._id) &&
+          (p.role === PANEL_ROLES.SECRETARY || p.role === 'secretary'),
+      ));
   const isUserAdviser = user && (adviser?._id === user._id || String(adviser) === String(user._id));
   const isUserInstructor = user && user.role === ROLES.INSTRUCTOR;
   const canUploadMinutes = isFaculty || isUserInstructor;
+  const isSecretaryEndorsed = Boolean(admSignatures?.secretary?.endorsed);
+  const canEndorse = isUserSecretary || isUserInstructor;
+  const canManageLiveMinutes = isUserSecretary || isUserChair || isUserInstructor || isFaculty;
+
+  const defenseType = useMemo(() => {
+    if (selectedMilestone === 'CAPSTONE_4') return 'final';
+    if (selectedMilestone === 'CAPSTONE_3') return 'midterm';
+    return 'proposal';
+  }, [selectedMilestone]);
+
+  const allRowsAddressed = useMemo(() => {
+    return (
+      rows.length > 0 && rows.every((r) => r.status === 'addressed' || r.status === 'verified')
+    );
+  }, [rows]);
 
   const projectId = project?._id;
 
@@ -305,6 +346,44 @@ export default function ActionDoneMatrixTab({
     }
   };
 
+  const handleSubmitForEndorsement = async () => {
+    if (!projectId) return;
+    if (!allRowsAddressed) {
+      toast.error('Please address all revision items before submitting for Secretary endorsement.');
+      return;
+    }
+    setIsSubmittingForEndorsement(true);
+    try {
+      await projectService.submitADMForEndorsement(projectId);
+      toast.success('Action Done Matrix submitted for Secretary review.');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to submit for endorsement.');
+    } finally {
+      setIsSubmittingForEndorsement(false);
+    }
+  };
+
+  const handleConfirmEndorsement = async () => {
+    if (!projectId) return;
+    setIsSubmittingEndorsement(true);
+    try {
+      const name = endorsementTypedName || formatFullName(user, 'Committee Secretary');
+      await projectService.endorseADM(projectId, {
+        notes: endorsementNotes,
+        signatoryName: name,
+      });
+      toast.success('Action Done Matrix successfully endorsed by Committee Secretary.');
+      setIsEndorsementModalOpen(false);
+      setEndorsementNotes('');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to endorse Action Done Matrix.');
+    } finally {
+      setIsSubmittingEndorsement(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -342,6 +421,19 @@ export default function ActionDoneMatrixTab({
             </Button>
           )}
 
+          {/* Live Defense Minutes Button */}
+          {canManageLiveMinutes && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsLiveMinutesModalOpen(true)}
+              className="gap-1.5 text-xs h-8 font-semibold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Live Defense Session & Minutes
+            </Button>
+          )}
+
           {canUploadMinutes && (
             <Button
               variant="outline"
@@ -351,6 +443,37 @@ export default function ActionDoneMatrixTab({
             >
               <Upload className="h-3.5 w-3.5 text-primary" />
               Upload Minutes (PDF)
+            </Button>
+          )}
+
+          {/* Student Submit for Endorsement */}
+          {isStudent && rows.length > 0 && !isSecretaryEndorsed && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSubmitForEndorsement}
+              disabled={isSubmittingForEndorsement || !allRowsAddressed}
+              className="gap-1.5 text-xs h-8 font-semibold"
+            >
+              {isSubmittingForEndorsement ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              Submit for Secretary Endorsement
+            </Button>
+          )}
+
+          {/* Secretary Endorse Matrix */}
+          {canEndorse && !isSecretaryEndorsed && rows.length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsEndorsementModalOpen(true)}
+              className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Endorse Matrix
             </Button>
           )}
 
@@ -608,9 +731,75 @@ export default function ActionDoneMatrixTab({
         </div>
 
         {/* ============================================================ */}
-        {/* 3. DEDICATED SIGNATORIES BOARD (3 TIERS) */}
+        {/* 3. DEDICATED SIGNATORIES BOARD (3 TIERS + SECRETARY GATE) */}
         {/* ============================================================ */}
         <div className="mt-12 space-y-10 font-sans text-xs sm:text-sm">
+          {/* Secretary Compliance Endorsement Verification Banner */}
+          <div className="rounded-lg border border-border/80 bg-muted/20 p-4 font-sans text-left space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck
+                  className={`h-5 w-5 ${
+                    isSecretaryEndorsed
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-500'
+                  }`}
+                />
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Secretary Compliance Verification Gate
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    Prerequisite compliance audit: The Committee Secretary must endorse all student
+                    revision fulfillments before committee digital signatures can unlock.
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant={isSecretaryEndorsed ? 'secondary' : 'outline'}
+                className={`text-[10px] uppercase font-semibold tracking-wider ${
+                  isSecretaryEndorsed
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-500/30'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-500/30'
+                }`}
+              >
+                {isSecretaryEndorsed ? 'Endorsed & Unlocked' : 'Endorsement Pending'}
+              </Badge>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="text-muted-foreground">Designated Secretary: </span>
+                <span className="font-semibold text-foreground">
+                  {admSignatures.secretary?.signatoryName ||
+                    formatFullName(secretary?.user || secretary, 'Committee Secretary')}
+                </span>
+                {admSignatures.secretary?.endorsedAt && (
+                  <span className="text-muted-foreground text-[11px] ml-2">
+                    (Endorsed on {new Date(admSignatures.secretary.endorsedAt).toLocaleDateString()}
+                    )
+                  </span>
+                )}
+                {admSignatures.secretary?.notes && (
+                  <p className="text-[11px] italic text-muted-foreground mt-1">
+                    Remarks: &ldquo;{admSignatures.secretary.notes}&rdquo;
+                  </p>
+                )}
+              </div>
+
+              {canEndorse && !isSecretaryEndorsed && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsEndorsementModalOpen(true)}
+                  className="gap-1.5 text-xs h-7 font-medium no-print"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Sign Secretary Endorsement
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* TIER 1: Adviser & Course Instructor */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center">
             {/* Capstone Adviser */}
@@ -620,7 +809,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Signature over Printed Name of Adviser"
               signatureState={admSignatures.adviser}
-              canSign={isUserAdviser || isUserInstructor}
+              canSign={isSecretaryEndorsed && (isUserAdviser || isUserInstructor)}
+              isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserAdviser}
               onSign={() =>
                 setSigningSignatory({
                   tier: 1,
@@ -639,6 +829,7 @@ export default function ActionDoneMatrixTab({
               designation="Signature over Printed Name of Instructor"
               signatureState={admSignatures.instructor}
               canSign={isUserInstructor}
+              isLockedBySecretary={false}
               onSign={() =>
                 setSigningSignatory({
                   tier: 1,
@@ -666,7 +857,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[0]}
-              canSign={isUserPanelist}
+              canSign={isSecretaryEndorsed && isUserPanelist}
+              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
               onSign={() =>
                 setSigningSignatory({
                   tier: 2,
@@ -687,7 +879,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[1]}
-              canSign={isUserPanelist}
+              canSign={isSecretaryEndorsed && isUserPanelist}
+              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
               onSign={() =>
                 setSigningSignatory({
                   tier: 2,
@@ -711,7 +904,8 @@ export default function ActionDoneMatrixTab({
                 }
                 designation="REC / Chair"
                 signatureState={admSignatures.chair}
-                canSign={isUserChair || isUserInstructor}
+                canSign={isSecretaryEndorsed && (isUserChair || isUserInstructor)}
+                isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserChair}
                 onSign={() =>
                   setSigningSignatory({
                     tier: 3,
@@ -859,6 +1053,96 @@ export default function ActionDoneMatrixTab({
           </div>
         </div>
       )}
+
+      {/* Secretary Endorsement Confirmation Modal */}
+      {isEndorsementModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs no-print"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmittingEndorsement) {
+              setIsEndorsementModalOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md bg-card border border-border shadow-xl rounded-xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <h4 className="text-base font-semibold">Committee Secretary Endorsement</h4>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              As the Committee Secretary, your endorsement certifies that the proponent team has
+              satisfactorily addressed all panel recommendations in accordance with the defense
+              proceedings. This will unlock the digital signatures for the panel members and
+              adviser.
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="sec-name">Signatory Full Legal Name</Label>
+                <Input
+                  id="sec-name"
+                  value={endorsementTypedName || formatFullName(user, 'Committee Secretary')}
+                  onChange={(e) => setEndorsementTypedName(e.target.value)}
+                  placeholder="Secretary Full Name"
+                  disabled={isSubmittingEndorsement}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sec-notes">Compliance Remarks / Notes (Optional)</Label>
+                <textarea
+                  id="sec-notes"
+                  value={endorsementNotes}
+                  onChange={(e) => setEndorsementNotes(e.target.value)}
+                  placeholder="e.g., All revisions verified against manuscript and source code."
+                  rows={3}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isSubmittingEndorsement}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEndorsementModalOpen(false)}
+                disabled={isSubmittingEndorsement}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmEndorsement}
+                disabled={isSubmittingEndorsement}
+                className="gap-1.5"
+              >
+                {isSubmittingEndorsement ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Endorsing...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Defense Minutes Modal */}
+      <LiveDefenseMinutesModal
+        open={isLiveMinutesModalOpen}
+        onOpenChange={setIsLiveMinutesModalOpen}
+        projectId={projectId}
+        defenseType={defenseType}
+        project={project}
+        user={user}
+        onMinutesPublished={() => {
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>
   );
 }
@@ -866,7 +1150,14 @@ export default function ActionDoneMatrixTab({
 /**
  * SignatoryCard component displaying signature line, printed name, designation, and badge
  */
-function SignatoryCard({ name, designation, signatureState, canSign, onSign }) {
+function SignatoryCard({
+  name,
+  designation,
+  signatureState,
+  canSign,
+  onSign,
+  isLockedBySecretary,
+}) {
   const isSigned = Boolean(signatureState?.signed);
 
   return (
@@ -906,6 +1197,10 @@ function SignatoryCard({ name, designation, signatureState, canSign, onSign }) {
             Signed{' '}
             {signatureState?.signedAt ? new Date(signatureState.signedAt).toLocaleDateString() : ''}
           </Badge>
+        ) : isLockedBySecretary ? (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+            <Lock className="h-2.5 w-2.5" /> Awaiting Secretary Endorsement
+          </span>
         ) : canSign ? (
           <Button
             variant="outline"

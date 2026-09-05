@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "generated_at": "2026-09-05T03:22:00.000Z",
+  "schema": "ihsa-feature-policies-v2",
+  "tenants": {
+    "buksu_it_capstone": {
+      "name": "BukSU IT Department Capstone Management",
+      "isolation_level": "strict",
+      "protected_paths": [
+        "server/seeders/*",
+        ".env*",
+        "docker-compose*.yml",
+        "deploy.ps1",
+        "lan-deploy.ps1"
+      ]
+    }
+  },
+  "policies": {
+    "archive_metadata_import": {
+      "target_file": "client/src/pages/projects/CreateProjectPage.jsx",
+      "description": "Ensure proposal metadata derivation does not inject unauthorized helper tokens",
+      "forbidden_tokens": [
+        "proposal-pdf-autofill",
+        "Import From PDF (Similarity Helper)",
+        "extractPdfMetadata("
+      ],
+      "enforcement": "deny_on_mutation"
+    },
+    "committee_role_restrictions": {
+      "description": "Course instructors cannot serve on student capstone defense committees",
+      "allowed_roles": ["faculty", "adviser", "panelist"],
+      "forbidden_roles": ["instructor", "student"],
+      "enforcement": "strict_role_boundary"
+    },
+    "manuscript_template_gating": {
+      "description": "Working manuscript templates are locked until Title Defense hearing approval",
+      "prerequisite": "titleStatus === 'approved'",
+      "enforcement": "runtime_workflow_guard"
+    },
+    "adm_signature_gates": {
+      "description": "Action Done Matrix committee signatures require Secretary Compliance Verification Endorsement",
+      "prerequisite": "project.admSignatures.secretary.endorsed === true",
+      "enforcement": "atomic_signoff_gate"
+    }
+  }
+}

@@ -116,10 +116,22 @@ export function emitToUser(userId, event, data) {
 }
 
 /**
+ * Emit an event to an arbitrary room (e.g. 'project:<projectId>').
+ *
+ * @param {string} room  - Room name
+ * @param {string} event - Event name
+ * @param {Object} data  - Payload to send
+ */
+export function emitToRoom(room, event, data) {
+  if (!io) return;
+  io.to(room).emit(event, data);
+}
+
+/**
  * Reset the Socket.IO instance (used for testing cleanup).
  */
 export function resetSocket() {
   io = null;
 }
 
-export default { initializeSocket, getIO, emitToUser, resetSocket };
+export default { initializeSocket, getIO, emitToUser, emitToRoom, resetSocket };

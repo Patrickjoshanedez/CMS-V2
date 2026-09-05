@@ -8,6 +8,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockUseUsers = vi.fn();
 const mockUseAssignCommittee = vi.fn();
+const mockUseTeamById = vi.fn();
 
 vi.mock('@/hooks/useUsers', () => ({
   useUsers: (...args) => mockUseUsers(...args),
@@ -15,6 +16,7 @@ vi.mock('@/hooks/useUsers', () => ({
 
 vi.mock('@/hooks/useTeams', () => ({
   useAssignCommittee: (...args) => mockUseAssignCommittee(...args),
+  useTeamById: (...args) => mockUseTeamById(...args),
 }));
 
 vi.mock('sonner', () => ({
@@ -35,6 +37,11 @@ describe('AssignCommitteeDialog', () => {
     document.body.appendChild(container);
     root = createRoot(container);
 
+    mockUseTeamById.mockReturnValue({
+      data: null,
+      isLoading: false,
+    });
+
     mockUseUsers.mockReturnValue({
       data: {
         users: [
@@ -49,8 +56,15 @@ describe('AssignCommitteeDialog', () => {
             _id: 'f-2',
             firstName: 'Prof. John',
             lastName: 'Smith',
-            role: 'adviser',
+            role: 'faculty',
             email: 'john@buksu.edu.ph',
+          },
+          {
+            _id: 'f-3',
+            firstName: 'Dr. Alan',
+            lastName: 'Turing',
+            role: 'adviser',
+            email: 'alan@buksu.edu.ph',
           },
         ],
       },
@@ -87,13 +101,14 @@ describe('AssignCommitteeDialog', () => {
     };
   };
 
-  it('renders into document.body portal with header, team badge, and form elements', () => {
+  it('renders into document.body portal with header, progress ribbon, team badge, and form elements', () => {
     const { unmount } = renderDialog();
 
     const dialog = document.body.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
     expect(document.body.textContent).toContain('Assign Faculty Committee');
     expect(document.body.textContent).toContain('Team Patrick');
+    expect(document.body.textContent).toContain('Committee Slots: 0 of 5 Filled');
     expect(document.body.textContent).toContain('Capstone Adviser');
     expect(document.body.textContent).toContain('Committee Secretary');
     expect(document.body.textContent).toContain('Defense Panelists');
@@ -132,12 +147,12 @@ describe('AssignCommitteeDialog', () => {
     expect(document.body.style.overflow).toBe(initialOverflow);
   });
 
-  it('passes faculty roles filter and populates faculty options with institutional roles on combobox open', () => {
+  it('passes faculty roles filter and strictly excludes instructors from candidate options', () => {
     const { unmount } = renderDialog();
 
     expect(mockUseUsers).toHaveBeenCalledWith(
       expect.objectContaining({
-        role: expect.stringContaining('instructor'),
+        role: 'faculty',
         isActive: true,
         limit: 200,
       }),
@@ -153,11 +168,12 @@ describe('AssignCommitteeDialog', () => {
       adviserTrigger.click();
     });
 
-    // Check that dropdown opened and displays both faculty with correct institutional labels
+    // Check that dropdown opened and displays ONLY faculty (instructors filtered out)
     const dialogText = document.body.textContent;
-    expect(dialogText).toContain('Dr. Jane Doe');
-    expect(dialogText).toContain('[Instructor]');
+    expect(dialogText).not.toContain('Dr. Jane Doe');
+    expect(dialogText).not.toContain('[Instructor]');
     expect(dialogText).toContain('Prof. John Smith');
+    expect(dialogText).toContain('Dr. Alan Turing');
     expect(dialogText).toContain('[Faculty]');
 
     unmount();
@@ -177,31 +193,31 @@ describe('AssignCommitteeDialog', () => {
     );
     expect(searchInput).toBeTruthy();
 
-    // Type "Jane" into search input
+    // Type "John" into search input
     act(() => {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
         'value',
       ).set;
-      nativeInputValueSetter.call(searchInput, 'Jane');
+      nativeInputValueSetter.call(searchInput, 'John');
       searchInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    expect(document.body.textContent).toContain('Dr. Jane Doe');
-    expect(document.body.textContent).not.toContain('Prof. John Smith');
+    expect(document.body.textContent).toContain('Prof. John Smith');
+    expect(document.body.textContent).not.toContain('Dr. Alan Turing');
 
-    // Click on Dr. Jane Doe to select
+    // Click on Prof. John Smith to select
     const optionButtons = Array.from(document.querySelectorAll('button[role="option"]'));
-    const janeOption = optionButtons.find((btn) => btn.textContent.includes('Dr. Jane Doe'));
-    expect(janeOption).toBeTruthy();
+    const johnOption = optionButtons.find((btn) => btn.textContent.includes('Prof. John Smith'));
+    expect(johnOption).toBeTruthy();
 
     act(() => {
-      janeOption.click();
+      johnOption.click();
     });
 
     // Dropdown closes and trigger reflects selection
-    expect(adviserTrigger.textContent).toContain('Dr. Jane Doe');
-    expect(adviserTrigger.textContent).toContain('[Instructor]');
+    expect(adviserTrigger.textContent).toContain('Prof. John Smith');
+    expect(adviserTrigger.textContent).toContain('[Faculty]');
 
     unmount();
   });
@@ -275,9 +291,9 @@ describe('AssignCommitteeDialog', () => {
     });
 
     const { unmount } = renderDialog({
-      initialAdviserId: 'f-1',
-      initialSecretaryId: 'f-2',
-      initialPanelistIds: ['f-3', 'f-4', 'f-5'],
+      initialAdviserId: 'f-2',
+      initialSecretaryId: 'f-3',
+      initialPanelistIds: ['f-4', 'f-5', 'f-6'],
     });
 
     const submitBtn = document.querySelector('button[type="submit"]');
@@ -287,9 +303,9 @@ describe('AssignCommitteeDialog', () => {
 
     expect(mockMutate).toHaveBeenCalledWith({
       teamId: 't-123',
-      adviserId: 'f-1',
-      secretaryId: 'f-2',
-      panelistIds: ['f-3', 'f-4', 'f-5'],
+      adviserId: 'f-2',
+      secretaryId: 'f-3',
+      panelistIds: ['f-4', 'f-5', 'f-6'],
     });
 
     unmount();
@@ -303,8 +319,8 @@ describe('AssignCommitteeDialog', () => {
     });
 
     const { unmount } = renderDialog({
-      initialAdviserId: 'f-1',
-      initialSecretaryId: 'f-1', // Duplicate with adviser
+      initialAdviserId: 'f-2',
+      initialSecretaryId: 'f-2', // Duplicate with adviser
       initialPanelistIds: [],
     });
 
@@ -314,6 +330,25 @@ describe('AssignCommitteeDialog', () => {
     });
 
     expect(mockMutate).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it('pre-populates existing committee assignments loaded from useTeamById', () => {
+    mockUseTeamById.mockReturnValue({
+      data: {
+        _id: 't-123',
+        adviserId: { _id: 'f-2' },
+        secretaryId: { _id: 'f-3' },
+        panelistIds: [{ _id: 'f-4' }, { _id: 'f-5' }, { _id: 'f-6' }],
+      },
+      isLoading: false,
+    });
+
+    const { unmount } = renderDialog();
+
+    expect(document.body.textContent).toContain('Committee Slots: 5 of 5 Filled');
+    expect(document.body.textContent).toContain('Complete');
 
     unmount();
   });

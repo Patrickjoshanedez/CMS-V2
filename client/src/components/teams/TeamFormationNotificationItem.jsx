@@ -4,6 +4,7 @@ import { Users, UserCheck, Check, Trash2, GraduationCap, User } from 'lucide-rea
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { useTeamById } from '@/hooks/useTeams';
 import { AssignCommitteeDialog } from './AssignCommitteeDialog';
 
 function formatRelativeTime(dateString) {
@@ -44,6 +45,21 @@ export function TeamFormationNotificationItem({
   const meta = notification?.metadata || {};
   const effectiveTeamId = teamId || meta.teamId || '';
   const effectiveTeamName = notification ? meta.teamName || teamName : teamName;
+
+  const { data: liveTeam } = useTeamById(effectiveTeamId, {
+    enabled: Boolean(effectiveTeamId),
+  });
+
+  const hasLiveAdviser = Boolean(liveTeam?.adviserId || liveTeam?.assignment?.adviser);
+  const hasLiveSecretary = Boolean(liveTeam?.secretaryId || liveTeam?.assignment?.secretary);
+  const livePanelistCount = (
+    liveTeam?.panelistIds?.length ? liveTeam.panelistIds : liveTeam?.assignment?.panelists || []
+  ).length;
+
+  const isFullyAssigned =
+    (hasLiveAdviser && hasLiveSecretary && livePanelistCount >= 3) ||
+    meta.status === 'completed' ||
+    Boolean(meta.isFullyAssigned);
 
   const rawCode = meta.groupCode || meta.rosterCode || groupCode;
   const effectiveGroupCode = rawCode
@@ -92,13 +108,29 @@ export function TeamFormationNotificationItem({
 
   return (
     <>
-      <Card className="border-border/60 bg-card/70 transition-all hover:border-primary/40 hover:bg-card">
+      <Card
+        className={
+          isFullyAssigned
+            ? 'border-border/60 bg-card/50 transition-all hover:border-emerald-500/40 hover:bg-card'
+            : 'border-border/60 bg-card/70 transition-all hover:border-primary/40 hover:bg-card'
+        }
+      >
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Left Column: Icon + Core Content */}
             <div className="flex items-start gap-3.5 min-w-0">
-              <div className="mt-0.5 rounded-lg bg-primary/10 p-2.5 text-primary shrink-0 border border-primary/20">
-                <Users className="h-5 w-5" />
+              <div
+                className={
+                  isFullyAssigned
+                    ? 'mt-0.5 rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-500/20'
+                    : 'mt-0.5 rounded-lg bg-primary/10 p-2.5 text-primary shrink-0 border border-primary/20'
+                }
+              >
+                {isFullyAssigned ? (
+                  <UserCheck className="h-5 w-5" />
+                ) : (
+                  <Users className="h-5 w-5" />
+                )}
               </div>
 
               <div className="space-y-1.5 min-w-0">
@@ -107,12 +139,22 @@ export function TeamFormationNotificationItem({
                   <span className="text-sm font-semibold text-foreground tracking-tight">
                     {title}
                   </span>
-                  <Badge
-                    variant="outline"
-                    className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-[10px] font-medium py-0 px-1.5"
-                  >
-                    Action Required
-                  </Badge>
+                  {isFullyAssigned ? (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium py-0 px-1.5 flex items-center gap-1"
+                    >
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      Committee Assigned
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-[10px] font-medium py-0 px-1.5"
+                    >
+                      Action Required
+                    </Badge>
+                  )}
                   <span className="text-xs text-muted-foreground">· {effectiveTimeAgo}</span>
                 </div>
 
@@ -122,9 +164,11 @@ export function TeamFormationNotificationItem({
                   <span className="font-semibold text-foreground">
                     &quot;{effectiveTeamName}&quot;
                   </span>{' '}
-                  has locked their roster ({effectiveMemberCount}{' '}
-                  {effectiveMemberCount === 1 ? 'member' : 'members'}) and is awaiting faculty
-                  committee appointments.
+                  {isFullyAssigned
+                    ? 'roster is locked and faculty committee appointments are complete.'
+                    : `has locked their roster (${effectiveMemberCount} ${
+                        effectiveMemberCount === 1 ? 'member' : 'members'
+                      }) and is awaiting faculty committee appointments.`}
                 </p>
 
                 {/* Enriched Academic & Roster Metadata Badges */}
@@ -173,22 +217,50 @@ export function TeamFormationNotificationItem({
 
             {/* Right Column: Interaction Controls */}
             <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs border-border/70 hover:bg-muted/40"
-                onClick={handleInspect}
-              >
-                Inspect Roster
-              </Button>
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
-                onClick={handleAssign}
-              >
-                <UserCheck className="h-3.5 w-3.5" />
-                Assign Committee
-              </Button>
+              {isFullyAssigned ? (
+                <>
+                  <div className="flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Assigned</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-border/70 hover:bg-muted/40 gap-1.5"
+                    onClick={handleAssign}
+                  >
+                    <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    Edit Committee
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-border/70 hover:bg-muted/40"
+                    onClick={handleInspect}
+                  >
+                    Inspect Roster
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-border/70 hover:bg-muted/40"
+                    onClick={handleInspect}
+                  >
+                    Inspect Roster
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                    onClick={handleAssign}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Assign Committee
+                  </Button>
+                </>
+              )}
               {!isNotificationRead && (
                 <Button
                   variant="ghost"

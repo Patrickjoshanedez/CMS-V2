@@ -17,7 +17,7 @@ The BukSU IT Department capstone progression operates under a strictly sequenced
 *   **Phase 1: Capstone 1 (Title Defense & Proposal Pre-Scan):** Proponents draft 1..10 title proposals tagged with SDGs (1..17). Live archive cosine similarity pre-scan. Proposal defense hearing rubrics determine title approval (`titleStatus = 'approved'`).
 *   **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense):** Chapters 1–3 uploaded. Plagiarism Scan v1 (Winnowing + SentenceTransformers, `< 25%`). Midterm defense evaluation. Action Done Matrix (`ADM v1`) logs panel remarks and multi-signatory digital sign-off.
 *   **Phase 3: Capstone 3 (System Development & Progress Defense):** Full prototype implementation with Interactive Gantt Chart (4 milestone sections), late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress defense rubric evaluation, and `ADM v2` sign-off.
-*   **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival):** Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
+*   **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival):** Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean) gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed = true`), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
 
 ---
 
@@ -141,7 +141,7 @@ To maximize agent performance, eliminate context compaction errors, and streamli
 Before declaring any implementation task complete, agents MUST run and pass the full 6-point verification battery with zero errors:
 
 ```bash
-# 1. API Route Parity Check (185 Server / 164 Client, UNMATCHED_COUNT = 0)
+# 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
 npm run check:endpoints
 
 # 2. Agentic System Governance Audit (60/60 checks)

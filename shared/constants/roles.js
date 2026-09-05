@@ -47,3 +47,16 @@ export const PRIMARY_ROLES = Object.freeze({
 });
 
 export const PRIMARY_ROLE_VALUES = Object.values(PRIMARY_ROLES);
+
+/**
+ * Capability set scoped to the Committee Secretary role during oral defenses.
+ */
+export const SECRETARY_CAPABILITIES = Object.freeze({
+  MINUTES_WRITE: 'defense.minutes:create/update',
+  VERDICT_FINALIZE: 'defense.verdict:finalize',
+  RUBRICS_AGGREGATE: 'rubrics.composite:view/aggregate',
+  MATRIX_PUBLISH: 'revisions.matrix:publish',
+  MATRIX_ENDORSE: 'revisions.matrix:endorse',
+});
+
+export const SECRETARY_CAPABILITY_VALUES = Object.values(SECRETARY_CAPABILITIES);

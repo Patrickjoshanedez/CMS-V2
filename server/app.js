@@ -31,6 +31,7 @@ import academicRoutes from './modules/academics/academic.routes.js';
 import agentRuntimeRoutes from './modules/agent-runtime/agentRuntime.routes.js';
 import storageFileServerRouter from './middleware/storage-file-server.middleware.js';
 import evaluationTemplateRoutes from './modules/evaluations/evaluationTemplate.routes.js';
+import defenseMinutesRoutes from './modules/submissions/defenseMinutes.routes.js';
 
 const app = express();
 
@@ -130,6 +131,7 @@ app.use('/api/submissions', plagiarismRoutes);
 app.use('/api/academics', academicRoutes);
 app.use('/api/agent-runtime', agentRuntimeRoutes);
 app.use('/api/evaluation-templates', evaluationTemplateRoutes);
+app.use('/api/defense-minutes', defenseMinutesRoutes);
 
 // ---------- 404 Handler ----------
 

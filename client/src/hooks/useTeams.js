@@ -254,6 +254,7 @@ export function useAssignCommittee(options = {}) {
     {
       ...options,
       onSuccess: async (...args) => {
+        queryClient.invalidateQueries({ queryKey: ['teams'] });
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
         options.onSuccess?.(...args);

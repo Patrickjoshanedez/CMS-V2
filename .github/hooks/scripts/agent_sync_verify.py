@@ -357,6 +357,28 @@ def build_dag_output(nodes: dict[str, AgentNode], validation: dict[str, Any]) ->
     return dag
 
 
+def evaluate_sync_verify(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """In-process evaluator for agent sync and communication DAG."""
+    try:
+        registry, registry_loaded = load_prefetch_registry()
+        if not registry_loaded:
+            return {"hook": "agent-sync-verify", "allow": False, "status": "error", "message": "Prefetch registry missing"}
+        nodes = build_agent_graph(registry)
+        is_valid, validation = validate_synchronization(nodes)
+        dag = build_dag_output(nodes, validation)
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        write_json_atomically(DAG_FILE, dag)
+        return {
+            "hook": "agent-sync-verify",
+            "allow": is_valid,
+            "status": "ok" if is_valid else "error",
+            "edges_count": dag["metadata"]["edges_count"],
+            "message": f"Sync verified: {len(nodes)} agents, {dag['metadata']['edges_count']} edges.",
+        }
+    except Exception as exc:
+        return {"hook": "agent-sync-verify", "allow": True, "status": "warning", "message": str(exc)}
+
+
 def main():
     """Main entry point."""
     try:

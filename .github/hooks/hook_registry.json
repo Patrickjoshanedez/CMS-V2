@@ -1,0 +1,88 @@
+{
+  "version": "2.0.0",
+  "schema": "ihsa-hook-registry-v2",
+  "description": "Unified IHSA in-process and CLI hook execution registry.",
+  "dispatcher": {
+    "script": ".github/hooks/scripts/hooks_dispatcher.py",
+    "mode": "in_process_with_cli_fallback",
+    "timeout": 30
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "id": "agent-prefetch",
+        "script": ".github/hooks/scripts/agent_prefetch.py",
+        "handler": "evaluate_agent_prefetch",
+        "description": "Load and validate agent metadata, build registry",
+        "timeout": 30,
+        "failMode": "error"
+      },
+      {
+        "id": "agent-sync-verify",
+        "script": ".github/hooks/scripts/agent_sync_verify.py",
+        "handler": "evaluate_sync_verify",
+        "description": "Verify agent communication paths and build DAG",
+        "timeout": 20,
+        "failMode": "error"
+      },
+      {
+        "id": "decision-coherence",
+        "script": ".github/hooks/scripts/decision_coherence.py",
+        "handler": "evaluate_decision_coherence",
+        "description": "Validate orchestrator routing rules for coherence",
+        "timeout": 15,
+        "failMode": "error"
+      },
+      {
+        "id": "public-exposure-gate",
+        "script": ".github/hooks/scripts/public_exposure_gate.py",
+        "handler": "evaluate_public_exposure",
+        "description": "Prevent unauthorized public internet exposure via Docker/ngrok",
+        "timeout": 20,
+        "failMode": "error"
+      },
+      {
+        "id": "static-gatekeeper",
+        "script": ".github/hooks/scripts/static_gatekeeper.py",
+        "handler": "evaluate_static_gate",
+        "description": "Buffer-based dynamic syntax and policy verification",
+        "timeout": 60,
+        "failMode": "error"
+      },
+      {
+        "id": "hllm-regex-preflight",
+        "script": ".github/hooks/scripts/hllm_regex_preflight.py",
+        "handler": "evaluate_hllm_preflight",
+        "description": "Pattern matching guard against secrets and slop",
+        "timeout": 20,
+        "failMode": "error"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "id": "test-tracking-gate",
+        "script": ".github/hooks/scripts/test_tracking_gate.py",
+        "handler": "evaluate_test_tracking",
+        "description": "Track failing tests and enforce binary fail-to-pass / pass-to-pass gates",
+        "timeout": 20,
+        "failMode": "error"
+      },
+      {
+        "id": "completion-keyword-guard",
+        "script": ".github/hooks/scripts/completion_keyword_guard.py",
+        "handler": "evaluate_completion_keywords",
+        "description": "Verify continual learning keywords and pending failure clearance",
+        "timeout": 20,
+        "failMode": "error"
+      },
+      {
+        "id": "continual-learning-checkpoint",
+        "script": ".github/hooks/scripts/continual_learning_checkpoint.py",
+        "handler": "evaluate_checkpoint",
+        "description": "Unified continual learning checkpoint facade",
+        "timeout": 20,
+        "failMode": "error"
+      }
+    ]
+  }
+}

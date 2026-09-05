@@ -94,15 +94,26 @@ export const authorizePanelRole = (...allowedPanelRoles) => {
 
     // 2. Check project record directly
     try {
-      const project = await Project.findById(projectId).select('panelists panelistIds adviserId');
+      const project = await Project.findById(projectId).select(
+        'panelists panelistIds adviserId secretaryId',
+      );
       if (!project) {
         return next(new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND'));
+      }
+
+      // Check direct secretary assignment
+      if (
+        allowedPanelRoles.includes('secretary') &&
+        project.secretaryId &&
+        project.secretaryId.toString() === userIdStr
+      ) {
+        return next();
       }
 
       // Check panelists array with discrete roles
       if (Array.isArray(project.panelists) && project.panelists.length > 0) {
         const panelistMatch = project.panelists.find(
-          (p) => p.userId && p.userId.toString() === userIdStr,
+          (p) => p.userId && (p.userId._id || p.userId).toString() === userIdStr,
         );
         if (panelistMatch && allowedPanelRoles.includes(panelistMatch.role)) {
           return next();
@@ -123,6 +134,88 @@ export const authorizePanelRole = (...allowedPanelRoles) => {
           `Action requires one of the following panel assignments: ${allowedPanelRoles.join(', ')}`,
           403,
           'PANEL_ROLE_FORBIDDEN',
+        ),
+      );
+    } catch (err) {
+      return next(err);
+    }
+  };
+};
+
+/**
+ * Project-specific Secretary capability authorization middleware.
+ * Enforces that only the assigned Committee Secretary (or Course Instructor with department oversight)
+ * can execute defense minutes logging, score locking, and matrix endorsement.
+ *
+ * @param {string} capability - Name of capability (e.g., 'defense.minutes:create/update')
+ * @returns {Function} Express middleware
+ */
+export const authorizeSecretaryCapability = (capability) => {
+  return async (req, _res, next) => {
+    if (!req.user) {
+      return next(new AppError('Authentication required.', 401, 'AUTH_REQUIRED'));
+    }
+
+    // Instructors have administrative oversight
+    if (req.user.role === ROLES.INSTRUCTOR) {
+      return next();
+    }
+
+    const projectId = req.params.projectId || req.params.id || req.body.projectId;
+    if (!projectId) {
+      return next(
+        new AppError(
+          'Project context is required for secretary capability authorization.',
+          400,
+          'PROJECT_REQUIRED',
+        ),
+      );
+    }
+
+    const userIdStr = req.user._id.toString();
+
+    try {
+      const project = await Project.findById(projectId).select('secretaryId panelists');
+      if (!project) {
+        return next(new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND'));
+      }
+
+      const isSecretary = Boolean(
+        (project.secretaryId && project.secretaryId.toString() === userIdStr) ||
+        (Array.isArray(project.panelists) &&
+          project.panelists.some(
+            (p) =>
+              p.userId &&
+              (p.userId._id || p.userId).toString() === userIdStr &&
+              (p.role === PANEL_ROLES.SECRETARY || p.role === 'secretary'),
+          )),
+      );
+
+      // Chair may also co-confirm verdict or composite scores
+      const isChair = Boolean(
+        Array.isArray(project.panelists) &&
+        project.panelists.some(
+          (p) =>
+            p.userId &&
+            (p.userId._id || p.userId).toString() === userIdStr &&
+            (p.role === PANEL_ROLES.CHAIR || p.role === 'chair'),
+        ),
+      );
+
+      if (
+        isSecretary ||
+        (isChair &&
+          (capability === 'defense.verdict:finalize' ||
+            capability === 'rubrics.composite:view/aggregate'))
+      ) {
+        return next();
+      }
+
+      return next(
+        new AppError(
+          `Action requires secretary capability "${capability}". You must be the appointed Committee Secretary for this project.`,
+          403,
+          'SECRETARY_CAPABILITY_REQUIRED',
         ),
       );
     } catch (err) {

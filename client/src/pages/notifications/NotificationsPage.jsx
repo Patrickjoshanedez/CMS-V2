@@ -378,7 +378,7 @@ export default function NotificationsPage() {
     }
   }, [isConfirmOpen]);
 
-  const { data, isLoading, isError } = useNotifications({ page, limit });
+  const { data, isLoading, isError, refetch } = useNotifications({ page, limit });
   const markAsRead = useMarkAsRead({
     onError: () => toast.error('Failed to mark notification as read.'),
   });
@@ -681,6 +681,9 @@ export default function NotificationsPage() {
           onOpenChange={(open) => !open && setAssignCommitteeTarget(null)}
           teamId={assignCommitteeTarget.teamId}
           teamName={assignCommitteeTarget.teamName}
+          onSuccess={() => {
+            refetch();
+          }}
         />
       )}
     </DashboardLayout>

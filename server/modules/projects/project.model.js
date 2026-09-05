@@ -715,6 +715,7 @@ const projectSchema = new mongoose.Schema(
         'not_started',
         'awaiting_minutes_upload',
         'pending_developer_action',
+        'pending_secretary_endorsement',
         'under_panel_review',
         'approved',
       ],
@@ -726,6 +727,14 @@ const projectSchema = new mongoose.Schema(
       default: 'internal',
     },
     admSignatures: {
+      secretary: {
+        endorsed: { type: Boolean, default: false },
+        endorsedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        notes: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      },
       adviser: {
         signed: { type: Boolean, default: false },
         signedAt: { type: Date, default: null },

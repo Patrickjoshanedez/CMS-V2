@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Label } from '@/components/ui/Label';
 import { useUsers } from '@/hooks/useUsers';
-import { useAssignCommittee } from '@/hooks/useTeams';
+import { useAssignCommittee, useTeamById } from '@/hooks/useTeams';
 import { ROLES } from '@cms/shared';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -365,17 +365,44 @@ export function AssignCommitteeDialog({
   const [panelist2Id, setPanelist2Id] = useState(initialPanelistIds[1] || '');
   const [panelist3Id, setPanelist3Id] = useState(initialPanelistIds[2] || '');
 
+  const { data: teamData } = useTeamById(teamId, {
+    enabled: Boolean(open && teamId),
+  });
+
   const serializedPanelists = initialPanelistIds.join(',');
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (teamData) {
+      const existingAdviser =
+        teamData.adviserId?._id ||
+        teamData.adviserId ||
+        teamData.assignment?.adviser?._id ||
+        teamData.assignment?.adviser ||
+        '';
+      const existingSecretary =
+        teamData.secretaryId?._id ||
+        teamData.secretaryId ||
+        teamData.assignment?.secretary?._id ||
+        teamData.assignment?.secretary ||
+        '';
+      const existingPanelists = (
+        teamData.panelistIds?.length ? teamData.panelistIds : teamData.assignment?.panelists || []
+      ).map((p) => p?._id || p);
+
+      setAdviserId(String(existingAdviser || initialAdviserId || ''));
+      setSecretaryId(String(existingSecretary || initialSecretaryId || ''));
+      setPanelist1Id(String(existingPanelists[0] || initialPanelistIds[0] || ''));
+      setPanelist2Id(String(existingPanelists[1] || initialPanelistIds[1] || ''));
+      setPanelist3Id(String(existingPanelists[2] || initialPanelistIds[2] || ''));
+    } else {
       setAdviserId(initialAdviserId || '');
       setSecretaryId(initialSecretaryId || '');
       setPanelist1Id(initialPanelistIds[0] || '');
       setPanelist2Id(initialPanelistIds[1] || '');
       setPanelist3Id(initialPanelistIds[2] || '');
     }
-  }, [open, initialAdviserId, initialSecretaryId, serializedPanelists]);
+  }, [open, teamData, initialAdviserId, initialSecretaryId, serializedPanelists]);
 
   // Conflict maps: prevent selecting the same faculty member across roles on the same team
   const adviserConflictMap = useMemo(() => {
@@ -433,12 +460,10 @@ export function AssignCommitteeDialog({
     };
   }, [open]);
 
-  // Fetch candidate faculty users (instructors, advisers, panelists, faculty accounts)
+  // Fetch candidate faculty users (faculty, adviser, panelist accounts — strictly excluding instructors)
   const { data: facultyData, isLoading: isFacultyLoading } = useUsers(
     {
-      role: [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY]
-        .filter(Boolean)
-        .join(','),
+      role: 'faculty',
       isActive: true,
       page: 1,
       limit: 200,
@@ -449,15 +474,20 @@ export function AssignCommitteeDialog({
   const allFaculty = useMemo(() => {
     const list = facultyData?.users || [];
     return list
-      .filter(
-        (u) =>
-          u.role === ROLES.INSTRUCTOR ||
-          u.role === ROLES.ADVISER ||
-          u.role === ROLES.PANELIST ||
-          u.role === ROLES.FACULTY ||
-          u.role === 'faculty' ||
-          u.role === ROLES.ADMIN,
-      )
+      .filter((u) => {
+        const rawRole = String(u.role || '').toLowerCase();
+        // Strictly exclude instructors and students
+        if (rawRole === 'instructor' || rawRole === ROLES.INSTRUCTOR) return false;
+        if (rawRole === 'student' || rawRole === ROLES.STUDENT) return false;
+        return (
+          rawRole === 'faculty' ||
+          rawRole === ROLES.FACULTY ||
+          rawRole === 'adviser' ||
+          rawRole === ROLES.ADVISER ||
+          rawRole === 'panelist' ||
+          rawRole === ROLES.PANELIST
+        );
+      })
       .sort((a, b) => {
         const nameA = [a.firstName, a.lastName].filter(Boolean).join(' ').toLowerCase();
         const nameB = [b.firstName, b.lastName].filter(Boolean).join(' ').toLowerCase();
@@ -487,6 +517,16 @@ export function AssignCommitteeDialog({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, assignCommitteeMutation.isPending, onOpenChange]);
+
+  const filledSlotsCount = [
+    Boolean(adviserId),
+    Boolean(secretaryId),
+    Boolean(panelist1Id),
+    Boolean(panelist2Id),
+    Boolean(panelist3Id),
+  ].filter(Boolean).length;
+
+  const isComplete = filledSlotsCount === 5;
 
   if (!open) return null;
 
@@ -575,7 +615,67 @@ export function AssignCommitteeDialog({
           </div>
 
           {/* Body Content - Scrollable when vertical viewport is constrained */}
-          <CardContent className="flex-1 overflow-y-auto space-y-4.5 p-5 pb-28">
+          <CardContent className="flex-1 overflow-y-auto space-y-3.5 p-5 pb-6">
+            {/* Committee Assignment Progress Meter */}
+            <div
+              className={cn(
+                'rounded-lg border p-3 text-xs transition-colors',
+                isComplete
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+              )}
+            >
+              <div className="flex items-center justify-between font-medium">
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4" />
+                  Committee Slots: {filledSlotsCount} of 5 Filled
+                </span>
+                <span className="text-[11px] font-semibold">
+                  {isComplete ? 'Complete' : 'In Progress'}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1.5 text-[11px]">
+                <div
+                  className={cn(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5',
+                    adviserId
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      : 'bg-muted/50 text-muted-foreground',
+                  )}
+                >
+                  <span className="truncate">Adviser: {adviserId ? '✓' : '—'}</span>
+                </div>
+                <div
+                  className={cn(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5',
+                    secretaryId
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      : 'bg-muted/50 text-muted-foreground',
+                  )}
+                >
+                  <span className="truncate">Secretary: {secretaryId ? '✓' : '—'}</span>
+                </div>
+                <div
+                  className={cn(
+                    'flex items-center gap-1 rounded px-1.5 py-0.5',
+                    [panelist1Id, panelist2Id, panelist3Id].filter(Boolean).length === 3
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium'
+                      : 'bg-muted/50 text-muted-foreground',
+                  )}
+                >
+                  <span className="truncate">
+                    Panelists: {[panelist1Id, panelist2Id, panelist3Id].filter(Boolean).length}/3
+                  </span>
+                </div>
+              </div>
+              {!isComplete && (
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  Scroll down to assign Secretary and all 3 Defense Panelists for full defense
+                  authorization.
+                </p>
+              )}
+            </div>
+
             {/* Adviser Assignment */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">

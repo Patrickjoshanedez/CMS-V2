@@ -5,6 +5,12 @@ import { TeamFormationNotificationItem } from './TeamFormationNotificationItem';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const mockUseTeamById = vi.fn();
+
+vi.mock('@/hooks/useTeams', () => ({
+  useTeamById: (...args) => mockUseTeamById(...args),
+}));
+
 // Mock AssignCommitteeDialog to isolate notification card tests
 vi.mock('./AssignCommitteeDialog', () => ({
   AssignCommitteeDialog: ({ open }) =>
@@ -18,6 +24,7 @@ describe('TeamFormationNotificationItem', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseTeamById.mockReturnValue({ data: null, isLoading: false });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -184,6 +191,78 @@ describe('TeamFormationNotificationItem', () => {
 
     expect(container.textContent).toContain('BSIT 3C');
     expect(container.textContent).not.toContain('()');
+
+    cleanup();
+  });
+
+  it('swaps Action Required for Committee Assigned badge and renders Edit Committee when fully assigned', () => {
+    const onAssignCommittee = vi.fn();
+    const notification = {
+      _id: 'notif-completed',
+      isRead: true,
+      metadata: {
+        teamId: 'team-fully-assigned',
+        teamName: 'Innovators',
+        status: 'completed',
+        isFullyAssigned: true,
+      },
+    };
+
+    renderComponent({
+      notification,
+      onAssignCommittee,
+    });
+
+    expect(container.textContent).toContain('Committee Assigned');
+    expect(container.textContent).not.toContain('Action Required');
+    expect(container.textContent).toContain(
+      'roster is locked and faculty committee appointments are complete',
+    );
+    expect(container.textContent).toContain('Assigned');
+
+    const editBtn = Array.from(container.querySelectorAll('button')).find((btn) =>
+      btn.textContent.includes('Edit Committee'),
+    );
+    expect(editBtn).toBeTruthy();
+
+    act(() => {
+      editBtn.click();
+    });
+
+    expect(onAssignCommittee).toHaveBeenCalledWith({
+      teamId: 'team-fully-assigned',
+      teamName: 'Innovators',
+    });
+
+    cleanup();
+  });
+
+  it('swaps UI to Assigned when liveTeam has full committee even if notification was pending', () => {
+    mockUseTeamById.mockReturnValue({
+      data: {
+        _id: 'team-live',
+        adviserId: 'adv-1',
+        secretaryId: 'sec-1',
+        panelistIds: ['p-1', 'p-2', 'p-3'],
+      },
+      isLoading: false,
+    });
+
+    const notification = {
+      _id: 'notif-pending',
+      isRead: false,
+      metadata: {
+        teamId: 'team-live',
+        teamName: 'Dynamic Duo',
+      },
+    };
+
+    renderComponent({
+      notification,
+    });
+
+    expect(container.textContent).toContain('Committee Assigned');
+    expect(container.textContent).toContain('Edit Committee');
 
     cleanup();
   });

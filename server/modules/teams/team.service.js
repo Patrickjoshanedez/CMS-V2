@@ -1661,6 +1661,20 @@ class TeamService {
       if (!adviser) {
         throw new AppError('The specified adviser was not found.', 400, 'INVALID_ADVISER');
       }
+      if (adviser.role === ROLES.INSTRUCTOR || adviser.role === 'instructor') {
+        throw new AppError(
+          'Course instructors cannot serve as a capstone adviser. Please appoint a verified faculty member.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
+      if (adviser.role === ROLES.STUDENT || adviser.role === 'student') {
+        throw new AppError(
+          'Students cannot serve on the faculty committee.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
       team.adviserId = adviser._id;
     }
 
@@ -1675,6 +1689,20 @@ class TeamService {
           'INVALID_SECRETARY',
         );
       }
+      if (secretary.role === ROLES.INSTRUCTOR || secretary.role === 'instructor') {
+        throw new AppError(
+          'Course instructors cannot serve as a committee secretary. Please appoint a verified faculty member.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
+      if (secretary.role === ROLES.STUDENT || secretary.role === 'student') {
+        throw new AppError(
+          'Students cannot serve on the faculty committee.',
+          400,
+          'INVALID_COMMITTEE_ROLE',
+        );
+      }
       team.secretaryId = secretary._id;
     }
 
@@ -1682,6 +1710,25 @@ class TeamService {
     if (Array.isArray(panelistIds) && panelistIds.length > 0) {
       if (panelistIds.length > 5) {
         throw new AppError('A team can have at most 5 panelists.', 400, 'MAX_PANELISTS_EXCEEDED');
+      }
+      const panelists = await User.find({ _id: { $in: panelistIds } }).select(
+        '_id firstName lastName role',
+      );
+      for (const p of panelists) {
+        if (p.role === ROLES.INSTRUCTOR || p.role === 'instructor') {
+          throw new AppError(
+            `Course instructors cannot serve as defense panelists (${p.firstName} ${p.lastName} is an instructor). Please appoint verified faculty members.`,
+            400,
+            'INVALID_COMMITTEE_ROLE',
+          );
+        }
+        if (p.role === ROLES.STUDENT || p.role === 'student') {
+          throw new AppError(
+            `Students cannot serve on the defense panel (${p.firstName} ${p.lastName} is a student).`,
+            400,
+            'INVALID_COMMITTEE_ROLE',
+          );
+        }
       }
       team.panelistIds = panelistIds;
     }
@@ -1707,17 +1754,37 @@ class TeamService {
       await project.save();
     }
 
-    // Mark pending committee appointment notifications for this team as read
-    try {
-      await Notification.updateMany(
-        {
-          type: { $in: ['team_formation_pending_committee', 'committee_appointment_required'] },
-          'metadata.teamId': team._id,
-        },
-        { $set: { isRead: true } },
-      );
-    } catch (e) {
-      console.warn('[assignCommittee] Failed to mark notifications as read:', e.message);
+    // Determine whether the committee is fully assigned (1 Adviser, 1 Secretary, and at least 3 Panelists)
+    const REQUIRED_PANEL_COUNT = 3;
+    const isFullyAssigned =
+      Boolean(team.adviserId) &&
+      Boolean(team.secretaryId) &&
+      Array.isArray(team.panelistIds) &&
+      team.panelistIds.length >= REQUIRED_PANEL_COUNT;
+
+    // If fully assigned, mark pending committee appointment notifications for this team as read and completed
+    if (isFullyAssigned) {
+      try {
+        await Notification.updateMany(
+          {
+            type: { $in: ['team_formation_pending_committee', 'committee_appointment_required'] },
+            $or: [{ 'metadata.teamId': team._id }, { 'metadata.teamId': team._id.toString() }],
+          },
+          {
+            $set: {
+              isRead: true,
+              'metadata.status': 'completed',
+              'metadata.requiresCommittee': false,
+              'metadata.isFullyAssigned': true,
+            },
+          },
+        );
+      } catch (e) {
+        console.warn(
+          '[assignCommittee] Failed to mark notifications as read/completed:',
+          e.message,
+        );
+      }
     }
 
     // Send targeted in-app notifications
@@ -1794,7 +1861,10 @@ class TeamService {
 
     return {
       team: populatedTeam,
-      message: 'Faculty committee assigned and team notified successfully.',
+      isFullyAssigned,
+      message: isFullyAssigned
+        ? 'Faculty committee assigned and team notified successfully.'
+        : 'Committee assignments saved (partial assignment).',
     };
   }
 

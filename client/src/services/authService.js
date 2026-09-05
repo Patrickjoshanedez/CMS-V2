@@ -180,6 +180,8 @@ export const projectService = {
   patchADMRow: (projectId, rowId, data) => api.patch(`/adm/${projectId}/rows/${rowId}`, data),
   updateADMMetadata: (projectId, data) => api.patch(`/projects/${projectId}/adm-metadata`, data),
   signTieredADM: (projectId, data) => api.post(`/projects/${projectId}/adm-signatures`, data),
+  endorseADM: (projectId, data) => api.post(`/adm/${projectId}/endorse`, data),
+  submitADMForEndorsement: (projectId) => api.post(`/adm/${projectId}/submit-for-endorsement`),
   seedInstitutionalADM: (projectId) =>
     api.post(`/projects/${projectId}/action-done-matrix/seed-institutional`),
   signADMItem: (projectId, itemId, data) =>
