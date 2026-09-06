@@ -2,6 +2,15 @@
   "version": "2.0.0",
   "generated_at": "2026-09-05T03:22:00.000Z",
   "schema": "ihsa-feature-policies-v2",
+  "execution_rules": {
+    "agent_testing_scope": "targeted_only",
+    "disallowed_agent_commands": [
+      "npm test",
+      "npm test --workspace=client",
+      "npm test --workspaces"
+    ],
+    "mandatory_flags": ["--watchAll=false"]
+  },
   "tenants": {
     "buksu_it_capstone": {
       "name": "BukSU IT Department Capstone Management",

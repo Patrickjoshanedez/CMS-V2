@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }) {
   }, [sidebarOpen]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#060b13]">
       {/* Sidebar — passes collapsed state for icon-rail mode */}
       <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((prev) => !prev)} />
 
@@ -46,10 +46,7 @@ export default function DashboardLayout({ children }) {
         {/* Announcement banner — only rendered when there is content */}
         <AnnouncementBanner />
 
-        <main className="relative flex-1 min-w-0 overflow-y-auto p-6">
-          {/* NProgress-style route progress bar */}
-          <div key={`progress-${pathname}`} className="cms-route-progress" aria-hidden="true" />
-
+        <main className="relative flex-1 min-w-0 overflow-y-auto p-6 bg-slate-100 dark:bg-[#060b13]">
           {/* Page content — skeleton on navigation, real content otherwise */}
           {isSkeleton ? (
             <PageSkeleton key={`skeleton-${pathname}`} />

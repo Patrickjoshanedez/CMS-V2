@@ -23,6 +23,7 @@ JsonObject = dict[str, Any]
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 STATE_DIR = WORKSPACE_ROOT / ".github" / "hooks" / "state"
 STATE_FILE = STATE_DIR / "test_fix_state.json"
+FEATURE_POLICIES_FILE = STATE_DIR / "feature_policies.json"
 
 TEST_COMMAND_TOKENS = (
     "npm test",
@@ -52,6 +53,30 @@ EDIT_TOOL_TOKENS = (
     "multi_replace_file_content",
     "write_to_file",
 )
+
+
+def _check_command_scope_policy(cmd: str) -> tuple[bool, str]:
+    if not cmd:
+        return True, ""
+    if not FEATURE_POLICIES_FILE.exists():
+        return True, ""
+    try:
+        with open(FEATURE_POLICIES_FILE, "r", encoding="utf-8") as f:
+            policies = json.load(f)
+        exec_rules = policies.get("execution_rules", {})
+        disallowed = exec_rules.get("disallowed_agent_commands", [])
+        norm_cmd = cmd.strip()
+        for disallowed_cmd in disallowed:
+            if norm_cmd == disallowed_cmd or norm_cmd.startswith(disallowed_cmd + " ") or norm_cmd.startswith(disallowed_cmd + "\t"):
+                if "-- " in norm_cmd or " --onlyChanged" in norm_cmd or " -t " in norm_cmd:
+                    return True, "Targeted test execution permitted."
+                return False, (
+                    f"Tiered Test Execution Protocol violation: Broad command '{cmd}' is disallowed for inner-loop agent execution. "
+                    "Use targeted test execution: 'npm test --workspace=<target> -- <path/to/spec.test.js> --watchAll=false' or 'npm run test:client -- <path>'."
+                )
+    except Exception:
+        pass
+    return True, ""
 
 
 def _load_state() -> JsonObject:
@@ -163,6 +188,17 @@ def evaluate_test_tracking(payload: dict[str, Any]) -> dict[str, Any]:
 
     cmd = str(args.get("command") or args.get("CommandLine") or "").strip()
     exit_code = payload.get("exitCode") or payload.get("code")
+
+    # 0. Check Tiered Test Execution Protocol against disallowed broad commands
+    if cmd and exit_code is None:
+        allowed, reason = _check_command_scope_policy(cmd)
+        if not allowed:
+            return {
+                "gate": "test_tracking",
+                "allow": False,
+                "status": "broad_test_disallowed",
+                "message": reason,
+            }
 
     # 1. If an edit tool is executing, log fix attempt
     if any(tok in tool for tok in EDIT_TOOL_TOKENS):

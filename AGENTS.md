@@ -72,19 +72,41 @@ To prevent a **Workspace Clutter Crisis**, the workspace maintains a strict whit
 
 ---
 
-## 5. RE-DEFENSE COMPLIANCE VERIFICATION SUITES
+## 5. RE-DEFENSE COMPLIANCE VERIFICATION SUITES & TARGETED TESTING PROTOCOL
 
-A task is marked completed **only** when all local linters, compilers, and unit tests return a zero-error exit code. Agents must run and pass the following suites to verify their changes:
+A task is marked completed **only** when all local linters, compilers, and unit tests return a zero-error exit code.
+
+### Fast-Path Targeted Testing Rule (Development & Iteration)
+To eliminate test delays (running the full 43+ test suites takes ~90–120s on Windows) and avoid runaway watchdog timeouts, agents and developers MUST use **Targeted Testing** during iterative implementation, debugging, and focused component work. Target only the specific test files or directories affected:
+
+```bash
+# Targeted Client Test (runs in 1–5 seconds instead of ~90s)
+npm test --workspace=client -- <path-to-test-file>
+
+# Examples:
+npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx
+npm test --workspace=client -- src/components/projects/AlignmentSelectorDialog.test.jsx
+npm test --workspace=client -- src/components/projects/DisciplineCombobox.test.jsx
+
+# Targeted Component Directory Pattern:
+npm test --workspace=client -- src/components/projects/
+
+# Targeted Server Unit or Integration Test (runs in 1–4 seconds):
+npm test --workspace=server -- tests/unit/<module>.test.js
+```
+
+### Full Compliance Battery (Final Task Closure)
+Once targeted tests pass and work is ready for final sign-off, run the governance and full compliance suites:
 
 ```bash
 # Validate the overall Agentic Governance & Security policies
 npm run validate:agentic
 
-# Validate the React Frontend unit and store tests
+# Validate the React Frontend unit and store tests (or targeted suite if strictly scoped)
 npm test --workspace=client
 
 # Validate the Express Backend integration and unit suites
-npm test --workspace=server
+npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
 ```
 
 ---
@@ -133,12 +155,13 @@ To maximize agent performance, eliminate context compaction errors, and streamli
 4.  **Zero-Slop Standard:** Code must use production-grade design tokens (`bg-background`, `text-foreground`, `border-border/60`), proper error boundaries, explicit prop validation, and zero mock placeholders.
 5.  **Session Startup Memory Recall:** At the start of ANY new session/chat, the agent MUST inspect the recent sessions in `.agents/ptss/index.jsonl` (latest 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context and verify the current architectural state before taking action.
 6.  **Dual-Persistence Session Memory:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json`, append to `.agents/ptss/index.jsonl`, and record learned runbooks to `memories/repo/CMS-V2-Technical-Context.md` or `memories/repo/lessons/` (with required keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
+7.  **Targeted Testing First (Zero-Lag Verification):** NEVER run full workspace test suites (`npm test --workspace=client`, full server suite) on small iterative changes or during debugging loops. Always execute fast, targeted test commands (`npm test --workspace=client -- <target-test-file>`) to achieve 1–5 second feedback cycles. Full workspace suites are reserved strictly for final quality gates or broad refactoring.
 
 ---
 
 ## 10. UNIFIED QUALITY GATE VERIFICATION SEQUENCE
 
-Before declaring any implementation task complete, agents MUST run and pass the full 6-point verification battery with zero errors:
+Before declaring any implementation task complete, agents MUST run and pass the 6-point verification battery with zero errors. During iterative development, use **Fast-Path Targeted Testing (Step 4 & 5)**:
 
 ```bash
 # 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
@@ -151,9 +174,13 @@ npm run validate:agentic
 npm run validate:governance
 
 # 4. React Frontend Unit & Institutional Fidelity Tests
+# FAST-PATH ITERATION (1–5s): npm test --workspace=client -- <target-test-file>
+# FULL GATE CLOSURE (~90s):   npm test --workspace=client
 npm test --workspace=client
 
 # 5. Express Server 13-Stage Comprehensive Workflow Tests
+# FAST-PATH ITERATION (1–4s): npm test --workspace=server -- <target-test-file>
+# FULL WORKFLOW GATE (~22s):  npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
 npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
 
 # 6. Workspace Cleanliness & Cognitive Guardrail

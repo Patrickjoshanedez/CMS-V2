@@ -417,6 +417,20 @@ const projectSchema = new mongoose.Schema(
       },
       default: [],
     },
+    targetBeneficiary: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Target beneficiary must not exceed 300 characters'],
+      default: '',
+    },
+    techStack: {
+      type: [String],
+      validate: {
+        validator: (arr) => Array.isArray(arr) && arr.length <= 20,
+        message: 'A project can have at most 20 tech stack items',
+      },
+      default: [],
+    },
     archiveMetadata: {
       authors: {
         type: [String],

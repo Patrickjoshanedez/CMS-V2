@@ -27,6 +27,7 @@ To prevent split-brain state desynchronization and ensure instant recall across 
 - **Surgical CST Editing**: Never overwrite complete files for minor edits. Preserve developer comments and JSDoc annotations.
 - **No Direct DB Mutations**: State changes must flow strictly through the official API service layer.
 - **Quality Gates**: Pass all verification gates (`validate:governance`, `validate:agentic`, `check:endpoints`, client/server tests, `workspace_guardrail.py`).
+- **Targeted Testing First (Zero-Lag Verification)**: Never run full multi-suite test runs (`npm test --workspace=client`) on small iterative edits or during debugging loops. Use targeted test paths (`npm test --workspace=client -- <path-to-test>`) for 1–5s feedback, reserving full 43-suite runs for final quality gates.
 - **Protected Boundaries**: Never modify `.env*`, database seeders (`server/seeders/`), or core deployment scripts without explicit instruction.
 
 

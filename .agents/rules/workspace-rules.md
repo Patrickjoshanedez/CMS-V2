@@ -66,8 +66,25 @@ The workspace includes **64 verified cognitive skills** under `.agents/skills/`.
 
 An implementation or refactoring task is officially completed **only** when all local verification suites exit with zero errors:
 
+### Fast-Path Targeted Testing (Development & Iteration)
+To eliminate long test waiting delays (~90–120s full client suite) during iterative development, agents and developers MUST use **Targeted Testing** to run only the relevant test file(s):
+
 ```bash
-# 1. API Route Parity Check (185 Server / 164 Client, UNMATCHED_COUNT = 0)
+# Targeted Client Test (runs in 1–5 seconds)
+npm test --workspace=client -- <path-to-test-file>
+
+# Examples:
+npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx
+npm test --workspace=client -- src/components/projects/AlignmentSelectorDialog.test.jsx
+npm test --workspace=client -- src/components/projects/
+
+# Targeted Server Unit or Integration Test (runs in 1–4 seconds)
+npm test --workspace=server -- tests/unit/<module>.test.js
+```
+
+### Full Verification Battery (Final Task Closure)
+```bash
+# 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
 npm run check:endpoints
 
 # 2. Agentic Governance & Security Audit (60/60 checks)
@@ -76,7 +93,7 @@ npm run validate:agentic
 # 3. Agent Communication & Governance Pipeline
 npm run validate:governance
 
-# 4. React Frontend Unit & Store Test Suite
+# 4. React Frontend Unit & Store Test Suite (Targeted during iteration; full suite on final sign-off)
 npm test --workspace=client
 
 # 5. Express Backend Integration & Unit Test Suite

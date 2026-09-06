@@ -30,6 +30,7 @@ A comprehensive architectural audit of the CMS-V2 agentic governance system iden
 - [x] Externalize domain constraints into `.github/hooks/state/feature_policies.json`.
 - [x] Keep `runtime_config.json` provider-agnostic, supporting `deepseek` and `openai` endpoints.
 - [x] Decompose lifecycle scripts to < 250 lines each with dedicated responsibilities.
+- [x] Enforce Tiered Test Scoping (TTS) and Tiered Test Execution Protocol (TTEP): reject monolithic `npm test` runs during inner loops and mandate targeted `npm test --workspace=<target> -- <spec> --watchAll=false`.
 - [x] Maintain 60/60 passing checks in `npm run validate:agentic` and clean pass in `npm run validate:governance`.
 
 ## Runbook for IHSA Maintenance
@@ -37,4 +38,6 @@ A comprehensive architectural audit of the CMS-V2 agentic governance system iden
 2. Synchronize all agent and hook states by executing `python .github/hooks/scripts/generate_registries.py`.
 3. Validate overall agentic governance by running `npm run validate:agentic` and `npm run validate:governance`.
 4. Check endpoint parity with `npm run check:endpoints` and ensure `UNMATCHED_COUNT = 0`.
-5. Run `python scripts/workspace_guardrail.py` to confirm zero workspace clutter.
+5. Enforce Tiered Test Execution Protocol (TTEP): Inner-loop worker agents use `npm run test:client -- <spec>` or `npm run test:server -- <spec>`; full workspace regression suites are strictly invoked by gatekeeper validation.
+6. Consult the authoritative specification in `docs/specs/ihsa-specification.md`.
+7. Run `python scripts/workspace_guardrail.py` to confirm zero workspace clutter.

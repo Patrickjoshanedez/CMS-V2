@@ -9,7 +9,10 @@ import { cn } from '@/lib/utils';
 const Card = forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('rounded-lg border bg-card text-card-foreground shadow-sm', className)}
+    className={cn(
+      'rounded-xl bg-white border border-slate-300 shadow-sm dark:bg-[#0c1424] dark:border-slate-700 dark:shadow-none text-card-foreground transition-colors',
+      className,
+    )}
     {...props}
   />
 ));

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Menu, Bell, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
+import TextScaleDropdown from '@/components/TextScaleDropdown';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
@@ -192,7 +193,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   return (
     <header
       className={[
-        'flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 sm:px-6',
+        'flex h-16 shrink-0 items-center justify-between border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
         'transition-transform duration-300 ease-in-out',
         hidden ? '-translate-y-full' : 'translate-y-0',
       ].join(' ')}
@@ -223,15 +224,13 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         <h2 className="text-lg font-semibold text-foreground">{pageTitle}</h2>
       </div>
 
-      {/* Right side: notifications, theme toggle, user avatar */}
-      <div className="flex items-center gap-2">
+      {/* Right side: notifications, theme toggle, text scale dropdown, user avatar */}
+      <div className="flex items-center gap-3">
         {/* Notifications bell */}
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={() => navigate('/notifications')}
           aria-label="Notifications"
-          className="relative"
+          className="relative p-2 text-slate-500 border border-slate-300 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors inline-flex items-center justify-center h-9 w-9"
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -239,10 +238,13 @@ export default function Header({ sidebarOpen, onMenuClick }) {
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
-        </Button>
+        </button>
 
         {/* Theme toggle */}
         <ThemeToggle />
+
+        {/* Text Scaling Dropdown */}
+        <TextScaleDropdown />
 
         {/* User avatar */}
         <button

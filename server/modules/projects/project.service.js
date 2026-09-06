@@ -413,7 +413,9 @@ class ProjectService {
     // Similarity check against all non-rejected projects
     const allProjects = await Project.find({
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
-    }).select('title keywords');
+    }).select(
+      'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+    );
 
     const similarProjects = findSimilarProjects(
       { title: data.title, keywords: data.keywords || [] },
@@ -669,7 +671,9 @@ class ProjectService {
       )
         .sort({ score: { $meta: 'textScore' } })
         .limit(50)
-        .select('title keywords')
+        .select(
+          'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+        )
         .lean();
     } catch {
       // Fallback if $text search fails (e.g. empty string) — fetch all
@@ -679,7 +683,11 @@ class ProjectService {
     // If $text returned nothing, broaden to all non-rejected projects
     // so Levenshtein can still catch close matches (e.g. word reordering)
     if (candidates.length === 0) {
-      candidates = await Project.find(filter).select('title keywords').lean();
+      candidates = await Project.find(filter)
+        .select(
+          'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+        )
+        .lean();
     }
 
     // Tier 2: Levenshtein + keyword overlap scoring
@@ -719,7 +727,9 @@ class ProjectService {
     const otherProjects = await Project.find({
       _id: { $ne: project._id },
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
-    }).select('title keywords');
+    }).select(
+      'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+    );
 
     const similarProjects = findSimilarProjects(
       { title: project.title, keywords: project.keywords },
@@ -1079,7 +1089,9 @@ class ProjectService {
     const otherProjects = await Project.find({
       _id: { $ne: project._id },
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
-    }).select('title keywords');
+    }).select(
+      'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+    );
 
     const similarProjects = findSimilarProjects(
       { title: project.title, keywords: project.keywords },

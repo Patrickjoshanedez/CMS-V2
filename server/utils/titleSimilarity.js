@@ -186,10 +186,37 @@ export function findSimilarProjects(candidate, existingProjects, options = {}) {
     );
 
     if (combined >= threshold) {
+      const score = Math.round(combined * 100) / 100;
+      const similarityScore = Math.round(score * 100);
+
+      // Determine target beneficiary / scope
+      let targetBeneficiary = proj.targetBeneficiary || '';
+      if (
+        !targetBeneficiary &&
+        Array.isArray(proj.titleProposalMetadata) &&
+        proj.titleProposalMetadata.length > 0
+      ) {
+        targetBeneficiary = proj.titleProposalMetadata[0]?.pitchDeck?.targetUsers || '';
+      }
+
+      // Determine tech stack (prefer explicit techStack, fallback to keywords)
+      let techStack = [];
+      if (Array.isArray(proj.techStack) && proj.techStack.length > 0) {
+        techStack = proj.techStack;
+      } else if (Array.isArray(proj.keywords) && proj.keywords.length > 0) {
+        techStack = proj.keywords;
+      }
+
       results.push({
+        id: proj._id ? String(proj._id) : proj.id || '',
         projectId: proj._id,
         title: proj.title,
-        score: Math.round(combined * 100) / 100,
+        score,
+        similarityScore,
+        academicYear: proj.academicYear || '',
+        abstract: proj.abstract || '',
+        targetBeneficiary,
+        techStack,
       });
     }
   }

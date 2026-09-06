@@ -60,6 +60,23 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
 import LoadingScreen from './components/ui/LoadingScreen';
 import TopProgressBar from './components/ui/TopProgressBar';
 import PageSkeleton from './components/ui/PageSkeleton';
+import { topProgress } from './lib/topProgress';
+
+/**
+ * SuspenseProgressBridge — Synchronizes React Suspense chunk loading with
+ * the global TopProgressBar, ensuring the progress bar actively trickles
+ * while lazy page chunks are downloading and surges to 100% when ready.
+ */
+function SuspenseProgressBridge() {
+  useEffect(() => {
+    topProgress.start();
+    return () => {
+      topProgress.done();
+    };
+  }, []);
+
+  return <PageSkeleton />;
+}
 
 /**
  * ThemeSync — Subscribes to the Zustand theme store and keeps the <html> class
@@ -203,7 +220,7 @@ export default function App() {
     <>
       <ThemeSync />
       <TopProgressBar />
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<SuspenseProgressBridge />}>
         <Routes>
           {/* Guest routes — redirect to dashboard if already authenticated */}
           {GUEST_ROUTES.map(({ path, Component }) => (

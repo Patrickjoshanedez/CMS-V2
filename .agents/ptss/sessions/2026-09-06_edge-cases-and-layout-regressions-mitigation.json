@@ -1,0 +1,19 @@
+{
+  "session_id": "2026-09-06_edge-cases-and-layout-regressions-mitigation",
+  "date": "2026-09-06T08:40:00.000Z",
+  "task_summary": "Comprehensive edge-case and layout regression mitigation: scroll-jump & jitter prevention on shrinking AutoExpandingTextarea (window.scrollY preservation, box-border, overflow-y-hidden); unmount synchronous localStorage flush and AbortController request-cancellation race prevention in useAutosave; portal-projected rail tooltips in collapsible 260px/76px Sidebar escaping overflow clipping; global WebKit autofill override and native dark mode select option styling; and text-scaling layout collision prevention with min-height tokens.",
+  "task_category": "resilience_and_edge_case_hardening",
+  "skills_written": [],
+  "skills_patched": [],
+  "files_modified": [
+    "client/src/index.css",
+    "client/src/components/projects/AutoExpandingTextarea.jsx",
+    "client/src/components/projects/AutoExpandingTextarea.test.jsx",
+    "client/src/hooks/useAutosave.js",
+    "client/src/hooks/useAutosave.test.jsx",
+    "client/src/components/layouts/Sidebar.jsx",
+    "client/src/components/layouts/Sidebar.test.jsx",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    "memories/repo/lessons/2026-09-06-edge-cases-and-layout-regressions-mitigation.md"
+  ]
+}

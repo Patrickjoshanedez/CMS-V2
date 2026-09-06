@@ -1,106 +1,219 @@
-import { useState } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import {
   LayoutDashboard,
   Users,
   UsersRound,
-  LogOut,
-  GraduationCap,
-  FileText,
-  Upload,
-  ClipboardList,
-  ClipboardCheck,
+  BookMarked,
+  Send,
   Archive,
-  BarChart3,
-  ScrollText,
-  ChevronDown,
-  Search,
+  ShieldCheck,
   Settings,
-  Menu,
+  LogOut,
+  ChevronLeft,
+  ChevronDown,
+  GraduationCap,
+  ClipboardCheck,
+  ClipboardList,
+  BarChart3,
   Layers,
+  ScrollText,
+  Upload,
+  Search,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
 
-/**
- * Sidebar — responsive navigation sidebar.
- * Shows role-appropriate navigation items with grouped sections.
- */
-
-// ---------------------------------------------------------------------------
-// Navigation config — each role gets a flat list or grouped sections
-// ---------------------------------------------------------------------------
-
-/**
- * Build the instructor sidebar items matching the requested layout:
- *   Dashboard → Instructor Review → Reports → Archived Capstone (collapsible) → Plagiarism Checker → Users → Activity Log
- */
-const instructorItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'Instructor Review', icon: ClipboardCheck, path: '/projects' },
-  { label: 'Reports', icon: BarChart3, path: '/reports' },
+const studentNavItems = [
   {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    path: '/dashboard',
+    section: 'workspace',
+  },
+  {
+    id: 'my-team',
+    label: 'My Team',
+    icon: UsersRound,
+    path: '/teams',
+    section: 'workspace',
+  },
+  {
+    id: 'my-capstone',
+    label: 'My Capstone',
+    icon: BookMarked,
+    path: '/project',
+    badge: 'Draft',
+    badgeVariant: 'warning',
+    section: 'workspace',
+  },
+  {
+    id: 'submissions',
+    label: 'Submissions',
+    icon: Send,
+    path: '/project/submissions',
+    badge: 2,
+    badgeVariant: 'neutral',
+    section: 'tools',
+  },
+  {
+    id: 'archive',
+    label: 'Archive',
+    icon: Archive,
+    path: '/archive',
+    section: 'tools',
+  },
+  {
+    id: 'plagiarism',
+    label: 'Plagiarism Checker',
+    icon: ShieldCheck,
+    path: '/plagiarism-checker',
+    section: 'tools',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    path: '/settings',
+    section: 'system',
+  },
+];
+
+const instructorNavItems = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    path: '/dashboard',
+    section: 'workspace',
+  },
+  {
+    id: 'instructor-review',
+    label: 'Instructor Review',
+    icon: ClipboardCheck,
+    path: '/projects',
+    section: 'workspace',
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    icon: BarChart3,
+    path: '/reports',
+    section: 'workspace',
+  },
+  {
+    id: 'archive-group',
     label: 'Archived Capstone',
     icon: Archive,
+    path: '/archive',
+    section: 'tools',
     group: true,
     children: [
-      { label: 'Browse Archive', icon: Search, path: '/archive' },
-      { label: 'Upload Archive', icon: Upload, path: '/archive/upload/capstone' },
+      { id: 'browse-archive', label: 'Browse Archive', icon: Search, path: '/archive' },
+      {
+        id: 'upload-archive',
+        label: 'Upload Archive',
+        icon: Upload,
+        path: '/archive/upload/capstone',
+      },
     ],
   },
-  { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
-  { label: 'Evaluation Rubrics', icon: Layers, path: '/admin/evaluation-templates' },
-  { label: 'Users', icon: Users, path: '/users' },
-  { label: 'Activity Log', icon: ScrollText, path: '/admin/audit' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
+  {
+    id: 'plagiarism',
+    label: 'Plagiarism Checker',
+    icon: ShieldCheck,
+    path: '/plagiarism-checker',
+    section: 'tools',
+  },
+  {
+    id: 'evaluation-rubrics',
+    label: 'Evaluation Rubrics',
+    icon: Layers,
+    path: '/admin/evaluation-templates',
+    section: 'tools',
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    icon: Users,
+    path: '/users',
+    section: 'tools',
+  },
+  {
+    id: 'audit-log',
+    label: 'Activity Log',
+    icon: ScrollText,
+    path: '/admin/audit',
+    section: 'tools',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    path: '/settings',
+    section: 'system',
+  },
 ];
 
-const studentItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'My Team', icon: UsersRound, path: '/teams' },
-  { label: 'My Capstone', icon: FileText, path: '/project' },
-  { label: 'Submissions', icon: ClipboardList, path: '/project/submissions' },
-  { label: 'Archive', icon: Archive, path: '/archive' },
-  { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
+const facultyNavItems = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    path: '/dashboard',
+    section: 'workspace',
+  },
+  {
+    id: 'adviser-reviews',
+    label: 'Adviser Reviews',
+    icon: ClipboardCheck,
+    path: '/projects?filter=advisees',
+    section: 'workspace',
+  },
+  {
+    id: 'panel-review',
+    label: 'Panel Review',
+    icon: ClipboardList,
+    path: '/projects?filter=panel',
+    section: 'workspace',
+  },
+  {
+    id: 'archive',
+    label: 'Archive',
+    icon: Archive,
+    path: '/archive',
+    section: 'tools',
+  },
+  {
+    id: 'plagiarism',
+    label: 'Plagiarism Checker',
+    icon: ShieldCheck,
+    path: '/plagiarism-checker',
+    section: 'tools',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    path: '/settings',
+    section: 'system',
+  },
 ];
 
-const facultyItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'Adviser Reviews', icon: ClipboardCheck, path: '/projects?filter=advisees' },
-  { label: 'Panel Review', icon: ClipboardList, path: '/projects?filter=panel' },
-  { label: 'Archive', icon: Archive, path: '/archive' },
-  { label: 'Plagiarism Checker', icon: ClipboardCheck, path: '/plagiarism-checker' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
-];
-
-function getNavItems(role) {
+function getRoleNavItems(role) {
   switch (role) {
     case ROLES.INSTRUCTOR:
-      return instructorItems;
+      return instructorNavItems;
     case ROLES.ADVISER:
     case ROLES.PANELIST:
-      return facultyItems;
+      return facultyNavItems;
     case ROLES.STUDENT:
-      return studentItems;
     default:
-      return [{ label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' }];
+      return studentNavItems;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-/** Shared class builder for nav links */
-function navLinkClasses(isActive) {
-  return [
-    'group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium',
-    'transition-all duration-200 ease-out',
-    isActive
-      ? 'bg-primary/10 text-primary shadow-[inset_3px_0_0_hsl(var(--primary))]'
-      : 'text-muted-foreground hover:bg-accent hover:text-foreground hover:translate-x-0.5',
-  ].join(' ');
 }
 
 function getActivePath(items, location) {
@@ -135,58 +248,201 @@ function getActivePath(items, location) {
   };
 
   items.forEach((item) => {
-    if (item.group && item.children) {
+    if (item.children) {
       item.children.forEach((child) => checkItem(child.path));
-    } else {
-      checkItem(item.path);
     }
+    checkItem(item.path);
   });
 
   return bestMatch;
 }
 
-/** A single nav link (leaf item) */
-function SidebarLink({ item, activePath }) {
-  const isActive = activePath === item.path;
+/**
+ * SidebarNavItem — Navigation node with floating portal tooltip and hover micro-interactions
+ */
+function SidebarNavItem({ item, active, collapsed, activeRef }) {
+  const Icon = item.icon;
+  const [coords, setCoords] = useState(null);
+
+  const handleShow = (e) => {
+    if (!collapsed) return;
+    const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
+    setCoords({
+      top: (rect.top || 0) + (rect.height || 40) / 2,
+      left: (rect.right || 76) + 10,
+    });
+  };
+
+  const handleHide = () => {
+    setCoords(null);
+  };
 
   return (
-    <Link
-      to={item.path}
-      aria-current={isActive ? 'page' : undefined}
-      className={navLinkClasses(isActive)}
-    >
-      <item.icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
-      <span className="truncate">{item.label}</span>
-    </Link>
+    <>
+      <Link
+        ref={active ? activeRef : null}
+        to={item.path}
+        onMouseEnter={handleShow}
+        onMouseOver={handleShow}
+        onFocus={handleShow}
+        onMouseLeave={handleHide}
+        onMouseOut={handleHide}
+        onBlur={handleHide}
+        className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+          collapsed ? 'justify-center' : ''
+        } ${
+          active
+            ? 'text-blue-700 dark:text-blue-400 font-semibold shadow-2xs'
+            : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+        }`}
+      >
+        {/* Background Active Pill */}
+        {active && (
+          <div className="absolute inset-0 bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 rounded-lg pointer-events-none transition-all shadow-2xs" />
+        )}
+
+        {/* Hover wash for inactive items */}
+        {!active && (
+          <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 bg-slate-200/50 dark:bg-slate-800/50 transition-opacity pointer-events-none" />
+        )}
+
+        {/* Leading Icon */}
+        <Icon
+          className={`w-4 h-4 relative z-10 transition-transform duration-200 flex-shrink-0 group-hover:scale-110 ${
+            active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
+          }`}
+        />
+
+        {/* Label Text (hidden when collapsed) */}
+        {!collapsed && (
+          <span className="relative z-10 truncate tracking-tight transition-transform duration-150 group-hover:translate-x-0.5">
+            {item.label}
+          </span>
+        )}
+
+        {/* Trailing Status Badges */}
+        {!collapsed && item.badge !== undefined && (
+          <span
+            className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md ${
+              item.badgeVariant === 'warning'
+                ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+            }`}
+          >
+            {item.badge}
+          </span>
+        )}
+      </Link>
+
+      {/* Portal-Based Floating Tooltip (escapes overflow-y-auto clipping) */}
+      {collapsed &&
+        coords &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="tooltip"
+            data-testid="sidebar-tooltip"
+            style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
+            className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100 flex items-center gap-1.5"
+          >
+            {item.label}
+            {item.badge !== undefined && (
+              <span
+                className={`px-1.5 py-0.2 text-[9px] rounded font-bold ${
+                  item.badgeVariant === 'warning'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-blue-500 text-white'
+                }`}
+              >
+                {item.badge}
+              </span>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
-/** Collapsible group (used for "Archived Capstone") */
-function SidebarGroup({ item, activePath }) {
+/**
+ * Collapsible group for sub-items (e.g. Archived Capstone Browse & Upload)
+ */
+function SidebarNavGroup({ item, activePath, collapsed, activeRef }) {
   const { pathname } = useLocation();
-
-  // Auto-open the group when a child route is active
   const isChildActive = item.children?.some((child) =>
     pathname.startsWith(child.path.split('?')[0]),
   );
   const [open, setOpen] = useState(isChildActive);
+  const Icon = item.icon;
+  const [coords, setCoords] = useState(null);
+
+  const handleShow = (e) => {
+    if (!collapsed) return;
+    const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
+    setCoords({
+      top: (rect.top || 0) + (rect.height || 40) / 2,
+      left: (rect.right || 76) + 10,
+    });
+  };
+
+  const handleHide = () => {
+    setCoords(null);
+  };
+
+  if (collapsed) {
+    return (
+      <>
+        <Link
+          to={item.children?.[0]?.path || item.path}
+          onMouseEnter={handleShow}
+          onMouseOver={handleShow}
+          onFocus={handleShow}
+          onMouseLeave={handleHide}
+          onMouseOut={handleHide}
+          onBlur={handleHide}
+          className={`relative w-full min-h-[2.5rem] flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+            isChildActive
+              ? 'text-blue-700 dark:text-blue-400 font-semibold'
+              : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+          }`}
+        >
+          {isChildActive && (
+            <div className="absolute inset-0 bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 rounded-lg pointer-events-none shadow-2xs" />
+          )}
+          <Icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover:scale-110 text-slate-500 dark:text-slate-400" />
+        </Link>
+
+        {coords &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              role="tooltip"
+              data-testid="sidebar-tooltip"
+              style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
+              className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+            >
+              {item.label}
+            </div>,
+            document.body,
+          )}
+      </>
+    );
+  }
 
   return (
     <div>
-      {/* Group toggle button */}
       <button
+        type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={[
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium',
-          'transition-all duration-200 ease-out',
+        className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
           isChildActive
-            ? 'bg-primary/5 text-primary'
-            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-        ].join(' ')}
+            ? 'text-blue-700 dark:text-blue-400 font-semibold'
+            : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
+        }`}
         aria-expanded={open}
       >
-        <item.icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
-        <span className="flex-1 truncate text-left">{item.label}</span>
+        <Icon className="w-4 h-4 transition-transform duration-200 flex-shrink-0 group-hover:scale-110" />
+        <span className="flex-1 truncate text-left tracking-tight">{item.label}</span>
         <ChevronDown
           className={`h-3.5 w-3.5 shrink-0 transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             open ? 'rotate-0' : '-rotate-90'
@@ -194,30 +450,22 @@ function SidebarGroup({ item, activePath }) {
         />
       </button>
 
-      {/* Collapsible children */}
       <div
         className="grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-3">
-            {item.children.map((child) => {
+          <div className="ml-4 mt-0.5 space-y-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
+            {item.children?.map((child) => {
               const isActive = activePath === child.path;
               return (
-                <Link
-                  key={child.path}
-                  to={child.path}
-                  className={[
-                    'group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-medium',
-                    'transition-all duration-200 ease-out',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground hover:translate-x-0.5',
-                  ].join(' ')}
-                >
-                  <child.icon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{child.label}</span>
-                </Link>
+                <SidebarNavItem
+                  key={child.id}
+                  item={child}
+                  active={isActive}
+                  collapsed={collapsed}
+                  activeRef={activeRef}
+                />
               );
             })}
           </div>
@@ -227,83 +475,237 @@ function SidebarGroup({ item, activePath }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main Sidebar
-// ---------------------------------------------------------------------------
-
-export default function Sidebar({ open, onToggle }) {
+/**
+ * Modern Animated Sidebar with Dual-State Expansion & Floating Slide Indicator
+ */
+export function Sidebar({ open = true, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
-  const items = getNavItems(user?.role);
-  const activePath = getActivePath(items, location);
+  const collapsed = !open;
+  const navItems = useMemo(() => getRoleNavItems(user?.role), [user?.role]);
+  const activePath = useMemo(() => getActivePath(navItems, location), [navItems, location]);
+
+  const navContainerRef = useRef(null);
+  const activeItemRef = useRef(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
+  const [signOutCoords, setSignOutCoords] = useState(null);
+
+  // Measure and align sliding indicator
+  useEffect(() => {
+    if (activeItemRef.current && navContainerRef.current) {
+      const containerRect = navContainerRef.current.getBoundingClientRect();
+      const itemRect = activeItemRef.current.getBoundingClientRect();
+      setIndicatorStyle({
+        top: itemRect.top - containerRect.top + navContainerRef.current.scrollTop,
+        height: itemRect.height,
+        opacity: 1,
+      });
+    } else {
+      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+    }
+  }, [activePath, collapsed, user?.role]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
   };
 
+  const workspaceItems = navItems.filter((i) => i.section === 'workspace');
+  const toolsItems = navItems.filter((i) => i.section === 'tools');
+  const systemItems = navItems.filter((i) => i.section === 'system');
+
   return (
     <aside
-      className={`
-        relative z-30 flex h-screen shrink-0 flex-col bg-card overflow-hidden
-        transition-[width,opacity,transform,border-color] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]
-        ${open ? 'w-64 border-r opacity-100 translate-x-0' : 'w-0 border-r-0 opacity-0 -translate-x-2'}
-      `}
+      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-300 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 ${
+        collapsed ? 'w-[76px]' : 'w-[260px]'
+      }`}
     >
-      {/* ── Header ── */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <GraduationCap className="h-5 w-5 text-primary" />
+      {/* 1. Header & Collapse Toggle */}
+      <div className="p-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 min-h-[4rem]">
+        <div
+          className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${
+            collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+          }`}
+        >
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs flex-shrink-0">
+            <GraduationCap className="h-4 w-4" />
           </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-bold text-foreground tracking-tight">CMS</span>
-            <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">
-              Capstone
+          <div className="flex flex-col whitespace-nowrap">
+            <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
+              CMS
+            </span>
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5">
+              Capstone Studio
             </span>
           </div>
         </div>
+
         <button
+          type="button"
           onClick={onToggle}
-          className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Close sidebar"
+          className={`p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors ${
+            collapsed ? 'mx-auto' : ''
+          }`}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          <Menu className="h-5 w-5" />
+          <ChevronLeft
+            className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`}
+          />
         </button>
       </div>
 
-      {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3">
-        {/* Section label — only for instructor */}
-        {user?.role === ROLES.INSTRUCTOR && (
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Navigation
-          </p>
+      {/* 2. Navigation Content */}
+      <nav ref={navContainerRef} className="relative flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        {/* Sliding Indicator (glides smoothly across items) */}
+        {indicatorStyle.opacity > 0 && (
+          <div
+            className="absolute left-3 right-3 rounded-lg bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-0 shadow-2xs"
+            style={{
+              top: `${indicatorStyle.top}px`,
+              height: `${indicatorStyle.height}px`,
+            }}
+          />
         )}
 
-        <div className="space-y-0.5">
-          {items.map((item) =>
-            item.group ? (
-              <SidebarGroup key={item.label} item={item} activePath={activePath} />
-            ) : (
-              <SidebarLink key={item.path} item={item} activePath={activePath} />
-            ),
+        {/* Workspace Section */}
+        <div className="relative z-10 space-y-1">
+          {!collapsed && (
+            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+              Workspace
+            </p>
           )}
+          <div className="space-y-0.5">
+            {workspaceItems.map((item) =>
+              item.group ? (
+                <SidebarNavGroup
+                  key={item.id}
+                  item={item}
+                  activePath={activePath}
+                  collapsed={collapsed}
+                  activeRef={activeItemRef}
+                />
+              ) : (
+                <SidebarNavItem
+                  key={item.id}
+                  item={item}
+                  active={activePath === item.path}
+                  collapsed={collapsed}
+                  activeRef={activeItemRef}
+                />
+              ),
+            )}
+          </div>
+        </div>
+
+        {/* Tools Section */}
+        <div className="relative z-10 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
+          {!collapsed && (
+            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+              Evaluation
+            </p>
+          )}
+          <div className="space-y-0.5">
+            {toolsItems.map((item) =>
+              item.group ? (
+                <SidebarNavGroup
+                  key={item.id}
+                  item={item}
+                  activePath={activePath}
+                  collapsed={collapsed}
+                  activeRef={activeItemRef}
+                />
+              ) : (
+                <SidebarNavItem
+                  key={item.id}
+                  item={item}
+                  active={activePath === item.path}
+                  collapsed={collapsed}
+                  activeRef={activeItemRef}
+                />
+              ),
+            )}
+          </div>
         </div>
       </nav>
 
-      {/* ── Footer (logout) ── */}
-      <div className="border-t px-3 py-3">
+      {/* 3. Footer Actions */}
+      <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
+        {systemItems.map((item) => (
+          <SidebarNavItem
+            key={item.id}
+            item={item}
+            active={activePath === item.path}
+            collapsed={collapsed}
+            activeRef={activeItemRef}
+          />
+        ))}
+
         <button
+          type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+          onMouseEnter={(e) => {
+            if (!collapsed) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            setSignOutCoords({
+              top: (rect.top || 0) + (rect.height || 40) / 2,
+              left: (rect.right || 76) + 10,
+            });
+          }}
+          onMouseOver={(e) => {
+            if (!collapsed) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            setSignOutCoords({
+              top: (rect.top || 0) + (rect.height || 40) / 2,
+              left: (rect.right || 76) + 10,
+            });
+          }}
+          onFocus={(e) => {
+            if (!collapsed) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            setSignOutCoords({
+              top: (rect.top || 0) + (rect.height || 40) / 2,
+              left: (rect.right || 76) + 10,
+            });
+          }}
+          onMouseLeave={() => setSignOutCoords(null)}
+          onBlur={() => setSignOutCoords(null)}
+          className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none ${
+            collapsed ? 'justify-center' : ''
+          }`}
+          title={collapsed ? 'Sign out' : undefined}
+          aria-label="Sign out"
         >
-          <LogOut className="h-4 w-4" />
-          Sign out
+          <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 flex-shrink-0" />
+          {!collapsed && <span className="text-xs font-semibold">Sign out</span>}
         </button>
       </div>
+
+      {/* Sign Out Tooltip Portal */}
+      {collapsed &&
+        signOutCoords &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="tooltip"
+            data-testid="sidebar-tooltip"
+            style={{ top: `${signOutCoords.top}px`, left: `${signOutCoords.left}px` }}
+            className="fixed -translate-y-1/2 z-[9999] px-2.5 py-1 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-md shadow-xl whitespace-nowrap pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+          >
+            Sign out
+          </div>,
+          document.body,
+        )}
     </aside>
   );
 }
+
+Sidebar.propTypes = {
+  open: PropTypes.bool,
+  onToggle: PropTypes.func,
+};
+
+export const AppSidebar = Sidebar;
+export default Sidebar;

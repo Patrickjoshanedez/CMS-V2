@@ -1,0 +1,17 @@
+{
+  "session_id": "2026-09-05_proposals-limit-and-ihsa-specification",
+  "date": "2026-09-05T06:22:00.000Z",
+  "task_summary": "Expanded Capstone 1 candidate proposals capacity from 3 to 5 in CreateProjectPage.jsx with real-time pill switcher, proposal removal controls, and targeted unit test coverage. Codified Tiered Test Scoping (TTS) and Tiered Test Execution Protocol (TTEP) in docs/specs/ihsa-specification.md and enforced execution_rules in feature_policies.json and test_tracking_gate.py.",
+  "task_category": "proposal_capacity_expansion_and_ihsa_governance",
+  "files_modified": [
+    "client/src/pages/projects/CreateProjectPage.jsx",
+    "client/src/pages/projects/CreateProjectPage.test.jsx",
+    ".github/hooks/state/feature_policies.json",
+    ".github/hooks/scripts/test_tracking_gate.py",
+    "docs/specs/ihsa-specification.md",
+    "memories/repo/lessons/2026-09-05-ihsa-governance-and-hooks-dispatcher.md",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "skills_written": [],
+  "skills_patched": []
+}

@@ -24,6 +24,10 @@ import {
 import { Progress } from '@/components/ui/Progress';
 import { TagInput } from '@/components/ui/TagInput';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
+import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
+import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDialog';
+import useAutosave from '@/hooks/useAutosave';
+import SaveStatusIndicator from '@/components/common/SaveStatusIndicator';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAuthStore } from '@/stores/authStore';
@@ -52,6 +56,7 @@ import {
   Trash2,
   Loader2,
   Lock,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -226,7 +231,7 @@ export default function CreateProjectPage() {
         }
 
         if (Array.isArray(draft.titleProposals) && draft.titleProposals.length > 0) {
-          const normalized = draft.titleProposals.slice(0, 3).map(normalizeDraftProposal);
+          const normalized = draft.titleProposals.slice(0, 5).map(normalizeDraftProposal);
           setTitleProposals(normalized);
           if (typeof draft.expandedProposalIndex === 'number') {
             setActiveProposalIndex(
@@ -250,6 +255,38 @@ export default function CreateProjectPage() {
       isMounted = false;
     };
   }, []);
+
+  // Autosave setup with local cache and background synchronization
+  const autosavePayload = useMemo(
+    () => ({
+      form: {
+        academicYear: form.academicYear,
+        sectionId: form.sectionId,
+      },
+      titleProposals,
+      keywordList,
+      expandedProposalIndex: activeProposalIndex,
+      proposalIndex: activeProposalIndex,
+      savedAt: new Date().toISOString(),
+    }),
+    [form.academicYear, form.sectionId, titleProposals, keywordList, activeProposalIndex],
+  );
+
+  const { saveStatus, setSaveStatus } = useAutosave(
+    'cms.create_project_draft',
+    autosavePayload,
+    1200,
+    async (payload) => {
+      try {
+        await projectService.saveCreateProjectDraft({
+          ...payload,
+          source: 'autosave',
+        });
+      } catch {
+        // Silently catch background autosave errors
+      }
+    },
+  );
 
   // Pre-fill academic year and section from team context
   useEffect(() => {
@@ -296,32 +333,106 @@ export default function CreateProjectPage() {
     });
   };
 
-  const handleDisciplineChange = (index, val) => {
-    setTitleProposals((prev) => {
-      const next = [...prev];
-      if (!next[index]) next[index] = createEmptyProposal();
-      next[index] = { ...next[index], capstoneType: [val] };
-      return next;
-    });
+  const [alignmentModalOpen, setAlignmentModalOpen] = useState(false);
+  const [alignmentModalType, setAlignmentModalType] = useState('discipline');
+
+  const handleOpenDisciplineModal = () => {
+    setAlignmentModalType('discipline');
+    setAlignmentModalOpen(true);
   };
 
-  const handleSdgChange = (index, val) => {
+  const handleOpenSdgModal = () => {
+    setAlignmentModalType('sdg');
+    setAlignmentModalOpen(true);
+  };
+
+  const handleSaveModalAlignments = (items, type) => {
+    if (type === 'discipline') {
+      const selected = items.length > 0 ? items : ['Software Engineering & Web Applications'];
+      setTitleProposals((prev) => {
+        const next = [...prev];
+        if (!next[activeProposalIndex]) next[activeProposalIndex] = createEmptyProposal();
+        next[activeProposalIndex] = { ...next[activeProposalIndex], capstoneType: selected };
+        return next;
+      });
+      toast.success('IT Disciplines Updated', {
+        description: `${selected.length} discipline${selected.length === 1 ? '' : 's'} linked to Proposal ${activeProposalIndex + 1}.`,
+      });
+    } else {
+      const selected = items.length > 0 ? items : ['SDG 4: Quality Education'];
+      setTitleProposals((prev) => {
+        const next = [...prev];
+        if (!next[activeProposalIndex]) next[activeProposalIndex] = createEmptyProposal();
+        next[activeProposalIndex] = { ...next[activeProposalIndex], sdgTags: selected };
+        return next;
+      });
+      toast.success('Target SDGs Updated', {
+        description: `${selected.length} SDG${selected.length === 1 ? '' : 's'} linked to Proposal ${activeProposalIndex + 1}.`,
+      });
+    }
+  };
+
+  const handleRemoveDiscipline = (discName) => {
     setTitleProposals((prev) => {
       const next = [...prev];
-      if (!next[index]) next[index] = createEmptyProposal();
-      next[index] = { ...next[index], sdgTags: [val] };
+      if (!next[activeProposalIndex]) return prev;
+      const current = next[activeProposalIndex].capstoneType || [];
+      if (current.length <= 1) {
+        toast.error('Proposal must retain at least 1 IT Field of Discipline.');
+        return prev;
+      }
+      const updated = current.filter((d) => d !== discName);
+      next[activeProposalIndex] = { ...next[activeProposalIndex], capstoneType: updated };
       return next;
     });
+    toast.info(`Removed ${discName}`);
+  };
+
+  const handleRemoveSdg = (sdgTag) => {
+    setTitleProposals((prev) => {
+      const next = [...prev];
+      if (!next[activeProposalIndex]) return prev;
+      const current = next[activeProposalIndex].sdgTags || [];
+      if (current.length <= 1) {
+        toast.error('Proposal must retain at least 1 Target SDG alignment.');
+        return prev;
+      }
+      const updated = current.filter((s) => s !== sdgTag);
+      next[activeProposalIndex] = { ...next[activeProposalIndex], sdgTags: updated };
+      return next;
+    });
+    toast.info(`Removed ${sdgTag}`);
   };
 
   const addProposalOption = () => {
-    if (titleProposals.length >= 3) {
-      toast.info('Maximum of 3 candidate proposals allowed for Capstone 1.');
+    if (titleProposals.length >= 5) {
+      toast.info('Maximum of 5 candidate proposals allowed for Capstone 1.');
       return;
     }
     const newIdx = titleProposals.length;
     setTitleProposals((prev) => [...prev, createEmptyProposal()]);
     setActiveProposalIndex(newIdx);
+  };
+
+  const removeProposalOption = (indexToRemove) => {
+    if (indexToRemove === 0) {
+      toast.error('Primary proposal cannot be removed.');
+      return;
+    }
+    setTitleProposals((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, idx) => idx !== indexToRemove);
+    });
+    setActiveProposalIndex((prev) => {
+      if (prev === indexToRemove) {
+        return Math.max(0, indexToRemove - 1);
+      }
+      if (prev > indexToRemove) {
+        return prev - 1;
+      }
+      return prev;
+    });
+    toast.info(`Removed Proposal ${indexToRemove + 1}.`);
   };
 
   // Draft Save Handler
@@ -340,6 +451,7 @@ export default function CreateProjectPage() {
         source: 'manual-proposal-save',
         savedAt: new Date().toISOString(),
       });
+      setSaveStatus('saved');
       toast.success(`Proposal ${index + 1} draft saved.`);
     } catch (error) {
       toast.error(error?.response?.data?.error?.message || 'Failed to save proposal draft.');
@@ -470,28 +582,23 @@ export default function CreateProjectPage() {
     const targetId = typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
     const match = sections.find((s) => s._id === targetId);
     return match ? `${match.courseId?.code || 'BSIT'} ${match.name}` : 'Section BSIT 3C (T87)';
-  }, [sections, team?.sectionId]);
+  }, [sections, team]);
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto min-w-0 bg-background text-foreground transition-colors">
+      <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto min-w-0 bg-slate-100 dark:bg-[#060b13] text-foreground transition-colors">
         {/* 1. Header Toolbar & Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-300 dark:border-slate-800 pb-5">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 Capstone 1: Title Proposal Studio
               </h1>
-              <Badge
-                variant="outline"
-                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs py-0.5"
-              >
-                Draft (Auto-saved)
-              </Badge>
+              <SaveStatusIndicator status={saveStatus} />
             </div>
             <p className="text-xs text-muted-foreground">
               Academic Year {team?.academicYear || form.academicYear} · {resolvedSectionName} ·
-              System Note: Automatically using academic year and section. Prepare up to 3 candidate
+              System Note: Automatically using academic year and section. Prepare up to 5 candidate
               title pitches for committee defense.
             </p>
           </div>
@@ -503,7 +610,7 @@ export default function CreateProjectPage() {
               size="sm"
               onClick={() => handleSaveProposalDraft(activeProposalIndex)}
               disabled={savingDraftIndex !== null}
-              className="h-9 text-xs gap-1.5 border-border bg-card hover:bg-muted"
+              className="h-9 text-xs gap-1.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0c1424] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs"
             >
               {savingDraftIndex !== null ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -570,7 +677,7 @@ export default function CreateProjectPage() {
                 );
               })}
 
-              {titleProposals.length < 3 && (
+              {titleProposals.length < 5 && (
                 <button
                   type="button"
                   onClick={addProposalOption}
@@ -608,30 +715,44 @@ export default function CreateProjectPage() {
             {activeStudioTab === 'write' && (
               <>
                 {/* Card 1: Core Pitch & Technical Scope */}
-                <Card className="border-border bg-card shadow-xs">
-                  <CardHeader className="pb-4 border-b border-border/40">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-base font-semibold">
-                          Core Pitch & Technical Scope
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Define the problem domain and the system architecture being proposed.
-                        </CardDescription>
-                      </div>
-                      <Badge variant="secondary" className="text-[10px]">
-                        Proposal {activeProposalIndex + 1} of {titleProposals.length}
-                      </Badge>
+                <div className="rounded-xl bg-white border border-slate-300 p-6 shadow-sm dark:bg-[#0c1424] dark:border-slate-700 dark:shadow-none transition-colors">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                        Core Pitch & Technical Scope
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Define the problem domain and the system architecture being proposed.
+                      </p>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-5 space-y-4 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2.5 py-1 font-medium rounded-full bg-slate-100 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300">
+                        Proposal {activeProposalIndex + 1} of {titleProposals.length}
+                      </span>
+                      {activeProposalIndex > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeProposalOption(activeProposalIndex)}
+                          className="h-6 px-2 text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1"
+                          title={`Remove Proposal ${activeProposalIndex + 1}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          <span>Remove</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
                     {/* Proposal Title with exact required id for test compatibility */}
-                    <div className="space-y-1.5">
+                    <div>
                       <label
                         htmlFor={`proposal-${activeProposalIndex}-title`}
-                        className="text-xs font-semibold text-foreground"
+                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5"
                       >
-                        Proposed Project Title <span className="text-destructive">*</span>
+                        Proposed Project Title <span className="text-rose-500">*</span>
                       </label>
                       <Input
                         id={`proposal-${activeProposalIndex}-title`}
@@ -640,16 +761,16 @@ export default function CreateProjectPage() {
                           handleProposalTitleChange(activeProposalIndex, e.target.value)
                         }
                         placeholder="Enter a descriptive and technical title..."
-                        className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
+                        className="w-full rounded-lg px-3.5 py-2.5 text-sm bg-white border border-slate-400/80 text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:bg-[#080d18] dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-900/40 outline-none transition-all"
                         required
                       />
                     </div>
 
                     {/* Real-time Title Similarity Checking mini-alert */}
                     {currentProposal.title?.trim() && (
-                      <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3.5">
-                        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                          <Search className="h-3.5 w-3.5 text-primary" />
+                      <div className="space-y-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-[#080d18] p-3.5">
+                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                          <Search className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                           Title Similarity Live Clearance
                         </p>
                         <TitleSimilarityChecker
@@ -661,166 +782,179 @@ export default function CreateProjectPage() {
                     )}
 
                     {/* Problem Statement */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        Problem Statement & Literature Gap{' '}
-                        <span className="text-destructive">*</span>
-                      </label>
-                      <Textarea
-                        rows={3}
-                        value={currentProposal.pitchDeck?.problemStatement || ''}
-                        onChange={(e) =>
-                          handlePitchDeckFieldChange(
-                            activeProposalIndex,
-                            'problemStatement',
-                            e.target.value,
-                          )
-                        }
-                        placeholder="Current capstone tracking relies on fragmented communication channels, manual paper-based action done matrices..."
-                        className="text-xs resize-none bg-muted/30 border-border leading-relaxed focus-visible:bg-background p-3"
-                      />
-                    </div>
+                    <AutoExpandingTextarea
+                      label="Problem Statement & Literature Gap"
+                      required
+                      minRows={3}
+                      value={currentProposal.pitchDeck?.problemStatement || ''}
+                      onChange={(e) =>
+                        handlePitchDeckFieldChange(
+                          activeProposalIndex,
+                          'problemStatement',
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Define the problem domain and gaps in existing research..."
+                    />
 
                     {/* Proposed Solution */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        Proposed Solution & Technical Framework{' '}
-                        <span className="text-destructive">*</span>
-                      </label>
-                      <Textarea
-                        rows={3}
-                        value={currentProposal.pitchDeck?.proposedSolution || ''}
+                    <AutoExpandingTextarea
+                      label="Proposed Solution & Technical Framework"
+                      required
+                      minRows={3}
+                      value={currentProposal.pitchDeck?.proposedSolution || ''}
+                      onChange={(e) =>
+                        handlePitchDeckFieldChange(
+                          activeProposalIndex,
+                          'proposedSolution',
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Describe the architectural solution and methodology..."
+                    />
+
+                    {/* Technical Innovation */}
+                    <AutoExpandingTextarea
+                      label="Unique Technical Innovation"
+                      required
+                      minRows={1}
+                      value={currentProposal.pitchDeck?.uniqueContribution || ''}
+                      onChange={(e) =>
+                        handlePitchDeckFieldChange(
+                          activeProposalIndex,
+                          'uniqueContribution',
+                          e.target.value,
+                        )
+                      }
+                      placeholder="List the hardware, algorithms, or novel mechanisms applied..."
+                    />
+
+                    {/* Grid Fields (Target Users & Impact) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <AutoExpandingTextarea
+                        label="Target Users / Beneficiaries"
+                        required
+                        minRows={1}
+                        value={currentProposal.pitchDeck?.targetUsers || ''}
                         onChange={(e) =>
                           handlePitchDeckFieldChange(
                             activeProposalIndex,
-                            'proposedSolution',
+                            'targetUsers',
                             e.target.value,
                           )
                         }
-                        placeholder="A centralized multi-tenant capstone management system featuring automated committee notifications..."
-                        className="text-xs resize-none bg-muted/30 border-border leading-relaxed focus-visible:bg-background p-3"
+                        placeholder="e.g., Rural health units, municipal offices..."
                       />
-                    </div>
 
-                    {/* Unique Contribution */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">
-                        Unique Technical Innovation <span className="text-destructive">*</span>
-                      </label>
-                      <Input
-                        value={currentProposal.pitchDeck?.uniqueContribution || ''}
+                      <AutoExpandingTextarea
+                        label="Expected Value / Impact"
+                        required
+                        minRows={1}
+                        value={currentProposal.pitchDeck?.expectedImpact || ''}
                         onChange={(e) =>
                           handlePitchDeckFieldChange(
                             activeProposalIndex,
-                            'uniqueContribution',
+                            'expectedImpact',
                             e.target.value,
                           )
                         }
-                        placeholder="Automated post-defense Action Done Matrix generation and role-isolated concurrent revision tracking..."
-                        className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
+                        placeholder="e.g., Eliminates physical matrix routing overhead..."
                       />
                     </div>
-
-                    {/* Beneficiaries and Impact */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          Target Users / Beneficiaries <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                          value={currentProposal.pitchDeck?.targetUsers || ''}
-                          onChange={(e) =>
-                            handlePitchDeckFieldChange(
-                              activeProposalIndex,
-                              'targetUsers',
-                              e.target.value,
-                            )
-                          }
-                          placeholder="IT Faculty Instructors, Capstone Proponents, Defense Panelists..."
-                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          Expected Value / Impact <span className="text-destructive">*</span>
-                        </label>
-                        <Input
-                          value={currentProposal.pitchDeck?.expectedImpact || ''}
-                          onChange={(e) =>
-                            handlePitchDeckFieldChange(
-                              activeProposalIndex,
-                              'expectedImpact',
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Eliminates physical matrix routing overhead and enforces compliance..."
-                          className="h-9 text-xs bg-muted/30 border-border focus-visible:bg-background"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 {/* Card 2: Field of Discipline & SDG Alignment */}
-                <Card className="border-border bg-card shadow-xs">
-                  <CardHeader className="pb-4 border-b border-border/40">
-                    <CardTitle className="text-base font-semibold">
-                      Field of Discipline & SDG Alignment
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Align your proposal with institutional IT domains and UN sustainability goals.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-5 space-y-4 text-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          IT Field of Discipline <span className="text-destructive">*</span>
+                <div className="rounded-xl bg-white border border-slate-300 p-6 shadow-sm dark:bg-[#0c1424] dark:border-slate-700 dark:shadow-none transition-colors">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                        Field of Discipline & SDG Alignment
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Align your proposal with institutional IT domains and UN sustainability
+                        goals.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    {/* IT Field of Discipline */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          IT Field of Discipline <span className="text-rose-500">*</span>
                         </label>
-                        <Select
-                          value={
-                            currentProposal.capstoneType?.[0] ||
-                            'Software Engineering & Web Applications'
-                          }
-                          onValueChange={(val) => handleDisciplineChange(activeProposalIndex, val)}
+                        <button
+                          type="button"
+                          id={`proposal-${activeProposalIndex}-discipline-btn`}
+                          onClick={handleOpenDisciplineModal}
+                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                         >
-                          <SelectTrigger className="h-9 text-xs bg-muted/30 border-border">
-                            <SelectValue placeholder="Select discipline..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CAPSTONE_DISCIPLINE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.label}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <Plus className="h-3 w-3" /> Edit Disciplines
+                        </button>
                       </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">
-                          Target SDG Alignment <span className="text-destructive">*</span>
-                        </label>
-                        <Select
-                          value={currentProposal.sdgTags?.[0] || 'SDG 4: Quality Education'}
-                          onValueChange={(val) => handleSdgChange(activeProposalIndex, val)}
-                        >
-                          <SelectTrigger className="h-9 text-xs bg-muted/30 border-border">
-                            <SelectValue placeholder="Select SDG goal..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SDG_ALIGNMENT_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.label}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px]">
+                        {(
+                          currentProposal.capstoneType || [
+                            'Software Engineering & Web Applications',
+                          ]
+                        ).map((disc) => (
+                          <span
+                            key={disc}
+                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white border border-slate-300 dark:bg-slate-800 dark:border-slate-600 text-slate-800 dark:text-slate-200 shadow-2xs"
+                          >
+                            <Layers className="h-3 w-3 text-blue-500" />
+                            <span>{disc}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDiscipline(disc)}
+                              className="text-slate-400 hover:text-rose-500 ml-0.5"
+                              title={`Remove ${disc}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+
+                    {/* Target UN SDGs */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Target SDG Alignment <span className="text-rose-500">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          id={`proposal-${activeProposalIndex}-sdg-btn`}
+                          onClick={handleOpenSdgModal}
+                          className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          <Plus className="h-3 w-3" /> Edit SDGs
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px]">
+                        {(currentProposal.sdgTags || ['SDG 4: Quality Education']).map((sdg) => (
+                          <span
+                            key={sdg}
+                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 shadow-2xs"
+                          >
+                            <Globe className="h-3 w-3 text-emerald-500" />
+                            <span>{sdg}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSdg(sdg)}
+                              className="text-emerald-600/70 hover:text-rose-500 ml-0.5"
+                              title={`Remove ${sdg}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
@@ -1153,6 +1287,19 @@ export default function CreateProjectPage() {
           </div>
         </div>
       </div>
+
+      <AlignmentSelectorDialog
+        open={alignmentModalOpen}
+        onOpenChange={setAlignmentModalOpen}
+        type={alignmentModalType}
+        selectedItems={
+          alignmentModalType === 'discipline'
+            ? currentProposal.capstoneType || ['Software Engineering & Web Applications']
+            : currentProposal.sdgTags || ['SDG 4: Quality Education']
+        }
+        proposalIndex={activeProposalIndex}
+        onSave={handleSaveModalAlignments}
+      />
     </DashboardLayout>
   );
 }
