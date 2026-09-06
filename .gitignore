@@ -111,6 +111,9 @@ test-results/
 # Local staging directory
 staging/
 
+# Developer scratch space
+scratch/
+
 # Local development/fix scripts and artifacts
 fix.py
 fix-projects-tests.js
