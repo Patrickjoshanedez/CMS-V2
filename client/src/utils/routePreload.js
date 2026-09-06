@@ -19,6 +19,7 @@ const routeLoaders = {
   '/settings': () => import('../pages/settings/SettingsPage'),
   '/notifications': () => import('../pages/notifications/NotificationsPage'),
   '/project/create': () => import('../pages/projects/CreateProjectPage'),
+  '/project/approval': () => import('../pages/projects/TitleApprovalPage'),
   '/project': () => import('../pages/projects/MyProjectPage'),
   '/projects': () => import('../pages/projects/ProjectsPage'),
   '/projects/:id': () => import('../pages/projects/ProjectDetailPage'),

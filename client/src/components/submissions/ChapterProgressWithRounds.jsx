@@ -87,7 +87,7 @@ export default function ChapterProgressWithRounds({
     const map = new Map();
     for (const chapter of chapters) map.set(chapter, []);
 
-    const list = submissions?.submissions || [];
+    const list = Array.isArray(submissions) ? submissions : submissions?.submissions || [];
     for (const sub of list) {
       if (sub?.type !== 'chapter') continue;
       if (!chapters.includes(sub.chapter)) continue;
@@ -238,18 +238,57 @@ export default function ChapterProgressWithRounds({
                             variant="outline"
                             size="sm"
                             onClick={() => navigate(`/project/submissions/${round._id}`)}
+                            className="gap-1.5 text-xs h-8"
                           >
-                            <FileText className="mr-2 h-4 w-4" />
+                            <FileText className="h-3.5 w-3.5" />
                             View Document
                           </Button>
+                          {latest?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                navigate(`/project/submissions/upload?chapter=${chapter}`)
+                              }
+                              className="gap-1.5 text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              Upload Revision
+                            </Button>
+                          )}
+                          {latest?.status !== SUBMISSION_STATUSES.LOCKED &&
+                            latest?.status !== SUBMISSION_STATUSES.APPROVED &&
+                            latest?.status !== SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(`/project/submissions/upload?chapter=${chapter}`)
+                                }
+                                className="gap-1.5 text-xs h-8 border-primary/30 text-primary hover:bg-primary/10"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                Submit Next Round
+                              </Button>
+                            )}
                         </div>
                       </TabsContent>
                     ))}
                   </Tabs>
                 ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    No rounds yet for this chapter.
-                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border/70 bg-muted/20 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      No manuscript submissions for {CHAPTER_LABELS[chapter]} yet.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/project/submissions/upload?chapter=${chapter}`)}
+                      className="gap-1.5 text-xs h-7 border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Upload {CHAPTER_LABELS[chapter]} Draft
+                    </Button>
+                  </div>
                 )}
               </div>
             );

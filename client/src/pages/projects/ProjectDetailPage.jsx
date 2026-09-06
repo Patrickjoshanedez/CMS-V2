@@ -1,46 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
-import { Textarea } from '@/components/ui/Textarea';
-import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-import { useQuery } from '@tanstack/react-query';
-import {
-  useProject,
-  useAssignAdviser,
-  useAssignPanelist,
-  useRemovePanelist,
-  useArchiveProject,
-} from '@/hooks/useProjects';
+import { useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
-import { userService } from '@/services/authService';
 import { TITLE_STATUSES, ROLES } from '@cms/shared';
-import { toast } from 'sonner';
 import {
   FileText,
-  Users,
-  CheckCircle2,
-  XCircle,
   History,
   BookOpen,
   Award,
-  Loader2,
-  Search,
-  UserPlus,
   ChevronLeft,
   FileSpreadsheet,
   ExternalLink,
-  FileSearch,
-  ShieldCheck,
-  FolderArchive,
-  Archive,
-  Printer,
   MessageSquareMore,
   BookMarked,
   Code2,
@@ -55,7 +33,7 @@ import ModificationReviewCard from '@/components/projects/ModificationReviewCard
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import ProjectTitleCard from '@/components/projects/ProjectTitleCard';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
-import { getFullName, getProjectAuthors } from '@/pages/projects/projectDetailUtils';
+import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
 
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
@@ -199,9 +177,7 @@ export default function ProjectDetailPage() {
                 {backLabel}
               </Button>
             </div>
-            <div className="bg-card rounded-2xl p-4 border border-border shadow-sm mb-6">
-              <WorkflowPhaseTracker project={project} />
-            </div>
+            <WorkflowPhaseTracker project={project} className="mb-6" />
 
             {isArchived && (
               <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
@@ -542,6 +518,14 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
+                {/* Capstone 4 Action Done Matrix & Secretary Endorsement Gate */}
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
+
                 {/* Final Defense Evaluation Rubric Panel */}
                 <EvaluationPanel projectId={project._id} defenseType="final" />
               </TabsContent>
@@ -652,26 +636,7 @@ export default function ProjectDetailPage() {
   );
 }
 
-export function formatCitation(project, style = 'apa', authors = []) {
-  const authorStr = authors.join(', ');
-  const year = project?.academicYear
-    ? project.academicYear.split('-').pop()
-    : new Date().getFullYear();
-  const course = project?.courseId?.name || 'BS Information Technology';
-  const adviser = project?.adviserId ? getFullName(project.adviserId) : '';
-  const adviserText = adviser ? ` Adviser: ${adviser}.` : '';
-
-  if (style === 'apa') {
-    return `${authorStr} (${year}). ${project?.title || 'Untitled'}. ${course}.${adviserText}`;
-  }
-  if (style === 'ieee') {
-    return `${authorStr}, "${project?.title || 'Untitled'}," ${course}, ${year}.${adviserText}`;
-  }
-  if (style === 'mla') {
-    return `${authorStr}. "${project?.title || 'Untitled'}." ${course}, ${year}.${adviserText}`;
-  }
-  return `${authorStr} (${year}). ${project?.title}.`;
-}
+export { formatCitation };
 
 export function ProjectHistoryCard({ projectId }) {
   const [activeTab, setActiveTab] = useState('history');

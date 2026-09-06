@@ -20,6 +20,7 @@ const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
 const CreateProjectPage = lazy(() => import('./pages/projects/CreateProjectPage'));
+const TitleApprovalPage = lazy(() => import('./pages/projects/TitleApprovalPage'));
 const MyProjectPage = lazy(() => import('./pages/projects/MyProjectPage'));
 const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./pages/projects/ProjectDetailPage'));
@@ -155,6 +156,7 @@ const PROTECTED_ROUTES = [
   { path: '/notifications', Component: NotificationsPage },
   // Projects
   { path: '/project/create', Component: CreateProjectPage },
+  { path: '/project/approval', Component: TitleApprovalPage },
   { path: '/project', Component: MyProjectPage },
   { path: '/projects', Component: ProjectsPage },
   { path: '/projects/:id', Component: ProjectDetailPage },

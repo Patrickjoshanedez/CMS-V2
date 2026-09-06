@@ -499,7 +499,9 @@ export function Sidebar({ open = true, onToggle }) {
   return (
     <aside
       className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-300 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 ${
-        collapsed ? 'w-[76px]' : 'w-[260px]'
+        collapsed
+          ? 'hidden md:flex w-[76px]'
+          : 'fixed inset-y-0 left-0 z-50 w-[260px] md:relative shadow-2xl md:shadow-none'
       }`}
     >
       {/* 1. Header & Collapse Toggle */}

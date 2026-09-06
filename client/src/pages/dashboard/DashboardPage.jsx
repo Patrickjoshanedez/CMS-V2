@@ -326,7 +326,11 @@ function StudentDashboard({ user }) {
                   </div>
                   <Button
                     variant="outline"
-                    onClick={() => navigate('/projects')}
+                    onClick={() =>
+                      navigate(
+                        project?.titleStatus === 'approved' ? '/project' : '/project/approval',
+                      )
+                    }
                     className="w-full"
                   >
                     View Project Workspace

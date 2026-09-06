@@ -35,6 +35,7 @@ export const ROUTE_TITLE_RULES = [
   { pattern: /^\/project\/submissions\/?$/, title: 'Submissions' },
   { pattern: /^\/project\/proposal\/?$/, title: 'Proposal Compilation' },
   { pattern: /^\/project\/create\/?$/, title: 'Create Project' },
+  { pattern: /^\/project\/approval\/?$/, title: 'Proposal Approval' },
   { pattern: /^\/project\/?$/, title: 'My Capstone' },
 
   // 4. Projects & Reviews (Faculty/Instructor)

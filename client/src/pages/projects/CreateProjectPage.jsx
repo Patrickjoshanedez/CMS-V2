@@ -865,7 +865,7 @@ export default function CreateProjectPage() {
           toast.warning('Project created. Please submit for defense in your Capstone workspace.');
         }
       }
-      navigate('/project');
+      navigate('/project/approval');
     },
     onError: (err) => {
       toast.error(err?.response?.data?.error?.message || 'Failed to submit proposal for review.');

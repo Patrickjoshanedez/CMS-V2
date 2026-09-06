@@ -61,7 +61,8 @@ export function useCheckTitleSimilarity(title, extraParams = {}, options = {}) {
  */
 export function useMyProject(options = {}) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const hasTeam = Boolean(useAuthStore((state) => state.user?.teamId));
+  const user = useAuthStore((state) => state.user);
+  const isStudent = user?.role === 'student';
 
   return useQuery({
     queryKey: projectKeys.my(),
@@ -69,7 +70,7 @@ export function useMyProject(options = {}) {
       const { data } = await projectService.getMyProject();
       return data.data.project;
     },
-    enabled: isAuthenticated && hasTeam,
+    enabled: isAuthenticated && (isStudent || Boolean(user?.teamId)),
     retry: (failureCount, error) => {
       const status = error?.response?.status;
       if (status === 401 || status === 404 || status === 429) return false;
@@ -130,8 +131,17 @@ function useProjectMutation(mutationFn, options = {}) {
 
 /** Create a new project */
 export function useCreateProject(options = {}) {
+  const fetchUser = useAuthStore((state) => state.fetchUser);
+  const queryClient = useQueryClient();
   return useProjectMutation(async (data) => {
     const res = await projectService.createProject(data);
+    try {
+      await fetchUser();
+    } catch {
+      // Non-fatal if session refresh fails
+    }
+    queryClient.invalidateQueries({ queryKey: ['teams'] });
+    queryClient.invalidateQueries({ queryKey: projectKeys.all });
     return res.data;
   }, options);
 }

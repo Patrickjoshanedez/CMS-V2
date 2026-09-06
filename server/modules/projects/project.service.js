@@ -441,6 +441,11 @@ class ProjectService {
     team.academicYear = section.academicYear;
     await team.save();
 
+    if (!user.teamId || user.teamId.toString() !== team._id.toString()) {
+      user.teamId = team._id;
+      await user.save({ validateBeforeSave: false });
+    }
+
     // Notify team members (exclude the creator)
     await this._notifyTeamMembers(
       team._id,
@@ -527,7 +532,22 @@ class ProjectService {
    */
   async getMyProject(userId) {
     const user = await User.findById(userId);
-    if (!user || !user.teamId) {
+    if (!user) {
+      throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    }
+
+    let effectiveTeamId = user.teamId;
+    if (!effectiveTeamId) {
+      // Reconcile missing or unlinked teamId by checking actual team membership records
+      const membershipTeam = await Team.findOne({ members: user._id });
+      if (membershipTeam) {
+        effectiveTeamId = membershipTeam._id;
+        user.teamId = membershipTeam._id;
+        await user.save({ validateBeforeSave: false });
+      }
+    }
+
+    if (!effectiveTeamId) {
       throw new AppError('You are not in a team or have no project.', 404, 'NO_TEAM');
     }
 
@@ -545,12 +565,12 @@ class ProjectService {
 
     // Prefer the active (non-rejected) project; fall back to most-recent rejected
     let project = await Project.findOne({
-      teamId: user.teamId,
+      teamId: effectiveTeamId,
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
     }).populate(populateOpts);
 
     if (!project) {
-      project = await Project.findOne({ teamId: user.teamId })
+      project = await Project.findOne({ teamId: effectiveTeamId })
         .sort({ createdAt: -1 })
         .populate(populateOpts);
     }

@@ -22,6 +22,7 @@ export default function DashboardLayout({ children }) {
   useSocket();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
+    if (window.innerWidth < 1024) return false;
     const savedState = window.localStorage.getItem(SIDEBAR_STATE_KEY);
     if (savedState === null) return true;
     return savedState === 'true';
@@ -33,6 +34,17 @@ export default function DashboardLayout({ children }) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(SIDEBAR_STATE_KEY, String(sidebarOpen));
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#060b13]">

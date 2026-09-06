@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsContent } from '@/components/ui/Tabs';
@@ -17,6 +18,8 @@ import {
   FileSpreadsheet,
   MessageSquareMore,
   Code2,
+  BookMarked,
+  ExternalLink,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -38,10 +41,12 @@ import ProposalTab from '@/components/projects/ProposalTab';
 import PrototypeGallery from '@/components/projects/PrototypeGallery';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
+import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
 // Hooks & constants
 import { useMyProject } from '@/hooks/useProjects';
@@ -58,6 +63,7 @@ import { toast } from 'sonner';
  * and provides contextual actions based on title workflow state.
  */
 export default function MyProjectPage() {
+  const navigate = useNavigate();
   const { user, fetchUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: project, isLoading, error, refetch } = useMyProject();
@@ -74,17 +80,33 @@ export default function MyProjectPage() {
   const titleApproved = titleStatus === TITLE_STATUSES.APPROVED;
   const hasPanelists = Array.isArray(project?.panelistIds) && project.panelistIds.length > 0;
 
+  const numericPhase = Number(project?.capstonePhase ?? project?.phase ?? 0);
+
   // Capstone 1 (Proposal) is always accessible.
   const capstone1Unlocked = true;
   // Capstone 2 (Ch 1-3) is unlocked once title is fully approved
-  const capstone2Unlocked = titleApproved || project?.capstonePhase >= CAPSTONE_PHASES.PHASE_2;
+  const capstone2Unlocked = titleApproved || numericPhase >= CAPSTONE_PHASES.PHASE_2;
   // Capstone 3 (Ch 4-5) requires Phase 3
-  const capstone3Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_3;
+  const capstone3Unlocked = numericPhase >= CAPSTONE_PHASES.PHASE_3;
   // Capstone 4 (Final) requires Phase 4
-  const capstone4Unlocked = project?.capstonePhase >= CAPSTONE_PHASES.PHASE_4;
+  const capstone4Unlocked = numericPhase >= CAPSTONE_PHASES.PHASE_4;
 
   const isArchivedProject =
     project?.projectStatus === PROJECT_STATUSES.ARCHIVED || Boolean(project?.isArchived);
+
+  // When proposals are submitted and awaiting committee/instructor approval,
+  // guide proponents to the dedicated Title Approval Page.
+  useEffect(() => {
+    if (
+      !isLoading &&
+      project &&
+      project.titleStatus !== TITLE_STATUSES.APPROVED &&
+      project.projectStatus !== PROJECT_STATUSES.REJECTED &&
+      !isArchivedProject
+    ) {
+      navigate('/project/approval', { replace: true });
+    }
+  }, [isLoading, project, isArchivedProject, navigate]);
 
   const unlockedTabs = ['capstone_1'];
   if (capstone2Unlocked) unlockedTabs.push('capstone_2');
@@ -103,18 +125,22 @@ export default function MyProjectPage() {
   const defaultTab = getDefaultTab();
   const requestedTab = searchParams.get('tab');
   const { activeTab, shouldNormalizeRequestedTab } = resolveActiveWorkflowTab({
-    requestedTab,
-    unlockedTabs,
+    requestedTab: isLoading || !project ? requestedTab || defaultTab : requestedTab,
+    unlockedTabs:
+      (isLoading || !project) && requestedTab
+        ? Array.from(new Set([requestedTab, ...unlockedTabs]))
+        : unlockedTabs,
     workflowTabs: WORKFLOW_TABS,
     defaultTab,
   });
 
   useEffect(() => {
+    if (isLoading || !project) return;
     if (!shouldNormalizeRequestedTab) return;
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', activeTab);
     setSearchParams(nextParams, { replace: true });
-  }, [activeTab, searchParams, setSearchParams, shouldNormalizeRequestedTab]);
+  }, [isLoading, project, activeTab, searchParams, setSearchParams, shouldNormalizeRequestedTab]);
 
   if (!user) {
     fetchUser();
@@ -157,6 +183,26 @@ export default function MyProjectPage() {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const handleStepClick = (stepId) => {
+    if (stepId === 0) {
+      toast.info('Phase 0: Team Formation & Committee Appointed', {
+        description:
+          'Your capstone team roster is locked and defense committee has been appointed.',
+      });
+      return;
+    }
+    const tabMap = {
+      1: 'capstone_1',
+      2: 'capstone_2',
+      3: 'capstone_3',
+      4: 'capstone_4',
+    };
+    const targetTab = tabMap[stepId];
+    if (targetTab) {
+      handleTabChange(targetTab);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -167,6 +213,17 @@ export default function MyProjectPage() {
               Track your capstone project progress and manage your submissions.
             </p>
           </div>
+          {titleApproved && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/project/approval')}
+              className="gap-2 text-xs border-border/60 hover:bg-muted"
+            >
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              View Title Proposals & Approval
+            </Button>
+          )}
         </div>
 
         {isLoading && <PageSkeleton />}
@@ -223,6 +280,75 @@ export default function MyProjectPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Official Full Manuscript Paper Reader & Archival Document Package */}
+              <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <BookMarked className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-bold text-foreground">
+                        Official Full Manuscript Paper
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Conferred Capstone Study — Bukidnon State University Institutional Repository
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="gap-2 font-semibold shadow-sm"
+                      asChild
+                    >
+                      <a href={`/api/archive/${project._id}/view`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Read Full Paper (PDF)
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                      className="gap-2 text-xs"
+                    >
+                      <Award className="h-4 w-4 text-emerald-500" />
+                      View Certificate
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Abstract Reader */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Executive Abstract
+                  </h4>
+                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
+                    {project.abstract ||
+                      project.approvedProposal?.abstract ||
+                      'No abstract text recorded for this manuscript.'}
+                  </p>
+                </div>
+
+                {/* Citation Generator */}
+                <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Academic Citation Formats
+                  </h4>
+                  <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
+                    <p className="text-muted-foreground">
+                      <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
+                      {formatCitation(project, 'apa', getProjectAuthors(project))}
+                    </p>
+                    <p className="text-muted-foreground pt-1 border-t border-border/40">
+                      <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
+                      {formatCitation(project, 'ieee', getProjectAuthors(project))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <ProjectSidebarInfo project={project} />
             </>
           )}
@@ -235,9 +361,11 @@ export default function MyProjectPage() {
             <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start mt-2">
               {/* Main Workspace (Left - 70%) */}
               <div className="xl:col-span-8 space-y-6">
-                <div className="bg-card rounded-2xl p-4 border border-border shadow-sm mb-6">
-                  <WorkflowPhaseTracker project={project} />
-                </div>
+                <WorkflowPhaseTracker
+                  project={project}
+                  onStepClick={handleStepClick}
+                  className="mb-6"
+                />
 
                 <ProjectTitleCard project={project} />
 
@@ -313,6 +441,9 @@ export default function MyProjectPage() {
                     value="capstone_3"
                     className="mt-0 focus-visible:outline-none space-y-6"
                   >
+                    {/* Capstone 3 Interactive Gantt Chart Roadmap */}
+                    <InteractiveGanttChart project={project} isReadOnly={false} />
+
                     <DevelopmentAssetsForm project={project} />
                     <PrototypeGallery projectId={project._id} canDelete canAdd />
                     <ChapterProgressWithRounds
@@ -335,6 +466,13 @@ export default function MyProjectPage() {
                     className="mt-0 focus-visible:outline-none space-y-6"
                   >
                     <FinalPaperUpload projectId={project._id} />
+                    {/* Capstone 4 Action Done Matrix & Secretary Endorsement Gate */}
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
                     <EvaluationPanel projectId={project._id} defenseType="final" />
                   </TabsContent>
 

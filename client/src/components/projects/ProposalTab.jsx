@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import WorkflowPhaseTracker from './WorkflowPhaseTracker';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import TitleStatusBadge from './TitleStatusBadge';
 import { projectService } from '@/services/authService';
@@ -327,7 +326,6 @@ export default function ProposalTab({ project }) {
               </strong>
             </span>
           </div>
-          {titleApproved && <WorkflowPhaseTracker project={project} />}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

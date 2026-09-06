@@ -37,3 +37,24 @@ export function getProjectAuthors(project) {
   const teamName = project?.teamId?.name;
   return teamName ? [teamName] : [];
 }
+
+export function formatCitation(project, style = 'apa', authors = []) {
+  const authorStr = authors.join(', ');
+  const year = project?.academicYear
+    ? project.academicYear.split('-').pop()
+    : new Date().getFullYear();
+  const course = project?.courseId?.name || 'BS Information Technology';
+  const adviser = project?.adviserId ? getFullName(project.adviserId) : '';
+  const adviserText = adviser ? ` Adviser: ${adviser}.` : '';
+
+  if (style === 'apa') {
+    return `${authorStr} (${year}). ${project?.title || 'Untitled'}. ${course}.${adviserText}`;
+  }
+  if (style === 'ieee') {
+    return `${authorStr}, "${project?.title || 'Untitled'}," ${course}, ${year}.${adviserText}`;
+  }
+  if (style === 'mla') {
+    return `${authorStr}. "${project?.title || 'Untitled'}." ${course}, ${year}.${adviserText}`;
+  }
+  return `${authorStr} (${year}). ${project?.title}.`;
+}

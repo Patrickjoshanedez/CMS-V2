@@ -277,5 +277,77 @@
   4. Lesson learned: In Mongoose/Zod architectures, empty string is not falsy in schema validation; it is a non-empty string that triggers format/regex failures unless preprocessed.
   5. Evidence & Verification passed: All 14 client tests in `CreateProjectPage.test.jsx` passed (including dedicated tests for team section, user profile section fallback, and empty string omission), all 6 server unit tests in `project.create.validation.test.js` passed, endpoint parity verified (`UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and pristine workspace guardrail verified.
 
+
+59. Capstone 1 Title Proposal Approval Workflow & Dedicated Candidate Reveal Page (/project/approval):
+- Architectural Root Cause & Mechanics:
+  1. When submitting proposals for Capstone 1 title defense review, students were previously redirected back to `/project`.
+  2. `MyProjectPage.jsx` checks `useMyProject()`. `useMyProject` was gated on `hasTeam = Boolean(user?.teamId)`. When a student's session user document had not re-synced `user.teamId`, `useMyProject` was disabled, causing `MyProjectPage` to render `<EmptyProjectState>` with an action button redirecting back to `/project/create` (an infinite looping trap).
+  3. Furthermore, in `server/modules/projects/project.service.js:getMyProject`, if `user.teamId` was null, it threw a `404 NO_TEAM` error without checking actual team membership via `Team.findOne({ members: user._id })` (unlike `team.service.js:getMyTeam` which self-heals `user.teamId`).
+  4. In `createProject`, `user.teamId` was not saved on the creator record.
+  5. The institutional capstone progression required that proponents have a dedicated Title Approval Page (`/project/approval`) next to the create page where the team can reveal all candidate capstone titles they proposed, inspect 5-field blueprints, rehearsal pitch decks, similarity scores, and defense statuses before proceeding to Capstone 2.
+- Multi-Tier Resolution:
+  1. Backend Self-Healing: In `project.service.js:getMyProject`, added fallback check `Team.findOne({ members: user._id })` to find active team and reconcile `user.teamId`, and ensured `createProject` sets `user.teamId = team._id` on the creator.
+  2. Client State & Hook Resilience: In `useProjects.js`, updated `useMyProject` query gating to `isAuthenticated && (isStudent || Boolean(user?.teamId))` and added `await fetchUser()` with query cache invalidation across `['teams']` and `projectKeys.all` in `useCreateProject`.
+  3. Navigation & Routing: Registered protected route `/project/approval` in `App.jsx`, preloaded in `routePreload.js`, added header route mapping in `Header.jsx`, and redirected proposal submissions to `/project/approval`. Non-approved projects accessing `/project` automatically redirect to `/project/approval`.
+  4. Dedicated Showcase & Reveal Architecture: Implemented `TitleApprovalPage.jsx` featuring:
+     - 4-stage title defense progression stepper (Proposals Submitted -> Similarity Pre-Scan -> Committee Defense -> Title Approval).
+     - Reveal All Proposed Capstone Titles showcase with interactive "Reveal Details" / "Hide Details" toggle per proposal card.
+     - 5-field blueprint breakdown (Problem Statement, Proposed Solution, Technical Innovation, Target Users, Expected Impact).
+     - Interactive 16:9 defense rehearsal presentation deck with next/previous controls, fullscreen modal preview, and PPTX/PDF export.
+     - Appointed defense committee roster panel.
+     - Celebratory institutional approval clearance banner with direct entry to Capstone 2 workspace when `titleStatus === 'approved'`.
+- Runbook & Checklist:
+  1. Checklist: For student endpoints querying by `user.teamId`, always implement the fallback `Team.findOne({ members: user._id })` to reconcile out-of-sync session tokens.
+  2. Checklist: Ensure any creation mutation that links an entity to a team invalidates both `['teams']` and `['projects']` query caches and refreshes the user profile via `fetchUser()`.
+  3. Checklist: Ensure widescreen presentation canvases enforce strict 16:9 aspect ratios (`aspect-video`) with space-between column layout and text input isolation.
+  4. Lesson learned: Decoupling the proposal approval state (`/project/approval`) from the full execution workspace (`/project`) prevents empty-state traps and provides students with an immediate, high-fidelity defense preparation cockpit.
+  5. Evidence & Verification passed: All targeted client tests in `TitleApprovalPage.test.jsx` (4/4 passed in 1.4s), `CreateProjectPage.test.jsx` (14/14 passed in 3.4s), `Header.test.jsx` (5/5 passed), and `project.create.validation.test.js` (6/6 passed) succeeded. 7-point quality battery completed with route parity (`UNMATCHED_COUNT = 0`), 60/60 agentic validation checks, zero governance errors, pristine workspace guardrails, and 8-way Playwright visual verification across desktop (1440x900) and mobile (390x844) in light and dark modes.
+
+60. End-to-End Capstone Lifecycle Perfection (Proposal Drafting -> Archiving & Certification):
+- Architectural Findings & Workflow Gaps Discovered:
+  1. Tab Query-Param Race Condition on Page Refresh: In `MyProjectPage.jsx`, when loading `/project?tab=capstone_3` or `/project?tab=capstone_4`, `useEffect` triggered before `project` finished loading. `unlockedTabs` defaulted to `['capstone_1']`, causing `resolveActiveWorkflowTab` to reset the URL to `tab=capstone_1`.
+  2. Student Workspace Interactive Gantt Absence: The 5-milestone `InteractiveGanttChart` was present on faculty view (`ProjectDetailPage`), but was omitted from the student's `MyProjectPage` `capstone_3` workspace tab.
+  3. Action Done Matrix & Secretary Gate Omission in Capstone 4: `ActionDoneMatrixTab` was missing from `capstone_4` tabs on both `MyProjectPage` and `ProjectDetailPage`, locking out the mandatory Secretary Compliance Verification Gate (`project.admSignatures.secretary.endorsed`) and Tier 1/2/3 digital signatures for final defense.
+  4. Archival Workspace Parity: Archived projects on `MyProjectPage` displayed only a static read-only banner, lacking the Official Full Manuscript PDF Reader action (`/api/archive/:id/view`), APA 7th / IEEE citation generator, and direct Completion Certificate route (`/projects/:id/certificate`).
+  5. Title Status Routing & Card Display: When a title proposal was marked approved, `TitleActionsSection` displayed "Approved With Revision" due to inverted form logic in `RequestModificationForm`.
+- Resolution & Implementation Details:
+  1. Tab Normalization Guard: Added `if (isLoading || !project) return;` to `MyProjectPage.jsx` `useEffect`, ensuring tabs retain active query parameters on refresh and direct deep-links.
+  2. Interactive Gantt Parity: Mounted `<InteractiveGanttChart project={project} isReadOnly={false} />` in `MyProjectPage.jsx` `TabsContent value="capstone_3"`.
+  3. Action Done Matrix in Capstone 4: Mounted `<ActionDoneMatrixTab project={project} isStudent user={user} onRefresh={() => refetch()} />` in `MyProjectPage.jsx` `TabsContent value="capstone_4"` and in `ProjectDetailPage.jsx` for faculty.
+  4. Archival Document Package: Integrated manuscript reader PDF action, APA 7th / IEEE dynamic citations (via shared `formatCitation` utility in `projectDetailUtils.js`), and View Certificate button on `MyProjectPage.jsx` for archived projects.
+  5. Approved Title Card: Created dedicated `ApprovedTitleCard` in `TitleWorkflowCards.jsx` with collapsible modification form and connected `TITLE_STATUSES.APPROVED`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In multi-tab workflow SPAs with URL query parameter syncing (`searchParams`), always guard URL rewrite side-effects against initial loading/fetching states to avoid overwriting user deep links with default tabs.
+  2. Prevention rule: Every capstone phase tab in student workspaces must maintain full functional parity with faculty views (e.g. interactive Gantt charts, Action Done Matrices, evaluation panels).
+  3. Runbook & Checklist:
+     - Checklist: Verify that `ActionDoneMatrixTab` is mounted in both Capstone 2 (ADM v1), Capstone 3 (ADM v2), and Capstone 4 (ADM v3 + Secretary Compliance Gate).
+     - Checklist: When updating archival states, ensure students and faculty have access to official manuscript readers, academic citation generators, and downloadable completion certificates.
+  4. Lesson learned: Systematic Playwright end-to-end visual feedback loops covering every sequential lifecycle phase (1 through 6) detect subtle multi-tab state desynchronizations that isolated unit tests cannot catch.
+61. Capstone Milestone Stepper Redesign, Tactile Workflow CTAs & Dark Mode Resilience:
+- Architectural Findings & UI/UX Gaps Discovered:
+  1. Clunky Progress Stepper: The original `CapstoneWorkflowStepper.jsx` was composed of 5 cramped, isolated cards wrapped in redundant double borders. The visual rhythm was broken and confusing, lacking a continuous progression line, completion percentage, or clear distinction between completed, active, and upcoming milestones.
+  2. Duplicate Steppers in Proposal Tab: `ProposalTab.jsx` rendered a duplicate `WorkflowPhaseTracker` inside its inner proposal card header, creating cognitive noise and competing visual anchors.
+  3. Dark Mode Regressions in Submissions: `FinalPaperUpload.jsx` contained hardcoded `color-mix(..., white)` and raw CSS variables (`var(--color-surface)`), causing white text on white backgrounds and border inversion when switching to dark mode.
+  4. Passive Lifecycle Cards: `NextStepCard.jsx` only supported early proposal states, failing to provide proactive action guidance or direct CTA buttons for Capstone 3 (Gantt roadmap), Capstone 4 (Secretary Gate & final paper), or Archiving.
+  5. Mobile Sidebar Viewport Collision: When collapsed on mobile screens (390x844), the desktop icon-rail (`w-[76px]`) occupied ~20% of the horizontal screen real estate, truncating milestone titles and progress bars.
+- Resolution & Implementation Details:
+  1. Continuous Milestone Pipeline: Redesigned `CapstoneWorkflowStepper.jsx` into a unified progress tracker featuring an active milestone badge (`Current: Phase X`), live completion percentage (`60% Completed`), an emerald-to-primary gradient connecting track, and prominent circular milestone nodes (emerald checkmark for completed, pulsing ring for active, muted lock for upcoming) with keyboard and click navigation.
+  2. Nested Card Elimination: Removed redundant card containers around `WorkflowPhaseTracker` in `MyProjectPage.jsx` and `ProjectDetailPage.jsx`, and removed the duplicate tracker inside `ProposalTab.jsx`.
+  3. Design Token Standardization: Refactored `FinalPaperUpload.jsx` to standard Tailwind CSS variables (`bg-card`, `text-foreground`, `border-border/60`), ensuring flawless dark mode contrast.
+  4. Lifecycle-Aware NextStepCard: Expanded `NextStepCard.jsx` to cover all 5 phases with dynamic CTA buttons (`View Submissions`, `View Gantt Roadmap`, `Open Action Done Matrix`, `View Certificate`). Added inline chapter upload buttons to `ChapterProgressWithRounds.jsx`.
+  5. Responsive Drawer Collapse: Updated `DashboardLayout.jsx` and `Sidebar.jsx` so that viewports under 1024px automatically collapse the sidebar to `hidden md:flex`, expanding to a floating drawer overlay (`fixed inset-y-0 left-0 z-50`) only when explicitly toggled.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never use `color-mix(in srgb, ..., white)` or raw hex color literals in UI components; always use design system semantic tokens (`bg-card`, `text-foreground`, `text-muted-foreground`, `border-border/60`).
+  2. Prevention rule: Steppers and milestone trackers must function as both status indicators and interactive navigation triggers (`role="button"`, `tabIndex={0}`, `onKeyDown`), updating active tabs directly without forcing users to hunt for tab headers.
+  3. Prevention rule: Dashboard sidebars on mobile viewports (<1024px) must collapse completely out of document flow (`hidden md:flex`) to preserve 100% width for critical workspace cards and tables.
+  4. Runbook & Checklist:
+     - Checklist: Verify milestone stepper nodes have distinct accessibility labels (`aria-current="step"`, `aria-label`).
+     - Checklist: Test all submission upload cards in both light and dark modes to guarantee WCAG AAA contrast.
+     - Checklist: Verify mobile viewport layout (390x844) renders without horizontal clipping or squished columns.
+  5. Evidence & Verification passed: 9/9 client component test suites passed (43/43 tests), 7/7 page test suites passed (33/33 tests), layout tests passed (13/13 tests), full 6-stage Playwright lifecycle audit passed with 0 errors across desktop (1440x900) and mobile (390x844) in dark mode, API route parity verified (`UNMATCHED_COUNT = 0`), and agentic system audit passed (60/60 checks).
+
 ## Test Fixture Notes
 - Submission chapter-upload integration fixtures must include at least one assigned panelist on the project in Capstone phase 1, otherwise uploads fail with PANELISTS_NOT_ASSIGNED before other assertions.
+
+
+

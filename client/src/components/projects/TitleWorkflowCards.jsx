@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -24,6 +25,8 @@ import {
   AlertTriangle,
   Lock,
   Info,
+  Eye,
+  ArrowRight,
 } from 'lucide-react';
 
 /* ── EditTitleForm ── */
@@ -235,7 +238,7 @@ function ReviseAndResubmitForm({ project }) {
 }
 
 /* ── RequestModificationForm ── */
-function RequestModificationForm({ project }) {
+function RequestModificationForm({ project, isApprovedTitle = false }) {
   const requestMod = useRequestTitleModification({
     onSuccess: () => toast.success('Revision submitted for instructor review.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Request failed.'),
@@ -246,15 +249,21 @@ function RequestModificationForm({ project }) {
   const isRevisionRequired = project.titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION;
 
   return (
-    <Card className={isRevisionRequired ? 'border-amber-400 dark:border-amber-600' : undefined}>
+    <Card
+      className={
+        isRevisionRequired ? 'border-amber-400 dark:border-amber-600' : 'border-border/60 bg-card'
+      }
+    >
       <CardHeader>
         <CardTitle className="text-base">
-          {isRevisionRequired ? 'Revision Required — Update Your Title' : 'Approved With Revision'}
+          {isRevisionRequired
+            ? 'Revision Required — Update Your Title'
+            : 'Request Title Modification'}
         </CardTitle>
         <CardDescription>
           {isRevisionRequired
-            ? 'The instructor has approved your project but requires a title change. Submit a revised title to unlock Capstone 1.'
-            : 'Edit the approved title and submit your revision for instructor review.'}
+            ? 'The instructor has approved your project concept but requires an updated title before proceeding. Submit your revised title for instructor review.'
+            : 'If your project direction has evolved, propose a modified title and justification for committee review.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -288,7 +297,7 @@ function RequestModificationForm({ project }) {
             disabled={requestMod.isPending}
           >
             {requestMod.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Submit Revision
+            {isRevisionRequired ? 'Submit Revised Title' : 'Submit Modification Request'}
           </Button>
         </div>
         {requestMod.error && (
@@ -299,6 +308,44 @@ function RequestModificationForm({ project }) {
           </Alert>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+/* ── ApprovedTitleCard ── */
+function ApprovedTitleCard({ project }) {
+  const [showModificationForm, setShowModificationForm] = useState(false);
+
+  return (
+    <Card className="border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-800/50 dark:bg-emerald-950/20">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <CardTitle className="text-base text-emerald-800 dark:text-emerald-200">
+              Title Formally Approved
+            </CardTitle>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowModificationForm((prev) => !prev)}
+            className="text-xs border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+          >
+            <Edit3 className="mr-1.5 h-3.5 w-3.5" />
+            {showModificationForm ? 'Hide Modification Form' : 'Request Title Modification'}
+          </Button>
+        </div>
+        <CardDescription className="text-emerald-700 dark:text-emerald-300">
+          Your proposed capstone title has been formally ratified by your defense committee and
+          instructor.
+        </CardDescription>
+      </CardHeader>
+      {showModificationForm && (
+        <CardContent className="pt-2 border-t border-emerald-200/50 dark:border-emerald-800/40 mt-2">
+          <RequestModificationForm project={project} isApprovedTitle />
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -326,31 +373,49 @@ function PendingModificationCard({ project }) {
 
 /* ── SubmittedCard ── */
 function SubmittedCard({ project }) {
+  const navigate = useNavigate();
   const proposalTitles = Array.isArray(project?.titleProposals)
     ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
     : [];
 
   return (
-    <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base text-green-800 dark:text-green-200">
-          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-          Proposals Submitted Successfully
-        </CardTitle>
-        <CardDescription className="text-green-700 dark:text-green-300">
-          Your team has a pending proposal. Waiting for panel and instructor feedback.
+    <Card className="border-emerald-500/30 bg-emerald-500/10 dark:border-emerald-800/50 dark:bg-emerald-950/20">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
+              Proposals Submitted Successfully
+            </CardTitle>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => navigate('/project/approval')}
+            className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Reveal Titles & Defense Blueprint
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <CardDescription className="text-emerald-800 dark:text-emerald-300 text-xs">
+          Your candidate capstone titles have been submitted. Deliberation and defense evaluation by
+          the committee is in progress.
         </CardDescription>
       </CardHeader>
       {proposalTitles.length > 0 && (
         <CardContent className="pt-0">
-          <div className="rounded-md border border-green-300/50 bg-white/60 dark:border-green-700/50 dark:bg-black/20 p-3 space-y-1.5">
-            <p className="text-xs font-medium uppercase tracking-wide text-green-700 dark:text-green-400">
-              Proposals Under Review
+          <div className="rounded-xl border border-emerald-500/20 bg-background/60 dark:bg-background/40 p-3.5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              Candidate Proposals Under Review ({proposalTitles.length})
             </p>
             {proposalTitles.map((title, idx) => (
-              <div key={`submitted-${idx}`} className="flex items-center gap-2 text-sm">
+              <div
+                key={`submitted-${idx}`}
+                className="flex items-center gap-2 text-sm text-foreground"
+              >
                 <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span className="text-green-800 dark:text-green-200">{title}</span>
+                <span className="font-medium truncate">{title}</span>
               </div>
             ))}
           </div>
@@ -537,6 +602,7 @@ export default function TitleActionsSection({ project }) {
     case TITLE_STATUSES.SUBMITTED:
       return <SubmittedCard project={project} />;
     case TITLE_STATUSES.APPROVED:
+      return <ApprovedTitleCard project={project} />;
     case TITLE_STATUSES.APPROVED_WITH_REVISION:
       return <RequestModificationForm project={project} />;
     case TITLE_STATUSES.REVISION_REQUIRED:

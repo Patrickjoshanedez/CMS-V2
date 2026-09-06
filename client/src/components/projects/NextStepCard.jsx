@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TITLE_STATUSES, DOCUMENT_TYPES, SUBMISSION_STATUSES } from '@cms/shared';
@@ -10,6 +11,9 @@ import {
   BookOpen,
   CheckCircle2,
   ArrowRight,
+  Award,
+  Code2,
+  ShieldCheck,
 } from 'lucide-react';
 
 const CHAPTER_LABELS = {
@@ -27,27 +31,49 @@ function getNextStep(project, submissions) {
   if (!project) return null;
   const { titleStatus } = project;
 
+  // 1. Archival State
+  if (
+    project.projectStatus === 'archived' ||
+    project.isArchived ||
+    project.projectStatus === 'defended'
+  ) {
+    return {
+      title: 'Capstone Successfully Archived',
+      description:
+        'Your project has completed all institutional defense requirements and is preserved in the official repository.',
+      action: { label: 'View Certificate & Paper', path: '/project/certificate' },
+      icon: Award,
+      color: 'text-emerald-600 dark:text-emerald-400',
+    };
+  }
+
+  // 2. Title Proposal Phase (Capstone 1)
   if (titleStatus === TITLE_STATUSES.DRAFT) {
     return {
-      title: 'Submit Your Title',
+      title: 'Draft Your Title Proposals',
       description:
-        'Your project title is still in draft. Edit it and submit it for instructor approval to proceed.',
+        'Your project titles are in draft. Edit your proposals and submit them for committee defense review.',
+      action: { label: 'Edit Proposals', path: '/project/approval' },
       icon: Edit3,
       color: 'text-blue-600 dark:text-blue-400',
     };
   }
   if (titleStatus === TITLE_STATUSES.SUBMITTED) {
     return {
-      title: 'Pending Proposal',
-      description: 'Your team has a pending proposal. Waiting for panel and instructor feedback.',
+      title: 'Proposal Defense Review Pending',
+      description:
+        'Your candidate titles have been submitted. Review pitch decks and defense rehearsal blueprints.',
+      action: { label: 'View Proposals & Rehearsal', path: '/project/approval' },
       icon: Clock,
       color: 'text-amber-600 dark:text-amber-400',
     };
   }
   if (titleStatus === TITLE_STATUSES.REVISION_REQUIRED) {
     return {
-      title: 'Revise Your Title',
-      description: 'The instructor requested changes on your title. Revise and resubmit below.',
+      title: 'Revise Your Title Proposal',
+      description:
+        'The committee or instructor requested revisions on your title proposal. Update and resubmit.',
+      action: { label: 'Revise Title', path: '/project/approval' },
       icon: AlertTriangle,
       color: 'text-amber-600 dark:text-amber-400',
     };
@@ -55,13 +81,17 @@ function getNextStep(project, submissions) {
   if (titleStatus === TITLE_STATUSES.PENDING_MODIFICATION) {
     return {
       title: 'Title Modification Pending',
-      description: 'Your title change request is pending instructor approval.',
+      description: 'Your title change request is under review by the course instructor.',
+      action: { label: 'View Request Status', path: '/project/approval' },
       icon: Clock,
       color: 'text-amber-600 dark:text-amber-400',
     };
   }
 
-  if (titleStatus === TITLE_STATUSES.APPROVED) {
+  // 3. Post-Title Approval Workflows
+  if (titleStatus === TITLE_STATUSES.APPROVED || titleStatus === 'title_approved') {
+    const phase = Number(project.capstonePhase ?? project.phase ?? 2);
+
     const chapterMap = {};
     if (submissions?.submissions) {
       for (const sub of submissions.submissions) {
@@ -72,6 +102,75 @@ function getNextStep(project, submissions) {
       }
     }
 
+    // Phase 4: Final Defense, Secretary Gate, Multi-Tier ADM
+    if (phase >= 4) {
+      const isSecretaryEndorsed = Boolean(project.admSignatures?.secretary?.endorsed);
+      if (!isSecretaryEndorsed) {
+        return {
+          title: 'Secretary ADM Endorsement Pending',
+          description:
+            'Defense Secretary compliance verification is required before committee signatures can unlock.',
+          action: { label: 'Open Action Done Matrix', path: '/project?tab=capstone_4' },
+          icon: ShieldCheck,
+          color: 'text-amber-600 dark:text-amber-400',
+        };
+      }
+      return {
+        title: 'Final Paper & Digital Signatures',
+        description:
+          'Upload your final manuscript papers and verify Tier 1–3 committee digital signatures in the ADM.',
+        action: { label: 'View Capstone 4 Workspace', path: '/project?tab=capstone_4' },
+        icon: CheckCircle2,
+        color: 'text-emerald-600 dark:text-emerald-400',
+      };
+    }
+
+    // Phase 3: System Prototype, Interactive Gantt, Chapters 4 & 5
+    if (phase === 3) {
+      for (const ch of [4, 5]) {
+        const sub = chapterMap[ch];
+        if (sub?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
+          return {
+            title: `Revise ${CHAPTER_LABELS[ch]}`,
+            description: `Adviser requested revisions on ${CHAPTER_LABELS[ch]}. Upload a revised draft.`,
+            action: { label: 'Upload Revision', path: `/project/submissions/upload?chapter=${ch}` },
+            icon: AlertTriangle,
+            color: 'text-amber-600 dark:text-amber-400',
+          };
+        }
+      }
+
+      if (!chapterMap[4]) {
+        return {
+          title: 'Upload Chapter 4 (Results)',
+          description:
+            'Submit your Chapter 4 draft with system implementation and prototype evaluation.',
+          action: { label: 'Upload Chapter 4', path: '/project/submissions/upload?chapter=4' },
+          icon: Upload,
+          color: 'text-blue-600 dark:text-blue-400',
+        };
+      }
+      if (!chapterMap[5]) {
+        return {
+          title: 'Upload Chapter 5 (Conclusions)',
+          description: 'Submit your Chapter 5 draft covering conclusions and recommendations.',
+          action: { label: 'Upload Chapter 5', path: '/project/submissions/upload?chapter=5' },
+          icon: Upload,
+          color: 'text-blue-600 dark:text-blue-400',
+        };
+      }
+
+      return {
+        title: 'Prototype & Milestone Roadmap',
+        description:
+          'Track sprint tasks on your Interactive Gantt Chart and prepare for progress defense.',
+        action: { label: 'View Gantt Roadmap', path: '/project?tab=capstone_3' },
+        icon: Code2,
+        color: 'text-primary',
+      };
+    }
+
+    // Phase 2: Chapters 1–3 & Midterm Defense
     for (let ch = 1; ch <= 3; ch++) {
       const sub = chapterMap[ch];
       if (sub?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
@@ -101,20 +200,21 @@ function getNextStep(project, submissions) {
       const hasProposal = submissions?.submissions?.some((s) => s.type === DOCUMENT_TYPES.PROPOSAL);
       if (!hasProposal) {
         return {
-          title: 'Compile Your Proposal',
+          title: 'Compile Midterm Proposal',
           description:
-            'All chapters 1\u20133 are approved or locked. Submit your compiled proposal.',
+            'All chapters 1–3 are approved. Compile your full proposal for midterm defense hearing.',
           action: { label: 'Compile Proposal', path: '/project/proposal' },
           icon: BookOpen,
-          color: 'text-green-600 dark:text-green-400',
+          color: 'text-emerald-600 dark:text-emerald-400',
         };
       }
       return {
-        title: 'Proposal Submitted',
-        description: 'Your full proposal has been compiled. Await adviser and panelist review.',
-        action: { label: 'View Submissions', path: '/project/submissions' },
+        title: 'Midterm Defense & ADM Sign-Off',
+        description:
+          'Proposal compiled. Review panel defense remarks and track committee sign-offs in the ADM.',
+        action: { label: 'View Action Done Matrix', path: '/project?tab=capstone_2' },
         icon: CheckCircle2,
-        color: 'text-green-600 dark:text-green-400',
+        color: 'text-emerald-600 dark:text-emerald-400',
       };
     }
 
@@ -177,3 +277,8 @@ export default function NextStepCard({ project, submissions }) {
     </Card>
   );
 }
+
+NextStepCard.propTypes = {
+  project: PropTypes.object,
+  submissions: PropTypes.object,
+};
