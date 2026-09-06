@@ -639,4 +639,110 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
 }
 ```
 
+### Entity Prefix Normalization
+
+```typescript
+// ✅ GOOD: Defensive sanitization of institutional entity prefixes
+// Prevents "Team Team Gamma" or "SDG SDG 3" string duplication
+export function formatEntityName(rawName: string | undefined, prefix: string): string {
+  if (!rawName) return prefix
+  const regex = new RegExp(`^${prefix}\\s+`, 'i')
+  const clean = rawName.replace(regex, '').trim()
+  return `${prefix} ${clean}`
+}
+
+// React useMemo usage in presenter components
+const cleanTeamName = useMemo(() => {
+  if (!team?.name) return 'Team'
+  return team.name.replace(/^Team\s+/i, '').trim()
+}, [team?.name])
+
+// Render
+<span>Team {cleanTeamName}</span>
+```
+
+### 16:9 Presentation Canvas & Slide Carousel Pattern
+
+```typescript
+// ✅ GOOD: 16:9 widescreen canvas, isolated controls, and input-guarded keyboard listener
+export function PresentationDeck({ slides }: { slides: Slide[] }) {
+  const [currentSlide, setCurrentSlide] = useState(0)
+
+  // Guard keyboard listeners against active form inputs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (['INPUT', 'TEXTAREA'].includes(target.tagName) || target.isContentEditable)) {
+        return
+      }
+
+      if (e.key === 'ArrowRight' && currentSlide < slides.length - 1) {
+        setCurrentSlide(prev => prev + 1)
+      } else if (e.key === 'ArrowLeft' && currentSlide > 0) {
+        setCurrentSlide(prev => prev - 1)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentSlide, slides.length])
+
+  return (
+    <div className="space-y-4">
+      {/* 16:9 Widescreen Canvas */}
+      <div className="relative aspect-video w-full rounded-2xl border border-border/70 bg-card p-6 flex flex-col justify-between overflow-hidden shadow-xl">
+        <div className="flex items-center justify-between border-b border-border/50 pb-3">
+          <span className="font-mono text-xs uppercase tracking-widest text-primary font-bold">
+            Slide {String(currentSlide + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+          </span>
+        </div>
+        <div className="flex-1 py-4 overflow-hidden">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground line-clamp-2">
+            {slides[currentSlide].title}
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground line-clamp-4">
+            {slides[currentSlide].content}
+          </p>
+        </div>
+        <div className="border-t border-border/50 pt-3 text-xs text-muted-foreground flex justify-between">
+          <span>BukSU Capstone Management System</span>
+          <span>AY 2025–2026</span>
+        </div>
+      </div>
+
+      {/* External Carousel Controls */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          disabled={currentSlide === 0}
+          onClick={() => setCurrentSlide(prev => prev - 1)}
+          className="btn btn-secondary disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <div className="flex items-center gap-1.5">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-2 rounded-full transition-all ${
+                idx === currentSlide ? 'w-6 bg-primary' : 'w-2 bg-muted hover:bg-muted-foreground/40'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+        <button
+          disabled={currentSlide === slides.length - 1}
+          onClick={() => setCurrentSlide(prev => prev + 1)}
+          className="btn btn-secondary disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
+```
+
 **Remember**: Modern frontend patterns enable maintainable, performant user interfaces. Choose patterns that fit your project complexity.
+

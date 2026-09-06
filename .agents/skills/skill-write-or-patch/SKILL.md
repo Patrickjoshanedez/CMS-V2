@@ -2,16 +2,16 @@
 name: skill-write-or-patch
 description: >
   Fires during agent execution when a recurring pattern, missing capability, or improvable skill is detected.
-  Use to write a brand-new SKILL.md or surgically patch an existing one inside .agents/skills/.
+  Use to write a brand-new SKILL.md or surgically patch an existing one inside .agents/skills/ (Skills Dictionary).
   Triggers on: "write a skill for this", "patch the skill", "this keeps coming up", "add this to the skill",
-  "we should capture this", "save this pattern", "make this reusable", "skill gap detected",
-  "this pattern is missing from our skills", or whenever the agent notices it has solved the same
-  sub-problem twice without a skill backing it. Always archives the event to PTSS afterward.
+  "we should capture this", "save this pattern", "make this reusable", "skill gap detected", "skills dictionary",
+  "update skill based on gaps", "mandatory use first", "this pattern is missing from our skills", or whenever the agent
+  notices it has solved the same sub-problem twice without a skill backing it. Always archives the event to PTSS afterward.
 ---
 
-# Skill Write or Patch
+# Skill Write or Patch (Skills Dictionary Evolution)
 
-This skill fires mid-execution when a knowledge gap or improvement opportunity surfaces. It prevents repeated rediscovery of the same solution by persisting it as a skill — either brand-new or as a surgical patch to an existing one.
+This skill operationalizes the **Skills Dictionary Mandatory First-Use & Continuous Gap-Updating Rule**. Whenever a domain skill is used during task execution, any discovered gaps, missing workflow steps, or institutional paths MUST be patched back into the skill to keep the Skills Dictionary fresh, authoritative, and self-improving.
 
 ## Decision Tree: Write vs Patch
 

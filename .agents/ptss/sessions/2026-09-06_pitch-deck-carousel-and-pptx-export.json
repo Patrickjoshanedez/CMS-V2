@@ -1,0 +1,43 @@
+{
+  "sessionId": "2026-09-06_pitch-deck-carousel-and-pptx-export",
+  "timestamp": "2026-09-06T12:25:00.000Z",
+  "task": "Export proposal pitch deck to PowerPoint (.pptx), implement interactive slide preview with next/previous navigation, keyboard support, full-screen rehearsal, and eliminate visual bugs & team label redundancy",
+  "asdlcStage": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "status": "completed",
+  "rootCausesIdentified": [
+    "Pitch Deck was a static single slide card without navigation controls, limiting proponents to only seeing Slide 1 before defense.",
+    "No PowerPoint (.pptx) export capability existed; only PDF export was implemented.",
+    "Proponent attribution in pitch deck preview rendered 'Team Team Gamma' due to prepending 'Team ' to an already prefixed team name in team?.name.",
+    "Docker client container 'cms-client' runs the Vite dev server with isolated node_modules, requiring pptxgenjs installation both on host and inside the container."
+  ],
+  "modifications": [
+    {
+      "file": "client/src/utils/exportPptx.js",
+      "summary": "Built comprehensive, institutional 8-slide PowerPoint (.pptx) presentation generator using pptxgenjs styled in BukSU Institutional branding (Navy #0A3254, Academic Gold #E5A823, Slate body #334155) with 16:9 widescreen layout."
+    },
+    {
+      "file": "client/src/pages/projects/CreateProjectPage.jsx",
+      "summary": "Implemented interactive 8-slide deck carousel with Previous/Next buttons, active indicator pill tracking (1-8), keyboard shortcuts (ArrowLeft/ArrowRight/Escape), Fullscreen rehearsal modal, dedicated PowerPoint Export button with loading spinner, and cleanTeamName regex sanitizer preventing 'Team Team' prefix duplication."
+    },
+    {
+      "file": "client/src/pages/projects/CreateProjectPage.test.jsx",
+      "summary": "Added unit test for pitch deck slide carousel, pptx export trigger, team name sanitization, next/previous slide cycling, and fullscreen modal interaction. Verified 11/11 tests passing."
+    },
+    {
+      "file": "scratch/test_visual.mjs",
+      "summary": "Executed Playwright visual audit across light and dark modes, desktop (1440x900) and mobile (390x844), validating slide transitions, button enabled/disabled states, 16:9 aspect ratio, and zero visual clipping."
+    }
+  ],
+  "verification": {
+    "clientTests": "npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx (11/11 passed)",
+    "routeParity": "npm run check:endpoints (UNMATCHED_COUNT=0)",
+    "agenticGovernance": "npm run validate:agentic (60/60 passed)",
+    "workspaceGuardrail": "python scripts/workspace_guardrail.py (pristine)",
+    "visualAudit": "scratch/test_visual.mjs (desktop dark/light, mobile dark/light, fullscreen, slide transitions 100% verified)"
+  },
+  "lessonsLearned": [
+    "When Vite dev server runs inside Docker ('cms-client'), new npm packages must be installed both on the host and inside the container ('docker exec cms-client npm install ...') with a container restart to prevent Vite overlay import errors.",
+    "Always sanitize entity names that might contain semantic prefix redundancy (e.g. team.name 'Team Gamma' displayed as 'Team ' + team.name -> 'Team Team Gamma') using a clean memo: name.replace(/^Team\\s+/i, '').",
+    "For slide presentations inside web applications, maintaining a strict 16:9 widescreen aspect ratio (aspect-video) ensures visual fidelity and consistency between the web preview and generated PPTX/PDF files."
+  ]
+}

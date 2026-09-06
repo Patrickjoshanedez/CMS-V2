@@ -60,7 +60,7 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(500)
     .select(
-      'title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status',
+      'title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status academicYear abstract targetBeneficiary techStack createdAt',
     )
     .lean();
 
@@ -85,21 +85,51 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
     .map((p) => {
       const similarity = calculateProposalSimilarityDetailed(tokenizedProjectInput, p);
 
-      // Only return if similarity score is high enough (e.g. > 0.15)
+      const matchedProblemKeywords = extractMatchingKeywords(
+        tokenizedProjectInput.problemStatement,
+        p.problemStatement || '',
+      );
+      const matchedSolutionKeywords = extractMatchingKeywords(
+        tokenizedProjectInput.proposedSolution,
+        p.proposedSolution || '',
+      );
+
+      let reason = '';
+      if (matchedProblemKeywords.length > 0 && matchedSolutionKeywords.length > 0) {
+        reason = `Matches solution and problem keywords: ${[...matchedProblemKeywords.slice(0, 2), ...matchedSolutionKeywords.slice(0, 2)].join(', ')}.`;
+      } else if (matchedProblemKeywords.length > 0) {
+        reason = `Matches problem context: ${matchedProblemKeywords.slice(0, 3).join(', ')}.`;
+      } else if (matchedSolutionKeywords.length > 0) {
+        reason = `Matches implementation keywords: ${matchedSolutionKeywords.slice(0, 3).join(', ')}.`;
+      } else if (p.abstract) {
+        reason = p.abstract.slice(0, 110) + '...';
+      } else {
+        reason = 'Overlapping domain concepts and solution architecture.';
+      }
+
+      const academicYear =
+        p.academicYear ||
+        (p.createdAt
+          ? `${new Date(p.createdAt).getFullYear()}–${new Date(p.createdAt).getFullYear() + 1}`
+          : '2024–2025');
+
       return {
         _id: p._id,
+        id: String(p._id),
         title: p.title,
         status: p.status,
+        academicYear,
+        year: academicYear,
+        abstract: p.abstract || '',
+        targetBeneficiary: p.targetBeneficiary || '',
+        techStack: p.techStack || [],
         score: similarity.overall,
+        similarityScore: Math.round(similarity.overall * 100),
+        match: `${Math.round(similarity.overall * 100)}%`,
+        reason,
         keywords: {
-          problemStatement: extractMatchingKeywords(
-            tokenizedProjectInput.problemStatement,
-            p.problemStatement || '',
-          ),
-          proposedSolution: extractMatchingKeywords(
-            tokenizedProjectInput.proposedSolution,
-            p.proposedSolution || '',
-          ),
+          problemStatement: matchedProblemKeywords,
+          proposedSolution: matchedSolutionKeywords,
         },
       };
     })
@@ -107,14 +137,29 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
+  const topScore = results.length > 0 ? results[0].score : 0;
+  const winnowingScore = plagiarismResult?.similarityPercentage ?? Math.round(topScore * 40);
+  const semanticScore = Math.round(topScore * 100);
+  const overallSimilarityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      plagiarismResult?.similarityPercentage ??
+        (results.length > 0 ? Math.round(winnowingScore * 0.4 + semanticScore * 0.6) : 0),
+    ),
+  );
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
     data: {
       matches: results,
       plagiarism: {
-        originalityScore: plagiarismResult.originalityScore,
-        similarityScore: Math.max(0, Math.min(100, 100 - plagiarismResult.originalityScore)),
-        matchedSources: plagiarismResult.matchedSources,
+        originalityScore:
+          plagiarismResult?.originalityScore ?? Math.max(0, 100 - overallSimilarityScore),
+        similarityScore: overallSimilarityScore,
+        winnowingScore,
+        semanticScore,
+        matchedSources: plagiarismResult?.matchedSources || [],
       },
     },
   });

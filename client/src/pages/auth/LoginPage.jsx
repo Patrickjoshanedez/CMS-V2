@@ -121,7 +121,10 @@ export default function LoginPage() {
   );
 
   return (
-    <AuthLayout title="Welcome back" description="Sign in to your account to continue.">
+    <AuthLayout
+      title="Welcome to BukSU CMS"
+      description="Sign in with your university credentials to access the capstone portal."
+    >
       {/* Error alert */}
       <AuthStatusAlert message={error} />
 
@@ -182,7 +185,7 @@ export default function LoginPage() {
           </label>
           <Link
             to="/forgot-password"
-            className="text-sm font-medium text-primary hover:text-brand-purple transition-colors"
+            className="text-sm font-semibold text-[#1A448A] dark:text-[#E5A823] hover:underline transition-colors"
           >
             Forgot password?
           </Link>
@@ -208,7 +211,11 @@ export default function LoginPage() {
 
         {/* Submit — gradient button */}
         <div className="auth-item">
-          <AuthSubmitButton loading={loading} loadingLabel="Signing in…" idleLabel="Sign in" />
+          <AuthSubmitButton
+            loading={loading}
+            loadingLabel="Signing in…"
+            idleLabel="Sign in to Capstone Studio"
+          />
         </div>
       </form>
 
@@ -259,7 +266,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link
             to="/register"
-            className="font-semibold text-primary hover:text-brand-purple transition-colors"
+            className="font-bold text-[#1A448A] dark:text-[#E5A823] hover:underline transition-colors"
           >
             Create account
           </Link>

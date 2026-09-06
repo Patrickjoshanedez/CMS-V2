@@ -1,0 +1,121 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/chat-starter.schema.json",
+  "version": "2.1.0",
+  "session_id": "2026-09-06_create-project-sectionid-invalid-objectid-fix",
+  "timestamp": "2026-09-06T13:48:00.000Z",
+  "status": "completed",
+  "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "git_context": {
+    "active_branch": "main",
+    "clean_working_tree": false
+  },
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "startup_preflight": {
+    "ptss_index_inspected": true,
+    "technical_context_synced": true,
+    "recent_sessions_recalled": [
+      "2026-09-06_trhino-codepen-loading-screen-update",
+      "2026-09-06_modular-rulebook-and-blueprint-decomposition",
+      "2026-09-06_login-floating-input-placeholder-overlap-fix"
+    ],
+    "active_prevention_rules_count": 58
+  },
+  "skills_primed": [
+    "frontend-patterns",
+    "frontend-specialist",
+    "i-frontend-design",
+    "ui-design-principles",
+    "verification-loop",
+    "ptss"
+  ],
+  "playwright_feedback_required": true,
+  "verification_baseline": {
+    "endpoints_parity": true,
+    "agentic_governance": true,
+    "playwright_visual_audit_passed": true,
+    "workspace_clean": true
+  },
+  "supreme_cognitive_protocols": {
+    "kernel_engineering_standard": {
+      "keep_it_simple": "Zero AI slop, no unvetted dependencies, no premature abstractions.",
+      "easy_to_verify": "Every modification accompanied by targeted assertion suites.",
+      "reproducible_results": "Deterministic, environment-agnostic execution across dev and Docker.",
+      "narrow_scope": "Solve the exact problem without accidental drift or collateral modifications.",
+      "explicit_constraints": "Strict TypeScript/Zod/Mongoose validation, role boundaries, and error boundaries.",
+      "logical_structure": "Concrete Semantic Tree (CST) precision patching preserving existing JSDocs and developer comments."
+    },
+    "cognitive_vulnerability_guards": {
+      "execution_signal_dominance": "Zero hope-driven development. Run isolated 10-line scratchpad tests in scratch/ before touching target codebase files.",
+      "session_startup_recall": "Inspect index.jsonl (latest 2-3 sessions) and memories/repo/CMS-V2-Technical-Context.md.",
+      "three_cycle_break_rule": "If a fix fails two consecutive test iterations, STOP. Revert baseline and inject diagnostic tracers.",
+      "mutation_testing": "Assert negative boundaries and synthetic mutation failures."
+    },
+    "canonical_capstone_progression": {
+      "phase_0": "Team Formation & Roster Locking (2-4 members, 5 proponent roles, locked via PATCH /api/teams/:id/lock, Instructor assigns committee).",
+      "phase_1": "Capstone 1 (Title Defense & Proposal Pre-Scan, 1..10 proposals, SDG 1..17, cosine similarity pre-scan, proposal defense rubric approval).",
+      "phase_2": "Capstone 2 (Chapters 1-3 Manuscript & Midterm Defense, plagiarism scan <25%, oral defense, ADM v1 sign-off).",
+      "phase_3": "Capstone 3 (System Development & Progress Defense, 4-section Interactive Gantt Chart, isLate gating, Chapters 4 & 5, progress demo, ADM v2 sign-off).",
+      "phase_4": "Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off strictly gated by Secretary Compliance Verification Endorsement, S3/MinIO archival, sealed completion certificate PDF)."
+    },
+    "institutional_role_boundaries": {
+      "primary_roles": ["student", "instructor", "faculty"],
+      "instructor_committee_exclusion": "Course Instructors (role: 'instructor') are strictly prohibited from serving on capstone committees.",
+      "committee_appointments": "Reserved strictly for Faculty (role: 'faculty', adviser, panelist): 1 Adviser, 1 Secretary, 3 Panelists (Lead/Chair, Member, Panel Member 3).",
+      "secretary_adm_gate": "project.admSignatures.secretary.endorsed === true is an immutable prerequisite before Tier 1/2/3 committee digital signatures can unlock."
+    },
+    "ihsa_architecture": {
+      "in_process_sequential_execution": "hooks_dispatcher.py with sys.modules caching (<100ms execution).",
+      "dynamic_buffer_static_gatekeeper": "PreToolUse gatekeeping checks virtual patch buffers; zero deadlocks.",
+      "declarative_feature_policies": ".github/hooks/state/feature_policies.json.",
+      "provider_agnostic_cloud_ai_runtime": "DeepSeek API (deepseek-chat via https://api.deepseek.com).",
+      "modular_lifecycle_gates": [
+        "test_tracking_gate.py",
+        "public_exposure_gate.py",
+        "completion_keyword_guard.py"
+      ]
+    },
+    "asdlc_v2_execution_lifecycle": [
+      "STAGE 0: STARTUP PREFLIGHT",
+      "STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP",
+      "STAGE 2: TARGETED CONTEXT GATHERING",
+      "STAGE 3: STRUCTURAL INSPECTION",
+      "STAGE 4: STATECHART-DRIVEN ORCHESTRATION",
+      "STAGE 5: SURGICAL CST EDITING",
+      "STAGE 6: DETERMINISTIC VERIFICATION",
+      "STAGE 7: HUMAN-IN-THE-LOOP (HITL) GATING",
+      "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL"
+    ],
+    "deterministic_quality_gate_battery": [
+      "1. npm run check:endpoints (196 Server / 175 Client, UNMATCHED_COUNT = 0)",
+      "2. npm run validate:agentic (60/60 checks passed)",
+      "3. npm run validate:governance (All 4 stages valid, 0 errors, 0 warnings)",
+      "4. npm test --workspace=client (Frontend unit & institutional fidelity tests)",
+      "5. npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js",
+      "6. python scripts/workspace_guardrail.py (Pristine workspace, zero cognitive clutter)",
+      "7. Playwright Visual Audit Gate (Mandatory for client UI/UX modifications: node scratch/<feature>_audit.mjs)"
+    ],
+    "dual_persistence_memory_continuity": {
+      "session_trajectory": ".agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json",
+      "session_index": ".agents/ptss/index.jsonl",
+      "technical_context": "memories/repo/CMS-V2-Technical-Context.md",
+      "required_post_mortem_keywords": [
+        "lesson",
+        "learned",
+        "prevention",
+        "runbook",
+        "checklist",
+        "evidence",
+        "passed"
+      ]
+    },
+    "output_contract_template": {
+      "stage_indicator": "SYSTEM STATUS: BOUNDED BY ASDLC [v2.0] | STAGE: [Current Stage]",
+      "sections": [
+        "<hypothesis_proof>: Programmatic verification, test output, or mathematical proof.",
+        "<architectural_blueprint>: Mermaid diagram mapping data flow or statechart transition.",
+        "<execution_directives>: Surgical CST patches, modified files, and systemic justification."
+      ]
+    }
+  }
+}

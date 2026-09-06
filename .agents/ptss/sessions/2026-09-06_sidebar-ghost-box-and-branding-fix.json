@@ -1,0 +1,24 @@
+{
+  "sessionId": "2026-09-06_sidebar-ghost-box-and-branding-fix",
+  "timestamp": "2026-09-06T10:50:00+08:00",
+  "task": "Fix sidebar visual bug (misaligned ghost sliding indicator box overlapping WORKSPACE title and Dashboard link) and harmonize branding",
+  "rootCause": "Sidebar component mounted an absolutely positioned sliding indicator div inside <nav className='space-y-5'>. When rendered conditionally after initial measurement, Tailwind's > :not([hidden]) ~ :not([hidden]) combinator inserted an unexpected 1.25rem margin-top on the Workspace section, misaligning the calculated coordinates and causing an empty rounded box to overlay WORKSPACE, while Dashboard also rendered a second duplicate active pill.",
+  "changes": [
+    {
+      "file": "client/src/components/layouts/Sidebar.jsx",
+      "summary": "Removed fragile dynamic sliding indicator state and DOM node; relied on deterministic self-contained active pill in SidebarNavItem; upgraded brand monogram to BukSU Royal Blue and Academic Gold with COT department tag."
+    },
+    {
+      "file": "scratch/sidebar_audit.mjs",
+      "summary": "Playwright visual audit script covering dark mode, light mode, and collapsed rail mode."
+    }
+  ],
+  "verification": {
+    "clientTests": "npm test --workspace=client -- src/components/layouts/Sidebar.test.jsx (6/6 passed)",
+    "endpoints": "UNMATCHED_COUNT = 0 (196 Server / 175 Client)",
+    "agenticAudit": "60/60 checks passed",
+    "workspaceGuardrail": "pristine (0 violations)",
+    "playwrightVisualAudit": "Verified dark expanded, light expanded, and collapsed rail modes without visual artifacts."
+  },
+  "status": "completed"
+}

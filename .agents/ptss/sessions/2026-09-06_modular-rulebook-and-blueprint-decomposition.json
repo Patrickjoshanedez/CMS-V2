@@ -1,0 +1,25 @@
+{
+  "session_id": "2026-09-06_modular-rulebook-and-blueprint-decomposition",
+  "timestamp": "2026-09-06T13:10:00.000Z",
+  "task_description": "Decompose monolithic workspace-rules.md (16,547 chars, exceeding the 12,000 char IDE rule limit) into a Master Cognitive Blueprint and modular recipe books under .agents/rules/, ensuring all rule files are strictly under the 12,000 character limit.",
+  "task_category": "governance_and_system_rules",
+  "root_causes": [
+    "Antigravity IDE enforces a hard limit of 12,000 characters per rule file in .agents/rules/ (flagged in red: 16547/12000).",
+    "A single monolithic workspace-rules.md accumulated stack specs, role rules, skills dictionary, Hermes lifecycle, verification suites, and environment recipes in one huge file, creating cognitive bloat and hitting UI rule capacity limits."
+  ],
+  "modifications": [
+    ".agents/rules/workspace-rules.md: Converted into an Executive Master Cognitive Blueprint and Rulebook Index (7,054 chars, 58% of limit), establishing the core operational boundary, Two-Pile model, directory write whitelist, ASDLC stages, quality gates, and linking to specialized recipe books.",
+    ".agents/rules/01-architecture-and-governance.md: Created specialized rulebook (5,951 chars) for monorepo stack, canonical 4-phase capstone progression, institutional role boundaries, and codebase navigation directives.",
+    ".agents/rules/02-skills-and-hermes-recipe.md: Created specialized recipe book (4,437 chars) for the 64-skill dictionary, mandatory first-use contract, Hermes pipeline, dual-persistence memory architecture, and CASS harvesting.",
+    ".agents/rules/03-verification-and-quality-gates.md: Created specialized recipe book (4,180 chars) for fast-path targeted testing, unified 7-point quality gate battery, Playwright visual feedback loop, git auto-tagging, and runaway watchdogs.",
+    ".agents/rules/04-environment-and-ui-recipes.md: Created specialized recipe book (3,626 chars) for Docker container dependency sync, defensive entity prefix normalization, 16:9 presentation canvas, and floating label autofill recipes."
+  ],
+  "verification": {
+    "rule_character_limits": "PASSED (All 6 rule files verified strictly <= 12,000 characters: 00=9.1k, 01=6.0k, 02=4.4k, 03=4.2k, 04=3.6k, master=7.1k)",
+    "client_unit_tests": "PASSED (11/11 tests passed in CreateProjectPage.test.jsx)",
+    "endpoint_parity": "PASSED (SERVER=196, CLIENT=175, UNMATCHED=0)",
+    "agentic_governance": "PASSED (60/60 checks)",
+    "governance_pipeline": "PASSED (All 4 stages valid, 0 errors, 0 warnings)",
+    "workspace_guardrail": "PASSED (Pristine workspace)"
+  }
+}

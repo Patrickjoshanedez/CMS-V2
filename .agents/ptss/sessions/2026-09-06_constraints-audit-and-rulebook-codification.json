@@ -1,0 +1,48 @@
+{
+  "sessionId": "2026-09-06_constraints-audit-and-rulebook-codification",
+  "timestamp": "2026-09-06T12:28:45.000Z",
+  "task": "Audit constraints faced during pitch deck carousel and PowerPoint export implementation, synthesize lessons learned, and codify prevention rules across AGENTS.md, GEMINI.md, workspace-rules.md, memories/repo/, and skills dictionary",
+  "asdlcStage": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "status": "completed",
+  "rootCausesIdentified": [
+    "Docker client container 'cms-client' runs an isolated node_modules environment; installing packages solely on the host leads to Vite module resolution overlay errors.",
+    "Database entity records may already contain classification prefixes (e.g. team.name = 'Team Gamma'), leading to duplicate prefixes like 'Team Team Gamma' when naive string interpolation is used.",
+    "Slide presentation previews require strict 16:9 widescreen canvas constraints (aspect-video) and input-guarded keyboard listeners to avoid layout clipping and unwanted slide shifts during form input."
+  ],
+  "modifications": [
+    {
+      "file": "AGENTS.md",
+      "summary": "Added rules 13, 14, and 15 covering Docker Container Dependency Synchronization, Defensive Entity Prefix Normalization, and 16:9 Presentation Canvas & Overflow Isolation."
+    },
+    {
+      "file": "GEMINI.md",
+      "summary": "Synchronized Section 8 with identical Docker Container Dependency Synchronization, Defensive Entity Prefix Normalization, and 16:9 Presentation Canvas rules for 100% policy parity."
+    },
+    {
+      "file": ".agents/rules/workspace-rules.md",
+      "summary": "Added Section 9 detailing Environment Harness & UI Presentation Constraints (9.1 Docker Container Dependency Sync, 9.2 Defensive Entity Prefix Normalization, 9.3 16:9 Presentation Canvas & Overflow Isolation)."
+    },
+    {
+      "file": "memories/repo/CMS-V2-Technical-Context.md",
+      "summary": "Added Rule 55 with comprehensive runbooks and checklists for container dependency synchronization, entity display formatting, and 16:9 presentation canvas isolation."
+    },
+    {
+      "file": ".agents/skills/verification-loop/SKILL.md",
+      "summary": "Bumped version to 1.4.0 and added Docker Container Dependency Sync pattern and Vite import overlay error preflight checks."
+    },
+    {
+      "file": ".agents/skills/frontend-patterns/SKILL.md",
+      "summary": "Added code patterns for Entity Prefix Normalization and 16:9 Presentation Canvas & Slide Carousel with input-guarded keyboard listeners."
+    }
+  ],
+  "verification": {
+    "routeParity": "npm run check:endpoints (UNMATCHED_COUNT=0)",
+    "agenticGovernance": "npm run validate:agentic (60/60 checks passed)",
+    "workspaceGuardrail": "python scripts/workspace_guardrail.py (pristine)"
+  },
+  "lessonsLearned": [
+    "Always synchronize npm dependencies into running Docker containers ('docker exec cms-client npm install ...') and restart Vite before running Playwright visual audits.",
+    "Always sanitize entity names with regex ('name.replace(/^Prefix\\s+/i, '')') before prefixing in UI templates to eliminate string duplication.",
+    "Slide presentation canvases require aspect-video and input-guarded keyboard listeners to eliminate visual clipping and navigation collisions while typing."
+  ]
+}

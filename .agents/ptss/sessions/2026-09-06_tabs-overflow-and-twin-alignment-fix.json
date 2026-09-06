@@ -1,0 +1,28 @@
+{
+  "sessionId": "2026-09-06_tabs-overflow-and-twin-alignment-fix",
+  "timestamp": "2026-09-06T11:13:00+08:00",
+  "task": "Fix pitch option and studio view switcher tab alignment, vertical sizing overflow, and contrast bleeding in CreateProjectPage",
+  "rootCause": "TabsTrigger default py-2 padding in Tabs.jsx produced a 32px button that overflowed TabsList's 28px content box (h-9 with p-1) by 4px, bleeding over the top and bottom borders. The right TabsList was also styled with bg-card while the left pitch options used bg-muted/60, causing contrast inversion and vertical misalignment.",
+  "changes": [
+    {
+      "file": "client/src/components/ui/Tabs.jsx",
+      "summary": "Updated TabsList to inline-flex items-center justify-center border border-border bg-muted/50 p-1, and TabsTrigger to inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs with bg-card active elevation."
+    },
+    {
+      "file": "client/src/pages/projects/CreateProjectPage.jsx",
+      "summary": "Harmonized Pitch Option container and View Switcher Tabs: both now share h-9 container height, bg-muted/50 background, border border-border, p-1 padding, and h-7 button pills with bg-card active elevation."
+    },
+    {
+      "file": "scratch/create_project_audit.mjs",
+      "summary": "Playwright audit script capturing DOM bounding rects and visual proof across dark mode."
+    }
+  ],
+  "verification": {
+    "clientTests": "npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx (7/7 passed)",
+    "endpoints": "UNMATCHED_COUNT = 0 (196 Server / 175 Client)",
+    "agenticAudit": "60/60 checks passed",
+    "workspaceGuardrail": "pristine (0 violations)",
+    "playwrightVisualAudit": "Verified 4px padding symmetry without border bleeding (list height 36px, tab height 28px, exactly 4px top and bottom inset)."
+  },
+  "status": "completed"
+}

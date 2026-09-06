@@ -1,26 +1,24 @@
-# 🤖 CMS-V2 COGNITIVE BOUNDARY, SKILL ECOSYSTEM & WORKSPACE RULES
+# 🤖 CMS-V2 COGNITIVE BOUNDARY & MASTER BLUEPRINT (workspace-rules.md)
 
 **Target Platform:** BukSU Capstone Management System V2 (CMS-V2)  
-**Compliance Standard:** ASDLC v2.0-Ready | Zero-Clutter Architecture  
-**Runtime Boundary:** Hard-Bounded Execution Sandbox  
+**Security Level:** Hard-Bounded Execution Sandbox  
+**Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
 ---
 
-## 1. WORKSPACE STACK & MONOREPO ARCHITECTURE
+## 1. PURPOSE & MODULAR RECIPE ARCHITECTURE
 
-* **Server API Backend (`server/`)**: Express.js 5 + Mongoose ODM + Redis + BullMQ Asynchronous Task Queues.
-* **Client Frontend SPA (`client/`)**: React 18 + Vite + Tailwind CSS + Zustand Store + TanStack React Query.
-* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`all-MiniLM-L6-v2`) + Winnowing Fingerprinting.
-* **Shared Workspace (`shared/`)**: Canonical JSON schemas, role constants, and cross-platform validation utilities.
-* **Tooling & Environment**: Node.js via `npm` workspaces; Python runtime via root `.venv/` virtual environment.
+This document establishes the **executive cognitive boundary and operational index** for AI Coding Agents and Orchestrator loops in CMS-V2. 
 
-### Canonical Academic Capstone Progression
-* **Phase 0: Team Formation & Roster Locking**: 2–4 members, 5 proponent roles, locked via `PATCH /api/teams/:id/lock`, Instructor assigns committee (Adviser, Chair, Secretary, Panelists).
-* **Phase 1: Capstone 1 (Title Proposal & Similarity Pre-Scan)**: 1..10 titles, SDG tagging (1..17), live cosine similarity check, proposal defense hearing rubrics, title approval (`titleStatus = 'approved'`).
-* **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense)**: Chapters 1–3 uploaded, dual plagiarism scan (<25%), midterm oral defense, and Action Done Matrix (`ADM v1`) sign-off.
-* **Phase 3: Capstone 3 (System Development & Progress Defense)**: Prototype build, 4-section Interactive Gantt Tracker, late justification interceptor, Chapters 4–5, progress demo, and `ADM v2` sign-off.
-* **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival)**: Full 5-chapter manuscript, deep vector scan, final oral defense, 3-Tier Multi-Signatory ADM verification, auto-archival (`projectStatus = 'archived'`), and sealed completion certificate PDF.
+To eliminate cognitive bloat and prevent monolithic rule-limit exhaustion, detailed domain implementations are partitioned into specialized, standalone **Recipe Books** under `.agents/rules/`:
 
+| Recipe Book | Scope & Responsibility |
+| :--- | :--- |
+| **[00-chat-starter-protocol.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/00-chat-starter-protocol.md)** | Absolute top-priority startup snapshot, validation schema & session priming. |
+| **[01-architecture-and-governance.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/01-architecture-and-governance.md)** | Monorepo stack, Canonical 4-Phase Capstone progression, and Institutional Role boundaries. |
+| **[02-skills-and-hermes-recipe.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/02-skills-and-hermes-recipe.md)** | 64-skill catalog, Mandatory First-Use contract, Hermes loop, and Dual-Persistence memory. |
+| **[03-verification-and-quality-gates.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/03-verification-and-quality-gates.md)** | Fast-Path Targeted Testing, Unified 7-Point Quality battery, Playwright visual feedback, and Git auto-tagging. |
+| **[04-environment-and-ui-recipes.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/04-environment-and-ui-recipes.md)** | Docker container dependency sync, defensive entity prefix normalization, 16:9 canvas, and floating input recipes. |
 
 ---
 
@@ -29,192 +27,83 @@
 Every agent operates under a strict **Two-Pile Governance Model**:
 
 ### Pile A: Soft Steering Guidelines (Subject to Contextual Tuning)
-* **Code Quality & Modularity**: Consolidate repetitive tasks behind shared hooks under `client/src/hooks` and centralized utility functions.
-* **Design Token Adherence**: Use Tailwind design system CSS variables (`bg-background`, `text-foreground`). Hardcoded hex colors and literal dark classes are prohibited on functional components.
-* **Documentation & AST Navigation**: Target specific AST symbol definitions and bounded line ranges rather than unconstrained file dumps.
+* **Language Standard**: ECMAScript 2022 (ES13) for Node.js backend modules; React 18 with modern Hooks, Zustand, and React Query for client code.
+* **Design Token Adherence**: Use Tailwind CSS variables (`bg-background`, `text-foreground`, `border-border/60`). Hardcoded hex colors and literal dark classes are prohibited on functional components.
+* **Modularity**: Consolidate repetitive tasks behind shared hooks (`client/src/hooks`) and centralized utility functions.
 
 ### Pile B: Hard Survival Rules (Deterministic & Externally Enforced)
-* **Protected Files (Strict Lock)**: Never edit or overwrite environment secret files (`.env*`). Never modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
-* **Directory Containment Whitelist**:
-  * **Allowed Write Areas**: `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, `memories/`, and `scratch/`.
-  * **Strictly Prohibited**: No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (all scripts must reside under `scripts/`).
-  * **Zero Shadow Trees**: Never read from or write to dead trees (e.g. `staging/`, `dashboard-ui/`, `references/`).
-* **Dual-Persistence Memory Namespace**: Persistent agent memory, execution trajectories, and HLLM lessons live in `.agents/ptss/` (structured session state and `index.jsonl`) and `memories/repo/` (lessons and technical context).
-* **No Direct DB Mutations**: Direct raw database mutations via terminal scripts are blocked; all mutations must flow through official API service layers.
+* **Rule 0: Chat-Starter Preflight Snapshot**: Check and maintain active `.agents/ptss/chat-starter.json` before chatting or executing tasks.
+* **Playwright Visual Feedback Loop**: All UI/UX modifications in `client/src/` MUST execute Playwright visual capture (light/dark mode, desktop 1440x900, mobile 390x844).
+* **Protected Files**: Never edit `.env*` secret files. Never modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`) without explicit human authorization.
+* **No Unbounded File Reading**: Full repository dumps, broad wildcard searches, and recursive dumps are strictly blocked.
+* **No Direct DB Mutations**: Direct raw database mutations via terminal scripts are blocked; all changes must flow through official API service layers.
+* **Dual-Persistence Memory**: Trajectories live strictly in `.agents/ptss/` and durable lessons in `memories/repo/`.
 
 ---
 
-## 3. INSTALLED SKILL ECOSYSTEM & DYNAMIC DISPATCH
+## 3. REPOSITORY DIRECTORY LAYOUT & WRITE WHITELIST
 
-The workspace includes **64 verified cognitive skills** under `.agents/skills/`. Agents must dynamically activate relevant skills before executing specialized tasks:
+To prevent workspace clutter, the repository enforces a strict write whitelist:
 
 ```
-├── Architecture & Core:     [senior-backend, senior-fullstack, senior-data-engineer, refactor, capstone-lifecycle-orchestrator]
-├── Frontend Excellence:     [frontend-patterns, frontend-specialist, zustand, tanstack-query, web-design-guidelines]
-├── Design Polish Suite:     [i-frontend-design, i-polish, i-typeset, i-colorize, i-arrange, i-delight, i-harden, i-animate]
-├── Plagiarism & AI Engine:  [plagiarism-engine, scikit-learn, huggingface-tokenizers, content-analysis]
-├── Reliability & Infra:     [sre-engineer, sre-reliability-engineering, devops-iac-engineer, docker-compose-production]
-├── Data & Schemas:          [mongoose-mongodb, xlsx, pdf, algorithmic-art]
-└── ASDLC & Governance:      [aif-loop, verification-loop, continual-learning, anti-slop, long-agent, skill-creator,
-                              skill-write-or-patch, ptss, hermes-curator, anti-regression-and-ci-governance,
-                              context-gathering-and-ast-triage]
+/workspace/
+├── client/              ← React 18 Tailwind Frontend SPA
+├── server/              ← Node.js / Express 5 REST API Backend
+├── plagiarism_engine/   ← FastAPI & PyTorch Sentence-Transformers Engine
+├── shared/              ← Canonical schemas, roles & validation utilities
+├── scripts/             ← Deployment, migration & guardrail scripts
+├── docs/                ← System specifications & manuals
+├── assets/              ← Media, university logos & static graphics
+├── memories/            ← HLLM repo lessons & technical context
+├── .git/                ← Git metadata & hooks
+├── .agents/             ← Shared memory, PTSS sessions & cognitive rules
+└── scratch/             ← Intermediate developer scratch space
 ```
+
+* **Allowed Write Areas**: `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, `memories/`, and `scratch/`.
+* **Strictly Prohibited**: No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (must live under `scripts/`).
+* **Zero Shadow Trees**: Never read from or write to dead trees (e.g. `staging/`, `dashboard-ui/`, `references/`).
 
 ---
 
-## 4. VERIFICATION GATES & TASK COMPLETION CONTRACT
+## 4. ASDLC [v2.0] 8-STAGE BOUNDED EXECUTION LIFECYCLE
 
-An implementation or refactoring task is officially completed **only** when all local verification suites exit with zero errors:
+All tasks proceed strictly through the 8 stages:
+* **STAGE 0: STARTUP PREFLIGHT**: Verify active `chat-starter.json`. Inspect latest 2–3 sessions in `index.jsonl` and `CMS-V2-Technical-Context.md`.
+* **STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP**: Query the Skills Dictionary to prime domain skills before taking action.
+* **STAGE 2: TARGETED CONTEXT GATHERING**: Use bounded line-slices (`StartLine`/`EndLine`). Never dump whole files.
+* **STAGE 3: STRUCTURAL INSPECTION**: Trace caller-callee chains. Verify endpoint parity via `npm run check:endpoints`.
+* **STAGE 4: STATECHART-DRIVEN ORCHESTRATION**: Model transitions and edge cases before generating code.
+* **STAGE 5: SURGICAL CST EDITING**: Apply surgical diffs preserving comments and JSDocs. Zero whole-file rewrites.
+* **STAGE 6: DETERMINISTIC VERIFICATION**: Run Fast-Path Targeted Testing during iteration. Run the full 7-point battery on closure.
+* **STAGE 7: HUMAN-IN-THE-LOOP (HITL) GATING**: Pause and request confirmation for database seeding, major releases, or ADM signature hashes.
+* **STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL**: Persist session to `.agents/ptss/sessions/`, append to `index.jsonl`, and record runbooks in `memories/repo/`. Update `chat-starter.json`.
 
-### Fast-Path Targeted Testing (Development & Iteration)
-To eliminate long test waiting delays (~90–120s full client suite) during iterative development, agents and developers MUST use **Targeted Testing** to run only the relevant test file(s):
+---
 
-```bash
-# Targeted Client Test (runs in 1–5 seconds)
-npm test --workspace=client -- <path-to-test-file>
+## 5. UNIFIED QUALITY GATE BATTERY
 
-# Examples:
-npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx
-npm test --workspace=client -- src/components/projects/AlignmentSelectorDialog.test.jsx
-npm test --workspace=client -- src/components/projects/
-
-# Targeted Server Unit or Integration Test (runs in 1–4 seconds)
-npm test --workspace=server -- tests/unit/<module>.test.js
-```
-
-### Full Verification Battery (Final Task Closure)
 ```bash
 # 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
 npm run check:endpoints
 
-# 2. Agentic Governance & Security Audit (60/60 checks)
+# 2. Agentic System Governance Audit (60/60 checks)
 npm run validate:agentic
 
 # 3. Agent Communication & Governance Pipeline
 npm run validate:governance
 
-# 4. React Frontend Unit & Store Test Suite (Targeted during iteration; full suite on final sign-off)
+# 4. React Frontend Unit & Institutional Fidelity Tests
+# Fast-Path (1–5s): npm test --workspace=client -- <target-test-file>
+# Full Gate Closure: npm test --workspace=client
 npm test --workspace=client
 
-# 5. Express Backend Integration & Unit Test Suite
+# 5. Express Server Comprehensive Workflow Tests
 npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
 
-# 6. Workspace Cleanliness Guardrail Linter
+# 6. Workspace Cleanliness Guardrail
 python scripts/workspace_guardrail.py
+
+# 7. Playwright Visual Audit Gate (Mandatory for client UI modifications)
+node scratch/<feature>_audit.mjs
 ```
-
----
-
-## 5. AUTOMATED SEMANTIC TAGGING & REMOTE SYNC
-
-Post-commit operations are managed by [`scripts/git-auto-tag.py`](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/scripts/git-auto-tag.py) via `.husky/post-commit`:
-* `feat: [major] ...` $\rightarrow$ Increments Major version (`v1.1.0` $\rightarrow$ `v2.0.0`).
-* `feat: [minor] ...` $\rightarrow$ Increments Minor version (`v1.0.0` $\rightarrow$ `v1.1.0`).
-* `fix: ...` (default) $\rightarrow$ Increments Patch version (`v1.1.0` $\rightarrow$ `v1.1.1`).
-* **Auto-Push Rule**: Automatically pushes active branch and release tags to remote `origin` when configured.
-* **Double-Tag Loop Guard**: Bypasses tagging if HEAD already carries a semantic version tag.
-
----
-
-## 6. RUNAWAY WATCHDOG & INFINITE LOOP CONTAINMENT
-
-* **Max Iteration Ceiling**: Hard capped at **15 turns**.
-* **Max Duration**: Strict **300-second (5-minute)** wall-clock timeout.
-* **SHA-256 State Hashing**: Hashes transaction trajectories and filesystem state at every turn. Immediate fail-safe abort triggered if repetitive stagnation is detected.
-
----
-
-## 7. HERMES PIPELINE PROTOCOL
-
-The workspace runs a **Hermes-style self-improving agent pipeline**. Every agent session follows this execution flow:
-
-```
-User Message ──► Agent Execution ──► Skill Trigger Check
-                                            │
-                               ┌────────────▼──────────────┐
-                               │   skill-write-or-patch     │  ◄── fires when gap detected
-                               │   Write or Patch SKILL.md  │
-                               └────────────┬──────────────┘
-                                            │
-                               ┌────────────▼──────────────┐
-                               │   ptss  Session Archive    │  ◄── fires after meaningful task
-                               │   .agents/ptss/sessions/   │
-                               └────────────┬──────────────┘
-                                            │
-                               ┌────────────▼──────────────┐
-                               │   Next Session Retrieval   │  ◄── injected at session start
-                               └───────────────────────────┘
-```
-
-### 7.1 Skill Write or Patch (`skill-write-or-patch`)
-
-Agents MUST invoke `skill-write-or-patch` when any of the following are true:
-- The same sub-problem was solved twice without a backing skill.
-- An existing skill is missing a trigger phrase, CMS-V2 path, or workflow step.
-- A task reveals a repeatable pattern not yet captured in any skill.
-
-**Write** creates a new SKILL.md in `.agents/skills/<name>/`.
-**Patch** surgically modifies only the relevant lines of an existing skill — never overwrites the whole file.
-
-### 7.2 PTSS Session Archive (`ptss`)
-
-After every meaningful task (feature, fix, refactor, or skill mutation), agents MUST archive a session record:
-```
-.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json
-```
-And append a summary line to:
-```
-.agents/ptss/index.jsonl
-```
-
-At the **start** of a new session where continuity matters, agents SHOULD retrieve prior context by grepping `index.jsonl` and loading the 1–3 most relevant session files.
-
-### 7.3 Hermes Curator (`hermes-curator`)
-
-The curator audits skill lifecycle on demand. Invoke it with the phrase **"audit skills"** or **"run hermes curator"**.
-
-Lifecycle thresholds:
-| State    | Condition                    | Action                              |
-|----------|------------------------------|-------------------------------------|
-| Active   | Used in PTSS within 30d      | None                                |
-| Stale    | 30–44d since last PTSS hit   | Add `_STALE.md` marker              |
-| Archived | 45d+ since last PTSS hit     | Move to `.agents/skills/.archived/` |
-| Restored | Manual request               | Move back to `.agents/skills/`      |
-
-**Curator constraints**: never deletes; always snapshots before a pass; respects `.agents/skills/_CURATOR_SKIP`; max 8 LLM patch iterations per run.
-
-### 7.4 Dual-Persistence Memory Architecture
-
-Agent memory operates across two complementary tiers:
-1. **Session State Trajectories (`.agents/ptss/`)**: Structured task snapshots saved under `.agents/ptss/sessions/` and indexed in `.agents/ptss/index.jsonl`.
-2. **Durable HLLM Lessons & Context (`memories/repo/`)**: Reusable prevention rules, runbooks, and domain constraints stored in `memories/repo/CMS-V2-Technical-Context.md` and `memories/repo/lessons/`.
-
-**Session Startup Requirement**: At the start of every chat, agents must query `.agents/ptss/index.jsonl` (last 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context before taking action.
-
-### 7.5 Continuous Autonomous Skill Harvesting (CASS)
-
-Whenever a complex requirement is fulfilled, a recurring workflow is solved, or a domain gap is addressed:
-1. **Detect Resolution**: The agent harness analyzes whether the solved task represents a reusable architectural or domain pattern.
-2. **Synthesize or Patch**:
-   - If novel: Write a new `SKILL.md` in `.agents/skills/<skill-name>/` with yaml frontmatter, trigger phrases, core workflow steps, and CMS-V2 specifics.
-   - If an existing skill exists: Surgically patch the missing capabilities or paths.
-3. **Register & Archive**: Register the skill in `.agents/rules/workspace-rules.md` and log the session snapshot in `.agents/ptss/sessions/` and `.agents/ptss/index.jsonl`.
-
-### 7.6 Strict Anti-Regression & Skill-First Execution Contract
-
-To guarantee zero regression across development cycles:
-1. **Skill-First Reading**: Before initiating code changes or debugging, agents MUST view and adhere to the relevant skill in `.agents/skills/` (e.g. `anti-regression-and-ci-governance`, `capstone-lifecycle-orchestrator`, `verification-loop`, `context-gathering-and-ast-triage`).
-2. **Regression Containment**: If a defect is solved and verified, its resolution invariants (e.g., node env flags, export validity, async test predicates) are codified in the matching skill.
-3. **Evidence of Solution**: A problem is confirmed solved when the user proceeds to subsequent tasks without re-prompting the failure and all local verification gates pass with zero errors.
-
----
-
-## 8. CONTEXT GATHERING & HIGH-PERFORMANCE CODEBASE NAVIGATION DIRECTIVES (ASDLC STAGE 2 & 3)
-
-To ensure development is maximally guided, token-efficient, and fast:
-
-1. **Index-First Orientation**: Always check [FILES_INDEX.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/FILES_INDEX.md), [package.json](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/package.json), and module route definitions before grepping across directories.
-2. **Bounded Line-Slice Inspection**: Never dump entire files (>100 lines) into conversation context. View target symbols using `StartLine` and `EndLine` slices to preserve cognitive budget.
-3. **Caller-Callee Chain Tracing**: When inspecting frontend actions, trace the call chain: UI Component $\to$ Zustand Store / React Query hook $\to$ API Service $\to$ Express Route $\to$ Controller $\to$ Mongoose Model.
-4. **Endpoint Parity Assurance**: Any newly added or modified client API call must have its exact HTTP route defined and checked via `npm run check:endpoints` (`UNMATCHED_COUNT = 0`).
-5. **Concrete Syntax Tree (CST) Preservation**: Modify code via surgical replacements targeting exact line spans. Never wipe or recreate files containing production logic.

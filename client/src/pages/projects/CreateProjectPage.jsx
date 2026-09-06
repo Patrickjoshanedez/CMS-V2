@@ -26,6 +26,7 @@ import { TagInput } from '@/components/ui/TagInput';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDialog';
+import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
 import useAutosave from '@/hooks/useAutosave';
 import SaveStatusIndicator from '@/components/common/SaveStatusIndicator';
 import { useCreateProject } from '@/hooks/useProjects';
@@ -44,23 +45,28 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
+  Clock,
   Layers,
   Download,
   Eye,
   ExternalLink,
   Globe,
   Tag,
+  ChevronLeft,
   ChevronRight,
   Presentation,
   Plus,
   Trash2,
   Loader2,
   Lock,
+  Maximize2,
+  Minimize2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
+import { exportProposalDeckPptx } from '@/utils/exportPptx';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
@@ -196,26 +202,57 @@ export default function CreateProjectPage() {
   const [generatingProposalIndex, setGeneratingProposalIndex] = useState(null);
   const [proposalSimilarityResults, setProposalSimilarityResults] = useState({});
   const [proposalPlagiarismResults, setProposalPlagiarismResults] = useState({});
+  const [selectedSimilarProject, setSelectedSimilarProject] = useState(null);
   const [keywordList, setKeywordList] = useState([]);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [isFullscreenDeckOpen, setIsFullscreenDeckOpen] = useState(false);
+  const [exportingPptxIndex, setExportingPptxIndex] = useState(null);
 
   const teamMembers = useMemo(() => {
     if (team?.members?.length > 0) return team.members;
     return [];
   }, [team?.members]);
 
+  const cleanTeamName = useMemo(() => {
+    if (!team?.name) return 'Team Workspace';
+    const trimmed = team.name.trim();
+    return trimmed.toLowerCase().startsWith('team') ? trimmed : `Team ${trimmed}`;
+  }, [team]);
+
+  const proponentsList = useMemo(() => {
+    if (teamMembers?.length > 0) {
+      const names = teamMembers
+        .map((m) =>
+          `${m.firstName || m.user?.firstName || ''} ${m.lastName || m.user?.lastName || ''}`.trim(),
+        )
+        .filter(Boolean);
+      if (names.length > 0) return names.join(', ');
+    }
+    if (user?.firstName || user?.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    }
+    return 'Proponent Student';
+  }, [teamMembers, user]);
+
   const hasFinalizedTeam = Boolean(team?.members?.length > 0 && team?.isLocked);
   const teamDefaultsAppliedRef = useRef(false);
 
+  const effectiveAcademicYear = team?.academicYear || form.academicYear;
   const { data: sections = [] } = useSections(
-    { academicYear: form.academicYear || undefined },
-    { enabled: Boolean(form.academicYear), refetchOnMount: 'always' },
+    effectiveAcademicYear ? { academicYear: effectiveAcademicYear } : undefined,
+    { refetchOnMount: 'always' },
   );
 
   const currentProposal =
     titleProposals[activeProposalIndex] || titleProposals[0] || createEmptyProposal();
-  const currentScanScore = proposalPlagiarismResults[activeProposalIndex]?.similarityScore ?? 12.4;
+  const currentScanData = proposalPlagiarismResults[activeProposalIndex];
+  const hasScanned = Boolean(currentScanData);
+  const currentScanScore = hasScanned ? (currentScanData.similarityScore ?? 0) : 0;
+  const winnowingScore = hasScanned ? (currentScanData.winnowingScore ?? 0) : 0;
+  const semanticScore = hasScanned ? (currentScanData.semanticScore ?? 0) : 0;
+  const currentMatches = proposalSimilarityResults[activeProposalIndex] || [];
   const effectiveThreshold = plagiarismThreshold || 15.0;
+  const isCleared = hasScanned && currentScanScore <= effectiveThreshold;
 
   // Hydrate saved draft on mount
   useEffect(() => {
@@ -261,7 +298,7 @@ export default function CreateProjectPage() {
     () => ({
       form: {
         academicYear: form.academicYear,
-        sectionId: form.sectionId,
+        sectionId: form.sectionId || undefined,
       },
       titleProposals,
       keywordList,
@@ -288,25 +325,31 @@ export default function CreateProjectPage() {
     },
   );
 
-  // Pre-fill academic year and section from team context
+  // Pre-fill academic year and section from team or user context
   useEffect(() => {
-    if (isTeamLoading || !team || teamDefaultsAppliedRef.current) return;
+    if (isTeamLoading || teamDefaultsAppliedRef.current) return;
     queueMicrotask(() => {
       setForm((prev) => {
         const updates = {};
         const normalizedTeamSectionId =
-          typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
-        if (team.academicYear && prev.academicYear !== team.academicYear) {
+          typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id;
+        const normalizedUserSectionId =
+          typeof user?.sectionId === 'string' ? user.sectionId : user?.sectionId?._id;
+        const effectiveSectionId = normalizedTeamSectionId || normalizedUserSectionId;
+
+        if (team?.academicYear && prev.academicYear !== team.academicYear) {
           updates.academicYear = team.academicYear;
         }
-        if (normalizedTeamSectionId && !prev.sectionId) {
-          updates.sectionId = normalizedTeamSectionId;
+        if (effectiveSectionId && !prev.sectionId) {
+          updates.sectionId = effectiveSectionId;
         }
-        teamDefaultsAppliedRef.current = true;
+        if (team || user) {
+          teamDefaultsAppliedRef.current = true;
+        }
         return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
       });
     });
-  }, [team, isTeamLoading]);
+  }, [team, isTeamLoading, user]);
 
   // Handle proposal mutation
   const handleProposalTitleChange = (index, value) => {
@@ -442,7 +485,7 @@ export default function CreateProjectPage() {
       await projectService.saveCreateProjectDraft({
         form: {
           academicYear: form.academicYear,
-          sectionId: form.sectionId,
+          sectionId: form.sectionId || undefined,
         },
         titleProposals,
         keywordList,
@@ -462,6 +505,11 @@ export default function CreateProjectPage() {
 
   // Trigger Similarity Scan
   const handleTriggerScan = async () => {
+    if (!currentProposal.title?.trim()) {
+      toast.error('Please enter a proposal title before scanning.');
+      return;
+    }
+
     setIsScanning(true);
     try {
       const res = await projectService.checkProposalSimilarity({
@@ -474,15 +522,292 @@ export default function CreateProjectPage() {
       });
 
       const matches = res?.data?.data?.matches || res?.data?.matches || [];
-      const plagiarism = res?.data?.data?.plagiarism || { similarityScore: 12.4 };
+      const plagiarism = res?.data?.data?.plagiarism || {
+        similarityScore: 0,
+        winnowingScore: 0,
+        semanticScore: 0,
+      };
 
       setProposalSimilarityResults((prev) => ({ ...prev, [activeProposalIndex]: matches }));
       setProposalPlagiarismResults((prev) => ({ ...prev, [activeProposalIndex]: plagiarism }));
-      toast.success('Similarity verification completed.');
+      toast.success(`Similarity verification completed for Proposal ${activeProposalIndex + 1}.`);
     } catch {
       toast.error('Failed to verify similarity against institutional repository.');
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  // Pitch Deck Slide Definitions (8 BukSU Institutional Slides)
+  const deckSlides = useMemo(() => {
+    const title = currentProposal.title || 'Untitled Proposal Title';
+    const pitch = currentProposal.pitchDeck || {};
+
+    return [
+      {
+        id: 1,
+        numberStr: '01',
+        category: 'Title Pitch & Proponents',
+        tag: 'BukSU Proposal Defense',
+        title: title,
+        subtitle:
+          pitch.proposedSolution ||
+          currentProposal.description ||
+          'A centralized multi-tenant capstone management system featuring automated committee notifications, a real-time Action Done Matrix, and an integrated dual-engine similarity analyzer.',
+        type: 'cover',
+      },
+      {
+        id: 2,
+        numberStr: '02',
+        category: 'Problem Statement & Literature Gap',
+        tag: 'Problem & Context',
+        title: 'Identified Problem & Literature Gap',
+        content:
+          pitch.problemStatement ||
+          'Current manual processes lack real-time visibility, automated validation, and institutional tracking, creating operational friction and compliance risks.',
+        type: 'statement',
+        accent: 'border-l-4 border-amber-500/80 pl-4',
+        icon: AlertTriangle,
+      },
+      {
+        id: 3,
+        numberStr: '03',
+        category: 'Proposed Solution & Technical Framework',
+        tag: 'Technical Framework',
+        title: 'Proposed Solution & Architecture',
+        content:
+          pitch.proposedSolution ||
+          'An end-to-end automated platform integrating role-based workflows, automated similarity checks, and verifiable multi-signatory digital approvals.',
+        type: 'solution',
+        accent: 'border-l-4 border-primary pl-4',
+        icon: Sparkles,
+      },
+      {
+        id: 4,
+        numberStr: '04',
+        category: 'Unique Technical Innovation',
+        tag: 'Novelty & IP',
+        title: 'Unique Technical Contribution',
+        content:
+          pitch.uniqueContribution ||
+          'Innovative dual-engine similarity detection with localized historical archiving and automated rubric-driven milestone clearance.',
+        type: 'innovation',
+        accent: 'border-l-4 border-blue-500/80 pl-4',
+        icon: ShieldCheck,
+      },
+      {
+        id: 5,
+        numberStr: '05',
+        category: 'Target Users & Stakeholders',
+        tag: 'Stakeholders',
+        title: 'Target Users & Beneficiaries',
+        content:
+          pitch.targetUsers ||
+          'BukSU Capstone Proponents, Faculty Advisers, Panel Reviewers, Department Secretaries, and College Leadership.',
+        type: 'users',
+        accent: 'border-l-4 border-emerald-500/80 pl-4',
+        icon: Layers,
+      },
+      {
+        id: 6,
+        numberStr: '06',
+        category: 'Expected Value & Operational Impact',
+        tag: 'Impact & ROI',
+        title: 'Expected Value & Institutional Impact',
+        content:
+          pitch.expectedImpact ||
+          'Reduces defense turnaround times by 65%, eliminates document loss, and enforces 100% compliance with BukSU IT capstone manual standards.',
+        type: 'impact',
+        accent: 'border-l-4 border-indigo-500/80 pl-4',
+        icon: CheckCircle2,
+      },
+      {
+        id: 7,
+        numberStr: '07',
+        category: 'Discipline & UN SDG Alignment',
+        tag: 'Curriculum & SDGs',
+        title: 'Field of Discipline & UN SDG Mapping',
+        disciplines: currentProposal.capstoneType || ['Software Engineering & Web Applications'],
+        sdgs: currentProposal.sdgTags || ['SDG 4: Quality Education'],
+        type: 'alignment',
+      },
+      {
+        id: 8,
+        numberStr: '08',
+        category: 'Committee Discussion',
+        tag: 'Panel Inquiries',
+        title: 'Defense Inquiries & Technical Review',
+        content:
+          'Thank you to the Panel of Examiners. Open for defense recommendations, rubric inquiries, and committee revisions.',
+        type: 'qa',
+      },
+    ];
+  }, [currentProposal]);
+
+  const currentSlide = deckSlides[activeSlide] || deckSlides[0];
+
+  const handlePrevSlide = () => {
+    setActiveSlide((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextSlide = () => {
+    setActiveSlide((prev) => Math.min(deckSlides.length - 1, prev + 1));
+  };
+
+  // Keyboard navigation for presentation slide preview & fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (activeStudioTab !== 'deck' && !isFullscreenDeckOpen) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setActiveSlide((prev) => Math.max(0, prev - 1));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setActiveSlide((prev) => Math.min(deckSlides.length - 1, prev + 1));
+      } else if (e.key === 'Escape' && isFullscreenDeckOpen) {
+        e.preventDefault();
+        setIsFullscreenDeckOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeStudioTab, isFullscreenDeckOpen, deckSlides.length]);
+
+  // Generate Presentation PowerPoint (.pptx) Deck
+  const handleExportPptx = async () => {
+    setExportingPptxIndex(activeProposalIndex);
+    try {
+      const filename = await exportProposalDeckPptx({
+        title: currentProposal.title,
+        deckData: currentProposal.pitchDeck,
+        team,
+        user,
+        academicYear: team?.academicYear || form.academicYear || defaultAcademicYear,
+        capstoneType: currentProposal.capstoneType,
+        sdgTags: currentProposal.sdgTags,
+        teamMembers,
+      });
+      toast.success('Pitch deck presentation PowerPoint (.pptx) exported.', {
+        description: `Downloaded ${filename}`,
+      });
+    } catch (err) {
+      toast.error(err?.message || 'Failed to export PowerPoint presentation.');
+    } finally {
+      setExportingPptxIndex(null);
+    }
+  };
+
+  // Helper renderer for slide body content
+  const renderSlideBody = (slide) => {
+    if (!slide) return null;
+    switch (slide.type) {
+      case 'cover':
+        return (
+          <div className="py-4 sm:py-6 space-y-2.5 sm:space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] sm:text-[11px] font-medium">
+              <Presentation className="h-3 w-3" /> BukSU IT Capstone Proposal
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground leading-snug line-clamp-3">
+              {slide.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl line-clamp-3 sm:line-clamp-4">
+              {slide.subtitle}
+            </p>
+          </div>
+        );
+      case 'statement':
+      case 'solution':
+      case 'innovation':
+      case 'users':
+      case 'impact': {
+        const Icon = slide.icon;
+        return (
+          <div className="py-3 sm:py-4 space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-1.5 text-primary font-medium text-xs">
+              {Icon && <Icon className="h-4 w-4" />}
+              <span>{slide.tag}</span>
+            </div>
+            <h3 className="text-base sm:text-xl font-bold tracking-tight text-foreground">
+              {slide.title}
+            </h3>
+            <div
+              className={cn(
+                'bg-muted/40 rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-foreground/90 leading-relaxed',
+                slide.accent,
+              )}
+            >
+              {slide.content}
+            </div>
+          </div>
+        );
+      }
+      case 'alignment':
+        return (
+          <div className="py-2 sm:py-3 space-y-2 sm:space-y-3">
+            <div className="flex items-center gap-1.5 text-primary font-medium text-xs">
+              <Globe className="h-4 w-4" />
+              <span>Institutional Mapping</span>
+            </div>
+            <h3 className="text-base sm:text-xl font-bold tracking-tight text-foreground">
+              {slide.title}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-1">
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 sm:p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Tag className="h-3.5 w-3.5 text-primary" /> IT Disciplines
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {slide.disciplines.map((d, i) => (
+                    <Badge key={i} variant="outline" className="text-[10px] bg-background">
+                      {d}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 sm:p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Target
+                  SDGs
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {slide.sdgs.map((s, i) => (
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                    >
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 'qa':
+        return (
+          <div className="py-4 sm:py-6 space-y-2.5 sm:space-y-3 text-center flex flex-col items-center justify-center">
+            <div className="h-10 sm:h-12 w-10 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
+              <Presentation className="h-5 sm:h-6 w-5 sm:w-6" />
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">
+              {slide.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg">
+              {slide.content}
+            </p>
+            <div className="pt-1 sm:pt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{cleanTeamName}</span>
+              <span>·</span>
+              <span>Bukidnon State University</span>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
@@ -565,24 +890,35 @@ export default function CreateProjectPage() {
     }));
 
     const resolvedAcademicYear = team?.academicYear || form.academicYear;
-    const resolvedSectionId = team?.sectionId?._id || team?.sectionId || form.sectionId;
+    const teamSectionId =
+      typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id;
+    const userSectionId =
+      typeof user?.sectionId === 'string' ? user.sectionId : user?.sectionId?._id;
+    const resolvedSectionId = teamSectionId || userSectionId || form.sectionId || undefined;
 
-    createProject.mutate({
+    const payload = {
       title: normalized[0]?.title || '',
       titleProposals: normalized,
       sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
       academicYear: resolvedAcademicYear,
-      sectionId: resolvedSectionId,
       allowSoloCapstone: false,
-    });
+    };
+    if (resolvedSectionId) {
+      payload.sectionId = resolvedSectionId;
+    }
+
+    createProject.mutate(payload);
   };
 
   const resolvedSectionName = useMemo(() => {
-    if (!sections || !team?.sectionId) return 'Section BSIT 3C (T87)';
-    const targetId = typeof team.sectionId === 'string' ? team.sectionId : team.sectionId?._id;
+    const targetId =
+      (typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id) ||
+      (typeof user?.sectionId === 'string' ? user.sectionId : user?.sectionId?._id) ||
+      form.sectionId;
+    if (!targetId || !sections || sections.length === 0) return 'Section BSIT 3C (T87)';
     const match = sections.find((s) => s._id === targetId);
     return match ? `${match.courseId?.code || 'BSIT'} ${match.name}` : 'Section BSIT 3C (T87)';
-  }, [sections, team]);
+  }, [sections, team, user, form.sectionId]);
 
   return (
     <DashboardLayout>
@@ -644,7 +980,7 @@ export default function CreateProjectPage() {
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">
               Pitch Option:
             </span>
-            <div className="inline-flex rounded-lg border border-border bg-muted/60 p-1">
+            <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-1 h-9 shadow-2xs">
               {titleProposals.map((prop, idx) => {
                 const isActive = activeProposalIndex === idx;
                 const isPrimary = idx === 0;
@@ -656,9 +992,9 @@ export default function CreateProjectPage() {
                     type="button"
                     onClick={() => setActiveProposalIndex(idx)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                      'inline-flex items-center gap-1.5 rounded-md px-3 h-7 text-xs font-medium transition-all select-none',
                       isActive
-                        ? 'bg-card text-foreground shadow-xs'
+                        ? 'bg-card text-foreground shadow-xs font-semibold'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/80',
                     )}
                   >
@@ -681,7 +1017,7 @@ export default function CreateProjectPage() {
                 <button
                   type="button"
                   onClick={addProposalOption}
-                  className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors select-none"
                 >
                   <Plus className="h-3 w-3" /> Add Proposal {titleProposals.length + 1}
                 </button>
@@ -690,15 +1026,15 @@ export default function CreateProjectPage() {
           </div>
 
           {/* View Switcher: Write vs Similarity vs Pitch Deck */}
-          <Tabs value={activeStudioTab} onValueChange={setActiveStudioTab}>
-            <TabsList className="bg-card border border-border h-9 p-1 shadow-xs">
-              <TabsTrigger value="write" className="text-xs gap-1.5 px-3">
+          <Tabs value={activeStudioTab} onValueChange={setActiveStudioTab} className="space-y-0">
+            <TabsList className="bg-muted/50 border border-border h-9 p-1 shadow-2xs">
+              <TabsTrigger value="write" className="text-xs gap-1.5 px-3 h-7">
                 <FileText className="h-3.5 w-3.5" /> Write Proposal
               </TabsTrigger>
-              <TabsTrigger value="similarity" className="text-xs gap-1.5 px-3">
+              <TabsTrigger value="similarity" className="text-xs gap-1.5 px-3 h-7">
                 <Search className="h-3.5 w-3.5" /> Similarity Clearance
               </TabsTrigger>
-              <TabsTrigger value="deck" className="text-xs gap-1.5 px-3">
+              <TabsTrigger value="deck" className="text-xs gap-1.5 px-3 h-7">
                 <Presentation className="h-3.5 w-3.5" /> Pitch Deck Builder
               </TabsTrigger>
             </TabsList>
@@ -969,22 +1305,48 @@ export default function CreateProjectPage() {
                         Overall Similarity Index
                       </CardDescription>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-3xl font-black font-mono text-emerald-600 dark:text-emerald-400">
-                          {currentScanScore}%
+                        <span
+                          className={cn(
+                            'text-3xl font-black font-mono',
+                            !hasScanned
+                              ? 'text-muted-foreground'
+                              : isCleared
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-destructive',
+                          )}
+                        >
+                          {currentScanScore.toFixed(1)}%
                         </span>
-                        <Badge variant="outline" className="text-[10px] font-mono">
+                        <Badge variant="outline" className="text-[10px] font-mono border-border">
                           Limit: ≤ {effectiveThreshold}%
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2.5 pt-2">
                       <Progress
-                        value={(currentScanScore / effectiveThreshold) * 100}
+                        value={
+                          hasScanned
+                            ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+                            : 0
+                        }
                         className="h-2 bg-muted"
                       />
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Cleared for hearing defense
-                      </p>
+                      {!hasScanned ? (
+                        <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span>Pending scan — not yet verified</span>
+                        </p>
+                      ) : isCleared ? (
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>Cleared for hearing defense</span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-destructive font-medium flex items-center gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span>Exceeds institutional threshold ({effectiveThreshold}%)</span>
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -997,11 +1359,20 @@ export default function CreateProjectPage() {
                           Winnowing
                         </Badge>
                       </div>
-                      <span className="text-2xl font-bold font-mono text-foreground">4.2%</span>
+                      <span className="text-2xl font-bold font-mono text-foreground">
+                        {winnowingScore.toFixed(1)}%
+                      </span>
                     </CardHeader>
                     <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
-                      <Progress value={4.2 * 4} className="h-1.5 bg-muted" />
-                      <p>Verbatim phrase overlap against past BukSU research papers.</p>
+                      <Progress
+                        value={hasScanned ? Math.min(100, winnowingScore * 4) : 0}
+                        className="h-1.5 bg-muted"
+                      />
+                      <p>
+                        {hasScanned
+                          ? 'Verbatim phrase overlap against past BukSU research papers.'
+                          : 'Verbatim phrase overlap against past BukSU research papers (pending scan).'}
+                      </p>
                     </CardContent>
                   </Card>
 
@@ -1014,11 +1385,20 @@ export default function CreateProjectPage() {
                           Vector Cosine
                         </Badge>
                       </div>
-                      <span className="text-2xl font-bold font-mono text-foreground">14.8%</span>
+                      <span className="text-2xl font-bold font-mono text-foreground">
+                        {semanticScore.toFixed(1)}%
+                      </span>
                     </CardHeader>
                     <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
-                      <Progress value={14.8 * 2} className="h-1.5 bg-muted" />
-                      <p>Contextual topic similarity against active capstone clusters.</p>
+                      <Progress
+                        value={hasScanned ? Math.min(100, semanticScore * 2) : 0}
+                        className="h-1.5 bg-muted"
+                      />
+                      <p>
+                        {hasScanned
+                          ? 'Contextual topic similarity against active capstone clusters.'
+                          : 'Contextual topic similarity against active capstone clusters (pending scan).'}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -1062,51 +1442,95 @@ export default function CreateProjectPage() {
                         className="h-8 text-xs gap-1.5 border-border"
                       >
                         <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
-                        Re-Scan Title
+                        {hasScanned ? 'Re-Scan Title' : 'Scan Title'}
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="divide-y divide-border/50 p-0 text-xs">
-                    {[
-                      {
-                        title:
-                          'Integrated Library Management System with Digital Catalog and RFID Book Tracking',
-                        match: '8.6%',
-                        year: '2024–2025',
-                        reason:
-                          'Matches RFID barcode tracking logic and role management architectures.',
-                      },
-                      {
-                        title: 'Smart Attendance and Automated Violation Monitoring System',
-                        match: '5.1%',
-                        year: '2023–2024',
-                        reason:
-                          'Overlapping role nomenclature (Instructor, Student, Admin) and audit logs.',
-                      },
-                    ].map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
-                      >
+                    {!hasScanned ? (
+                      <div className="p-8 text-center space-y-3">
+                        <div className="mx-auto w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground">
+                          <Search className="h-5 w-5" />
+                        </div>
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground">{item.title}</span>
-                            <Badge variant="secondary" className="text-[10px]">
-                              {item.year}
-                            </Badge>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">{item.reason}</p>
+                          <p className="text-sm font-medium text-foreground">No Scan Results Yet</p>
+                          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                            Click &quot;Scan Title&quot; to evaluate Proposal{' '}
+                            {activeProposalIndex + 1} against BukSU archive manuscripts and verify
+                            originality.
+                          </p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-mono font-bold text-xs text-foreground">
-                            {item.match} match
-                          </span>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                            Inspect <ChevronRight className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleTriggerScan}
+                          disabled={isScanning}
+                          className="text-xs gap-1.5 border-border"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
+                          {isScanning
+                            ? 'Scanning Archive...'
+                            : `Scan Proposal ${activeProposalIndex + 1}`}
+                        </Button>
                       </div>
-                    ))}
+                    ) : currentMatches.length === 0 ? (
+                      <div className="p-8 text-center space-y-2">
+                        <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                          No Similar Manuscripts Found
+                        </p>
+                        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                          Proposal {activeProposalIndex + 1} appears unique with zero significant
+                          overlap against archived BukSU capstone projects.
+                        </p>
+                      </div>
+                    ) : (
+                      currentMatches.map((item, idx) => (
+                        <div
+                          key={item._id || item.id || idx}
+                          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
+                        >
+                          <div className="space-y-1.5 flex-1 min-w-0 pr-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-foreground break-words leading-tight">
+                                {item.title}
+                              </span>
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] font-mono shrink-0 whitespace-nowrap px-1.5 py-0.5"
+                              >
+                                {item.academicYear || item.year || '2024–2025'}
+                              </Badge>
+                            </div>
+                            {item.reason && (
+                              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                                {item.reason}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                            <span className="font-mono font-bold text-xs text-foreground shrink-0 whitespace-nowrap">
+                              {typeof item.match === 'string'
+                                ? item.match.includes('match')
+                                  ? item.match
+                                  : `${item.match} match`
+                                : `${item.similarityScore ?? Math.round((item.score || 0) * 100)}% match`}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedSimilarProject(item)}
+                              className="h-7 text-xs gap-1 shrink-0 whitespace-nowrap hover:bg-muted/60"
+                            >
+                              Inspect <ChevronRight className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -1116,56 +1540,118 @@ export default function CreateProjectPage() {
             {activeStudioTab === 'deck' && (
               <div className="space-y-6">
                 {/* 16:9 Slide Presentation Frame */}
-                <div className="relative rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col justify-between aspect-video max-w-3xl mx-auto overflow-hidden">
+                <div
+                  className="relative rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm flex flex-col justify-between aspect-video max-w-3xl mx-auto overflow-hidden transition-all select-none"
+                  data-testid="pitch-deck-preview"
+                >
                   <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-primary">SLIDE 01</span>
-                      <span className="text-muted-foreground/50">/</span>
-                      <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
-                        Title Pitch & Proponents
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono font-bold text-xs text-primary shrink-0">
+                        SLIDE {currentSlide.numberStr}
+                      </span>
+                      <span className="text-muted-foreground/50 shrink-0">/</span>
+                      <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider truncate">
+                        {currentSlide.category}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-[10px] border-border">
+                    <Badge variant="outline" className="text-[10px] border-border shrink-0">
                       BukSU Proposal Defense
                     </Badge>
                   </div>
 
-                  <div className="py-6 space-y-2.5">
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground leading-snug">
-                      {currentProposal.title ||
-                        'Project Workspace: Capstone Management System with Plagiarism Checker'}
-                    </h2>
-                    <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-                      {currentProposal.pitchDeck?.proposedSolution ||
-                        'A centralized multi-tenant capstone management system featuring automated committee notifications, a real-time Action Done Matrix, and an integrated dual-engine similarity analyzer.'}
-                    </p>
+                  <div className="flex-1 flex flex-col justify-center my-auto">
+                    {renderSlideBody(currentSlide)}
                   </div>
 
                   <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-muted-foreground">
-                    <span>
-                      Proponent: {user?.firstName} {user?.lastName} · Team{' '}
-                      {team?.name || 'Workspace'}
+                    <span className="truncate pr-2">
+                      Proponent: {proponentsList} · {cleanTeamName}
                     </span>
-                    <span className="font-mono">AY {team?.academicYear || form.academicYear}</span>
+                    <span className="font-mono shrink-0">
+                      AY {team?.academicYear || form.academicYear || defaultAcademicYear}
+                    </span>
                   </div>
                 </div>
 
-                {/* Slide Navigation & Actions */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-3xl mx-auto pt-2">
+                {/* Slide Carousel Navigation Controls */}
+                <div className="flex items-center justify-between gap-3 max-w-3xl mx-auto px-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevSlide}
+                    disabled={activeSlide === 0}
+                    className="h-8 text-xs gap-1 border-border"
+                    data-testid="prev-slide-button"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Previous Slide
+                  </Button>
+
+                  {/* Slide Indicator Dots / Pills */}
+                  <div className="flex items-center gap-1.5">
+                    {deckSlides.map((slide, idx) => (
+                      <button
+                        key={slide.id}
+                        type="button"
+                        onClick={() => setActiveSlide(idx)}
+                        aria-label={`Go to slide ${idx + 1}`}
+                        className={cn(
+                          'h-2 rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                          activeSlide === idx
+                            ? 'w-6 bg-primary'
+                            : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                        )}
+                      />
+                    ))}
+                    <span className="text-xs text-muted-foreground font-mono ml-2">
+                      {activeSlide + 1} / {deckSlides.length}
+                    </span>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextSlide}
+                    disabled={activeSlide === deckSlides.length - 1}
+                    className="h-8 text-xs gap-1 border-border"
+                    data-testid="next-slide-button"
+                  >
+                    Next Slide <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                {/* Slide Navigation & Actions Toolbar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-3xl mx-auto pt-2 border-t border-border/40">
                   <span className="text-xs text-muted-foreground">
                     Presentation deck automatically synchronized with your proposal inputs.
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        toast.info('Slide deck preview is active in 16:9 widescreen canvas.')
-                      }
+                      onClick={() => setIsFullscreenDeckOpen(true)}
                       className="h-8 text-xs gap-1.5 border-border"
+                      data-testid="fullscreen-deck-button"
                     >
                       <Eye className="h-3.5 w-3.5" /> Fullscreen Deck
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportPptx}
+                      disabled={exportingPptxIndex !== null}
+                      className="h-8 text-xs gap-1.5 border-border bg-background hover:bg-muted"
+                      data-testid="export-pptx-button"
+                    >
+                      {exportingPptxIndex !== null ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Presentation className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                      )}
+                      Export PowerPoint (.pptx)
                     </Button>
                     <Button
                       type="button"
@@ -1173,6 +1659,7 @@ export default function CreateProjectPage() {
                       onClick={handleGenerateDeck}
                       disabled={generatingProposalIndex !== null}
                       className="h-8 text-xs bg-primary text-primary-foreground gap-1.5 shadow-xs"
+                      data-testid="export-pdf-button"
                     >
                       {generatingProposalIndex !== null ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1183,6 +1670,107 @@ export default function CreateProjectPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Fullscreen Rehearsal Presentation Modal */}
+                {isFullscreenDeckOpen && (
+                  <div
+                    className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200"
+                    data-testid="fullscreen-deck-modal"
+                  >
+                    <div className="flex items-center justify-between border-b border-border/60 pb-3 max-w-5xl mx-auto w-full">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-bold text-sm text-primary">
+                          SLIDE {currentSlide.numberStr} / {deckSlides.length}
+                        </span>
+                        <span className="text-xs uppercase font-semibold text-muted-foreground hidden sm:inline">
+                          {currentSlide.category}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleExportPptx}
+                          disabled={exportingPptxIndex !== null}
+                          className="h-8 text-xs gap-1.5"
+                        >
+                          <Presentation className="h-3.5 w-3.5 text-amber-500" /> Export (.pptx)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsFullscreenDeckOpen(false)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          data-testid="close-fullscreen-button"
+                        >
+                          <X className="h-5 w-5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex items-center justify-center p-2 sm:p-6">
+                      <div className="w-full max-w-4xl aspect-video rounded-xl border border-border bg-card p-6 sm:p-10 shadow-2xl flex flex-col justify-between">
+                        <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                          <span className="font-mono text-xs font-bold text-primary">
+                            SLIDE {currentSlide.numberStr}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            BukSU Capstone Proposal Defense
+                          </Badge>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center my-auto">
+                          {renderSlideBody(currentSlide)}
+                        </div>
+                        <div className="flex items-center justify-between border-t border-border/40 pt-3 text-xs text-muted-foreground">
+                          <span>
+                            Proponent: {proponentsList} · {cleanTeamName}
+                          </span>
+                          <span className="font-mono">
+                            AY {team?.academicYear || form.academicYear || defaultAcademicYear}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handlePrevSlide}
+                        disabled={activeSlide === 0}
+                        className="gap-1.5"
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Previous
+                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        {deckSlides.map((slide, idx) => (
+                          <button
+                            key={slide.id}
+                            type="button"
+                            onClick={() => setActiveSlide(idx)}
+                            className={cn(
+                              'h-2.5 rounded-full transition-all',
+                              activeSlide === idx
+                                ? 'w-8 bg-primary'
+                                : 'w-2.5 bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleNextSlide}
+                        disabled={activeSlide === deckSlides.length - 1}
+                        className="gap-1.5"
+                      >
+                        Next <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1216,7 +1804,9 @@ export default function CreateProjectPage() {
                   </div>
 
                   <Progress
-                    value={(currentScanScore / effectiveThreshold) * 100}
+                    value={
+                      hasScanned ? Math.min(100, (currentScanScore / effectiveThreshold) * 100) : 0
+                    }
                     className="h-2 bg-muted"
                   />
 
@@ -1224,8 +1814,19 @@ export default function CreateProjectPage() {
                     <span className="text-muted-foreground">
                       Proposal {activeProposalIndex + 1} Match:
                     </span>
-                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                      {currentScanScore}% (Cleared)
+                    <span
+                      className={cn(
+                        'font-mono font-bold',
+                        !hasScanned
+                          ? 'text-muted-foreground'
+                          : isCleared
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-destructive',
+                      )}
+                    >
+                      {!hasScanned
+                        ? '0.0% (Unscanned)'
+                        : `${currentScanScore.toFixed(1)}% (${isCleared ? 'Cleared' : 'Flagged'})`}
                     </span>
                   </div>
                 </div>
@@ -1245,8 +1846,26 @@ export default function CreateProjectPage() {
                       <span>Core problem and methodology defined</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      <span>Similarity cleared below {effectiveThreshold}%</span>
+                      {!hasScanned ? (
+                        <>
+                          <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span>Similarity scan pending</span>
+                        </>
+                      ) : isCleared ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          <span className="text-foreground">
+                            Similarity cleared below {effectiveThreshold}%
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                          <span className="text-destructive font-medium">
+                            Similarity exceeds threshold ({currentScanScore.toFixed(1)}%)
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1262,7 +1881,11 @@ export default function CreateProjectPage() {
                   className="w-full text-xs gap-1.5 h-8 border-border"
                 >
                   <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
-                  {isScanning ? 'Running Scan...' : 'Re-Verify Similarity'}
+                  {isScanning
+                    ? 'Running Scan...'
+                    : hasScanned
+                      ? 'Re-Verify Similarity'
+                      : 'Run First Similarity Scan'}
                 </Button>
                 <p className="text-[10px] text-muted-foreground text-center">
                   Threshold automatically synchronized across all faculty panels.
@@ -1299,6 +1922,11 @@ export default function CreateProjectPage() {
         }
         proposalIndex={activeProposalIndex}
         onSave={handleSaveModalAlignments}
+      />
+
+      <SimilarProjectModal
+        project={selectedSimilarProject}
+        onClose={() => setSelectedSimilarProject(null)}
       />
     </DashboardLayout>
   );

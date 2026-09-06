@@ -56,6 +56,34 @@ export default {
           purple: 'hsl(var(--brand-purple))',
           'deep-purple': 'hsl(var(--brand-deep-purple))',
         },
+        buksu: {
+          navy: {
+            800: '#152E5E',
+            900: '#0B1B3D',
+            950: '#071329',
+          },
+          blue: {
+            500: '#2563EB',
+            600: '#1A448A',
+            700: '#14376F',
+          },
+          gold: {
+            300: '#FDE047',
+            400: '#F5C253',
+            500: '#E5A823',
+            600: '#C68A1B',
+          },
+          ochre: '#C68A1B',
+        },
+      },
+      fontFamily: {
+        serif: ['Newsreader', 'Playfair Display', 'DM Serif Display', 'Georgia', 'serif'],
+        sans: ['Inter', 'DM Sans', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      boxShadow: {
+        manuscript: '3px 3px 0px 0px rgba(11, 27, 61, 0.08)',
+        'manuscript-dark': '3px 3px 0px 0px rgba(0, 0, 0, 0.4)',
       },
       borderRadius: {
         lg: 'var(--radius)',

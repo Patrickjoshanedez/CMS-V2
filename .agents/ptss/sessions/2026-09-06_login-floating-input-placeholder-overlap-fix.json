@@ -1,0 +1,24 @@
+{
+  "session_id": "2026-09-06_login-floating-input-placeholder-overlap-fix",
+  "timestamp": "2026-09-06T13:05:00.000Z",
+  "task_description": "Fix visual bug on login page where input placeholder/label directly overlaps entered or autofilled credentials, and resolve first character swallowed bug when typing in the input box.",
+  "task_category": "ui_bug_fix_and_visual_feedback",
+  "root_causes": [
+    "Floating label state in FloatingInput.jsx was exclusively conditioned on React state (isFloating = focused || hasValue). When browser autofill or password managers populated inputs natively, React Hook Form retained value: empty string, leaving the label unfloated and centered at top-1/2 -translate-y-1/2 directly over credentials.",
+    "CSS lacked peer selectors for :not(:placeholder-shown) and :-webkit-autofill to elevate labels at the browser compositor level.",
+    "An internal native DOM event listener el.addEventListener(\"input\", checkDomValue) calling setHasDomValue(true) caused synchronous re-renders of FloatingInput during the first keypress while the parent controller still held value: empty string, causing input value to reset the native DOM value and swallow the first typed character (\"b\" -> empty string)."
+  ],
+  "modifications": [
+    "client/src/index.css: Added pure CSS floating label rules for .floating-input:focus ~ .floating-label, .floating-input:not(:placeholder-shown) ~ .floating-label, .floating-input:-webkit-autofill ~ .floating-label, and .floating-label-active (top: 0.5rem !important, transform: translateY(0) scale(0.75) !important).",
+    "client/src/components/ui/FloatingInput.jsx: Removed internal hasDomValue state and native DOM listeners that caused the first-character re-render race condition. Simplified floating logic to pure declarative props.value and CSS rules. Adjusted input padding from pt-6 pb-2 to pt-5 pb-1.5 for vertical clearance. Upgraded focus glow to BukSU Royal Blue (#1A448A) in light mode and Academic Gold (#E5A823) in dark mode."
+  ],
+  "verification": {
+    "first_character_keypress_test": "PASSED (Playwright character-by-character keypress verified \"b\" -> \"b\", \"e\" -> \"be\", \"n\" -> \"ben\")",
+    "autofill_credential_floating_test": "PASSED (Zero overlap verified with Playwright bounding rects on filled email and password inputs)",
+    "playwright_visual_feedback": "PASSED (Desktop Dark, Desktop Light, Mobile Dark, Mobile Light)",
+    "client_unit_tests": "PASSED (11/11 tests passed in CreateProjectPage.test.jsx)",
+    "endpoint_parity": "PASSED (SERVER=196, CLIENT=175, UNMATCHED=0)",
+    "agentic_governance": "PASSED (60/60 checks)",
+    "workspace_guardrail": "PASSED"
+  }
+}

@@ -19,6 +19,13 @@ The BukSU IT Department capstone progression operates under a strictly sequenced
 *   **Phase 3: Capstone 3 (System Development & Progress Defense):** Full prototype implementation with Interactive Gantt Chart (4 milestone sections), late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress defense rubric evaluation, and `ADM v2` sign-off.
 *   **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival):** Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean) gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed = true`), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
 
+### Institutional Role Boundaries & Committee Composition Rules
+To prevent conflicts of interest and preserve institutional hierarchy:
+1.  **Primary User Role Consolidation:** Primary user account roles visible in user management (`/users`) are strictly: `student` (Student), `instructor` (Instructor), and `faculty` (Faculty) exported as `PRIMARY_ROLES` in `@cms/shared`. Adviser, Secretary, Panelist, and Chair are committee appointments under the Faculty umbrella (`user.service.js:listUsers` expands `role: 'faculty'` to `{ $in: ['faculty', 'adviser', 'panelist'] }`).
+2.  **Course Instructor Committee Exclusion:** Course Instructors (`role: 'instructor'`) are **strictly prohibited** from serving as Adviser, Secretary, or Defense Panelists on capstone committees. Both client comboboxes (`useUsers({ role: 'faculty' })`) and backend services (`team.service.js:assignCommittee`) strictly reject instructor appointments.
+3.  **Committee Appointments & Composition:** Defense committees consist of exactly 1 Adviser, 1 Secretary, and 3 Defense Panelists (Panelist 1 Lead/Chair, Panelist 2 Member, Panel Member 3), none labeled optional. A faculty member cannot serve as both adviser/secretary and panelist on the same team, nor can panelists duplicate each other.
+4.  **Secretary Defense Workflow & ADM Compliance Gate:** In Phase 4, `project.admSignatures.secretary.endorsed === true` is an immutable prerequisite before Tier 1 (Adviser), Tier 2 (Panelists/Chair), and Tier 3 (Dean) digital signatures can unlock. In `ActionDoneMatrixTab.jsx`, an institutional Secretary Compliance Verification Gate banner appears above Tier 1, locking committee signatures when endorsement is pending.
+
 ---
 
 ## 2. THE TWO-PILE INSTRUCTION ARCHITECTURE
@@ -31,6 +38,8 @@ Every agent operates under a strict **Two-Pile Governance Model** to prevent con
 *   **Code Quality:** Maximize modularity. Consolidate repetitive tasks behind shared hooks under `client/src/hooks` and centralized utility functions.
 
 ### Pile B: Hard Survival Rules (Deterministic & Externally Enforced)
+*   **Rule 0: Chat-Starter Preflight Snapshot (Absolute Top Priority):** Before chatting, planning, or executing tasks, check for and ensure the active chat-starter snapshot exists in `.agents/ptss/chat-starter.json` as specified in [.agents/rules/00-chat-starter-protocol.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/00-chat-starter-protocol.md).
+*   **Playwright Visual Feedback Loop (Strict Design Rule):** All UI, UX, styling, component, and layout modifications in `client/src/` MUST execute a Playwright visual feedback loop (light mode, dark mode, desktop 1440x900, mobile 390x844) to inspect rendered output before declaring completion.
 *   **Restricted Files:** Do not edit or overwrite environment secret files (`.env*`). Do not modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
 *   **No Unbounded File Reading:** Full repository dumps, broad wildcard searches, and recursive `cat` style dumps are strictly prohibited. Agents must use structured file indexers or targeted line-range viewers.
 *   **No Direct Database Mutations:** Direct raw MongoDB, Redis, or ChromaDB mutations via terminal scripts are blocked. All state changes must occur via the official API service layers.
@@ -149,19 +158,28 @@ The agent will serialize its execution state, output a secure token, enter a sle
 
 To maximize agent performance, eliminate context compaction errors, and streamline development:
 
-1.  **Skill-First Lookup Protocol:** Before making any architectural decision or code change, the agent MUST inspect the relevant skill in `.agents/skills/` (e.g. `capstone-lifecycle-orchestrator`, `anti-regression-and-ci-governance`, `verification-loop`, `context-gathering-and-ast-triage`).
-2.  **Bounded Context Inspection:** Agents must NEVER perform unbounded file dumps or full-directory `cat` commands. Search symbols via targeted `grep_search` and inspect code via bounded line-ranges (`StartLine`/`EndLine`).
-3.  **AST / CST Precision Patching:** Full-file rewrites are strictly prohibited. Edits must be surgical CST diffs targeting specific function or schema nodes, preserving all existing developer comments and JSDocs.
-4.  **Zero-Slop Standard:** Code must use production-grade design tokens (`bg-background`, `text-foreground`, `border-border/60`), proper error boundaries, explicit prop validation, and zero mock placeholders.
-5.  **Session Startup Memory Recall:** At the start of ANY new session/chat, the agent MUST inspect the recent sessions in `.agents/ptss/index.jsonl` (latest 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context and verify the current architectural state before taking action.
-6.  **Dual-Persistence Session Memory:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json`, append to `.agents/ptss/index.jsonl`, and record learned runbooks to `memories/repo/CMS-V2-Technical-Context.md` or `memories/repo/lessons/` (with required keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
-7.  **Targeted Testing First (Zero-Lag Verification):** NEVER run full workspace test suites (`npm test --workspace=client`, full server suite) on small iterative changes or during debugging loops. Always execute fast, targeted test commands (`npm test --workspace=client -- <target-test-file>`) to achieve 1–5 second feedback cycles. Full workspace suites are reserved strictly for final quality gates or broad refactoring.
+1.  **Skills Dictionary Mandatory Lookup:** The catalog under `.agents/skills/` is the authoritative Skills Dictionary. In specific domain scenarios (backend architecture, frontend state/UI, design polish, capstone workflows, verification loops, SRE), agents MUST inspect and adhere to the matching skill first before generating code or taking action.
+2.  **Continuous Skill Gap Updating:** When using any skill from the Skills Dictionary, if execution reveals missing steps, unhandled edge cases, or drifted paths, the agent MUST update/patch `SKILL.md` (via surgical CST diffs or `skill-write-or-patch`) to close the gap.
+3.  **Bounded Context Inspection:** Agents must NEVER perform unbounded file dumps or full-directory `cat` commands. Search symbols via targeted `grep_search` and inspect code via bounded line-ranges (`StartLine`/`EndLine`).
+4.  **AST / CST Precision Patching:** Full-file rewrites are strictly prohibited. Edits must be surgical CST diffs targeting specific function or schema nodes, preserving all existing developer comments and JSDocs.
+5.  **Zero-Slop Standard:** Code must use production-grade design tokens (`bg-background`, `text-foreground`, `border-border/60`), proper error boundaries, explicit prop validation, and zero mock placeholders.
+6.  **Rule 0 Preflight & Chat-Starter Verification:** Before chatting or executing code, verify/create `.agents/ptss/chat-starter.json` as specified in [.agents/rules/00-chat-starter-protocol.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/00-chat-starter-protocol.md).
+7.  **Session Startup Memory Recall:** At the start of ANY new session/chat, the agent MUST inspect the recent sessions in `.agents/ptss/index.jsonl` (latest 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish context and verify the current architectural state before taking action.
+8.  **Dual-Persistence Session Memory:** Archive all meaningful tasks and skill patches to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json`, append to `.agents/ptss/index.jsonl`, and record learned runbooks to `memories/repo/CMS-V2-Technical-Context.md` or `memories/repo/lessons/` (with required keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
+9.  **Targeted Testing First (Zero-Lag Verification):** NEVER run full workspace test suites (`npm test --workspace=client`, full server suite) on small iterative changes or during debugging loops. Always execute fast, targeted test commands (`npm test --workspace=client -- <target-test-file>`) to achieve 1–5 second feedback cycles. Full workspace suites are reserved strictly for final quality gates or broad refactoring.
+10. **Strict Playwright Visual Feedback Loop for Design:** For any UI/UX or styling modification in `client/src/`, agents MUST execute Playwright visual capture scripts in `scratch/` across light mode, dark mode, desktop (1440x900), and mobile (390x844) viewports.
+11. **ASDLC [v2.0] 8-Stage Execution Lifecycle:** All agents operate strictly within the 8 stages: Stage 0 (Startup Preflight), Stage 1 (Intent Decomposition & Skill Lookup), Stage 2 (Targeted Context Gathering), Stage 3 (Structural Inspection), Stage 4 (Statechart-Driven Orchestration), Stage 5 (Surgical CST Editing), Stage 6 (Deterministic Verification), Stage 7 (HITL Gating), and Stage 8 (Fix Auditing & Dual-Persistence Archival).
+12. **Supreme Cognitive Protocols & Kernel Engineering Standards:** Adhere to the 6 kernel principles (Keep It Simple, Easy to Verify, Reproducible, Narrow Scope, Explicit Constraints, CST Precision Patching) and cognitive vulnerability guards (Execution Signal Dominance with isolated scratchpad tests in `scratch/`, Session Startup Recall, Three-Cycle Break Rule, and Mutation Testing).
+13. **Docker Container Dependency Synchronization:** The Vite client development server runs in Docker container `cms-client`. When installing or updating npm dependencies (`npm install --workspace=client <pkg>`), agents MUST also install inside the container (`docker exec cms-client npm install --workspace=client <pkg>`) and restart it (`docker restart cms-client`) to prevent Vite overlay module resolution failures. Visual audit scripts must check for Vite errors before screenshotting.
+14. **Defensive Entity Prefix Normalization:** Database records and user inputs may already contain institutional classification prefixes (e.g. `team.name = "Team Gamma"`). Presenter components must sanitize raw strings with regex (e.g. `team.name.replace(/^Team\s+/i, '').trim()`) to prevent duplicate prefix bugs such as `"Team Team Gamma"`.
+15. **16:9 Presentation Canvas & Overflow Isolation:** Slide decks and presentation previews must adhere to a strict 16:9 widescreen canvas (`aspect-video`, `LAYOUT_16x9`), using flex column layout with space distribution (`flex flex-col justify-between`), responsive typography (`text-sm sm:text-base lg:text-lg`), dedicated navigation bars external to slide content, and keyboard listeners guarded against active text input focus.
 
 ---
 
+
 ## 10. UNIFIED QUALITY GATE VERIFICATION SEQUENCE
 
-Before declaring any implementation task complete, agents MUST run and pass the 6-point verification battery with zero errors. During iterative development, use **Fast-Path Targeted Testing (Step 4 & 5)**:
+Before declaring any implementation task complete, agents MUST run and pass the 7-point verification battery with zero errors. During iterative development, use **Fast-Path Targeted Testing (Step 4 & 5)**:
 
 ```bash
 # 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
@@ -185,5 +203,8 @@ npm test --workspace=server -- tests/integration/comprehensive-all-workflows.tes
 
 # 6. Workspace Cleanliness & Cognitive Guardrail
 python scripts/workspace_guardrail.py
+
+# 7. Playwright Visual Audit Gate (Mandatory for client UI/UX modifications)
+node scratch/<feature>_audit.mjs
 ```
 

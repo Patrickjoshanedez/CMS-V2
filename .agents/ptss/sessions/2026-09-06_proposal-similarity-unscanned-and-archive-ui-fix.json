@@ -1,0 +1,44 @@
+{
+  "sessionId": "2026-09-06_proposal-similarity-unscanned-and-archive-ui-fix",
+  "timestamp": "2026-09-06T11:54:00.000Z",
+  "task": "Fix pre-showing 12.4% similarity scores, isolate per-proposal scan results, fix clunky date wrapping on matched archive manuscripts, and integrate archive inspect modal",
+  "asdlcStage": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "status": "completed",
+  "rootCausesIdentified": [
+    "CreateProjectPage.jsx had hardcoded fallback to 12.4% on unscanned proposals and hardcoded metrics of 4.2% (winnowing) and 14.8% (semantic).",
+    "Matched Archive Manuscripts mapped over a static hardcoded array of 2 dummy entries before any scan was triggered.",
+    "The academic year Badge inside Matched Archive Manuscripts was compressed by flex layout alongside long titles without shrink-0 whitespace-nowrap, causing '2024–2025' to wrap awkwardly onto 2 lines.",
+    "Proposals did not isolate scan results cleanly, causing identical scores across tabs."
+  ],
+  "modifications": [
+    {
+      "file": "client/src/pages/projects/CreateProjectPage.jsx",
+      "summary": "Replaced hardcoded 12.4% with dynamic 0.0% unscanned state; added per-proposal scan isolation; added empty state for unscanned manuscripts and no-matches state; styled date badge with 'shrink-0 whitespace-nowrap font-mono' to eliminate 2-line wrapping; integrated SimilarProjectModal on Inspect click; fixed duplicate 'match' text string."
+    },
+    {
+      "file": "server/modules/projects/project.controller.js",
+      "summary": "Selected academicYear, abstract, targetBeneficiary, techStack, and createdAt; computed dynamic winnowing and semantic scores; standardized academicYear formatting."
+    },
+    {
+      "file": "client/src/pages/projects/CreateProjectPage.test.jsx",
+      "summary": "Added 3 comprehensive unit tests asserting 0.0% unscanned defaults, dynamic scan execution with non-wrapping badges and modal inspect, and per-proposal scan isolation (10/10 tests passed)."
+    },
+    {
+      "file": "scratch/proposal_scan_audit.mjs",
+      "summary": "Created and executed multi-viewport visual feedback audit (desktop 1440x900, mobile 390x844, light & dark mode) confirming badge height <= 20px with zero line breaks."
+    }
+  ],
+  "verification": {
+    "clientTests": "npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx (10/10 passed)",
+    "serverTests": "npm test --workspace=server -- tests/integration/proposal-similarity.test.js (2/2 passed)",
+    "routeParity": "npm run check:endpoints (UNMATCHED_COUNT=0)",
+    "agenticGovernance": "npm run validate:agentic (60/60 passed)",
+    "workspaceGuardrail": "python scripts/workspace_guardrail.py (pristine)",
+    "visualAudit": "scratch/proposal_scan_audit.mjs (100% passed across all 4 viewport/theme matrix passes)"
+  },
+  "lessonsLearned": [
+    "Always apply 'shrink-0 whitespace-nowrap' and monospace font formatting on date/year badges when placed inside flexible header containers with potentially long user-generated titles.",
+    "Ensure unscanned analysis tabs show informative empty call-to-action states rather than dummy mock data.",
+    "When API match labels can contain text units (e.g. 'match'), avoid unconditional suffix concatenation in JSX."
+  ]
+}

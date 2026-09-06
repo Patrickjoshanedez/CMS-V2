@@ -24,7 +24,7 @@ describe('LoadingScreen', () => {
     root = null;
   });
 
-  it('renders only the 3D orbit spinner in fullScreen mode without logo — no text content', () => {
+  it('renders only the beam aperture in fullScreen mode without logo — no text content', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -36,9 +36,9 @@ describe('LoadingScreen', () => {
     const statusEl = container.querySelector('[role="status"]');
     expect(statusEl).not.toBeNull();
     expect(statusEl.className).toContain('fixed inset-0');
+    expect(container.querySelector('.cms-beam-aperture')).not.toBeNull();
+    expect(container.querySelector('.cms-beam-flare')).not.toBeNull();
     expect(container.querySelector('.cms-spinner-box')).not.toBeNull();
-    expect(container.querySelector('.cms-orbit-ring-1')).not.toBeNull();
-    expect(container.querySelector('.cms-orbit-ring-2')).not.toBeNull();
     expect(container.querySelector('.cms-badge-pop')).toBeNull();
     // No text content rendered when showLogo is false
     expect(container.textContent.trim()).toBe('');

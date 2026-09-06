@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&family=DM+Sans:wght@400;500;700;800&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 @config "../tailwind.config.js";
 
@@ -186,6 +186,24 @@ html.dark[data-high-contrast='true'] {
   .dark select option {
     background-color: #0f172a;
     color: #f1f5f9;
+  }
+
+  /* Floating label autofill & placeholder-shown bulletproofing */
+  .floating-input:focus ~ .floating-label,
+  .floating-input:not(:placeholder-shown) ~ .floating-label,
+  .floating-input:-webkit-autofill ~ .floating-label,
+  .floating-label-active {
+    top: 0.5rem !important;
+    transform: translateY(0) scale(0.75) !important;
+    transform-origin: top left !important;
+  }
+
+  .floating-input:focus ~ .floating-label {
+    color: #1a448a !important;
+  }
+
+  .dark .floating-input:focus ~ .floating-label {
+    color: #e5a823 !important;
   }
 }
 
@@ -564,98 +582,148 @@ html.dark[data-high-contrast='true'] {
   animation: cms-text-fade 2s ease-in-out infinite;
 }
 
-/* ─ Alex Warnes 3D Dual Orbit Spinner (CodePen jXYYKL) ─ */
-@keyframes cms-spin-3d-cw {
+/* ─ Trhino CodePen Beam Aperture Cinematic Loader (jOQJPQ) ─
+   2-Phase Sequence: Centered horizontal beam expand -> vertical aperture reveal */
+@keyframes cms-beam-expand {
   0% {
-    transform: rotate3d(0.5, 0.5, 0.5, 360deg);
+    width: 0%;
+    height: 3px;
+    opacity: 0.3;
   }
-  100% {
-    transform: rotate3d(0.5, 0.5, 0.5, 0deg);
-  }
-}
-
-@keyframes cms-spin-3d-ccw {
-  0% {
-    transform: rotate3d(0.5, -0.5, 0.5, 360deg);
-  }
-  100% {
-    transform: rotate3d(0.5, -0.5, 0.5, 0deg);
-  }
-}
-
-@keyframes cms-pulse-glow {
-  0%,
-  100% {
-    transform: scale(0.85);
-    opacity: 0.35;
+  25% {
+    width: 35%;
+    height: 3px;
+    opacity: 0.9;
   }
   50% {
-    transform: scale(1.15);
-    opacity: 0.85;
+    width: 75%;
+    height: 3px;
+    opacity: 1;
+  }
+  65% {
+    width: 100%;
+    height: 3px;
+    opacity: 1;
+  }
+  80% {
+    width: 100%;
+    height: 45%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    height: 100%;
+    opacity: 1;
   }
 }
 
+@keyframes cms-content-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cms-laser-glow-pulse {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 10px var(--beam-glow, rgba(229, 168, 35, 0.6)));
+  }
+  50% {
+    filter: brightness(1.35) drop-shadow(0 0 24px var(--beam-glow, rgba(229, 168, 35, 0.9)));
+  }
+}
+
+@keyframes cms-fluid-shimmer {
+  0% {
+    left: -35%;
+    width: 30%;
+  }
+  50% {
+    left: 35%;
+    width: 45%;
+  }
+  100% {
+    left: 105%;
+    width: 30%;
+  }
+}
+
+.cms-beam-aperture {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: cms-beam-expand 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: width, height, opacity;
+  contain: layout paint;
+}
+
+.cms-content-reveal {
+  opacity: 0;
+  animation: cms-content-slide-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.85s forwards;
+  will-change: transform, opacity;
+}
+
+.cms-beam-flare {
+  animation: cms-laser-glow-pulse 2.2s ease-in-out infinite;
+}
+
+.cms-fluid-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  animation: cms-fluid-shimmer 1.8s ease-in-out infinite;
+  will-change: left, width;
+}
+
+@keyframes cms-badge-flip-y {
+  0% {
+    opacity: 0;
+    transform: perspective(500px) rotateY(90deg) scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(500px) rotateY(0deg) scale(1);
+  }
+}
+
+.cms-badge-pop {
+  animation: cms-badge-flip-y 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.85s forwards;
+  will-change: transform, opacity;
+}
+
+/* Backward-compatibility fallback classes for any existing tests / views */
 .cms-spinner-box {
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  contain: layout paint;
-  transform: translateZ(0);
-}
-
-.cms-orbit-ring-1 {
-  position: absolute;
-  border-radius: 50%;
-  padding: 2.5px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(0deg, rgba(249, 115, 22, 0.1) 30%, rgba(236, 72, 153, 1) 100%);
-  animation: cms-spin-3d-cw 2s linear infinite;
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-.cms-orbit-ring-2 {
-  position: absolute;
-  border-radius: 50%;
-  padding: 2.5px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(0deg, rgba(236, 72, 153, 0.1) 30%, rgba(139, 92, 246, 1) 100%);
-  animation: cms-spin-3d-ccw 2.4s linear infinite;
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-.cms-orbit-core {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background-color: hsl(var(--card));
-}
-
-.cms-orbit-glow {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, rgba(139, 92, 246, 0) 70%);
-  animation: cms-pulse-glow 2.2s ease-in-out infinite;
-  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cms-dot-wave,
+  .cms-beam-aperture,
+  .cms-content-reveal,
+  .cms-beam-flare,
   .cms-fluid-track,
   .cms-badge-pop,
-  .cms-text-fade,
-  .cms-orbit-ring-1,
-  .cms-orbit-ring-2,
-  .cms-orbit-glow {
-    animation: none;
-    transform: none;
-    opacity: 1;
+  .cms-text-fade {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 
@@ -730,62 +798,62 @@ html.dark[data-high-contrast='true'] {
 /* --- Initial hidden states --- */
 .auth-form .auth-item {
   opacity: 0;
-  transform: translateY(18px);
+  transform: translateY(14px);
   transition:
-    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* --- Loaded â€” stagger children into view --- */
+/* --- Loaded — stagger children into view snappily --- */
 .auth-form.auth-loaded .auth-item:nth-child(1) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.05s;
+  transition-delay: 0.02s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(2) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.12s;
+  transition-delay: 0.06s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(3) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.19s;
+  transition-delay: 0.1s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(4) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.26s;
+  transition-delay: 0.14s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(5) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.33s;
+  transition-delay: 0.18s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(6) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.4s;
+  transition-delay: 0.22s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(7) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.47s;
+  transition-delay: 0.26s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(8) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.54s;
+  transition-delay: 0.3s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(9) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.61s;
+  transition-delay: 0.34s;
 }
 .auth-form.auth-loaded .auth-item:nth-child(10) {
   opacity: 1;
   transform: translateY(0);
-  transition-delay: 0.68s;
+  transition-delay: 0.38s;
 }
 
 /* --- Wave panel entrance --- */
@@ -819,22 +887,26 @@ html.dark[data-high-contrast='true'] {
   }
 }
 
-/* --- Gradient button â€” reuse landing shimmer --- */
+/* --- BukSU Academic Gold gradient button --- */
 .auth-btn-gradient {
-  background: linear-gradient(135deg, #ff5722, #e91e63, #9c27b0, #673ab7);
+  background: linear-gradient(135deg, #f5c253 0%, #e5a823 45%, #c68a1b 75%, #1a448a 100%);
   background-size: 200% 200%;
   background-position: 0% 50%;
+  color: #071329;
+  font-weight: 700;
   transition:
     background-position 0.6s ease,
     transform 0.25s ease,
-    box-shadow 0.25s ease;
+    box-shadow 0.25s ease,
+    color 0.25s ease;
 }
 .auth-btn-gradient:hover:not(:disabled) {
   background-position: 100% 50%;
+  color: #ffffff;
   transform: translateY(-1px);
   box-shadow:
-    0 8px 25px -5px rgba(255, 87, 34, 0.3),
-    0 4px 12px -3px rgba(103, 58, 183, 0.2);
+    0 8px 25px -5px rgba(229, 168, 35, 0.45),
+    0 4px 12px -3px rgba(26, 68, 138, 0.35);
 }
 .auth-btn-gradient:active:not(:disabled) {
   transform: translateY(0);

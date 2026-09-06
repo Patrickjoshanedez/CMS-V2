@@ -260,7 +260,7 @@ function getActivePath(items, location) {
 /**
  * SidebarNavItem — Navigation node with floating portal tooltip and hover micro-interactions
  */
-function SidebarNavItem({ item, active, collapsed, activeRef }) {
+function SidebarNavItem({ item, active, collapsed }) {
   const Icon = item.icon;
   const [coords, setCoords] = useState(null);
 
@@ -280,7 +280,6 @@ function SidebarNavItem({ item, active, collapsed, activeRef }) {
   return (
     <>
       <Link
-        ref={active ? activeRef : null}
         to={item.path}
         onMouseEnter={handleShow}
         onMouseOver={handleShow}
@@ -367,7 +366,7 @@ function SidebarNavItem({ item, active, collapsed, activeRef }) {
 /**
  * Collapsible group for sub-items (e.g. Archived Capstone Browse & Upload)
  */
-function SidebarNavGroup({ item, activePath, collapsed, activeRef }) {
+function SidebarNavGroup({ item, activePath, collapsed }) {
   const { pathname } = useLocation();
   const isChildActive = item.children?.some((child) =>
     pathname.startsWith(child.path.split('?')[0]),
@@ -464,7 +463,6 @@ function SidebarNavGroup({ item, activePath, collapsed, activeRef }) {
                   item={child}
                   active={isActive}
                   collapsed={collapsed}
-                  activeRef={activeRef}
                 />
               );
             })}
@@ -487,25 +485,7 @@ export function Sidebar({ open = true, onToggle }) {
   const navItems = useMemo(() => getRoleNavItems(user?.role), [user?.role]);
   const activePath = useMemo(() => getActivePath(navItems, location), [navItems, location]);
 
-  const navContainerRef = useRef(null);
-  const activeItemRef = useRef(null);
-  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
   const [signOutCoords, setSignOutCoords] = useState(null);
-
-  // Measure and align sliding indicator
-  useEffect(() => {
-    if (activeItemRef.current && navContainerRef.current) {
-      const containerRect = navContainerRef.current.getBoundingClientRect();
-      const itemRect = activeItemRef.current.getBoundingClientRect();
-      setIndicatorStyle({
-        top: itemRect.top - containerRect.top + navContainerRef.current.scrollTop,
-        height: itemRect.height,
-        opacity: 1,
-      });
-    } else {
-      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
-    }
-  }, [activePath, collapsed, user?.role]);
 
   const handleLogout = async () => {
     await logout();
@@ -529,13 +509,18 @@ export function Sidebar({ open = true, onToggle }) {
             collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
           }`}
         >
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs flex-shrink-0">
-            <GraduationCap className="h-4 w-4" />
+          <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs flex-shrink-0">
+            <GraduationCap className="h-4 w-4 text-[#E5A823]" />
           </div>
           <div className="flex flex-col whitespace-nowrap">
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
-              CMS
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
+                BukSU CMS
+              </span>
+              <span className="px-1 py-0.2 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded">
+                COT
+              </span>
+            </div>
             <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5">
               Capstone Studio
             </span>
@@ -558,20 +543,9 @@ export function Sidebar({ open = true, onToggle }) {
       </div>
 
       {/* 2. Navigation Content */}
-      <nav ref={navContainerRef} className="relative flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-        {/* Sliding Indicator (glides smoothly across items) */}
-        {indicatorStyle.opacity > 0 && (
-          <div
-            className="absolute left-3 right-3 rounded-lg bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-0 shadow-2xs"
-            style={{
-              top: `${indicatorStyle.top}px`,
-              height: `${indicatorStyle.height}px`,
-            }}
-          />
-        )}
-
+      <nav className="relative flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {/* Workspace Section */}
-        <div className="relative z-10 space-y-1">
+        <div className="space-y-1">
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Workspace
@@ -585,7 +559,6 @@ export function Sidebar({ open = true, onToggle }) {
                   item={item}
                   activePath={activePath}
                   collapsed={collapsed}
-                  activeRef={activeItemRef}
                 />
               ) : (
                 <SidebarNavItem
@@ -593,7 +566,6 @@ export function Sidebar({ open = true, onToggle }) {
                   item={item}
                   active={activePath === item.path}
                   collapsed={collapsed}
-                  activeRef={activeItemRef}
                 />
               ),
             )}
@@ -601,7 +573,7 @@ export function Sidebar({ open = true, onToggle }) {
         </div>
 
         {/* Tools Section */}
-        <div className="relative z-10 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Evaluation
@@ -615,7 +587,6 @@ export function Sidebar({ open = true, onToggle }) {
                   item={item}
                   activePath={activePath}
                   collapsed={collapsed}
-                  activeRef={activeItemRef}
                 />
               ) : (
                 <SidebarNavItem
@@ -623,7 +594,6 @@ export function Sidebar({ open = true, onToggle }) {
                   item={item}
                   active={activePath === item.path}
                   collapsed={collapsed}
-                  activeRef={activeItemRef}
                 />
               ),
             )}
@@ -639,7 +609,6 @@ export function Sidebar({ open = true, onToggle }) {
             item={item}
             active={activePath === item.path}
             collapsed={collapsed}
-            activeRef={activeItemRef}
           />
         ))}
 

@@ -1,33 +1,257 @@
-# CMS-V2 Project Context & Directives
+# 🤖 CMS-V2 COGNITIVE BOUNDARY & RUNTIME CONTRACT FOR GEMINI / ANTIGRAVITY (GEMINI.md)
+**Target Platform:** BukSU Capstone Management System V2 (CMS-V2)  
+**Security Level:** Hard-Bounded Execution Sandbox  
+**Compliance Standard:** ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]  
 
-## Workspace Stack
-- **Server**: Express.js 5 + Mongoose + Redis + BullMQ (`server/`)
-- **Client**: React 18 + Vite + TailwindCSS + Zustand (`client/`)
-- **Plagiarism Engine**: FastAPI + Celery + Chroma + PyTorch (`plagiarism_engine/`)
+---
 
-## Canonical Academic Capstone Workflow (Ground Truth)
-The BukSU Information Technology Department capstone lifecycle operates under a strict **4-Phase Capstone Progression** preceded by Phase 0:
-- **Phase 0: Team Formation & Roster Locking**: Teams of 2–4 members assemble, assign 5 standardized roles (`Project Lead & Systems Analyst`, `Frontend & UI/UX Developer`, `Backend & Database Developer`, `Full-Stack Developer`, `QA & Technical Documentor`), lock roster via `PATCH /api/teams/:id/lock`. Committee assigned by Instructor (Adviser, Chair, Secretary, Panelists).
-- **Phase 1: Capstone 1 (Title Defense & Proposal Pre-Scan)**: Proponents submit 1..10 title proposals with SDG alignments (1..17). Live archive cosine similarity pre-scan. Proposal defense hearing rubrics determine title approval (`titleStatus = 'approved'`).
-- **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense)**: Chapters 1–3 uploaded. Plagiarism Scan v1 (Winnowing + SentenceTransformers, `< 25%`). Midterm defense evaluation. Action Done Matrix (`ADM v1`) logs panel remarks and multi-signatory digital sign-off.
-- **Phase 3: Capstone 3 (System Development & Progress Defense)**: Full prototype implementation with Interactive Gantt Chart (4 milestone sections), late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress defense rubric evaluation, and `ADM v2` sign-off.
-- **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival)**: Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean) gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed === true`), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
+## 1. MONOREPO STACK & SYSTEM OVERVIEW
 
-## Session Memory Continuity & Cross-Chat Recall Protocol
-To prevent split-brain state desynchronization and ensure instant recall across every chat session:
-- **Session Startup Recall (Stage 0 Preflight)**: At the beginning of EVERY chat, inspect `.agents/ptss/index.jsonl` (latest 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to load recent architecture decisions, resolved blockers, and user directives.
-- **Durable Memory Dual-Persistence (Stage 8 Task Closure)**: Upon task completion, record learned patterns:
-  1. Append a structured record to `.agents/ptss/sessions/YYYY-MM-DD_<task-slug>.json` and `.agents/ptss/index.jsonl`.
-  2. Update `memories/repo/CMS-V2-Technical-Context.md` and/or write a targeted lesson in `memories/repo/lessons/` (using keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
+* **Server API Backend (`server/`)**: Express.js 5 + Mongoose 9 ODM + Redis + BullMQ Asynchronous Task Queues.
+* **Client Frontend SPA (`client/`)**: React 18 + Vite + Tailwind CSS + Zustand Store + TanStack React Query.
+* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`all-MiniLM-L6-v2`) + Winnowing Fingerprinting.
+* **Shared Workspace (`shared/`)**: Canonical JSON schemas, role constants, and cross-platform validation utilities.
+* **Tooling & Environment**: Node.js via `npm` workspaces; Python runtime via root `.venv/` virtual environment.
 
-## Operational & Architectural Directives
-- **Compliance Standard**: ASDLC [v2.0] — follow 8-stage bounded execution.
-- **Skill-First Lookup**: Always read relevant skills under `.agents/skills/` before code edits.
-- **Context-Gathering Efficiency**: Use targeted AST/symbol search and bounded line ranges (`StartLine`/`EndLine`). Never dump entire large files into prompt.
-- **Surgical CST Editing**: Never overwrite complete files for minor edits. Preserve developer comments and JSDoc annotations.
-- **No Direct DB Mutations**: State changes must flow strictly through the official API service layer.
-- **Quality Gates**: Pass all verification gates (`validate:governance`, `validate:agentic`, `check:endpoints`, client/server tests, `workspace_guardrail.py`).
-- **Targeted Testing First (Zero-Lag Verification)**: Never run full multi-suite test runs (`npm test --workspace=client`) on small iterative edits or during debugging loops. Use targeted test paths (`npm test --workspace=client -- <path-to-test>`) for 1–5s feedback, reserving full 43-suite runs for final quality gates.
-- **Protected Boundaries**: Never modify `.env*`, database seeders (`server/seeders/`), or core deployment scripts without explicit instruction.
+---
+
+## 2. CANONICAL ACADEMIC CAPSTONE WORKFLOW (GROUND TRUTH)
+
+The BukSU Information Technology Department capstone progression operates under a strictly sequenced **4-Phase Capstone Progression** preceded by Phase 0:
+
+* **Phase 0: Team Formation & Roster Locking**: Teams of 2–4 members assemble, bind to Academic Year / Course / Section, and assign 5 standardized roles (`Project Lead & Systems Analyst`, `Frontend & UI/UX Developer`, `Backend & Database Developer`, `Full-Stack Developer`, `QA & Technical Documentor`). Roster locked via `PATCH /api/teams/:id/lock`. Course Instructor appoints committee (Adviser, Chair, Secretary, Panelists).
+* **Phase 1: Capstone 1 (Title Defense & Proposal Pre-Scan)**: Proponents draft 1..10 candidate title proposals tagged with SDGs (1..17) and IT disciplines (1..10). Live archive cosine similarity pre-scan. Proposal defense hearing rubrics determine title approval (`titleStatus = 'approved'`).
+* **Phase 2: Capstone 2 (Chapters 1–3 Manuscript & Midterm Defense)**: Chapters 1–3 uploaded. Dual plagiarism scan (Winnowing + SentenceTransformers, `< 25%`). Midterm defense evaluation. Action Done Matrix (`ADM v1`) logs panel remarks and multi-signatory digital sign-off.
+* **Phase 3: Capstone 3 (System Development & Progress Defense)**: Full prototype implementation with Interactive Gantt Chart (4 milestone sections), late justification gating (`isLate`), Chapter 4 (Results) & Chapter 5 (Conclusions), progress defense rubric evaluation, and `ADM v2` sign-off.
+* **Phase 4: Capstone 4 (Final Defense, Multi-Tier ADM Sign-Off & Archival)**: Full 5-chapter manuscript compilation, deep vector plagiarism scan, final oral defense hearing, 3-Tier Multi-Signatory ADM verification (Adviser, Panelists, Chair, Dean) strictly gated by Secretary Compliance Verification Endorsement (`project.admSignatures.secretary.endorsed === true`), atomic auto-archival to S3/MinIO (`projectStatus = 'archived'`), and sealed completion certificate PDF generation.
+
+---
+
+## 3. INSTITUTIONAL ROLE BOUNDARIES & COMMITTEE COMPOSITION RULES
+
+To prevent conflicts of interest and preserve institutional hierarchy:
+
+1. **Primary User Role Consolidation**:
+   * Primary user account roles visible in user management (`/users`) are strictly: `student` (Student), `instructor` (Instructor), and `faculty` (Faculty) exported as `PRIMARY_ROLES` in `@cms/shared`.
+   * Adviser, Secretary, Panelist, and Chair are committee appointments under the Faculty umbrella. In `user.service.js:listUsers`, querying `role: 'faculty'` automatically expands to `{ $in: ['faculty', 'adviser', 'panelist'] }`.
+2. **Course Instructor Committee Exclusion**:
+   * Course Instructors (`role: 'instructor'`) are **strictly prohibited** from serving as Adviser, Secretary, or Defense Panelists on capstone committees. Both client comboboxes (`useUsers({ role: 'faculty' })`) and backend services (`team.service.js:assignCommittee`) strictly reject instructor appointments.
+3. **Committee Appointments & Composition**:
+   * Defense committees consist of exactly 1 Adviser, 1 Secretary, and 3 Defense Panelists (Panelist 1 Lead/Chair, Panelist 2 Member, Panel Member 3), none labeled optional.
+   * **Mutual Exclusion**: A faculty member cannot serve as both adviser/secretary and panelist on the same team, nor can panelists duplicate each other.
+4. **Secretary Defense Workflow & ADM Compliance Gate**:
+   * In Phase 4, `project.admSignatures.secretary.endorsed === true` is an immutable prerequisite before Tier 1 (Adviser), Tier 2 (Panelists/Chair), and Tier 3 (Dean) digital signatures can unlock.
+   * In `ActionDoneMatrixTab.jsx`, an institutional Secretary Compliance Verification Gate banner appears above Tier 1, locking committee signatures when endorsement is pending.
+
+---
+
+## 4. THE TWO-PILE INSTRUCTION ARCHITECTURE
+
+Every agent operates under a strict **Two-Pile Governance Model** to prevent context compaction from erasing safety policies:
+
+### Pile A: Soft Steering Guidelines (Subject to contextual tuning)
+* **Language Standard**: ECMAScript 2022 (ES13) for Node.js backend modules; React 18 with modern React Hooks and custom state abstractions (Zustand, React Query) for the frontend client.
+* **Design Token Adherence**: Use Tailwind design system CSS variables (`bg-background`, `text-foreground`, `border-border/60`). Hardcoded hex colors and literal dark classes (e.g. `#020617`, `bg-slate-950`) are prohibited on functional components.
+* **Modularity**: Consolidate repetitive tasks behind shared hooks under `client/src/hooks` and centralized utility functions.
+
+### Pile B: Hard Survival Rules (Deterministic & Externally Enforced)
+* **Rule 0: Chat-Starter Preflight Snapshot (Absolute Top Priority)**: Before chatting, planning, or executing tasks, check for and ensure the active chat-starter snapshot exists in `.agents/ptss/chat-starter.json` as specified in `.agents/rules/00-chat-starter-protocol.md`.
+* **Playwright Visual Feedback Loop (Strict Design Rule)**: All UI, UX, styling, component, and layout modifications in `client/src/` MUST execute a Playwright visual feedback loop (light mode, dark mode, desktop 1440x900, mobile 390x844) to inspect rendered output before declaring completion.
+* **Protected Files (Strict Lock)**: Never edit or overwrite environment secret files (`.env*`). Never modify database seeders (`server/seeders/*`) or deployment automation scripts (`docker-compose*.yml`, `deploy.ps1`, `lan-deploy.ps1`, `infra/*`) without explicit confirmation.
+* **No Unbounded File Reading**: Full repository dumps, broad wildcard searches, and recursive `cat` style dumps are strictly prohibited. Agents must use structured file indexers or targeted line-range viewers (`StartLine`/`EndLine`).
+* **No Direct Database Mutations**: Direct raw MongoDB, Redis, or ChromaDB mutations via terminal scripts are blocked. All state changes must occur via the official API service layers.
+* **Dual-Persistence Memory Namespace**: Persistent agent execution trajectories, session states, and HLLM lessons are maintained strictly under `.agents/ptss/` (structured session JSONs & `index.jsonl`) and `memories/repo/` (technical context & lessons). Any auxiliary memory file written to the workspace root or unapproved paths will trigger an immediate pre-commit rejection.
+
+---
+
+## 5. REPOSITORY DIRECTORY LAYOUT & WHITELIST BOUNDARIES
+
+To prevent a **Workspace Clutter Crisis**, the workspace maintains a strict whitelist. The creation of unvetted folders or loose scripts in the root directory is blocked.
+
+```
+/workspace/
+├── client/                           ← React 18 Tailwind Frontend SPA
+├── server/                           ← Node.js / Express.js REST API Backend
+├── plagiarism_engine/                ← PyTorch & Winnowing Plagiarism API (FastAPI)
+├── shared/                           ← Shared schema & utility workspace
+├── scripts/                          ← All deployment, migration, and seeder scripts
+├── docs/                             ← System specifications, guidelines, and manuals
+├── assets/                           ← Media, logos, and static graphics
+├── memories/                         ← HLLM repo lessons, interaction hooks, and technical context
+├── .git/                             ← Local Git repository metadata
+├── .agents/                          ← Shared memory, PTSS sessions, and execution trajectories
+└── scratch/                          ← Intermediate developer scratch space
+```
+
+### File Write Whitelist
+* **Allowed Write Areas**: `client/src/`, `server/`, `plagiarism_engine/`, `shared/`, `scripts/`, `docs/`, `.agents/`, `memories/`, and `scratch/`.
+* **Strictly Prohibited**: No new root-level folders. No loose `.sh`, `.py`, or `.ps1` scripts in root (all scripts must live under `scripts/`).
+* **Shadow Tree Ban**: Files must never be written to or read from dead development trees (e.g., `staging/`, `dashboard-ui/`, `references/`).
+
+---
+
+## 6. ASDLC [v2.0] 8-STAGE BOUNDED EXECUTION LIFECYCLE
+
+Every agent operates strictly within the ASDLC v2.0 lifecycle:
+
+* **STAGE 0: STARTUP PREFLIGHT**: Verify active `.agents/ptss/chat-starter.json`. Inspect latest 2–3 entries in `.agents/ptss/index.jsonl` and `memories/repo/CMS-V2-Technical-Context.md` to load recent architecture decisions and active prevention rules.
+* **STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP**: Query the **Skills Dictionary** (`.agents/skills/`) to prime matching domain skills (e.g., `frontend-patterns`, `verification-loop`, `capstone-lifecycle-orchestrator`) before taking action.
+* **STAGE 2: TARGETED CONTEXT GATHERING**: Use symbol searches and bounded line slices (`StartLine`/`EndLine`). Never dump whole files into prompts.
+* **STAGE 3: STRUCTURAL INSPECTION**: Trace caller-callee chains (Component $\to$ Hook/Store $\to$ API Service $\to$ Express Route $\to$ Controller $\to$ Mongoose Model). Verify route parity via `npm run check:endpoints`.
+* **STAGE 4: STATECHART-DRIVEN ORCHESTRATION**: Model transitions and evaluate edge cases before writing modifications.
+* **STAGE 5: SURGICAL CST EDITING**: Apply targeted CST diffs. Preserve developer comments and JSDocs. Zero whole-file rewrites.
+* **STAGE 6: DETERMINISTIC VERIFICATION**: Execute Fast-Path Targeted Testing (`npm test --workspace=client -- <target-test-file>`) during iteration. Run the full 7-point quality battery on final sign-off.
+* **STAGE 7: HUMAN-IN-THE-LOOP (HITL) GATING**: Pause and request confirmation for database seeding, major releases, or ADM digital signature hashes.
+* **STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL**: Persist execution trajectory to `.agents/ptss/sessions/YYYY-MM-DD_<slug>.json`, append summary to `.agents/ptss/index.jsonl`, and record learned runbooks to `memories/repo/CMS-V2-Technical-Context.md` or `memories/repo/lessons/` (using keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`, `evidence`, `passed`). Update `status: "completed"` in `chat-starter.json`.
+
+---
+
+## 7. SUPREME COGNITIVE PROTOCOLS (v2.1) & KERNEL ENGINEERING STANDARDS
+
+* **Keep It Simple**: Zero AI slop, no unvetted dependencies, no premature abstractions.
+* **Easy to Verify**: Every modification must be accompanied by targeted assertion suites.
+* **Reproducible Results**: Deterministic, environment-agnostic execution across local dev, PowerShell, and Docker.
+* **Narrow Scope**: Solve the exact problem without accidental drift or collateral modifications.
+* **Explicit Constraints**: Strict TypeScript/Zod/Mongoose validation, role boundaries, and error boundaries.
+* **Logical Structure**: Concrete Semantic Tree (CST) precision patching preserving existing JSDocs and developer comments.
+
+---
+
+## 8. COGNITIVE VULNERABILITY GUARDS
+
+* **Execution Signal Dominance**: Zero hope-driven development. Run isolated 10-line scratchpad tests in `scratch/` before touching target codebase files.
+* **Session Startup Recall**: Inspect `index.jsonl` (latest 2–3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` before taking action.
+* **Three-Cycle Break Rule**: If a fix fails two consecutive test iterations, **STOP**. Revert baseline and inject diagnostic tracers.
+* **Mutation Testing**: Assert negative boundaries and synthetic mutation failures.
+* **Docker Container Dependency Synchronization**: The Vite dev server runs in Docker container `cms-client`. When installing npm packages (`npm install --workspace=client <pkg>`), also install inside the container (`docker exec cms-client npm install --workspace=client <pkg>`) and restart it (`docker restart cms-client`) to prevent Vite import resolution overlay failures.
+* **Defensive Entity Prefix Normalization**: Entity fields in databases and seeds may already contain classification prefixes (e.g. `team.name = "Team Gamma"`). Formatting logic must sanitize raw strings with regex (e.g. `team.name.replace(/^Team\s+/i, '').trim()`) to prevent duplicate prefix bugs such as `"Team Team Gamma"`.
+* **16:9 Presentation Canvas & Overflow Isolation**: Slide decks and presentation previews must adhere to a strict 16:9 widescreen canvas (`aspect-video`, `LAYOUT_16x9`), using flex column layout with space distribution (`flex flex-col justify-between`), responsive typography (`text-sm sm:text-base lg:text-lg`), dedicated navigation bars external to slide content, and keyboard listeners guarded against active text input focus.
+
+
+---
+
+## 9. SKILLS DICTIONARY & HERMES SELF-IMPROVING PIPELINE
+
+The workspace houses **64 verified cognitive skills** under `.agents/skills/`. This catalog forms the authoritative **Skills Dictionary**.
+
+### Mandatory First-Use Contract
+For any task touching a specialized domain, agents **MUST** inspect and adhere to the matching skill before planning implementation or modifying files:
+* **Backend Architecture & APIs**: `senior-backend`, `mongoose-mongodb`
+* **Frontend UI, Layout & State**: `frontend-patterns`, `frontend-specialist`, `zustand`
+* **Design Polish & Aesthetics**: `i-frontend-design`, `ui-design-principles`, `i-polish`, `i-colorize`, `i-arrange`
+* **Academic Capstone Lifecycle**: `capstone-lifecycle-orchestrator`
+* **Verification & Test Loops**: `verification-loop`, `anti-regression-and-ci-governance`
+* **Production & Infrastructure**: `sre-engineer`, `docker-compose-production`, `devops-iac-engineer`
+* **Cognitive Purity & Anti-Slop**: `anti-slop`
+
+### Continuous Skill Gap-Updating Protocol (`skill-write-or-patch`)
+Agents **MUST** patch `SKILL.md` (via surgical CST diffs or `skill-write-or-patch`) whenever:
+1. The same sub-problem was solved twice without a backing skill.
+2. An existing skill is missing a trigger phrase, CMS-V2 path, or workflow step.
+3. A task reveals a repeatable pattern or institutional BukSU requirement not yet captured.
+
+### Hermes Curator Protocol (`hermes-curator`)
+Audits skill lifecycle on demand (`audit skills` or `run hermes curator`):
+* **Active**: Used in PTSS within 30d $\rightarrow$ Retained.
+* **Stale**: 30–44d since last PTSS hit $\rightarrow$ Tagged with `_STALE.md` marker.
+* **Archived**: 45d+ since last PTSS hit $\rightarrow$ Moved to `.agents/skills/.archived/`.
+
+---
+
+## 10. FAST-PATH TARGETED TESTING DIRECTIVE (ZERO-LAG VERIFICATION)
+
+Running the full 43+ test suites (~90–120s on Windows) during minor iterative changes exhausts token budgets and triggers watchdog timeouts. Agents and developers **MUST** use **Targeted Testing** during iterative development:
+
+```bash
+# Targeted Client Test (runs in 1–5 seconds instead of ~90s)
+npm test --workspace=client -- <path-to-test-file>
+
+# Examples:
+npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx
+npm test --workspace=client -- src/components/projects/AlignmentSelectorDialog.test.jsx
+npm test --workspace=client -- src/components/projects/
+
+# Targeted Server Unit or Integration Test (runs in 1–4 seconds):
+npm test --workspace=server -- tests/unit/<module>.test.js
+```
+
+Full workspace test runs (`npm test --workspace=client`) are strictly reserved for final quality gate verification.
+
+---
+
+## 11. PLAYWRIGHT VISUAL FEEDBACK LOOP (STRICT DESIGN RULE)
+
+All UI, UX, styling, component, and layout modifications in `client/src/` **MUST** execute a Playwright visual feedback loop in `scratch/` across:
+* **Desktop Viewport**: 1440 × 900 (Forced Light Mode & Dark Mode)
+* **Mobile Viewport**: 390 × 844 (Forced Light Mode & Dark Mode)
+* **Audit Inspection**: Inspect rendered output for layout shifts, clipping, text truncation, dark mode token contrast (`text-foreground`, `bg-background`), and responsive responsiveness before declaring completion.
+
+---
+
+## 12. UNIFIED 7-POINT QUALITY GATE BATTERY
+
+Before declaring any implementation task complete, agents **MUST** execute and pass the unified 7-point verification battery with zero errors:
+
+```bash
+# 1. API Route Parity Check (196 Server / 175 Client, UNMATCHED_COUNT = 0)
+npm run check:endpoints
+
+# 2. Agentic System Governance Audit (60/60 checks)
+npm run validate:agentic
+
+# 3. Agent Communication & Governance Pipeline
+npm run validate:governance
+
+# 4. React Frontend Unit & Institutional Fidelity Tests
+# FAST-PATH ITERATION (1–5s): npm test --workspace=client -- <target-test-file>
+# FULL GATE CLOSURE (~90s):   npm test --workspace=client
+npm test --workspace=client
+
+# 5. Express Server 13-Stage Comprehensive Workflow Tests
+# FAST-PATH ITERATION (1–4s): npm test --workspace=server -- <target-test-file>
+# FULL WORKFLOW GATE (~22s):  npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
+npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js
+
+# 6. Workspace Cleanliness & Cognitive Guardrail
+python scripts/workspace_guardrail.py
+
+# 7. Playwright Visual Audit Gate (Mandatory for client UI/UX modifications)
+node scratch/<feature>_audit.mjs
+```
+
+---
+
+## 13. GIT POST-COMMIT TAGGING & AUTOMATED VERSIONING
+
+Automated semantic tagging is managed via `scripts/git-auto-tag.py` (`.husky/post-commit`):
+
+| Commit Message Flag | Action Taken | Target Version Transition |
+| :--- | :--- | :--- |
+| **`feat: [major] ...`** | Increments Major version, resets minor/patch | `v1.1.0` $\rightarrow$ `v2.0.0` |
+| **`feat: [minor] ...`** | Increments Minor version, resets patch | `v1.0.0` $\rightarrow$ `v1.1.0` |
+| **`fix: ...` (default)** | Increments Patch version | `v1.1.0` $\rightarrow$ `v1.1.1` |
+
+* **Double-Tag Protection**: The tagging engine parses HEAD; if the commit already carries a semantic tag, the tag operation is skipped to prevent infinite git loop pipelines.
+
+---
+
+## 14. RUNAWAY WATCHDOGS & INFINITE LOOP CONTAINMENT
+
+To protect token consumption and pipeline resources, execution is actively monitored:
+* **Max Iterations**: Hard capped at **15 turns**.
+* **Max Time**: Strict **300-second (5-minute)** wall-clock timeout.
+* **State-Hashing Watchdog**: Generates a SHA-256 hash across the serialized message trajectory and filesystem states at every turn. If a matching hash is discovered in execution history, immediate abort is triggered.
+
+---
+
+## 15. HUMAN-IN-THE-LOOP (HITL) GATES
+
+High-consequence actions must pause and request explicit human verification:
+1. **Database Seeding**: Any scripts modifying standard catalog records (`server/seeders/*`).
+2. **Production Releases**: Pushing tags beyond the major version line.
+3. **ADM Signatures**: Applying final digital signature hashes to the Action Done Matrix.
+
+The agent will serialize its execution state, output a secure token, enter a sleep phase, and resume only when a valid human authorization signature is received.
+
 
 
