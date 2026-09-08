@@ -10,13 +10,16 @@ export default function ADMPhaseSelector({
   academicYear = '2025–2026',
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/20 border border-border/60 p-3 rounded-lg min-w-0">
-      <div className="space-y-0.5">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5 bg-muted/20 border border-border/60 p-3.5 rounded-xl min-w-0">
+      <div className="space-y-0.5 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-foreground">
             Matrix Milestone Revision Scope
           </span>
-          <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+          <Badge
+            variant="outline"
+            className="text-[10px] border-primary/30 text-primary shrink-0 whitespace-nowrap"
+          >
             AY {academicYear}
           </Badge>
         </div>
@@ -25,26 +28,32 @@ export default function ADMPhaseSelector({
         </p>
       </div>
 
-      <Tabs value={selectedPhase} onValueChange={onPhaseChange} className="shrink-0">
-        <TabsList className="bg-card border border-border/60 h-9 p-1 inline-flex">
-          <TabsTrigger value="ALL" className="text-xs gap-1.5 px-2.5">
-            <Layers className="h-3 w-3" />
-            All Phases
-          </TabsTrigger>
-          <TabsTrigger value="CAPSTONE_2" className="text-xs gap-1.5 px-3">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-            Cap 2 (Ch. 1–3)
-          </TabsTrigger>
-          <TabsTrigger value="CAPSTONE_3" className="text-xs gap-1.5 px-3">
-            <Clock className="h-3 w-3 text-primary animate-pulse" />
-            Cap 3 (Dev / Midterm)
-          </TabsTrigger>
-          <TabsTrigger value="CAPSTONE_4" className="text-xs gap-1.5 px-3">
-            <Award className="h-3 w-3 text-purple-500" />
-            Cap 4 (Final Defense)
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="w-full lg:w-auto overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shrink-0">
+        <Tabs
+          value={selectedPhase}
+          onValueChange={onPhaseChange}
+          className="shrink-0 w-full sm:w-auto"
+        >
+          <TabsList className="bg-card border border-border/60 h-9 p-1 inline-flex flex-nowrap min-w-max shrink-0">
+            <TabsTrigger value="ALL" className="text-xs gap-1.5 px-2.5 whitespace-nowrap">
+              <Layers className="h-3 w-3" />
+              All Phases
+            </TabsTrigger>
+            <TabsTrigger value="CAPSTONE_2" className="text-xs gap-1.5 px-3 whitespace-nowrap">
+              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+              Cap 2 (Ch. 1–3)
+            </TabsTrigger>
+            <TabsTrigger value="CAPSTONE_3" className="text-xs gap-1.5 px-3 whitespace-nowrap">
+              <Clock className="h-3 w-3 text-primary animate-pulse" />
+              Cap 3 (Dev / Midterm)
+            </TabsTrigger>
+            <TabsTrigger value="CAPSTONE_4" className="text-xs gap-1.5 px-3 whitespace-nowrap">
+              <Award className="h-3 w-3 text-purple-500" />
+              Cap 4 (Final Defense)
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
     </div>
   );
 }

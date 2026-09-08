@@ -145,6 +145,13 @@ class ProjectService {
           ].filter(Boolean)
         : [];
 
+      const pitchDeck =
+        proposal.pitchDeck &&
+        typeof proposal.pitchDeck === 'object' &&
+        !Array.isArray(proposal.pitchDeck)
+          ? proposal.pitchDeck
+          : {};
+
       if (!title) continue;
 
       if (!normalizedByTitle.has(title)) {
@@ -153,6 +160,7 @@ class ProjectService {
           description,
           capstoneType,
           sdgTags,
+          pitchDeck,
         });
       }
     }
@@ -180,7 +188,7 @@ class ProjectService {
     let team = null;
     if (user.teamId) {
       team = await Team.findById(user.teamId).select(
-        'leaderId members isLocked sectionId academicYear courseId',
+        'leaderId members isLocked sectionId academicYear courseId adviserId secretaryId panelistIds',
       );
     }
 
@@ -434,6 +442,16 @@ class ProjectService {
       courseId: section.courseId._id,
       sectionId: section._id,
       memberRoleAssignments,
+      adviserId: team.adviserId || undefined,
+      secretaryId: team.secretaryId || undefined,
+      panelistIds: team.panelistIds || [],
+      panelists:
+        Array.isArray(team.panelistIds) && team.panelistIds.length > 0
+          ? team.panelistIds.map((pId, idx) => ({
+              userId: pId,
+              role: idx === 0 ? 'chair' : 'member',
+            }))
+          : [],
     });
 
     team.courseId = section.courseId._id;
@@ -1101,6 +1119,42 @@ class ProjectService {
     if (data.title !== undefined) project.title = data.title;
     if (data.abstract !== undefined) project.abstract = data.abstract;
     if (data.keywords !== undefined) project.keywords = data.keywords;
+
+    // Sync proposal metadata & pitch deck
+    if (Array.isArray(project.titleProposalMetadata) && project.titleProposalMetadata.length > 0) {
+      let targetIndex = -1;
+      if (data.proposalId !== undefined && data.proposalId !== null) {
+        targetIndex = project.titleProposalMetadata.findIndex(
+          (m, idx) => String(m._id) === String(data.proposalId) || idx === Number(data.proposalId),
+        );
+      }
+      if (targetIndex === -1 && project.title) {
+        targetIndex = project.titleProposalMetadata.findIndex((m) => m.title === project.title);
+      }
+      if (targetIndex === -1) {
+        targetIndex = 0;
+      }
+
+      if (targetIndex !== -1 && project.titleProposalMetadata[targetIndex]) {
+        if (data.title) {
+          project.titleProposalMetadata[targetIndex].title = data.title;
+          if (
+            Array.isArray(project.titleProposals) &&
+            project.titleProposals[targetIndex] !== undefined
+          ) {
+            project.titleProposals[targetIndex] = data.title;
+          }
+        }
+        if (data.description) {
+          project.titleProposalMetadata[targetIndex].description = data.description;
+        }
+        if (data.pitchDeck && typeof data.pitchDeck === 'object') {
+          project.titleProposalMetadata[targetIndex].pitchDeck = data.pitchDeck;
+        }
+        project.titleProposalMetadata[targetIndex].status = 'pending';
+      }
+    }
+
     project.titleStatus = TITLE_STATUSES.SUBMITTED;
     project.rejectionReason = null;
     await project.save();
@@ -1123,6 +1177,14 @@ class ProjectService {
       type: 'title_submitted',
       title: 'Revised Title Submission',
       message: `A revised project title "${project.title}" has been resubmitted for approval.`,
+      metadata: { projectId: project._id },
+    });
+
+    // Notify defense committee (adviser, secretary, panelists)
+    await this._notifyCommittee(project, {
+      type: 'title_submitted',
+      title: 'Revised Proposal Resubmitted for Defense Review',
+      message: `Team has resubmitted their revised proposal "${project.title}" for committee evaluation.`,
       metadata: { projectId: project._id },
     });
 
@@ -3122,6 +3184,38 @@ class ProjectService {
     const notifs = await Notification.insertMany(
       instructors.map((instr) => ({
         userId: instr._id,
+        type: notif.type,
+        title: notif.title,
+        message: notif.message,
+        metadata: notif.metadata,
+      })),
+    );
+    notifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+  }
+
+  /**
+   * Notify appointed committee members (Adviser, Secretary, Panelists) about a project event.
+   *
+   * @param {Object} project
+   * @param {{ type: string, title: string, message: string, metadata: Object }} notif
+   * @private
+   */
+  async _notifyCommittee(project, notif) {
+    if (!project) return;
+    const recipientIds = new Set();
+    if (project.adviserId) recipientIds.add(project.adviserId.toString());
+    if (project.secretaryId) recipientIds.add(project.secretaryId.toString());
+    if (Array.isArray(project.panelistIds)) {
+      project.panelistIds.forEach((pid) => {
+        if (pid) recipientIds.add(pid.toString());
+      });
+    }
+
+    if (recipientIds.size === 0) return;
+
+    const notifs = await Notification.insertMany(
+      [...recipientIds].map((userId) => ({
+        userId,
         type: notif.type,
         title: notif.title,
         message: notif.message,

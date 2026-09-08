@@ -2,7 +2,7 @@ import { TabsTrigger } from '@/components/ui/Tabs';
 
 /** The shared className applied to all workflow tab triggers across the application. */
 export const WORKFLOW_TAB_TRIGGER_CLASS =
-  'data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none pb-3 px-1 font-medium text-muted-foreground';
+  'h-9 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all select-none gap-2';
 
 /**
  * WorkflowTabTrigger — reusable tab trigger with optional locked state.

@@ -209,6 +209,7 @@ function getRoleNavItems(role) {
       return instructorNavItems;
     case ROLES.ADVISER:
     case ROLES.PANELIST:
+    case ROLES.FACULTY:
       return facultyNavItems;
     case ROLES.STUDENT:
     default:

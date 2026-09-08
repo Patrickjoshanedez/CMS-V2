@@ -1,0 +1,61 @@
+{
+  "sessionId": "2026-09-07_adm_overlap_fix_and_my_project_fullwidth_refactor",
+  "timestamp": "2026-09-07T18:32:00.000Z",
+  "task": "Resolve ADMPhaseSelector overlap, expand MyProjectPage to full-width workspace, add ProjectDetailsModal, remove NextStepCard, and scope Title Feedback to Capstone 1",
+  "status": "completed",
+  "compliance": {
+    "asdlc": "v2.0",
+    "supremeCognitiveProtocols": "v2.1",
+    "routeParity": "196 Server / 175 Client (UNMATCHED_COUNT = 0)",
+    "agenticAudit": "60/60 checks passed",
+    "governancePipeline": "All 4 stages valid",
+    "workspaceGuardrail": "Pristine",
+    "playwrightVisualAudit": "PASSED (7 viewports)"
+  },
+  "modifications": [
+    {
+      "file": "client/src/components/projects/ADMPhaseSelector.jsx",
+      "action": "modified",
+      "summary": "Fixed UI overlap with lg:flex-row responsive layout, shrink-0 whitespace-nowrap AY badge, and overflow-x-auto tabs container."
+    },
+    {
+      "file": "client/src/components/projects/ProjectDetailsModal.jsx",
+      "action": "created",
+      "summary": "New modal dialog showing complete project metadata, proponent team roster with standardized capstone roles, committee, SDG alignments, and external links."
+    },
+    {
+      "file": "client/src/components/projects/TitleFeedbackRemarksCard.jsx",
+      "action": "created",
+      "summary": "Dedicated card for committee title defense feedback remarks, scoped strictly to Capstone 1 tab."
+    },
+    {
+      "file": "client/src/components/projects/ProjectSidebarInfo.jsx",
+      "action": "modified",
+      "summary": "Removed titleProposalComments block so remarks never bleed outside Capstone 1."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.jsx",
+      "action": "modified",
+      "summary": "Added Project Details & Approval button to header, removed NextStepCard, refactored layout to full-width workspace, scoped TitleFeedbackRemarksCard to Capstone 1, and mounted ProjectDetailsModal."
+    },
+    {
+      "file": "client/src/components/projects/ProjectDetailsModal.test.jsx",
+      "action": "created",
+      "summary": "Unit tests for ProjectDetailsModal and TitleFeedbackRemarksCard (5 tests passed)."
+    }
+  ],
+  "verificationEvidence": {
+    "unitTests": "5/5 ProjectDetailsModal.test.jsx passed, 7/7 ProposalTab.test.jsx passed",
+    "endpointParity": "UNMATCHED_COUNT=0",
+    "agenticGovernance": "60/60 checks passed",
+    "screenshots": [
+      "01_desktop_light_my_capstone_fullwidth.png",
+      "02_desktop_light_project_details_modal.png",
+      "03_desktop_light_adm_phase_selector_no_overlap.png",
+      "04_desktop_dark_my_capstone_fullwidth.png",
+      "05_desktop_dark_project_details_modal.png",
+      "06_mobile_light_my_capstone.png",
+      "07_mobile_dark_my_capstone.png"
+    ]
+  }
+}

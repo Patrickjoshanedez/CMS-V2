@@ -35,6 +35,7 @@ const titleProposalSchema = z.object({
     .array(z.enum(SDG_TAG_SUGGESTIONS))
     .min(1, 'Each proposal must include at least one SDG tag')
     .max(17, 'Each proposal can have at most 17 SDG tags'),
+  pitchDeck: z.record(z.any()).optional(),
 });
 
 /* ───── Create project ───── */
@@ -144,6 +145,9 @@ export const updateTitleSchema = z.object({
     .min(10, 'Title must be at least 10 characters')
     .max(300, 'Title must not exceed 300 characters'),
   abstract: z.string().trim().max(500, 'Abstract must not exceed 500 characters').optional(),
+  description: z.string().trim().optional(),
+  pitchDeck: z.record(z.any()).optional(),
+  proposalId: z.union([z.string().trim(), z.number().int()]).optional(),
   keywords: z
     .array(z.string().trim().min(1))
     .max(10, 'A project can have at most 10 keywords')

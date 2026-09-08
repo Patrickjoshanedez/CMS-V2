@@ -340,6 +340,10 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       },
       default: [],
     },
+    pitchDeck: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
@@ -364,7 +368,6 @@ const projectSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
       required: [true, 'Team ID is required'],
-      unique: true, // One project per team
     },
     title: {
       type: String,
@@ -794,7 +797,14 @@ const projectSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
-// teamId unique index is already created by `unique: true` in the schema field.
+// One active project per team (rejected projects don't block re-creation)
+projectSchema.index(
+  { teamId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { projectStatus: { $ne: 'rejected' } },
+  },
+);
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
 projectSchema.index({ panelistIds: 1 });

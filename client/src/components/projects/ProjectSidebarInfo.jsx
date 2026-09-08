@@ -13,6 +13,14 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+function cleanTeamName(name) {
+  if (!name) return 'Team';
+  const stripped = String(name)
+    .replace(/^Team\s+/i, '')
+    .trim();
+  return stripped ? `Team ${stripped}` : 'Team';
+}
+
 export default function ProjectSidebarInfo({ project }) {
   const capstoneRaw = project.capstoneType || project.projectType;
   const capstoneTypeOrPhase = Array.isArray(capstoneRaw)
@@ -50,10 +58,27 @@ export default function ProjectSidebarInfo({ project }) {
         )}
 
         <div className="grid gap-3 text-sm">
+          {project.teamId && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Users className="h-4 w-4 text-primary/80" />
+              <span>
+                Team:{' '}
+                <strong className="font-medium text-foreground">
+                  {cleanTeamName(project.teamId?.name)}
+                </strong>
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span>Academic Year: {project.academicYear || '\u2014'}</span>
           </div>
+          {project.teamId?.section && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
+              <span>Section: {project.teamId.section}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-muted-foreground">
             <FileText className="h-4 w-4" />
             <span>Phase: {capstoneTypeOrPhase}</span>
@@ -192,33 +217,6 @@ export default function ProjectSidebarInfo({ project }) {
               {project.rejectionReason}
             </AlertDescription>
           </Alert>
-        )}
-
-        {project.titleProposalComments?.length > 0 && (
-          <div className="rounded-md border bg-muted/30 p-4 space-y-3 mt-4">
-            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Title Feedback &amp; Remarks
-            </p>
-            <div className="space-y-4">
-              {project.titleProposalComments.map((thread, i) => (
-                <div key={i} className="space-y-2">
-                  {thread.comments?.map((comment, j) => (
-                    <div key={j} className="bg-card border border-border p-3 rounded-lg text-sm">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-primary">{comment.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(comment.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                        {comment.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
         )}
       </CardContent>
     </Card>

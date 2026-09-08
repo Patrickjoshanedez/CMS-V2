@@ -258,22 +258,41 @@ export default function NextStepCard({ project, submissions }) {
   const IconComponent = step.icon;
 
   return (
-    <Card className="border-primary/20 bg-primary/5">
-      <CardContent className="flex items-start gap-4 pt-6">
-        <div className={`mt-0.5 ${step.color}`}>
-          <IconComponent className="h-6 w-6" />
+    <Card className="border-primary/25 bg-gradient-to-br from-card via-card to-primary/[0.04] shadow-xs overflow-hidden">
+      <div className="p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg bg-muted/60 border border-border/60 ${step.color}`}>
+              <IconComponent className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Current Milestone
+            </span>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+            Next Action
+          </span>
         </div>
-        <div className="flex-1 space-y-1">
-          <h4 className="text-sm font-semibold">{step.title}</h4>
-          <p className="text-sm text-muted-foreground">{step.description}</p>
+
+        <div>
+          <h4 className="text-sm font-semibold text-foreground leading-snug">{step.title}</h4>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.description}</p>
         </div>
+
         {step.action && (
-          <Button size="sm" onClick={() => navigate(step.action.path)}>
-            {step.action.label}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => navigate(step.action.path)}
+              className="w-full justify-center text-xs font-semibold gap-1.5 shadow-xs"
+            >
+              <span>{step.action.label}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         )}
-      </CardContent>
+      </div>
     </Card>
   );
 }

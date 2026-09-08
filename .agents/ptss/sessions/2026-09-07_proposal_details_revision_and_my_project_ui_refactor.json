@@ -1,0 +1,43 @@
+{
+  "sessionId": "2026-09-07_proposal_details_revision_and_my_project_ui_refactor",
+  "task": "Fix Proposal Details Persistence, Implement Approval Guard & Revision Workflow with Dual Notification, and Execute Total UI Refactor of My Capstone Dashboard",
+  "timestamp": "2026-09-07T18:04:30+08:00",
+  "status": "completed",
+  "evidence": {
+    "apiParity": "196 Server / 175 Client, UNMATCHED_COUNT = 0",
+    "agenticChecks": "60/60 passed",
+    "governanceChecks": "passed",
+    "clientTests": [
+      "src/components/projects/ProposalTab.test.jsx (7/7 passed)",
+      "src/pages/projects/CreateProjectPage.test.jsx (14/14 passed)"
+    ],
+    "serverTests": ["tests/unit/project.create.validation.test.js (6/6 passed)"],
+    "workspaceGuardrail": "pristine",
+    "visualScreenshots": [
+      "01_desktop_light_my_capstone.png",
+      "02_desktop_light_proposaltab_details.png",
+      "03_desktop_light_unlocked_editing_scope.png",
+      "04_desktop_dark_my_capstone.png",
+      "05_desktop_dark_proposaltab.png",
+      "06_mobile_light_my_capstone.png",
+      "07_mobile_dark_my_capstone.png",
+      "08_expanded_proposal_details_top.png",
+      "09_expanded_proposal_details_bottom.png",
+      "10_revision_state_banner_and_editable.png",
+      "11_revision_state_resubmit_button.png"
+    ]
+  },
+  "changes": [
+    "client/src/utils/pitchDeckParser.js",
+    "server/modules/projects/project.model.js",
+    "server/modules/projects/project.validation.js",
+    "server/modules/projects/project.service.js",
+    "client/src/components/projects/ActiveProposalView.jsx",
+    "client/src/components/projects/ProposalTab.jsx",
+    "client/src/components/projects/WorkflowTabTrigger.jsx",
+    "client/src/components/projects/ProjectTitleCard.jsx",
+    "client/src/components/projects/ProjectSidebarInfo.jsx",
+    "client/src/components/projects/NextStepCard.jsx",
+    "client/src/pages/projects/MyProjectPage.jsx"
+  ]
+}

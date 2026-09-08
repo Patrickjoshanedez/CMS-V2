@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -27,7 +27,8 @@ import EmptyProjectState from '@/components/projects/EmptyProjectState';
 import RejectedProjectState from '@/components/projects/RejectedProjectState';
 import ProjectSidebarInfo from '@/components/projects/ProjectSidebarInfo';
 import ProjectTitleCard from '@/components/projects/ProjectTitleCard';
-import NextStepCard from '@/components/projects/NextStepCard';
+import ProjectDetailsModal from '@/components/projects/ProjectDetailsModal';
+import TitleFeedbackRemarksCard from '@/components/projects/TitleFeedbackRemarksCard';
 import TitleActionsSection, {
   PanelistsPendingCard,
   TitlePendingCard,
@@ -66,6 +67,7 @@ export default function MyProjectPage() {
   const navigate = useNavigate();
   const { user, fetchUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isProjectDetailsOpen, setIsProjectDetailsOpen] = useState(false);
   const { data: project, isLoading, error, refetch } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
 
@@ -213,16 +215,29 @@ export default function MyProjectPage() {
               Track your capstone project progress and manage your submissions.
             </p>
           </div>
-          {titleApproved && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/project/approval')}
-              className="gap-2 text-xs border-border/60 hover:bg-muted"
-            >
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              View Title Proposals & Approval
-            </Button>
+          {project && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsProjectDetailsOpen(true)}
+                className="gap-2 text-xs border-border/60 hover:bg-muted font-medium shadow-xs"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-primary" />
+                Project Details &amp; Approval
+              </Button>
+              {titleApproved && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/project/approval')}
+                  className="gap-2 text-xs border-border/60 hover:bg-muted font-medium shadow-xs"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  View Title Proposals &amp; Approval
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
@@ -358,143 +373,144 @@ export default function MyProjectPage() {
           !error &&
           project.projectStatus !== PROJECT_STATUSES.REJECTED &&
           !isArchivedProject && (
-            <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start mt-2">
-              {/* Main Workspace (Left - 70%) */}
-              <div className="xl:col-span-8 space-y-6">
-                <WorkflowPhaseTracker
-                  project={project}
-                  onStepClick={handleStepClick}
-                  className="mb-6"
-                />
+            <div className="max-w-[1600px] mx-auto space-y-6 mt-2">
+              {/* Status & Prerequisite Alerts */}
+              {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+              {!titleApproved && <WorkflowPrerequisiteBanner titleStatus={titleStatus} />}
+              {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (
+                <TitlePendingCard titleStatus={titleStatus} />
+              )}
+              {titleApproved && !hasPanelists && <PanelistsPendingCard />}
 
-                <ProjectTitleCard project={project} />
+              <WorkflowPhaseTracker
+                project={project}
+                onStepClick={handleStepClick}
+                className="mb-2"
+              />
 
-                {/* Tabbed workflow */}
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                  <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-border mb-6">
-                    <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
-                      <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
-                      <WorkflowTabTrigger
-                        value="capstone_2"
-                        icon={BookOpen}
-                        label="Capstone 2"
-                        locked={!capstone2Unlocked}
-                        lockedReason={getLockedReason('capstone_2')}
-                        onLockedClick={() => handleLockedTabClick('capstone_2')}
-                      />
-                      <WorkflowTabTrigger
-                        value="capstone_3"
-                        icon={Code2}
-                        label="Capstone 3"
-                        locked={!capstone3Unlocked}
-                        lockedReason={getLockedReason('capstone_3')}
-                        onLockedClick={() => handleLockedTabClick('capstone_3')}
-                      />
-                      <WorkflowTabTrigger
-                        value="capstone_4"
-                        icon={Award}
-                        label="Capstone 4"
-                        locked={!capstone4Unlocked}
-                        lockedReason={getLockedReason('capstone_4')}
-                        onLockedClick={() => handleLockedTabClick('capstone_4')}
-                      />
-                      <WorkflowTabTrigger
-                        value="consultation"
-                        icon={MessageSquareMore}
-                        label="Consultations"
-                        locked={!titleApproved}
-                        lockedReason={getLockedReason('consultation')}
-                        onLockedClick={() => handleLockedTabClick('consultation')}
-                      />
-                    </TabsList>
-                  </div>
+              <ProjectTitleCard project={project} />
 
-                  <TabsContent
-                    value="capstone_1"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    <TitleActionsSection project={project} />
-                    <ProposalTab project={project} />
-                    <EvaluationPanel projectId={project._id} defenseType="proposal" />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="capstone_2"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    <ChapterProgressWithRounds
-                      project={project}
-                      submissions={submissions}
-                      chapters={[1, 2, 3]}
-                      showUploadButton={titleApproved}
+              {/* Tabbed workflow */}
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
+                  <TabsList className="bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto flex-nowrap min-w-max shadow-xs">
+                    <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
+                    <WorkflowTabTrigger
+                      value="capstone_2"
+                      icon={BookOpen}
+                      label="Capstone 2"
+                      locked={!capstone2Unlocked}
+                      lockedReason={getLockedReason('capstone_2')}
+                      onLockedClick={() => handleLockedTabClick('capstone_2')}
                     />
-                    <ActionDoneMatrixTab
-                      project={project}
-                      isStudent
-                      user={user}
-                      onRefresh={() => refetch()}
+                    <WorkflowTabTrigger
+                      value="capstone_3"
+                      icon={Code2}
+                      label="Capstone 3"
+                      locked={!capstone3Unlocked}
+                      lockedReason={getLockedReason('capstone_3')}
+                      onLockedClick={() => handleLockedTabClick('capstone_3')}
                     />
-                    <EvaluationPanel projectId={project._id} defenseType="midterm" />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="capstone_3"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    {/* Capstone 3 Interactive Gantt Chart Roadmap */}
-                    <InteractiveGanttChart project={project} isReadOnly={false} />
-
-                    <DevelopmentAssetsForm project={project} />
-                    <PrototypeGallery projectId={project._id} canDelete canAdd />
-                    <ChapterProgressWithRounds
-                      project={project}
-                      submissions={submissions}
-                      chapters={[4, 5]}
-                      showUploadButton={titleApproved}
+                    <WorkflowTabTrigger
+                      value="capstone_4"
+                      icon={Award}
+                      label="Capstone 4"
+                      locked={!capstone4Unlocked}
+                      lockedReason={getLockedReason('capstone_4')}
+                      onLockedClick={() => handleLockedTabClick('capstone_4')}
                     />
-                    <ActionDoneMatrixTab
-                      project={project}
-                      isStudent
-                      user={user}
-                      onRefresh={() => refetch()}
+                    <WorkflowTabTrigger
+                      value="consultation"
+                      icon={MessageSquareMore}
+                      label="Consultations"
+                      locked={!titleApproved}
+                      lockedReason={getLockedReason('consultation')}
+                      onLockedClick={() => handleLockedTabClick('consultation')}
                     />
-                    <EvaluationPanel projectId={project._id} defenseType="paper" />
-                  </TabsContent>
+                  </TabsList>
+                </div>
 
-                  <TabsContent
-                    value="capstone_4"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    <FinalPaperUpload projectId={project._id} />
-                    {/* Capstone 4 Action Done Matrix & Secretary Endorsement Gate */}
-                    <ActionDoneMatrixTab
-                      project={project}
-                      isStudent
-                      user={user}
-                      onRefresh={() => refetch()}
-                    />
-                    <EvaluationPanel projectId={project._id} defenseType="final" />
-                  </TabsContent>
+                <TabsContent
+                  value="capstone_1"
+                  className="mt-0 focus-visible:outline-none space-y-6"
+                >
+                  <TitleActionsSection project={project} />
+                  <TitleFeedbackRemarksCard comments={project.titleProposalComments} />
+                  <ProposalTab project={project} onRefresh={() => refetch()} />
+                  <EvaluationPanel projectId={project._id} defenseType="proposal" />
+                </TabsContent>
 
-                  <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
-                    <ConsultationLogWidget project={project} isStudent user={user} />
-                  </TabsContent>
-                </Tabs>
-              </div>
+                <TabsContent
+                  value="capstone_2"
+                  className="mt-0 focus-visible:outline-none space-y-6"
+                >
+                  <ChapterProgressWithRounds
+                    project={project}
+                    submissions={submissions}
+                    chapters={[1, 2, 3]}
+                    showUploadButton={titleApproved}
+                  />
+                  <ActionDoneMatrixTab
+                    project={project}
+                    isStudent
+                    user={user}
+                    onRefresh={() => refetch()}
+                  />
+                  <EvaluationPanel projectId={project._id} defenseType="midterm" />
+                </TabsContent>
 
-              {/* Sticky Sidebar (Right - 30%) */}
-              <div className="xl:col-span-4 space-y-6 sticky top-24">
-                <NextStepCard project={project} submissions={submissions} />
-                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
-                {!titleApproved && <WorkflowPrerequisiteBanner titleStatus={titleStatus} />}
-                {titleStatus && titleStatus !== TITLE_STATUSES.APPROVED && (
-                  <TitlePendingCard titleStatus={titleStatus} />
-                )}
-                {titleApproved && !hasPanelists && <PanelistsPendingCard />}
-                <ProjectSidebarInfo project={project} />
-              </div>
+                <TabsContent
+                  value="capstone_3"
+                  className="mt-0 focus-visible:outline-none space-y-6"
+                >
+                  {/* Capstone 3 Interactive Gantt Chart Roadmap */}
+                  <InteractiveGanttChart project={project} isReadOnly={false} />
+
+                  <DevelopmentAssetsForm project={project} />
+                  <PrototypeGallery projectId={project._id} canDelete canAdd />
+                  <ChapterProgressWithRounds
+                    project={project}
+                    submissions={submissions}
+                    chapters={[4, 5]}
+                    showUploadButton={titleApproved}
+                  />
+                  <ActionDoneMatrixTab
+                    project={project}
+                    isStudent
+                    user={user}
+                    onRefresh={() => refetch()}
+                  />
+                  <EvaluationPanel projectId={project._id} defenseType="paper" />
+                </TabsContent>
+
+                <TabsContent
+                  value="capstone_4"
+                  className="mt-0 focus-visible:outline-none space-y-6"
+                >
+                  <FinalPaperUpload projectId={project._id} />
+                  {/* Capstone 4 Action Done Matrix & Secretary Endorsement Gate */}
+                  <ActionDoneMatrixTab
+                    project={project}
+                    isStudent
+                    user={user}
+                    onRefresh={() => refetch()}
+                  />
+                  <EvaluationPanel projectId={project._id} defenseType="final" />
+                </TabsContent>
+
+                <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+                  <ConsultationLogWidget project={project} isStudent user={user} />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
+
+        {/* Dedicated Project Details & Approval Modal Dialog */}
+        <ProjectDetailsModal
+          open={isProjectDetailsOpen}
+          onOpenChange={setIsProjectDetailsOpen}
+          project={project}
+        />
       </div>
     </DashboardLayout>
   );

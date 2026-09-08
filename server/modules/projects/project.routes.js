@@ -240,7 +240,7 @@ router.post(
 // Approve a submitted title
 router.post(
   '/:id/title/approve',
-  authorize(ROLES.INSTRUCTOR),
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.FACULTY, ROLES.ADVISER),
   validate(approveTitleSchema),
   auditLog('project.title_approved', 'Project', {
     getDescription: (req) => `Approved title for project ${req.params.id}`,
@@ -251,7 +251,7 @@ router.post(
 // Reject a submitted title (send back for revision)
 router.post(
   '/:id/title/reject',
-  authorize(ROLES.INSTRUCTOR),
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.FACULTY, ROLES.ADVISER),
   validate(rejectTitleSchema),
   auditLog('project.title_rejected', 'Project', {
     getDescription: (req) => `Rejected title for project ${req.params.id}`,

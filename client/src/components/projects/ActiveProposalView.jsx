@@ -6,14 +6,28 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { Award, CheckCircle2, Settings, Loader2 } from 'lucide-react';
+import { parsePitchDeckFromDescription } from '@/utils/pitchDeckParser';
 
 function parseProposalMetadata(metadata, abstract) {
+  const pitch =
+    metadata?.pitchDeck && Object.keys(metadata.pitchDeck).length > 0
+      ? metadata.pitchDeck
+      : parsePitchDeckFromDescription(metadata?.description);
+
   return {
-    problemStatement: metadata?.description || abstract || 'Problem statement not provided.',
+    problemStatement:
+      pitch?.problemStatement ||
+      metadata?.description ||
+      abstract ||
+      'Problem statement not provided.',
     proposedSolution:
+      pitch?.proposedSolution ||
       'Detailed solution architecture and approach will be evaluated during defense.',
-    uniqueInnovation: 'Key innovations and contributions to the field.',
-    targetBeneficiaries: 'Primary users and stakeholders impacted by this research.',
+    uniqueInnovation:
+      pitch?.uniqueContribution || 'Key innovations and contributions to the field.',
+    targetBeneficiaries:
+      pitch?.targetUsers || 'Primary users and stakeholders impacted by this research.',
+    expectedImpact: pitch?.expectedImpact || 'Anticipated institutional and operational outcomes.',
   };
 }
 
@@ -74,7 +88,7 @@ export default function ActiveProposalView({ project, proposal, index, canVote }
           <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400 border-b border-border pb-2">
             Problem Statement
           </h3>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
             {content.problemStatement}
           </p>
         </div>
@@ -82,16 +96,16 @@ export default function ActiveProposalView({ project, proposal, index, canVote }
           <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 border-b border-border pb-2">
             Proposed Solution
           </h3>
-          <p className="text-sm leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
             {content.proposedSolution}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <h3 className="text-base font-semibold text-indigo-600 dark:text-indigo-400">
               Unique Innovation
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
               {content.uniqueInnovation}
             </p>
           </div>
@@ -99,11 +113,21 @@ export default function ActiveProposalView({ project, proposal, index, canVote }
             <h3 className="text-base font-semibold text-amber-600 dark:text-amber-400">
               Target Beneficiaries
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
               {content.targetBeneficiaries}
             </p>
           </div>
         </div>
+        {content.expectedImpact && (
+          <div className="space-y-2 pt-2 border-t border-border">
+            <h3 className="text-base font-semibold text-violet-600 dark:text-violet-400">
+              Expected Impact / Value
+            </h3>
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+              {content.expectedImpact}
+            </p>
+          </div>
+        )}
       </div>
 
       {canVote && project.titleStatus === TITLE_STATUSES.SUBMITTED && (

@@ -346,8 +346,82 @@
      - Checklist: Verify mobile viewport layout (390x844) renders without horizontal clipping or squished columns.
   5. Evidence & Verification passed: 9/9 client component test suites passed (43/43 tests), 7/7 page test suites passed (33/33 tests), layout tests passed (13/13 tests), full 6-stage Playwright lifecycle audit passed with 0 errors across desktop (1440x900) and mobile (390x844) in dark mode, API route parity verified (`UNMATCHED_COUNT = 0`), and agentic system audit passed (60/60 checks).
 
+62. End-to-End Multi-Proposal Authoring, Committee Inheritance & Panel Title Approval:
+- Architectural Findings & Workflow Gaps Discovered:
+  1. RBAC Restriction on Title Approval Route: `POST /api/projects/:id/title/approve` and `/:id/title/reject` were strictly restricted to `ROLES.INSTRUCTOR`, returning 403 Forbidden when defense committee panelists or faculty members attempted to submit title approval/rejection decisions during proposal hearings.
+  2. Project Committee Inheritance Gap: When a team leader created a project via `POST /api/projects`, `project.service.js:createProject` failed to copy pre-assigned committee fields from the `Team` document (`team.adviserId`, `team.secretaryId`, `team.panelistIds`, `team.panelists`). This left the project committee empty, preventing panelists from finding the project under their review list (`/projects?filter=panel`).
+  3. Mongoose Blanket Unique Index Duplicate Key Error: `project.model.js` defined `teamId: { type: Schema.Types.ObjectId, ref: 'Team', required: true, unique: true }`. Even though `project.service.js` allowed teams with rejected projects to draft new proposals, MongoDB's legacy unique index `teamId_1` rejected the insert with `MongoServerError: E11000 duplicate key error collection: cms_v2.projects index: teamId_1`.
+  4. Missing Faculty Role in Sidebar Navigation: In `client/src/components/layouts/Sidebar.jsx`, `getRoleNavItems` mapped `ROLES.ADVISER` and `ROLES.PANELIST` to `facultyNavItems`, but lacked a case for primary role `ROLES.FACULTY`, leaving faculty committee members with no navigation links.
+- Resolution & Implementation Details:
+  1. Title Decision RBAC Expansion: Updated `server/modules/projects/project.routes.js` to authorize `ROLES.PANELIST, ROLES.FACULTY, ROLES.ADVISER, ROLES.INSTRUCTOR` on `/:id/title/approve` and `/:id/title/reject`.
+  2. Automatic Committee Inheritance: In `server/modules/projects/project.service.js`, enhanced `createProject` to fetch the team and automatically populate `adviserId: team.adviserId`, `secretaryId: team.secretaryId`, `panelistIds: team.panelistIds`, and `panelists: team.panelists` on the new `Project` record.
+  3. Partial Unique Index on Active Projects: In `server/modules/projects/project.model.js`, removed `unique: true` from the `teamId` field and added a partial unique compound index `{ teamId: 1 }` with `{ partialFilterExpression: { projectStatus: { $ne: 'rejected' } } }`. Dropped the raw `teamId_1` index from MongoDB.
+  4. Sidebar Faculty Mapping: Added `case ROLES.FACULTY:` to `client/src/components/layouts/Sidebar.jsx` in `getRoleNavItems` alongside `ROLES.ADVISER` and `ROLES.PANELIST`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When a domain entity permits soft archival or terminal rejection (`projectStatus = 'rejected'`), never declare blanket `unique: true` on parent foreign keys in Mongoose schemas. Always implement partial indexes (`partialFilterExpression: { status: { $ne: 'terminal_state' } }`).
+  2. Prevention rule: When primary roles (`ROLES.FACULTY`) encapsulate appointment titles (`ROLES.PANELIST`, `ROLES.ADVISER`), ensure all UI routing and role mapping utilities (`getRoleNavItems`, route authorization middleware) support both primary and appointment variants.
+  3. Runbook & Checklist:
+     - Checklist: Before testing committee workflows on newly created projects, verify that committee members appointed at the Team level are automatically inherited by the Project.
+     - Checklist: When testing title defense decisions via Playwright, register a dialog handler (`page.on('dialog', async d => await d.accept())`) before clicking confirmation buttons that trigger native browser alerts/confirms.
+  4. Evidence & Verification passed: Live Playwright end-to-end execution verified: student authored 3 proposals (EcoTrack, AgriPulse, CareBridge) via UI buttons, submitted for committee review; panelist navigated via sidebar 'Panel Review' button, reviewed proposal deck, voted to Approve Proposal 2 with remarks; project `titleStatus` transitioned to `approved` and title updated to *AgriPulse*; student Capstone 2 workspace unlocked with Chapter 1 upload enabled. 14/14 client unit tests passed (`CreateProjectPage.test.jsx`), API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and workspace guardrail verified clean.
+
+63. Proposal Details Persistence, Approval Scope Guard, Revision Resubmit Workflow & Executive UI Refactor:
+- Architectural Findings & Workflow Gaps Discovered:
+  1. Proposal Details Serialization Desynchronization: `CreateProjectPage.jsx` serialized pitch deck fields into description using camelCase keys (`problemStatement: ...`), while `ProposalTab.jsx` looked for exact formatted labels (`Problem Statement: ...`), causing proposal details (Problem Statement, Solution, Innovation, Beneficiaries, Impact) to render blank in `ProposalTab.jsx` and display fallback dummy text in `ActiveProposalView.jsx`.
+  2. Missing Committee Notification on Revision Resubmit: When students revised candidate proposals (`project.service.js:reviseAndResubmit`), the backend only notified instructors (`_notifyInstructors`), neglecting to notify the defense committee panel (`adviserId`, `secretaryId`, `panelistIds`), breaking committee re-evaluation loops.
+  3. Clunky UI & Redundant CTAs on My Capstone (`MyProjectPage.jsx`):
+     - `ProjectTitleCard.jsx` was a plain border-l-4 card displaying unformatted status strings without academic metadata, team sanitization, or proposal rehearsal links.
+     - `TabsList` used a transparent zero-padding border-b container, creating an awkward, unstyled rectangle for active `WorkflowTabTrigger` pills.
+     - `NextStepCard.jsx` used a horizontal flex layout that squished action buttons into a narrow sidebar column and duplicated "Upload Chapter" buttons right next to `ChapterProgressWithRounds`.
+     - Entity name duplication: Seeded and user records containing "Team" resulted in "Team Team Gamma" across presenter components.
+- Resolution & Implementation Details:
+  1. Canonical Pitch Deck Parsing & Hydration (`pitchDeckParser.js`): Created centralized parsing utility supporting both formatted labels (`Problem Statement:`) and camelCase keys (`problemStatement:`), including forward slashes (`/`), and updated `project.model.js` and `project.validation.js` with `pitchDeck: { type: Mixed, default: {} }`.
+  2. Approval vs. Revision Behavior Protocol:
+     - Approved State Guard: When title is approved, proposal inputs are read-only by default with a green locked banner. Clicking "Unlock to Edit Scope" triggers an institutional browser warning prompt (*"Are you sure you want to edit the approved proposal? Any modifications to an approved title or proposal scope will alter the agreed project baseline and may require committee re-evaluation."*).
+     - Revision Workflow: When `titleStatus === 'revision_required'`, an amber revision banner displays panelist remarks (`project.rejectionReason`), inputs are editable by default, and "Confirm Revision & Resubmit for Committee Review" calls `reviseAndResubmit`.
+     - Dual Notification: Enhanced `project.service.js:reviseAndResubmit` with `_notifyCommittee` to notify both instructors and defense committee panelists (`adviserId`, `secretaryId`, `panelistIds`).
+  3. Executive UI Refactor:
+     - Redesigned `ProjectTitleCard.jsx` into an executive hero header with top accent gradient, phase pill, semantic badges (`TitleStatusBadge`, `ProjectStatusBadge`), defensive team name sanitization (`cleanTeamName`), academic metadata (AY, Section, Adviser), and a quick link to `/project/approval`.
+     - Upgraded `TabsList` in `MyProjectPage.jsx` to a sleek pill container (`bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 shadow-xs`).
+     - Redesigned `NextStepCard.jsx` into a dedicated vertical milestone card with "Current Milestone" icon header and full-width CTA button.
+     - Sanitized team names in `ProjectSidebarInfo.jsx` and `ProjectTitleCard.jsx` with regex `replace(/^Team\s+/i, '').trim()`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When pitch decks or structured multi-field forms are serialized into single markdown or text blobs, always maintain a bidirectional parser (`pitchDeckParser.js`) that handles both human-readable labels and camelCase keys defensively.
+  2. Prevention rule: Proponents cannot silently edit approved title proposals without an explicit institutional warning dialog confirming that baseline modifications require committee re-evaluation.
+  3. Prevention rule: Revisions resubmitted by students must notify both course instructors and committee panelists to ensure continuous evaluation tracking.
+  4. Prevention rule: Always defensively sanitize entity classification prefixes (`team.name.replace(/^Team\s+/i, '').trim()`) in presenter components to prevent duplicate prefix bugs such as `"Team Team Gamma"`.
+  5. Runbook & Checklist:
+     - Checklist: Verify `ProposalTab` hydrates all 5 pitch deck fields (Problem Statement, Solution, Innovation, Beneficiaries, Impact) without blank textareas.
+     - Checklist: Verify `ProposalTab` tests pass standalone without requiring `QueryClientProvider`.
+     - Checklist: Verify visual contrast and responsive layouts across Light and Dark modes (1440x900 desktop, 390x844 mobile).
+  6. Evidence & Verification passed: 7/7 `ProposalTab.test.jsx` tests passed, 14/14 `CreateProjectPage.test.jsx` tests passed, 6/6 `project.create.validation.test.js` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, workspace guardrail verified clean, and 11 Playwright screenshots captured across desktop light/dark, proposal unlock dialog, full-height pitch deck details, and mobile responsive views.
+
+43. ADMPhaseSelector Layout Stability & Full-Width Workspace Reorganization:
+- Incident & Root Cause:
+  1. ADMPhaseSelector UI Overlap: In `ADMPhaseSelector.jsx`, flex layout used `sm:flex-row` without `min-w-0 flex-1` on the title container or `shrink-0 whitespace-nowrap` on the `AY {academicYear}` badge. Inside an 8-column grid layout (~700px), 480px of tabs forced the title to wrap into 4 lines, squishing the badge into a vertical oval that directly collided and overlapped with the phase tabs.
+  2. Tab Truncation: Constraining `MyProjectPage.jsx` into a 2-column grid (`xl:col-span-8` + `xl:col-span-4`) left insufficient width for the 5-phase `TabsList`, causing `Consultations` to truncate to `Consul...`.
+  3. Feedback Leaks Across Tabs: `project.titleProposalComments` was rendered in `ProjectSidebarInfo.jsx`, causing Title Defense remarks to bleed persistently into Capstone 2, Capstone 3, and Capstone 4 tabs.
+- Resolution & Implementation Details:
+  1. Resilient ADMPhaseSelector Layout: Upgraded container to `flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5 p-3.5 rounded-xl`, added `shrink-0 whitespace-nowrap` to the `AY {academicYear}` badge, and wrapped tabs in an `overflow-x-auto [&::-webkit-scrollbar]:hidden` container with `inline-flex flex-nowrap min-w-max shrink-0` TabsList.
+  2. Full-Width Workspace Expansion: Removed the cramped 4-column sidebar in `MyProjectPage.jsx`, giving the main workspace 100% full width (`max-w-[1600px] mx-auto space-y-6 mt-2`).
+  3. Removal of Current Milestone: Removed `NextStepCard` ("Current Milestone") from the dashboard.
+  4. Dedicated Project Details & Approval Modal (`ProjectDetailsModal.jsx`): Created a dialog modal triggered by a button beside `View Title Proposals & Approval` in the top header. Displays full title, phase, academic year, section, executive abstract, defense committee (Adviser & Panelists), team roster with standardized 5-role designations and Leader badge, UN SDGs (1–17), IT disciplines, external repository links, and direct portal navigation.
+  5. Title Feedback Scoped Strictly to Capstone 1 (`TitleFeedbackRemarksCard.jsx`): Removed title comments from `ProjectSidebarInfo.jsx` and rendered a dedicated committee remarks card strictly inside `<TabsContent value="capstone_1">`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When badges containing hyphenated or spaced text (e.g. `AY 2025–2026`) sit inside flex containers beside expanding text, always explicitly specify `shrink-0 whitespace-nowrap` to prevent vertical oval squishing.
+  2. Prevention rule: Milestone phase selectors with 4+ tab items must not activate horizontal flex-row below `lg:` breakpoint unless container width is explicitly unconstrained.
+  3. Prevention rule: Proponent title defense feedback and panelist remarks on candidate proposals are Phase 1 artifacts and must be scoped strictly to the Capstone 1 tab, never displayed globally across manuscript and development tabs.
+  4. Runbook & Checklist:
+     - Checklist: Verify `ProjectDetailsModal` opens from the header button and renders full proponent roster, roles, adviser, and external links.
+     - Checklist: Verify all 5 tabs in `MyProjectPage` display without horizontal truncation or ellipsis clipping.
+     - Checklist: Verify `ADMPhaseSelector` renders on a clean single line on desktop without badge squishing.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectDetailsModal.test.jsx` tests passed, 7/7 `ProposalTab.test.jsx` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, `validate:governance` passed, workspace guardrail verified clean, and 7 Playwright screenshots captured and verified across desktop light/dark, fullwidth workspace, ProjectDetailsModal, ADMPhaseSelector, and mobile responsive views.
+
 ## Test Fixture Notes
 - Submission chapter-upload integration fixtures must include at least one assigned panelist on the project in Capstone phase 1, otherwise uploads fail with PANELISTS_NOT_ASSIGNED before other assertions.
+
+
 
 
 

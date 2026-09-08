@@ -67,6 +67,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
+import { formatPitchDeckDescription } from '@/utils/pitchDeckParser';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
@@ -882,9 +883,8 @@ export default function CreateProjectPage() {
 
     const normalized = filled.map((p) => ({
       title: p.title.trim(),
-      description: Object.entries(p.pitchDeck || {})
-        .map(([k, v]) => `${k}: ${v}`)
-        .join('\n\n'),
+      description: formatPitchDeckDescription(p.pitchDeck),
+      pitchDeck: p.pitchDeck || {},
       capstoneType: p.capstoneType || ['Software Engineering & Web Applications'],
       sdgTags: p.sdgTags || ['SDG 4: Quality Education'],
     }));
