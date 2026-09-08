@@ -12,10 +12,10 @@ router.get(
   projectController.getActionDoneMatrix,
 );
 
-// POST /api/adm/:projectId/rows — Append new row
+// POST /api/adm/:projectId/rows — Append new row (Instructor and Faculty only)
 router.post(
   '/:projectId/rows',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.createActionDoneMatrixItem,
 );
 
@@ -26,10 +26,10 @@ router.patch(
   projectController.updateActionDoneMatrixItem,
 );
 
-// DELETE /api/adm/:projectId/rows/:itemId — Delete row
+// DELETE /api/adm/:projectId/rows/:itemId — Delete row (Instructor and Faculty only)
 router.delete(
   '/:projectId/rows/:itemId',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.deleteActionDoneMatrixItem,
 );
 

@@ -250,13 +250,15 @@ describe('AssignCommitteeDialog', () => {
     unmount();
   });
 
-  it('strictly contains 3 defense panelists (Panelist 1, Panelist 2, Panel Member 3) with no optional label', () => {
+  it('strictly contains 3 defense panelists (REC / Chair, Panel Member 1, Panel Member 2) with no optional label', () => {
     const { unmount } = renderDialog();
 
     expect(document.getElementById('panelist-1-select')).toBeTruthy();
     expect(document.getElementById('panelist-2-select')).toBeTruthy();
     expect(document.getElementById('panelist-3-select')).toBeTruthy();
-    expect(document.body.textContent).toContain('Panel Member 3');
+    expect(document.body.textContent).toContain('REC / Chair');
+    expect(document.body.textContent).toContain('Panel Member 1');
+    expect(document.body.textContent).toContain('Panel Member 2');
     expect(document.body.textContent).not.toContain('Optional');
 
     unmount();

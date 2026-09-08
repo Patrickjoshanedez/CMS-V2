@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
-import { TITLE_STATUSES, ROLES } from '@cms/shared';
+import { TITLE_STATUSES, ROLES, CAPSTONE_PHASES } from '@cms/shared';
 import {
   FileText,
   History,
@@ -22,6 +22,7 @@ import {
   MessageSquareMore,
   BookMarked,
   Code2,
+  Lock,
 } from 'lucide-react';
 
 // Extracted reusable components
@@ -159,6 +160,32 @@ export default function ProjectDetailPage() {
 
   const isArchived = project.isArchived || project.projectStatus === 'archived';
   const defaultTab = isArchived ? 'capstone_4' : 'capstone_1';
+
+  const numericPhase = Number(project?.capstonePhase ?? project?.phase ?? 0);
+  const submissionsList = Array.isArray(submissionsData)
+    ? submissionsData
+    : Array.isArray(submissionsData?.submissions)
+      ? submissionsData.submissions
+      : Array.isArray(submissionsData?.data)
+        ? submissionsData.data
+        : [];
+
+  const chapters123Approved =
+    submissionsList.length > 0 &&
+    [1, 2, 3].every((ch) =>
+      submissionsList.some(
+        (s) =>
+          (s.chapterNumber === ch || s.chapter === ch) &&
+          (s.status === 'approved' || s.status === 'locked'),
+      ),
+    );
+
+  const isCapstone2Done = Boolean(
+    numericPhase >= CAPSTONE_PHASES.PHASE_3 ||
+    project?.capstone2Completed ||
+    (project?.actionDoneMatrix && project.actionDoneMatrix.length > 0) ||
+    chapters123Approved,
+  );
 
   return (
     <DashboardLayout>
@@ -406,12 +433,33 @@ export default function ProjectDetailPage() {
                   showReviewActions
                 />
 
-                <ActionDoneMatrixTab
-                  project={project}
-                  isFaculty={isFaculty}
-                  user={user}
-                  onRefresh={() => refetch()}
-                />
+                {isCapstone2Done || isFaculty ? (
+                  <ActionDoneMatrixTab
+                    project={project}
+                    isFaculty={isFaculty}
+                    user={user}
+                    onRefresh={() => refetch()}
+                  />
+                ) : (
+                  <Card className="border border-border/70 bg-card/60 rounded-xl p-6 shadow-xs">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold text-foreground">
+                          Action Done Matrix (ADM) Unlocks After Capstone 2 Completion
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          The Action Done Matrix will be accessible once Capstone 2 (Chapters 1–3
+                          manuscript review and defense evaluation) is completed. Panel
+                          recommendations and required revisions will appear here for documentation
+                          and committee sign-off.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
 
                 <EvaluationPanel projectId={project._id} defenseType="midterm" />
               </TabsContent>

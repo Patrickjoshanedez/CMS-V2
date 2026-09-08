@@ -49,7 +49,7 @@ const mockProject = {
     },
     {
       role: 'member',
-      userId: { _id: 'member-1', firstName: 'Raul', lastName: 'Lecaros' },
+      userId: { _id: 'member-1', firstName: 'Raul', middleName: 'D.', lastName: 'Lecaros' },
     },
     {
       role: 'member',

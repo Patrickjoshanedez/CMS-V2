@@ -256,7 +256,7 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {panelistCount >= 3
-                    ? 'Lead/Chair, Member, Panel Member 3'
+                    ? 'REC / Chair, Panel Member 1, Panel Member 2'
                     : 'Awaiting institutional committee appointment'}
                 </p>
               </div>

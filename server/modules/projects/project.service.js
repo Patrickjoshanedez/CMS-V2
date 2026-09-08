@@ -510,11 +510,33 @@ class ProjectService {
    */
   async getProject(projectId, requester) {
     const project = await Project.findById(projectId)
-      .populate('teamId', 'name leaderId members academicYear courseId sectionId')
+      .populate({
+        path: 'teamId',
+        select:
+          'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+        populate: [
+          {
+            path: 'leaderId',
+            select: 'firstName middleName lastName email instructorId',
+            populate: {
+              path: 'instructorId',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+          },
+        ],
+      })
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
+      .populate('secretaryId', 'firstName middleName lastName email profilePicture')
       .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+      .populate('panelists.userId', 'firstName middleName lastName email profilePicture')
       .populate('courseId', 'name code')
-      .populate('sectionId', 'name academicYear courseId')
+      .populate({
+        path: 'sectionId',
+        select: 'name academicYear courseId createdBy',
+        populate: [
+          { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+        ],
+      })
       .populate('memberRoleAssignments.userId', 'firstName middleName lastName email');
 
     if (!project) {
@@ -570,10 +592,32 @@ class ProjectService {
     }
 
     const populateOpts = [
-      { path: 'teamId', select: 'name leaderId members academicYear courseId sectionId' },
+      {
+        path: 'teamId',
+        select:
+          'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+        populate: [
+          {
+            path: 'leaderId',
+            select: 'firstName middleName lastName email instructorId',
+            populate: {
+              path: 'instructorId',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+          },
+        ],
+      },
       { path: 'adviserId', select: 'firstName middleName lastName email profilePicture' },
+      { path: 'secretaryId', select: 'firstName middleName lastName email profilePicture' },
       { path: 'panelistIds', select: 'firstName middleName lastName email profilePicture' },
-      { path: 'sectionId', select: 'name academicYear courseId' },
+      { path: 'panelists.userId', select: 'firstName middleName lastName email profilePicture' },
+      {
+        path: 'sectionId',
+        select: 'name academicYear courseId createdBy',
+        populate: [
+          { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+        ],
+      },
       { path: 'courseId', select: 'name code' },
       {
         path: 'memberRoleAssignments.userId',
@@ -644,10 +688,32 @@ class ProjectService {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('teamId', 'name leaderId members academicYear courseId sectionId')
+        .populate({
+          path: 'teamId',
+          select:
+            'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+          populate: [
+            {
+              path: 'leaderId',
+              select: 'firstName middleName lastName email instructorId',
+              populate: {
+                path: 'instructorId',
+                select: 'firstName middleName lastName email profilePicture',
+              },
+            },
+          ],
+        })
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
+        .populate('secretaryId', 'firstName middleName lastName email profilePicture')
         .populate('panelistIds', 'firstName middleName lastName email profilePicture')
-        .populate('sectionId', 'name academicYear courseId')
+        .populate('panelists.userId', 'firstName middleName lastName email profilePicture')
+        .populate({
+          path: 'sectionId',
+          select: 'name academicYear courseId createdBy',
+          populate: [
+            { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
+          ],
+        })
         .populate('courseId', 'name code')
         .populate('memberRoleAssignments.userId', 'firstName middleName lastName email'),
       Project.countDocuments(filter),

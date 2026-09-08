@@ -93,6 +93,32 @@ export default function MyProjectPage() {
   // Capstone 4 (Final) requires Phase 4
   const capstone4Unlocked = numericPhase >= CAPSTONE_PHASES.PHASE_4;
 
+  // Capstone 2 (Chapters 1-3 & Midterm Defense) completion gate for ADM
+  const submissionList = Array.isArray(submissions)
+    ? submissions
+    : Array.isArray(submissions?.submissions)
+      ? submissions.submissions
+      : Array.isArray(submissions?.data)
+        ? submissions.data
+        : [];
+
+  const chapters123Approved =
+    submissionList.length > 0 &&
+    [1, 2, 3].every((ch) =>
+      submissionList.some(
+        (s) =>
+          (s.chapterNumber === ch || s.chapter === ch) &&
+          (s.status === 'approved' || s.status === 'locked'),
+      ),
+    );
+
+  const isCapstone2Done = Boolean(
+    numericPhase >= CAPSTONE_PHASES.PHASE_3 ||
+    project?.capstone2Completed ||
+    (project?.actionDoneMatrix && project.actionDoneMatrix.length > 0) ||
+    chapters123Approved,
+  );
+
   const isArchivedProject =
     project?.projectStatus === PROJECT_STATUSES.ARCHIVED || Boolean(project?.isArchived);
 
@@ -392,8 +418,8 @@ export default function MyProjectPage() {
 
               {/* Tabbed workflow */}
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
-                  <TabsList className="bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto flex-nowrap min-w-max shadow-xs">
+                <div className="w-full mb-6 p-0.5">
+                  <TabsList className="w-full grid grid-cols-2 sm:grid-cols-5 bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
                     <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
                     <WorkflowTabTrigger
                       value="capstone_2"
@@ -426,6 +452,7 @@ export default function MyProjectPage() {
                       locked={!titleApproved}
                       lockedReason={getLockedReason('consultation')}
                       onLockedClick={() => handleLockedTabClick('consultation')}
+                      className="col-span-2 sm:col-span-1"
                     />
                   </TabsList>
                 </div>
@@ -450,12 +477,33 @@ export default function MyProjectPage() {
                     chapters={[1, 2, 3]}
                     showUploadButton={titleApproved}
                   />
-                  <ActionDoneMatrixTab
-                    project={project}
-                    isStudent
-                    user={user}
-                    onRefresh={() => refetch()}
-                  />
+                  {isCapstone2Done ? (
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
+                  ) : (
+                    <Card className="border border-border/70 bg-card/60 rounded-xl p-6 shadow-xs">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                          <Lock className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-semibold text-foreground">
+                            Action Done Matrix (ADM) Unlocks After Capstone 2 Completion
+                          </h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            The Action Done Matrix will be accessible once Capstone 2 (Chapters 1–3
+                            manuscript review and defense evaluation) is completed. Panel
+                            recommendations and required revisions will appear here for
+                            documentation and committee sign-off.
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                   <EvaluationPanel projectId={project._id} defenseType="midterm" />
                 </TabsContent>
 

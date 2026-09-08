@@ -443,11 +443,7 @@ export function InspectRosterDialog({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                     {panelists.map((panelist, idx) => {
                       const panelRoleName =
-                        idx === 0
-                          ? 'Panelist 1 (Chair)'
-                          : idx === 1
-                            ? 'Panelist 2 (Member)'
-                            : 'Panel Member 3';
+                        idx === 0 ? 'REC / Chair' : idx === 1 ? 'Panel Member 1' : 'Panel Member 2';
 
                       return (
                         <div

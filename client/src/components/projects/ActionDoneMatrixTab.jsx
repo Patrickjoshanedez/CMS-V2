@@ -30,10 +30,12 @@ import { toast } from 'sonner';
 /**
  * Format populated user full name
  */
-function formatFullName(userObj, fallback = 'Unassigned') {
+function formatFullName(userObj, fallback = 'Pending Appointment') {
   if (!userObj) return fallback;
-  const parts = [userObj.firstName, userObj.middleName, userObj.lastName].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : userObj.name || fallback;
+  const raw = userObj.userId || userObj.user || userObj;
+  if (typeof raw === 'string') return raw.trim() || fallback;
+  const parts = [raw.firstName, raw.middleName, raw.lastName].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : raw.name || fallback;
 }
 
 export default function ActionDoneMatrixTab({
@@ -98,30 +100,47 @@ export default function ActionDoneMatrixTab({
   }, [project]);
 
   // Committee resolution
-  const panelists = useMemo(() => project?.panelists || [], [project?.panelists]);
+  const rawPanelists = useMemo(() => {
+    if (Array.isArray(project?.panelists) && project.panelists.length > 0) {
+      return project.panelists;
+    }
+    const fallbackIds = project?.panelistIds || project?.teamId?.panelistIds || [];
+    return fallbackIds.map((p, idx) => ({
+      userId: p,
+      role: idx === 0 ? 'chair' : 'member',
+    }));
+  }, [project]);
+
   const chair = useMemo(
-    () => panelists.find((p) => p.role === PANEL_ROLES.CHAIR || p.role === 'chair'),
-    [panelists],
-  );
-  const regularPanelists = useMemo(
     () =>
-      panelists.filter(
-        (p) =>
-          p.role !== PANEL_ROLES.CHAIR &&
-          p.role !== 'chair' &&
-          p.role !== PANEL_ROLES.SECRETARY &&
-          p.role !== 'secretary',
-      ),
-    [panelists],
+      rawPanelists.find((p) => p.role === PANEL_ROLES.CHAIR || p.role === 'chair') ||
+      rawPanelists[0],
+    [rawPanelists],
   );
+
+  const regularPanelists = useMemo(() => {
+    const nonChairs = rawPanelists.filter(
+      (p) =>
+        p.role !== PANEL_ROLES.CHAIR &&
+        p.role !== 'chair' &&
+        p.role !== PANEL_ROLES.SECRETARY &&
+        p.role !== 'secretary',
+    );
+    if (nonChairs.length > 0) return nonChairs;
+    return rawPanelists.slice(1);
+  }, [rawPanelists]);
 
   const adviser = project?.adviserId || project?.teamId?.adviserId;
   const secretary =
     project?.secretaryId ||
-    (panelists || []).find((p) => p.role === 'secretary' || p.role === PANEL_ROLES.SECRETARY)
-      ?.userId;
+    project?.teamId?.secretaryId ||
+    rawPanelists.find((p) => p.role === 'secretary' || p.role === PANEL_ROLES.SECRETARY)?.userId;
   const instructor =
-    project?.teamId?.sectionId?.instructorId || (user?.role === ROLES.INSTRUCTOR ? user : null);
+    project?.sectionId?.instructorId ||
+    project?.sectionId?.createdBy ||
+    project?.teamId?.sectionId?.instructorId ||
+    project?.teamId?.sectionId?.createdBy ||
+    (user?.role === ROLES.INSTRUCTOR ? user : null);
 
   const admSignatures = project?.admSignatures || {};
 
@@ -134,14 +153,14 @@ export default function ActionDoneMatrixTab({
   const isUserPanelist =
     user &&
     (isUserChair ||
-      panelists.some(
+      rawPanelists.some(
         (p) => p.userId === user._id || p.userId?._id === user._id || p._id === user._id,
       ));
   const isUserSecretary =
     user &&
     (secretary?._id === user._id ||
       String(secretary) === String(user._id) ||
-      panelists.some(
+      rawPanelists.some(
         (p) =>
           (p.userId === user._id || p.userId?._id === user._id || p._id === user._id) &&
           (p.role === PANEL_ROLES.SECRETARY || p.role === 'secretary'),
@@ -152,6 +171,8 @@ export default function ActionDoneMatrixTab({
   const isSecretaryEndorsed = Boolean(admSignatures?.secretary?.endorsed);
   const canEndorse = isUserSecretary || isUserInstructor;
   const canManageLiveMinutes = isUserSecretary || isUserChair || isUserInstructor || isFaculty;
+  const canAddRow = isFaculty || isUserPanelist || isUserInstructor;
+  const canSeedTemplate = isFaculty || isUserInstructor;
 
   const defenseType = useMemo(() => {
     if (selectedMilestone === 'CAPSTONE_4') return 'final';
@@ -404,7 +425,7 @@ export default function ActionDoneMatrixTab({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {rows.length === 0 && (
+          {rows.length === 0 && canSeedTemplate && (
             <Button
               variant="outline"
               size="sm"
@@ -477,10 +498,12 @@ export default function ActionDoneMatrixTab({
             </Button>
           )}
 
-          <Button size="sm" onClick={handleAddRow} className="gap-1.5 text-xs h-8">
-            <Plus className="h-3.5 w-3.5" />
-            Add Row
-          </Button>
+          {canAddRow && (
+            <Button size="sm" onClick={handleAddRow} className="gap-1.5 text-xs h-8">
+              <Plus className="h-3.5 w-3.5" />
+              Add Row
+            </Button>
+          )}
 
           <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 text-xs h-8">
             <Printer className="h-3.5 w-3.5" />
@@ -712,7 +735,7 @@ export default function ActionDoneMatrixTab({
                       />
 
                       {/* Delete Row button (non-printing, visible on hover) */}
-                      {!isLocked && (isFaculty || isStudent) && (
+                      {!isLocked && canAddRow && (
                         <button
                           type="button"
                           onClick={() => handleDeleteRow(rowId)}
@@ -805,7 +828,8 @@ export default function ActionDoneMatrixTab({
             {/* Capstone Adviser */}
             <SignatoryCard
               name={
-                admSignatures.adviser?.signatoryName || formatFullName(adviser, 'GLAIZA MAE LIBE')
+                admSignatures.adviser?.signatoryName ||
+                formatFullName(adviser, 'Pending Appointment')
               }
               designation="Signature over Printed Name of Adviser"
               signatureState={admSignatures.adviser}
@@ -815,7 +839,7 @@ export default function ActionDoneMatrixTab({
                 setSigningSignatory({
                   tier: 1,
                   role: 'adviser',
-                  defaultName: formatFullName(adviser, 'GLAIZA MAE LIBE'),
+                  defaultName: formatFullName(adviser, 'Pending Appointment'),
                 })
               }
             />
@@ -824,7 +848,7 @@ export default function ActionDoneMatrixTab({
             <SignatoryCard
               name={
                 admSignatures.instructor?.signatoryName ||
-                formatFullName(instructor, 'DR. SALES G. ARIBE JR.')
+                formatFullName(instructor, 'Pending Appointment')
               }
               designation="Signature over Printed Name of Instructor"
               signatureState={admSignatures.instructor}
@@ -834,7 +858,7 @@ export default function ActionDoneMatrixTab({
                 setSigningSignatory({
                   tier: 1,
                   role: 'instructor',
-                  defaultName: formatFullName(instructor, 'DR. SALES G. ARIBE JR.'),
+                  defaultName: formatFullName(instructor, 'Pending Appointment'),
                 })
               }
             />
@@ -853,7 +877,10 @@ export default function ActionDoneMatrixTab({
             <SignatoryCard
               name={
                 admSignatures.panelists?.[0]?.signatoryName ||
-                formatFullName(regularPanelists[0]?.user || regularPanelists[0], 'RAUL D. LECAROS')
+                formatFullName(
+                  regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0],
+                  'Pending Appointment',
+                )
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[0]}
@@ -864,8 +891,8 @@ export default function ActionDoneMatrixTab({
                   tier: 2,
                   role: 'panelist',
                   defaultName: formatFullName(
-                    regularPanelists[0]?.user || regularPanelists[0],
-                    'RAUL D. LECAROS',
+                    regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0],
+                    'Pending Appointment',
                   ),
                 })
               }
@@ -875,7 +902,10 @@ export default function ActionDoneMatrixTab({
             <SignatoryCard
               name={
                 admSignatures.panelists?.[1]?.signatoryName ||
-                formatFullName(regularPanelists[1]?.user || regularPanelists[1], 'JOSEPH ABELLA')
+                formatFullName(
+                  regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1],
+                  'Pending Appointment',
+                )
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[1]}
@@ -886,8 +916,8 @@ export default function ActionDoneMatrixTab({
                   tier: 2,
                   role: 'panelist',
                   defaultName: formatFullName(
-                    regularPanelists[1]?.user || regularPanelists[1],
-                    'JOSEPH ABELLA',
+                    regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1],
+                    'Pending Appointment',
                   ),
                 })
               }
@@ -900,7 +930,7 @@ export default function ActionDoneMatrixTab({
               <SignatoryCard
                 name={
                   admSignatures.chair?.signatoryName ||
-                  formatFullName(chair?.user || chair, 'LOUIE JAY LABASTIDA')
+                  formatFullName(chair?.userId || chair?.user || chair, 'Pending Appointment')
                 }
                 designation="REC / Chair"
                 signatureState={admSignatures.chair}
@@ -910,7 +940,10 @@ export default function ActionDoneMatrixTab({
                   setSigningSignatory({
                     tier: 3,
                     role: 'chair',
-                    defaultName: formatFullName(chair?.user || chair, 'LOUIE JAY LABASTIDA'),
+                    defaultName: formatFullName(
+                      chair?.userId || chair?.user || chair,
+                      'Pending Appointment',
+                    ),
                   })
                 }
               />

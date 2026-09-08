@@ -412,17 +412,17 @@ router.post(
   projectController.signADMItem,
 );
 
-// Append new Action Done Matrix row item
+// Append new Action Done Matrix row item (Instructor and Faculty only)
 router.post(
   '/:projectId/action-done-matrix',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.createActionDoneMatrixItem,
 );
 
-// Delete an Action Done Matrix row item
+// Delete an Action Done Matrix row item (Instructor and Faculty only)
 router.delete(
   '/:projectId/action-done-matrix/:itemId',
-  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
   projectController.deleteActionDoneMatrixItem,
 );
 

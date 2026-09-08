@@ -811,9 +811,11 @@ export default function TeamCommitteeAssignmentsView() {
                             </p>
                             <p className="text-[10px] text-muted-foreground">
                               {index === 0 ? (
-                                <span className="text-primary font-medium">Lead / Chair</span>
+                                <span className="text-primary font-medium">REC / Chair</span>
+                              ) : index === 1 ? (
+                                'Panel Member 1'
                               ) : (
-                                'Panel Member'
+                                'Panel Member 2'
                               )}
                               {' · '}
                               <span className="text-muted-foreground">{workload} teams</span>

@@ -743,13 +743,11 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
   if (isStudent) {
     if (actionDone !== undefined) {
       item.actionDone = actionDone;
-      if (actionDone.trim()) item.status = 'addressed';
-    }
-    if (status !== undefined && (status === 'addressed' || status === 'pending')) {
-      item.status = status;
+      if (typeof actionDone === 'string' && actionDone.trim()) {
+        item.status = 'addressed';
+      }
     }
     if (pageNumbers !== undefined) item.pageNumbers = pageNumbers;
-    if (remarks !== undefined) item.remarks = remarks;
   } else {
     // Faculty / Panelist / Instructor
     if (actionDone !== undefined) item.actionDone = actionDone;

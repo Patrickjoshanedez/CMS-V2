@@ -408,18 +408,18 @@ export function AssignCommitteeDialog({
   const adviserConflictMap = useMemo(() => {
     const map = {};
     if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
-    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
+    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
     return map;
   }, [secretaryId, panelist1Id, panelist2Id, panelist3Id]);
 
   const secretaryConflictMap = useMemo(() => {
     const map = {};
     if (adviserId) map[adviserId] = 'Capstone Adviser';
-    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
-    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
+    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
     return map;
   }, [adviserId, panelist1Id, panelist2Id, panelist3Id]);
 
@@ -427,8 +427,8 @@ export function AssignCommitteeDialog({
     const map = {};
     if (adviserId) map[adviserId] = 'Capstone Adviser';
     if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
     return map;
   }, [adviserId, secretaryId, panelist2Id, panelist3Id]);
 
@@ -436,8 +436,8 @@ export function AssignCommitteeDialog({
     const map = {};
     if (adviserId) map[adviserId] = 'Capstone Adviser';
     if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 3';
+    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
+    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
     return map;
   }, [adviserId, secretaryId, panelist1Id, panelist3Id]);
 
@@ -445,8 +445,8 @@ export function AssignCommitteeDialog({
     const map = {};
     if (adviserId) map[adviserId] = 'Capstone Adviser';
     if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'Panelist 1 (Lead / Chair)';
-    if (panelist2Id) map[panelist2Id] = 'Panelist 2 (Member)';
+    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
+    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
     return map;
   }, [adviserId, secretaryId, panelist1Id, panelist2Id]);
 
@@ -730,16 +730,14 @@ export function AssignCommitteeDialog({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-medium text-muted-foreground">
-                    Panelist 1 (Lead / Chair)
-                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground">REC / Chair</span>
                   <FacultySearchCombobox
                     id="panelist-1-select"
                     value={panelist1Id}
                     onChange={setPanelist1Id}
                     facultyList={allFaculty}
                     conflictMap={panelist1ConflictMap}
-                    placeholder="-- Panelist 1 (Lead / Chair) --"
+                    placeholder="-- Select REC / Chair --"
                     isLoading={isFacultyLoading}
                     disabled={isFacultyLoading || assignCommitteeMutation.isPending}
                   />
@@ -747,7 +745,7 @@ export function AssignCommitteeDialog({
 
                 <div className="space-y-1">
                   <span className="text-[10px] font-medium text-muted-foreground">
-                    Panelist 2 (Member)
+                    Panel Member 1
                   </span>
                   <FacultySearchCombobox
                     id="panelist-2-select"
@@ -755,7 +753,7 @@ export function AssignCommitteeDialog({
                     onChange={setPanelist2Id}
                     facultyList={allFaculty}
                     conflictMap={panelist2ConflictMap}
-                    placeholder="-- Panelist 2 (Member) --"
+                    placeholder="-- Select Panel Member 1 --"
                     isLoading={isFacultyLoading}
                     disabled={isFacultyLoading || assignCommitteeMutation.isPending}
                   />
@@ -764,7 +762,7 @@ export function AssignCommitteeDialog({
 
               <div className="space-y-1 pt-1">
                 <span className="text-[10px] font-medium text-muted-foreground">
-                  Panel Member 3
+                  Panel Member 2
                 </span>
                 <FacultySearchCombobox
                   id="panelist-3-select"
@@ -772,7 +770,7 @@ export function AssignCommitteeDialog({
                   onChange={setPanelist3Id}
                   facultyList={allFaculty}
                   conflictMap={panelist3ConflictMap}
-                  placeholder="-- Panel Member 3 --"
+                  placeholder="-- Select Panel Member 2 --"
                   isLoading={isFacultyLoading}
                   disabled={isFacultyLoading || assignCommitteeMutation.isPending}
                 />
