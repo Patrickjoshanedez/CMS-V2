@@ -1,0 +1,57 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-09_user-avatar-upload-streaming-and-image-display-fix",
+  "timestamp": "2026-09-09T10:35:00.000Z",
+  "task_summary": "Resolved broken user avatar photos after upload on /profile by identifying and fixing MinIO AWS SigV4 Host header HMAC signature mismatch (403 Forbidden). Implemented public direct streaming endpoint GET /api/users/:userId/avatar with HTTP cache headers (ETag, 304 Not Modified, Cache-Control), added Mongoose virtual avatarUrl with timestamp cache-busting, updated ProfilePage and Header to reset broken state and immediately refresh global user state, and verified end-to-end via Playwright live browser audit with naturalWidth=50px image rendering.",
+  "task_category": "bugfix_and_streaming_architecture",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "route_parity": {
+      "server_endpoints": 201,
+      "client_endpoints": 179,
+      "unmatched_count": 0,
+      "passed": true
+    },
+    "agentic_governance": {
+      "checks_total": 60,
+      "checks_passed": 60,
+      "checks_failed": 0,
+      "passed": true
+    },
+    "governance_pipeline": {
+      "errors": 0,
+      "warnings": 0,
+      "passed": true
+    },
+    "server_targeted_tests": {
+      "test_file": "tests/unit/user.avatar-upload.test.js",
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "passed": true
+    },
+    "client_targeted_tests": {
+      "test_file": "src/pages/profile/ProfilePage.test.jsx",
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "passed": true
+    },
+    "workspace_guardrail": {
+      "pristine": true,
+      "passed": true
+    },
+    "playwright_visual_audit": {
+      "desktop_natural_width": 50,
+      "mobile_natural_width": 50,
+      "header_avatar_decoded": true,
+      "profile_avatar_decoded": true,
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: MinIO and AWS S3 presigned URLs include SignedHeaders=host in the AWS SigV4 HMAC calculation. In containerized Docker setups where internal service DNS (e.g. http://minio:9000) differs from browser-facing hosts (http://localhost:9000), naively string-replacing the host in presigned URLs invalidates the cryptographic signature, causing 403 SignatureDoesNotMatch errors.",
+    "Lesson learned: Global Express authentication middleware (e.g. app.use('/api', authenticate)) blocks standard browser <img> tags from loading subresource endpoints because browsers do not attach Authorization Bearer headers to <img> GET requests. Public asset streaming routes like GET /api/users/:userId/avatar must be mounted before the global authenticate middleware.",
+    "Prevention: When serving mutable user uploads (like avatars) stored under static object keys (avatars/:userId/profile), attach a query parameter cache-buster based on updatedAt (e.g. ?t=${updatedAt}) and serve with ETag and 304 Not Modified headers so browsers refresh immediately upon upload without incurring unnecessary re-downloads."
+  ]
+}

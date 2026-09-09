@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-09-08_git-style-revision-diff-and-viewer-scroll-fix",
+  "timestamp": "2026-09-08T18:15:00.000Z",
+  "task_summary": "Engineered git-style document revision diffing (+/-) with click-to-reveal original text and anchored committee comments in SophisticatedDocumentViewer, isolated PDF viewer scrolling with body/main locking and createPortal, and removed redundant submission detail page header.",
+  "task_category": "feature_and_workflow_hardening",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "modified_files": [
+    "server/modules/submissions/submission.validation.js",
+    "server/modules/submissions/submission.routes.js",
+    "server/modules/submissions/submission.controller.js",
+    "server/modules/submissions/submission.service.js",
+    "server/tests/unit/submission.revision-diff.test.js",
+    "client/src/services/submissionService.js",
+    "client/src/hooks/useSubmissions.js",
+    "client/src/components/documents/RevisionDiffViewer.jsx",
+    "client/src/components/documents/RevisionDiffViewer.test.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+    "client/src/components/documents/SophisticatedDocumentViewer.test.jsx",
+    "client/src/pages/submissions/SubmissionDetailPage.jsx"
+  ],
+  "verification_results": {
+    "revision_diff_viewer_unit_tests": "7/7 passed",
+    "sophisticated_document_viewer_unit_tests": "7/7 passed",
+    "server_revision_diff_unit_tests": "2/2 passed",
+    "endpoint_parity": "199 server / 178 client (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "workspace_guardrail": "clean (0 stray files)",
+    "playwright_visual_audit": "16 screenshots verified across light/dark desktop (1440x900) & mobile (390x844)"
+  }
+}

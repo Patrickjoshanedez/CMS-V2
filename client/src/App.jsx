@@ -50,6 +50,7 @@ const TeamReviewWorkflowPage = lazy(() => import('./pages/adviser/TeamReviewWork
 const ArchivePlagiarismCheckerPage = lazy(
   () => import('./pages/plagiarism/ArchivePlagiarismCheckerPage'),
 );
+const SecretaryReviewPage = lazy(() => import('./pages/projects/SecretaryReviewPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -160,6 +161,16 @@ const PROTECTED_ROUTES = [
   { path: '/project', Component: MyProjectPage },
   { path: '/projects', Component: ProjectsPage },
   { path: '/projects/:id', Component: ProjectDetailPage },
+  {
+    path: '/secretary-review',
+    Component: SecretaryReviewPage,
+    allowedRoles: [ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER],
+  },
+  {
+    path: '/secretary/review',
+    Component: SecretaryReviewPage,
+    allowedRoles: [ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER],
+  },
   // Archive & Reports
   { path: '/archive', Component: ArchiveSearchPage },
   { path: '/plagiarism-checker', Component: ArchivePlagiarismCheckerPage },
@@ -189,6 +200,9 @@ const PROTECTED_ROUTES = [
   { path: '/project/submissions/:submissionId', Component: SubmissionDetailPage },
   { path: '/project/submissions/:submissionId/review', Component: SubmissionReviewPage },
   { path: '/project/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },
+  // Submissions aliases for frictionless navigation
+  { path: '/submissions/:submissionId', Component: SubmissionDetailPage },
+  { path: '/submissions/:submissionId/review', Component: SubmissionReviewPage },
 ];
 
 export default function App() {

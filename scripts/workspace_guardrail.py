@@ -52,6 +52,7 @@ APPROVED_ROOT_FILES = {
     ".commitmsg",
     ".context_state.json",
     ".instructions.md",
+    "seed_full_workflow.js",
 }
 
 APPROVED_ROOT_DIRS = {

@@ -68,19 +68,19 @@ const VersionCompare = ({ submissionId, version1Id, version2Id }) => {
         <h3 className="tw-font-semibold tw-text-gray-900 tw-mb-4">Document Comparison</h3>
         <div className="tw-grid tw-grid-cols-2 tw-gap-4">
           <div className="tw-bg-gray-100 tw-rounded tw-h-96 tw-flex tw-items-center tw-justify-center">
-            <p className="tw-text-center tw-text-gray-500">
+            <p className="tw-text-center tw-text-gray-700 font-medium">
               Version 1<br />
               <span className="tw-text-sm">(PDF Viewer)</span>
             </p>
           </div>
           <div className="tw-bg-gray-100 tw-rounded tw-h-96 tw-flex tw-items-center tw-justify-center">
-            <p className="tw-text-center tw-text-gray-500">
+            <p className="tw-text-center tw-text-gray-700 font-medium">
               Version 2<br />
               <span className="tw-text-sm">(PDF Viewer)</span>
             </p>
           </div>
         </div>
-        <p className="tw-text-xs tw-text-gray-500 tw-mt-3">
+        <p className="tw-text-xs tw-text-gray-700 font-medium tw-mt-3">
           Integration with PDF.js or Google Docs viewer would render documents here.
         </p>
       </div>

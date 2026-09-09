@@ -10,66 +10,132 @@ import {
   Loader2,
   RefreshCcw,
   X,
+  Eye,
+  ShieldCheck,
+  ClipboardCheck,
+  BookOpen,
+  Printer,
+  Search,
+  Sparkles,
+  ExternalLink,
+  ShieldAlert,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { usePlagiarismReport } from '../../hooks/useSubmissions';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import SophisticatedDocumentViewer, {
+  DocxPreviewRenderer,
+} from '@/components/documents/SophisticatedDocumentViewer';
+import PaginatedDocumentViewer from '@/components/documents/PaginatedDocumentViewer';
+import {
+  usePlagiarismReport,
+  useSubmission,
+  useScanSubmissionArchive,
+} from '../../hooks/useSubmissions';
 
 /* ──────────────────────────────────────────────────────────────
    Color palette for source highlighting (Turnitin-style bands)
-   Uses inline RGBA so marks render correctly without Tailwind
+   Uses translucent RGBA so marks render beautifully in light & dark modes
    ────────────────────────────────────────────────────────────── */
 const SOURCE_PALETTE = [
   {
-    badgeStyle: { background: '#fde8ea', color: '#c0243c', border: '1px solid #f5b8be' },
-    dot: '#e63946',
-    mark: { background: '#fde8ea', outline: '1px solid #f5b8be' },
+    badgeStyle: {
+      background: 'rgba(239, 68, 68, 0.15)',
+      color: '#ef4444',
+      border: '1px solid rgba(239, 68, 68, 0.35)',
+    },
+    dot: '#ef4444',
+    mark: { background: 'rgba(239, 68, 68, 0.22)', outline: '1px solid rgba(239, 68, 68, 0.45)' },
   },
   {
-    badgeStyle: { background: '#fef0e6', color: '#b85c1e', border: '1px solid #f5cba0' },
-    dot: '#e07b39',
-    mark: { background: '#fef0e6', outline: '1px solid #f5cba0' },
-  },
-  {
-    badgeStyle: { background: '#fefbe6', color: '#91700d', border: '1px solid #f0d87c' },
-    dot: '#d4a017',
-    mark: { background: '#fefbe6', outline: '1px solid #f0d87c' },
-  },
-  {
-    badgeStyle: { background: '#e6f7f5', color: '#1d7069', border: '1px solid #9dd4cf' },
-    dot: '#2a9d8f',
-    mark: { background: '#e6f7f5', outline: '1px solid #9dd4cf' },
-  },
-  {
-    badgeStyle: { background: '#e8f0fb', color: '#2a56b0', border: '1px solid #9fb8ef' },
-    dot: '#457b9d',
-    mark: { background: '#e8f0fb', outline: '1px solid #9fb8ef' },
-  },
-  {
-    badgeStyle: { background: '#f3e8fb', color: '#7a2db5', border: '1px solid #d0a5f0' },
-    dot: '#a855f7',
-    mark: { background: '#f3e8fb', outline: '1px solid #d0a5f0' },
-  },
-  {
-    badgeStyle: { background: '#e6fbf7', color: '#137d65', border: '1px solid #94d6cc' },
-    dot: '#14b8a6',
-    mark: { background: '#e6fbf7', outline: '1px solid #94d6cc' },
-  },
-  {
-    badgeStyle: { background: '#fde8fb', color: '#a32399', border: '1px solid #eda5e8' },
-    dot: '#ec4899',
-    mark: { background: '#fde8fb', outline: '1px solid #eda5e8' },
-  },
-  {
-    badgeStyle: { background: '#e8fde8', color: '#1d7a2a', border: '1px solid #9de0a4' },
-    dot: '#22c55e',
-    mark: { background: '#e8fde8', outline: '1px solid #9de0a4' },
-  },
-  {
-    badgeStyle: { background: '#fdf0e8', color: '#934a12', border: '1px solid #f0bda0' },
+    badgeStyle: {
+      background: 'rgba(249, 115, 22, 0.15)',
+      color: '#f97316',
+      border: '1px solid rgba(249, 115, 22, 0.35)',
+    },
     dot: '#f97316',
-    mark: { background: '#fdf0e8', outline: '1px solid #f0bda0' },
+    mark: { background: 'rgba(249, 115, 22, 0.22)', outline: '1px solid rgba(249, 115, 22, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(234, 179, 8, 0.15)',
+      color: '#ca8a04',
+      border: '1px solid rgba(234, 179, 8, 0.35)',
+    },
+    dot: '#ca8a04',
+    mark: { background: 'rgba(234, 179, 8, 0.22)', outline: '1px solid rgba(234, 179, 8, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(16, 185, 129, 0.15)',
+      color: '#10b981',
+      border: '1px solid rgba(16, 185, 129, 0.35)',
+    },
+    dot: '#10b981',
+    mark: { background: 'rgba(16, 185, 129, 0.22)', outline: '1px solid rgba(16, 185, 129, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(59, 130, 246, 0.15)',
+      color: '#3b82f6',
+      border: '1px solid rgba(59, 130, 246, 0.35)',
+    },
+    dot: '#3b82f6',
+    mark: { background: 'rgba(59, 130, 246, 0.22)', outline: '1px solid rgba(59, 130, 246, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(168, 85, 247, 0.15)',
+      color: '#a855f7',
+      border: '1px solid rgba(168, 85, 247, 0.35)',
+    },
+    dot: '#a855f7',
+    mark: { background: 'rgba(168, 85, 247, 0.22)', outline: '1px solid rgba(168, 85, 247, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(20, 184, 166, 0.15)',
+      color: '#14b8a6',
+      border: '1px solid rgba(20, 184, 166, 0.35)',
+    },
+    dot: '#14b8a6',
+    mark: { background: 'rgba(20, 184, 166, 0.22)', outline: '1px solid rgba(20, 184, 166, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(236, 72, 153, 0.15)',
+      color: '#ec4899',
+      border: '1px solid rgba(236, 72, 153, 0.35)',
+    },
+    dot: '#ec4899',
+    mark: { background: 'rgba(236, 72, 153, 0.22)', outline: '1px solid rgba(236, 72, 153, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(34, 197, 94, 0.15)',
+      color: '#22c55e',
+      border: '1px solid rgba(34, 197, 94, 0.35)',
+    },
+    dot: '#22c55e',
+    mark: { background: 'rgba(34, 197, 94, 0.22)', outline: '1px solid rgba(34, 197, 94, 0.45)' },
+  },
+  {
+    badgeStyle: {
+      background: 'rgba(244, 63, 94, 0.15)',
+      color: '#f43f5e',
+      border: '1px solid rgba(244, 63, 94, 0.35)',
+    },
+    dot: '#f43f5e',
+    mark: { background: 'rgba(244, 63, 94, 0.22)', outline: '1px solid rgba(244, 63, 94, 0.45)' },
   },
 ];
 
@@ -125,8 +191,10 @@ const toSourceTitle = (match) => {
 };
 
 const toBlockBounds = (block) => {
-  const start = Number(block?.studentStart ?? block?.start ?? block?.start_index);
-  const end = Number(block?.studentEnd ?? block?.end ?? block?.end_index);
+  const start = Number(
+    block?.studentStart ?? block?.start ?? block?.startIndex ?? block?.start_index,
+  );
+  const end = Number(block?.studentEnd ?? block?.end ?? block?.endIndex ?? block?.end_index);
 
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
 
@@ -166,8 +234,8 @@ const toBlocks = (match, text) => {
     return match.spans
       .map((span) =>
         toBlockBounds({
-          studentStart: span?.start ?? span?.start_index,
-          studentEnd: span?.end ?? span?.end_index,
+          studentStart: span?.start ?? span?.startIndex ?? span?.start_index,
+          studentEnd: span?.end ?? span?.endIndex ?? span?.end_index,
         }),
       )
       .filter(Boolean)
@@ -178,8 +246,8 @@ const toBlocks = (match, text) => {
   }
 
   const fallback = toBlockBounds({
-    studentStart: match?.start_index,
-    studentEnd: match?.end_index,
+    studentStart: match?.studentStart ?? match?.startIndex ?? match?.start_index,
+    studentEnd: match?.studentEnd ?? match?.endIndex ?? match?.end_index,
   });
 
   if (!fallback) return [];
@@ -199,6 +267,7 @@ const normalizeTextMatches = (payload, text) => {
     (Array.isArray(payload?.fullReport?.textMatches) && payload.fullReport.textMatches) ||
     (Array.isArray(payload?.matchedSources) && payload.matchedSources) ||
     (Array.isArray(payload?.fullReport?.matches) && payload.fullReport.matches) ||
+    (Array.isArray(payload?.matches) && payload.matches) ||
     [];
 
   const normalized = rawMatches
@@ -286,6 +355,163 @@ const flattenHighlights = (matches) =>
     })),
   );
 
+const classifyAcademicLine = (trimmed, index) => {
+  if (trimmed.length > 120) return 'body';
+
+  if (/^<Title.*>$/i.test(trimmed) || (index === 0 && trimmed.length < 150)) {
+    return 'cover-title';
+  }
+  if (/^(A\s+)?(Capstone|Research|Thesis|Special)\s+Project\s+by/i.test(trimmed)) {
+    return 'cover-byline';
+  }
+  if (/^<Name\s*\d*>$/i.test(trimmed)) {
+    return 'cover-author';
+  }
+  if (/Submitted to\b|College of\b|Department of\b|Bukidnon State University/i.test(trimmed)) {
+    return 'cover-affiliation';
+  }
+  if (/In Partial Fulfillment\b|Requirements for the Degree\b|^<Degree>$/i.test(trimmed)) {
+    return 'cover-fulfillment';
+  }
+  if (
+    /^<Month and year.*>$/i.test(trimmed) ||
+    /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(
+      trimmed,
+    )
+  ) {
+    return 'cover-date';
+  }
+  if (/^APPROVAL SHEET$/i.test(trimmed)) {
+    return 'approval-heading';
+  }
+  if (/^This capstone project entitled/i.test(trimmed)) {
+    return 'approval-body';
+  }
+  if (/^(Capstone Project Adviser|Chair,\s*Defense Panel|Panel Member)$/i.test(trimmed)) {
+    return 'approval-role';
+  }
+  if (/^<(Adviser|Chair|Panelist\s*\d*)\s*\(CAPSLOCK\)>$/i.test(trimmed)) {
+    return 'approval-name';
+  }
+  if (
+    /^(DEDICATION|ACKNOWLEDGMENTS?|TABLE OF CONTENTS|LIST OF TABLES|LIST OF FIGURES|ABSTRACT|CHAPTER\s+\d+|INTRODUCTION|REVIEW OF RELATED LITERATURE|METHODOLOGY|RESULTS AND DISCUSSION|SUMMARY,\s*CONCLUSIONS,\s*AND\s*RECOMMENDATIONS|REFERENCES|BIBLIOGRAPHY)$/i.test(
+      trimmed,
+    )
+  ) {
+    return 'section-heading';
+  }
+  if (/^\d+\.\d+(\.\d+)?\s+/.test(trimmed)) {
+    return 'subheading';
+  }
+  return 'body';
+};
+
+const paginateLines = (structuredLines) => {
+  const pages = [];
+  let currentPageLines = [];
+  let currentPageType = 'cover';
+  let currentPageNumber = 1;
+
+  const pushCurrentPage = () => {
+    if (currentPageLines.length > 0) {
+      pages.push({
+        id: `page-${currentPageNumber}`,
+        pageNumber: currentPageNumber,
+        pageType: currentPageType,
+        lines: [...currentPageLines],
+      });
+      currentPageNumber += 1;
+      currentPageLines = [];
+    }
+  };
+
+  for (let i = 0; i < structuredLines.length; i++) {
+    const line = structuredLines[i];
+    const isExplicitBreak = line.text.includes('\x0c') || line.text.includes('\f');
+    const isApprovalStart = line.type === 'approval-heading' || /^APPROVAL SHEET/i.test(line.text);
+    const isMajorSection =
+      (line.type === 'section-heading' || line.type === 'subheading') &&
+      /^(DEDICATION|ACKNOWLEDGMENTS?|TABLE OF CONTENTS|LIST OF TABLES|LIST OF FIGURES|ABSTRACT|CHAPTER\s+\d+|REFERENCES|APPENDICES|BIBLIOGRAPHY)/i.test(
+        line.text,
+      );
+
+    if (isApprovalStart) {
+      pushCurrentPage();
+      currentPageType = 'approval';
+    } else if (isMajorSection) {
+      pushCurrentPage();
+      currentPageType = /^CHAPTER/i.test(line.text) ? 'chapter' : 'section';
+    } else if (isExplicitBreak) {
+      pushCurrentPage();
+      currentPageType = 'standard';
+    } else if (
+      currentPageType === 'cover' &&
+      !line.type.startsWith('cover-') &&
+      line.type !== 'body'
+    ) {
+      pushCurrentPage();
+      currentPageType = 'standard';
+    } else if (
+      currentPageType !== 'cover' &&
+      currentPageType !== 'approval' &&
+      currentPageLines.length >= 35
+    ) {
+      pushCurrentPage();
+      currentPageType = 'standard';
+    }
+
+    currentPageLines.push(line);
+  }
+
+  pushCurrentPage();
+  return pages.length > 0 ? pages : [{ id: 'page-1', pageNumber: 1, pageType: 'cover', lines: [] }];
+};
+
+const fragmentLine = (lineText, lineStart, lineEnd, highlights) => {
+  const intersecting = highlights.filter(
+    (h) => h.studentEnd > lineStart && h.studentStart < lineEnd,
+  );
+  if (intersecting.length === 0) {
+    return [{ key: `plain-${lineStart}-${lineEnd}`, text: lineText, highlight: null }];
+  }
+
+  const sorted = [...intersecting].sort((a, b) => a.studentStart - b.studentStart);
+  const fragments = [];
+  let cursor = 0;
+
+  for (const h of sorted) {
+    const relStart = Math.max(0, h.studentStart - lineStart);
+    const relEnd = Math.min(lineText.length, h.studentEnd - lineStart);
+
+    if (relStart > cursor) {
+      fragments.push({
+        key: `plain-${lineStart + cursor}-${lineStart + relStart}`,
+        text: lineText.slice(cursor, relStart),
+        highlight: null,
+      });
+    }
+
+    if (relEnd > relStart) {
+      fragments.push({
+        key: `highlight-${lineStart + relStart}-${lineStart + relEnd}-${h.key}`,
+        text: lineText.slice(relStart, relEnd),
+        highlight: h,
+      });
+    }
+    cursor = Math.max(cursor, relEnd);
+  }
+
+  if (cursor < lineText.length) {
+    fragments.push({
+      key: `plain-${lineStart + cursor}-${lineEnd}`,
+      text: lineText.slice(cursor),
+      highlight: null,
+    });
+  }
+
+  return fragments;
+};
+
 const buildTextSegments = (text, highlights) => {
   if (!text) return [];
   if (!Array.isArray(highlights) || highlights.length === 0) {
@@ -336,10 +562,35 @@ const buildTextSegments = (text, highlights) => {
 };
 
 /* ── Utility: resolve similarity color from CMS tokens ─────── */
-function getSimilarityColor(percent) {
-  if (percent >= 50) return 'var(--color-accent)'; // #e63946 red
-  if (percent >= 25) return 'var(--color-high)'; // #e07b39 orange
-  return 'var(--color-ok)'; // #2a9d8f teal
+function getSimilarityStatus(percent) {
+  if (percent >= 50) {
+    return {
+      color: '#ef4444',
+      textClass: 'text-rose-600 dark:text-rose-400',
+      bgClass: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20',
+      badgeVariant: 'destructive',
+      label: 'High Similarity (≥ 50%)',
+      statusText: 'Action Required',
+    };
+  }
+  if (percent >= 25) {
+    return {
+      color: '#f59e0b',
+      textClass: 'text-amber-600 dark:text-amber-400',
+      bgClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
+      badgeVariant: 'warning',
+      label: 'Moderate Similarity (25–49%)',
+      statusText: 'Review Recommended',
+    };
+  }
+  return {
+    color: '#10b981',
+    textClass: 'text-emerald-600 dark:text-emerald-400',
+    bgClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
+    badgeVariant: 'secondary',
+    label: 'Compliant (< 25%)',
+    statusText: 'Passes BukSU Standard',
+  };
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -347,18 +598,18 @@ function getSimilarityColor(percent) {
    ────────────────────────────────────────────────────────────── */
 function SourceRow({ source, isActive, onSelect }) {
   const percentage = Math.round(source.similarityPercentage);
-  const barColor = getSimilarityColor(percentage);
+  const status = getSimilarityStatus(percentage);
 
   return (
     <button
       type="button"
       onClick={() => onSelect(source.sourceId)}
-      className={[
-        'w-full rounded-lg border p-3 text-left transition-all [font-family:var(--font-body)]',
+      className={cn(
+        'w-full rounded-lg border p-3 text-left transition-all',
         isActive
-          ? 'border-[var(--color-neutral)] bg-[var(--color-surface)] shadow-[0_0_0_2px_var(--color-neutral)]'
-          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-neutral)]/50 hover:shadow-sm',
-      ].join(' ')}
+          ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary'
+          : 'border-border/60 bg-card hover:border-border hover:bg-muted/40',
+      )}
     >
       <div className="flex items-start gap-2.5">
         {/* Numbered badge */}
@@ -370,24 +621,22 @@ function SourceRow({ source, isActive, onSelect }) {
         </span>
 
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--color-text-primary)]">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
             {source.sourceTitle}
           </p>
 
           {/* Similarity bar */}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[var(--color-text-secondary)]">
+              <span className="text-muted-foreground">
                 {source.matchedBlocks.length} match{source.matchedBlocks.length !== 1 ? 'es' : ''}
               </span>
-              <span className="font-semibold" style={{ color: barColor }}>
-                {percentage}%
-              </span>
+              <span className={cn('font-semibold', status.textClass)}>{percentage}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-border)_70%,white)]">
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${percentage}%`, backgroundColor: barColor }}
+                style={{ width: `${percentage}%`, backgroundColor: status.color }}
               />
             </div>
           </div>
@@ -404,12 +653,33 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   const { submissionId } = useParams();
   const navigate = useNavigate();
   const highlightRefs = useRef(new Map());
+  const canvasContainerRef = useRef(null);
+
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [canvasViewMode, setCanvasViewMode] = useState('highlights');
+  const [paperMode, setPaperMode] = useState('paper');
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   const { data, isLoading, isError, error } = usePlagiarismReport(submissionId, {
     enabled: !reportData,
   });
 
+  const { data: submission } = useSubmission(submissionId, {
+    enabled: !!submissionId,
+  });
+
   const payload = reportData || data || null;
+
+  const submissionFileName = submission?.fileName || payload?.submissionFileName || '';
+  const isDocx =
+    submissionFileName.toLowerCase().endsWith('.docx') ||
+    Boolean(submission?.fileType?.includes('wordprocessingml'));
+  const isPdf =
+    submissionFileName.toLowerCase().endsWith('.pdf') ||
+    Boolean(submission?.fileType?.includes('pdf'));
+
+  const scanMutation = useScanSubmissionArchive();
 
   const text = useMemo(() => {
     if (typeof originalText === 'string' && originalText.trim()) return originalText;
@@ -447,6 +717,40 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
     [text, visibleHighlights],
   );
 
+  const structuredLines = useMemo(() => {
+    if (!text) return [];
+    const rawLines = text.split('\n');
+    const result = [];
+    let cursor = 0;
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const rawLine = rawLines[i];
+      const trimmed = rawLine.trim();
+      const lineStart = cursor;
+      const lineEnd = cursor + rawLine.length;
+      cursor += rawLine.length + 1;
+
+      if (trimmed.length === 0) continue;
+
+      const type = classifyAcademicLine(trimmed, result.length);
+      const fragments = fragmentLine(trimmed, lineStart, lineEnd, visibleHighlights);
+
+      result.push({
+        id: `line-${i}-${lineStart}`,
+        text: trimmed,
+        start: lineStart,
+        end: lineEnd,
+        type,
+        fragments,
+      });
+    }
+
+    return result;
+  }, [text, visibleHighlights]);
+
+  const pages = useMemo(() => paginateLines(structuredLines), [structuredLines]);
+  const [currentPage, setCurrentPage] = useState(1);
+
   const activeSource = useMemo(
     () => sources.find((source) => source.sourceId === resolvedActiveSourceId) || null,
     [sources, resolvedActiveSourceId],
@@ -464,12 +768,98 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
     const node = highlightRefs.current.get(activeHighlight.key);
     if (node && typeof node.scrollIntoView === 'function') {
       node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      const parentSection = node.closest('[data-page-number]');
+      if (parentSection) {
+        const pNum = Number(parentSection.getAttribute('data-page-number'));
+        if (pNum) setCurrentPage(pNum);
+      }
     }
   }, [activeHighlight]);
+
+  const scrollToPage = (pageNum) => {
+    if (!canvasContainerRef.current) return;
+    const target = canvasContainerRef.current.querySelector(`[data-page-number="${pageNum}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setCurrentPage(pageNum);
+    }
+  };
+
+  const handleCanvasScroll = () => {
+    if (!canvasContainerRef.current) return;
+    const sections = canvasContainerRef.current.querySelectorAll('[data-page-number]');
+    const containerTop = canvasContainerRef.current.getBoundingClientRect().top;
+
+    for (const section of sections) {
+      const rect = section.getBoundingClientRect();
+      if (rect.top - containerTop <= 200 && rect.bottom - containerTop > 100) {
+        const pNum = Number(section.getAttribute('data-page-number'));
+        if (pNum && pNum !== currentPage) {
+          setCurrentPage(pNum);
+        }
+        break;
+      }
+    }
+  };
+
+  const renderLineFragments = (line) =>
+    line.fragments.map((frag) => {
+      if (!frag.highlight) {
+        return <span key={frag.key}>{frag.text}</span>;
+      }
+
+      const isActive = activeHighlight?.key === frag.highlight.key;
+      const { mark } = frag.highlight.palette;
+
+      return (
+        <mark
+          key={frag.key}
+          id={`highlight-${frag.highlight.key}`}
+          ref={(node) => {
+            if (node) highlightRefs.current.set(frag.highlight.key, node);
+            else highlightRefs.current.delete(frag.highlight.key);
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Source ${frag.highlight.sourceNumber}: ${frag.highlight.sourceTitle}, ${Math.round(frag.highlight.similarityPercentage)}% match`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleHighlightClick(frag.highlight);
+            }
+          }}
+          className={cn(
+            'cursor-pointer rounded px-1 py-0.5 transition-all outline-none focus:ring-2 focus:ring-primary',
+            paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+            isActive
+              ? 'ring-2 ring-primary ring-offset-2 shadow-sm font-medium'
+              : 'hover:opacity-80',
+          )}
+          style={mark}
+          onClick={() => handleHighlightClick(frag.highlight)}
+          title={`[${frag.highlight.sourceNumber}] ${frag.highlight.sourceTitle} — ${Math.round(frag.highlight.similarityPercentage)}%`}
+        >
+          <sup
+            className={cn(
+              'mr-0.5 inline-flex items-center justify-center rounded px-1 text-[9px] font-bold border',
+              paperMode === 'paper'
+                ? 'bg-white/90 border-slate-300 text-slate-900'
+                : 'bg-background/80 border-border/60 text-foreground',
+            )}
+          >
+            {frag.highlight.sourceNumber}
+          </sup>
+          {frag.text}
+        </mark>
+      );
+    });
 
   const overallScore = useMemo(() => {
     const direct =
       clampPercent(payload?.overallScore) ??
+      clampPercent(payload?.overallSimilarity) ??
+      toSimilarityPercent(payload?.similarityScore) ??
+      toSimilarityPercent(payload?.similarity_score) ??
       clampPercent(payload?.fullReport?.overallScore) ??
       clampPercent(payload?.fullReport?.plagiarism_score);
 
@@ -482,9 +872,19 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   }, [payload, sources, text.length]);
 
   const originalityScore = Math.max(0, Math.min(100, 100 - overallScore));
-
   const processedAt = payload?.processedAt || payload?.fullReport?.checked_at || null;
-  const scoreColor = getSimilarityColor(overallScore);
+  const status = getSimilarityStatus(overallScore);
+
+  const wordCount = useMemo(() => {
+    if (!text) return 0;
+    return text.trim().split(/\s+/).filter(Boolean).length;
+  }, [text]);
+
+  const filteredSources = useMemo(() => {
+    if (!sourceSearch.trim()) return sources;
+    const q = sourceSearch.toLowerCase();
+    return sources.filter((s) => s.sourceTitle.toLowerCase().includes(q));
+  }, [sources, sourceSearch]);
 
   const handleSourceSelect = (sourceId) => {
     setActiveSourceId(sourceId);
@@ -495,6 +895,23 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   const handleHighlightClick = (highlight) => {
     setActiveSourceId(highlight.sourceId);
     setActiveHighlightKey(highlight.key);
+  };
+
+  const handleRescan = () => {
+    if (typeof onReset === 'function') {
+      onReset();
+      return;
+    }
+    if (submissionId) {
+      scanMutation.mutate(submissionId, {
+        onSuccess: () => {
+          toast.success('Archive scan updated successfully!');
+        },
+        onError: (err) => {
+          toast.error(err?.response?.data?.message || 'Failed to scan submission against archive.');
+        },
+      });
+    }
   };
 
   /* ── Loading state ─────────────────────────────────────── */
@@ -510,23 +927,19 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   if (isError && !reportData) {
     return (
       <DashboardLayout>
-        <div className="mx-auto max-w-lg space-y-3 [font-family:var(--font-body)]">
-          <div className="flex items-center gap-3 rounded-lg border border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_8%,white)] p-4">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-[var(--color-accent)]" />
-            <p className="text-sm font-medium text-[var(--color-accent)]">
+        <div className="mx-auto max-w-lg space-y-4 py-8">
+          <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">
               {error?.response?.data?.message ||
                 error?.message ||
                 'Failed to load plagiarism report.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg)]"
-          >
+          <Button variant="outline" onClick={() => navigate(-1)} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+            Back to Submissions
+          </Button>
         </div>
       </DashboardLayout>
     );
@@ -535,208 +948,632 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
   /* ── Main report view ──────────────────────────────────── */
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-[1800px] space-y-0 [font-family:var(--font-body)]">
-        {/* ── Sticky Toolbar ── */}
-        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-t-xl bg-[var(--color-sidebar)] px-4 py-2.5 text-white shadow-lg">
+      <div className="mx-auto max-w-[1800px] space-y-4">
+        {/* ── Top Header Toolbar ── */}
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
               <ArrowLeft className="h-4 w-4" />
               Back
-            </button>
+            </Button>
 
-            {typeof onReset === 'function' && (
-              <button
-                type="button"
-                onClick={onReset}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <RefreshCcw className="h-4 w-4" />
-                Re-scan
-              </button>
-            )}
+            <div className="h-4 w-px bg-border hidden sm:block" />
 
-            <div className="hidden items-center gap-2 text-sm sm:flex">
-              <FileText className="h-4 w-4 text-white/60" />
-              <span className="font-semibold text-white/90">Plagiarism Report</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h1 className="text-base font-bold text-foreground">
+                  Plagiarism & Similarity Intelligence Report
+                </h1>
+                <Badge variant={status.badgeVariant} className="text-xs">
+                  {status.statusText}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {submission?.fileName || payload?.fileName || 'Academic Manuscript'} · Phase{' '}
+                {submission?.capstonePhase ?? '1–4'}
+              </p>
             </div>
           </div>
 
-          {/* Circular gauge + meta */}
-          <div className="flex items-center gap-4">
-            <div className="relative h-12 w-12">
-              <svg viewBox="0 0 40 40" className="h-full w-full -rotate-90">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke="rgba(255,255,255,0.15)"
-                  strokeWidth="3.5"
-                  fill="transparent"
-                />
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke={scoreColor}
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 16}`}
-                  strokeDashoffset={`${2 * Math.PI * 16 * (1 - overallScore / 100)}`}
-                  fill="transparent"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white">
-                {Math.round(overallScore)}%
-              </span>
-            </div>
-
-            <div className="hidden text-right md:block">
-              <p className="text-xs uppercase tracking-wider text-[var(--color-sidebar-text)]">
-                Similarity
-              </p>
-              <p className="text-sm font-semibold" style={{ color: scoreColor }}>
-                {overallScore >= 50 ? 'High' : overallScore >= 25 ? 'Moderate' : 'Low'}
-              </p>
-            </div>
-
-            <div className="hidden items-center gap-1.5 text-xs text-[var(--color-sidebar-text)] lg:flex">
-              <span>
-                {sources.length} source{sources.length !== 1 ? 's' : ''}
-              </span>
-              {processedAt && <span>· {new Date(processedAt).toLocaleDateString()}</span>}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="rounded-md p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-              title="Export / Print"
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRescan}
+              disabled={scanMutation.isPending}
+              className="gap-1.5"
             >
-              <Download className="h-4 w-4" />
-            </button>
+              <RefreshCcw className={cn('h-4 w-4', scanMutation.isPending && 'animate-spin')} />
+              {scanMutation.isPending ? 'Scanning...' : 'Re-scan Archive'}
+            </Button>
+
+            {submission && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setViewerOpen(true)}
+                className="gap-1.5 shadow-sm"
+              >
+                <BookOpen className="h-4 w-4" />
+                Inspect in Reader
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              title="Print / Export Report"
+            >
+              <Printer className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
-        {/* ── Stats ribbon ── */}
-        <div className="flex flex-wrap items-center gap-3 border-x border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
-            style={{
-              backgroundColor: `${scoreColor}14`,
-              color: scoreColor,
-            }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: scoreColor }} />
-            {Math.round(overallScore)}% Matched
-          </span>
+        {/* ── Executive KPI Cards ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Card 1: Similarity Score */}
+          <Card className="border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Similarity Index
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn('text-3xl font-extrabold', status.textClass)}>
+                    {Math.round(overallScore)}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">/ 25% max target</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{status.label}</p>
+              </div>
+              <div className="relative h-14 w-14 shrink-0">
+                <svg viewBox="0 0 40 40" className="h-full w-full -rotate-90">
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r="16"
+                    className="stroke-muted"
+                    strokeWidth="3.5"
+                    fill="transparent"
+                  />
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r="16"
+                    stroke={status.color}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 16}`}
+                    strokeDashoffset={`${2 * Math.PI * 16 * (1 - overallScore / 100)}`}
+                    fill="transparent"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
+                  {Math.round(overallScore)}%
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--color-ok) 14%, white)',
-              color: 'var(--color-ok)',
-            }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" />
-            {Math.round(originalityScore)}% Original
-          </span>
+          {/* Card 2: Originality Score */}
+          <Card className="border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Original Content
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                    {Math.round(originalityScore)}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">originality ratio</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Verified Academic Authenticity</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
 
-          <span className="ml-auto text-[var(--color-text-secondary)]">
-            {text.trim().split(/\s+/).length.toLocaleString()} words · {sources.length} sources
-          </span>
+          {/* Card 3: Sources & Corpus */}
+          <Card className="border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Archive Matched Sources
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-foreground">{sources.length}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {sources.length === 1 ? 'source' : 'sources'} identified
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {wordCount.toLocaleString()} words ·{' '}
+                  {processedAt ? new Date(processedAt).toLocaleDateString() : 'Active scan'}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Layers className="h-6 w-6" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* ── Main grid: document canvas + sidebar ── */}
         <div
-          className="grid grid-cols-1 overflow-hidden rounded-b-xl border-x border-b border-[var(--color-border)] xl:grid-cols-[1fr_350px]"
-          style={{ minHeight: '78vh' }}
+          className="grid grid-cols-1 overflow-hidden rounded-xl border border-border/60 bg-card xl:grid-cols-[1fr_380px]"
+          style={{ minHeight: '75vh' }}
         >
           {/* Document canvas (Turnitin "paper" look) */}
-          <div className="overflow-auto bg-[var(--color-bg)]" style={{ maxHeight: '78vh' }}>
-            {text ? (
-              <div className="flex justify-center px-4 py-8">
-                <article
-                  className="w-full max-w-[8.5in] rounded bg-[var(--color-surface)] px-10 py-8 shadow-[0_0_12px_rgba(0,0,0,0.08)] text-sm leading-7 text-[var(--color-text-primary)] whitespace-pre-wrap"
-                  style={{
-                    fontFamily: "'Times New Roman', 'Georgia', serif",
-                    fontSize: '12pt',
-                    lineHeight: '2',
-                  }}
+          <div className="flex flex-col overflow-hidden bg-muted/20">
+            {/* Canvas Sub-Header Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs">
+              {/* Left: View Mode Segmented Controls */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCanvasViewMode('highlights')}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-medium transition-all text-xs',
+                    canvasViewMode === 'highlights'
+                      ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
                 >
-                  {textSegments.map((segment) => {
-                    if (!segment.highlight) {
-                      return <span key={segment.key}>{segment.text}</span>;
-                    }
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Originality Highlights</span>
+                </button>
 
-                    const isActive = activeHighlight?.key === segment.highlight.key;
-                    const { mark } = segment.highlight.palette;
+                {submission && (
+                  <button
+                    type="button"
+                    onClick={() => setCanvasViewMode('document')}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-medium transition-all text-xs',
+                      canvasViewMode === 'document'
+                        ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                    <span>Formatted Manuscript</span>
+                  </button>
+                )}
+              </div>
 
-                    return (
-                      <mark
-                        key={segment.key}
-                        id={`highlight-${segment.highlight.key}`}
-                        ref={(node) => {
-                          if (node) highlightRefs.current.set(segment.highlight.key, node);
-                          else highlightRefs.current.delete(segment.highlight.key);
-                        }}
-                        className={[
-                          'cursor-pointer rounded px-0.5 py-0.5 transition-all',
-                          isActive ? 'ring-2 ring-offset-1 shadow-md' : 'ring-1 hover:ring-2',
-                        ].join(' ')}
-                        style={{
-                          ...mark,
-                          ringColor: isActive ? 'var(--color-neutral)' : mark.outline,
-                        }}
-                        onClick={() => handleHighlightClick(segment.highlight)}
-                        title={`[${segment.highlight.sourceNumber}] ${segment.highlight.sourceTitle} — ${Math.round(segment.highlight.similarityPercentage)}%`}
-                      >
-                        <sup className="mr-0.5 text-[9px] font-bold opacity-70">
-                          {segment.highlight.sourceNumber}
-                        </sup>
-                        {segment.text}
-                      </mark>
-                    );
-                  })}
-                </article>
+              {/* Right: Page Navigator, Paper Mode & Zoom */}
+              <div className="flex items-center gap-2.5">
+                {/* Page Navigator (Highlights Mode) */}
+                {canvasViewMode === 'highlights' && pages.length > 1 && (
+                  <div className="flex items-center gap-1 bg-background/80 px-2 py-0.5 rounded-lg border border-border/60 text-xs font-mono">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => scrollToPage(Math.max(1, currentPage - 1))}
+                      className="h-5 w-5 rounded hover:bg-muted disabled:opacity-30 flex items-center justify-center text-foreground transition-colors"
+                      title="Previous Page"
+                      aria-label="Previous Page"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </button>
+                    <span className="font-semibold text-foreground text-[11px] px-1">
+                      Page {currentPage} of {pages.length}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentPage >= pages.length}
+                      onClick={() => scrollToPage(Math.min(pages.length, currentPage + 1))}
+                      className="h-5 w-5 rounded hover:bg-muted disabled:opacity-30 flex items-center justify-center text-foreground transition-colors"
+                      title="Next Page"
+                      aria-label="Next Page"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
+                {canvasViewMode === 'highlights' && (
+                  <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setPaperMode('paper')}
+                      className={cn(
+                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
+                        paperMode === 'paper'
+                          ? 'bg-card font-semibold text-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      title="Authentic Paper Sheet View"
+                    >
+                      Paper Sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaperMode('theme')}
+                      className={cn(
+                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
+                        paperMode === 'theme'
+                          ? 'bg-card font-semibold text-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                      title="Theme Card View"
+                    >
+                      Theme
+                    </button>
+                  </div>
+                )}
+
+                {/* Zoom controls */}
+                <div className="flex items-center gap-1 text-[11px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((z) => Math.max(z - 10, 70))}
+                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    title="Zoom out"
+                  >
+                    <ZoomOut className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(100)}
+                    className="min-w-[2.75rem] px-1 text-center font-semibold text-foreground hover:underline"
+                    title="Reset zoom"
+                  >
+                    {zoomLevel}%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((z) => Math.min(z + 10, 160))}
+                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    title="Zoom in"
+                  >
+                    <ZoomIn className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Canvas Body */}
+            {canvasViewMode === 'document' && submission ? (
+              <div
+                data-testid="docx-preview-renderer"
+                className="flex-1 overflow-hidden min-h-[650px] flex flex-col"
+              >
+                <PaginatedDocumentViewer
+                  fileUrl={`/api/submissions/${submission._id}/file`}
+                  fileName={submission.fileName}
+                  fileType={submission.fileType}
+                  zoom={zoomLevel}
+                  onZoomChange={setZoomLevel}
+                />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-24 text-center text-[var(--color-text-secondary)]">
-                <FileText className="mb-3 h-12 w-12 opacity-30" />
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  No extracted text available
-                </p>
-                <p className="mt-1 text-xs">
-                  The document text could not be extracted for analysis.
-                </p>
+              <div
+                ref={canvasContainerRef}
+                onScroll={handleCanvasScroll}
+                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-slate-900/60 dark:bg-slate-950"
+                style={{ maxHeight: '76vh', scrollBehavior: 'smooth' }}
+                tabIndex={0}
+                role="region"
+                aria-label="Manuscript Pages Canvas"
+              >
+                {text && pages.length > 0 ? (
+                  <article
+                    className={cn(
+                      'w-full flex flex-col items-center gap-10 select-text transition-all',
+                      paperMode === 'paper' ? 'bg-white text-slate-900' : 'bg-card text-foreground',
+                    )}
+                    style={{ background: 'transparent' }}
+                  >
+                    {pages.map((page) => {
+                      const isCover = page.pageType === 'cover';
+                      const isApproval = page.pageType === 'approval';
+
+                      const titleLines = page.lines.filter((l) => l.type === 'cover-title');
+                      const authorLines = page.lines.filter(
+                        (l) => l.type === 'cover-byline' || l.type === 'cover-author',
+                      );
+                      const affiliationLines = page.lines.filter(
+                        (l) =>
+                          l.type === 'cover-affiliation' ||
+                          l.type === 'cover-fulfillment' ||
+                          l.type === 'cover-date',
+                      );
+                      const otherCoverLines = page.lines.filter(
+                        (l) => !l.type.startsWith('cover-'),
+                      );
+
+                      return (
+                        <section
+                          key={page.id}
+                          id={page.id}
+                          data-page-number={page.pageNumber}
+                          role="region"
+                          aria-label={`Manuscript Page ${page.pageNumber}`}
+                          className={cn(
+                            'w-full max-w-[8.5in] min-h-[11in] rounded-sm transition-all duration-200 select-text flex flex-col justify-between shadow-2xl ring-1',
+                            paperMode === 'paper'
+                              ? 'bg-white text-slate-900 border border-slate-200/90 ring-black/10'
+                              : 'bg-card text-foreground border border-border/80 ring-border/20',
+                          )}
+                          style={{
+                            fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
+                            fontSize: `${(11.5 * zoomLevel) / 100}pt`,
+                            lineHeight: '1.85',
+                            padding: 'clamp(1.25rem, 4vw, 1in)',
+                            boxSizing: 'border-box',
+                            position: 'relative',
+                          }}
+                        >
+                          {isCover ? (
+                            <div className="flex-1 flex flex-col justify-between py-2 text-center">
+                              {/* Top: Title */}
+                              <div className="my-auto pt-6">
+                                {titleLines.map((line) => (
+                                  <h1
+                                    key={line.id}
+                                    className={cn(
+                                      'text-center font-bold text-lg sm:text-xl md:text-2xl tracking-tight uppercase max-w-2xl mx-auto my-4',
+                                      paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+                                    )}
+                                  >
+                                    {renderLineFragments(line)}
+                                  </h1>
+                                ))}
+                              </div>
+
+                              {/* Middle: Byline & Authors */}
+                              <div className="my-auto py-8">
+                                {authorLines.map((line) => {
+                                  if (line.type === 'cover-byline') {
+                                    return (
+                                      <p
+                                        key={line.id}
+                                        className={cn(
+                                          'text-center text-xs sm:text-sm font-semibold uppercase tracking-widest my-3',
+                                          paperMode === 'paper'
+                                            ? 'text-slate-500'
+                                            : 'text-muted-foreground',
+                                        )}
+                                      >
+                                        {renderLineFragments(line)}
+                                      </p>
+                                    );
+                                  }
+                                  return (
+                                    <p
+                                      key={line.id}
+                                      className={cn(
+                                        'text-center font-semibold text-sm sm:text-base my-0.5 leading-snug',
+                                        paperMode === 'paper'
+                                          ? 'text-slate-800'
+                                          : 'text-foreground',
+                                      )}
+                                    >
+                                      {renderLineFragments(line)}
+                                    </p>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Bottom: Affiliation & Fulfillment */}
+                              <div className="my-auto pb-4">
+                                {affiliationLines.map((line) => {
+                                  if (line.type === 'cover-affiliation') {
+                                    return (
+                                      <p
+                                        key={line.id}
+                                        className={cn(
+                                          'text-center font-medium text-xs sm:text-sm my-1 max-w-xl mx-auto leading-relaxed',
+                                          paperMode === 'paper'
+                                            ? 'text-slate-700'
+                                            : 'text-foreground',
+                                        )}
+                                      >
+                                        {renderLineFragments(line)}
+                                      </p>
+                                    );
+                                  }
+                                  if (line.type === 'cover-fulfillment') {
+                                    return (
+                                      <p
+                                        key={line.id}
+                                        className={cn(
+                                          'text-center text-xs sm:text-sm italic my-1 max-w-md mx-auto leading-relaxed',
+                                          paperMode === 'paper'
+                                            ? 'text-slate-600'
+                                            : 'text-muted-foreground',
+                                        )}
+                                      >
+                                        {renderLineFragments(line)}
+                                      </p>
+                                    );
+                                  }
+                                  return (
+                                    <p
+                                      key={line.id}
+                                      className={cn(
+                                        'text-center text-xs font-medium my-3',
+                                        paperMode === 'paper'
+                                          ? 'text-slate-500'
+                                          : 'text-muted-foreground',
+                                      )}
+                                    >
+                                      {renderLineFragments(line)}
+                                    </p>
+                                  );
+                                })}
+                                {otherCoverLines.map((line) => (
+                                  <p key={line.id} className="text-center text-xs my-1">
+                                    {renderLineFragments(line)}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : isApproval ? (
+                            <div className="flex-1 flex flex-col justify-start py-2">
+                              {page.lines.map((line) => {
+                                if (
+                                  line.type === 'approval-heading' ||
+                                  /^APPROVAL SHEET$/i.test(line.text)
+                                ) {
+                                  return (
+                                    <h2
+                                      key={line.id}
+                                      className={cn(
+                                        'text-center font-bold text-base sm:text-lg uppercase tracking-wider mb-8 pb-3 border-b',
+                                        paperMode === 'paper'
+                                          ? 'text-slate-950 border-slate-200'
+                                          : 'text-foreground border-border/40',
+                                      )}
+                                    >
+                                      {renderLineFragments(line)}
+                                    </h2>
+                                  );
+                                }
+                                if (
+                                  line.type === 'approval-body' ||
+                                  /^This capstone/i.test(line.text)
+                                ) {
+                                  return (
+                                    <p
+                                      key={line.id}
+                                      className={cn(
+                                        'text-justify mb-10 indent-8 leading-[1.85] text-sm sm:text-base',
+                                        paperMode === 'paper'
+                                          ? 'text-slate-800'
+                                          : 'text-foreground',
+                                      )}
+                                    >
+                                      {renderLineFragments(line)}
+                                    </p>
+                                  );
+                                }
+                                if (line.type === 'approval-name') {
+                                  return (
+                                    <div key={line.id} className="text-center my-2">
+                                      <p className="font-bold underline text-sm sm:text-base tracking-wide">
+                                        {renderLineFragments(line)}
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                if (line.type === 'approval-role') {
+                                  return (
+                                    <div key={line.id} className="text-center mb-6">
+                                      <p className="text-xs text-muted-foreground italic">
+                                        {renderLineFragments(line)}
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <p key={line.id} className="mb-4 text-justify indent-6">
+                                    {renderLineFragments(line)}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col justify-start">
+                              {page.lines.map((line) => {
+                                let Tag = 'p';
+                                let lineClass =
+                                  'text-left sm:text-justify mb-4 indent-8 leading-[1.85]';
+
+                                if (line.type === 'section-heading') {
+                                  Tag = 'h2';
+                                  lineClass = cn(
+                                    'text-center font-bold text-base sm:text-lg uppercase tracking-wider mt-4 mb-6 pt-2',
+                                    paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+                                  );
+                                } else if (line.type === 'subheading') {
+                                  Tag = 'h3';
+                                  lineClass = cn(
+                                    'text-left font-bold text-sm sm:text-base mt-6 mb-3',
+                                    paperMode === 'paper' ? 'text-slate-900' : 'text-foreground',
+                                  );
+                                }
+
+                                return (
+                                  <Tag key={line.id} className={lineClass}>
+                                    {renderLineFragments(line)}
+                                  </Tag>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Paper Page Footer Stamp */}
+                          <div
+                            className={cn(
+                              'mt-auto pt-4 text-center text-[10px] font-mono select-none border-t',
+                              paperMode === 'paper'
+                                ? 'text-slate-400 border-slate-100'
+                                : 'text-muted-foreground border-border/30',
+                            )}
+                          >
+                            Page {page.pageNumber} of {pages.length}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </article>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
+                    <FileText className="mb-3 h-12 w-12 opacity-30" />
+                    <p className="text-sm font-semibold text-foreground">
+                      No extracted text available
+                    </p>
+                    <p className="mt-1 text-xs">
+                      The document text could not be extracted for visual analysis.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Sources sidebar */}
           <aside
-            className="flex flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)]"
+            className="flex flex-col border-l border-border/60 bg-card"
             style={{ maxHeight: '78vh' }}
           >
             {/* Sidebar header */}
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-[var(--color-text-secondary)]" />
-                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  Match Overview
-                </h3>
+            <div className="flex flex-col gap-2.5 border-b border-border/60 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Match Overview</h3>
+                </div>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {sources.length} {sources.length === 1 ? 'source' : 'sources'}
+                </span>
               </div>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                {sources.length} sources
-              </span>
+
+              {/* Source search filter */}
+              {sources.length > 2 && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Filter sources by title..."
+                    value={sourceSearch}
+                    onChange={(e) => setSourceSearch(e.target.value)}
+                    className="w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Active source detail popover */}
             {activeSource && activeHighlight && (
-              <div className="space-y-2.5 border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div className="space-y-2.5 border-b border-border/60 bg-muted/30 p-3.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -746,19 +1583,19 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                       >
                         {activeSource.sourceNumber}
                       </span>
-                      <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {activeSource.sourceTitle}
                       </p>
                     </div>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-                      {Math.round(activeSource.similarityPercentage)}% match
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {Math.round(activeSource.similarityPercentage)}% similarity match
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setActiveHighlightKey(null)}
-                    className="h-6 w-6 shrink-0 rounded-md text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                    className="h-6 w-6 shrink-0 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
                     aria-label="Close detail"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -767,22 +1604,22 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
 
                 {/* Side-by-side comparison */}
                 <div className="space-y-2">
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-                      Your Text
+                  <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Your Manuscript Excerpt
                     </p>
-                    <p className="text-xs leading-relaxed text-[var(--color-text-primary)]">
+                    <p className="text-xs leading-relaxed text-foreground font-serif">
                       {activeHighlight.matchedText || 'Text unavailable.'}
                     </p>
                   </div>
-                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-                      Source Text
+                  <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Archive Source Match
                     </p>
-                    <p className="text-xs leading-relaxed text-[var(--color-text-primary)]">
+                    <p className="text-xs leading-relaxed text-foreground font-serif">
                       {activeHighlight.sourceText || (
-                        <span className="flex items-center gap-2 italic text-[var(--color-text-secondary)]">
-                          <AlertTriangle className="h-3.5 w-3.5" />
+                        <span className="flex items-center gap-1.5 italic text-muted-foreground">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                           Source excerpt not available for this match.
                         </span>
                       )}
@@ -793,19 +1630,21 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
             )}
 
             {/* Source list */}
-            <div className="flex-1 space-y-1.5 overflow-auto px-3 py-2">
-              {sources.length === 0 ? (
+            <div className="flex-1 space-y-2 overflow-auto p-3">
+              {filteredSources.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <CheckCircle2 className="mb-3 h-10 w-10 text-[var(--color-ok)]/50" />
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                    No matches found
+                  <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-500/60" />
+                  <p className="text-sm font-semibold text-foreground">
+                    {sourceSearch ? 'No matching sources' : 'No matches found'}
                   </p>
-                  <p className="mt-1 max-w-[200px] text-xs text-[var(--color-text-secondary)]">
-                    This submission has no indexed plagiarism matches.
+                  <p className="mt-1 max-w-[220px] text-xs text-muted-foreground">
+                    {sourceSearch
+                      ? 'Try adjusting your search keywords.'
+                      : 'This submission has no indexed plagiarism matches in the BukSU archive.'}
                   </p>
                 </div>
               ) : (
-                sources.map((source) => (
+                filteredSources.map((source) => (
                   <SourceRow
                     key={source.sourceId}
                     source={source}
@@ -818,13 +1657,23 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
 
             {/* Sidebar footer hint */}
             {sources.length > 0 && (
-              <div className="border-t border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
-                Click a source to filter highlights. Numbered badges in the document link to source
-                rows.
+              <div className="border-t border-border/60 bg-muted/20 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                Click any source above to highlight its instances in the document canvas.
               </div>
             )}
           </aside>
         </div>
+
+        {/* ── Sophisticated Document Viewer Integration ── */}
+        {submission && (
+          <SophisticatedDocumentViewer
+            open={viewerOpen}
+            onOpenChange={setViewerOpen}
+            submission={submission}
+            fileUrl={`/api/submissions/${submission._id}/file`}
+            initialViewMode="manuscript"
+          />
+        )}
       </div>
     </DashboardLayout>
   );

@@ -1,0 +1,89 @@
+{
+  "session_id": "2026-09-10_faculty-chapter-review-and-functional-alignment",
+  "timestamp": "2026-09-10T03:35:00.000Z",
+  "task_slug": "faculty-chapter-review-and-functional-alignment",
+  "task_summary": "Resolved faculty chapter viewing and moderation authorization flaw (403 Forbidden) by implementing project-level ABAC committee checks supporting user.role === 'faculty' across advisers, panelists, and secretaries. Added concurrent review collision prevention via optimistic concurrency timestamp checks (409 CONCURRENT_REVIEW_CONFLICT), time-in-queue visual indicators with color coding on faculty dashboard pending reviews, multi-member student notification dispatching on review mutations, in-panel OOXML and Google Docs document viewing, previous round revision notes callout, and Mongoose submission status history audit trail. Verified with 8 client tests, 3 server review-flow unit tests, 0 route mismatches, 60/60 agentic governance checks, pristine workspace guardrails, and full 4-way Playwright visual audit across light and dark desktop and mobile.",
+  "task_category": "authorization_and_workflow_alignment",
+  "status": "completed",
+  "author": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "changes": {
+    "server": [
+      {
+        "file": "server/modules/submissions/submission.model.js",
+        "description": "Added statusHistory array to Submission schema recording status transitions, changedBy user reference, notes, and timestamps for immutable academic dispute audit trails."
+      },
+      {
+        "file": "server/modules/submissions/submission.service.js",
+        "description": "Engineered _isProjectCommitteeMember helper safely coercing Mongoose ObjectIds to strings. Updated _assertCanViewSubmission, _assertCanModerateSubmission, and reviewSubmission to authorize faculty members based on project appointments (adviserId, panelistIds, secretaryId). Implemented expectedUpdatedAt collision detection returning 409, automatic revision deadline calculation, and multi-member team notification hooks."
+      },
+      {
+        "file": "server/modules/projects/project.service.js",
+        "description": "Updated assignAdviser and deadline management to authorize ROLES.FACULTY in addition to legacy ROLES.ADVISER."
+      },
+      {
+        "file": "server/modules/dashboard/dashboard.service.js",
+        "description": "Updated _getFacultyStats to populate projectId on pendingReviews items, returned dual assignedProjects and adviserProjects aliases, and exposed counts.assignedProjects and counts.activeProjects for dashboard KPI fidelity."
+      }
+    ],
+    "client": [
+      {
+        "file": "client/src/App.jsx",
+        "description": "Added alias routes /submissions/:submissionId and /submissions/:submissionId/review to eliminate 404s when navigating directly from dashboard pending review cards or notifications."
+      },
+      {
+        "file": "client/src/components/dashboards/FacultyDashboard.jsx",
+        "description": "Added fallback resolution for assignedProjects/adviserProjects, time-in-queue badge indicators (getQueueTime, getQueueBadgeColor), interactive 'Review' and 'Project' quick action buttons, and 'Open Project Workspace' button in Team Roster Details sidebar."
+      },
+      {
+        "file": "client/src/pages/projects/ProjectDetailPage.jsx",
+        "description": "Implemented loose chapter number matching Number(s.chapter || s.chapterNumber) === Number(item.chapterNum) and direct review navigation buttons in Attached Working Manuscripts."
+      },
+      {
+        "file": "client/src/components/submissions/ChapterReviewPanel.jsx",
+        "description": "Integrated activeViewerSubmission state and SophisticatedDocumentViewer modal trigger for inline reading of DOCX manuscripts, Google Docs external link, Review Studio navigation, previous round revision notes callout, and mutation-guarded review actions with strict React Query cache invalidation."
+      }
+    ],
+    "tests": [
+      {
+        "file": "server/tests/unit/submission.review-flow.test.js",
+        "description": "Created comprehensive unit test verifying faculty authorization for viewing and moderating submissions, secretary moderation restriction, and optimistic concurrency collision rejection."
+      },
+      {
+        "file": "client/src/components/submissions/ChapterReviewPanel.test.jsx",
+        "description": "Added tests asserting rendering of Chapter 1 submissions, document viewer triggers, Google Docs links, and disabled mutation states."
+      },
+      {
+        "file": "scratch/test_faculty_review_sync.mjs",
+        "description": "Playwright end-to-end audit verifying faculty dashboard statistics, time-in-queue badges, document viewer modal, inline review submission, toast notifications, and dark/light desktop and mobile responsiveness."
+      }
+    ]
+  },
+  "verification_evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=201, CLIENT_ENDPOINT_COUNT=179, UNMATCHED_COUNT=0 (passed)",
+    "agentic_governance": "60/60 checks passed",
+    "workspace_cleanliness": "Python workspace_guardrail.py passed, workspace pristine",
+    "client_unit_tests": "8/8 passed across ChapterReviewPanel.test.jsx and FacultyDashboard.test.jsx",
+    "server_unit_tests": "3/3 passed in submission.review-flow.test.js",
+    "playwright_visual_audit": "Screenshots captured for Desktop & Mobile (Dark & Light) for Faculty Dashboard, Chapter Review Panel, Document Viewer Modal, and Post-Review Revision State"
+  },
+  "post_mortem": {
+    "lesson": "Confusing global user account roles (User RBAC) with contextual committee relationships (Project ABAC) causes critical workflow breakage in academic management systems. Faculty users hold user.role === 'faculty' globally, while their authorization to moderate or view a capstone chapter is determined by their committee appointment on that specific project (project.adviserId, project.panelistIds, project.secretaryId).",
+    "learned": "Mongoose ObjectIds must always be safely cast to strings (String(project.adviserId) === String(userId)) when performing identity comparisons to avoid silent reference equality failures. Furthermore, optimistic concurrency control via expectedUpdatedAt prevents devastating committee race conditions where multiple panelists review simultaneously.",
+    "prevention": "Never rely solely on user.role === 'adviser' or user.role === 'panelist' in permission assertion middleware or service layers. Always query the project's committee fields and evaluate role contextually using the standardized helper _isProjectCommitteeMember(project, userId, allowedRoles).",
+    "runbook": [
+      "1. Verify faculty committee appointment in project document (adviserId, panelistIds, secretaryId).",
+      "2. When faculty accesses submission, _assertCanViewSubmission verifies committee membership and grants read access.",
+      "3. When faculty submits review, reviewSubmission verifies expectedUpdatedAt matches current submission.updatedAt; if outdated, returns 409 CONCURRENT_REVIEW_CONFLICT.",
+      "4. Upon successful moderation, submission.statusHistory records the transition, and notifications are dispatched to all project.memberIds."
+    ],
+    "checklist": [
+      "Checklist: Verify faculty adviser can view and review chapter submissions without 403 Forbidden.",
+      "Checklist: Verify faculty dashboard renders handled teams and pending reviews with time-in-queue badges.",
+      "Checklist: Verify inline 'Read Document' modal renders DOCX manuscripts cleanly.",
+      "Checklist: Verify requesting revision transitions submission status, creates statusHistory entry, and notifies student team.",
+      "Checklist: Verify endpoints parity UNMATCHED_COUNT = 0, agentic governance 60/60 passed, and tests pass in 1-4s."
+    ],
+    "evidence": "8/8 client tests passed, 3/3 server review-flow tests passed, 201/179 route parity verified, 60/60 agentic checks passed, and Playwright visual audit verified live database mutation with Steven Joe Bautista and Megumi Fushiguro."
+  }
+}

@@ -22,6 +22,7 @@ import {
   ScrollText,
   Upload,
   Search,
+  FileSignature,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES } from '@cms/shared';
@@ -178,6 +179,13 @@ const facultyNavItems = [
     label: 'Panel Review',
     icon: ClipboardList,
     path: '/projects?filter=panel',
+    section: 'workspace',
+  },
+  {
+    id: 'secretary-review',
+    label: 'Secretary Review',
+    icon: FileSignature,
+    path: '/secretary-review',
     section: 'workspace',
   },
   {
@@ -499,14 +507,14 @@ export function Sidebar({ open = true, onToggle }) {
 
   return (
     <aside
-      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-300 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 ${
+      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-700 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 ${
         collapsed
           ? 'hidden md:flex w-[76px]'
           : 'fixed inset-y-0 left-0 z-50 w-[260px] md:relative shadow-2xl md:shadow-none'
       }`}
     >
       {/* 1. Header & Collapse Toggle */}
-      <div className="p-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 min-h-[4rem]">
+      <div className="p-4 flex items-center justify-between border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem]">
         <div
           className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${
             collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
@@ -533,7 +541,7 @@ export function Sidebar({ open = true, onToggle }) {
         <button
           type="button"
           onClick={onToggle}
-          className={`p-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors ${
+          className={`p-1.5 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors ${
             collapsed ? 'mx-auto' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -576,7 +584,7 @@ export function Sidebar({ open = true, onToggle }) {
         </div>
 
         {/* Tools Section */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
+        <div className="pt-3 border-t border-slate-700 dark:border-slate-800 space-y-1">
           {!collapsed && (
             <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Evaluation
@@ -605,7 +613,7 @@ export function Sidebar({ open = true, onToggle }) {
       </nav>
 
       {/* 3. Footer Actions */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-1">
+      <div className="p-3 border-t border-slate-700 dark:border-slate-800 space-y-1">
         {systemItems.map((item) => (
           <SidebarNavItem
             key={item.id}

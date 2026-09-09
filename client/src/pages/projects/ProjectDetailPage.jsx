@@ -234,9 +234,9 @@ export default function ProjectDetailPage() {
             <ProjectTitleCard project={project} />
 
             <Tabs defaultValue={defaultTab} className="w-full">
-              <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-b border-border mb-6">
+              <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
                 {isArchived ? (
-                  <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
+                  <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     <WorkflowTabTrigger
                       value="capstone_4"
                       icon={BookMarked}
@@ -260,7 +260,7 @@ export default function ProjectDetailPage() {
                     <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
                   </TabsList>
                 ) : (
-                  <TabsList className="bg-transparent p-0 gap-6 h-auto flex-nowrap min-w-max border-0">
+                  <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
                     <WorkflowTabTrigger value="capstone_2" icon={BookOpen} label="Capstone 2" />
                     <WorkflowTabTrigger value="capstone_3" icon={Code2} label="Capstone 3" />
@@ -285,21 +285,43 @@ export default function ProjectDetailPage() {
 
                 {proposals.length > 0 ? (
                   <Tabs defaultValue="0" className="w-full">
-                    {/* Styled proposal selector bar */}
-                    <TabsList className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/40 p-2 h-auto">
-                      {proposals.map((_, idx) => (
-                        <TabsTrigger
-                          key={idx}
-                          value={String(idx)}
-                          className="flex items-center gap-2 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:border-primary/20 hover:bg-primary/5 hover:text-primary data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm"
-                        >
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                            {idx + 1}
-                          </span>
-                          Proposal {idx + 1}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                    {/* Modern proposal selector bar */}
+                    <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+                      <TabsList className="inline-flex items-center gap-1.5 p-1.5 rounded-xl border border-border/60 bg-muted/50 dark:bg-muted/30 h-auto shadow-2xs overflow-x-auto max-w-full">
+                        {proposals.map((proposal, idx) => {
+                          const proposalTitle =
+                            typeof proposal === 'string'
+                              ? proposal
+                              : proposal?.title || `Proposal ${idx + 1}`;
+                          const isApprovedTitle =
+                            project.titleStatus === TITLE_STATUSES.APPROVED &&
+                            project.title === proposalTitle;
+                          return (
+                            <TabsTrigger
+                              key={idx}
+                              value={String(idx)}
+                              className="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all select-none whitespace-nowrap data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/80 data-[state=active]:shadow-xs data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50 border border-transparent"
+                            >
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-colors bg-muted text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                                {idx + 1}
+                              </span>
+                              <span>Proposal {idx + 1}</span>
+                              {idx === 0 && (
+                                <span className="text-[10px] text-muted-foreground/80 font-normal">
+                                  (Primary)
+                                </span>
+                              )}
+                              {isApprovedTitle && (
+                                <span
+                                  className="h-2 w-2 rounded-full bg-emerald-500"
+                                  title="Approved Title"
+                                />
+                              )}
+                            </TabsTrigger>
+                          );
+                        })}
+                      </TabsList>
+                    </div>
                     {proposals.map((proposal, idx) => (
                       <TabsContent
                         key={idx}
@@ -366,8 +388,13 @@ export default function ProjectDetailPage() {
                         chapterNum: 3,
                       },
                     ].map((item) => {
-                      const latestSub = (submissionsData?.submissions || []).find(
-                        (s) => s.type === 'chapter' && s.chapter === item.chapterNum,
+                      const subsList = Array.isArray(submissionsData)
+                        ? submissionsData
+                        : submissionsData?.submissions || submissionsData?.data || [];
+                      const latestSub = subsList.find(
+                        (s) =>
+                          (s.type === 'chapter' || !s.type) &&
+                          Number(s.chapter || s.chapterNumber) === Number(item.chapterNum),
                       );
                       const status = latestSub?.status || 'pending';
                       const dateStr = latestSub?.createdAt
@@ -401,21 +428,23 @@ export default function ProjectDetailPage() {
                                 'text-[10px] capitalize',
                                 status === 'approved'
                                   ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                                  : status === 'needs_revision'
+                                  : status === 'needs_revision' || status === 'revisions_required'
                                     ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
                                     : 'border-border text-muted-foreground',
                               )}
                             >
-                              {status.replace('_', ' ')}
+                              {status.replace(/_/g, ' ')}
                             </Badge>
                             {latestSub ? (
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                className="text-xs h-7 px-2 text-primary hover:bg-primary/10"
-                                onClick={() => navigate(`/submissions/${latestSub._id}`)}
+                                className="text-xs h-7 px-2.5 gap-1 text-primary hover:bg-primary/10 border-primary/20 shadow-xs"
+                                onClick={() =>
+                                  navigate(`/project/submissions/${latestSub._id}/review`)
+                                }
                               >
-                                Inspect
+                                Review / Inspect
                               </Button>
                             ) : null}
                           </div>

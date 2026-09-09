@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -13,7 +13,9 @@ import {
   FileText,
   Lock,
   Upload,
+  Eye,
 } from 'lucide-react';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 
 const CHAPTER_LABELS = {
   1: 'Chapter 1',
@@ -82,6 +84,7 @@ export default function ChapterProgressWithRounds({
   showUploadButton = false,
 }) {
   const navigate = useNavigate();
+  const [activeViewerSubmission, setActiveViewerSubmission] = useState(null);
 
   const chapterRoundsMap = useMemo(() => {
     const map = new Map();
@@ -235,13 +238,22 @@ export default function ChapterProgressWithRounds({
 
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setActiveViewerSubmission(round)}
+                            className="gap-1.5 text-xs h-8 shadow-xs"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Read Document
+                          </Button>
+                          <Button
                             variant="outline"
                             size="sm"
                             onClick={() => navigate(`/project/submissions/${round._id}`)}
                             className="gap-1.5 text-xs h-8"
                           >
                             <FileText className="h-3.5 w-3.5" />
-                            View Document
+                            Details & Annotations
                           </Button>
                           {latest?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
                             <Button
@@ -295,6 +307,15 @@ export default function ChapterProgressWithRounds({
           })}
         </div>
       </CardContent>
+      {activeViewerSubmission && (
+        <SophisticatedDocumentViewer
+          open={!!activeViewerSubmission}
+          onOpenChange={(open) => {
+            if (!open) setActiveViewerSubmission(null);
+          }}
+          submission={activeViewerSubmission}
+        />
+      )}
     </Card>
   );
 }

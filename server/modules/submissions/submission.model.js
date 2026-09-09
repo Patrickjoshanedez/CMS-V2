@@ -509,6 +509,18 @@ const submissionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // --- Audit trail for status changes ---
+    statusHistory: {
+      type: [
+        {
+          status: { type: String, required: true },
+          changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          notes: { type: String, trim: true, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,

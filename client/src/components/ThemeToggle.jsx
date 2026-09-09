@@ -10,7 +10,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 text-slate-500 border border-slate-300 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors relative inline-flex items-center justify-center h-9 w-9 overflow-hidden"
+      className="p-2 text-slate-500 border border-slate-700 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors relative inline-flex items-center justify-center h-9 w-9 overflow-hidden"
       title={`Current theme: ${theme}. Click to toggle.`}
       aria-label="Toggle theme"
     >

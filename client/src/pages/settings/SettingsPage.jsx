@@ -3,12 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { Loader2, Palette, Shield, Bell, Settings2, Info } from 'lucide-react';
+import { Loader2, Palette, Shield, Bell, Settings2, Info, PenTool } from 'lucide-react';
 import { ROLES } from '@cms/shared';
 
 // Components
 import AppearanceSection from '@/components/settings/AppearanceSection';
 import SecuritySection from '@/components/settings/SecuritySection';
+import DigitalSignatureSection from '@/components/settings/DigitalSignatureSection';
 import NotificationsSection from '@/components/settings/NotificationsSection';
 import AboutSection from '@/components/settings/AboutSection';
 import AdministrationSection from '@/components/settings/AdministrationSection';
@@ -16,6 +17,7 @@ import AdministrationSection from '@/components/settings/AdministrationSection';
 const BASE_TABS = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'security', label: 'Security', icon: Shield },
+  { id: 'signature', label: 'Signature', icon: PenTool },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'about', label: 'About', icon: Info },
 ];
@@ -23,6 +25,7 @@ const BASE_TABS = [
 const ADMIN_TABS = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'security', label: 'Security', icon: Shield },
+  { id: 'signature', label: 'Signature', icon: PenTool },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'administration', label: 'Administration', icon: Settings2 },
   { id: 'about', label: 'About', icon: Info },
@@ -31,7 +34,8 @@ const ADMIN_TABS = [
 export default function SettingsPage() {
   const { user, fetchUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'appearance';
+  const rawTab = searchParams.get('tab') || 'appearance';
+  const activeTab = rawTab === 'admin' ? 'administration' : rawTab;
 
   const tabs =
     user?.role === ROLES.INSTRUCTOR || user?.role === ROLES.ADMIN ? ADMIN_TABS : BASE_TABS;
@@ -90,6 +94,10 @@ export default function SettingsPage() {
 
             <TabsContent value="security" className="mt-0 focus-visible:outline-none">
               <SecuritySection />
+            </TabsContent>
+
+            <TabsContent value="signature" className="mt-0 focus-visible:outline-none">
+              <DigitalSignatureSection />
             </TabsContent>
 
             <TabsContent value="notifications" className="mt-0 focus-visible:outline-none">

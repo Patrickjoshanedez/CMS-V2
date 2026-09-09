@@ -102,6 +102,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    digitalSignature: {
+      type: String,
+      default: null,
+    },
     lastLoginAt: {
       type: Date,
       default: null,
@@ -163,6 +167,15 @@ const userSchema = new mongoose.Schema(
  */
 userSchema.virtual('fullName').get(function () {
   return [this.firstName, this.middleName, this.lastName].filter(Boolean).join(' ');
+});
+
+/**
+ * avatarUrl — convenience virtual that builds the direct streaming endpoint URL for user's profile picture.
+ */
+userSchema.virtual('avatarUrl').get(function () {
+  if (!this.profilePicture) return null;
+  const ts = this.updatedAt ? new Date(this.updatedAt).getTime() : '';
+  return `/api/users/${this._id}/avatar${ts ? `?t=${ts}` : ''}`;
 });
 
 // --- Indexes ---

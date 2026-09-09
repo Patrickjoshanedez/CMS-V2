@@ -11,6 +11,7 @@ import {
   indexSubmissionInCorpus,
   removeSubmissionFromCorpus,
   scanArchivedPdfPlagiarism,
+  scanSubmissionAgainstArchive,
 } from './plagiarism.controller.js';
 
 const router = Router({ mergeParams: true });
@@ -24,6 +25,12 @@ router.post(
   upload.single('file'),
   validatePdfFile,
   scanArchivedPdfPlagiarism,
+);
+
+router.post(
+  '/:submissionId/plagiarism/archive-scan',
+  authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
+  scanSubmissionAgainstArchive,
 );
 
 router.post(

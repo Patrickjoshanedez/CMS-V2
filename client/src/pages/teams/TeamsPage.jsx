@@ -75,6 +75,7 @@ import {
 import { useUsers } from '@/hooks/useUsers';
 import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
+import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { toast } from 'sonner';
 
 /**
@@ -1805,10 +1806,18 @@ function TeamCard({ team, onInspect, onAssign, canAssignCommittee, isSelected })
                   <span>{team.academicYear}</span>
                 </>
               )}
-              {(sectionName || sectionCode) && (
+              {(sectionName || sectionCode || team.sectionId) && (
                 <>
                   <span>&bull;</span>
-                  <span className="truncate">{sectionName || sectionCode}</span>
+                  <span className="truncate">
+                    {formatSectionWithCode(
+                      team.sectionId ||
+                        team.section || {
+                          name: sectionName,
+                          courseId: { code: sectionCode },
+                        },
+                    )}
+                  </span>
                 </>
               )}
             </div>
@@ -2631,7 +2640,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
             <option value="">All Sections</option>
             {sections.map((section) => (
               <option key={section._id} value={section._id}>
-                {section.courseId?.code} - {section.name}
+                {formatSectionWithCode(section)}
               </option>
             ))}
           </select>

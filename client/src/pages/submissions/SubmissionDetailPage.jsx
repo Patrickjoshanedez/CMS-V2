@@ -19,7 +19,9 @@ import {
   useAddAnnotation,
   useRemoveAnnotation,
   useUpdateJustification,
+  useScanSubmissionArchive,
 } from '@/hooks/useSubmissions';
+import { submissionService } from '@/services/submissionService';
 import { ROLES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 import {
   BarChart2,
@@ -37,7 +39,10 @@ import {
   Lock,
   User,
   Send,
+  Eye,
+  Download,
 } from 'lucide-react';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import { toast } from 'sonner';
 
 /* ────────── Helpers ────────── */
@@ -70,128 +75,203 @@ function formatBytes(bytes) {
  */
 function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
   const navigate = useNavigate();
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const chapterLabel = CHAPTER_LABELS[submission.chapter - 1] || `Chapter ${submission.chapter}`;
-  const documentUrl = viewUrl?.url || null;
+  const documentUrl = viewUrl?.url || `/api/submissions/${submission._id}/file`;
+
+  const scanArchiveMutation = useScanSubmissionArchive({
+    onSuccess: (res) => {
+      const score = res?.data?.originalityScore ?? 100;
+      const match = res?.data?.overallScore ?? 0;
+      toast.success(`Archive scan complete! Originality: ${score}% (${match}% match)`);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Archive scan failed.');
+    },
+  });
+
+  const isScanning =
+    scanArchiveMutation.isPending ||
+    submission.plagiarismResult?.status === PLAGIARISM_STATUSES.PROCESSING ||
+    submission.plagiarismResult?.status === PLAGIARISM_STATUSES.QUEUED;
+
+  const handleDownload = async () => {
+    try {
+      setDownloading(true);
+      await submissionService.downloadFile(submission._id, submission.fileName);
+      toast.success('Download started.');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Download failed.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
-    <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
-      <CardHeader className="border-b border-border/60 pb-5">
-        <CardTitle className="flex flex-wrap items-center gap-2 text-xl sm:text-2xl">
-          <FileText className="h-5 w-5 text-primary" />
-          <span>{chapterLabel}</span>
-          <Badge variant="outline" className="font-medium">
-            v{submission.version}
-          </Badge>
-        </CardTitle>
-        <CardDescription>Uploaded {formatDate(submission.createdAt)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 p-5 sm:p-6">
-        <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/25 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <InfoRow label="File" value={submission.fileName} />
-          <InfoRow label="Size" value={formatBytes(submission.fileSize)} />
-          <InfoRow label="Type" value={submission.fileType} />
-          <InfoRow label="Status">
-            <SubmissionStatusBadge status={submission.status} />
-          </InfoRow>
-          <InfoRow label="Deadline" value={formatDate(submission.deadlineAt)} />
-          {submission.isLate && (
-            <InfoRow label="Late Submission">
-              <Badge variant="warning" className="font-medium">
-                Late
-              </Badge>
+    <>
+      <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 pb-5">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-xl sm:text-2xl">
+            <FileText className="h-5 w-5 text-primary" />
+            <span>{chapterLabel}</span>
+            <Badge variant="outline" className="font-medium">
+              v{submission.version}
+            </Badge>
+          </CardTitle>
+          <CardDescription>Uploaded {formatDate(submission.createdAt)}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6 p-5 sm:p-6">
+          <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/25 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <InfoRow label="File" value={submission.fileName} />
+            <InfoRow label="Size" value={formatBytes(submission.fileSize)} />
+            <InfoRow label="Type" value={submission.fileType} />
+            <InfoRow label="Status">
+              <SubmissionStatusBadge status={submission.status} />
             </InfoRow>
-          )}
+            <InfoRow label="Deadline" value={formatDate(submission.deadlineAt)} />
+            {submission.isLate && (
+              <InfoRow label="Late Submission">
+                <Badge variant="warning" className="font-medium">
+                  Late
+                </Badge>
+              </InfoRow>
+            )}
+            {submission.originalityScore !== null && submission.originalityScore !== undefined && (
+              <InfoRow label="Originality" value={`${submission.originalityScore}%`} />
+            )}
+          </div>
+
           {submission.originalityScore !== null && submission.originalityScore !== undefined && (
-            <InfoRow label="Originality" value={`${submission.originalityScore}%`} />
+            <div className="space-y-2 rounded-lg border border-border/60 bg-background/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-foreground">Originality Score</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {submission.originalityScore}%
+                </p>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${Math.max(0, Math.min(100, submission.originalityScore))}%` }}
+                />
+              </div>
+            </div>
           )}
-        </div>
 
-        {submission.originalityScore !== null && submission.originalityScore !== undefined && (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-background/60 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-foreground">Originality Score</p>
-              <p className="text-sm font-semibold text-foreground">
-                {submission.originalityScore}%
+          {isScanning && (
+            <div className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary animate-pulse">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              <span>
+                Scanning manuscript directly against institutional capstone archive and vector
+                embeddings...
+              </span>
+            </div>
+          )}
+
+          {submission.remarks && (
+            <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
+              <p className="text-sm font-medium text-muted-foreground">
+                {submission.isLate ? 'Late Justification Note' : 'Remarks'}
               </p>
+              <p className="text-sm text-foreground">{submission.remarks}</p>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${Math.max(0, Math.min(100, submission.originalityScore))}%` }}
-              />
+          )}
+
+          {submission.reviewNote && (
+            <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
+              <p className="text-sm font-medium text-muted-foreground">Review Note</p>
+              <p className="text-sm text-foreground">{submission.reviewNote}</p>
             </div>
-          </div>
-        )}
-
-        {submission.remarks && (
-          <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-            <p className="text-sm font-medium text-muted-foreground">
-              {submission.isLate ? 'Late Justification Note' : 'Remarks'}
-            </p>
-            <p className="text-sm text-foreground">{submission.remarks}</p>
-          </div>
-        )}
-
-        {submission.reviewNote && (
-          <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-            <p className="text-sm font-medium text-muted-foreground">Review Note</p>
-            <p className="text-sm text-foreground">{submission.reviewNote}</p>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {documentUrl && (
-            <Button asChild variant="outline" className="sm:w-auto">
-              <a href={documentUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Open / Download Document
-              </a>
-            </Button>
           )}
-          {submission.teamResources?.googleDocUrl && (
-            <Button asChild variant="secondary" className="sm:w-auto">
-              <a
-                href={submission.teamResources.googleDocUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Open Team Google Doc
-              </a>
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => navigate('/plagiarism-checker')}
-            className="sm:w-auto"
-          >
-            <ClipboardCheck className="mr-2 h-4 w-4" />
-            Open Archive Checker
-          </Button>
-          {submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED && (
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
+              type="button"
+              variant="default"
+              className="sm:w-auto gap-2 shadow-xs"
+              onClick={() => setViewerOpen(true)}
+            >
+              <Eye className="h-4 w-4" />
+              View Document
+            </Button>
+            <Button
+              type="button"
               variant="outline"
-              onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
+              className="sm:w-auto gap-2"
+              disabled={downloading}
+              onClick={handleDownload}
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Download Original
+            </Button>
+            {submission.teamResources?.googleDocUrl && (
+              <Button asChild variant="secondary" className="sm:w-auto">
+                <a
+                  href={submission.teamResources.googleDocUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Open Team Google Doc
+                </a>
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => scanArchiveMutation.mutate(submission._id)}
+              disabled={isScanning}
               className="sm:w-auto"
             >
-              <BarChart2 className="mr-2 h-4 w-4" />
-              View Plagiarism Report
+              {isScanning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scanning Archive...
+                </>
+              ) : (
+                <>
+                  <ClipboardCheck className="mr-2 h-4 w-4 text-primary" />
+                  Scan Against Archive
+                </>
+              )}
             </Button>
-          )}
-          {viewUrlLoading && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
-            </p>
-          )}
-        </div>
+            {(submission.plagiarismResult?.status === PLAGIARISM_STATUSES.COMPLETED ||
+              submission.plagiarismStatus === 'completed' ||
+              submission.originalityScore !== undefined ||
+              Array.isArray(submission.plagiarismResult?.matchedSources)) && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
+                className="sm:w-auto"
+              >
+                <BarChart2 className="mr-2 h-4 w-4 text-primary" />
+                View Plagiarism Report
+              </Button>
+            )}
+            {viewUrlLoading && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
+              </p>
+            )}
+          </div>
 
-        {documentUrl && (
           <p className="text-xs text-muted-foreground">
-            Open or download this file to read attached document comments in your PDF/Docx reader.
+            View the manuscript in the full-screen reader or download the original file.
           </p>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <SophisticatedDocumentViewer
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+        submission={submission}
+        fileUrl={documentUrl}
+      />
+    </>
   );
 }
 
@@ -802,33 +882,54 @@ export default function SubmissionDetailPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Back + header */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Submission Detail</h1>
-          {isFaculty && (
+        {/* Back + actions contextual header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
+          <div className="flex items-center gap-2.5">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => navigate(`/project/submissions/${submission._id}/review`)}
+              onClick={() => navigate(-1)}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
-              Open Review Workspace
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
-          )}
-          {isReadOnlyMode && sourceProjectId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                navigate(`/project/submissions?mode=view&projectId=${sourceProjectId}`)
-              }
-            >
-              Back to Submissions List
-            </Button>
-          )}
+            <div className="h-4 w-px bg-border/60" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                {submission.chapter
+                  ? `Chapter ${submission.chapter} Manuscript`
+                  : submission.type || 'Submission'}
+              </span>
+              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 h-4">
+                v{submission.version || 1}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isFaculty && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/project/submissions/${submission._id}/review`)}
+                className="text-xs"
+              >
+                Open Review Workspace
+              </Button>
+            )}
+            {isReadOnlyMode && sourceProjectId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(`/project/submissions?mode=view&projectId=${sourceProjectId}`)
+                }
+                className="text-xs"
+              >
+                Back to Submissions List
+              </Button>
+            )}
+          </div>
         </div>
 
         {isArchived && (

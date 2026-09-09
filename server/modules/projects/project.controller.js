@@ -985,7 +985,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
     }
   }
 
-  await project.save();
+  await project.save({ validateModifiedOnly: true });
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -1042,7 +1042,7 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
   };
 
   project.admStatus = 'under_panel_review';
-  await project.save();
+  await project.save({ validateModifiedOnly: true });
 
   // Notify team members
   try {

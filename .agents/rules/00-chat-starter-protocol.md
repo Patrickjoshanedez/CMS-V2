@@ -24,7 +24,7 @@ The canonical chat-starter state file lives at:
 ### Canonical Chat-Starter Schema (JSON)
 ```json
 {
-  "$schema": "https://cms.buksu.edu.ph/schemas/chat-starter.schema.json",
+  "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
   "session_id": "YYYY-MM-DD_<task-slug>",
   "timestamp": "ISO-8601 UTC Timestamp",

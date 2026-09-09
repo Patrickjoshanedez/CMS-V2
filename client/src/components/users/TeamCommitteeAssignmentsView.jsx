@@ -32,6 +32,7 @@ import { useUsers } from '@/hooks/useUsers';
 import { useProject, useSetDeadlines } from '@/hooks/useProjects';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROLES } from '@cms/shared';
+import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { toast } from 'sonner';
 
 /**
@@ -389,7 +390,7 @@ export default function TeamCommitteeAssignmentsView() {
             <option value="">All Sections</option>
             {sections.map((sec) => (
               <option key={sec._id} value={sec._id}>
-                {sec.courseId?.code || 'SEC'} - {sec.name}
+                {formatSectionWithCode(sec)}
               </option>
             ))}
           </select>

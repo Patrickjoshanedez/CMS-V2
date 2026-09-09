@@ -577,7 +577,7 @@ const PlagiarismChecker = ({
                 className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
                   activeTab === 'similarity'
                     ? 'tw-border-blue-600 tw-text-blue-600'
-                    : 'tw-border-transparent tw-text-gray-500 hover:tw-text-gray-700'
+                    : 'tw-border-transparent tw-text-gray-700 hover:tw-text-gray-900 font-medium'
                 }`}
               >
                 🔤 Exact Text Similarity (Winnowing n-grams)
@@ -588,7 +588,7 @@ const PlagiarismChecker = ({
                 className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
                   activeTab === 'plagiarism'
                     ? 'tw-border-purple-600 tw-text-purple-600'
-                    : 'tw-border-transparent tw-text-gray-500 hover:tw-text-gray-700'
+                    : 'tw-border-transparent tw-text-gray-700 hover:tw-text-gray-900 font-medium'
                 }`}
               >
                 🧠 Semantic Plagiarism (Neural Vector Embeddings)
@@ -614,7 +614,7 @@ const PlagiarismChecker = ({
                   </span>
                 </div>
 
-                <p className="tw-text-xs tw-text-gray-600 tw-mb-2">
+                <p className="tw-text-xs tw-text-gray-700 font-medium tw-mb-2">
                   {activeTab === 'similarity'
                     ? `Syntactic exact text overlap: ${similarityPercentage.toFixed(1)}% (Threshold: ${plagiarismWarningThreshold}%)`
                     : `Dense vector cosine similarity: ${similarityPercentage.toFixed(1)}% (Reject cutoff: ${plagiarismRejectThreshold}%)`}
@@ -637,7 +637,7 @@ const PlagiarismChecker = ({
                 </div>
 
                 {/* Guideline Text */}
-                <p className="tw-text-xs tw-text-gray-600 tw-mt-2">
+                <p className="tw-text-xs tw-text-gray-700 font-medium tw-mt-2">
                   {similarityPercentage < 15 && '✓ Low similarity — likely original work'}
                   {similarityPercentage >= 15 &&
                     similarityPercentage < 30 &&
@@ -702,7 +702,7 @@ const PlagiarismChecker = ({
           {canManageCorpus && (
             <div className="tw-space-y-2 tw-p-3 tw-rounded tw-border tw-border-slate-200 tw-bg-slate-50">
               <p className="tw-text-sm tw-font-semibold tw-text-gray-900">Corpus Controls</p>
-              <p className="tw-text-xs tw-text-gray-600">
+              <p className="tw-text-xs tw-text-gray-700 font-medium">
                 {isCorpusStateKnown && isIndexedInCorpus
                   ? 'This submission is currently part of the plagiarism corpus.'
                   : isCorpusStateKnown
@@ -718,7 +718,7 @@ const PlagiarismChecker = ({
                     disabled={corpusActionPending}
                     className={`tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded tw-border tw-transition ${
                       corpusActionPending
-                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-500 tw-cursor-not-allowed'
+                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-700 tw-cursor-not-allowed'
                         : 'tw-bg-white tw-border-red-300 tw-text-red-700 hover:tw-bg-red-50'
                     }`}
                   >
@@ -731,7 +731,7 @@ const PlagiarismChecker = ({
                     disabled={corpusActionPending}
                     className={`tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded tw-border tw-transition ${
                       corpusActionPending
-                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-500 tw-cursor-not-allowed'
+                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-700 tw-cursor-not-allowed'
                         : 'tw-bg-white tw-border-blue-300 tw-text-blue-700 hover:tw-bg-blue-50'
                     }`}
                   >
@@ -741,12 +741,12 @@ const PlagiarismChecker = ({
               </div>
 
               {corpusState.indexedAt && (
-                <p className="tw-text-xs tw-text-gray-600">
+                <p className="tw-text-xs tw-text-gray-700 font-medium">
                   Indexed at: {new Date(corpusState.indexedAt).toLocaleString()}
                 </p>
               )}
               {corpusState.removedFromCorpusAt && (
-                <p className="tw-text-xs tw-text-gray-600">
+                <p className="tw-text-xs tw-text-gray-700 font-medium">
                   Removed from corpus at:{' '}
                   {new Date(corpusState.removedFromCorpusAt).toLocaleString()}
                 </p>
@@ -796,7 +796,7 @@ const PlagiarismChecker = ({
                         </span>
                       </div>
                       {match.excerpt && (
-                        <p className="tw-text-xs tw-text-gray-600 tw-italic tw-truncate">
+                        <p className="tw-text-xs tw-text-gray-700 font-medium tw-italic tw-truncate">
                           &quot;{match.excerpt}&quot;
                         </p>
                       )}
@@ -805,7 +805,9 @@ const PlagiarismChecker = ({
                 })}
               </div>
               {matchCount > 5 && (
-                <p className="tw-text-xs tw-text-gray-500">+{matchCount - 5} more matches</p>
+                <p className="tw-text-xs tw-text-gray-700 font-medium">
+                  +{matchCount - 5} more matches
+                </p>
               )}
             </div>
           )}

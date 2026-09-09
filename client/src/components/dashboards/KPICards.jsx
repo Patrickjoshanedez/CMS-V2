@@ -41,11 +41,9 @@ const KPICards = ({ kpis }) => {
             key={card.label}
             className={`rounded-2xl border p-5 shadow-sm hover:shadow-md transition-shadow ${card.tone}`}
           >
-            <p className="text-[11px] uppercase font-semibold tracking-wide opacity-75">
-              {card.label}
-            </p>
+            <p className="text-[11px] uppercase font-bold tracking-wide">{card.label}</p>
             <p className="text-3xl font-bold mt-2">{card.value}</p>
-            <p className="text-xs mt-2 opacity-75">{card.hint}</p>
+            <p className="text-xs mt-2 font-medium">{card.hint}</p>
           </div>
         ))}
       </div>
@@ -53,7 +51,7 @@ const KPICards = ({ kpis }) => {
       <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-muted/40 border border-border p-4">
-            <p className="text-[11px] uppercase text-muted-foreground font-semibold tracking-wide">
+            <p className="text-[11px] uppercase text-secondary font-semibold tracking-wide">
               Projects
             </p>
             <p className="text-3xl font-bold text-foreground mt-1">{totals.totalProjects || 0}</p>

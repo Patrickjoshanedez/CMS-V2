@@ -37,7 +37,7 @@ export function TextScaleDropdown() {
 
   return (
     <div className="relative inline-flex items-center">
-      <div className="flex h-9 items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 shadow-xs dark:border-slate-700 dark:bg-[#0c1424] transition-colors">
+      <div className="flex h-9 items-center rounded-lg border border-slate-700 bg-white px-2.5 py-1.5 shadow-xs dark:border-slate-700 dark:bg-[#0c1424] transition-colors">
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1.5 select-none">
           T
         </span>

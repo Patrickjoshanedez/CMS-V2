@@ -93,7 +93,7 @@ function StudentDashboard({ user }) {
       : 0);
 
   useEffect(() => {
-    if (!user.sectionId || !user.instructorId) {
+    if (user.role === ROLES.STUDENT && (!user.sectionId || !user.instructorId)) {
       toast.info('Complete your profile', {
         description: 'Please set your section and instructor to get started.',
         action: { label: 'Go to Profile', onClick: () => navigate('/profile') },
@@ -111,7 +111,7 @@ function StudentDashboard({ user }) {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Welcome back, {user.firstName}!
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-secondary font-medium">
               Team highlights, project status, and the next actions for your capstone journey.
             </p>
           </div>
@@ -233,7 +233,7 @@ function StudentDashboard({ user }) {
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 p-3">
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Team</p>
+                      <p className="text-sm font-medium text-secondary">Current Team</p>
                       <p className="text-base font-semibold text-foreground">{team.name}</p>
                     </div>
                     <Badge variant={team.isLocked ? 'warning' : 'success'}>
@@ -241,7 +241,7 @@ function StudentDashboard({ user }) {
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Members</p>
+                    <p className="text-sm font-semibold text-secondary">Members</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {team.members?.map((member) => {
                         const memberId = String(member._id || member.id || '');
@@ -268,7 +268,7 @@ function StudentDashboard({ user }) {
                 </>
               ) : (
                 <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-secondary">
                     You are not assigned to a team yet. Join or create a team to unlock project
                     tracking.
                   </p>
@@ -294,15 +294,17 @@ function StudentDashboard({ user }) {
               {project ? (
                 <>
                   <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
                       Project Title
                     </p>
-                    <p className="line-clamp-2 text-sm font-semibold">{project.title}</p>
+                    <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                      {project.title}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Completion</span>
-                      <span className="font-semibold">{completionPercent}%</span>
+                      <span className="text-secondary font-medium">Completion</span>
+                      <span className="font-semibold text-foreground">{completionPercent}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted">
                       <div
@@ -337,7 +339,7 @@ function StudentDashboard({ user }) {
                   </Button>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-secondary">
                   Your team has no project registered yet. Once your title is submitted, this panel
                   will show milestone progress and submission status.
                 </p>
@@ -379,17 +381,19 @@ function StudentDashboard({ user }) {
                 {recentNotifications.map((note) => (
                   <div
                     key={note._id}
-                    className="rounded-md border border-border bg-background px-3 py-2"
+                    className="rounded-md border border-border bg-card px-3 py-2 shadow-2xs"
                   >
-                    <p className="text-sm font-medium">{note.title || 'Notification'}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">
+                      {note.title || 'Notification'}
+                    </p>
+                    <p className="text-xs text-secondary mt-0.5 leading-relaxed">
                       {note.message || 'No details provided.'}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No recent notifications yet.</p>
+              <p className="text-sm text-secondary">No recent notifications yet.</p>
             )}
           </CardContent>
         </Card>
@@ -413,7 +417,7 @@ function StudentDashboard({ user }) {
             </CardHeader>
             <CardContent className="space-y-2">
               {submissionHistory.length === 0 && (
-                <p className="text-sm text-muted-foreground">No submissions recorded yet.</p>
+                <p className="text-sm text-secondary">No submissions recorded yet.</p>
               )}
 
               {submissionHistory.slice(0, 12).map((entry) => (
@@ -435,7 +439,7 @@ function StudentDashboard({ user }) {
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
+                  <div className="mt-2 text-xs font-medium text-secondary">
                     {entry.fileName || 'Untitled file'} •{' '}
                     {formatDateTime(entry.submittedAt || entry.updatedAt)}
                   </div>
@@ -443,7 +447,7 @@ function StudentDashboard({ user }) {
               ))}
 
               {submissionHistory.length > 12 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-medium text-secondary">
                   Showing latest 12 entries out of {submissionHistory.length}.
                 </p>
               )}
@@ -517,8 +521,8 @@ function DashboardCard({ icon: Icon, title, metric, description, accent = 'text-
 
 function StatusPill({ label, value, variant }) {
   return (
-    <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+    <div className="rounded-md border border-border bg-card/60 dark:bg-muted/30 px-3 py-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-secondary">{label}</p>
       <div className="mt-1">
         <Badge variant={variant}>{value}</Badge>
       </div>
@@ -641,8 +645,8 @@ export default function DashboardPage() {
     switch (user.role) {
       case ROLES.INSTRUCTOR:
         return <InstructorDashboard user={user} />;
+      case ROLES.FACULTY:
       case ROLES.ADVISER:
-        return <FacultyDashboard user={user} />;
       case ROLES.PANELIST:
         return <FacultyDashboard user={user} />;
       case ROLES.STUDENT:

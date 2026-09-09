@@ -1,0 +1,13 @@
+{
+  "active_scenario_id": "SCENARIO-04-CST-MUTATION",
+  "completed_subgoals": ["step_a", "step_b", "step_c"],
+  "remaining_subgoals": [],
+  "last_action_result": "Subgoal 'step_c' completed successfully.",
+  "progress_delta": 1,
+  "loop_count": 0,
+  "circuit_breaker_triggered": false,
+  "current_state": "COMPLETED",
+  "history_state": null,
+  "deep_history": {},
+  "updated_at": "2026-09-09T14:56:30.299897+00:00"
+}

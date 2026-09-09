@@ -1,0 +1,44 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/session.schema.json",
+  "session_id": "2026-09-08_committee-roster-population-and-sophisticated-document-viewer",
+  "date": "2026-09-08T14:30:00.000Z",
+  "task_summary": "Resolved empty committee and generic team roster placeholders in ProjectDetailsModal via deep backend Mongoose population, eliminated MinIO internal Docker DNS NXDOMAIN URL failures with public rewrite in storage.service.js, added authenticated submission file streaming, upgraded SophisticatedDocumentViewer from flat mammoth HTML to browser-side OOXML rendering via docx-preview to faithfully preserve title centering, paragraph indentation, margins, font hierarchies, and table borders, with zoom controls, fullscreen mode, and slide-out metadata inspector across desktop and mobile in light and dark modes.",
+  "task_category": "feature_and_workflow_hardening",
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "verification_battery": {
+    "endpoints_parity": "198 Server / 177 Client, UNMATCHED_COUNT = 0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "4 stages passed, 0 errors, 0 warnings",
+    "client_unit_tests": "7/7 passed (SophisticatedDocumentViewer.test.jsx)",
+    "server_integration_tests": "66/66 passed (submissions.test.js)",
+    "workspace_cleanliness": "Pristine workspace verified via workspace_guardrail.py",
+    "playwright_visual_audit": "10-stage visual matrix across Desktop 1440x900 & Mobile 390x844 in Dark and Light modes passed"
+  },
+  "artifacts": [
+    "01_desktop_dark_project_details_modal.png",
+    "02_desktop_dark_document_viewer.png",
+    "03_desktop_dark_document_viewer_details.png",
+    "03b_desktop_dark_submission_detail.png",
+    "04_desktop_light_project_details_modal.png",
+    "05_desktop_light_document_viewer.png",
+    "06_mobile_dark_project_details_modal.png",
+    "07_mobile_dark_document_viewer.png",
+    "08_mobile_light_project_details_modal.png",
+    "09_mobile_light_document_viewer.png"
+  ],
+  "post_mortem": {
+    "lesson": "Deep Mongoose population must explicitly cover all nested paths when displaying cross-referenced institutional committee roles and team members. In addition, presigned object storage URLs generated inside Docker networks must be rewritten to the public host domain (S3_PUBLIC_URL) to prevent DNS NXDOMAIN failures when accessed from client browsers.",
+    "prevention": "Always verify that endpoints returning project details populate teamId.members with user details (firstName, lastName, email, proponentRole) and committee appointments. For in-app document viewing, provide an authenticated streaming proxy (/api/submissions/:id/file) and preview generator (/api/submissions/:id/preview-content) rather than exposing raw object storage links.",
+    "runbook": "1. Verify backend deep-population in project.service.js (members, memberRoles, panelistIds, secretaryId, adviserId, sectionId.createdBy). 2. Ensure storage.service.js translates minio:9000 to localhost:9000. 3. Check client routing and viewer modal integration in SubmissionDetailPage and ChapterProgressWithRounds. 4. Execute Playwright visual audit across light and dark modes.",
+    "checklist": [
+      "Endpoint parity check passes (UNMATCHED_COUNT = 0)",
+      "Agentic governance passes (60/60)",
+      "Targeted client unit tests pass with zero failures",
+      "Playwright visual captures show real committee and rendered manuscript text in all viewports",
+      "Workspace guardrail passes cleanly"
+    ],
+    "evidence": "All 10 Playwright visual captures and 10 unit tests passed without errors."
+  }
+}

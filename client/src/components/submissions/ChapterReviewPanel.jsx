@@ -12,6 +12,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -28,9 +29,12 @@ import {
   Lock,
   MessageSquare,
   XCircle,
+  ExternalLink,
+  Eye,
 } from 'lucide-react';
 import { SUBMISSION_STATUSES } from '@cms/shared';
 import { useReviewSubmission } from '@/hooks/useSubmissions';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 
 /* ── Constants ── */
 
@@ -108,6 +112,7 @@ function reviewerName(r) {
 
 /* ── ReviewActions — inline approve/revise form for a single round ── */
 function ReviewActions({ round, onSuccess }) {
+  const queryClient = useQueryClient();
   const [action, setAction] = useState(null); // null | 'approve' | 'revise'
   const [note, setNote] = useState('');
   const reviewMutation = useReviewSubmission();
@@ -132,9 +137,19 @@ function ReviewActions({ round, onSuccess }) {
     }
 
     reviewMutation.mutate(
-      { submissionId: round._id, status, reviewNote: note.trim() || undefined },
+      {
+        submissionId: round._id,
+        status,
+        reviewNote: note.trim() || undefined,
+        expectedUpdatedAt: round.updatedAt,
+      },
       {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['submissions'] });
+          queryClient.invalidateQueries({ queryKey: ['submission'] });
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
+          queryClient.invalidateQueries({ queryKey: ['project'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
           const label = action === 'approve' ? 'approved & locked' : 'sent back for revision';
           toast.success(`Chapter ${label} successfully.`);
           setAction(null);
@@ -321,17 +336,22 @@ export default function ChapterReviewPanel({
   showReviewActions = true,
 }) {
   const navigate = useNavigate();
+  const [activeViewerSubmission, setActiveViewerSubmission] = useState(null);
 
   /* Build chapter → rounds map */
   const chapterRoundsMap = useMemo(() => {
     const map = new Map();
     for (const ch of chapters) map.set(ch, []);
 
-    const list = submissions?.submissions || [];
+    const list = Array.isArray(submissions)
+      ? submissions
+      : submissions?.submissions || submissions?.data || [];
+
     for (const sub of list) {
       if (sub?.type !== 'chapter') continue;
-      if (!chapters.includes(sub.chapter)) continue;
-      map.get(sub.chapter)?.push(sub);
+      const chNum = Number(sub.chapter || sub.chapterNumber);
+      if (!chapters.includes(chNum)) continue;
+      map.get(chNum)?.push(sub);
     }
 
     for (const ch of chapters) {
@@ -346,176 +366,239 @@ export default function ChapterReviewPanel({
   const [selectedSession, setSelectedSession] = useState('all');
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-            Session:
-          </span>
-          <select
-            value={selectedSession}
-            onChange={(e) => setSelectedSession(e.target.value)}
-            className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary"
-          >
-            <option value="all">All Review Sessions</option>
-            <option value="s1">Session 1 (Initial Rounds)</option>
-            <option value="s2">Session 2 (Revisions &amp; Defense)</option>
-          </select>
-        </div>
-      </CardHeader>
+    <>
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+              Session:
+            </span>
+            <select
+              value={selectedSession}
+              onChange={(e) => setSelectedSession(e.target.value)}
+              className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Review Sessions</option>
+              <option value="s1">Session 1 (Initial Rounds)</option>
+              <option value="s2">Session 2 (Revisions &amp; Defense)</option>
+            </select>
+          </div>
+        </CardHeader>
 
-      <CardContent>
-        {/* Progression gate indicator */}
-        <ProgressionGate chapters={chapters} chapterRoundsMap={chapterRoundsMap} />
+        <CardContent>
+          {/* Progression gate indicator */}
+          <ProgressionGate chapters={chapters} chapterRoundsMap={chapterRoundsMap} />
 
-        <div className="space-y-4">
-          {chapters.map((chapter) => {
-            const rounds = chapterRoundsMap.get(chapter) || [];
-            const latest = rounds[0];
-            const cfg = statusConfig(latest?.status);
-            const Icon = cfg.icon;
+          <div className="space-y-4">
+            {chapters.map((chapter) => {
+              const rounds = chapterRoundsMap.get(chapter) || [];
+              const latest = rounds[0];
+              const cfg = statusConfig(latest?.status);
+              const Icon = cfg.icon;
 
-            return (
-              <div
-                key={chapter}
-                className="rounded-xl border border-border bg-card/60 transition-colors hover:bg-card"
-              >
-                {/* Chapter header */}
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
-                      {chapter}
+              return (
+                <div
+                  key={chapter}
+                  className="rounded-xl border border-border bg-card/60 transition-colors hover:bg-card"
+                >
+                  {/* Chapter header */}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                        {chapter}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{CHAPTER_LABELS[chapter]}</p>
+                        {latest?.createdAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Last upload: {formatDate(latest.createdAt)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{CHAPTER_LABELS[chapter]}</p>
-                      {latest?.createdAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Last upload: {formatDate(latest.createdAt)}
-                        </p>
+
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-4 w-4 ${cfg.iconClass}`} />
+                      <Badge variant={cfg.variant} className="text-xs">
+                        {cfg.label}
+                      </Badge>
+                      {latest?.version > 0 && (
+                        <span className="text-xs text-muted-foreground">v{latest.version}</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Icon className={`h-4 w-4 ${cfg.iconClass}`} />
-                    <Badge variant={cfg.variant} className="text-xs">
-                      {cfg.label}
-                    </Badge>
-                    {latest?.version > 0 && (
-                      <span className="text-xs text-muted-foreground">v{latest.version}</span>
-                    )}
-                  </div>
-                </div>
+                  {/* Rounds */}
+                  {rounds.length > 0 ? (
+                    <div className="border-t border-border px-4 pb-4 pt-3">
+                      <Tabs defaultValue={String(rounds[0]._id)}>
+                        <TabsList className="mb-3 h-auto flex-wrap justify-start gap-1 bg-transparent p-0">
+                          {rounds.map((round) => {
+                            return (
+                              <TabsTrigger
+                                key={round._id}
+                                value={String(round._id)}
+                                className="h-7 gap-1 rounded-md border px-2.5 py-1 text-xs data-[state=active]:bg-muted"
+                              >
+                                Round {round.version || 1}
+                                {(round.status === SUBMISSION_STATUSES.LOCKED ||
+                                  round.status === SUBMISSION_STATUSES.APPROVED) && (
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                )}
+                                {round.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
+                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                )}
+                              </TabsTrigger>
+                            );
+                          })}
+                        </TabsList>
 
-                {/* Rounds */}
-                {rounds.length > 0 ? (
-                  <div className="border-t border-border px-4 pb-4 pt-3">
-                    <Tabs defaultValue={String(rounds[0]._id)}>
-                      <TabsList className="mb-3 h-auto flex-wrap justify-start gap-1 bg-transparent p-0">
-                        {rounds.map((round) => {
-                          const roundCfg = statusConfig(round.status);
-                          return (
-                            <TabsTrigger
-                              key={round._id}
-                              value={String(round._id)}
-                              className="h-7 gap-1 rounded-md border px-2.5 py-1 text-xs data-[state=active]:bg-muted"
-                            >
-                              Round {round.version || 1}
-                              {(round.status === SUBMISSION_STATUSES.LOCKED ||
-                                round.status === SUBMISSION_STATUSES.APPROVED) && (
-                                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                              )}
-                              {round.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED && (
-                                <AlertTriangle className="h-3 w-3 text-amber-500" />
-                              )}
-                            </TabsTrigger>
-                          );
-                        })}
-                      </TabsList>
-
-                      {rounds.map((round) => (
-                        <TabsContent
-                          key={round._id}
-                          value={String(round._id)}
-                          className="rounded-lg border border-border bg-muted/20 p-3"
-                        >
-                          {/* Round metadata grid */}
-                          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">Status</p>
-                              <div className="mt-0.5 flex items-center gap-1.5">
-                                {(() => {
-                                  const rc = statusConfig(round.status);
-                                  const RIcon = rc.icon;
-                                  return (
-                                    <>
-                                      <RIcon className={`h-3.5 w-3.5 ${rc.iconClass}`} />
-                                      <span className="font-medium">{rc.label}</span>
-                                    </>
-                                  );
-                                })()}
+                        {rounds.map((round) => (
+                          <TabsContent
+                            key={round._id}
+                            value={String(round._id)}
+                            className="rounded-lg border border-border bg-muted/20 p-3"
+                          >
+                            {/* Round metadata grid */}
+                            <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">Status</p>
+                                <div className="mt-0.5 flex items-center gap-1.5">
+                                  {(() => {
+                                    const rc = statusConfig(round.status);
+                                    const RIcon = rc.icon;
+                                    return (
+                                      <>
+                                        <RIcon className={`h-3.5 w-3.5 ${rc.iconClass}`} />
+                                        <span className="font-medium">{rc.label}</span>
+                                      </>
+                                    );
+                                  })()}
+                                </div>
                               </div>
-                            </div>
 
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">Submitted</p>
-                              <p className="mt-0.5 font-medium">{formatDate(round.createdAt)}</p>
-                            </div>
-
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">Reviewer</p>
-                              <p className="mt-0.5 font-medium">{reviewerName(round.reviewedBy)}</p>
-                            </div>
-
-                            {round.reviewNote && (
-                              <div className="sm:col-span-2 lg:col-span-3">
+                              <div>
                                 <p className="text-xs font-medium text-muted-foreground">
-                                  Review Comment
+                                  Submitted
                                 </p>
-                                <p className="mt-0.5 rounded-md bg-muted px-3 py-2 text-sm">
-                                  {round.reviewNote}
+                                <p className="mt-0.5 font-medium">{formatDate(round.createdAt)}</p>
+                              </div>
+
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Reviewer
+                                </p>
+                                <p className="mt-0.5 font-medium">
+                                  {reviewerName(round.reviewedBy)}
                                 </p>
                               </div>
+
+                              {round.reviewNote && (
+                                <div className="sm:col-span-2 lg:col-span-3">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Review Comment
+                                  </p>
+                                  <p className="mt-0.5 rounded-md bg-muted px-3 py-2 text-sm">
+                                    {round.reviewNote}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Previous round revision notes callout to verify changes */}
+                            {round._id === rounds[0]._id &&
+                              rounds.length > 1 &&
+                              rounds[1]?.reviewNote && (
+                                <div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-500/10 p-3 text-xs dark:border-amber-700/50">
+                                  <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    Previous Round {rounds[1].version || 1} Feedback to Verify:
+                                  </div>
+                                  <p className="mt-1 text-muted-foreground italic">
+                                    &quot;{rounds[1].reviewNote}&quot;
+                                  </p>
+                                </div>
+                              )}
+
+                            {/* Action buttons row */}
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="gap-1.5"
+                                onClick={() => setActiveViewerSubmission(round)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Read Document
+                              </Button>
+
+                              {round.syncedGoogleDocUrl && (
+                                <Button size="sm" variant="outline" className="gap-1.5" asChild>
+                                  <a
+                                    href={round.syncedGoogleDocUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    Open in Google Docs
+                                  </a>
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5"
+                                onClick={() => navigate(`/project/submissions/${round._id}/review`)}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Review Studio
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => navigate(`/project/submissions/${round._id}`)}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+
+                            {/* Inline review form — only for the latest round */}
+                            {showReviewActions && round._id === rounds[0]._id && (
+                              <ReviewActions round={round} />
                             )}
-                          </div>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </div>
+                  ) : (
+                    <div className="border-t border-border px-4 py-3">
+                      <p className="text-xs text-muted-foreground">
+                        No submissions yet for this chapter.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
-                          {/* Action buttons row */}
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1.5"
-                              onClick={() => navigate(`/project/submissions/${round._id}`)}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                              View Document
-                            </Button>
-                          </div>
-
-                          {/* Inline review form — only for the latest round */}
-                          {showReviewActions && round._id === rounds[0]._id && (
-                            <ReviewActions round={round} />
-                          )}
-                        </TabsContent>
-                      ))}
-                    </Tabs>
-                  </div>
-                ) : (
-                  <div className="border-t border-border px-4 py-3">
-                    <p className="text-xs text-muted-foreground">
-                      No submissions yet for this chapter.
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+      {/* Institutional Document & Diff Viewer Modal */}
+      {activeViewerSubmission && (
+        <SophisticatedDocumentViewer
+          open={Boolean(activeViewerSubmission)}
+          onOpenChange={(isOpen) => !isOpen && setActiveViewerSubmission(null)}
+          submission={activeViewerSubmission}
+        />
+      )}
+    </>
   );
 }

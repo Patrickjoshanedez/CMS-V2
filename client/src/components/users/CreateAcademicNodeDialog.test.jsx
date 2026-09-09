@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateAcademicNodeDialog from './CreateAcademicNodeDialog';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -51,6 +51,13 @@ describe('CreateAcademicNodeDialog Suite', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    container?.remove();
   });
 
   const courses = [
@@ -140,6 +147,75 @@ describe('CreateAcademicNodeDialog Suite', () => {
       name: 'BS Information Systems',
     });
     expect(toastSuccess).toHaveBeenCalledWith('Degree Program / Course created successfully.');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('submits section creation with normalized cluster and code, showing canonical preview', async () => {
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        <CreateAcademicNodeDialog
+          isOpen={true}
+          onClose={onClose}
+          courses={courses}
+          years={years}
+        />,
+      );
+    });
+
+    // Ensure Section tab is selected
+    const sectionTabBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Class Section'),
+    );
+    if (sectionTabBtn) {
+      await act(async () => {
+        sectionTabBtn.click();
+      });
+    }
+
+    const setInputValue = (input, val) => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      nativeInputValueSetter.call(input, val);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const setSelectValue = (select, val) => {
+      if (!select) return;
+      select.value = val;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const courseSelect = container.querySelector('#node-section-course');
+    const nameInput = container.querySelector('#node-section-name');
+    const codeInput = container.querySelector('#node-section-code');
+    const yearSelect = container.querySelector('#node-section-year');
+
+    await act(async () => {
+      setSelectValue(courseSelect, 'c-1');
+      setInputValue(nameInput, '4A');
+      setInputValue(codeInput, 'T87');
+      setSelectValue(yearSelect, '2025–2026');
+    });
+
+    // Verify canonical preview is rendered
+    expect(container.textContent).toContain('Canonical Section Preview:');
+    expect(container.textContent).toContain('BSIT-4A (T87)');
+
+    const form = container.querySelector('form');
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    expect(mockCreateSectionMutate).toHaveBeenCalledWith({
+      section: '4A',
+      code: 'T87',
+      courseId: 'c-1',
+      academicYear: '2025–2026',
+    });
+    expect(toastSuccess).toHaveBeenCalledWith('Class Section created successfully.');
     expect(onClose).toHaveBeenCalled();
   });
 });

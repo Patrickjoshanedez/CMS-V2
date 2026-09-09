@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { ROLES, PRIMARY_ROLE_VALUES } from '@cms/shared';
 import { useAuthStore } from '@/stores/authStore';
+import { formatCanonicalSectionName, formatSectionWithCode } from '@/utils/sectionUtils';
 import {
   useUsers,
   useCreateUser,
@@ -306,8 +307,7 @@ function HierarchyView() {
                 <option value="">All Sections</option>
                 {sections.map((section) => (
                   <option key={section._id} value={section._id}>
-                    {section.name}
-                    {section.code ? ` (${section.code})` : ''}
+                    {formatSectionWithCode(section)}
                   </option>
                 ))}
               </select>
@@ -383,7 +383,7 @@ function HierarchyView() {
                   className="h-7 px-2"
                   onClick={() => setNavTeamId('')}
                 >
-                  {selectedFolderSection.name}
+                  {formatCanonicalSectionName(selectedFolderSection)}
                 </Button>
               </>
             )}
@@ -524,9 +524,10 @@ function HierarchyView() {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold">
-                        {section.code && section.name
-                          ? `${section.code} · ${section.name}`
-                          : section.code || section.name}
+                        {formatCanonicalSectionName(
+                          section,
+                          selectedCourseNode?.course?.code || 'BSIT',
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {section.teamCount} teams | {section.studentCount} students

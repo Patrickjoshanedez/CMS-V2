@@ -23,6 +23,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
+import { formatSectionWithCode } from '@/utils/sectionUtils';
 
 export const STANDARD_CAPSTONE_ROLES = [
   {
@@ -188,12 +189,18 @@ export function InspectRosterDialog({
               {team.academicYear && (
                 <span className="font-medium text-foreground">{team.academicYear}</span>
               )}
-              {(sectionName || sectionCode) && (
+              {(sectionName || sectionCode || team.sectionId) && (
                 <>
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <GraduationCap className="h-3 w-3 text-primary" />
-                    {sectionName || 'Section'} {sectionCode && `(${sectionCode})`}
+                    {formatSectionWithCode(
+                      team.sectionId ||
+                        team.section || {
+                          name: sectionName,
+                          courseId: { code: sectionCode },
+                        },
+                    )}
                   </span>
                 </>
               )}

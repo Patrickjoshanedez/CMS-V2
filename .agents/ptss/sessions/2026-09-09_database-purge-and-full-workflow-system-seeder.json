@@ -1,0 +1,48 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-09_database-purge-and-full-workflow-system-seeder",
+  "timestamp": "2026-09-09T10:45:00.000Z",
+  "task_summary": "Executed 100% database purge and complete workflow re-seed using seed_full_workflow.js. Hardened seeder with verified Password123! bcrypt hash, dual local/Docker MongoDB host URI resolution, CMS-V2 institutional role mappings (Admin -> instructor, Co-Admin -> instructor, Faculty Committee -> faculty), academic foundation records (AcademicYear, Course BSIT, Sections 4-A/4-B), singleton SystemSettings, compound index-compliant evaluations (projectId, panelistId, defenseType), and verified live authentication across all 17 persona credentials.",
+  "task_category": "database_seeding_and_workflow_orchestration",
+  "skills_written": [],
+  "skills_patched": ["senior-backend", "verification-loop"],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "route_parity": {
+      "server_endpoints": 201,
+      "client_endpoints": 179,
+      "unmatched_count": 0,
+      "passed": true
+    },
+    "agentic_governance": {
+      "checks_total": 60,
+      "checks_passed": 60,
+      "checks_failed": 0,
+      "passed": true
+    },
+    "governance_pipeline": {
+      "errors": 0,
+      "warnings": 0,
+      "passed": true
+    },
+    "workspace_guardrail": {
+      "pristine": true,
+      "passed": true
+    },
+    "live_login_tests": {
+      "aribe_instructor": true,
+      "co_admin_instructor": true,
+      "chair_labastida_faculty": true,
+      "team_lead_student": true,
+      "adviser_mentor_faculty": true,
+      "scenario_inactive_blocked": true,
+      "scenario_unverified_blocked": true,
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: Ad-hoc hardcoded bcrypt hashes in test seeders must be verified programmatically with bcrypt.compareSync before deployment; dummy hashes cause silent 401 INVALID_CREDENTIALS lockouts across all seeded user accounts.",
+    "Lesson learned: Mongo collections with compound unique indexes (e.g. evaluations { projectId: 1, panelistId: 1, defenseType: 1 }) will immediately throw MongoServerError E11000 duplicate key error if seeder documents omit indexed discriminator fields and default to null.",
+    "Prevention: Always include academic prerequisites (AcademicYear, Course, Section) and singleton system settings (key: 'global') when executing complete database purges so client forms and dropdowns do not render empty selector states."
+  ]
+}

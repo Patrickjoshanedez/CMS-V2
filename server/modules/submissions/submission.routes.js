@@ -38,6 +38,7 @@ import {
   listSubmissionsQuerySchema,
   updateJustificationSchema,
   batchUploadChapterSchema,
+  revisionDiffQuerySchema,
 } from './submission.validation.js';
 
 const router = Router();
@@ -375,6 +376,40 @@ router.get(
   readLimiter,
   validate(submissionIdParamSchema, 'params'),
   submissionController.getViewUrl,
+);
+
+/**
+ * GET /:submissionId/file
+ * Stream the document file directly from storage.
+ */
+router.get(
+  '/:submissionId/file',
+  readLimiter,
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionFile,
+);
+
+/**
+ * GET /:submissionId/preview-content
+ * Get preview content (HTML for DOCX, metadata for PDF).
+ */
+router.get(
+  '/:submissionId/preview-content',
+  readLimiter,
+  validate(submissionIdParamSchema, 'params'),
+  submissionController.getSubmissionPreviewContent,
+);
+
+/**
+ * GET /:submissionId/revision-diff
+ * Get revision diff comparing this submission with its previous version (or compareWithId).
+ */
+router.get(
+  '/:submissionId/revision-diff',
+  readLimiter,
+  validate(submissionIdParamSchema, 'params'),
+  validate(revisionDiffQuerySchema, 'query'),
+  submissionController.getSubmissionRevisionDiff,
 );
 
 /**

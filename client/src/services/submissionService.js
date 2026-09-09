@@ -68,6 +68,31 @@ export const submissionService = {
   /** Get a pre-signed URL to view the document */
   getViewUrl: (submissionId) => api.get(`/submissions/${submissionId}/view`),
 
+  /** Fetch submission file as blob */
+  getFile: (submissionId) => api.get(`/submissions/${submissionId}/file`, { responseType: 'blob' }),
+
+  /** Download submission file directly */
+  downloadFile: async (submissionId, fileName) => {
+    const response = await api.get(`/submissions/${submissionId}/file?download=true`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || 'manuscript-submission');
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  /** Get rendered preview content (HTML for DOCX, metadata for PDF) */
+  getPreviewContent: (submissionId) => api.get(`/submissions/${submissionId}/preview-content`),
+
+  /** Get revision diff comparing this submission with its previous version */
+  getRevisionDiff: (submissionId, params) =>
+    api.get(`/submissions/${submissionId}/revision-diff`, { params }),
+
   /** Get Google Docs comments/replies for the submission's synced document */
   getGoogleDocComments: (submissionId) => api.get(`/submissions/${submissionId}/google-comments`),
 

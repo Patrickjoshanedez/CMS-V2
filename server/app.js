@@ -15,6 +15,7 @@ import checkMaintenance from './middleware/checkMaintenance.js';
 // --- Route imports ---
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/user.routes.js';
+import * as userController from './modules/users/user.controller.js';
 import teamRoutes from './modules/teams/team.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
 import projectRoutes from './modules/projects/project.routes.js';
@@ -111,6 +112,9 @@ app.use('/storage', authenticate, storageFileServerRouter);
 app.use(auditRequestCapture);
 
 app.use('/api/auth', authRoutes);
+
+// Public user avatar route (allows browser <img> tags to stream avatars directly without auth headers)
+app.get('/api/users/:userId/avatar', userController.getAvatar);
 
 // Global maintenance gate for authenticated API routes.
 app.use('/api', authenticate, checkMaintenance());

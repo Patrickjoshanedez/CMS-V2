@@ -1,0 +1,36 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-08_submission-download-archive-scan-and-plagiarism-report-fix",
+  "timestamp": "2026-09-08T18:25:00.000Z",
+  "task_slug": "submission-download-archive-scan-and-plagiarism-report-fix",
+  "task_description": "Resolved S3 MinIO SignatureDoesNotMatch on submission downloads via authenticated streaming API, added direct in-page archive scanning without redirection, and modernized PlagiarismReportPage with BukSU design system tokens, executive KPI cards, and SophisticatedDocumentViewer integration.",
+  "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "root_causes": [
+    "AWS SigV4 Presigned URL Host Mismatch: storage.service.js replaced internal minio:9000 with localhost:9000, causing browser Host header to mismatch the signed Host header and fail with SignatureDoesNotMatch.",
+    "Submission Page Disconnected Archive Checker: Open Archive Checker button navigated user away to an empty drag-and-drop page (/plagiarism-checker) rather than scanning the existing submission file in place.",
+    "Legacy Plagiarism Report Tokens: PlagiarismReportPage relied on var(--color-accent) and var(--color-sidebar) rather than Tailwind design system tokens, and lacked integration with SophisticatedDocumentViewer and re-scan triggers."
+  ],
+  "implementation_details": [
+    "Backend: Updated getSubmissionFile in submission.controller.js to support req.query.download === 'true' with Content-Disposition: attachment, and updated getViewUrl to return backend API streaming route.",
+    "Backend: Registered POST /api/submissions/:submissionId/plagiarism/archive-scan in plagiarism.routes.js with authorize(student, adviser, panelist, instructor) wiring to scanSubmissionAgainstArchive.",
+    "Frontend Service & Hook: Added submissionService.downloadFile(submissionId, fileName), plagiarismService.scanSubmissionAgainstArchive, and useScanSubmissionArchive hook with query cache invalidation.",
+    "Frontend UI: Updated SubmissionDetailPage.jsx to trigger in-page archive scanning with spinning progress loader and direct file download.",
+    "Frontend UI: Overhauled PlagiarismReportPage.jsx with executive KPI cards (Similarity Index, Originality Ratio, Matched Sources), Turnitin-style highlighted marks, search filter, active match detail drawer, re-scan action, and SophisticatedDocumentViewer integration via Inspect in Reader button."
+  ],
+  "evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=200, CLIENT_ENDPOINT_COUNT=179, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "Valid (0 errors, 0 warnings)",
+    "workspace_cleanliness": "Pristine",
+    "unit_tests": [
+      "client: src/pages/submissions/PlagiarismReportPage.test.jsx (4/4 passed)",
+      "client: src/components/documents/RevisionDiffViewer.test.jsx (7/7 passed)",
+      "client: src/components/documents/SophisticatedDocumentViewer.test.jsx (7/7 passed)",
+      "server: tests/unit/submission.revision-diff.test.js (2/2 passed)",
+      "server: modules/submissions/__tests__/submission.service.plagiarism.test.js (18/18 passed)"
+    ]
+  },
+  "status": "completed"
+}

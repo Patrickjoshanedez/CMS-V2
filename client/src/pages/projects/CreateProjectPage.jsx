@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import {
   Card,
@@ -29,7 +29,7 @@ import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDial
 import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
 import useAutosave from '@/hooks/useAutosave';
 import SaveStatusIndicator from '@/components/common/SaveStatusIndicator';
-import { useCreateProject } from '@/hooks/useProjects';
+import { useCreateProject, useUpdateTitle } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -67,7 +67,12 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
-import { formatPitchDeckDescription } from '@/utils/pitchDeckParser';
+import {
+  formatPitchDeckDescription,
+  parsePitchDeckFromDescription,
+  emptyPitchDeck,
+} from '@/utils/pitchDeckParser';
+import { formatSectionWithCode } from '@/utils/sectionUtils';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
@@ -152,6 +157,122 @@ const normalizeDraftProposal = (proposal = {}) => ({
       : ['SDG 4: Quality Education'],
 });
 
+/**
+ * Robust extractor converting any project representation into Proposal Studio format.
+ * Checks project.titleProposalMetadata first, then titleProposals strings, then top-level fields.
+ */
+export function extractProposalsFromProject(project) {
+  if (!project) return [createEmptyProposal()];
+
+  const metadataList = Array.isArray(project.titleProposalMetadata)
+    ? project.titleProposalMetadata
+    : [];
+  const proposalsList = Array.isArray(project.titleProposals) ? project.titleProposals : [];
+
+  const maxEntries = Math.max(metadataList.length, proposalsList.length);
+
+  if (maxEntries > 0) {
+    const results = [];
+    for (let idx = 0; idx < maxEntries; idx++) {
+      const meta = metadataList[idx] || {};
+      const rawItem = proposalsList[idx] || {};
+      const isObj = typeof rawItem === 'object' && rawItem !== null;
+
+      const title =
+        meta.title ||
+        (isObj ? rawItem.title : typeof rawItem === 'string' ? rawItem : '') ||
+        (idx === 0 ? project.title : '') ||
+        '';
+
+      const rawDesc =
+        meta.description ||
+        (isObj ? rawItem.description : '') ||
+        (idx === 0 ? project.abstract || project.description || '' : '');
+
+      let parsedPitchDeck = createEmptyPitchDeck();
+
+      // Prioritize explicit pitchDeck objects
+      const explicitDeck =
+        (meta.pitchDeck && typeof meta.pitchDeck === 'object' ? meta.pitchDeck : null) ||
+        (isObj && rawItem.pitchDeck && typeof rawItem.pitchDeck === 'object'
+          ? rawItem.pitchDeck
+          : null);
+
+      if (
+        explicitDeck &&
+        Object.values(explicitDeck).some((v) => typeof v === 'string' && v.trim())
+      ) {
+        parsedPitchDeck = { ...createEmptyPitchDeck(), ...explicitDeck };
+      } else if (rawDesc) {
+        parsedPitchDeck = parsePitchDeckFromDescription(rawDesc);
+      } else if (idx === 0 && project.abstract) {
+        parsedPitchDeck = parsePitchDeckFromDescription(project.abstract);
+      }
+
+      // Ensure problemStatement is filled if description exists
+      if (!parsedPitchDeck.problemStatement && rawDesc) {
+        parsedPitchDeck.problemStatement = rawDesc;
+      }
+
+      const capstoneType =
+        Array.isArray(meta.capstoneType) && meta.capstoneType.length > 0
+          ? meta.capstoneType
+          : isObj && Array.isArray(rawItem.capstoneType) && rawItem.capstoneType.length > 0
+            ? rawItem.capstoneType
+            : Array.isArray(project.capstoneType) && project.capstoneType.length > 0
+              ? project.capstoneType
+              : ['Software Engineering & Web Applications'];
+
+      const sdgTags =
+        Array.isArray(meta.sdgTags) && meta.sdgTags.length > 0
+          ? meta.sdgTags
+          : isObj && Array.isArray(rawItem.sdgTags) && rawItem.sdgTags.length > 0
+            ? rawItem.sdgTags
+            : Array.isArray(project.sdgTags) && project.sdgTags.length > 0
+              ? project.sdgTags
+              : ['SDG 4: Quality Education'];
+
+      if (title.trim()) {
+        results.push({
+          title,
+          description: rawDesc,
+          pitchDeck: parsedPitchDeck,
+          capstoneType,
+          sdgTags,
+        });
+      }
+    }
+
+    if (results.length > 0) return results;
+  }
+
+  // Fallback to top-level project title
+  if (project.title) {
+    const rawDesc = project.abstract || project.description || '';
+    const parsedPitchDeck = parsePitchDeckFromDescription(rawDesc);
+    if (!parsedPitchDeck.problemStatement && rawDesc) {
+      parsedPitchDeck.problemStatement = rawDesc;
+    }
+    return [
+      {
+        title: project.title,
+        description: rawDesc,
+        pitchDeck: parsedPitchDeck,
+        capstoneType:
+          Array.isArray(project.capstoneType) && project.capstoneType.length > 0
+            ? project.capstoneType
+            : ['Software Engineering & Web Applications'],
+        sdgTags:
+          Array.isArray(project.sdgTags) && project.sdgTags.length > 0
+            ? project.sdgTags
+            : ['SDG 4: Quality Education'],
+      },
+    ];
+  }
+
+  return [createEmptyProposal()];
+}
+
 const PDF_SIGNATURE = '%PDF-';
 
 const hasPdfSignature = (bytes) => {
@@ -172,6 +293,20 @@ const toPdfBytes = async (payload) => {
 
 export default function CreateProjectPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const editState = location.state;
+  const targetProjectId =
+    editState?.projectId || searchParams.get('projectId') || editState?.project?._id;
+  const [editingProjectId, setEditingProjectId] = useState(targetProjectId || null);
+  const isEditMode = Boolean(
+    editState?.edit ||
+    searchParams.get('edit') === 'true' ||
+    editState?.projectId ||
+    searchParams.get('projectId') ||
+    editingProjectId,
+  );
   const { user } = useAuthStore();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
   const { data: academicYears = [] } = useAcademicYears();
@@ -255,10 +390,66 @@ export default function CreateProjectPage() {
   const effectiveThreshold = plagiarismThreshold || 15.0;
   const isCleared = hasScanned && currentScanScore <= effectiveThreshold;
 
-  // Hydrate saved draft on mount
+  // Hydrate saved draft or edit mode project on mount
   useEffect(() => {
     let isMounted = true;
-    const hydrateDraft = async () => {
+    const initializePageData = async () => {
+      // 1. Check for Edit Mode Project (from route state, query params, targetProjectId, or student's active project)
+      try {
+        let projectData = editState?.project;
+        if (!projectData && targetProjectId) {
+          try {
+            const res = await projectService.getProject(targetProjectId);
+            projectData = res?.data?.data?.project || res?.data?.project;
+          } catch (err) {
+            console.warn(
+              'Could not fetch project by targetProjectId, attempting getMyProject fallback:',
+              err,
+            );
+          }
+        }
+
+        // Automatic fallback: If projectData is still not loaded and user is in edit mode or has no explicit draft intent
+        if (!projectData && (isEditMode || !editState)) {
+          try {
+            const res = await projectService.getMyProject();
+            const myProj = res?.data?.data?.project || res?.data?.project;
+            if (myProj) {
+              projectData = myProj;
+            }
+          } catch {
+            // Student might not have a project yet
+          }
+        }
+
+        if (projectData && isMounted) {
+          const extracted = extractProposalsFromProject(projectData);
+          if (extracted.length > 0) {
+            setTitleProposals(extracted);
+            setActiveProposalIndex(0);
+          }
+          if (projectData._id) {
+            setEditingProjectId(projectData._id);
+          }
+          setForm((prev) => ({
+            ...prev,
+            academicYear: projectData.academicYear || prev.academicYear,
+            sectionId:
+              typeof projectData.sectionId === 'string'
+                ? projectData.sectionId
+                : projectData.sectionId?._id || prev.sectionId,
+          }));
+          if (Array.isArray(projectData.keywords) && projectData.keywords.length > 0) {
+            setKeywordList(projectData.keywords);
+          }
+          teamDefaultsAppliedRef.current = true;
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to load project for editing:', err);
+      }
+
+      // 2. Normal Mode: Hydrate draft
       try {
         const res = await projectService.getCreateProjectDraft();
         const draft = res?.data?.data?.draft;
@@ -288,11 +479,11 @@ export default function CreateProjectPage() {
       }
     };
 
-    hydrateDraft();
+    initializePageData();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isEditMode, targetProjectId]);
 
   // Autosave setup with local cache and background synchronization
   const autosavePayload = useMemo(
@@ -311,10 +502,11 @@ export default function CreateProjectPage() {
   );
 
   const { saveStatus, setSaveStatus } = useAutosave(
-    'cms.create_project_draft',
+    isEditMode ? null : 'cms.create_project_draft',
     autosavePayload,
     1200,
     async (payload) => {
+      if (isEditMode) return;
       try {
         await projectService.saveCreateProjectDraft({
           ...payload,
@@ -483,6 +675,26 @@ export default function CreateProjectPage() {
   const handleSaveProposalDraft = async (index = activeProposalIndex) => {
     setSavingDraftIndex(index);
     try {
+      if (editingProjectId) {
+        const filled = titleProposals.filter((p) => p.title?.trim());
+        const normalized = filled.map((p) => ({
+          title: p.title.trim(),
+          description: formatPitchDeckDescription(p.pitchDeck),
+          pitchDeck: p.pitchDeck || {},
+          capstoneType: p.capstoneType || ['Software Engineering & Web Applications'],
+          sdgTags: p.sdgTags || ['SDG 4: Quality Education'],
+        }));
+        await projectService.updateTitle(editingProjectId, {
+          title: normalized[0]?.title || '',
+          titleProposals: normalized,
+          sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
+          submit: false,
+        });
+        setSaveStatus('saved');
+        toast.success('Proposal updates saved.');
+        return;
+      }
+
       await projectService.saveCreateProjectDraft({
         form: {
           academicYear: form.academicYear,
@@ -873,6 +1085,19 @@ export default function CreateProjectPage() {
     },
   });
 
+  // Update Project Mutation (Edit Mode)
+  const updateTitleMutation = useUpdateTitle({
+    onSuccess: async () => {
+      toast.success('Proposals updated and submitted for committee review.');
+      navigate('/project/approval');
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message || err?.message || 'Failed to update proposals.',
+      );
+    },
+  });
+
   const handleSubmit = (e) => {
     e?.preventDefault();
     const filled = titleProposals.filter((p) => p.title?.trim());
@@ -888,6 +1113,17 @@ export default function CreateProjectPage() {
       capstoneType: p.capstoneType || ['Software Engineering & Web Applications'],
       sdgTags: p.sdgTags || ['SDG 4: Quality Education'],
     }));
+
+    if (editingProjectId) {
+      updateTitleMutation.mutate({
+        projectId: editingProjectId,
+        title: normalized[0]?.title || '',
+        titleProposals: normalized,
+        sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
+        submit: true,
+      });
+      return;
+    }
 
     const resolvedAcademicYear = team?.academicYear || form.academicYear;
     const teamSectionId =
@@ -915,9 +1151,9 @@ export default function CreateProjectPage() {
       (typeof team?.sectionId === 'string' ? team.sectionId : team?.sectionId?._id) ||
       (typeof user?.sectionId === 'string' ? user.sectionId : user?.sectionId?._id) ||
       form.sectionId;
-    if (!targetId || !sections || sections.length === 0) return 'Section BSIT 3C (T87)';
+    if (!targetId || !sections || sections.length === 0) return 'BSIT-4A (T87)';
     const match = sections.find((s) => s._id === targetId);
-    return match ? `${match.courseId?.code || 'BSIT'} ${match.name}` : 'Section BSIT 3C (T87)';
+    return match ? formatSectionWithCode(match) : 'BSIT-4A (T87)';
   }, [sections, team, user, form.sectionId]);
 
   return (
@@ -930,6 +1166,14 @@ export default function CreateProjectPage() {
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 Capstone 1: Title Proposal Studio
               </h1>
+              {isEditMode && (
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-medium"
+                >
+                  Editing Proposals
+                </Badge>
+              )}
               <SaveStatusIndicator status={saveStatus} />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -959,11 +1203,15 @@ export default function CreateProjectPage() {
               type="button"
               size="sm"
               onClick={handleSubmit}
-              disabled={createProject.isPending}
+              disabled={createProject.isPending || updateTitleMutation.isPending}
               className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs"
             >
-              {createProject.isPending ? (
+              {createProject.isPending || updateTitleMutation.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isEditMode ? (
+                <>
+                  Update Proposals <ArrowRight className="h-3.5 w-3.5" />
+                </>
               ) : (
                 <>
                   Submit for Committee Review <ArrowRight className="h-3.5 w-3.5" />

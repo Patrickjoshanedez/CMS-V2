@@ -23,7 +23,7 @@ import { toast } from 'sonner';
  * 1. Gantt Chart URL (e.g., Google Sheets, Excel Online)
  * 2. Demo Video URL (e.g., Google Drive, YouTube)
  */
-const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
+const DevelopmentAssetsForm = ({ project, isReadOnly = false, onViewAcademicGantt = null }) => {
   const [ganttUrl, setGanttUrl] = useState(project?.ganttChartUrl || '');
   const [demoUrl, setDemoUrl] = useState(project?.demoVideoUrl || '');
 
@@ -69,10 +69,13 @@ const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
       {!isReadOnly && (
         <Alert className="bg-primary/5 border-primary/20">
           <Info className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-primary font-semibold">Asset Management</AlertTitle>
+          <AlertTitle className="text-primary font-semibold">
+            Capstone 3 — System Development Assets
+          </AlertTitle>
           <AlertDescription className="text-muted-foreground">
-            Provide links to your project&apos;s development assets. These will be reviewed by your
-            adviser and panel during evaluations.
+            Provide links to your project&apos;s Interactive Gantt Chart and System Prototype Demo
+            Video. These are evaluated by your adviser and committee during the Capstone 3 Progress
+            Defense.
           </AlertDescription>
         </Alert>
       )}
@@ -89,8 +92,8 @@ const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
             </div>
             <CardDescription>
               {isReadOnly
-                ? 'Project timeline and schedule'
-                : 'Link to your project timeline (e.g., Google Sheets, Online Excel)'}
+                ? 'Project timeline, sprint milestones, and academic schedule'
+                : 'Link to your project timeline (e.g., Google Sheets, Online Excel) or use built-in Academic Gantt'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -124,22 +127,37 @@ const DevelopmentAssetsForm = ({ project, isReadOnly = false }) => {
               </div>
             )}
 
-            {project?.ganttChartUrl ? (
-              <div className={`pt-2 ${!isReadOnly ? 'border-t border-border/50' : ''}`}>
+            <div
+              className={`flex flex-wrap items-center gap-2 pt-1 ${
+                !isReadOnly ? 'border-t border-border/50' : ''
+              }`}
+            >
+              {project?.ganttChartUrl && (
                 <Button type="button" variant="outline" size="sm" asChild>
                   <a href={project.ganttChartUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                    View current Gantt Chart
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                    External Sheet Link
                   </a>
                 </Button>
-              </div>
-            ) : (
-              isReadOnly && (
+              )}
+              {onViewAcademicGantt && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onViewAcademicGantt}
+                  className="gap-1.5 text-xs font-medium"
+                >
+                  <LineChart className="h-3.5 w-3.5 text-primary" />
+                  Academic Excel Gantt View
+                </Button>
+              )}
+              {!project?.ganttChartUrl && !onViewAcademicGantt && isReadOnly && (
                 <p className="text-sm text-muted-foreground italic">
                   No Gantt Chart link provided.
                 </p>
-              )
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
 

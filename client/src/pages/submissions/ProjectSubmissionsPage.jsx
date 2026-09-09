@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -9,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
+import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
@@ -26,6 +28,10 @@ import {
   TestTube,
   CheckCircle2,
   Paintbrush,
+  LineChart,
+  Layers,
+  Sparkles,
+  X,
 } from 'lucide-react';
 
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
@@ -184,6 +190,7 @@ export default function ProjectSubmissionsPage() {
   const targetProjectId = searchParams.get('projectId') || '';
   const isReadOnlyMode = mode === 'view' && Boolean(targetProjectId);
   const hasTeam = Boolean(user?.teamId);
+  const [showGanttModal, setShowGanttModal] = useState(false);
 
   const {
     data: project,
@@ -390,25 +397,37 @@ export default function ProjectSubmissionsPage() {
               </p>
             )}
           </div>
-          {isStudent && !isReadOnlyMode && (
-            <div className="flex flex-wrap items-center gap-2">
-              {canCompileProposal && (
-                <Button onClick={() => navigate('/project/proposal')}>
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Compile Proposal
-                </Button>
-              )}
-              {canUpload && (
-                <Button
-                  variant={canCompileProposal ? 'outline' : 'default'}
-                  onClick={() => navigate('/project/submissions/upload')}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Chapter
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowGanttModal(true)}
+              className="gap-1.5 text-xs border-border/60 hover:bg-muted"
+            >
+              <LineChart className="h-4 w-4 text-primary" />
+              <span>Academic Gantt</span>
+            </Button>
+            {isStudent && !isReadOnlyMode && (
+              <>
+                {canCompileProposal && (
+                  <Button size="sm" onClick={() => navigate('/project/proposal')}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Compile Proposal
+                  </Button>
+                )}
+                {canUpload && (
+                  <Button
+                    size="sm"
+                    variant={canCompileProposal ? 'outline' : 'default'}
+                    onClick={() => navigate('/project/submissions/upload')}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Chapter
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Deadline warnings */}
@@ -422,11 +441,28 @@ export default function ProjectSubmissionsPage() {
           <EmptySubmissionsState canUpload={canUpload} canCompileProposal={canCompileProposal} />
         )}
 
-        {/* Chapter Grid — Pre-proposal (Ch 1-3) */}
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Pre-Defense Chapters
-          </h2>
+        {/* Phase 2: Capstone 2 — Proposal & Manuscript Chapters 1–3 */}
+        <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-blue-500/40 bg-blue-500/10 text-blue-400 font-mono text-[10px] uppercase font-semibold"
+                >
+                  Phase 2
+                </Badge>
+                <h2 className="text-lg font-bold tracking-tight text-foreground">
+                  Capstone 2: Chapters 1–3 Manuscript &amp; Midterm Defense
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Upload Chapters 1–3 for adviser review, plagiarism screening (&lt; 25%), and
+                compilation into the official Proposal Document.
+              </p>
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((ch) => (
               <ChapterCard
@@ -443,66 +479,137 @@ export default function ProjectSubmissionsPage() {
               />
             ))}
           </div>
+
+          {/* Proposal Document Compilation */}
+          <ProposalSection
+            submissions={submissions}
+            canCompile={canCompileProposal}
+            isReadOnly={isReadOnlyMode}
+            searchSuffix={searchSuffix}
+          />
         </div>
 
-        {/* Capstone 2 */}
-        <div className="rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6">
-          <div className="mb-4 space-y-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Capstone 2
-            </p>
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">
-              System Development Phase
-            </h2>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              Upload your project&apos;s Gantt Chart link and Google Drive system demo here for
-              midterm review.
-            </p>
+        {/* Phase 3: Capstone 3 — System Development, Interactive Gantt & Chapters 4–5 */}
+        <div className="space-y-5 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-mono text-[10px] uppercase font-semibold"
+                >
+                  Phase 3
+                </Badge>
+                <h2 className="text-lg font-bold tracking-tight text-foreground">
+                  Capstone 3: System Development &amp; Progress Defense
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Manage development assets (Interactive Gantt Chart &amp; Demo Video), track
+                milestone progress, and submit Chapters 4 &amp; 5.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGanttModal(true)}
+                className="gap-1.5 text-xs border-border/60 hover:bg-muted"
+              >
+                <LineChart className="h-3.5 w-3.5 text-primary" />
+                <span>Open Academic Gantt</span>
+              </Button>
+            </div>
           </div>
 
           {!canEditDevelopmentAssets && !isReadOnlyMode && (
-            <Alert className="mb-4 border-primary/20 bg-primary/5">
+            <Alert className="border-primary/20 bg-primary/5">
               <AlertTriangle className="h-4 w-4 text-primary" />
               <AlertDescription>
-                Capstone 2 assets unlock after your title is approved. You can still review any
+                Capstone 3 assets unlock after your title is approved. You can still review any
                 existing links below.
               </AlertDescription>
             </Alert>
           )}
 
-          <DevelopmentAssetsForm project={activeProject} isReadOnly={!canEditDevelopmentAssets} />
-        </div>
+          <DevelopmentAssetsForm
+            project={activeProject}
+            isReadOnly={!canEditDevelopmentAssets}
+            onViewAcademicGantt={() => setShowGanttModal(true)}
+          />
 
-        {/* Proposal */}
-        <ProposalSection
-          submissions={submissions}
-          canCompile={canCompileProposal}
-          isReadOnly={isReadOnlyMode}
-          searchSuffix={searchSuffix}
-        />
-
-        {/* Post-Defense Chapters (Ch 4-5) */}
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Post-Defense Chapters
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[4, 5].map((ch) => (
-              <ChapterCard
-                key={ch}
-                chapterNumber={ch}
-                submission={latestChapterSubmissions.get(ch)}
-                deadline={chapterDeadlineMap[ch]}
-                isLocked={latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED}
-                canUpload={canUploadChapter(ch)}
-                isStudent={isStudent}
-                isReadOnly={isReadOnlyMode}
-                projectId={activeProject._id}
-                searchSuffix={searchSuffix}
-              />
-            ))}
+          <div>
+            <div className="flex items-center justify-between mb-3 pt-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                System Results &amp; Conclusions (Chapters 4–5)
+              </h3>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[4, 5].map((ch) => (
+                <ChapterCard
+                  key={ch}
+                  chapterNumber={ch}
+                  submission={latestChapterSubmissions.get(ch)}
+                  deadline={chapterDeadlineMap[ch]}
+                  isLocked={latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED}
+                  canUpload={canUploadChapter(ch)}
+                  isStudent={isStudent}
+                  isReadOnly={isReadOnlyMode}
+                  projectId={activeProject._id}
+                  searchSuffix={searchSuffix}
+                />
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Full Interactive Academic Gantt Chart Dialog */}
+        {showGanttModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="academic-gantt-dialog-title"
+          >
+            <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <LineChart className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3
+                      id="academic-gantt-dialog-title"
+                      className="text-base font-bold text-foreground"
+                    >
+                      Capstone 3: Interactive Academic Gantt Chart
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and Instant
+                      Excel (.xls) Export.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowGanttModal(false)}
+                  aria-label="Close Gantt Dialog"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pt-4 min-h-0">
+                <InteractiveGanttChart
+                  project={activeProject}
+                  isReadOnly={!isStudent && !isFaculty}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

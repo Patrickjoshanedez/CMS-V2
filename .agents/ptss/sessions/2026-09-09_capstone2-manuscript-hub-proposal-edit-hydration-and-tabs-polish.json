@@ -1,0 +1,52 @@
+{
+  "session_id": "2026-09-09_capstone2-manuscript-hub-proposal-edit-hydration-and-tabs-polish",
+  "timestamp": "2026-09-09T13:50:00.000Z",
+  "status": "completed",
+  "task_summary": "Resolved four core system capabilities: (1) Fixed local JSON Schema resolution for chat-starter.json via dedicated chat-starter.schema.json and .vscode/settings.json, (2) Implemented comprehensive proposal population and edit mode handling in CreateProjectPage via extractProposalsFromProject and useUpdateTitle, (3) Modernized ProjectDetailPage tabs into a segmented container without wrapping and sleek proposal pills, and (4) Implemented Capstone2ManuscriptHub providing official BukSU manuscript template access (Google Docs & .DOCX) and working Google Docs link attachment.",
+  "task_category": "frontend_features_and_governance",
+  "skills_primed": [
+    "frontend-patterns",
+    "frontend-specialist",
+    "i-frontend-design",
+    "ui-design-principles",
+    "verification-loop",
+    "ptss"
+  ],
+  "asdlc_lifecycle": {
+    "stage_0": "Verified active chat-starter snapshot, local schema resolution, recalled recent sessions from index.jsonl.",
+    "stage_1": "Identified four sub-tasks: chat-starter schema resolution, Proposal Studio edit-mode hydration, modern tab container styling, and Capstone 2 template & Google Docs hub.",
+    "stage_2": "Inspected Tabs.jsx, WorkflowTabTrigger.jsx, ProjectDetailPage.jsx, CreateProjectPage.jsx, MyProjectPage.jsx, and pitchDeckParser.js.",
+    "stage_3": "Traced data flows: projectService.updateTitle (/api/projects/:id/title), documentService.uploadManuscript (/api/documents/projects/:id/manuscripts), and useTeamManuscriptTemplate.",
+    "stage_4": "Modeled edit mode vs create mode statechart and template download + Google Doc URL attachment statechart.",
+    "stage_5": "Surgically patched Tabs.jsx, WorkflowTabTrigger.jsx, ProjectDetailPage.jsx, TitleApprovalPage.jsx, CreateProjectPage.jsx, MyProjectPage.jsx, and created Capstone2ManuscriptHub.jsx.",
+    "stage_6": "Executed fast-path targeted vitest suites (16/16 CreateProjectPage tests passed, 4/4 Capstone2ManuscriptHub tests passed, 2/2 ProjectDetailPage tests passed) and executed Playwright visual audit across 4 viewports with zero errors.",
+    "stage_7": "Human review gating prepared with walkthrough and visual evidence.",
+    "stage_8": "Dual-persistence memory archived to PTSS, index.jsonl, and CMS-V2-Technical-Context.md."
+  },
+  "evidence": {
+    "targeted_tests_passed": [
+      "client/src/pages/projects/CreateProjectPage.test.jsx (16 tests passed)",
+      "client/src/components/projects/Capstone2ManuscriptHub.test.jsx (4 tests passed)",
+      "client/src/pages/projects/ProjectDetailPage.back-nav.test.jsx (2 tests passed)"
+    ],
+    "quality_gates_passed": [
+      "npm run check:endpoints (201 Server / 179 Client, UNMATCHED_COUNT=0)",
+      "npm run validate:agentic (60/60 checks passed)",
+      "python scripts/workspace_guardrail.py (Pristine workspace, zero cognitive clutter)"
+    ],
+    "playwright_screenshots": [
+      "capstone2_hub_desktop_light.png",
+      "capstone2_hub_desktop_dark.png",
+      "capstone2_hub_mobile_light.png",
+      "capstone2_hub_mobile_dark.png",
+      "create_project_edit_mode_desktop_light.png",
+      "create_project_edit_mode_desktop_dark.png",
+      "create_project_edit_mode_mobile_light.png",
+      "create_project_edit_mode_mobile_dark.png",
+      "project_detail_modern_tabs_desktop_light.png",
+      "project_detail_modern_tabs_desktop_dark.png",
+      "project_detail_modern_tabs_mobile_light.png",
+      "project_detail_modern_tabs_mobile_dark.png"
+    ]
+  }
+}

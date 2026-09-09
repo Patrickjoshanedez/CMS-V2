@@ -70,6 +70,7 @@ export const updateProfileSchema = z.object({
     .max(50, 'Last name must not exceed 50 characters')
     .optional(),
   profilePicture: z.string().nullable().optional(),
+  digitalSignature: z.string().nullable().optional(),
   sectionId: z.string().nullable().optional(),
   instructorId: z.string().nullable().optional(),
 });

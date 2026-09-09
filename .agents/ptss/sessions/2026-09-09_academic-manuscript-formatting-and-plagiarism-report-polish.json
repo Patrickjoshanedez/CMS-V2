@@ -1,0 +1,31 @@
+{
+  "sessionId": "2026-09-09_academic-manuscript-formatting-and-plagiarism-report-polish",
+  "task": "Plagiarism Report Formatting & Academic Manuscript Visual Polish",
+  "status": "completed",
+  "timestamp": "2026-09-09T08:30:00.000Z",
+  "summary": "Fixed confusing plagiarism report formatting caused by raw DOCX paragraph extraction yielding dozens of empty physical lines and uncentered cover page elements. Implemented intelligent academic line classification, filtered empty lines while strictly preserving exact character-offset highlighting synchronization, introduced dual canvas view modes (Originality Highlights vs Formatted Manuscript with docx-preview/PDF), added Paper Sheet vs Theme Card modes and zoom controls, fixed temporal dead zone ReferenceError in PlagiarismReportPage, and verified through Playwright visual feedback loop across Desktop and Mobile viewports.",
+  "rootCause": {
+    "issue1": "Word manuscripts use empty paragraphs to space out title elements across 11-inch pages, yielding 18-30 consecutive newlines in raw extraction (310 empty lines out of 487 total). When rendered inside whitespace-pre-wrap, these produced massive 500px+ black voids.",
+    "issue2": "Raw text lacked academic formatting hierarchy, causing centered title, byline, author roster, and institutional affiliation to render left-aligned and fragmented.",
+    "issue3": "Temporal Dead Zone bug in PlagiarismReportPage where payload was referenced on line 550 before its declaration on line 560."
+  },
+  "modifications": [
+    "client/src/components/documents/SophisticatedDocumentViewer.jsx: Exported DocxPreviewRenderer for reuse in the Plagiarism Report canvas.",
+    "client/src/pages/submissions/PlagiarismReportPage.jsx: Implemented classifyAcademicLine, fragmentLine, structuredLines filtering, dual canvas view modes, paper sheet mode, zoom controls, fixed TDZ payload ordering, and added defensive checks for payload.matches and payload.overallSimilarity.",
+    "client/src/pages/submissions/PlagiarismReportPage.test.jsx: Added test coverage for canvas view mode switching, paper sheet styling, and academic cover page formatting."
+  ],
+  "verification": {
+    "targetedClientTests": "npm test --workspace=client -- src/pages/submissions/PlagiarismReportPage.test.jsx (7 passed, 0 failed)",
+    "documentViewerTests": "npm test --workspace=client -- src/components/documents/ (14 passed, 0 failed)",
+    "endpointParity": "npm run check:endpoints (200 Server / 179 Client, UNMATCHED_COUNT = 0)",
+    "agenticGovernance": "npm run validate:agentic (60/60 checks passed)",
+    "governancePipeline": "npm run validate:governance (All 4 stages passed)",
+    "workspaceCleanliness": "python scripts/workspace_guardrail.py (Pristine, 0 clutter)",
+    "playwrightVisualAudit": "node scratch/plagiarism_report_visual_audit.mjs (12 screenshots generated and inspected across Desktop/Mobile in Light/Dark modes)"
+  },
+  "lessonsLearned": [
+    "DOCX paragraph extraction produces excessive empty rows representing vertical white-space on printed pages. Preprocessing must classify academic line structures without mutating character-offset references so highlighting spans remain 100% aligned.",
+    "Always declare payload and query fallbacks prior to destructuring derivative fields to prevent Temporal Dead Zone (TDZ) ReferenceErrors in strict ES module environments.",
+    "Providing academic reviewers with an authentic Paper Sheet view mode (white sheet with drop shadow and Georgia serif typography) dramatically improves legibility and matches Turnitin/iThenticate professional standards."
+  ]
+}

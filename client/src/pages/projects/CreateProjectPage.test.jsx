@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import CreateProjectPage from './CreateProjectPage';
+import CreateProjectPage, { extractProposalsFromProject } from './CreateProjectPage';
 import { useAuthStore } from '@/stores/authStore';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -15,21 +15,34 @@ const mockSimilarityChecker = vi.fn();
 const mockGetCreateProjectDraft = vi.fn();
 const mockSaveCreateProjectDraft = vi.fn();
 const mockCheckProposalSimilarity = vi.fn();
+const mockGetProject = vi.fn();
+const mockGetMyProject = vi.fn();
+const mockUpdateTitle = vi.fn();
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 const toastInfo = vi.fn();
 const toastWarning = vi.fn();
+
+const mockUseLocation = vi.fn(() => ({ state: null, pathname: '/project/create', search: '' }));
+const mockUseSearchParams = vi.fn(() => [new URLSearchParams(), vi.fn()]);
+const mockUseUpdateTitle = vi.fn(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockUseNavigate,
+    useLocation: () => mockUseLocation(),
+    useSearchParams: () => mockUseSearchParams(),
   };
 });
 
 vi.mock('@/hooks/useProjects', () => ({
   useCreateProject: (...args) => mockUseCreateProject(...args),
+  useUpdateTitle: (...args) => mockUseUpdateTitle(...args),
 }));
 
 vi.mock('@/hooks/useTeams', () => ({
@@ -53,6 +66,9 @@ vi.mock('@/services/authService', () => ({
     getCreateProjectDraft: (...args) => mockGetCreateProjectDraft(...args),
     saveCreateProjectDraft: (...args) => mockSaveCreateProjectDraft(...args),
     checkProposalSimilarity: (...args) => mockCheckProposalSimilarity(...args),
+    getProject: (...args) => mockGetProject(...args),
+    getMyProject: (...args) => mockGetMyProject(...args),
+    updateTitle: (...args) => mockUpdateTitle(...args),
   },
 }));
 
@@ -913,6 +929,163 @@ describe('CreateProjectPage', () => {
     const payload = mutateMock.mock.calls[0][0];
     expect(payload.sectionId).toBeUndefined();
     expect(payload).not.toHaveProperty('sectionId');
+
+    view.unmount();
+  });
+
+  it('correctly extracts structured proposals from project metadata', () => {
+    const mockProject = {
+      _id: 'proj-1',
+      title: 'Primary Capstone Title',
+      titleProposalMetadata: [
+        {
+          title: 'Candidate Title 1',
+          description:
+            'Problem Statement:\nSevere issues in archiving.\n\nProposed Solution:\nModern cloud system.',
+          capstoneType: ['Software Engineering & Web Applications'],
+          sdgTags: ['SDG 4: Quality Education'],
+        },
+        {
+          title: 'Candidate Title 2',
+          description:
+            'Problem Statement:\nLack of AI plagiarism checking.\n\nProposed Solution:\nWinnowing and embeddings.',
+          capstoneType: ['Artificial Intelligence & Machine Learning'],
+          sdgTags: ['SDG 9: Industry, Innovation & Infrastructure'],
+        },
+      ],
+      titleProposals: ['Candidate Title 1', 'Candidate Title 2'],
+    };
+
+    const extracted = extractProposalsFromProject(mockProject);
+    expect(extracted).toHaveLength(2);
+    expect(extracted[0].title).toBe('Candidate Title 1');
+    expect(extracted[0].pitchDeck.problemStatement).toBe('Severe issues in archiving.');
+    expect(extracted[0].pitchDeck.proposedSolution).toBe('Modern cloud system.');
+    expect(extracted[1].title).toBe('Candidate Title 2');
+    expect(extracted[1].pitchDeck.problemStatement).toBe('Lack of AI plagiarism checking.');
+    expect(extracted[1].pitchDeck.proposedSolution).toBe('Winnowing and embeddings.');
+  });
+
+  it('populates existing proposals and updates via useUpdateTitle in edit mode', async () => {
+    const mutateTitleMock = vi.fn();
+    mockUseUpdateTitle.mockReturnValue({ mutate: mutateTitleMock, isPending: false });
+    mockUseMyTeam.mockReturnValue({ data: makeTeam(), isLoading: false });
+    useAuthStore.setState({
+      user: { _id: 'student-1', firstName: 'Gabriel', lastName: 'Diaz', sectionId: null },
+      isAuthenticated: true,
+    });
+
+    mockUseLocation.mockReturnValue({
+      pathname: '/project/create',
+      search: '?edit=true',
+      state: {
+        edit: true,
+        projectId: 'proj-edit-123',
+        project: {
+          _id: 'proj-edit-123',
+          title: 'Existing Submitted Capstone',
+          titleProposalMetadata: [
+            {
+              title: 'Populated Candidate 1',
+              description:
+                'Problem Statement:\nExisting gap in literature.\n\nProposed Solution:\nAutomated rubric system.',
+              capstoneType: ['Software Engineering & Web Applications'],
+              sdgTags: ['SDG 4: Quality Education'],
+            },
+          ],
+          academicYear: '2025-2026',
+        },
+      },
+    });
+
+    const view = renderPage();
+
+    // Check header indicates edit mode
+    expect(view.container.textContent).toContain('Editing Proposals');
+
+    // Check title input is populated
+    const proposalInput = view.container.querySelector('input[id="proposal-0-title"]');
+    expect(proposalInput).not.toBeNull();
+    expect(proposalInput.value).toBe('Populated Candidate 1');
+
+    // Click Update Proposals button
+    const updateBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Update Proposals'),
+    );
+    expect(updateBtn).not.toBeUndefined();
+
+    await act(async () => {
+      updateBtn.click();
+    });
+
+    expect(mutateTitleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'proj-edit-123',
+        title: 'Populated Candidate 1',
+        submit: true,
+      }),
+    );
+
+    view.unmount();
+  });
+
+  it('hydrates existing proposals automatically via getMyProject fallback when no route state is provided', async () => {
+    mockUseLocation.mockReturnValue({ state: null, pathname: '/project/create', search: '' });
+    mockUseSearchParams.mockReturnValue([new URLSearchParams(), vi.fn()]);
+
+    mockGetMyProject.mockResolvedValueOnce({
+      data: {
+        project: {
+          _id: 'my-proj-789',
+          title: 'My Team Existing Project',
+          titleProposals: [
+            {
+              title: 'Proposal A Title',
+              description:
+                'Problem Statement: Problem A text.\nProposed Solution: Solution A text.',
+              pitchDeck: {
+                problemStatement: 'Problem A text.',
+                proposedSolution: 'Solution A text.',
+                uniqueContribution: 'Novelty A.',
+                targetUsers: 'Students A.',
+                expectedImpact: 'Value A.',
+              },
+              capstoneType: ['Software Engineering & Web Applications'],
+              sdgTags: ['SDG 4: Quality Education'],
+            },
+            {
+              title: 'Proposal B Title',
+              description:
+                'Problem Statement: Problem B text.\nProposed Solution: Solution B text.',
+              pitchDeck: {
+                problemStatement: 'Problem B text.',
+                proposedSolution: 'Solution B text.',
+                uniqueContribution: 'Novelty B.',
+                targetUsers: 'Students B.',
+                expectedImpact: 'Value B.',
+              },
+              capstoneType: ['AI & Machine Learning Systems'],
+              sdgTags: ['SDG 9: Industry, Innovation, and Infrastructure'],
+            },
+          ],
+          academicYear: '2025-2026',
+        },
+      },
+    });
+
+    const view = renderPage();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Check title input is populated from getMyProject fallback
+    const proposalInput = view.container.querySelector('input[id="proposal-0-title"]');
+    expect(proposalInput).not.toBeNull();
+    expect(proposalInput.value).toBe('Proposal A Title');
+
+    // Check proposal pill indicator shows multiple candidate proposals
+    expect(view.container.textContent).toContain('Proposal 1 of 2');
 
     view.unmount();
   });

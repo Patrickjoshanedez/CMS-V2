@@ -78,7 +78,7 @@ const FeedbackDashboard = ({ submissionId, projectId, chapter }) => {
   if (!feedback) {
     return (
       <div className="tw-bg-gray-50 tw-border tw-border-gray-200 tw-rounded-lg tw-p-8 tw-text-center">
-        <p className="tw-text-gray-500">No feedback available yet</p>
+        <p className="tw-text-gray-700 tw-font-medium">No feedback available yet</p>
       </div>
     );
   }
@@ -99,10 +99,10 @@ const FeedbackDashboard = ({ submissionId, projectId, chapter }) => {
             </div>
             <div className="tw-flex-1">
               <p className="tw-font-medium tw-text-gray-900">Submitted</p>
-              <p className="tw-text-sm tw-text-gray-500">
+              <p className="tw-text-sm tw-text-gray-700 tw-font-medium">
                 {format(new Date(feedback.submittedAt), 'MMM dd, yyyy h:mm aa')}
               </p>
-              <p className="tw-text-xs tw-text-gray-400 tw-mt-1">
+              <p className="tw-text-xs tw-text-gray-600 tw-font-medium tw-mt-1">
                 {formatDistanceToNow(new Date(feedback.submittedAt), { addSuffix: true })}
               </p>
             </div>
@@ -118,10 +118,10 @@ const FeedbackDashboard = ({ submissionId, projectId, chapter }) => {
               </div>
               <div className="tw-flex-1">
                 <p className="tw-font-medium tw-text-gray-900">Reviewed</p>
-                <p className="tw-text-sm tw-text-gray-500">
+                <p className="tw-text-sm tw-text-gray-700 tw-font-medium">
                   {format(new Date(feedback.reviewedAt), 'MMM dd, yyyy h:mm aa')}
                 </p>
-                <p className="tw-text-xs tw-text-gray-400 tw-mt-1">
+                <p className="tw-text-xs tw-text-gray-600 tw-font-medium tw-mt-1">
                   {formatDistanceToNow(new Date(feedback.reviewedAt), { addSuffix: true })}
                 </p>
               </div>
@@ -144,7 +144,7 @@ const FeedbackDashboard = ({ submissionId, projectId, chapter }) => {
               </div>
               <div className="tw-flex-1">
                 <p className="tw-font-medium tw-text-gray-900">Revision Deadline</p>
-                <p className="tw-text-sm tw-text-gray-500">
+                <p className="tw-text-sm tw-text-gray-700 tw-font-medium">
                   {format(new Date(feedback.revisionDeadline), 'MMM dd, yyyy')}
                 </p>
                 <p

@@ -76,9 +76,14 @@ export default function CreateAcademicNodeDialog({ isOpen, onClose, courses = []
         toast.error('Please fill in all section details.');
         return;
       }
+      const cleanCluster =
+        sectionName
+          .trim()
+          .toUpperCase()
+          .replace(/.*(\d{1,2}[A-Z]).*/, '$1') || sectionName.trim().toUpperCase();
       createSection.mutate({
-        section: sectionName.trim(),
-        code: sectionCode.trim(),
+        section: cleanCluster,
+        code: sectionCode.trim().toUpperCase(),
         courseId: sectionCourseId,
         academicYear: sectionYear,
       });
@@ -215,80 +220,129 @@ export default function CreateAcademicNodeDialog({ isOpen, onClose, courses = []
             </div>
           )}
 
-          {nodeType === 'section' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="node-section-name" className="text-xs font-medium">
-                    Section Name / Cluster
-                  </Label>
-                  <Input
-                    id="node-section-name"
-                    placeholder="e.g. 3C or 4A"
-                    value={sectionName}
-                    onChange={(e) => setSectionName(e.target.value)}
-                    pattern="\d{1,2}[A-Za-z]"
-                    title="Format: Year + Cluster (e.g. 1A, 2B, 3C)"
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="node-section-code" className="text-xs font-medium">
-                    Section Code
-                  </Label>
-                  <Input
-                    id="node-section-code"
-                    placeholder="e.g. T88 or S12"
-                    value={sectionCode}
-                    onChange={(e) => setSectionCode(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-              </div>
+          {nodeType === 'section' &&
+            (() => {
+              const selectedCourse = courses.find((c) => c._id === sectionCourseId);
+              const rawClusterMatch = sectionName
+                .trim()
+                .toUpperCase()
+                .match(/\d{1,2}[A-Z]/);
+              const clusterDisplay = rawClusterMatch
+                ? rawClusterMatch[0]
+                : sectionName.trim().toUpperCase();
+              const canonicalPreview =
+                selectedCourse && clusterDisplay
+                  ? `${selectedCourse.code}-${clusterDisplay}${
+                      sectionCode.trim() ? ` (${sectionCode.trim().toUpperCase()})` : ''
+                    }`
+                  : null;
 
-              <div className="space-y-1.5">
-                <Label htmlFor="node-section-course" className="text-xs font-medium">
-                  Parent Program / Degree
-                </Label>
-                <select
-                  id="node-section-course"
-                  value={sectionCourseId}
-                  onChange={(e) => setSectionCourseId(e.target.value)}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
-                  required
-                >
-                  <option value="">Select Degree Program...</option>
-                  {courses.map((course) => (
-                    <option key={course._id} value={course._id}>
-                      {course.code} — {course.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              return (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="node-section-course" className="text-xs font-medium">
+                      Parent Program / Degree
+                    </Label>
+                    <select
+                      id="node-section-course"
+                      value={sectionCourseId}
+                      onChange={(e) => setSectionCourseId(e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                      required
+                    >
+                      <option value="">Select Degree Program (e.g. BSIT)...</option>
+                      {courses.map((course) => (
+                        <option key={course._id} value={course._id}>
+                          {course.code} — {course.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="node-section-year" className="text-xs font-medium">
-                  Academic Year
-                </Label>
-                <select
-                  id="node-section-year"
-                  value={sectionYear}
-                  onChange={(e) => setSectionYear(e.target.value)}
-                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
-                  required
-                >
-                  <option value="">Select Academic Year...</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="node-section-name" className="text-xs font-medium">
+                        Year &amp; Cluster (e.g. 4A)
+                      </Label>
+                      <Input
+                        id="node-section-name"
+                        placeholder="e.g. 4A or 3C"
+                        value={sectionName}
+                        onChange={(e) => setSectionName(e.target.value)}
+                        pattern="^([A-Za-z]{2,6}\s*-?\s*)?\d{1,2}[A-Za-z]$"
+                        title="Format: Year + Cluster (e.g. 4A, 3C)"
+                        className="h-9 text-xs font-mono"
+                        required
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        <span className="font-semibold text-foreground">4</span> = 4th Year,{' '}
+                        <span className="font-semibold text-foreground">A</span> = Cluster
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="node-section-code" className="text-xs font-medium">
+                        Section Code (e.g. T87)
+                      </Label>
+                      <Input
+                        id="node-section-code"
+                        placeholder="e.g. T87"
+                        value={sectionCode}
+                        onChange={(e) => setSectionCode(e.target.value.toUpperCase())}
+                        className="h-9 text-xs font-mono uppercase"
+                        required
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Official BukSU section code (e.g.{' '}
+                        <span className="font-semibold text-foreground">T87</span>)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="node-section-year" className="text-xs font-medium">
+                      Academic Year
+                    </Label>
+                    <select
+                      id="node-section-year"
+                      value={sectionYear}
+                      onChange={(e) => setSectionYear(e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                      required
+                    >
+                      <option value="">Select Academic Year...</option>
+                      {years.map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Canonical Section Preview */}
+                  {canonicalPreview && (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-primary flex items-center gap-1">
+                          Canonical Section Preview:
+                        </span>
+                        <span className="inline-flex items-center rounded-md bg-primary/15 px-2 py-0.5 font-mono font-bold text-primary text-xs">
+                          {canonicalPreview}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Students will select{' '}
+                        <span className="font-semibold text-foreground">{canonicalPreview}</span>{' '}
+                        and the hierarchy will display strictly as{' '}
+                        <span className="font-semibold text-foreground">
+                          {selectedCourse?.code}-{clusterDisplay}
+                        </span>
+                        .
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/40">

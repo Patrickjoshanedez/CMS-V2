@@ -44,6 +44,7 @@ export default function ProjectsPage() {
     ...(titleStatus && { titleStatus }),
     ...(filterParam === 'advisees' && { adviserId: user?._id }),
     ...(filterParam === 'panel' && { panelistId: user?._id }),
+    ...(filterParam === 'secretary' && { secretaryId: user?._id }),
     excludeArchived: true,
     page,
     limit: 10,
@@ -51,7 +52,8 @@ export default function ProjectsPage() {
 
   const { data, isLoading, error, refetch } = useProjects(filters);
   const highlightedProjectId = searchParams.get('projectId') || '';
-  const isFacultyScopedFilter = filterParam === 'advisees' || filterParam === 'panel';
+  const isFacultyScopedFilter =
+    filterParam === 'advisees' || filterParam === 'panel' || filterParam === 'secretary';
 
   useEffect(() => {
     if (!highlightedProjectId) return;
@@ -83,9 +85,11 @@ export default function ProjectsPage() {
       ? 'Adviser Reviews'
       : filterParam === 'panel'
         ? 'Panel Review'
-        : user.role === ROLES.INSTRUCTOR
-          ? 'Instructor Review'
-          : 'Projects Review';
+        : filterParam === 'secretary'
+          ? 'Secretary Review'
+          : user.role === ROLES.INSTRUCTOR
+            ? 'Instructor Review'
+            : 'Projects Review';
 
   return (
     <DashboardLayout>

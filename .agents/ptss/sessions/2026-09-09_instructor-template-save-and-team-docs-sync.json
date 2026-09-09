@@ -1,0 +1,71 @@
+{
+  "session_id": "2026-09-09_instructor-template-save-and-team-docs-sync",
+  "timestamp": "2026-09-09T15:45:00.000Z",
+  "task_slug": "instructor-template-save-and-team-docs-sync",
+  "task_summary": "Engineered dedicated Save button for Instructor Document Templates in Administration Settings, enabled dynamic system-wide cascade of Google Docs Proposal and ADM templates, established automatic bidirectional sync between Team working document (team.googleDocUrl) on My Team page and Capstone 2 Step 2 Working Manuscript Hub, resolved backend Mongoose team projection omissions, and validated full workflow with 11 client unit tests, 12 server unit tests, 0 route mismatches, and 4-way Playwright visual audit.",
+  "task_category": "feature_and_workflow_hardening",
+  "status": "completed",
+  "author": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "changes": {
+    "server": [
+      {
+        "file": "server/modules/projects/project.service.js",
+        "description": "Expanded teamId select projection in getProject, getMyProject, and listProjects to include googleDocUrl and githubUrl so client projects retain attached team working documents."
+      },
+      {
+        "file": "server/modules/teams/team.service.js",
+        "description": "Enhanced getTeamManuscriptTemplate to query SystemSettings.documentTemplates before fallback, and extended updateManuscriptTemplate to accept dynamic targetType parameters."
+      }
+    ],
+    "client": [
+      {
+        "file": "client/src/components/settings/AdministrationSection.jsx",
+        "description": "Converted document template inputs into controlled state with dedicated 'Save Document Templates' button, spinner state, dual-update mutation to settings and manuscript templates, and query invalidations."
+      },
+      {
+        "file": "client/src/components/projects/Capstone2ManuscriptHub.jsx",
+        "description": "Hydrated working document link from project.teamId.googleDocUrl or useTeamById fallback, updated Google Docs copy and export DOCX URL transformers, and implemented dual sync on manual attachment."
+      },
+      {
+        "file": "client/src/components/teams/ManuscriptTemplateWidget.jsx",
+        "description": "Updated 'Use Google Docs Copy' button to open /copy URL directly and fixed rawUrl export format."
+      },
+      {
+        "file": "client/src/pages/settings/SettingsPage.jsx",
+        "description": "Mapped tab=administration alias to tab=admin so direct deep-links from settings routes correctly activate the Administration tab."
+      }
+    ],
+    "tests": [
+      {
+        "file": "client/src/components/projects/Capstone2ManuscriptHub.test.jsx",
+        "description": "Added unit test verifying that project.teamId.googleDocUrl automatically hydrates Step 2 working document link with 'Attached' badge."
+      },
+      {
+        "file": "scratch/template_and_team_docs_audit.mjs",
+        "description": "Playwright end-to-end audit verifying instructor settings template save and student team docs sync into Capstone 2 Step 2."
+      }
+    ]
+  },
+  "verification_evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=201, CLIENT_ENDPOINT_COUNT=179, UNMATCHED_COUNT=0 (passed)",
+    "agentic_governance": "60/60 checks passed",
+    "workspace_cleanliness": "Python workspace_guardrail.py passed, workspace pristine",
+    "client_unit_tests": "11/11 passed across Capstone2ManuscriptHub.test.jsx, ManuscriptTemplateWidget.test.jsx, settingsStore.test.js",
+    "server_unit_tests": "12/12 passed across team.assign-committee.test.js, project.create.validation.test.js",
+    "playwright_visual_audit": "Screenshots captured for Desktop & Mobile (Dark & Light) for Instructor Settings, My Team Docs, and Capstone 2 Step 1 & 2"
+  },
+  "post_mortem": {
+    "lesson": "When Mongoose populates referenced documents (e.g. project.populate('teamId', 'name members ...')), fields not explicitly listed in the projection string are dropped from the returned JSON payload. Even if team.googleDocUrl is populated in the database, the frontend project query will receive undefined unless googleDocUrl is added to the select string.",
+    "learned": "Dual storage between team-level resources (team.googleDocUrl) and project-level milestone submissions (project.submissions.externalDocUrl) must have unambiguous hydration hierarchy: attached submission > team doc > empty state. Defensive client hooks like useTeamById(teamId) safeguard against partial projections.",
+    "prevention": "Always verify server service projection strings whenever adding new fields to referenced schemas. When auditing visual components that render below the fold, scroll the target container into view before taking non-fullPage screenshots.",
+    "runbook": "To update institutional document templates: 1. Login as instructor, 2. Navigate to /settings?tab=administration, 3. Input Google Docs Template URL and ADM Spreadsheet URL, 4. Click 'Save Document Templates'. Templates will immediately cascade to all students in Capstone 2 and My Team.",
+    "checklist": [
+      "Field added to Mongoose populate select string",
+      "Controlled input state in AdministrationSection with dedicated Save button",
+      "Template conversion handles /copy and /export?format=docx",
+      "Capstone 2 Step 2 auto-hydrates from team.googleDocUrl",
+      "All unit tests and Playwright visual audit pass"
+    ]
+  }
+}

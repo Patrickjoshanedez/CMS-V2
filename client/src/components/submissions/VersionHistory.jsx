@@ -49,7 +49,7 @@ const VersionHistory = ({ submissionId }) => {
   if (versions.length === 0) {
     return (
       <div className="tw-text-center tw-py-8">
-        <p className="tw-text-gray-500">No previous versions</p>
+        <p className="tw-text-gray-700 font-medium">No previous versions</p>
       </div>
     );
   }
@@ -85,23 +85,23 @@ const VersionHistory = ({ submissionId }) => {
                       Latest
                     </span>
                   )}
-                  <span className="tw-text-xs tw-bg-gray-100 tw-text-gray-600 tw-px-2 tw-py-1 tw-rounded">
+                  <span className="tw-text-xs tw-bg-gray-100 tw-text-gray-700 font-medium tw-px-2 tw-py-1 tw-rounded">
                     {version.status}
                   </span>
                 </div>
 
-                <p className="tw-text-sm tw-text-gray-600 tw-mb-2">
+                <p className="tw-text-sm tw-text-gray-700 tw-mb-2">
                   {format(new Date(version.submittedAt), 'MMM dd, yyyy h:mm aa')}
                 </p>
 
                 {version.plagiarismScore !== null && (
-                  <p className="tw-text-sm tw-text-gray-600">
+                  <p className="tw-text-sm tw-text-gray-700">
                     Originality: <strong>{version.plagiarismScore}%</strong>
                   </p>
                 )}
 
                 {version.reviewNote && (
-                  <p className="tw-text-sm tw-text-gray-600 tw-mt-2 tw-italic">
+                  <p className="tw-text-sm tw-text-gray-700 tw-mt-2 tw-italic">
                     &ldquo;{version.reviewNote}&rdquo;
                   </p>
                 )}
@@ -147,7 +147,7 @@ const VersionHistory = ({ submissionId }) => {
               <h2 className="tw-text-lg tw-font-semibold tw-text-gray-900">Compare Versions</h2>
               <button
                 onClick={() => setShowCompare(false)}
-                className="tw-text-gray-400 hover:tw-text-gray-600 tw-text-2xl"
+                className="tw-text-gray-700 hover:tw-text-gray-900 tw-text-2xl font-bold"
               >
                 ×
               </button>

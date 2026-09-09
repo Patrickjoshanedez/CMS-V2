@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Team from './team.model.js';
 import TeamInvite from './teamInvite.model.js';
 import User from '../users/user.model.js';
@@ -1908,7 +1909,30 @@ class TeamService {
       }).sort({ updatedAt: -1 });
     }
 
-    const fallbackUrl = 'https://docs.google.com/document/d/1tTwi29xL.../copy';
+    // Check SystemSettings if still no template in DocumentTemplate collection
+    let settingsUrl = null;
+    if (
+      !activeTemplate?.resourcePayload?.googleDocsUrl &&
+      !activeTemplate?.resourcePayload?.fileAttachmentUrl
+    ) {
+      try {
+        const SystemSettings =
+          mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
+        const settings = await SystemSettings.findOne({ key: 'global' }).lean();
+        const settingsTpl = settings?.documentTemplates?.find(
+          (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
+        );
+        if (settingsTpl?.templateUrl) {
+          settingsUrl = settingsTpl.templateUrl;
+        }
+      } catch {
+        // ignore fallback error
+      }
+    }
+
+    const fallbackUrl =
+      settingsUrl ||
+      'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy';
     const fallbackVersion = `AY ${team.academicYear || '2025–2026'} v2.1`;
 
     const isGoogleDocs = activeTemplate ? activeTemplate.distributionType === 'GOOGLE_DOCS' : true;
@@ -1950,6 +1974,7 @@ class TeamService {
    */
   async updateManuscriptTemplate(data, userId) {
     const {
+      targetType = 'MANUSCRIPT_CHAPTERS_1_5',
       academicYear = '2025-2026',
       versionLabel = 'AY 2025–2026 v2.1',
       distributionType = 'GOOGLE_DOCS',
@@ -1970,13 +1995,10 @@ class TeamService {
     };
 
     // Deactivate previous templates for this academic year & targetType
-    await DocumentTemplate.updateMany(
-      { targetType: 'MANUSCRIPT_CHAPTERS_1_5', academicYear },
-      { $set: { isActive: false } },
-    );
+    await DocumentTemplate.updateMany({ targetType, academicYear }, { $set: { isActive: false } });
 
     const newTemplate = await DocumentTemplate.create({
-      targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+      targetType,
       academicYear,
       versionLabel,
       distributionType: normDistributionType,

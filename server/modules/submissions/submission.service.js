@@ -42,6 +42,7 @@ import {
 } from '@cms/shared';
 import { extractDocxComments } from '../../utils/docxComments.js';
 import { extractPdfComments } from '../../utils/pdfComments.js';
+import { extractText } from '../../utils/extractText.js';
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
@@ -736,8 +737,37 @@ class SubmissionService {
    * @param {Object} options
    * @param {boolean} options.allowArchivedFinalJournalPublicView
    */
+  /**
+   * Helper to verify if a user holds an assigned committee role on a project.
+   * Compares ObjectIds safely as normalized strings.
+   *
+   * @param {Object} project - Project document or lean object
+   * @param {string|mongoose.Types.ObjectId} userId - User identifier
+   * @param {string[]} allowedRoles - Array of allowed roles: 'adviser', 'panelist', 'secretary'
+   * @returns {boolean}
+   */
+  _isProjectCommitteeMember(project, userId, allowedRoles = ['adviser', 'panelist', 'secretary']) {
+    if (!project || !userId) return false;
+    const uid = String(userId);
+    const isAdviser = Boolean(
+      project.adviserId && String(project.adviserId?._id || project.adviserId) === uid,
+    );
+    const isPanelist =
+      Array.isArray(project.panelistIds) &&
+      project.panelistIds.some((p) => String(p?._id || p) === uid);
+    const isSecretary = Boolean(
+      project.secretaryId && String(project.secretaryId?._id || project.secretaryId) === uid,
+    );
+
+    return (
+      (allowedRoles.includes('adviser') && isAdviser) ||
+      (allowedRoles.includes('panelist') && isPanelist) ||
+      (allowedRoles.includes('secretary') && isSecretary)
+    );
+  }
+
   _assertCanViewSubmission(user, project, submission = null, options = {}) {
-    const userId = user._id.toString();
+    const userId = String(user?._id || user);
     const { allowArchivedFinalJournalPublicView = false } = options;
 
     // Central archiving exception: any authenticated user can view archived final journals.
@@ -752,25 +782,23 @@ class SubmissionService {
 
     if (user.role === ROLES.INSTRUCTOR) return;
 
-    if (
-      user.role === ROLES.ADVISER &&
-      project.adviserId &&
-      project.adviserId.toString() === userId
-    ) {
-      return;
-    }
-
-    if (
-      user.role === ROLES.PANELIST &&
-      project.panelistIds?.map((panelistId) => panelistId.toString()).includes(userId)
-    ) {
-      return;
+    // Faculty umbrella and legacy role compatibility (FR-ABAC)
+    const isFacultyOrCommittee = [ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST].includes(user.role);
+    if (isFacultyOrCommittee) {
+      if (this._isProjectCommitteeMember(project, userId, ['adviser', 'panelist', 'secretary'])) {
+        return;
+      }
+      throw new AppError(
+        'You do not have access to this submission because you are not assigned as an Adviser, Panelist, or Secretary for this project.',
+        403,
+        'FORBIDDEN',
+      );
     }
 
     if (
       user.role === ROLES.STUDENT &&
       project.teamId &&
-      project.teamId.members?.map((memberId) => memberId.toString()).includes(userId)
+      project.teamId.members?.map((memberId) => String(memberId?._id || memberId)).includes(userId)
     ) {
       return;
     }
@@ -780,34 +808,33 @@ class SubmissionService {
 
   /**
    * Authorization for faculty moderation mutations.
-   * Allowed: instructor or assigned adviser of the submission's project.
+   * Allowed: instructor or assigned adviser of the submission's project (or panelist if explicitly allowed).
    *
    * @param {Object} user
    * @param {Object} project
+   * @param {Object} options
+   * @param {boolean} options.allowPanelist
    */
   _assertCanModerateSubmission(user, project, options = {}) {
     const { allowPanelist = false } = options;
-    const userId = user._id.toString();
+    const userId = String(user?._id || user);
 
     if (user.role === ROLES.INSTRUCTOR) {
       return;
     }
 
-    if (
-      user.role === ROLES.ADVISER &&
-      project.adviserId &&
-      project.adviserId.toString() === userId
-    ) {
-      return;
-    }
-
-    if (
-      allowPanelist &&
-      user.role === ROLES.PANELIST &&
-      Array.isArray(project.panelistIds) &&
-      project.panelistIds.map((panelistId) => panelistId.toString()).includes(userId)
-    ) {
-      return;
+    const isFacultyOrCommittee = [ROLES.FACULTY, ROLES.ADVISER, ROLES.PANELIST].includes(user.role);
+    if (isFacultyOrCommittee) {
+      const allowed = ['adviser'];
+      if (allowPanelist) allowed.push('panelist');
+      if (this._isProjectCommitteeMember(project, userId, allowed)) {
+        return;
+      }
+      throw new AppError(
+        'You do not have permission to moderate this submission for this project.',
+        403,
+        'FORBIDDEN',
+      );
     }
 
     throw new AppError('You do not have permission to moderate this submission.', 403, 'FORBIDDEN');
@@ -821,12 +848,14 @@ class SubmissionService {
    * @returns {Promise<{ reviewer: Object, project: Object }>}
    */
   async _getModerationContext(submission, reviewerId, options = {}) {
-    const reviewer = await User.findById(reviewerId).select('role');
+    const reviewer = await User.findById(reviewerId).select('role firstName lastName email');
     if (!reviewer) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
-    const project = await Project.findById(submission.projectId).select('adviserId panelistIds');
+    const project = await Project.findById(submission.projectId).select(
+      'adviserId panelistIds secretaryId title teamId',
+    );
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -1980,20 +2009,218 @@ class SubmissionService {
       );
     }
 
-    try {
-      const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
-      return { url, expiresIn, source: 's3' };
-    } catch {
-      if (fallbackUrl) {
-        return { url: fallbackUrl, expiresIn, source: 'google_drive' };
-      }
+    // Return authenticated streaming proxy URL as primary URL to avoid S3/MinIO SigV4 host mismatches across Docker boundaries
+    return {
+      url: `/api/submissions/${submissionId}/file`,
+      expiresIn,
+      source: 's3',
+    };
+  }
 
-      throw new AppError(
-        'Submission file is unavailable. Please ask the student to upload a new revision.',
-        404,
-        'SUBMISSION_FILE_UNAVAILABLE',
-      );
+  /**
+   * Download the submission document buffer directly from storage.
+   * @param {string} submissionId
+   * @param {string} requesterId
+   * @returns {Promise<{ buffer: Buffer, fileName: string, fileType: string, fileSize: number }>}
+   */
+  async getSubmissionFileBuffer(submissionId, requesterId) {
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
+
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    this._assertCanViewSubmission(user, project, submission, {
+      allowArchivedFinalJournalPublicView: true,
+    });
+
+    if (!submission.storageKey) {
+      throw new AppError('Submission file is unavailable.', 404, 'SUBMISSION_FILE_UNAVAILABLE');
+    }
+
+    const buffer = await storageService.downloadFile(submission.storageKey);
+    return {
+      buffer,
+      fileName: submission.fileName || 'document.pdf',
+      fileType: submission.fileType || 'application/pdf',
+      fileSize: submission.fileSize,
+    };
+  }
+
+  /**
+   * Return submission metadata for the document viewer.
+   * The browser fetches the raw binary via GET /:submissionId/file and renders
+   * locally using docx-preview (DOCX) or the native PDF viewer — no server-side
+   * HTML conversion is required.
+   * @param {string} submissionId
+   * @param {string} requesterId
+   * @returns {Promise<Object>}
+   */
+  async getSubmissionPreviewContent(submissionId, requesterId) {
+    const submission = await Submission.findById(submissionId).select(
+      'fileName fileSize fileType chapter version status createdAt isLate originalityScore projectId storageKey',
+    );
+
+    if (!submission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    // Lightweight access check — no full file download needed
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    const project = await Project.findById(submission.projectId).populate('teamId', 'members');
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    this._assertCanViewSubmission(user, project, submission, {
+      allowArchivedFinalJournalPublicView: true,
+    });
+
+    const isDocx =
+      submission.fileType?.includes('wordprocessingml') ||
+      submission.fileName?.toLowerCase().endsWith('.docx');
+
+    return {
+      type: isDocx ? 'docx' : 'pdf',
+      fileName: submission.fileName,
+      fileSize: submission.fileSize,
+      chapter: submission.chapter,
+      version: submission.version,
+      status: submission.status,
+    };
+  }
+
+  /**
+   * Get revision diff payload comparing a submission with its previous version (or compareWithId).
+   * Extracts and caches text on both submissions if not already populated.
+   *
+   * @param {string} submissionId
+   * @param {string} requesterId
+   * @param {string} [compareWithId]
+   * @returns {Promise<Object>}
+   */
+  async getSubmissionRevisionDiff(submissionId, requesterId, compareWithId) {
+    const targetSubmission = await Submission.findById(submissionId).select('+extractedText');
+    if (!targetSubmission) {
+      throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
+    }
+
+    const user = await User.findById(requesterId).select('role teamId');
+    if (!user) throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+
+    const project = await Project.findById(targetSubmission.projectId).populate(
+      'teamId',
+      'members',
+    );
+    if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+
+    this._assertCanViewSubmission(user, project, targetSubmission, {
+      allowArchivedFinalJournalPublicView: true,
+    });
+
+    // Helper to extract & cache text if missing
+    const ensureExtractedText = async (sub) => {
+      if (sub && !sub.extractedText && sub.storageKey) {
+        try {
+          const buffer = await storageService.downloadFile(sub.storageKey);
+          const text = await extractText(buffer, sub.fileType || 'application/pdf');
+          if (text) {
+            sub.extractedText = text;
+            await Submission.updateOne({ _id: sub._id }, { $set: { extractedText: text } });
+          }
+        } catch (err) {
+          logger.error(
+            `[SubmissionService] Text extraction failed for submission ${sub._id}:`,
+            err,
+          );
+        }
+      }
+    };
+
+    await ensureExtractedText(targetSubmission);
+
+    // Populate annotations on target
+    await targetSubmission.populate([
+      { path: 'annotations.userId', select: 'firstName lastName email role' },
+      { path: 'annotations.replies.userId', select: 'firstName lastName email role' },
+    ]);
+
+    // Find candidate comparison versions
+    const versionFilter = {
+      projectId: targetSubmission.projectId,
+      _id: { $ne: targetSubmission._id },
+    };
+    if (targetSubmission.chapter !== null && targetSubmission.chapter !== undefined) {
+      versionFilter.chapter = targetSubmission.chapter;
+    } else {
+      versionFilter.type = targetSubmission.type;
+    }
+
+    const availableVersions = await Submission.find(versionFilter)
+      .select('_id version chapter type fileName createdAt')
+      .sort({ version: -1 });
+
+    let previousSubmission = null;
+    if (compareWithId) {
+      previousSubmission = await Submission.findById(compareWithId).select('+extractedText');
+    } else {
+      // Pick immediate previous version (version < target.version)
+      const prevFilter = {
+        ...versionFilter,
+        version: { $lt: targetSubmission.version },
+      };
+      previousSubmission = await Submission.findOne(prevFilter)
+        .sort({ version: -1 })
+        .select('+extractedText');
+    }
+
+    if (previousSubmission) {
+      await ensureExtractedText(previousSubmission);
+      await previousSubmission.populate([
+        { path: 'annotations.userId', select: 'firstName lastName email role' },
+        { path: 'annotations.replies.userId', select: 'firstName lastName email role' },
+      ]);
+    }
+
+    return {
+      current: {
+        id: targetSubmission._id,
+        version: targetSubmission.version,
+        chapter: targetSubmission.chapter,
+        type: targetSubmission.type,
+        fileName: targetSubmission.fileName,
+        fileType: targetSubmission.fileType,
+        createdAt: targetSubmission.createdAt,
+        extractedText: targetSubmission.extractedText || '',
+        annotations: targetSubmission.annotations || [],
+      },
+      previous: previousSubmission
+        ? {
+            id: previousSubmission._id,
+            version: previousSubmission.version,
+            chapter: previousSubmission.chapter,
+            type: previousSubmission.type,
+            fileName: previousSubmission.fileName,
+            fileType: previousSubmission.fileType,
+            createdAt: previousSubmission.createdAt,
+            extractedText: previousSubmission.extractedText || '',
+            annotations: previousSubmission.annotations || [],
+          }
+        : null,
+      availableVersions: availableVersions.map((v) => ({
+        id: v._id,
+        version: v.version,
+        chapter: v.chapter,
+        type: v.type,
+        fileName: v.fileName,
+        createdAt: v.createdAt,
+      })),
+    };
   }
 
   /**
@@ -2180,13 +2407,33 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    const { reviewer } = await this._getModerationContext(submission, reviewerId, {
+    // --- Concurrency / Collision Prevention ---
+    if (data?.expectedUpdatedAt && submission.updatedAt) {
+      const clientTime = new Date(data.expectedUpdatedAt).getTime();
+      const serverTime = new Date(submission.updatedAt).getTime();
+      if (Math.abs(serverTime - clientTime) > 1000) {
+        throw new AppError(
+          'Another committee member recently updated this submission. Please refresh to view their changes before reviewing.',
+          409,
+          'CONCURRENT_REVIEW_CONFLICT',
+        );
+      }
+    }
+
+    const { reviewer, project } = await this._getModerationContext(submission, reviewerId, {
       allowPanelist: true,
     });
 
-    if (reviewer.role === ROLES.PANELIST && submission.type !== 'proposal') {
+    const isAssignedAdviser = Boolean(
+      project.adviserId &&
+      String(project.adviserId?._id || project.adviserId) === String(reviewerId),
+    );
+    const isInstructor = reviewer.role === ROLES.INSTRUCTOR;
+
+    // Panelists without adviser assignment can only review proposal submissions
+    if (!isAssignedAdviser && !isInstructor && submission.type !== 'proposal') {
       throw new AppError(
-        'Panelists can only review proposal submissions.',
+        'Panelists can only review proposal submissions. Chapter reviews are conducted by the assigned adviser.',
         403,
         'PANELIST_PROPOSAL_ONLY',
       );
@@ -2201,7 +2448,7 @@ class SubmissionService {
     if (
       submission.type === 'proposal' &&
       status === SUBMISSION_STATUSES.APPROVED &&
-      ![ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(reviewer.role)
+      ![ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(reviewer.role)
     ) {
       throw new AppError(
         'Only instructors, assigned advisers, and assigned panelists can approve proposals.',
@@ -2215,12 +2462,24 @@ class SubmissionService {
     submission.reviewNote = reviewNote || null;
     submission.reviewedAt = new Date(); // Phase 1: Track review timestamp
 
+    // Append to status history audit trail
+    if (!Array.isArray(submission.statusHistory)) {
+      submission.statusHistory = [];
+    }
+    submission.statusHistory.push({
+      status,
+      changedBy: reviewerId,
+      notes:
+        reviewNote ||
+        (status === SUBMISSION_STATUSES.APPROVED ? 'Approved & Locked' : 'Revisions requested'),
+      timestamp: new Date(),
+    });
+
     // --- Set revision deadline if revisions requested ---
     if (status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
       const revisionDeadlineDate = new Date();
-      revisionDeadlineDate.setDate(
-        revisionDeadlineDate.getDate() + submission.revisionExpectedDays,
-      );
+      const expectedDays = Number(submission.revisionExpectedDays) || 5;
+      revisionDeadlineDate.setDate(revisionDeadlineDate.getDate() + expectedDays);
       submission.revisionDeadline = revisionDeadlineDate;
     }
 
@@ -2298,35 +2557,35 @@ class SubmissionService {
     }
 
     // --- Project status transition based on submission review ---
-    const project = await Project.findById(submission.projectId);
-    if (project) {
+    const projectDoc = await Project.findById(submission.projectId);
+    if (projectDoc) {
       if (status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
-        project.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
-        await project.save();
+        projectDoc.projectStatus = PROJECT_STATUSES.REVISION_NEEDED;
+        await projectDoc.save();
       } else if (status === SUBMISSION_STATUSES.APPROVED || status === 'approved') {
         if (submission.type === 'proposal') {
-          project.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
-          if (project.capstonePhase === 1) {
-            project.capstonePhase = 2;
+          projectDoc.projectStatus = PROJECT_STATUSES.PROPOSAL_APPROVED;
+          if (projectDoc.capstonePhase === 1) {
+            projectDoc.capstonePhase = 2;
           }
         } else if (
           submission.type === 'chapter' &&
           submission.chapter === 3 &&
-          project.capstonePhase === 1
+          projectDoc.capstonePhase === 1
         ) {
-          project.capstonePhase = 2;
-          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+          projectDoc.capstonePhase = 2;
+          projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         } else if (
-          project.capstonePhase === 3 &&
+          projectDoc.capstonePhase === 3 &&
           submission.type === 'chapter' &&
           submission.chapter === 5
         ) {
-          project.capstonePhase = 4;
-          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+          projectDoc.capstonePhase = 4;
+          projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         } else {
-          project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
+          projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         }
-        await project.save();
+        await projectDoc.save();
       }
     }
 
@@ -2355,8 +2614,7 @@ class SubmissionService {
         ? ` Revision deadline: ${submission.revisionDeadline.toISOString().slice(0, 10)}.`
         : '';
 
-    await Notification.create({
-      userId: submission.submittedBy,
+    const notificationPayload = {
       type: notifType,
       title: 'Submission Reviewed',
       message: `Your ${docLabel} has been ${statusLabel}.${revisionDeadlineText}`,
@@ -2369,7 +2627,37 @@ class SubmissionService {
         reviewedAt: submission.reviewedAt,
         revisionDeadline: submission.revisionDeadline,
       },
-    }).then((n) => emitToUser(n.userId, 'notification:new', n));
+    };
+
+    // Notify the primary submitter
+    await Notification.create({
+      userId: submission.submittedBy,
+      ...notificationPayload,
+    })
+      .then((n) => emitToUser(n.userId, 'notification:new', n))
+      .catch(() => {});
+
+    // Notify other team members if project has team members
+    try {
+      const teamProject = await Project.findById(submission.projectId).populate(
+        'teamId',
+        'members',
+      );
+      const otherMembers = (teamProject?.teamId?.members || []).filter(
+        (mId) => String(mId?._id || mId) !== String(submission.submittedBy),
+      );
+      for (const m of otherMembers) {
+        const uid = String(m?._id || m);
+        await Notification.create({
+          userId: uid,
+          ...notificationPayload,
+        })
+          .then((n) => emitToUser(uid, 'notification:new', n))
+          .catch(() => {});
+      }
+    } catch (_) {
+      // Non-blocking notification dispatch
+    }
 
     return { submission };
   }
@@ -2799,6 +3087,12 @@ class SubmissionService {
       teamResources: {
         googleDocUrl: project.teamId?.googleDocUrl || null,
       },
+      // Committee IDs for client-side reviewer role derivation
+      adviserId: project.adviserId ? String(project.adviserId) : null,
+      panelistIds: Array.isArray(project.panelistIds)
+        ? project.panelistIds.map((id) => String(id))
+        : [],
+      secretaryId: project.secretaryId ? String(project.secretaryId) : null,
       rounds,
     };
 

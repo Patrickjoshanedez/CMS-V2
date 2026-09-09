@@ -418,10 +418,627 @@
      - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
   5. Evidence & Verification passed: 5/5 `ProjectDetailsModal.test.jsx` tests passed, 7/7 `ProposalTab.test.jsx` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, `validate:governance` passed, workspace guardrail verified clean, and 7 Playwright screenshots captured and verified across desktop light/dark, fullwidth workspace, ProjectDetailsModal, ADMPhaseSelector, and mobile responsive views.
 
-## Test Fixture Notes
-- Submission chapter-upload integration fixtures must include at least one assigned panelist on the project in Capstone phase 1, otherwise uploads fail with PANELISTS_NOT_ASSIGNED before other assertions.
+44. Committee & Team Roster Population & Sophisticated In-App Document & PDF Viewer:
+- Incident & Root Cause:
+  1. Committee & Roster Missing on Project Details Modal: In `ProjectDetailsModal.jsx`, the committee was rendered as generic placeholders ("3 Faculty Panelists") without individual names or contact details, while Committee Secretary and Course Instructor were absent. The team roster rendered generic placeholders ("Member 1", "Member 2", etc.) because backend population in `project.service.js` omitted `teamId.members`, `teamId.memberRoles.userId`, `panelistIds`, `secretaryId`, and `sectionId.createdBy`.
+  2. Submitted Manuscript Raw MinIO Docker URL & NXDOMAIN: In `SubmissionDetailPage.jsx` and `ChapterProgressWithRounds.jsx`, clicking a submitted manuscript opened a raw Docker-internal URL (`http://minio:9000/...`), producing `DNS_PROBE_FINISHED_NXDOMAIN` in host browsers. Furthermore, opening an external URL disrupted the workflow rather than providing an in-app reading experience.
+- Resolution & Implementation Details:
+  1. Deep Backend Population in `project.service.js`:
+     - Updated `getProject`, `getMyProject`, and `listProjects` to deep-populate `teamId.members` (with `firstName middleName lastName email profilePicture role proponentRole capstoneRole`), `teamId.memberRoles.userId`, `teamId.adviserId`, `teamId.secretaryId`, `teamId.panelistIds`, `sectionId.createdBy`, and `teamId.leaderId.instructorId`.
+     - Made `getProject` line 554 requester check safe with `(member?._id || member).toString() === requester._id.toString()`.
+  2. Presigned Storage URL Rewrite in `storage.service.js`:
+     - In `getSignedUrl`, automatically rewrites `minio:9000` to `env.S3_PUBLIC_URL || 'http://localhost:9000'` so presigned URLs resolve cleanly on host machines.
+  3. Submission Streaming & DOCX Preview APIs:
+     - Implemented authenticated streaming proxy `GET /api/submissions/:submissionId/file` (inline disposition with proper content-type).
+     - Implemented preview endpoint `GET /api/submissions/:submissionId/preview-content` using `mammoth.convertToHtml` to convert DOCX submissions into structured HTML for rich in-app rendering.
+  4. Institutional Committee Cards in `ProjectDetailsModal.jsx`:
+     - Configured individual cards for: Course Instructor, Capstone Adviser, Committee Secretary, REC / Committee Chair, Panel Member 1, and Panel Member 2, rendering avatar initials, real names, emails, and institutional role badges.
+     - Mapped team members against `teamId.memberRoles` to display standardized proponent roles (`Project Lead & Systems Analyst`, `Frontend & UI/UX Developer`, etc.) with real member names.
+  5. Sophisticated In-App Document & PDF Viewer (`SophisticatedDocumentViewer.jsx`):
+     - Engineered rich viewer modal with zoom scaling (60% to 200%, reset to 100%), fullscreen toggle (`Maximize2`/`Minimize2`), direct file download, formatted academic manuscript layout (paper container, serif typography, institutional header banner), native PDF viewer, and toggleable metadata drawer.
+     - Integrated viewer into `SubmissionDetailPage.jsx`, `ChapterProgressWithRounds.jsx`, and `SubmissionReviewPage.jsx`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When displaying committee and proponent rosters, always deep-populate Mongoose paths (`members`, `memberRoles.userId`, `panelistIds`, `secretaryId`, `adviserId`, `sectionId.createdBy`) on the backend service rather than returning unpopulated ObjectIds.
+  2. Prevention rule: S3/MinIO presigned URLs generated inside Docker networks must rewrite internal hostnames (`minio:9000`) to the public host domain (`S3_PUBLIC_URL`) to prevent browser DNS resolution failures.
+  3. Prevention rule: Document previews must be offered within the application via an authenticated in-app viewer with streaming proxy support, preventing raw storage URL leakage and providing consistent dark/light mode academic viewing.
+  4. Runbook & Checklist:
+     - Checklist: Verify `ProjectDetailsModal` displays Course Instructor, Capstone Adviser, Secretary, REC / Chair, Panel Member 1, Panel Member 2, and all team members with their real names and standardized proponent roles.
+     - Checklist: Verify opening a submitted manuscript in `SubmissionDetailPage` or `ChapterProgressWithRounds` launches `SophisticatedDocumentViewer` modal directly.
+     - Checklist: Verify Zoom controls (Zoom In, Zoom Out, Reset), Fullscreen toggle, and Details drawer operate smoothly without layout shifts.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectDetailsModal.test.jsx` passed, 5/5 `SophisticatedDocumentViewer.test.jsx` passed, API route parity verified (198 server / 177 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, workspace guardrail verified clean, and 10 Playwright screenshots captured and verified across desktop light/dark, modal population, and in-app document viewer with fully rendered academic manuscript text.
+45. OOXML Word Document Rendering Fidelity & Browser-Side docx-preview Engine:
+- Incident & Root Cause:
+  1. Mammoth Server-Side HTML Formatting Loss: The previous document viewer converted `.docx` manuscripts into HTML on the backend using `mammoth.convertToHtml()`. While safe, Mammoth intentionally strips almost all OOXML formatting metadata: indentation, centered alignments, line heights, font hierarchies, table borders, and page breaks. The resulting output appeared as a flat paragraph blob, losing the authentic BukSU template title page, approval sheet layout, and section hierarchies.
+  2. Subpath CSS Module Resolution in Vite/Vitest: Attempting to import `docx-preview/dist/docx-preview.css` triggered a pre-transform resolution error in Vite and Vitest because `docx-preview`'s `package.json` specifies an `exports` map containing only `.`. Modern Node.js and Vite package exports enforcement rejects any unexported subpath imports.
+- Resolution & Implementation Details:
+  1. Browser-Side OOXML Engine (`docx-preview`):
+     - Integrated `docx-preview`'s `renderAsync(arrayBuffer, containerDiv, null, options)` directly in `SophisticatedDocumentViewer.jsx`.
+     - Directly streams the raw `.docx` zip package from `/api/submissions/:id/file` with credentials, rendering authentic OOXML styling: title centering, paragraph indentation, margins, font weights, table grid borders, and page cards.
+     - Embedded `docx-preview` page styles into `client/src/index.css` under `.docx-outer-container`, rendering pages as authentic white cards (`background: #ffffff`, subtle elevation shadow) on dark or light canvases.
+  2. Server Optimization:
+     - Slimmed `getSubmissionPreviewContent` in `submission.service.js` to return metadata only for DOCX files, eliminating the heavy buffer download and CPU-intensive mammoth processing on the backend.
+  3. Safe CSS Integration:
+     - Removed the invalid `docx-preview/dist/docx-preview.css` import from the component, relying on the clean custom CSS rules in `index.css` and `docx-preview`'s internal style generator.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: For faithful WYSIWYG document viewing, do not rely on simple HTML converters like Mammoth for complex OOXML manuscripts. Use dedicated browser-side OOXML parsers (`docx-preview`) that evaluate actual document zip XML parts (`word/document.xml`, `word/styles.xml`).
+  2. Prevention rule: When consuming npm packages that declare an `"exports"` map in their `package.json`, never import subpaths that are not explicitly defined in the map, as modern bundlers (Vite/Rollup/Node 20+) will fail at transform time.
+  3. Runbook & Checklist:
+     - Checklist: Verify `npm test --workspace=client -- src/components/documents/SophisticatedDocumentViewer.test.jsx` passes with all tests green.
+     - Checklist: Verify `npm test --workspace=server -- tests/integration/submissions.test.js` passes with 66/66 tests green.
+     - Checklist: Verify Playwright screenshots show title centering, indentation, and page layout on both light and dark themes.
+46. Git-Style Document Revision Diffing (+/-), Anchored Remarks & PDF Scroll Isolation:
+- Incident & Root Cause:
+  1. Lack of Visual Revision Tracking for Resubmissions: When capstone teams resubmitted revised manuscripts (e.g. v2 following panel defense critique), panel members and advisers had to manually compare separate files side-by-side or guess what changed. A standard side-by-side split git view would be too cluttered and poorly suited for formatted academic literature.
+  2. PDF Viewer Background Scroll Bleed: In `SophisticatedDocumentViewer.jsx`, scrolling inside the embedded PDF viewer iframe caused the outer dashboard `<main>` element to scroll uncontrollably in the background. Setting `document.body.style.overflow = 'hidden'` failed because the active scrolling container in `DashboardLayout.jsx` is `<main className="overflow-y-auto">`, not `<body>`.
+  3. Redundant Submission Header: In `SubmissionDetailPage.jsx`, an arbitrary `<h1>Submission Detail</h1>` element sat directly beneath the global header banner, causing visual clutter and layout redundancy.
+- Resolution & Implementation Details:
+  1. Backend Revision Diff Service & Caching (`submission.service.js`):
+     - Implemented `getSubmissionRevisionDiff(submissionId, requesterId, compareWithId)`: verifies institutional viewing permissions, retrieves current submission and historical version (defaulting to immediate predecessor version), and populates committee annotations.
+     - Automatically extracts text from MinIO storage for DOCX and PDF files if `extractedText` is not already indexed, caching it to the MongoDB document for fast (<5ms) diff calculations.
+     - Exposed via authenticated endpoint `GET /api/submissions/:submissionId/revision-diff`.
+  2. Git-Style In-App Diffing Component (`RevisionDiffViewer.jsx`):
+     - Implements multi-granularity diffing (`words`, `sentences`, `lines`) using `jsdiff` with paired additions and deletions.
+     - Highlights revisions inline in emerald green (`+`), with subtle deletion markers (`-`) that can be toggled.
+     - Click-to-Reveal Popover: Clicking any revision reveals a clean slide-out popover drawer showing the exact original deleted text in red strike-through alongside the revised passage.
+     - Anchored Committee Comments: Matches panel/adviser annotations to modified text, rendering interactive `💬 [Count]` badges and displaying reviewer names, institutional roles, timestamps, and `Resolved`/`Open` status cards.
+     - Search filter, change counter, next/previous revision navigator, and initial submission (v1) empty state explaining how revision diffing activates on subsequent versions.
+  3. SophisticatedDocumentViewer View Mode Toggle & PDF Scroll Isolation:
+     - Added segmented View Mode switcher (`[Manuscript]` vs `[Revision Diff (+/-) v1→v2]`) into viewer header.
+     - Mounted viewer via `createPortal(dialog, document.body)` with configurable `portalTarget` prop for isolated unit testing.
+     - Dual Scroll Lock: Simultaneously locks `document.body.style.overflow = 'hidden'` AND `document.querySelector('main').style.overflow = 'hidden'`, restoring previous inline styles on unmount.
+     - Added `overscroll-contain` and `onWheel={(e) => e.stopPropagation()}` on the backdrop and iframe wrappers to completely isolate wheel events.
+  4. Submission Detail Header Streamlining:
+     - Replaced redundant `<h1>Submission Detail</h1>` in `SubmissionDetailPage.jsx` with an institutional breadcrumb action bar (`← Back to Chapter Progress | Chapter 1 Manuscript [v2]`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When implementing full-screen or modal overlays over complex application layouts with custom scroll containers (such as `<main className="overflow-y-auto">`), never rely solely on locking `document.body.style.overflow`. Always mount modals to `document.body` via `createPortal` and lock both `document.body` and `<main>` overflow while capturing wheel events with `e.stopPropagation()`.
+  2. Prevention rule: For academic document revision diffing, favor unified inline click-to-reveal interfaces over raw side-by-side git views to preserve readability on mobile screens and maintain paragraph continuity.
+  3. Lesson learned: In Vitest/JSDOM environments, components using `createPortal(..., document.body)` render into the global document rather than the test's `render()` container. Providing a default-enabled prop like `portalTarget = true` (allowing tests to pass `portalTarget={false}`) ensures fast, clean component assertions without memory leaks.
+  4. Runbook & Checklist:
+     - Checklist: Verify `GET /api/submissions/:submissionId/revision-diff` returns current text, previous text, available versions, and anchored committee annotations.
+     - Checklist: Verify `SophisticatedDocumentViewer` switches seamlessly between Manuscript and Revision Diff modes.
+     - Checklist: Verify clicking a highlighted revision reveals the deleted original text and committee remarks popover without console warnings.
+     - Checklist: Verify wheel scrolling inside the document viewer does not move the underlying dashboard background.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 7/7 `RevisionDiffViewer.test.jsx` passed, 7/7 `SophisticatedDocumentViewer.test.jsx` passed, 2/2 `submission.revision-diff.test.js` passed, route parity verified (`UNMATCHED_COUNT = 0`), agentic governance verified (60/60 checks passed), governance pipeline valid (0 errors, 0 warnings), workspace guardrail clean, and 16 Playwright visual audit screenshots captured and verified across desktop and mobile in both themes.
 
+47. Direct S3 Presigned URL Host Mismatch (SignatureDoesNotMatch), Direct In-Page Archive Scanning & Turnitin-Style Plagiarism Intelligence Report:
+- Incident & Root Cause:
+  1. S3 SignatureDoesNotMatch on File Downloads: Clicking download on submission files caused MinIO to return `<Error><Code>SignatureDoesNotMatch</Code><Message>The request signature we calculated does not match the signature you provided</Message></Error>`. In Docker environments, `storage.service.js:getSignedUrl` generated AWS SigV4 presigned URLs signed with internal container host `minio:9000`. Replacing `minio:9000` with `localhost:9000` in the URL string broke the HMAC signature because the browser sent `Host: localhost:9000`, causing MinIO to calculate the canonical request with `Host: localhost:9000` while `X-Amz-Signature` was computed with `Host: minio:9000`.
+  2. Redundant Plagiarism Checker Redirection: In `SubmissionDetailPage.jsx`, clicking "Open Archive Checker" redirected the user to an empty drag-and-drop page (`/plagiarism-checker`), forcing the user to re-download the manuscript and manually drop it in. The user expected an in-place archive scan directly from the submission details page without redirection.
+  3. Outdated Plagiarism Report UI: `PlagiarismReportPage.jsx` relied on legacy CSS variables (`var(--color-accent)`, `var(--color-sidebar)`) and lacked integration with `SophisticatedDocumentViewer`, executive KPI cards, and re-scan triggers.
+- Resolution & Implementation Details:
+  1. Backend Streaming API Download Pattern (`submission.controller.js`, `submission.service.js`):
+     - Updated `getSubmissionFile` in `submission.controller.js` to inspect `req.query.download === 'true'`. When present, streams file with `Content-Disposition: attachment; filename="<sanitized-filename>"`; otherwise streams `inline` for previews.
+     - Updated `getViewUrl` in `submission.service.js` to return `/api/submissions/${submissionId}/file` as primary URL, avoiding S3/MinIO SigV4 host mismatches across Docker/host boundaries.
+     - Added client helper `submissionService.downloadFile(submissionId, fileName)` requesting `/submissions/${submissionId}/file?download=true` with responseType blob and triggering automated browser file save.
+  2. Direct Submission In-Page Archive Scan API & Hook (`plagiarism.routes.js`, `useSubmissions.js`):
+     - Exposed `POST /api/submissions/:submissionId/plagiarism/archive-scan` with RBAC authorization (`student`, `adviser`, `panelist`, `instructor`), wired to `scanSubmissionAgainstArchive`.
+     - Added `plagiarismService.scanSubmissionAgainstArchive` and TanStack query mutation hook `useScanSubmissionArchive`, which invalidates `detail`, `plagiarism`, and `plagiarismReport` query caches upon completion.
+     - Updated `SubmissionDetailPage.jsx` to replace the redirect button with an in-page "Scan Against Archive" button displaying spinning progress and immediate report access upon completion.
+  3. Modernized Turnitin-Style Plagiarism Intelligence Report (`PlagiarismReportPage.jsx`):
+     - Modernized layout with BukSU design system tokens (`bg-background`, `bg-card`, `border-border/60`, `text-foreground`, `text-muted-foreground`).
+     - Added 3 executive KPI cards: Similarity Gauge (compliant <25% green, moderate 25-49% amber, high >=50% red), Originality Ratio, and Archive Corpus Match statistics.
+     - Integrated `SophisticatedDocumentViewer` via "Inspect in Reader" button, enabling full manuscript viewing and revision diff comparisons directly from the report.
+     - Added source search filtering, active source comparison drawer, and re-scan trigger directly in the toolbar.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never expose raw or hostname-substituted S3 presigned URLs directly to client browsers in Docker or containerized environments where internal container service names (e.g. `minio`) differ from host addresses (e.g. `localhost`). Always stream files through backend API endpoints (`/api/submissions/:id/file?download=true`) to guarantee SigV4 signature integrity and institutional RBAC enforcement.
+  2. Prevention rule: When an entity in an academic workflow requires verification (such as plagiarism or similarity scanning), provide direct in-page trigger actions that utilize existing server-side files rather than navigating users away to generic drag-and-drop tools.
+  3. Lesson learned: Text slicing in Turnitin-style document highlighting must account for full string lengths and avoid off-by-one errors when generating superscript-anchored `<mark>` elements.
+  4. Runbook & Checklist:
+     - Checklist: Verify `GET /api/submissions/:id/file?download=true` downloads files with correct filename and content-type without MinIO signature errors.
+     - Checklist: Verify `POST /api/submissions/:id/plagiarism/archive-scan` runs without redirecting away from the submission page.
+     - Checklist: Verify `PlagiarismReportPage` renders executive KPI cards, Turnitin highlight marks, source match drawer, and integrates `SophisticatedDocumentViewer`.
+     - Checklist: Verify `npm run check:endpoints` reports `UNMATCHED_COUNT = 0`.
+     - Checklist: Verify `npm test --workspace=client -- src/pages/submissions/PlagiarismReportPage.test.jsx` passes all tests.
+  5. Evidence & Verification passed: 4/4 `PlagiarismReportPage.test.jsx` tests passed, 7/7 `SophisticatedDocumentViewer.test.jsx` tests passed, 7/7 `RevisionDiffViewer.test.jsx` tests passed, 18/18 `submission.service.plagiarism.test.js` tests passed, 200 server / 179 client endpoints in complete parity (`UNMATCHED_COUNT = 0`), 60/60 agentic governance checks passed, governance validation succeeded with 0 errors, and workspace guardrail verified pristine.
 
+48. Academic Manuscript Text Extraction Void Elimination, Intelligent Title Page Structuring & Turnitin Paper Sheet View:
+- Incident & Root Cause:
+  1. Excessive DOCX Newline Voids: Academic Word manuscripts (`.docx`) use multiple empty paragraphs (`<w:p/>`) to vertically space out title elements across standard 11-inch letter paper. In `Capstone-Final-Template.docx`, 310 out of 487 extracted lines were completely empty. When rendered inside `<article className="whitespace-pre-wrap">`, these empty lines produced massive 500px+ vertical black voids in the plagiarism report.
+  2. Fragmented Left-Aligned Cover Elements: In raw text view, `<Title of Capstone Project>`, `A Capstone Project by`, `<Name 1>`, `<Name 2>`, and institutional affiliations were rendered as unstyled left-aligned paragraphs separated by dozens of empty lines rather than adhering to formal academic manuscript hierarchy.
+  3. Temporal Dead Zone (TDZ) ReferenceError: In `PlagiarismReportPage.jsx`, `submissionFileName` accessed `payload?.submissionFileName` prior to `const payload = reportData || data || null;` declaration, causing a fatal ReferenceError in strict browser ES module runtimes.
+- Resolution & Implementation Details:
+  1. Intelligent Academic Line Classification (`classifyAcademicLine` in `PlagiarismReportPage.jsx`):
+     - Classifies trimmed non-empty text lines into academic structural tokens: `cover-title` (uppercase, centered, prominent), `cover-byline` (spaced, muted uppercase), `cover-author` (compact centered roster), `cover-affiliation` (institutional unit), `cover-fulfillment` (degree requirements, italicized), `cover-date` (submission date with divider), `section-heading` (CHAPTER 1, APPROVAL SHEET, centered uppercase with divider), `subheading` (bold left-aligned), and `body` (indented, justified paragraph text).
+     - Bounded by 120-character short-line threshold to prevent standard body sentences mentioning institutional keywords from false classification.
+  2. Character-Offset Synchronization & Line Fragmentation (`fragmentLine`, `structuredLines`):
+     - Tracks line start and end character offsets (`lineStart`, `lineEnd`) against original raw text so empty lines are visually skipped without shifting character indices.
+     - Maps plagiarism match spans into line-level fragments, maintaining 100% precision for highlight backgrounds, numbered badges, click-to-focus popovers, and similarity coverage computations.
+  3. Authentic Paper Sheet & Dual-Mode Canvas:
+     - Introduced Paper Sheet view mode (`bg-white text-slate-900 border border-slate-200/90 shadow-xl ring-1 ring-black/5` with Georgia/Times academic serif typography and drop shadow) matching Turnitin/iThenticate industry standards even in Dark Mode, alongside Theme Card mode.
+     - Added in-canvas view mode switcher: "Originality Highlights" for similarity analysis and "Formatted Manuscript" for direct `DocxPreviewRenderer` / PDF previewing.
+     - Added zoom controls (70%–160%) and resolved TDZ declaration order.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When rendering raw extracted text from Word or PDF documents, never pipe uncurated `\n\n` dumps into `whitespace-pre-wrap` articles without collapsing empty spacing lines and classifying academic structural elements.
+  2. Prevention rule: When filtering or formatting text for visual rendering, never modify underlying string buffers globally in a way that shifts character offsets; always compute line-level slices with absolute start/end coordinates so match intervals (`studentStart`, `studentEnd`) remain strictly synchronized.
+  3. Lesson learned: In strict browser ES modules, referencing variables before their lexical declaration line throws an unrecoverable `ReferenceError: Cannot access 'X' before initialization` (TDZ). Query result fallbacks (`payload`) must be declared immediately before any consumer variables.
+  4. Runbook & Checklist:
+     - Checklist: Verify `PlagiarismReportPage` renders title, byline, author roster, and institutional affiliations centered with zero 500px black voids.
+     - Checklist: Verify Paper Sheet mode displays a crisp white canvas with serif typography and drop shadow.
+     - Checklist: Verify clicking "Formatted Manuscript" renders `DocxPreviewRenderer` for DOCX files or native PDF iframe for PDF files.
+     - Checklist: Verify clicking highlight marks scrolls to the active match and displays source attribution without character displacement.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 7/7 `PlagiarismReportPage.test.jsx` passed, 14/14 `src/components/documents/` tests passed, route parity verified (`UNMATCHED_COUNT = 0`), agentic governance verified (60/60 checks passed), governance pipeline valid (0 errors, 0 warnings), workspace guardrail clean, and 12 Playwright visual audit screenshots captured and inspected across desktop and mobile in both themes.
 
+63. Proposal Details Persistence, Approval Scope Guard, Revision Resubmit Workflow & Executive UI Refactor:
+- Architectural Findings & Workflow Gaps Discovered:
+  1. Proposal Details Serialization Desynchronization: `CreateProjectPage.jsx` serialized pitch deck fields into description using camelCase keys (`problemStatement: ...`), while `ProposalTab.jsx` looked for exact formatted labels (`Problem Statement: ...`), causing proposal details (Problem Statement, Solution, Innovation, Beneficiaries, Impact) to render blank in `ProposalTab.jsx` and display fallback dummy text in `ActiveProposalView.jsx`.
+  2. Missing Committee Notification on Revision Resubmit: When students revised candidate proposals (`project.service.js:reviseAndResubmit`), the backend only notified instructors (`_notifyInstructors`), neglecting to notify the defense committee panel (`adviserId`, `secretaryId`, `panelistIds`), breaking committee re-evaluation loops.
+  3. Clunky UI & Redundant CTAs on My Capstone (`MyProjectPage.jsx`):
+     - `ProjectTitleCard.jsx` was a plain border-l-4 card displaying unformatted status strings without academic metadata, team sanitization, or proposal rehearsal links.
+     - `TabsList` used a transparent zero-padding border-b container, creating an awkward, unstyled rectangle for active `WorkflowTabTrigger` pills.
+     - `NextStepCard.jsx` used a horizontal flex layout that squished action buttons into a narrow sidebar column and duplicated "Upload Chapter" buttons right next to `ChapterProgressWithRounds`.
+     - Entity name duplication: Seeded and user records containing "Team" resulted in "Team Team Gamma" across presenter components.
+- Resolution & Implementation Details:
+  1. Canonical Pitch Deck Parsing & Hydration (`pitchDeckParser.js`): Created centralized parsing utility supporting both formatted labels (`Problem Statement:`) and camelCase keys (`problemStatement:`), including forward slashes (`/`), and updated `project.model.js` and `project.validation.js` with `pitchDeck: { type: Mixed, default: {} }`.
+  2. Approval vs. Revision Behavior Protocol:
+     - Approved State Guard: When title is approved, proposal inputs are read-only by default with a green locked banner. Clicking "Unlock to Edit Scope" triggers an institutional browser warning prompt (*"Are you sure you want to edit the approved proposal? Any modifications to an approved title or proposal scope will alter the agreed project baseline and may require committee re-evaluation."*).
+     - Revision Workflow: When `titleStatus === 'revision_required'`, an amber revision banner displays panelist remarks (`project.rejectionReason`), inputs are editable by default, and "Confirm Revision & Resubmit for Committee Review" calls `reviseAndResubmit`.
+     - Dual Notification: Enhanced `project.service.js:reviseAndResubmit` with `_notifyCommittee` to notify both instructors and defense committee panelists (`adviserId`, `secretaryId`, `panelistIds`).
+  3. Executive UI Refactor:
+     - Redesigned `ProjectTitleCard.jsx` into an executive hero header with top accent gradient, phase pill, semantic badges (`TitleStatusBadge`, `ProjectStatusBadge`), defensive team name sanitization (`cleanTeamName`), academic metadata (AY, Section, Adviser), and a quick link to `/project/approval`.
+     - Upgraded `TabsList` in `MyProjectPage.jsx` to a sleek pill container (`bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 shadow-xs`).
+     - Redesigned `NextStepCard.jsx` into a dedicated vertical milestone card with "Current Milestone" icon header and full-width CTA button.
+     - Sanitized team names in `ProjectSidebarInfo.jsx` and `ProjectTitleCard.jsx` with regex `replace(/^Team\s+/i, '').trim()`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When pitch decks or structured multi-field forms are serialized into single markdown or text blobs, always maintain a bidirectional parser (`pitchDeckParser.js`) that handles both human-readable labels and camelCase keys defensively.
+  2. Prevention rule: Proponents cannot silently edit approved title proposals without an explicit institutional warning dialog confirming that baseline modifications require committee re-evaluation.
+  3. Prevention rule: Revisions resubmitted by students must notify both course instructors and committee panelists to ensure continuous evaluation tracking.
+  4. Prevention rule: Always defensively sanitize entity classification prefixes (`team.name.replace(/^Team\s+/i, '').trim()`) in presenter components to prevent duplicate prefix bugs such as `"Team Team Gamma"`.
+  5. Runbook & Checklist:
+     - Checklist: Verify `ProposalTab` hydrates all 5 pitch deck fields (Problem Statement, Solution, Innovation, Beneficiaries, Impact) without blank textareas.
+     - Checklist: Verify `ProposalTab` tests pass standalone without requiring `QueryClientProvider`.
+     - Checklist: Verify visual contrast and responsive layouts across Light and Dark modes (1440x900 desktop, 390x844 mobile).
+  6. Evidence & Verification passed: 7/7 `ProposalTab.test.jsx` tests passed, 14/14 `CreateProjectPage.test.jsx` tests passed, 6/6 `project.create.validation.test.js` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, workspace guardrail verified clean, and 11 Playwright screenshots captured across desktop light/dark, proposal unlock dialog, full-height pitch deck details, and mobile responsive views.
 
+43. ADMPhaseSelector Layout Stability & Full-Width Workspace Reorganization:
+- Incident & Root Cause:
+  1. ADMPhaseSelector UI Overlap: In `ADMPhaseSelector.jsx`, flex layout used `sm:flex-row` without `min-w-0 flex-1` on the title container or `shrink-0 whitespace-nowrap` on the `AY {academicYear}` badge. Inside an 8-column grid layout (~700px), 480px of tabs forced the title to wrap into 4 lines, squishing the badge into a vertical oval that directly collided and overlapped with the phase tabs.
+  2. Tab Truncation: Constraining `MyProjectPage.jsx` into a 2-column grid (`xl:col-span-8` + `xl:col-span-4`) left insufficient width for the 5-phase `TabsList`, causing `Consultations` to truncate to `Consul...`.
+  3. Feedback Leaks Across Tabs: `project.titleProposalComments` was rendered in `ProjectSidebarInfo.jsx`, causing Title Defense remarks to bleed persistently into Capstone 2, Capstone 3, and Capstone 4 tabs.
+- Resolution & Implementation Details:
+  1. Resilient ADMPhaseSelector Layout: Upgraded container to `flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5 p-3.5 rounded-xl`, added `shrink-0 whitespace-nowrap` to the `AY {academicYear}` badge, and wrapped tabs in an `overflow-x-auto [&::-webkit-scrollbar]:hidden` container with `inline-flex flex-nowrap min-w-max shrink-0` TabsList.
+  2. Full-Width Workspace Expansion: Removed the cramped 4-column sidebar in `MyProjectPage.jsx`, giving the main workspace 100% full width (`max-w-[1600px] mx-auto space-y-6 mt-2`).
+  3. Removal of Current Milestone: Removed `NextStepCard` ("Current Milestone") from the dashboard.
+  4. Dedicated Project Details & Approval Modal (`ProjectDetailsModal.jsx`): Created a dialog modal triggered by a button beside `View Title Proposals & Approval` in the top header. Displays full title, phase, academic year, section, executive abstract, defense committee (Adviser & Panelists), team roster with standardized 5-role designations and Leader badge, UN SDGs (1–17), IT disciplines, external repository links, and direct portal navigation.
+  5. Title Feedback Scoped Strictly to Capstone 1 (`TitleFeedbackRemarksCard.jsx`): Removed title comments from `ProjectSidebarInfo.jsx` and rendered a dedicated committee remarks card strictly inside `<TabsContent value="capstone_1">`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When badges containing hyphenated or spaced text (e.g. `AY 2025–2026`) sit inside flex containers beside expanding text, always explicitly specify `shrink-0 whitespace-nowrap` to prevent vertical oval squishing.
+  2. Prevention rule: Milestone phase selectors with 4+ tab items must not activate horizontal flex-row below `lg:` breakpoint unless container width is explicitly unconstrained.
+  3. Prevention rule: Proponent title defense feedback and panelist remarks on candidate proposals are Phase 1 artifacts and must be scoped strictly to the Capstone 1 tab, never displayed globally across manuscript and development tabs.
+  4. Runbook & Checklist:
+     - Checklist: Verify `ProjectDetailsModal` opens from the header button and renders full proponent roster, roles, adviser, and external links.
+     - Checklist: Verify all 5 tabs in `MyProjectPage` display without horizontal truncation or ellipsis clipping.
+     - Checklist: Verify `ADMPhaseSelector` renders on a clean single line on desktop without badge squishing.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectDetailsModal.test.jsx` tests passed, 7/7 `ProposalTab.test.jsx` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, `validate:governance` passed, workspace guardrail verified clean, and 7 Playwright screenshots captured and verified across desktop light/dark, fullwidth workspace, ProjectDetailsModal, ADMPhaseSelector, and mobile responsive views.
 
+44. Committee & Team Roster Population & Sophisticated In-App Document & PDF Viewer:
+- Incident & Root Cause:
+  1. Committee & Roster Missing on Project Details Modal: In `ProjectDetailsModal.jsx`, the committee was rendered as generic placeholders ("3 Faculty Panelists") without individual names or contact details, while Committee Secretary and Course Instructor were absent. The team roster rendered generic placeholders ("Member 1", "Member 2", etc.) because backend population in `project.service.js` omitted `teamId.members`, `teamId.memberRoles.userId`, `panelistIds`, `secretaryId`, and `sectionId.createdBy`.
+  2. Submitted Manuscript Raw MinIO Docker URL & NXDOMAIN: In `SubmissionDetailPage.jsx` and `ChapterProgressWithRounds.jsx`, clicking a submitted manuscript opened a raw Docker-internal URL (`http://minio:9000/...`), producing `DNS_PROBE_FINISHED_NXDOMAIN` in host browsers. Furthermore, opening an external URL disrupted the workflow rather than providing an in-app reading experience.
+- Resolution & Implementation Details:
+  1. Deep Backend Population in `project.service.js`:
+     - Updated `getProject`, `getMyProject`, and `listProjects` to deep-populate `teamId.members` (with `firstName middleName lastName email profilePicture role proponentRole capstoneRole`), `teamId.memberRoles.userId`, `teamId.adviserId`, `teamId.secretaryId`, `teamId.panelistIds`, `sectionId.createdBy`, and `teamId.leaderId.instructorId`.
+     - Made `getProject` line 554 requester check safe with `(member?._id || member).toString() === requester._id.toString()`.
+  2. Presigned Storage URL Rewrite in `storage.service.js`:
+     - In `getSignedUrl`, automatically rewrites `minio:9000` to `env.S3_PUBLIC_URL || 'http://localhost:9000'` so presigned URLs resolve cleanly on host machines.
+  3. Submission Streaming & DOCX Preview APIs:
+     - Implemented authenticated streaming proxy `GET /api/submissions/:submissionId/file` (inline disposition with proper content-type).
+     - Implemented preview endpoint `GET /api/submissions/:submissionId/preview-content` using `mammoth.convertToHtml` to convert DOCX submissions into structured HTML for rich in-app rendering.
+  4. Institutional Committee Cards in `ProjectDetailsModal.jsx`:
+     - Configured individual cards for: Course Instructor, Capstone Adviser, Committee Secretary, REC / Committee Chair, Panel Member 1, and Panel Member 2, rendering avatar initials, real names, emails, and institutional role badges.
+     - Mapped team members against `teamId.memberRoles` to display standardized proponent roles (`Project Lead & Systems Analyst`, `Frontend & UI/UX Developer`, etc.) with real member names.
+  5. Sophisticated In-App Document & PDF Viewer (`SophisticatedDocumentViewer.jsx`):
+     - Engineered rich viewer modal with zoom scaling (60% to 200%, reset to 100%), fullscreen toggle (`Maximize2`/`Minimize2`), direct file download, formatted academic manuscript layout (paper container, serif typography, institutional header banner), native PDF viewer, and toggleable metadata drawer.
+     - Integrated viewer into `SubmissionDetailPage.jsx`, `ChapterProgressWithRounds.jsx`, and `SubmissionReviewPage.jsx`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When displaying committee and proponent rosters, always deep-populate Mongoose paths (`members`, `memberRoles.userId`, `panelistIds`, `secretaryId`, `adviserId`, `sectionId.createdBy`) on the backend service rather than returning unpopulated ObjectIds.
+  2. Prevention rule: S3/MinIO presigned URLs generated inside Docker networks must rewrite internal hostnames (`minio:9000`) to the public host domain (`S3_PUBLIC_URL`) to prevent browser DNS resolution failures.
+  3. Prevention rule: Document previews must be offered within the application via an authenticated in-app viewer with streaming proxy support, preventing raw storage URL leakage and providing consistent dark/light mode academic viewing.
+  4. Runbook & Checklist:
+     - Checklist: Verify `ProjectDetailsModal` displays Course Instructor, Capstone Adviser, Secretary, REC / Chair, Panel Member 1, Panel Member 2, and all team members with their real names and standardized proponent roles.
+     - Checklist: Verify opening a submitted manuscript in `SubmissionDetailPage` or `ChapterProgressWithRounds` launches `SophisticatedDocumentViewer` modal directly.
+     - Checklist: Verify Zoom controls (Zoom In, Zoom Out, Reset), Fullscreen toggle, and Details drawer operate smoothly without layout shifts.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectDetailsModal.test.jsx` passed, 5/5 `SophisticatedDocumentViewer.test.jsx` passed, API route parity verified (198 server / 177 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, workspace guardrail verified clean, and 10 Playwright screenshots captured and verified across desktop light/dark, modal population, and in-app document viewer with fully rendered academic manuscript text.
+45. OOXML Word Document Rendering Fidelity & Browser-Side docx-preview Engine:
+- Incident & Root Cause:
+  1. Mammoth Server-Side HTML Formatting Loss: The previous document viewer converted `.docx` manuscripts into HTML on the backend using `mammoth.convertToHtml()`. While safe, Mammoth intentionally strips almost all OOXML formatting metadata: indentation, centered alignments, line heights, font hierarchies, table borders, and page breaks. The resulting output appeared as a flat paragraph blob, losing the authentic BukSU template title page, approval sheet layout, and section hierarchies.
+  2. Subpath CSS Module Resolution in Vite/Vitest: Attempting to import `docx-preview/dist/docx-preview.css` triggered a pre-transform resolution error in Vite and Vitest because `docx-preview`'s `package.json` specifies an `exports` map containing only `.`. Modern Node.js and Vite package exports enforcement rejects any unexported subpath imports.
+- Resolution & Implementation Details:
+  1. Browser-Side OOXML Engine (`docx-preview`):
+     - Integrated `docx-preview`'s `renderAsync(arrayBuffer, containerDiv, null, options)` directly in `SophisticatedDocumentViewer.jsx`.
+     - Directly streams the raw `.docx` zip package from `/api/submissions/:id/file` with credentials, rendering authentic OOXML styling: title centering, paragraph indentation, margins, font weights, table grid borders, and page cards.
+     - Embedded `docx-preview` page styles into `client/src/index.css` under `.docx-outer-container`, rendering pages as authentic white cards (`background: #ffffff`, subtle elevation shadow) on dark or light canvases.
+  2. Server Optimization:
+     - Slimmed `getSubmissionPreviewContent` in `submission.service.js` to return metadata only for DOCX files, eliminating the heavy buffer download and CPU-intensive mammoth processing on the backend.
+  3. Safe CSS Integration:
+     - Removed the invalid `docx-preview/dist/docx-preview.css` import from the component, relying on the clean custom CSS rules in `index.css` and `docx-preview`'s internal style generator.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: For faithful WYSIWYG document viewing, do not rely on simple HTML converters like Mammoth for complex OOXML manuscripts. Use dedicated browser-side OOXML parsers (`docx-preview`) that evaluate actual document zip XML parts (`word/document.xml`, `word/styles.xml`).
+  2. Prevention rule: When consuming npm packages that declare an `"exports"` map in their `package.json`, never import subpaths that are not explicitly defined in the map, as modern bundlers (Vite/Rollup/Node 20+) will fail at transform time.
+  3. Runbook & Checklist:
+     - Checklist: Verify `npm test --workspace=client -- src/components/documents/SophisticatedDocumentViewer.test.jsx` passes with all tests green.
+     - Checklist: Verify `npm test --workspace=server -- tests/integration/submissions.test.js` passes with 66/66 tests green.
+     - Checklist: Verify Playwright screenshots show title centering, indentation, and page layout on both light and dark themes.
+46. Git-Style Document Revision Diffing (+/-), Anchored Remarks & PDF Scroll Isolation:
+- Incident & Root Cause:
+  1. Lack of Visual Revision Tracking for Resubmissions: When capstone teams resubmitted revised manuscripts (e.g. v2 following panel defense critique), panel members and advisers had to manually compare separate files side-by-side or guess what changed. A standard side-by-side split git view would be too cluttered and poorly suited for formatted academic literature.
+  2. PDF Viewer Background Scroll Bleed: In `SophisticatedDocumentViewer.jsx`, scrolling inside the embedded PDF viewer iframe caused the outer dashboard `<main>` element to scroll uncontrollably in the background. Setting `document.body.style.overflow = 'hidden'` failed because the active scrolling container in `DashboardLayout.jsx` is `<main className="overflow-y-auto">`, not `<body>`.
+  3. Redundant Submission Header: In `SubmissionDetailPage.jsx`, an arbitrary `<h1>Submission Detail</h1>` element sat directly beneath the global header banner, causing visual clutter and layout redundancy.
+- Resolution & Implementation Details:
+  1. Backend Revision Diff Service & Caching (`submission.service.js`):
+     - Implemented `getSubmissionRevisionDiff(submissionId, requesterId, compareWithId)`: verifies institutional viewing permissions, retrieves current submission and historical version (defaulting to immediate predecessor version), and populates committee annotations.
+     - Automatically extracts text from MinIO storage for DOCX and PDF files if `extractedText` is not already indexed, caching it to the MongoDB document for fast (<5ms) diff calculations.
+     - Exposed via authenticated endpoint `GET /api/submissions/:submissionId/revision-diff`.
+  2. Git-Style In-App Diffing Component (`RevisionDiffViewer.jsx`):
+     - Implements multi-granularity diffing (`words`, `sentences`, `lines`) using `jsdiff` with paired additions and deletions.
+     - Highlights revisions inline in emerald green (`+`), with subtle deletion markers (`-`) that can be toggled.
+     - Click-to-Reveal Popover: Clicking any revision reveals a clean slide-out popover drawer showing the exact original deleted text in red strike-through alongside the revised passage.
+     - Anchored Committee Comments: Matches panel/adviser annotations to modified text, rendering interactive `💬 [Count]` badges and displaying reviewer names, institutional roles, timestamps, and `Resolved`/`Open` status cards.
+     - Search filter, change counter, next/previous revision navigator, and initial submission (v1) empty state explaining how revision diffing activates on subsequent versions.
+  3. SophisticatedDocumentViewer View Mode Toggle & PDF Scroll Isolation:
+     - Added segmented View Mode switcher (`[Manuscript]` vs `[Revision Diff (+/-) v1→v2]`) into viewer header.
+     - Mounted viewer via `createPortal(dialog, document.body)` with configurable `portalTarget` prop for isolated unit testing.
+     - Dual Scroll Lock: Simultaneously locks `document.body.style.overflow = 'hidden'` AND `document.querySelector('main').style.overflow = 'hidden'`, restoring previous inline styles on unmount.
+     - Added `overscroll-contain` and `onWheel={(e) => e.stopPropagation()}` on the backdrop and iframe wrappers to completely isolate wheel events.
+  4. Submission Detail Header Streamlining:
+     - Replaced redundant `<h1>Submission Detail</h1>` in `SubmissionDetailPage.jsx` with an institutional breadcrumb action bar (`← Back to Chapter Progress | Chapter 1 Manuscript [v2]`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When implementing full-screen or modal overlays over complex application layouts with custom scroll containers (such as `<main className="overflow-y-auto">`), never rely solely on locking `document.body.style.overflow`. Always mount modals to `document.body` via `createPortal` and lock both `document.body` and `<main>` overflow while capturing wheel events with `e.stopPropagation()`.
+  2. Prevention rule: For academic document revision diffing, favor unified inline click-to-reveal interfaces over raw side-by-side git views to preserve readability on mobile screens and maintain paragraph continuity.
+  3. Lesson learned: In Vitest/JSDOM environments, components using `createPortal(..., document.body)` render into the global document rather than the test's `render()` container. Providing a default-enabled prop like `portalTarget = true` (allowing tests to pass `portalTarget={false}`) ensures fast, clean component assertions without memory leaks.
+  4. Runbook & Checklist:
+     - Checklist: Verify `GET /api/submissions/:submissionId/revision-diff` returns current text, previous text, available versions, and anchored committee annotations.
+     - Checklist: Verify `SophisticatedDocumentViewer` switches seamlessly between Manuscript and Revision Diff modes.
+     - Checklist: Verify clicking a highlighted revision reveals the deleted original text and committee remarks popover without console warnings.
+     - Checklist: Verify wheel scrolling inside the document viewer does not move the underlying dashboard background.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 7/7 `RevisionDiffViewer.test.jsx` passed, 7/7 `SophisticatedDocumentViewer.test.jsx` passed, 2/2 `submission.revision-diff.test.js` passed, route parity verified (`UNMATCHED_COUNT = 0`), agentic governance verified (60/60 checks passed), governance pipeline valid (0 errors, 0 warnings), workspace guardrail clean, and 16 Playwright visual audit screenshots captured and verified across desktop and mobile in both themes.
+
+47. Direct S3 Presigned URL Host Mismatch (SignatureDoesNotMatch), Direct In-Page Archive Scanning & Turnitin-Style Plagiarism Intelligence Report:
+- Incident & Root Cause:
+  1. S3 SignatureDoesNotMatch on File Downloads: Clicking download on submission files caused MinIO to return `<Error><Code>SignatureDoesNotMatch</Code><Message>The request signature we calculated does not match the signature you provided</Message></Error>`. In Docker environments, `storage.service.js:getSignedUrl` generated AWS SigV4 presigned URLs signed with internal container host `minio:9000`. Replacing `minio:9000` with `localhost:9000` in the URL string broke the HMAC signature because the browser sent `Host: localhost:9000`, causing MinIO to calculate the canonical request with `Host: localhost:9000` while `X-Amz-Signature` was computed with `Host: minio:9000`.
+  2. Redundant Plagiarism Checker Redirection: In `SubmissionDetailPage.jsx`, clicking "Open Archive Checker" redirected the user to an empty drag-and-drop page (`/plagiarism-checker`), forcing the user to re-download the manuscript and manually drop it in. The user expected an in-place archive scan directly from the submission details page without redirection.
+  3. Outdated Plagiarism Report UI: `PlagiarismReportPage.jsx` relied on legacy CSS variables (`var(--color-accent)`, `var(--color-sidebar)`) and lacked integration with `SophisticatedDocumentViewer`, executive KPI cards, and re-scan triggers.
+- Resolution & Implementation Details:
+  1. Backend Streaming API Download Pattern (`submission.controller.js`, `submission.service.js`):
+     - Updated `getSubmissionFile` in `submission.controller.js` to inspect `req.query.download === 'true'`. When present, streams file with `Content-Disposition: attachment; filename="<sanitized-filename>"`; otherwise streams `inline` for previews.
+     - Updated `getViewUrl` in `submission.service.js` to return `/api/submissions/${submissionId}/file` as primary URL, avoiding S3/MinIO SigV4 host mismatches across Docker/host boundaries.
+     - Added client helper `submissionService.downloadFile(submissionId, fileName)` requesting `/submissions/${submissionId}/file?download=true` with responseType blob and triggering automated browser file save.
+  2. Direct Submission In-Page Archive Scan API & Hook (`plagiarism.routes.js`, `useSubmissions.js`):
+     - Exposed `POST /api/submissions/:submissionId/plagiarism/archive-scan` with RBAC authorization (`student`, `adviser`, `panelist`, `instructor`), wired to `scanSubmissionAgainstArchive`.
+     - Added `plagiarismService.scanSubmissionAgainstArchive` and TanStack query mutation hook `useScanSubmissionArchive`, which invalidates `detail`, `plagiarism`, and `plagiarismReport` query caches upon completion.
+     - Updated `SubmissionDetailPage.jsx` to replace the redirect button with an in-page "Scan Against Archive" button displaying spinning progress and immediate report access upon completion.
+  3. Modernized Turnitin-Style Plagiarism Intelligence Report (`PlagiarismReportPage.jsx`):
+     - Modernized layout with BukSU design system tokens (`bg-background`, `bg-card`, `border-border/60`, `text-foreground`, `text-muted-foreground`).
+     - Added 3 executive KPI cards: Similarity Gauge (compliant <25% green, moderate 25-49% amber, high >=50% red), Originality Ratio, and Archive Corpus Match statistics.
+     - Integrated `SophisticatedDocumentViewer` via "Inspect in Reader" button, enabling full manuscript viewing and revision diff comparisons directly from the report.
+     - Added source search filtering, active source comparison drawer, and re-scan trigger directly in the toolbar.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never expose raw or hostname-substituted S3 presigned URLs directly to client browsers in Docker or containerized environments where internal container service names (e.g. `minio`) differ from host addresses (e.g. `localhost`). Always stream files through backend API endpoints (`/api/submissions/:id/file?download=true`) to guarantee SigV4 signature integrity and institutional RBAC enforcement.
+  2. Prevention rule: When an entity in an academic workflow requires verification (such as plagiarism or similarity scanning), provide direct in-page trigger actions that utilize existing server-side files rather than navigating users away to generic drag-and-drop tools.
+  3. Lesson learned: Text slicing in Turnitin-style document highlighting must account for full string lengths and avoid off-by-one errors when generating superscript-anchored `<mark>` elements.
+  4. Runbook & Checklist:
+     - Checklist: Verify `GET /api/submissions/:id/file?download=true` downloads files with correct filename and content-type without MinIO signature errors.
+     - Checklist: Verify `POST /api/submissions/:id/plagiarism/archive-scan` runs without redirecting away from the submission page.
+     - Checklist: Verify `PlagiarismReportPage` renders executive KPI cards, Turnitin highlight marks, source match drawer, and integrates `SophisticatedDocumentViewer`.
+     - Checklist: Verify `npm run check:endpoints` reports `UNMATCHED_COUNT = 0`.
+     - Checklist: Verify `npm test --workspace=client -- src/pages/submissions/PlagiarismReportPage.test.jsx` passes all tests.
+  5. Evidence & Verification passed: 4/4 `PlagiarismReportPage.test.jsx` tests passed, 7/7 `SophisticatedDocumentViewer.test.jsx` tests passed, 7/7 `RevisionDiffViewer.test.jsx` tests passed, 18/18 `submission.service.plagiarism.test.js` tests passed, 200 server / 179 client endpoints in complete parity (`UNMATCHED_COUNT = 0`), 60/60 agentic governance checks passed, governance validation succeeded with 0 errors, and workspace guardrail verified pristine.
+
+48. Academic Manuscript Text Extraction Void Elimination, Intelligent Title Page Structuring & Turnitin Paper Sheet View:
+- Incident & Root Cause:
+  1. Excessive DOCX Newline Voids: Academic Word manuscripts (`.docx`) use multiple empty paragraphs (`<w:p/>`) to vertically space out title elements across standard 11-inch letter paper. In `Capstone-Final-Template.docx`, 310 out of 487 extracted lines were completely empty. When rendered inside `<article className="whitespace-pre-wrap">`, these empty lines produced massive 500px+ vertical black voids in the plagiarism report.
+  2. Fragmented Left-Aligned Cover Elements: In raw text view, `<Title of Capstone Project>`, `A Capstone Project by`, `<Name 1>`, `<Name 2>`, and institutional affiliations were rendered as unstyled left-aligned paragraphs separated by dozens of empty lines rather than adhering to formal academic manuscript hierarchy.
+  3. Temporal Dead Zone (TDZ) ReferenceError: In `PlagiarismReportPage.jsx`, `submissionFileName` accessed `payload?.submissionFileName` prior to `const payload = reportData || data || null;` declaration, causing a fatal ReferenceError in strict browser ES module runtimes.
+- Resolution & Implementation Details:
+  1. Intelligent Academic Line Classification (`classifyAcademicLine` in `PlagiarismReportPage.jsx`):
+     - Classifies trimmed non-empty text lines into academic structural tokens: `cover-title` (uppercase, centered, prominent), `cover-byline` (spaced, muted uppercase), `cover-author` (compact centered roster), `cover-affiliation` (institutional unit), `cover-fulfillment` (degree requirements, italicized), `cover-date` (submission date with divider), `section-heading` (CHAPTER 1, APPROVAL SHEET, centered uppercase with divider), `subheading` (bold left-aligned), and `body` (indented, justified paragraph text).
+     - Bounded by 120-character short-line threshold to prevent standard body sentences mentioning institutional keywords from false classification.
+  2. Character-Offset Synchronization & Line Fragmentation (`fragmentLine`, `structuredLines`):
+     - Tracks line start and end character offsets (`lineStart`, `lineEnd`) against original raw text so empty lines are visually skipped without shifting character indices.
+     - Maps plagiarism match spans into line-level fragments, maintaining 100% precision for highlight backgrounds, numbered badges, click-to-focus popovers, and similarity coverage computations.
+  3. Authentic Paper Sheet & Dual-Mode Canvas:
+     - Introduced Paper Sheet view mode (`bg-white text-slate-900 border border-slate-200/90 shadow-xl ring-1 ring-black/5` with Georgia/Times academic serif typography and drop shadow) matching Turnitin/iThenticate industry standards even in Dark Mode, alongside Theme Card mode.
+     - Added in-canvas view mode switcher: "Originality Highlights" for similarity analysis and "Formatted Manuscript" for direct `DocxPreviewRenderer` / PDF previewing.
+     - Added zoom controls (70%–160%) and resolved TDZ declaration order.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When rendering raw extracted text from Word or PDF documents, never pipe uncurated `\n\n` dumps into `whitespace-pre-wrap` articles without collapsing empty spacing lines and classifying academic structural elements.
+  2. Prevention rule: When filtering or formatting text for visual rendering, never modify underlying string buffers globally in a way that shifts character offsets; always compute line-level slices with absolute start/end coordinates so match intervals (`studentStart`, `studentEnd`) remain strictly synchronized.
+  3. Lesson learned: In strict browser ES modules, referencing variables before their lexical declaration line throws an unrecoverable `ReferenceError: Cannot access 'X' before initialization` (TDZ). Query result fallbacks (`payload`) must be declared immediately before any consumer variables.
+  4. Runbook & Checklist:
+     - Checklist: Verify `PlagiarismReportPage` renders title, byline, author roster, and institutional affiliations centered with zero 500px black voids.
+     - Checklist: Verify Paper Sheet mode displays a crisp white canvas with serif typography and drop shadow.
+     - Checklist: Verify clicking "Formatted Manuscript" renders `DocxPreviewRenderer` for DOCX files or native PDF iframe for PDF files.
+     - Checklist: Verify clicking highlight marks scrolls to the active match and displays source attribution without character displacement.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 7/7 `PlagiarismReportPage.test.jsx` passed, 14/14 `src/components/documents/` tests passed, route parity verified (`UNMATCHED_COUNT = 0`), agentic governance verified (60/60 checks passed), governance pipeline valid (0 errors, 0 warnings), workspace guardrail clean, and 12 Playwright visual audit screenshots captured and inspected across desktop and mobile in both themes.
+
+49. Paginated Academic Manuscript Document Viewer Architecture, Semantic DOM Accessibility & Responsive Clamp Margins:
+- Incident & Root Cause:
+  1. Monolithic Document Scrolling Flow: Displaying academic manuscripts as a single continuous block destroyed original physical page breaks, page boundaries, and section separations. Academic capstone guidelines mandate strict pagination: Title/Cover Page is Page 1, Approval Sheet is Page 2, and Chapters start on distinct separate pages.
+  2. Accessibility & Usability Dilemma: Headless server-side PDF conversion (LibreOffice/Gotenberg) introduces heavy cold-start latency (5-10s per file), high memory consumption, and converts text into static pixel buffers that degrade screen-reader accessibility and prevent interactive client-side React highlight badges. Pure canvas rendering similarly blocks assistive technology, searchability (`Ctrl+F`), and text selection for citation.
+  3. Static 1-Inch Mobile Padding Bottleneck: Applying fixed desktop 1-inch margins (`padding: 1in` = 96px left + 96px right) on mobile devices (width 390px) left only 198px for text, causing severe word wrapping (2-3 words per line).
+- Resolution & Implementation Details:
+  1. Semantic DOM Pagination (`paginateLines` in `PlagiarismReportPage.jsx`):
+     - Segments structured lines into discrete `Page` objects (`pageNumber`, `pageType`, `lines`) recognizing explicit page breaks (`\x0c`, `\f`), Approval Sheet tokens (`approval-heading`, `approval-body`, `approval-name`, `approval-role`), section boundaries (`CHAPTER 1`, `DEDICATION`, `TABLE OF CONTENTS`), and natural 35-line limits.
+     - Each page renders as a distinct 8.5" × 11" Letter sheet (`max-w-[8.5in] min-h-[11in] aspect-[8.5/11]`) with realistic paper drop shadow (`shadow-2xl ring-1 ring-black/10`), `2.5rem` inter-page gaps over the dark canvas desk, and individual `Page X of Y` footer stamps.
+     - Page 1 formats title, byline, author roster, affiliation, and date with `justify-between` across the 11-inch letter height; Page 2 formats Approval Sheet with centered heading, justified acceptance text, adviser signature line, and panel member signature lines.
+  2. High-Fidelity `PaginatedDocumentViewer.jsx`:
+     - Renders OOXML documents via `docx-preview` with `breakPages: true` and post-processes rendered pages into authentic 8.5" × 11" Letter sheets with academic footers.
+     - Supports native PDF iframes, interactive zoom controls (60%–160%), and scroll-synchronized page indicators.
+  3. Usability & Accessibility (a11y) Optimizations:
+     - Responsive Clamp Margins: Replaced static `padding: 1in` with `padding: clamp(1.25rem, 4vw, 1in)`, providing comfortable readable margins on mobile (390px) while maintaining full 1-inch margins on desktop (1440px).
+     - Screen Reader & Keyboard Navigation: Marked pages with `role="region"` and `aria-label="Manuscript Page X"`. Provided highlight `<mark>` elements with `tabIndex={0}`, `role="button"`, descriptive `aria-label`, and `onKeyDown` handlers for `Enter` and `Space` to open comparison popovers via keyboard.
+     - Dynamic Scroll Tracking: Attached `onScroll` handler on the canvas container that computes intersecting page bounding rects, updating the "Page X of Y" indicator automatically as the user scrolls.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In document viewer features, prioritize semantic DOM pagination over static canvas or server-side headless conversions when text searchability (`Ctrl+F`), screen-reader accessibility (WCAG AAA), and real-time interactive highlighting are required.
+  2. Prevention rule: Never apply static `padding: 1in` directly via inline styles to elements that render on mobile screens; use responsive CSS clamps (`clamp(1.25rem, 4vw, 1in)`) to ensure comfortable margins across all viewports.
+  3. Lesson learned: In Vitest/Node test environments, relative URLs in `fetch(fileUrl)` throw `ERR_INVALID_URL`. Always resolve relative URLs with `window.location?.origin` fallback or mock network calls in component tests.
+  4. Runbook & Checklist:
+     - Checklist: Verify Page 1 (Title), Page 2 (Approval Sheet), and Chapter pages render as distinct 8.5" × 11" Letter sheets with inter-page gap spacing.
+     - Checklist: Verify keyboard users can focus and activate plagiarism highlight marks using `Tab` and `Enter` / `Space`.
+     - Checklist: Verify scrolling the canvas automatically updates the "Page X of Y" navigation indicator.
+     - Checklist: Verify mobile viewport (390×844) renders without horizontal overflow or 2-word line squeezing.
+     - Checklist: Verify `npm test --workspace=client -- src/pages/submissions/PlagiarismReportPage.test.jsx` passes in < 2 seconds.
+  5. Evidence & Verification passed: 7/7 `PlagiarismReportPage.test.jsx` passed, 3/3 `PaginatedDocumentViewer.test.jsx` passed (10/10 targeted tests passed in 1.43s), 17/17 `src/components/documents/` tests passed, route parity verified (`UNMATCHED_COUNT = 0`), agentic governance verified (60/60 checks passed), governance pipeline valid (0 errors, 0 warnings), workspace guardrail clean, and 16 Playwright visual audit screenshots captured and verified across desktop and mobile in both light and dark themes.
+
+50. WCAG Accessibility (a11y) Contrast Compliance, Zero Text Opacity & Semantic Text Tokens Architecture:
+- Incident & Root Cause:
+  1. Low-Contrast Secondary Text in Light Mode: Subtitles, helper descriptions, status labels, and notification details (e.g., "Your Chapter 1 originality score is 100.0%.", "Team highlights, project status...", "CHAPTERS IN REVIEW") used generic Tailwind classes (`text-gray-400`, `text-gray-500`, `#9ca3af`, `#6b7280`) or muted foreground tokens that rendered light grey text on white backgrounds, failing WCAG 2.1 AA (minimum 4.5:1 for normal text) and AAA (minimum 7.0:1) contrast ratios.
+  2. Text Opacity Decay: Multiple component styles applied opacity reduction utilities (`opacity-50`, `opacity-75`, `bg-card/60`, `/90` alpha channels) directly to text containers. Even when the underlying color was dark, an opacity of 50% or 75% attenuated the effective contrast against light card backgrounds below acceptable accessibility thresholds.
+  3. Hardcoded / Uncurated Palette Classes: Several legacy and workspace components relied on ad-hoc Tailwind color classes without theme-adaptive contrast adjustments, causing dark text in dark mode or washed-out text in light mode.
+- Resolution & Implementation Details:
+  1. Root CSS Semantic Tokens (`client/src/index.css` & `tailwind.config.js`):
+     - Defined `:root` (Light Mode) tokens: `--text-primary: #000000;`, `--text-secondary: #374151;` (charcoal grey yielding a 10.31:1 contrast ratio against pure white and 8.8:1 on card backgrounds), `--text-muted: #4B5563;` (7.24:1 contrast ratio), and updated `--muted-foreground: 217 19% 27%` (`#374151`).
+     - Defined `.dark` (Dark Mode) tokens: `--text-primary: #F8FAFC;`, `--text-secondary: #CBD5E1;` (soft high-contrast slate), `--text-muted: #94A3B8;`, and updated `--muted-foreground: 215 20% 75%`.
+     - Extended Tailwind `textColor` configuration with `secondary: 'var(--text-secondary)'`, `'text-secondary': 'var(--text-secondary)'`, `'text-primary': 'var(--text-primary)'`, and `'text-muted': 'var(--text-muted)'`.
+     - Added utility classes `.text-secondary`, `.text-primary-token`, and `.text-muted-token`.
+  2. Global Text Opacity Elimination:
+     - Stripped out all text opacity reductions across Dashboard and Project Workspace. Text elements now strictly default to 100% opacity (`opacity: 1`), ensuring rendered contrast exactly equals computed color luminance.
+  3. Comprehensive Component Refactoring:
+     - `DashboardPage.jsx`: Welcome subtitle updated to `text-sm text-secondary font-medium`; `StatusPill` labels updated to `text-xs font-semibold uppercase tracking-wide text-secondary`; recent notification subtexts (e.g. originality score) updated to `text-xs text-secondary mt-0.5 leading-relaxed`; submission history metadata updated to `text-secondary font-medium`.
+     - `ProjectTitleCard.jsx`: Metadata badges (teamDisplayName, academicYear, section) and action trigger buttons updated to `text-secondary font-medium`.
+     - `ProjectAuditTrail.jsx`: Updated `ACTION_CONFIG` with theme-adaptive contrast classes (`text-blue-600 dark:text-blue-400`, `text-emerald-600 dark:text-emerald-400`, etc.) and timeline labels to `text-secondary font-medium`.
+     - `TitleFeedbackRemarksCard.jsx`, `KPICards.jsx`, `VersionHistory.jsx`, `VersionCompare.jsx`, `FeedbackDashboard.jsx`, `PlagiarismChecker.jsx`: Replaced low-contrast gray utilities with `text-secondary` and high-contrast equivalents.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never use `opacity-50`, `opacity-75`, or arbitrary alpha opacities on text elements in light mode. Enforce 100% text opacity and modulate visual hierarchy solely through font size, font weight, and semantic contrast tokens (`text-foreground`, `text-secondary`, `text-muted`).
+  2. Prevention rule: Never hardcode `text-gray-400` or `text-gray-500` for body or secondary text on light backgrounds. Use `text-secondary` (backed by `--text-secondary: #374151`), which mathematically guarantees a >10:1 contrast ratio against `#ffffff`.
+  3. Lesson learned: In Playwright tests auditing theme switching, ensure theme state is persisted in `localStorage` (`cms-accessibility-settings`) before page navigation so the client bootstrap does not fall back to dark mode defaults during light-mode audits.
+  4. Runbook & Checklist:
+     - Checklist: Verify `--text-secondary` is defined in `:root` (`#374151`) and `.dark` (`#CBD5E1`).
+     - Checklist: Verify Welcome Subtitle, Important Info Card descriptions, and StatusPill labels render at `rgb(55, 65, 81)` with opacity `1` in light mode.
+     - Checklist: Verify programmatic contrast against `#ffffff` exceeds 4.5:1 (WCAG AA) and 7.0:1 (WCAG AAA).
+     - Checklist: Verify dark mode preserves sleek midnight aesthetics without washed-out or harsh text.
+     - Checklist: Run targeted client tests with `npm test --workspace=client -- src/components/projects/ src/pages/projects/`.
+  5. Evidence & Verification passed: Programmatic DOM contrast measurements in Playwright audit confirmed Welcome Subtitle contrast at 10.31:1 (WCAG AAA Pass), Important Info description at 20.04:1 (WCAG AAA Pass), and Notification subtext at 10.31:1 (WCAG AAA Pass); 17/17 client test files passed (81/81 unit tests passed); route parity verified (200 server / 179 client endpoints, UNMATCHED_COUNT = 0); agentic governance passed (60/60 checks); governance pipeline succeeded (0 errors, 0 warnings); workspace guardrail confirmed pristine; and 12 visual screenshots captured across desktop (1440x900) and mobile (390x844) in both light and dark modes.
+
+51. User Avatar Upload, Direct Streaming Endpoint & Cache-Busting Architecture:
+- Incident & Root Cause:
+  1. MinIO AWS SigV4 Host Header Signature Mismatch: Generating presigned S3 URLs inside Docker (`http://minio:9000`) computes an AWS SigV4 HMAC signature containing `SignedHeaders=host` with `host: minio:9000`. String-replacing `minio:9000` with `localhost:9000` for browser consumption altered the host header without re-signing the HMAC, causing MinIO to reject browser image requests with `403 Forbidden (SignatureDoesNotMatch)`.
+  2. Global Express Authenticate Middleware Gate: `server/app.js` mounts `app.use('/api', authenticate, checkMaintenance())`, intercepting all API routes. Subresource requests issued by standard HTML `<img>` tags cannot transmit Bearer tokens in headers, so mounting avatar endpoints behind `/api` with authentication resulted in 401 Unauthorized errors when loaded directly by browsers.
+  3. Client Image Fallback Latch: When `<img onError={...}>` triggered on `ProfilePage.jsx` and `Header.jsx`, `setAvatarBroken(true)` permanently hid the `<img>` element and fell back to rendering initials. Furthermore, uploading a new photo to the same object storage key (`avatars/:userId/profile`) did not bust the browser's disk cache, continuing to serve the previous or broken image.
+- Resolution & Implementation Details:
+  1. Direct Public Asset Streaming Endpoint (`GET /api/users/:userId/avatar`):
+     - Mounted in `server/app.js` and `server/modules/users/user.routes.js` before `app.use('/api', authenticate, checkMaintenance())` to allow browser `<img>` tags to freely stream images.
+     - In `server/modules/users/user.service.js` and `user.controller.js`, `getAvatar(userId)` fetches the image buffer from object storage via `storageService.downloadFile(user.profilePicture)`.
+     - Automatically inspects buffer magic bytes to detect MIME types (`image/png`, `image/jpeg`, `image/webp`).
+     - Applies HTTP caching headers: `Cache-Control: public, max-age=86400, stale-while-revalidate=3600`, `ETag: "<userId>-<updatedAt>"`, and returns `304 Not Modified` on unchanged conditional requests (`If-None-Match`).
+  2. Mongoose Virtual `avatarUrl`:
+     - In `server/modules/users/user.model.js`, added virtual field `avatarUrl` returning `/api/users/${this._id}/avatar${ts ? `?t=${ts}` : ''}` using `updatedAt` for automatic cache-busting whenever a new photo is uploaded.
+  3. Client Immediate Reset & Store Refresh:
+     - In `client/src/pages/profile/ProfilePage.jsx`, `handleAvatarChange` resets `setAvatarBroken(false)`, triggers `await fetchUser()` to refresh global Zustand user state, and shows tactile Sonner toast feedback (`toast.success('Profile picture updated successfully!')`).
+     - Both `ProfilePage.jsx` and `Header.jsx` include `data-testid` attributes (`profile-avatar-img`, `header-avatar-img`) and reset `avatarBroken` whenever `user?.avatarUrl` updates.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never string-replace hostnames in AWS SigV4 presigned S3 URLs generated within container networks (e.g. `minio:9000` to `localhost:9000`), as AWS SigV4 signs the Host header and will strictly fail HMAC validation. Stream binary assets through dedicated backend proxy/streaming endpoints or use a public gateway with matching Host headers.
+  2. Prevention rule: Image endpoints designed to be loaded directly via HTML `<img src="...">` must not be mounted behind global header-based `authenticate` middleware; mount them publicly with resource-level validation or query-token authorization.
+  3. Lesson learned: When mutable binary assets are uploaded to a static key (e.g. `avatars/:userId/profile`), browsers will cache the old resource indefinitely unless a timestamp query parameter (e.g. `?t=${updatedAt}`) or dynamic ETag is attached to bust the client cache.
+  4. Runbook & Checklist:
+     - Checklist: Verify `GET /api/users/:userId/avatar` is mounted before `app.use('/api', authenticate)` in `server/app.js`.
+     - Checklist: Verify `user.model.js` exposes virtual `avatarUrl` with cache-busting timestamp.
+     - Checklist: Verify `handleAvatarChange` in `ProfilePage.jsx` resets `avatarBroken` to false and awaits `fetchUser()`.
+     - Checklist: Verify browser `<img>` elements render with `naturalWidth > 0` and `naturalHeight > 0`.
+     - Checklist: Verify server unit tests pass with `npm test --workspace=server -- tests/unit/user.avatar-upload.test.js`.
+  5. Evidence & Verification passed: Live Playwright browser audit (`scratch/avatar_browser_audit.mjs`) confirmed image decoded with `naturalWidth: 50px` and `naturalHeight: 50px` in both Profile Card and Header on desktop and mobile viewports; 4/4 server unit tests passed (`tests/unit/user.avatar-upload.test.js`); 3/3 client unit tests passed (`src/pages/profile/ProfilePage.test.jsx`); endpoint parity verified with 201 server / 179 client routes (`UNMATCHED_COUNT = 0`); agentic governance validated (60/60 checks passed); governance pipeline clean (0 errors, 0 warnings); and workspace guardrail verified pristine.
+
+52. Database Seeding Invariants, Bcrypt Verification & Compound Index Integrity:
+- Incident & Root Cause:
+  1. Bcrypt Hash Invalidation: Ad-hoc seeder scripts copying arbitrary password hashes (e.g. `$2a$10$Xm3hIbyy...`) without checking against `bcrypt.compareSync` resulted in complete authentication failure (`401 INVALID_CREDENTIALS`) across all accounts because the pre-computed hash did not match `Password123!`.
+  2. Compound Unique Index Violation on Evaluations: The `evaluations` collection enforces `{ projectId: 1, panelistId: 1, defenseType: 1 }` as a unique index. Inserting evaluation documents using legacy or alternative field names (e.g. `evaluatorId` without `panelistId` and `defenseType`) defaulted indexed keys to `null`, triggering immediate `MongoServerError: E11000 duplicate key error`.
+  3. Host vs Container Mongo Port Routing: On Docker-based local development stacks on Windows, `cms-mongodb` exposes container port 27017 to host port 27018 (`0.0.0.0:27018->27017/tcp`). Hardcoded connection strings referencing `mongodb://localhost:27017` fail on the host with `ECONNREFUSED`.
+  4. Academic Foundation & Singleton Settings Dependencies: Purging databases without re-seeding foundational collections (`AcademicYear`, `Course`, `Section`, `SystemSettings` with `key: 'global'`) causes frontend dropdown selectors (e.g. section selectors, academic year pills) to render completely empty.
+- Resolution & Implementation Details:
+  1. Verified Bcrypt Hash Standard:
+     - Standardized `DEFAULT_HASH` to verified bcrypt hash `$2b$10$giFhZR63OPApqO9/xJE59Om9KoiPmFE4dGOnPATGqJ4RxJhEGS1vG`, programmatically verified with `bcrypt.compareSync('Password123!', DEFAULT_HASH) === true`.
+  2. Dual Environment Mongo URI Resolution:
+     - `MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27018/cms_v2"` automatically resolves host executions (`127.0.0.1:27018`) and container executions (`mongodb://mongodb:27017/cms_v2`).
+  3. Evaluation Schema Parity:
+     - Evaluations include required `panelistId`, `defenseType: 'proposal'`, `totalScore`, `maxTotalScore`, `overallComment`, and `status: 'submitted'`, fully satisfying unique compound indexes.
+  4. Complete Academic & Settings Foundation:
+     - Seeds `AcademicYear` ("2025-2026"), `Course` ("BSIT"), `Section` ("BSIT-4A", "BSIT-4B"), and `SystemSettings` with `key: 'global'`, ensuring all client selectors populate seamlessly.
+  5. Institutional Persona & Edge Case Directory:
+     - Created 7 institutional administrative & committee members (Dr. Sales G. Aribe Jr., Patrick Josh S. Añedez, Louie Jay S. Labastida, Raul Lecaros, Joseph Abella, Leon Mentor, Steven Joe Bautista), 4-member proponent team (InnovateIT Capstone Group), 6 edge-case scenario students (Orphan, No Section, No Adviser, Inactive, Unverified, Google OAuth), defended project with submissions and ADM directives, 2/3 panel rubrics with Grade Leakage Gating, and archived public paper with consultations.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always verify pre-computed password hashes with `bcrypt.compareSync` before executing database seeders to prevent account lockouts.
+  2. Prevention rule: Seed scripts must provide all discriminator fields of compound unique indexes (`projectId`, `panelistId`, `defenseType`) to avoid E11000 duplicate key errors.
+53. Two-Minute Test Timeout, Real-Time Network Polling Hanging Diagnostics & Test Automation Stability:
+- Incident & Root Cause:
+  1. Test Runs Exceeding Two Minutes: Automated Playwright test runs and visual audit scripts hung past 2 minutes without completing or failing gracefully. Root cause analysis revealed three primary drivers:
+     a) Real-Time Notification Polling & WebSocket Deadlock: CMS-V2 executes periodic real-time polling (`GET /api/notifications?page=1&limit=1`) every 2000-5000ms alongside WebSocket connections. Calling `{ waitUntil: 'networkidle' }` or `waitForLoadState('networkidle')` waits for 500ms of zero network connections, which never occurs in a real-time polling application, causing Playwright to hang until the hard 30s timeout on every navigation.
+     b) Uncaught Process Leaks: Node scripts in `scratch/` lacked process exit safety nets (`process.exit(0)`), causing background network listeners and timers to keep Node worker processes alive indefinitely.
+     c) Dynamic Proposal Header Divergence: Header components dynamically render `${teamName} Title Proposal` when `titleStatus !== 'approved'`. Tests waiting for static `project.title` timed out waiting for locators that never appear.
+- Resolution & Implementation Details:
+  1. Immutable Two-Minute Test Timeout & Diagnostic Rule (AGENTS.md Directive 16, GEMINI.md Directive 8, 03-verification-and-quality-gates.md Section 7):
+     - Mandated that any test suite, visual audit, or automated command exceeding 120 seconds (2 minutes) is strictly flagged as a runaway or hanging process. The agent must immediately terminate the task, halt retries, and perform a root-cause diagnostic analysis before re-running.
+     - Enforced an absolute ban on `{ waitUntil: 'networkidle' }` across all tests; strictly use `waitUntil: 'domcontentloaded'` with targeted, state-based assertions (`waitForSelector`, `locator.waitFor`).
+     - Mandated explicit watchdog timeouts (`setTimeout(() => process.exit(1), 100000).unref()`) and explicit `process.exit(0)` on script completion in scratchpad scripts.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never use `networkidle` in web applications with real-time notification polling or WebSockets. Always use `domcontentloaded` combined with explicit component locators.
+  2. Prevention rule: Always include an unref'd watchdog timer (`<110s`) and explicit `process.exit(0)` in standalone automation scripts to prevent hung background workers.
+  3. Lesson learned: When diagnosing tests taking >2 minutes, immediately inspect active network requests and console errors using `page.on('response')` and `page.on('requestfailed')` rather than increasing timeout values.
+  4. Runbook & Checklist:
+     - Checklist: Verify scripts use `waitUntil: 'domcontentloaded'`.
+     - Checklist: Verify watchdog timer is configured at 100-110 seconds.
+     - Checklist: Verify tests terminate within 5-15 seconds rather than 120+ seconds.
+  5. Evidence & Verification passed: Targeted tests (`ActionDoneMatrixTab.test.jsx` in 12.73s, `DigitalSignatureSection.test.jsx` in 10.18s) and visual audit (`scratch/signature_workflow_audit.mjs` in 44.5s) completed well under the 120s threshold; route parity verified (201 server / 179 client, `UNMATCHED_COUNT = 0`); agentic governance passed (60/60 checks); governance pipeline clean (0 errors, 0 warnings); and workspace guardrail confirmed pristine.
+
+54. Institutional Digital Signature Architecture, Body Scroll Lock, Viewport Centering & Mongoose Subfield Patching:
+- Incident & Root Cause:
+  1. Out-of-Viewport Modal & Scroll Bleed: The "Official Committee Endorsement" modal was mounted inside local tab containers without body scroll locking (`overflow: hidden`), allowing the background page to scroll and rendering the modal out of user view on long pages.
+  2. Lack of Signature Reusability: Users were forced to draw signatures repeatedly for every endorsement rather than configuring an official signature once in Account Settings.
+  3. Inverted Hierarchy: Signatures were positioned awkwardly with names below or misaligned with standard institutional legal document conventions.
+  4. Mongoose Validation Failure on Subfield Patches: When signing via `POST /api/projects/:id/adm-signatures`, calling `project.save()` failed with `ValidationError: Project validation failed: sectionId: Section is required, courseId: Course is required, titleProposals: A project must include between 1 and 10 title proposals` because inline seeder schemas stripped unlisted fields with Mongoose's default `strict: true`.
+- Resolution & Implementation Details:
+  1. Viewport Centering & Scroll Locking (`ActionDoneMatrixTab.jsx`, `SignaturePad.jsx`):
+     - Portaled modal to `document.body` via React's `createPortal`, applied full-screen overlay (`fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs`), and added `document.body.style.overflow = 'hidden'` with cleanup on unmount.
+     - Verified modal centering: Center (720, 450) vs Viewport (720, 450) with Delta X = 0px, Delta Y = 0px.
+  2. Account Settings Institutional Digital Signature Canvas (`/settings?tab=signature`, `DigitalSignatureSection.jsx`):
+     - Added dedicated signature configuration tab supporting Draw, Touch, and Cursive Type-to-Sign modes.
+     - Persists official digital signature to user profile (`user.digitalSignature`) via `PATCH /api/users/me`.
+     - Enables 1-click endorsement in ADM modal using configured signature without redrawing.
+  3. Standardized Legal Signature Block Hierarchy:
+     - Reordered `SignatoryCard`: Top = Digital signature image + micro timestamp audit stamp (`Digitally signed on YYYY-MM-DD | Ref: <hash>`); Middle = Bold printed legal name; Bottom = Horizontal underline, official role subtitle (`Signature over Printed Name of <Role>`), and green `Verified` badge with checkmark.
+  4. Mongoose Resilient Subfield Patching & Seeder Parity:
+     - Updated `project.controller.js` to use `await project.save({ validateModifiedOnly: true })` in `signTieredADM` and `signSecretaryADM`.
+     - Updated `seed_full_workflow.js` and `scripts/seed_full_workflow.js` to define `courseId`, `sectionId`, `titleStatus`, `projectStatus`, `capstonePhase`, `titleProposals`, and `admSignatures` with `{ timestamps: true, strict: false }`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Full-screen overlay modals must always lock `document.body.style.overflow = 'hidden'` on open and restore it on close, and must mount at the document root via portals to guarantee viewport centering.
+  2. Prevention rule: When updating specific subdocuments or metadata on Mongoose models via controller endpoints, always pass `{ validateModifiedOnly: true }` to `save()` to prevent unrelated legacy or unpopulated fields from causing unexpected validation failures.
+  3. Lesson learned: Signature blocks in academic and legal documents must follow the canonical vertical stack: Signature Image -> Printed Legal Name -> Rule Line / Role Subtitle.
+  4. Runbook & Checklist:
+     - Checklist: Verify modal appears centered at (50%, 50%) without background scrolling.
+     - Checklist: Verify `/settings?tab=signature` allows drawing, typing, and saving signatures.
+     - Checklist: Verify 1-click endorsement applies saved signature and renders green `Verified` badge.
+     - Checklist: Verify `npm test --workspace=client -- src/components/projects/ActionDoneMatrixTab.test.jsx src/components/settings/DigitalSignatureSection.test.jsx` passes.
+  5. Evidence & Verification passed: Playwright visual audit verified centered modal and signed card across light and dark modes in desktop and mobile viewports (`settings_saved_signature_desktop_dark.png`, `signature_modal_centered_desktop_dark.png`, `adm_signatories_verified_desktop_dark.png`); 8/8 client tests passed; endpoint parity verified (`UNMATCHED_COUNT = 0`); 60/60 agentic governance checks passed; and workspace guardrail verified clean.
+
+55. Global High-Contrast Dark Border System Architecture in Light Mode:
+- Incident & Root Cause:
+  1. Washed-Out Light Mode UI Lines: In light mode, card outlines, inputs, read-only field boxes, headers, sidebar boundaries, and divider rules appeared faint and washed out (`#cbd5e1`, 84% lightness, or `border-border/60` at >90% lightness). On bright backgrounds (`#ffffff` and `bg-slate-100`), this created low contrast, making cards and structural layout sections visually indistinct.
+  2. Legacy Hardcoded Pale Utilities: Various core layout elements and views used hardcoded `border-slate-300` or `border-slate-200`.
+  3. CSS Layer Cascade Specificity: Rules in `@layer base` are subordinate to `@layer utilities` in standard CSS cascade layer specifications, requiring high-specificity selector overrides (`:root:not(.dark) .border-slate-100...`) to uniformly guarantee crisp dark slate borders across both explicit utilities and base elements.
+- Resolution & Implementation Details:
+  1. Root Light Mode Token Darkening (`client/src/index.css`):
+     - Updated `:root` tokens `--border: 215 25% 27%` and `--input: 215 25% 27%` (`#334155` / `slate-700`).
+     - Set base element borders `*, ::before, ::after { border-color: theme('colors.slate.700'); }`.
+     - Injected comprehensive light mode utility interceptor targeting `.border-slate-*`, `.border-gray-*`, `.border-zinc-*`, `.border-neutral-*`, `.border-border/*`, and `.divide-*` with `border-color: theme('colors.slate.700')`.
+  2. Component Explicit Upgrades:
+     - `Card.jsx`: Changed `border-slate-300` to `border-slate-700` in light mode.
+     - `Input.jsx` & `Textarea.jsx`: Changed border to `border-slate-700`.
+     - `Header.jsx`: Updated bottom border and button borders to `border-slate-700`.
+     - `Sidebar.jsx`: Updated right border, header divider, section divider, footer divider, and collapse button to `border-slate-700`.
+     - `ThemeToggle.jsx` & `TextScaleDropdown.jsx`: Updated container borders to `border-slate-700`.
+     - `ProfilePage.jsx`: Added explicit `border-slate-700 dark:border-slate-700` to role badge, read-only field containers, and academic select inputs.
+  3. Visual Audit Across 4 Viewports / Themes:
+     - Captured `profile_dark_borders_light_desktop.png` (1440x900 light mode): all card outlines, inputs, headers, and sidebars are bold, dark, and high-contrast.
+     - Captured `profile_dark_borders_light_mobile.png` (390x844 light mode): responsive mobile layout maintains dark borders without clipping.
+     - Captured `profile_dark_borders_dark_desktop.png` (1440x900 dark mode): dark mode theme styling preserved intact.
+     - Verified computed styles: `card`, `header`, `aside`, `readOnlyP`, `roleBadge` all compute to `rgb(51, 65, 85)` (`slate-700`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In light mode, never use pale borders (`slate-200`, `slate-300`, `#cbd5e1`, or `border-border/60`) on cards and form controls against white backgrounds. Always ensure borders evaluate to dark slate (`slate-700`, `#334155`) for crisp visual definition and accessibility.
+  2. Prevention rule: When setting global CSS theme overrides, account for Tailwind CSS cascade layer ordering. Apply high-specificity `:root:not(.dark)` selectors targeting utility classes to ensure Tailwind utilities do not override base tokens in light mode.
+  3. Lesson learned: In Playwright visual feedback loops, always verify computed styles (`window.getComputedStyle(el).borderColor`) alongside screenshots across light and dark modes to guarantee deterministic theme isolation.
+  4. Runbook & Checklist:
+     - Checklist: Verify card containers, inputs, headers, sidebars, and read-only field boxes render `rgb(51, 65, 85)` in light mode.
+     - Checklist: Verify dark mode preserves dark borders (`border-slate-800` / `dark:border-slate-700`) without white border leakage.
+     - Checklist: Verify mobile viewport (390x844) renders without horizontal scroll or layout clipping.
+     - Checklist: Run targeted client unit tests (`Sidebar.test.jsx`, `Header.test.jsx`, `ProfilePage.test.jsx`).
+  5. Evidence & Verification passed: 14/14 targeted frontend tests passed; Playwright visual audit verified dark borders on desktop (1440x900) and mobile (390x844) in light mode, with dark mode preserved intact; computed styles confirmed `rgb(51, 65, 85)`; route parity verified (201 server / 179 client, `UNMATCHED_COUNT = 0`); 60/60 agentic governance checks passed; and workspace guardrail verified clean.
+
+64. Capstone 2 Manuscript Hub, Proposal Studio Edit Hydration, and Modern Segmented Tabs:
+- Incident & Root Cause:
+  1. Proposal Studio Edit Mode Empty Fields: Clicking "Update Proposals" in `TitleApprovalPage` navigated to `/projects/create` with edit intent, but candidate proposal inputs (titles, problem statements, solutions, target users, SDGs) were completely blank because `CreateProjectPage.jsx` was purely designed for initial project creation and only initialized blank state or retrieved drafts from localStorage (`useAutosave`). Furthermore, submitting called `createProject` instead of `updateTitle`.
+  2. Outdated Tab Containers and Awkward Word-Wrapping: In `ProjectDetailPage` and `WorkflowTabTrigger`, tab containers lacked modern styling, causing awkward word-wrapping (`Capstone \n 2`), and sub-tabs for candidate proposals were bulky and lacked modern segmented pill styling.
+  3. Capstone 2 Entry Point Lacked Template Distribution & Working Document Hub: Teams advancing to Capstone 2 need the official BukSU Capstone Manuscript template (Google Docs copy & .DOCX download) and a dedicated attachment hub to link and manage their team's working Google Docs URL.
+  4. IDE Schema Warning on chat-starter.json: Missing local schema file resulted in `getaddrinfo ENOTFOUND cms.buksu.edu.ph`.
+- Resolution & Implementation Details:
+  1. Local Chat-Starter Schema & Configuration: Created `.agents/ptss/chat-starter.schema.json`, mapped in `.vscode/settings.json`, and set `"$schema": "./chat-starter.schema.json"` in `chat-starter.json` and `.agents/rules/00-chat-starter-protocol.md`.
+  2. Proposal Studio Edit-Mode Hydration: Updated `CreateProjectPage.jsx` to detect `location.state.edit` / `projectId`, hydrate `titleProposals` via `extractProposalsFromProject(project)` (including fallback parsing with `parsePitchDeckFromDescription`), suppress localStorage autosave during editing, and submit via `useUpdateTitle` (`submit: true`).
+  3. Modern Segmented Tab UI: Added `data-state` support to `TabsTrigger.jsx`, updated `WorkflowTabTrigger.jsx` with `shrink-0 whitespace-nowrap`, and upgraded tab containers in `ProjectDetailPage.jsx` to modern segmented containers with active indicator badges.
+  4. Capstone 2 Manuscript Hub: Engineered `Capstone2ManuscriptHub.jsx` mounted in `MyProjectPage.jsx` with Step 1 (Template distribution: Google Docs copy & .DOCX download) and Step 2 (Working Google Docs attachment & live URL validation).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Any form component supporting both creation and revision/update workflows must explicitly guard against autosave conflicts, hydrate from project props/location state, and branch API mutation calls (`create` vs `update`).
+  2. Prevention rule: Workflow tab triggers and milestone badges must include `shrink-0 whitespace-nowrap` to prevent awkward typography breaks (`Capstone \n 2`) across responsive layouts.
+  3. Lesson learned: In headless Vitest tests without `@testing-library/react`, updating HTML input values requires `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value)` to trigger React 18 synthetic change handlers.
+  4. Runbook & Checklist:
+     - Checklist: Verify `chat-starter.json` validates against local schema without network lookups.
+     - Checklist: Verify clicking "Update Proposals" populates existing title candidates, problem statements, and solutions in `CreateProjectPage.jsx`.
+     - Checklist: Verify workflow tabs display single-line labels without vertical word splits.
+     - Checklist: Verify Capstone 2 tab in `MyProjectPage.jsx` displays BukSU Manuscript Template actions and Google Docs URL attachment card.
+  5. Evidence & Verification passed: 16/16 `CreateProjectPage.test.jsx` passed, 4/4 `Capstone2ManuscriptHub.test.jsx` passed, 2/2 `ProjectDetailPage.back-nav.test.jsx` passed, route parity verified (201 server / 179 client, `UNMATCHED_COUNT = 0`), 60/60 agentic governance checks passed, workspace guardrail clean, and 12 Playwright visual audit screenshots captured and inspected across desktop and mobile in both themes.
+
+65. ASDLC Multi-Scenario 3-Layer Task Architecture (Hierarchical Statecharts, Progress Delta Circuit Breaker & DAG Guard Predicates):
+- Architectural Root Cause & Anti-Pattern Elimination:
+  1. Flat, text-based prompt checklists suffer from "hallucinated progress" where agents claim tasks are complete without running deterministic verifiers.
+  2. Branching edge cases and multi-profile evaluation cause combinatorial state explosion ($O(2^N)$), rapidly depleting context windows.
+  3. Lack of external checkpoint storage leads to state amnesia during context compaction or multi-step execution chains.
+  4. Repetitive failed tool actions waste tokens in infinite loops without detecting stagnant progress.
+- Resolution & Implementation Details:
+  1. Layer 1 (Hierarchical Statecharts & Parallel Orthogonal Regions): Modeled as formal Harel Statechart tuple $M = (S, \Sigma, \delta, s_0, F)$ with OR-superstates (child-to-parent event bubbling), AND-orthogonal regions (evaluating independent scenarios concurrently with $O(N)$ linear state bounds), and deep ($H^*$) / shallow ($H$) history states allowing agents to pause for human verification or rate limits and resume without repeating completed scenarios.
+  2. Layer 2 (Durable Checkpoint Engine & Progress Delta Circuit Breaker): Checkpoint state objects persisted outside LLM prompt context in `.agents/ptss/tasks/<scenario_id>.json` carrying 6 explicit tracking attributes: `active_scenario_id`, `completed_subgoals`, `remaining_subgoals`, `last_action_result`, `progress_delta`, `loop_count`. On each iteration, calculate $\text{progress\_delta} = |\text{remaining}_{t-1}| - |\text{remaining}_t|$. If $\text{progress\_delta} == 0$ for two consecutive steps (`loop_count >= 2`), the circuit breaker trips, immediately halting execution and transitioning the agent into `Reflecting` or `Human-Escalation`.
+  3. Layer 3 (DAG Dependencies & Guard Predicates): Structured scenario prerequisites as Directed Acyclic Graphs sorted topologically via `graphlib.TopologicalSorter` to guarantee deterministic, deadlock-free execution. Boolean guard predicates simplified via De Morgan's reduction ($\neg (E_{\text{fail}} \lor E_{\text{timeout}}) \equiv \neg E_{\text{fail}} \land \neg E_{\text{timeout}}$) ensuring transitions fire only on verified zero-error signals.
+  4. Execution Topology Archetypes: Formalized T2 Route (Classifier) for role/intake triage, T3 Parallel Fan-Out for orthogonal multi-profile scenario matrix execution, and T4 Orchestrator-Worker for complex multi-stage capstone lifecycle runs.
+  5. Cognitive Skill & Engine: Created `.agents/skills/asdlc-task-orchestrator/SKILL.md` and `scripts/asdlc_task_orchestrator.py` with full CLI and verification harnesses.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never represent complex multi-scenario or multi-edge-case tasks as flat prompt checklists. Always decompose into hierarchical statecharts with orthogonal regions.
+  2. Prevention rule: Any autonomous multi-step loop must validate progress delta at each iteration. If two consecutive steps yield zero progress delta, trip the circuit breaker and halt.
+  3. Lesson learned: Persisting scenario checkpoint state outside the LLM prompt window (in `.agents/ptss/tasks/`) guarantees deterministic recovery across context window compactions.
+  4. Runbook & Checklist:
+     - Checklist: Verify scenario subgoals form a DAG without circular dependencies via topological sort.
+     - Checklist: Verify guard predicates are reduced using Boolean algebra to evaluate verified zero-error signals.
+     - Checklist: Verify deep history ($H^*$) correctly restores nested leaf configurations on resume.
+     - Checklist: Run `python scripts/asdlc_task_orchestrator.py --demo` and verify scenario completions.
+  5. Evidence & Verification passed: 5/5 unit tests in `scratch/test_asdlc_task_orchestrator.py` passed in 0.059s; circuit breaker tripping asserted on 2 consecutive zero-progress cycles; DAG cycle prevention verified; De Morgan's guard reduction verified; 60/60 agentic governance checks passed; 201/179 route parity verified; and workspace guardrail verified clean.
+
+66. Instructor Document Templates Cascade & Team Working Document Bidirectional Sync (Capstone 2 Hub):
+- Architectural Root Cause & Workflow Gaps Discovered:
+  1. Isolated Template Forms: Institutional templates (Google Docs Proposal Template and ADM Spreadsheet) in Administration Settings lacked a dedicated Save button, causing instructor inputs to be lost unless the entire page's bottom settings form was submitted.
+  2. Mongoose Projection Omission: In `project.service.js`, `getProject`, `getMyProject`, and `listProjects` populated `teamId` using a restricted select string (`name members leader status currentMilestone section academicYear code`) that omitted `googleDocUrl` and `githubUrl`. As a result, `project.teamId.googleDocUrl` was stripped from API responses, leaving the student's Capstone 2 Step 2 card blank even when the team had attached their document on `/teams`.
+  3. Static Template Fallback Drift: `team.service.js:getTeamManuscriptTemplate` only returned a hardcoded static template object, ignoring dynamic instructor updates stored in `SystemSettings.documentTemplates`.
+  4. URL Normalization in Playwright & Display: Long URLs on `/teams` are CSS-truncated (`https://docs.google.com/document/d/19is...`), causing strict string match locators to fail unless partial match or attribute selectors are used.
+- Resolution & Implementation Details:
+  1. Dedicated Save Button in Administration Settings: In `AdministrationSection.jsx`, converted template inputs into controlled state (`proposalTemplateUrl`, `admSpreadsheetUrl`), added a dedicated 'Save Document Templates' button with loading spinner, and executed atomic mutations to `settingsService.updateSettings` and `teamService.updateManuscriptTemplate` with React Query cache invalidation across `['settings']`, `['teams']`, and `['projects']`.
+  2. Server Projection Expansion: In `server/modules/projects/project.service.js`, added `googleDocUrl githubUrl` to all `teamId` select projections in `getProject`, `getMyProject`, and `listProjects`.
+  3. Dynamic Template Cascade: In `server/modules/teams/team.service.js`, updated `getTeamManuscriptTemplate` to read `SystemSettings.documentTemplates` (`manuscript_template` or `proposal_template`) before falling back to defaults.
+  4. Capstone 2 Step 2 Auto-Hydration: In `Capstone2ManuscriptHub.jsx`, hydrated `existingUrl` from `attachedManuscript?.externalDocUrl || project?.teamId?.googleDocUrl || teamData?.googleDocUrl`. Added `/copy` and `/export?format=docx` Google Docs URL transformation. Implemented bidirectional dual sync in `handleAttachLink` to simultaneously update `uploadManuscriptMutation` and `teamService.updateGoogleDocLink`.
+  5. Settings Route Alias: In `SettingsPage.jsx`, mapped `tab=administration` to `tab=admin` to ensure deep-linking from navigation works seamlessly.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When adding collaborative resource links or metadata fields to a Mongoose model, immediately verify and update all `populate` projection strings in downstream service queries (`select: '... googleDocUrl githubUrl'`).
+  2. Prevention rule: Settings forms containing sub-feature configurations (like document templates or rubrics) must offer localized, dedicated save triggers so users are not forced to scroll to the global form footer.
+  3. Lesson learned: In Playwright visual audits, elements rendered below the fold must be scrolled into view (`locator.scrollIntoViewIfNeeded()`) prior to taking non-fullPage screenshots, and links with CSS text truncation should be matched via `a[href*="..."]` attribute selectors rather than strict text nodes.
+  4. Runbook & Checklist:
+     - Checklist: Instructor navigates to `/settings?tab=administration` and enters Google Docs template and ADM URLs.
+     - Checklist: Instructor clicks 'Save Document Templates'; toast confirmation displays and cache invalidates.
+     - Checklist: Student navigates to `/teams`, links working Google Doc in 'Repository & Working Documents'.
+     - Checklist: Student navigates to `/project?tab=capstone_2`; Step 1 displays institutional template with 'Use Google Docs Copy', and Step 2 automatically displays the attached document with 'Attached' badge, 'Open in Google Docs', and 'Sync Committee Access'.
+  5. Evidence & Verification passed: 11/11 client unit tests passed (3 test files: `Capstone2ManuscriptHub`, `ManuscriptTemplateWidget`, `settingsStore`), 12/12 server unit tests passed, API route parity verified (`SERVER=201, CLIENT=179, UNMATCHED=0`), 60/60 agentic governance checks passed, workspace guardrail verified clean, and 4-way Playwright visual audit passed in desktop and mobile across light and dark themes.
+
+67. Review Studio UI/UX Modernization, Committee Role-Context Banner, Smart Back-Navigation & Faculty Dashboard FR Compliance:
+- Architectural Root Cause & Gaps Discovered:
+  1. Outdated Review Studio Design & Visual Clutter: `SubmissionReviewPage.jsx` used hardcoded dark surfaces (`#000000`), unstyled bare tab links, unorganized metadata fields, and missing card containers, causing jarring visual contrast and design system token drift.
+  2. Broken "Back to Submissions" Routing: The Back button in `SubmissionReviewPage.jsx` navigated hardcoded to `/project/submissions`. For faculty members, that URL redirects to a generic placeholder page ("Access Submissions via Projects"), effectively stranding faculty outside of their active project.
+  3. Missing Reviewer Role-Context Labeling: Reviewers had no visual indication of their appointed committee capacity (e.g. "Reviewing as Adviser" vs "Reviewing as Panelist" or "Reviewing as Secretary").
+  4. Faculty Dashboard FR Gaps: Active projects count was stuck at 0 because the query only counted literal `projectStatus === 'active'` (excluding active phases like `revision_needed` or `pending_in_review`), and member roster count showed `(0)` when member details were summarized.
+- Resolution & Implementation Details:
+  1. Review Studio Modernization: Completely overhauled `SubmissionReviewPage.jsx` using design system tokens (`bg-card`, `border-border`, `text-foreground`). Wrapped sidebar in structured cards (Submission Info, Plagiarism & Originality, File Actions), built an animated pill-styled tab bar with Lucide icons (Comments, Text Annotation, Doc Comments), color-coded originality progress bar (green/amber/red thresholds), and integrated sticky action toolbars with loading states.
+  2. Role-Context Banner (`ReviewerRoleBanner`): Added prominent identity card displaying role badge (`Reviewing as Adviser`, `Reviewing as Panelist`, `Reviewing as Secretary`) with role-tinted left border accent and contextual project subtitle (`Solo Leveling · Chapter 1 · AgroSense AI...`). Committee IDs (`adviserId`, `panelistIds`, `secretaryId`) were added to the server's `getSubmissionReviewWorkspace` payload.
+  3. Smart Contextual Back Navigation: Upgraded the Back button to "Back to Project", navigating in priority: `location.state?.from` -> `/projects/${workspace.projectId}?tab=capstone_2` -> `/dashboard`. All Review buttons on the dashboard pass `state: { from: ... }`.
+  4. Faculty Dashboard FR Compliance:
+     - Updated `dashboard.service.js` active projects counter to count all unarchived projects (`p.projectStatus !== 'archived' && p.isArchived !== true`).
+     - Mapped `capstoneType`, `githubUrl`, `members`, and `memberRoles` on faculty projects.
+     - Enhanced `FacultyDashboard.jsx` team roster details sidebar with fallback `activeTeam.memberCount` to display enrolled proponent count even when member objects are summarized.
+     - Updated lifecycle phase badge formatting to standard BukSU institutional labels (`Capstone 1`, `Capstone 2`, `Capstone 3`, `Capstone 4 (Final)`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In specialized review or evaluation studios, never hardcode static back-routes; always read context from navigation state (`location.state?.from`) or fall back to the parent project's active phase tab (`/projects/:id?tab=capstone_2`).
+  2. Prevention rule: Reviewers must always be explicitly informed of the role in which they are evaluating deliverables (`Reviewing as Adviser`, etc.) to eliminate authorization ambiguity.
+  3. Prevention rule: Dashboard KPI metrics for "Active Projects" must evaluate non-archival state (`projectStatus !== 'archived'`) rather than requiring exact equality with the string literal `'active'`, since academic projects progress through multiple active statuses (`pending_in_review`, `revision_needed`, `pending_for_submission`).
+  4. Lesson learned: In Playwright visual audits, locators that wait for content hydration must select text unique to the destination component (e.g. `text=Proponent Team Roster`) rather than text that also appears in the source component's subtitle, preventing premature screenshot captures while the destination is still skeleton-loading.
+  5. Runbook & Checklist:
+     - Checklist: Faculty logs in, clicks "Review" on a pending chapter card; Review Studio opens with `Reviewing as Adviser` banner.
+     - Checklist: Faculty verifies Submission Info card, plagiarism score bar, and pill-styled comment tabs.
+     - Checklist: Faculty clicks "Back to Project"; application immediately routes back to `/projects/:id?tab=capstone_2` with the Capstone 2 panel hydrated.
+     - Checklist: Faculty navigates to `/dashboard`; Active Projects KPI matches active project count and Team Roster Details displays accurate enrolled proponent count.
+  6. Evidence & Verification passed: 13/13 client unit tests passed (4/4 `FacultyDashboard.test.jsx`, 9/9 `src/pages/submissions/`), 15/15 server integration tests passed (`dashboard.test.js`), API route parity verified (`SERVER=201, CLIENT=179, UNMATCHED=0`), 60/60 agentic governance checks passed, workspace guardrail verified clean, and 9-point Playwright visual audit passed across desktop (1440x900) and mobile (390x844) in both light and dark themes.

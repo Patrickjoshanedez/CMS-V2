@@ -35,9 +35,30 @@ This document defines the production-grade **Agentic Software Development Lifecy
 * Replaces unbounded full-file reads and raw regex scanning with structural AST call-chain navigation ($O(\log N)$ token cost).
 * Maps caller-callee relationships directly to focus edits only on targeted symbol declarations.
 
-### Stage 4: Agent Calling (Moore Statechart Execution Harness)
-* Agent transitions are governed by a mathematical statechart (Finite State Machine).
-* The harness controls the state transitions; the model's role is restricted to proposing valid events within the allowed transitions of the active state.
+### Stage 4: Agent Calling (Harel Statechart 3-Layer Task Architecture)
+* Agent transitions are governed by a mathematical Harel statechart tuple $M = (S, \Sigma, \delta, s_0, F)$.
+* **Layer 1 (Hierarchical Statecharts & Parallel Orthogonal Regions)**:
+  - Composite superstates handle child sub-states; unhandled events bubble to parent.
+  - AND-orthogonal regions evaluate multiple independent scenarios concurrently without combinatorial $O(2^N)$ explosion.
+  - Deep ($H^*$) and shallow ($H$) history states preserve active nested leaf configurations for seamless pause/resume.
+* **Layer 2 (Durable Checkpoint Engine & Progress Delta Circuit Breaker)**:
+  - Checkpoint state objects stored outside prompt context in `.agents/ptss/tasks/<scenario_id>.json`:
+  ```json
+  {
+    "active_scenario_id": "SCENARIO-04-DEACTIVATED-USER",
+    "completed_subgoals": ["auth_gating_check", "db_seed_verification"],
+    "remaining_subgoals": ["verify_403_forbidden_response", "audit_log_emission"],
+    "last_action_result": "Database seeded with isActive: false",
+    "progress_delta": 1,
+    "loop_count": 0
+  }
+  ```
+  - Progress delta validation: $\text{progress\_delta} = |\text{remaining}_{t-1}| - |\text{remaining}_t|$.
+  - Circuit Breaker: If $\text{progress\_delta} == 0$ for 2 consecutive steps, halts execution into Reflecting / Human-Escalation.
+* **Layer 3 (DAG Dependencies & Guard Predicates)**:
+  - Prerequisite execution paths structured as a DAG sorted topologically.
+  - Boolean guard reduction: $\neg (E_{\text{fail}} \lor E_{\text{timeout}}) \equiv \neg E_{\text{fail}} \land \neg E_{\text{timeout}}$.
+  - Standard execution topologies: T2 Route (Classifier), T3 Parallel Fan-Out, and T4 Orchestrator-Worker.
 
 ```json
 {
@@ -47,11 +68,11 @@ This document defines the production-grade **Agentic Software Development Lifecy
   "properties": {
     "currentState": {
       "type": "string",
-      "enum": ["ANALYZING", "INSPECTING", "EDITING", "VERIFYING", "AWAITING_APPROVAL", "FINALIZING"]
+      "enum": ["ANALYZING", "INSPECTING", "EDITING", "VERIFYING", "AWAITING_APPROVAL", "FINALIZING", "REFLECTING"]
     },
     "event": {
       "type": "string",
-      "enum": ["EVAL_PASS", "EVAL_FAIL", "HUMAN_APPROVED", "RETRY_DISPATCH", "ABORT"]
+      "enum": ["EVAL_PASS", "EVAL_FAIL", "HUMAN_APPROVED", "RETRY_DISPATCH", "ABORT", "CIRCUIT_BREAKER_TRIP"]
     },
     "payload": {
       "type": "object"
@@ -63,6 +84,7 @@ This document defines the production-grade **Agentic Software Development Lifecy
   "required": ["currentState", "event", "stateHash"]
 }
 ```
+
 
 ### Stage 5: Code Editing (Incremental CST Patching)
 * Targets specific syntax nodes using Concrete Syntax Trees (CST / Tree-Sitter).

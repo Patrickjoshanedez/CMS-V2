@@ -73,7 +73,7 @@ All tasks proceed strictly through the 8 stages:
 * **STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP**: Query the Skills Dictionary to prime domain skills before taking action.
 * **STAGE 2: TARGETED CONTEXT GATHERING**: Use bounded line-slices (`StartLine`/`EndLine`). Never dump whole files.
 * **STAGE 3: STRUCTURAL INSPECTION**: Trace caller-callee chains. Verify endpoint parity via `npm run check:endpoints`.
-* **STAGE 4: STATECHART-DRIVEN ORCHESTRATION**: Model transitions and edge cases before generating code.
+* **STAGE 4: STATECHART-DRIVEN ORCHESTRATION**: Model transitions and parallel case scenarios using the **3-Layer Task Architecture** (Layer 1: Harel statecharts with OR-superstates & AND-orthogonal regions; Layer 2: External checkpoint state with 2-cycle zero-delta circuit breaker; Layer 3: Topologically-sorted DAGs with Boolean guard reduction).
 * **STAGE 5: SURGICAL CST EDITING**: Apply surgical diffs preserving comments and JSDocs. Zero whole-file rewrites.
 * **STAGE 6: DETERMINISTIC VERIFICATION**: Run Fast-Path Targeted Testing during iteration. Run the full 7-point battery on closure.
 * **STAGE 7: HUMAN-IN-THE-LOOP (HITL) GATING**: Pause and request confirmation for database seeding, major releases, or ADM signature hashes.

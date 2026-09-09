@@ -76,7 +76,7 @@ export default function ProjectTitleCard({ project, showAction = true }) {
               variant="ghost"
               size="sm"
               onClick={() => navigate('/project/approval')}
-              className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-8 px-3"
+              className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
             >
               <FileText className="h-3.5 w-3.5 text-primary" />
               <span>Proposals & Rehearsal</span>
@@ -92,7 +92,7 @@ export default function ProjectTitleCard({ project, showAction = true }) {
         </div>
 
         {/* Bottom Metadata Pills */}
-        <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+        <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-secondary">
           <div className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-primary/80" />
             <span className="font-semibold text-foreground">{teamDisplayName}</span>
@@ -100,14 +100,14 @@ export default function ProjectTitleCard({ project, showAction = true }) {
 
           {project.academicYear && (
             <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Calendar className="h-3.5 w-3.5 text-secondary" />
               <span>AY {project.academicYear}</span>
             </div>
           )}
 
           {project.teamId?.section && (
             <div className="flex items-center gap-1.5">
-              <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+              <GraduationCap className="h-3.5 w-3.5 text-secondary" />
               <span>Section {project.teamId.section}</span>
             </div>
           )}

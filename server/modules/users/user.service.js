@@ -72,11 +72,10 @@ class UserService {
 
     const user = userDoc.toObject();
     if (user.profilePicture) {
-      try {
-        user.avatarUrl = await storageService.getSignedUrl(user.profilePicture, 7200);
-      } catch {
-        user.avatarUrl = null;
-      }
+      const ts = user.updatedAt ? new Date(user.updatedAt).getTime() : Date.now();
+      user.avatarUrl = `/api/users/${user._id}/avatar?t=${ts}`;
+    } else {
+      user.avatarUrl = null;
     }
 
     return { user };
@@ -95,6 +94,7 @@ class UserService {
       'middleName',
       'lastName',
       'profilePicture',
+      'digitalSignature',
       'sectionId',
       'instructorId',
     ];
@@ -296,14 +296,52 @@ class UserService {
     }
 
     const user = userDoc.toObject();
-    try {
-      user.avatarUrl = await storageService.getSignedUrl(key, 7200);
-    } catch {
-      // Avatar URL generation failed, but upload succeeded - return null URL
-      user.avatarUrl = null;
-    }
+    const ts = user.updatedAt ? new Date(user.updatedAt).getTime() : Date.now();
+    user.avatarUrl = `/api/users/${user._id}/avatar?t=${ts}`;
 
     return { user };
+  }
+
+  /**
+   * Stream a user's avatar image directly from storage.
+   * @param {string} userId
+   * @returns {Promise<{ buffer: Buffer, mimeType: string, updatedAt: Date }>}
+   */
+  async getAvatar(userId) {
+    const user = await User.findById(userId).select('profilePicture updatedAt');
+    if (!user || !user.profilePicture) {
+      throw new AppError('Avatar not found.', 404, 'AVATAR_NOT_FOUND');
+    }
+
+    const buffer = await storageService.downloadFile(user.profilePicture);
+
+    // Detect MIME type from buffer magic bytes with safe fallbacks
+    let mimeType = 'image/jpeg';
+    if (buffer && buffer.length >= 8) {
+      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+        mimeType = 'image/png';
+      } else if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+        mimeType = 'image/jpeg';
+      } else if (
+        buffer[0] === 0x52 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x46 &&
+        buffer.length >= 12 &&
+        buffer[8] === 0x57 &&
+        buffer[9] === 0x45 &&
+        buffer[10] === 0x42 &&
+        buffer[11] === 0x50
+      ) {
+        mimeType = 'image/webp';
+      }
+    }
+
+    return {
+      buffer,
+      mimeType,
+      updatedAt: user.updatedAt,
+    };
   }
 
   /**

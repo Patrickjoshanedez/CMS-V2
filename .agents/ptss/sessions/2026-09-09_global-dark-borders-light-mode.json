@@ -1,0 +1,43 @@
+{
+  "id": "2026-09-09_global-dark-borders-light-mode",
+  "timestamp": "2026-09-09T12:45:00.000Z",
+  "title": "Global High-Contrast Dark Border System Architecture in Light Mode",
+  "task": "Make all the border lines dark in light mode, not just in this page but in general",
+  "status": "completed",
+  "summary": "Transformed the entire light mode UI border architecture from pale, washed-out slate-200/slate-300 borders (#cbd5e1, 84% lightness) to crisp, high-contrast dark slate-700 borders (#334155, rgb(51, 65, 85)). Updated root CSS tokens, base element borders, utility class interceptors for legacy Tailwind classes, and core components (Card, Input, Textarea, Header, Sidebar, ThemeToggle, TextScaleDropdown, ProfilePage). Verified computed styles and visual aesthetics across desktop (1440x900) and mobile (390x844) viewports in both light and dark modes.",
+  "changes": [
+    "client/src/index.css: Set :root --border and --input tokens to 215 25% 27% (#334155). Updated base borders to slate-700. Added comprehensive light mode utility class interceptors targeting .border-slate-*, .border-gray-*, .border-zinc-*, .border-neutral-*, .border-border/*, and .divide-*.",
+    "client/src/components/ui/Card.jsx: Replaced border-slate-300 with border-slate-700 in light mode.",
+    "client/src/components/ui/Input.jsx: Replaced border-slate-400/80 with border-slate-700.",
+    "client/src/components/ui/Textarea.jsx: Replaced border-slate-400/80 with border-slate-700.",
+    "client/src/components/layouts/Header.jsx: Updated header border-b and notification button border to border-slate-700.",
+    "client/src/components/layouts/Sidebar.jsx: Updated border-r, header divider, section divider, footer divider, and toggle button to border-slate-700.",
+    "client/src/components/ThemeToggle.jsx: Updated container border to border-slate-700.",
+    "client/src/components/TextScaleDropdown.jsx: Updated container border to border-slate-700.",
+    "client/src/pages/profile/ProfilePage.jsx: Added explicit border-slate-700 dark:border-slate-700 to role badge, read-only field containers, and academic select inputs.",
+    "memories/repo/CMS-V2-Technical-Context.md: Recorded Lesson 55 with root cause, resolution, and verification evidence."
+  ],
+  "verification": {
+    "playwright_visual_audit": {
+      "light_desktop": "profile_dark_borders_light_desktop.png (1440x900)",
+      "light_mobile": "profile_dark_borders_light_mobile.png (390x844)",
+      "dark_desktop": "profile_dark_borders_dark_desktop.png (1440x900)",
+      "computed_styles": "card, header, aside, readOnlyP, roleBadge all evaluate to rgb(51, 65, 85)"
+    },
+    "unit_tests": {
+      "Sidebar.test.jsx": "6 passed",
+      "ProfilePage.test.jsx": "3 passed",
+      "Header.test.jsx": "5 passed"
+    },
+    "route_parity": {
+      "server_endpoints": 201,
+      "client_endpoints": 179,
+      "unmatched_count": 0
+    },
+    "agentic_governance": {
+      "passed_checks": 60,
+      "failed_checks": 0
+    },
+    "workspace_guardrail": "pristine"
+  }
+}

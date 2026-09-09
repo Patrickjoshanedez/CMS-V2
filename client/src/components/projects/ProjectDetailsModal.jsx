@@ -81,17 +81,74 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
   const isApproved = project.titleStatus === TITLE_STATUSES.APPROVED;
   const phaseLabel = getPhaseLabel(project.capstonePhase ?? project.phase);
   const members = Array.isArray(project.teamId?.members) ? project.teamId.members : [];
-  const panelistCount = Array.isArray(project.panelistIds) ? project.panelistIds.length : 0;
 
   const displayTitle = !isApproved
     ? `${teamDisplayName} Capstone Proposal`
     : project.title || 'Conferred Capstone Study';
 
+  // Committee members extraction
+  const instructor = project.sectionId?.createdBy || project.teamId?.leaderId?.instructorId || null;
+  const instructorName =
+    instructor?.fullName ||
+    (instructor?.firstName ? `${instructor.firstName} ${instructor.lastName || ''}`.trim() : null);
+
+  const adviser = project.adviserId || project.teamId?.adviserId || null;
   const adviserName =
-    project.adviserId?.fullName ||
-    (project.adviserId?.firstName
-      ? `${project.adviserId.firstName} ${project.adviserId.lastName || ''}`.trim()
-      : null);
+    adviser?.fullName ||
+    (adviser?.firstName ? `${adviser.firstName} ${adviser.lastName || ''}`.trim() : null);
+
+  const secretary = project.secretaryId || project.teamId?.secretaryId || null;
+  const secretaryName =
+    secretary?.fullName ||
+    (secretary?.firstName ? `${secretary.firstName} ${secretary.lastName || ''}`.trim() : null);
+
+  // Normalize panelists
+  const rawPanelists =
+    Array.isArray(project.panelists) && project.panelists.length > 0
+      ? project.panelists
+      : Array.isArray(project.panelistIds) && project.panelistIds.length > 0
+        ? project.panelistIds.map((u, i) => ({ userId: u, role: i === 0 ? 'chair' : 'member' }))
+        : Array.isArray(project.teamId?.panelistIds) && project.teamId.panelistIds.length > 0
+          ? project.teamId.panelistIds.map((u, i) => ({
+              userId: u,
+              role: i === 0 ? 'chair' : 'member',
+            }))
+          : [];
+
+  const panelistsList = rawPanelists.map((p, idx) => {
+    const user = p.userId || p;
+    const isChair = p.role === 'chair' || idx === 0;
+    const pName =
+      user?.fullName ||
+      (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : `Panelist ${idx + 1}`);
+    return {
+      user,
+      name: pName,
+      roleLabel: isChair ? 'REC / Committee Chair' : `Panel Member ${idx}`,
+      roleTag: isChair ? 'REC / Chair' : 'Panel Member',
+    };
+  });
+  const panelistCount = panelistsList.length;
+
+  // Member role lookup
+  const memberRoleList = project.teamId?.memberRoles || [];
+  const teamMemberRoleMap = new Map();
+  memberRoleList.forEach((entry) => {
+    const uId = String(entry.userId?._id || entry.userId || '');
+    if (uId && entry.role) {
+      teamMemberRoleMap.set(uId, entry.role);
+    }
+  });
+  if (Array.isArray(project.memberRoleAssignments)) {
+    project.memberRoleAssignments.forEach((entry) => {
+      const uId = String(entry.userId?._id || entry.userId || '');
+      if (uId && (entry.professionalTitle || entry.traditionalRole)) {
+        if (!teamMemberRoleMap.has(uId)) {
+          teamMemberRoleMap.set(uId, entry.professionalTitle || entry.traditionalRole);
+        }
+      }
+    });
+  }
 
   const modalContent = (
     <div
@@ -230,36 +287,113 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
 
           {/* Defense Committee Section */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-primary" />
-              Assigned Defense Committee
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Capstone Adviser
-                </span>
-                <p className="text-sm font-semibold text-foreground">
-                  {adviserName || 'Adviser Pending Appointment'}
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                Assigned Defense Committee
+              </h4>
+              <Badge variant="outline" className="text-[10px] gap-1 py-0 px-2 font-normal">
+                {panelistCount > 0 ? `${panelistCount} Faculty Panelists` : 'Pending Appointment'}
+              </Badge>
+            </div>
+
+            {/* Instruction, Adviser & Secretary Tiers */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Course Instructor */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Instructor
+                  </span>
+                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                    Course Lead
+                  </Badge>
+                </div>
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {instructorName || 'Instructor Pending'}
                 </p>
-                {project.adviserId?.email && (
-                  <p className="text-xs text-muted-foreground">{project.adviserId.email}</p>
+                {instructor?.email && (
+                  <p className="text-xs text-muted-foreground truncate">{instructor.email}</p>
                 )}
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
+              {/* Capstone Adviser */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Adviser
+                  </span>
+                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                    Mentor
+                  </Badge>
+                </div>
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {adviserName || 'Adviser Pending Appointment'}
+                </p>
+                {adviser?.email && (
+                  <p className="text-xs text-muted-foreground truncate">{adviser.email}</p>
+                )}
+              </div>
+
+              {/* Committee Secretary */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Committee Secretary
+                  </span>
+                  <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">
+                    Endorsement
+                  </Badge>
+                </div>
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {secretaryName || 'Secretary Pending'}
+                </p>
+                {secretary?.email && (
+                  <p className="text-xs text-muted-foreground truncate">{secretary.email}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Defense Panelists Tier */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Defense Panelists
                 </span>
-                <p className="text-sm font-semibold text-foreground">
-                  {panelistCount > 0 ? `${panelistCount} Faculty Panelists` : 'Pending Appointment'}
-                </p>
-                <p className="text-xs text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   {panelistCount >= 3
                     ? 'REC / Chair, Panel Member 1, Panel Member 2'
                     : 'Awaiting institutional committee appointment'}
-                </p>
+                </span>
               </div>
+
+              {panelistsList.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {panelistsList.map((p, idx) => (
+                    <div
+                      key={p.user?._id || idx}
+                      className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary truncate">
+                          {p.roleLabel}
+                        </span>
+                        <Badge variant="outline" className="text-[9px] py-0 px-1.5 h-4">
+                          {p.roleTag}
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
+                      {p.user?.email && (
+                        <p className="text-xs text-muted-foreground truncate">{p.user.email}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Awaiting institutional committee appointment
+                </p>
+              )}
             </div>
           </div>
 
@@ -282,19 +416,23 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
               <div className="space-y-2">
                 {members.map((member, idx) => {
                   const memberUser = member.userId || member;
+                  const memberId = String(memberUser._id || memberUser);
                   const memberName = memberUser.firstName
                     ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim()
                     : memberUser.fullName || memberUser.email || `Member ${idx + 1}`;
+                  const memberEmail = memberUser.email || '';
                   const isLeader =
-                    (member.role === 'leader' ||
-                      project.teamId?.leaderId === (memberUser._id || memberUser)) &&
-                    true;
+                    member.role === 'leader' ||
+                    String(project.teamId?.leaderId?._id || project.teamId?.leaderId) === memberId;
                   const proponentRole =
-                    member.proponentRole || member.capstoneRole || 'Proponent Member';
+                    teamMemberRoleMap.get(memberId) ||
+                    member.proponentRole ||
+                    member.capstoneRole ||
+                    (isLeader ? 'Project Lead & Systems Analyst' : 'Proponent Member');
 
                   return (
                     <div
-                      key={member._id || idx}
+                      key={memberUser._id || member._id || idx}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/25 border border-border/50 px-3.5 py-2.5 text-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -303,9 +441,15 @@ export default function ProjectDetailsModal({ open, onOpenChange, project }) {
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground truncate">{memberName}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {proponentRole}
-                          </p>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
+                            <span className="text-primary font-medium">{proponentRole}</span>
+                            {memberEmail && (
+                              <>
+                                <span>·</span>
+                                <span className="truncate">{memberEmail}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 

@@ -27,15 +27,19 @@ input::-webkit-credentials-auto-fill-button {
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222 30% 5%;
     --muted: 210 20% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 217 19% 27%;
     --accent: 210 40% 96.1%;
     --accent-foreground: 222 30% 5%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 213 27% 84%;
-    --input: 215 20% 65%;
+    --border: 215 25% 27%;
+    --input: 215 25% 27%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+
+    /* Semantic text contrast tokens (WCAG AA/AAA compliance) */
+    --text-primary: #000000;
+    --text-secondary: #374151;
+    --text-muted: #4b5563;
 
     /* Semantic status colors */
     --success: 142 76% 36%;
@@ -63,7 +67,7 @@ input::-webkit-credentials-auto-fill-button {
     --color-neutral: #457b9d;
     --color-text-primary: #1a1a2e;
     --color-text-secondary: #6b7a99;
-    --color-border: #e4e8f0;
+    --color-border: #334155;
     --font-display: 'DM Serif Display', serif;
     --font-body: 'DM Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -81,7 +85,7 @@ input::-webkit-credentials-auto-fill-button {
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 12%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 20% 75%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
@@ -90,6 +94,11 @@ input::-webkit-credentials-auto-fill-button {
     --input: 215 25% 27%;
     --ring: 212.7 26.8% 83.9%;
     --radius: 0.5rem;
+
+    /* Semantic text contrast tokens (dark mode) */
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
 
     /* Semantic status colors (dark mode) */
     --success: 142 71% 45%;
@@ -102,6 +111,18 @@ input::-webkit-credentials-auto-fill-button {
     /* Brand gradient colors (dark mode) */
     --brand-orange: 14 100% 60%;
     --brand-pink: 340 82% 55%;
+  }
+}
+
+@layer utilities {
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  .text-primary-token {
+    color: var(--text-primary);
+  }
+  .text-muted-token {
+    color: var(--text-muted);
   }
 }
 
@@ -152,11 +173,43 @@ html.dark[data-high-contrast='true'] {
       'calt' 1;
   }
 
-  /* Enforce border visibility on light and dark mode elements */
+  /* Enforce crisp dark border visibility across light mode and dark mode */
   *,
   ::before,
   ::after {
-    border-color: theme('colors.slate.300');
+    border-color: theme('colors.slate.700');
+  }
+
+  /* Global dark border lines across general components in light mode */
+  :root:not(.dark) .border-slate-100,
+  :root:not(.dark) .border-slate-200,
+  :root:not(.dark) .border-slate-300,
+  :root:not(.dark) .border-slate-400,
+  :root:not(.dark) .border-gray-100,
+  :root:not(.dark) .border-gray-200,
+  :root:not(.dark) .border-gray-300,
+  :root:not(.dark) .border-zinc-100,
+  :root:not(.dark) .border-zinc-200,
+  :root:not(.dark) .border-zinc-300,
+  :root:not(.dark) .border-neutral-100,
+  :root:not(.dark) .border-neutral-200,
+  :root:not(.dark) .border-neutral-300,
+  :root:not(.dark) .border-border\/40,
+  :root:not(.dark) .border-border\/50,
+  :root:not(.dark) .border-border\/60,
+  :root:not(.dark) .border-border\/70,
+  :root:not(.dark) .border-border\/80,
+  :root:not(.dark) .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-slate-300 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-gray-300 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-border > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-border\/40 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-border\/50 > :not([hidden]) ~ :not([hidden]),
+  :root:not(.dark) .divide-border\/60 > :not([hidden]) ~ :not([hidden]) {
+    border-color: theme('colors.slate.700');
   }
 
   .dark *,
@@ -1612,4 +1665,42 @@ html.dark[data-high-contrast='true'] {
 /* Ensure Sonner toast notifications appear above all modals, backdrops, and dialogs */
 [data-sonner-toaster] {
   z-index: 999999 !important;
+}
+
+/* ── docx-preview OOXML Renderer Integration ──────────────────────────────
+ * docx-preview renders pages as white "paper" cards inside a wrapper div.
+ * We keep the pages white (authentic Word appearance) but style the outer
+ * canvas to match our dark/light card theme.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* Outer wrapper docx-preview injects — remove its own background */
+.docx-outer-container .docx-wrapper {
+  background: transparent !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+/* Each "page" — keep authentic white paper appearance with shadow */
+.docx-outer-container .docx-wrapper > section.docx {
+  background: #ffffff !important;
+  box-shadow:
+    0 4px 24px 0 rgba(0, 0, 0, 0.18),
+    0 1px 4px 0 rgba(0, 0, 0, 0.1) !important;
+  border-radius: 4px !important;
+  margin: 0 !important;
+}
+
+/* Ensure docx-preview fonts load correctly */
+.docx-outer-container {
+  font-size: 16px;
+}
+
+/* Zoom wrapper: use transform-origin top-center for natural page zoom */
+.docx-zoom-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }

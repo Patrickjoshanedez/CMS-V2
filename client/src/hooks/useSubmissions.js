@@ -252,6 +252,12 @@ export const submissionKeys = {
   plagiarismReports: () => [...submissionKeys.all, 'plagiarismReport'],
   plagiarismReport: (id) => [...submissionKeys.plagiarismReports(), id],
   reviewWorkspace: (id) => [...submissionKeys.all, 'reviewWorkspace', id],
+  revisionDiff: (id, compareWithId) => [
+    ...submissionKeys.all,
+    'revisionDiff',
+    id,
+    compareWithId || 'default',
+  ],
 };
 
 /* ────────── Query Hooks ────────── */
@@ -380,6 +386,27 @@ export function useGoogleDocComments(submissionId, options = {}) {
     staleTime: 30 * 1000,
     refetchInterval: 30 * 1000,
     ...options,
+  });
+}
+
+/**
+ * Fetch revision diff data comparing a submission with its previous version (or compareWithId).
+ */
+export function useSubmissionRevisionDiff(submissionId, options = {}) {
+  const { compareWithId, enabled = true, ...queryOptions } = options;
+
+  return useQuery({
+    queryKey: submissionKeys.revisionDiff(submissionId, compareWithId),
+    queryFn: async () => {
+      const { data } = await submissionService.getRevisionDiff(
+        submissionId,
+        compareWithId ? { compareWithId } : undefined,
+      );
+      return data.data;
+    },
+    enabled: Boolean(submissionId) && enabled,
+    staleTime: 5 * 60 * 1000,
+    ...queryOptions,
   });
 }
 
@@ -594,4 +621,25 @@ export function useBatchUploadChapters(options = {}) {
     const res = await submissionService.batchUploadChapters(projectId, formData, onUploadProgress);
     return res.data;
   }, options);
+}
+
+/**
+ * Scan an existing submission directly against the institutional archive corpus.
+ */
+export function useScanSubmissionArchive(options = {}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (submissionId) => {
+      const res = await plagiarismService.scanSubmissionAgainstArchive(submissionId);
+      return res.data;
+    },
+    onSuccess: (data, submissionId, context) => {
+      queryClient.invalidateQueries({ queryKey: submissionKeys.detail(submissionId) });
+      queryClient.invalidateQueries({ queryKey: submissionKeys.plagiarism(submissionId) });
+      queryClient.invalidateQueries({ queryKey: submissionKeys.plagiarismReport(submissionId) });
+      queryClient.invalidateQueries({ queryKey: submissionKeys.all });
+      options.onSuccess?.(data, submissionId, context);
+    },
+    ...options,
+  });
 }

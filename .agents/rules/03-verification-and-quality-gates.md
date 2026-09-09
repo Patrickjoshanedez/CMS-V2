@@ -93,3 +93,13 @@ High-consequence actions must pause and request explicit human verification:
 1. **Database Seeding**: Scripts modifying standard catalog records (`server/seeders/*`).
 2. **Production Releases**: Pushing tags beyond the major version line.
 3. **ADM Signatures**: Applying final digital signature hashes to the Action Done Matrix.
+
+---
+
+## 7. TWO-MINUTE TEST TIMEOUT & HANGING DIAGNOSTIC PROTOCOL
+
+Any test suite, Playwright visual audit, or automated command that exceeds **120 seconds (2 minutes)** is strictly flagged as a runaway or hanging process. The agent MUST immediately terminate/kill the task, halt retries, and perform a root-cause diagnostic analysis before re-running:
+*   **CMS-V2 Real-Time Network Polling (`networkidle` Ban):** Never use `{ waitUntil: 'networkidle' }` or `waitForLoadState('networkidle')`. CMS-V2's real-time notification poller (`/api/notifications?page=1&limit=1`) and WebSockets keep network traffic continuously active, causing `networkidle` to hang indefinitely until timeout. Always use `waitUntil: 'domcontentloaded'` with targeted, state-based locators.
+*   **Explicit Scratchpad Timeouts & Process Cleanup:** All automation and test scripts in `scratch/` must configure a hard timeout safety net (`setTimeout(() => { console.error('Watchdog 110s timeout'); process.exit(1); }, 110000)`), ensure `browser.close()` runs in `finally`, and explicitly invoke `process.exit(0)` on completion so node background workers never block agent turns.
+*   **Proposal Phase Display Title Divergence:** Projects in draft/proposal phase render as `${teamName} Title Proposal` in header components rather than `project.title`. Tests must match dynamic headers or target unambiguous semantic test IDs rather than hardcoding static proposal titles.
+

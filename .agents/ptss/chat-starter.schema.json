@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BukSU CMS-V2 Chat-Starter Snapshot Schema",
+  "description": "Deterministic JSON Schema for BukSU CMS-V2 Agentic Chat-Starter Preflight Snapshots",
+  "type": "object",
+  "required": [
+    "$schema",
+    "version",
+    "session_id",
+    "timestamp",
+    "status",
+    "role",
+    "compliance_standard",
+    "git_context",
+    "asdlc_phase",
+    "startup_preflight",
+    "skills_primed",
+    "playwright_feedback_required",
+    "verification_baseline",
+    "supreme_cognitive_protocols"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI or relative path to this schema"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the chat-starter contract"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Active session identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of snapshot initialization"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["initialized", "in_progress", "completed", "aborted", "failed"],
+      "description": "Operational state of the active session"
+    },
+    "role": {
+      "type": "string",
+      "description": "Architectural persona and cognitive boundary of the agent"
+    },
+    "compliance_standard": {
+      "type": "string",
+      "description": "Active compliance frameworks (ASDLC, Supreme Cognitive Protocols)"
+    },
+    "git_context": {
+      "type": "object",
+      "required": ["active_branch", "clean_working_tree"],
+      "properties": {
+        "active_branch": { "type": "string" },
+        "clean_working_tree": { "type": "boolean" }
+      }
+    },
+    "asdlc_phase": {
+      "type": "string",
+      "description": "Active ASDLC v2.0 lifecycle stage"
+    },
+    "startup_preflight": {
+      "type": "object",
+      "required": [
+        "ptss_index_inspected",
+        "technical_context_synced",
+        "recent_sessions_recalled",
+        "active_prevention_rules_count"
+      ],
+      "properties": {
+        "ptss_index_inspected": { "type": "boolean" },
+        "technical_context_synced": { "type": "boolean" },
+        "recent_sessions_recalled": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "active_prevention_rules_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "skills_primed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of active cognitive skills primed from .agents/skills/"
+    },
+    "playwright_feedback_required": {
+      "type": "boolean",
+      "description": "True if UI/UX modifications require visual audit before sign-off"
+    },
+    "verification_baseline": {
+      "type": "object",
+      "properties": {
+        "endpoints_parity": { "type": "boolean" },
+        "agentic_governance": { "type": "boolean" },
+        "playwright_visual_audit_passed": { "type": "boolean" },
+        "workspace_clean": { "type": "boolean" },
+        "governance_passed": { "type": "boolean" }
+      }
+    },
+    "supreme_cognitive_protocols": {
+      "type": "object",
+      "description": "Core kernel engineering standards, guards, and governance policies"
+    }
+  },
+  "additionalProperties": true
+}

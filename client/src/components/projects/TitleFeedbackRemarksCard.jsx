@@ -33,7 +33,7 @@ export default function TitleFeedbackRemarksCard({ comments }) {
             {totalComments} {totalComments === 1 ? 'Remark' : 'Remarks'}
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs font-medium text-secondary mt-1">
           Institutional feedback and defense committee recommendations on your submitted title
           proposals.
         </p>
@@ -79,7 +79,7 @@ export default function TitleFeedbackRemarksCard({ comments }) {
                           {comment.role && (
                             <Badge
                               variant="outline"
-                              className="text-[10px] py-0 px-1.5 text-muted-foreground border-border/70"
+                              className="text-[10px] py-0 px-1.5 text-secondary font-medium border-border/70"
                             >
                               {comment.role}
                             </Badge>
@@ -87,14 +87,14 @@ export default function TitleFeedbackRemarksCard({ comments }) {
                         </div>
 
                         {dateStr && (
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <div className="flex items-center gap-1 text-[11px] font-medium text-secondary">
                             <Calendar className="h-3 w-3" />
                             <span>{dateStr}</span>
                           </div>
                         )}
                       </div>
 
-                      <p className="text-xs sm:text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed pl-8">
+                      <p className="text-xs sm:text-sm text-foreground whitespace-pre-wrap leading-relaxed pl-8">
                         {comment.text}
                       </p>
                     </div>

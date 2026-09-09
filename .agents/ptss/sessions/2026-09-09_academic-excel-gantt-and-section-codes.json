@@ -1,0 +1,113 @@
+{
+  "session_id": "2026-09-09_academic-excel-gantt-and-section-codes",
+  "timestamp": "2026-09-09T16:50:00.000Z",
+  "task_slug": "academic-excel-gantt-and-section-codes",
+  "task_summary": "Engineered pixel-perfect Academic Excel Gantt Chart replication with pure-client SpreadsheetML (.xls) export, normalized canonical section formatting to BSIT-4A (T87) with instructor configuration in CreateAcademicNodeDialog and student selection in ProfilePage and CreateProjectPage, strictly eliminated legacy BSIT 4-A from the hierarchy navigator in favor of BSIT-4A, and realigned Gantt Chart and prototype assets from Capstone 2 to Capstone 3 on the Submissions page with dedicated modal viewer.",
+  "task_category": "feature_and_workflow_hardening",
+  "status": "completed",
+  "author": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "changes": {
+    "server": [],
+    "client": [
+      {
+        "file": "client/src/utils/exportExcelGantt.js",
+        "description": "Implemented pure client SpreadsheetML XML generator (.xls) supporting multi-row metadata header, XML cell border styles, custom hex fill colors (#FACC15, #22C55E, #F97316, #3B82F6), 4-tier timeline matrix, and 4-column signature block."
+      },
+      {
+        "file": "client/src/components/projects/AcademicExcelGanttChart.jsx",
+        "description": "Created pixel-perfect React replica of BukSU Academic Excel Gantt Chart with 5-row bordered metadata header, sticky 7-column data grid, 60-column 4-tier timeline matrix (Months, Weeks, Working Days, Days 1..5), color-coded task bars, and 4-column signatory block."
+      },
+      {
+        "file": "client/src/components/projects/InteractiveGanttChart.jsx",
+        "description": "Integrated AcademicExcelGanttChart as flagship default view with toggle between Academic Excel and Modern Roadmap, owner filter, and direct Export to Excel (.xls) action."
+      },
+      {
+        "file": "client/src/utils/sectionUtils.js",
+        "description": "Created centralized section utility providing formatCanonicalSectionName (eliminates BSIT 4-A, guarantees BSIT-4A) and formatSectionWithCode (formats as BSIT-4A (T87))."
+      },
+      {
+        "file": "client/src/components/users/CreateAcademicNodeDialog.jsx",
+        "description": "Added Year & Cluster (4A) and Section Code (T87) inputs with live canonical preview (BSIT-4A (T87)), helper guidance, and normalized payload submission."
+      },
+      {
+        "file": "client/src/pages/users/UsersPage.jsx",
+        "description": "Sanitized section filter options and folder-style hierarchy navigator breadcrumbs to strictly display BSIT-4A (never BSIT 4-A)."
+      },
+      {
+        "file": "client/src/pages/profile/ProfilePage.jsx",
+        "description": "Updated section select options to render formatSectionWithCode(s) so students can select their exact section code (e.g. BSIT-4A (T87))."
+      },
+      {
+        "file": "client/src/pages/projects/CreateProjectPage.jsx",
+        "description": "Updated resolvedSectionName to formatSectionWithCode(match) with fallback 'BSIT-4A (T87)'."
+      },
+      {
+        "file": "client/src/pages/teams/TeamsPage.jsx",
+        "description": "Updated team cards and section filter dropdown to display formatSectionWithCode."
+      },
+      {
+        "file": "client/src/components/teams/InspectRosterDialog.jsx",
+        "description": "Updated team section badge rendering to use formatSectionWithCode."
+      },
+      {
+        "file": "client/src/components/users/TeamCommitteeAssignmentsView.jsx",
+        "description": "Updated section dropdown option labels to use formatSectionWithCode."
+      },
+      {
+        "file": "client/src/components/projects/DevelopmentAssetsForm.jsx",
+        "description": "Realigned header and copy to Capstone 3 System Development Assets and added trigger button to open the Academic Excel Gantt Chart modal."
+      },
+      {
+        "file": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+        "description": "Separated submissions page into phased architecture: Phase 2 (Capstone 2: Chapters 1-3 & Proposal) vs Phase 3 (Capstone 3: System Development Assets & Chapters 4-5), with header Academic Gantt button and full interactive modal."
+      }
+    ],
+    "tests": [
+      {
+        "file": "client/src/components/projects/InteractiveGanttChart.test.jsx",
+        "description": "Added unit test asserting Academic Excel Header, 4-tier timeline matrix, and 4-column signature block rendering."
+      },
+      {
+        "file": "client/src/components/users/CreateAcademicNodeDialog.test.jsx",
+        "description": "Added unit test asserting section creation with normalized cluster and code and canonical preview."
+      },
+      {
+        "file": "client/src/pages/submissions/ProjectSubmissionsPage.test.jsx",
+        "description": "Added unit test asserting phased separation between Phase 2 and Phase 3."
+      },
+      {
+        "file": "scratch/gantt_and_submissions_audit.mjs",
+        "description": "Playwright visual audit script capturing desktop/mobile, light/dark screenshots of submissions page and Excel Gantt modal."
+      },
+      {
+        "file": "scratch/capture_section_evidence.mjs",
+        "description": "Playwright visual audit capturing instructor Create Academic Node section preview and Teams page section filtering."
+      }
+    ]
+  },
+  "verification_evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=201, CLIENT_ENDPOINT_COUNT=179, UNMATCHED_COUNT=0 (passed)",
+    "agentic_governance": "60/60 checks passed",
+    "workspace_cleanliness": "Python workspace_guardrail.py passed, workspace pristine",
+    "client_unit_tests": "27/27 passed across InteractiveGanttChart.test.jsx, CreateAcademicNodeDialog.test.jsx, ProjectSubmissionsPage.test.jsx, CreateProjectPage.test.jsx",
+    "playwright_visual_audit": "9 visual evidence screenshots captured and verified in artifacts directory (Desktop & Mobile, Light & Dark)"
+  },
+  "post_mortem": {
+    "lesson": "SpreadsheetML 2003 XML (.xls) provides complete formatting control (exact border weights, cell merges, and background colors) directly from client JavaScript without bulky third-party dependencies, allowing high-fidelity exports that open cleanly in Microsoft Excel.",
+    "learned": "Legacy naming anomalies like 'BSIT 4-A' vs 'BSIT-4A' easily contaminate hierarchy navigators if raw database strings are rendered directly without canonical normalization. Centralizing formatCanonicalSectionName and formatSectionWithCode across all UI surfaces ensures consistent institutional presentation (e.g. BSIT-4A (T87)).",
+    "prevention": "Always sanitize section names with regex stripping space before hyphen (/([A-Z]+)\s+(\d)-?([A-Z])/i -> '$1-$2$3'). In forms where instructors enter year and cluster (e.g. 4 and A), derive canonical section string immediately and display live preview so users see the exact formatted string before submission.",
+    "runbook": "When realigning lifecycle artifacts (e.g. moving Gantt Chart and Demo Video from Capstone 2 to Capstone 3), update both presentation copy, page architecture (ProjectSubmissionsPage.jsx phased cards), and component trigger links simultaneously.",
+    "checklist": [
+      "SpreadsheetML XML export with styling and borders verified",
+      "Academic Excel Gantt Chart replica with 5-row header and 4-tier timeline matrix verified",
+      "Section code configuration (Year & Cluster 4A, Code T87) with live preview BSIT-4A (T87) verified",
+      "Elimination of BSIT 4-A from hierarchy navigator verified",
+      "Submissions page phased realignment to Capstone 3 verified",
+      "All unit tests passed",
+      "Playwright visual evidence captured across desktop, mobile, light, dark"
+    ],
+    "evidence": "27/27 client unit tests passed, 60/60 agentic validation checks passed, UNMATCHED_COUNT=0, 9 Playwright screenshots recorded in artifacts directory.",
+    "passed": true
+  }
+}

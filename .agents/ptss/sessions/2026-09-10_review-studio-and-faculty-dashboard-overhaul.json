@@ -1,0 +1,38 @@
+{
+  "session_id": "2026-09-10_review-studio-and-faculty-dashboard-overhaul",
+  "timestamp": "2026-09-10T04:30:00.000Z",
+  "status": "completed",
+  "task": "Review Studio UI/UX Modernization, Role-Context Labeling, Smart Back-Navigation & Faculty Dashboard FR Compliance",
+  "user_intent": "Update outdated Review Studio UI/UX, fix broken Back to Submissions routing, label exact faculty review role (e.g. 'Reviewing as Adviser'), and refactor Faculty Dashboard for FR compliance.",
+  "changes_made": [
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "description": "Included adviserId, panelistIds, and secretaryId in getSubmissionReviewWorkspace payload for client-side reviewer role derivation."
+    },
+    {
+      "file": "server/modules/dashboard/dashboard.service.js",
+      "description": "Updated activeProjects filter to include unarchived projects, populated teamId details, capstoneType, and githubUrl in faculty dashboard."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionReviewPage.jsx",
+      "description": "Complete UI/UX modernization with design tokens, ReviewerRoleBanner with role badge and project context, smart back-navigation prioritizing location.state.from -> /projects/:projectId?tab=capstone_2, animated pill tabs, color-coded originality meter, card-based sidebar, and interactive decision actions."
+    },
+    {
+      "file": "client/src/components/dashboards/FacultyDashboard.jsx",
+      "description": "Institutional capstone phase badge mapping, memberCount fallback in team roster details sidebar, success tone support, warning tone conditions on pending reviews, and pass state.from in review button navigations."
+    },
+    {
+      "file": "scratch/review_studio_audit.mjs",
+      "description": "Playwright visual audit script covering desktop/mobile light/dark modes and full back-navigation verification."
+    }
+  ],
+  "verification_evidence": {
+    "endpoint_check": "UNMATCHED_COUNT = 0 (201 server / 179 client)",
+    "agentic_governance": "60 / 60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "client_tests": "13 / 13 passed (FacultyDashboard: 4/4, Submissions: 9/9)",
+    "server_tests": "15 / 15 passed (dashboard.test.js)",
+    "workspace_guardrail": "Clean workspace, cognitive-load within bounds",
+    "playwright_visual_audit": "Desktop Light/Dark, Mobile Light/Dark, Back-Navigation verified"
+  }
+}

@@ -194,7 +194,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   return (
     <header
       className={[
-        'flex h-16 shrink-0 items-center justify-between border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
+        'flex h-16 shrink-0 items-center justify-between border-b border-slate-700 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
         'transition-transform duration-300 ease-in-out',
         hidden ? '-translate-y-full' : 'translate-y-0',
       ].join(' ')}
@@ -231,7 +231,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         <button
           onClick={() => navigate('/notifications')}
           aria-label="Notifications"
-          className="relative p-2 text-slate-500 border border-slate-300 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors inline-flex items-center justify-center h-9 w-9"
+          className="relative p-2 text-slate-500 border border-slate-700 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors inline-flex items-center justify-center h-9 w-9"
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -258,6 +258,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
               <img
                 src={user.avatarUrl}
                 alt={user.fullName || 'avatar'}
+                data-testid="header-avatar-img"
                 className="h-full w-full object-cover"
                 onError={() => setAvatarBroken(true)}
               />

@@ -143,7 +143,8 @@ export const updateTitleSchema = z.object({
     .string()
     .trim()
     .min(10, 'Title must be at least 10 characters')
-    .max(300, 'Title must not exceed 300 characters'),
+    .max(300, 'Title must not exceed 300 characters')
+    .optional(),
   abstract: z.string().trim().max(500, 'Abstract must not exceed 500 characters').optional(),
   description: z.string().trim().optional(),
   pitchDeck: z.record(z.any()).optional(),
@@ -152,6 +153,10 @@ export const updateTitleSchema = z.object({
     .array(z.string().trim().min(1))
     .max(10, 'A project can have at most 10 keywords')
     .optional(),
+  titleProposals: z.array(titleProposalSchema).min(1).max(10).optional(),
+  sdgTags: z.array(z.enum(SDG_TAG_SUGGESTIONS)).min(1).max(17).optional(),
+  submit: z.boolean().optional(),
+  resubmit: z.boolean().optional(),
 });
 
 /* ───── Submit title for approval ───── */
@@ -269,6 +274,7 @@ export const listProjectsQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
   panelistId: z.string().regex(objectIdPattern).optional(),
+  secretaryId: z.string().regex(objectIdPattern).optional(),
   excludeArchived: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
 });
 

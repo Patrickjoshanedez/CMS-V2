@@ -90,6 +90,12 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      textColor: {
+        secondary: 'var(--text-secondary)',
+        'text-secondary': 'var(--text-secondary)',
+        'text-primary': 'var(--text-primary)',
+        'text-muted': 'var(--text-muted)',
+      },
     },
   },
   plugins: [],

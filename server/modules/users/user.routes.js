@@ -24,6 +24,9 @@ const router = Router();
  * Management routes (CRUD on other users) are Instructor-only.
  */
 
+// --- Public avatar streaming route (accessible by browser <img> tags) ---
+router.get('/:userId/avatar', userController.getAvatar);
+
 // All routes below require authentication
 router.use(authenticate);
 

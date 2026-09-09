@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { User, Mail, Shield, Camera, Loader2, CheckCircle, GraduationCap } from 'lucide-react';
 import { userService } from '@/services/authService';
 import { useSections } from '@/hooks/useAcademics';
+import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { useInstructors } from '@/hooks/useUsers';
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
 import { ROLES } from '@cms/shared';
@@ -180,7 +181,9 @@ export default function ProfilePage() {
       const formData = new FormData();
       formData.append('avatar', file);
       await userService.uploadAvatar(formData);
+      setAvatarBroken(false);
       await fetchUser();
+      toast.success('Profile picture updated successfully!');
     } catch (err) {
       setAvatarError(err?.response?.data?.error?.message || 'Failed to upload avatar.');
     } finally {
@@ -263,7 +266,8 @@ export default function ProfilePage() {
                 {user.avatarUrl && !avatarBroken ? (
                   <img
                     src={user.avatarUrl}
-                    alt={user.fullName}
+                    alt={user.fullName || 'User avatar'}
+                    data-testid="profile-avatar-img"
                     className="h-24 w-24 rounded-full object-cover"
                     onError={() => setAvatarBroken(true)}
                   />
@@ -296,7 +300,7 @@ export default function ProfilePage() {
               {avatarError && <p className="mt-1 text-xs text-destructive">{avatarError}</p>}
               <h4 className="mt-4 text-lg font-semibold">{user.fullName}</h4>
               <p className="text-sm text-muted-foreground">{user.email}</p>
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-700 dark:border-slate-700 px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Shield className="h-3 w-3" />
                 {roleLabel}
               </div>
@@ -323,7 +327,7 @@ export default function ProfilePage() {
                     onChange={(e) => setFirstName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
                     {user.firstName}
                   </p>
                 )}
@@ -343,7 +347,7 @@ export default function ProfilePage() {
                     onChange={(e) => setMiddleName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
                     {user.middleName || '—'}
                   </p>
                 )}
@@ -363,7 +367,9 @@ export default function ProfilePage() {
                     onChange={(e) => setLastName(e.target.value)}
                   />
                 ) : (
-                  <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">{user.lastName}</p>
+                  <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm">
+                    {user.lastName}
+                  </p>
                 )}
               </div>
 
@@ -374,7 +380,7 @@ export default function ProfilePage() {
                     Email Address
                   </span>
                 </Label>
-                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {user.email}
                   <span className="ml-2 text-xs">(cannot be changed)</span>
                 </p>
@@ -387,7 +393,7 @@ export default function ProfilePage() {
                     Role
                   </span>
                 </Label>
-                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {roleLabel}
                 </p>
               </div>
@@ -484,7 +490,7 @@ export default function ProfilePage() {
                 <Label htmlFor="profile-section">Section *</Label>
                 <select
                   id="profile-section"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
+                  className="h-10 w-full rounded-md border border-slate-700 dark:border-slate-700 bg-background px-3 text-sm disabled:opacity-50"
                   value={sectionId}
                   onChange={(e) => setSectionId(e.target.value)}
                   disabled={sectionsLoading || isSavingAcademic}
@@ -492,14 +498,11 @@ export default function ProfilePage() {
                   <option value="">
                     {sectionsLoading || sectionsFetching ? 'Loading...' : 'Select your section'}
                   </option>
-                  {sections.map((s) => {
-                    const label = s.code || s.name;
-                    return (
-                      <option key={s._id} value={s._id}>
-                        {label} {s.academicYear ? `(${s.academicYear})` : ''}
-                      </option>
-                    );
-                  })}
+                  {sections.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {formatSectionWithCode(s)} {s.academicYear ? `(${s.academicYear})` : ''}
+                    </option>
+                  ))}
                 </select>
                 {sectionsError && (
                   <Alert variant="destructive" className="mt-2">
@@ -537,7 +540,7 @@ export default function ProfilePage() {
               {/* Section Code (read-only, from section's own code) */}
               <div className="space-y-2">
                 <Label>Section Code</Label>
-                <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded-md border border-slate-700 dark:border-slate-700 bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                   {selectedSection?.code || '—'}
                 </p>
               </div>
@@ -547,7 +550,7 @@ export default function ProfilePage() {
                 <Label htmlFor="profile-instructor">Instructor *</Label>
                 <select
                   id="profile-instructor"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-50"
+                  className="h-10 w-full rounded-md border border-slate-700 dark:border-slate-700 bg-background px-3 text-sm disabled:opacity-50"
                   value={instructorId}
                   onChange={(e) => setInstructorId(e.target.value)}
                   disabled={instructorsLoading || isSavingAcademic}

@@ -1,14 +1,17 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { projectService } from '@/services/authService';
+import { projectService, userService } from '@/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import { ROLES, PANEL_ROLES } from '@cms/shared';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import ADMPhaseSelector from '@/components/projects/ADMPhaseSelector';
 import buksuLogo from '@/assets/buksu-logo.png';
 import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
+import SignaturePad from '@/components/ui/SignaturePad';
 import {
   Printer,
   Upload,
@@ -24,6 +27,7 @@ import {
   Lock,
   Send,
   FileText,
+  FileSignature,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -82,10 +86,46 @@ export default function ActionDoneMatrixTab({
   const [isSubmittingEndorsement, setIsSubmittingEndorsement] = useState(false);
   const [isSubmittingForEndorsement, setIsSubmittingForEndorsement] = useState(false);
 
+  const { fetchUser } = useAuthStore();
+
   // Digital Signature Modal
   const [signingSignatory, setSigningSignatory] = useState(null); // { tier, role, defaultName }
   const [signatoryTypedName, setSignatoryTypedName] = useState('');
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null);
+  const [isDrawingNewSignature, setIsDrawingNewSignature] = useState(false);
+  const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(true);
   const [isSubmittingSignature, setIsSubmittingSignature] = useState(false);
+
+  // Lock background body scroll when digital signature or endorsement modal is open
+  useEffect(() => {
+    const isModalActive = Boolean(signingSignatory || isEndorsementModalOpen || isUploadModalOpen);
+    if (!isModalActive || typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [signingSignatory, isEndorsementModalOpen, isUploadModalOpen]);
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (signingSignatory && !isSubmittingSignature) setSigningSignatory(null);
+        if (isEndorsementModalOpen && !isSubmittingEndorsement) setIsEndorsementModalOpen(false);
+        if (isUploadModalOpen && !isUploadingMinutes) setIsUploadModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    signingSignatory,
+    isEndorsementModalOpen,
+    isUploadModalOpen,
+    isSubmittingSignature,
+    isSubmittingEndorsement,
+    isUploadingMinutes,
+  ]);
 
   // Debounce timers map
   const debounceTimers = useRef({});
@@ -340,10 +380,43 @@ export default function ActionDoneMatrixTab({
     }
   };
 
+  // Open digital signature modal with intelligent profile prefilling
+  const handleOpenSignModal = useCallback(
+    (signatory) => {
+      setSigningSignatory(signatory);
+      const initialName =
+        signatory.defaultName && signatory.defaultName !== 'Pending Appointment'
+          ? signatory.defaultName
+          : formatFullName(user);
+      setSignatoryTypedName(initialName);
+      if (user?.digitalSignature) {
+        setSignatureDataUrl(user.digitalSignature);
+        setIsDrawingNewSignature(false);
+      } else {
+        setSignatureDataUrl(null);
+        setIsDrawingNewSignature(true);
+      }
+      setSaveSignatureForFuture(true);
+    },
+    [user],
+  );
+
   // Digital Signature Submit
   const handleConfirmSignature = async () => {
-    if (!signatoryTypedName.trim()) {
+    const finalName = (
+      signatoryTypedName ||
+      signingSignatory?.defaultName ||
+      formatFullName(user)
+    ).trim();
+
+    if (!finalName) {
       toast.error('Please type your legal full name.');
+      return;
+    }
+
+    const sigToUse = signatureDataUrl || user?.digitalSignature;
+    if (!sigToUse) {
+      toast.error('Please draw, type, or configure your signature.');
       return;
     }
 
@@ -352,13 +425,24 @@ export default function ActionDoneMatrixTab({
       await projectService.signTieredADM(project._id, {
         tier: signingSignatory.tier,
         role: signingSignatory.role,
-        signatoryName: signatoryTypedName.trim(),
-        signatureDataUrl: 'verified-digital-sign-off',
+        signatoryName: finalName,
+        signatureDataUrl: sigToUse,
       });
 
-      toast.success(`Recorded digital signature for ${signatoryTypedName.trim()}.`);
+      // Persist signature to user profile if user opted to save and doesn't already have one or updated
+      if (saveSignatureForFuture && (!user?.digitalSignature || isDrawingNewSignature)) {
+        try {
+          await userService.updateMe({ digitalSignature: sigToUse });
+          await fetchUser?.();
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      toast.success(`Recorded digital signature for ${finalName}.`);
       setSigningSignatory(null);
       setSignatoryTypedName('');
+      setSignatureDataUrl(null);
       if (onRefresh) onRefresh();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to record signature.');
@@ -836,7 +920,7 @@ export default function ActionDoneMatrixTab({
               canSign={isSecretaryEndorsed && (isUserAdviser || isUserInstructor)}
               isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserAdviser}
               onSign={() =>
-                setSigningSignatory({
+                handleOpenSignModal({
                   tier: 1,
                   role: 'adviser',
                   defaultName: formatFullName(adviser, 'Pending Appointment'),
@@ -855,7 +939,7 @@ export default function ActionDoneMatrixTab({
               canSign={isUserInstructor}
               isLockedBySecretary={false}
               onSign={() =>
-                setSigningSignatory({
+                handleOpenSignModal({
                   tier: 1,
                   role: 'instructor',
                   defaultName: formatFullName(instructor, 'Pending Appointment'),
@@ -887,7 +971,7 @@ export default function ActionDoneMatrixTab({
               canSign={isSecretaryEndorsed && isUserPanelist}
               isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
               onSign={() =>
-                setSigningSignatory({
+                handleOpenSignModal({
                   tier: 2,
                   role: 'panelist',
                   defaultName: formatFullName(
@@ -912,7 +996,7 @@ export default function ActionDoneMatrixTab({
               canSign={isSecretaryEndorsed && isUserPanelist}
               isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
               onSign={() =>
-                setSigningSignatory({
+                handleOpenSignModal({
                   tier: 2,
                   role: 'panelist',
                   defaultName: formatFullName(
@@ -937,7 +1021,7 @@ export default function ActionDoneMatrixTab({
                 canSign={isSecretaryEndorsed && (isUserChair || isUserInstructor)}
                 isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserChair}
                 onSign={() =>
-                  setSigningSignatory({
+                  handleOpenSignModal({
                     tier: 3,
                     role: 'chair',
                     defaultName: formatFullName(
@@ -1026,143 +1110,290 @@ export default function ActionDoneMatrixTab({
       )}
 
       {/* Digital Signature Confirmation Modal */}
-      {signingSignatory && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs no-print"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isSubmittingSignature) {
-              setSigningSignatory(null);
-            }
-          }}
-        >
-          <div className="w-full max-w-md bg-card border border-border shadow-xl rounded-xl p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <PenTool className="h-5 w-5 text-primary" />
-              <h4 className="text-base font-semibold">Official Committee Endorsement</h4>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              You are applying an official digital signature as{' '}
-              <strong className="text-foreground capitalize">{signingSignatory.role}</strong>. This
-              confirms that the revisions across the Action Done Matrix have been verified.
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="sig-name">Signatory Legal Name</Label>
-              <Input
-                id="sig-name"
-                value={signatoryTypedName || signingSignatory.defaultName}
-                onChange={(e) => setSignatoryTypedName(e.target.value)}
-                placeholder="Full Name"
-                disabled={isSubmittingSignature}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSigningSignatory(null)}
-                disabled={isSubmittingSignature}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirmSignature}
-                disabled={isSubmittingSignature}
-                className="gap-1.5"
-              >
-                {isSubmittingSignature ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Recording...
-                  </>
+      {signingSignatory &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="endorsement-modal-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isSubmittingSignature) {
+                setSigningSignatory(null);
+              }
+            }}
+          >
+            <div
+              className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <PenTool className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 id="endorsement-modal-title" className="text-base font-semibold">
+                      Official Committee Endorsement
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Signatory Role:{' '}
+                      <strong className="text-foreground capitalize">
+                        {signingSignatory.role}
+                      </strong>
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSigningSignatory(null)}
+                  disabled={isSubmittingSignature}
+                  className="h-7 w-7 p-0 rounded-md"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Applying your digital signature confirms that the revisions and action items
+                recorded across this Action Done Matrix have been verified against institutional
+                criteria.
+              </p>
+
+              {/* Signatory Legal Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="sig-name" className="text-xs font-medium">
+                  Signatory Legal Full Name
+                </Label>
+                <Input
+                  id="sig-name"
+                  value={signatoryTypedName}
+                  onChange={(e) => setSignatoryTypedName(e.target.value)}
+                  placeholder="Full Legal Name"
+                  disabled={isSubmittingSignature}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              {/* Signature Selector / Canvas */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Official Digital Signature</Label>
+                  {user?.digitalSignature && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDrawingNewSignature((prev) => {
+                          const next = !prev;
+                          if (next) {
+                            setSignatureDataUrl(null);
+                          } else {
+                            setSignatureDataUrl(user.digitalSignature);
+                          }
+                          return next;
+                        });
+                      }}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      {isDrawingNewSignature
+                        ? 'Use Saved Signature'
+                        : 'Draw New / Custom Signature'}
+                    </button>
+                  )}
+                </div>
+
+                {user?.digitalSignature && !isDrawingNewSignature ? (
+                  <div className="rounded-lg border border-border bg-muted/20 p-4 flex flex-col items-center justify-center space-y-2">
+                    <div className="h-14 flex items-center justify-center">
+                      <img
+                        src={user.digitalSignature}
+                        alt="Saved Signature"
+                        className="max-h-12 max-w-[240px] object-contain filter drop-shadow-xs"
+                      />
+                    </div>
+                    <p className="text-xs font-bold uppercase text-foreground">
+                      {signatoryTypedName || formatFullName(user)}
+                    </p>
+                    <Badge
+                      variant="secondary"
+                      className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
+                    >
+                      <CheckCircle2 className="h-3 w-3" /> Configured in Account Settings
+                    </Badge>
+                  </div>
                 ) : (
-                  <>
-                    <ShieldCheck className="h-3.5 w-3.5" /> Sign & Endorse
-                  </>
+                  <div className="space-y-3">
+                    <SignaturePad
+                      defaultSignatoryName={signatoryTypedName || formatFullName(user)}
+                      onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
+                      onClear={() => setSignatureDataUrl(null)}
+                      height={140}
+                    />
+
+                    {/* Save to Settings Checkbox */}
+                    <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={saveSignatureForFuture}
+                        onChange={(e) => setSaveSignatureForFuture(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      />
+                      <span className="text-xs text-muted-foreground select-none">
+                        Save this signature to my account settings for future one-click endorsements
+                      </span>
+                    </label>
+                  </div>
                 )}
-              </Button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSigningSignatory(null)}
+                  disabled={isSubmittingSignature}
+                  className="h-8 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmSignature}
+                  disabled={isSubmittingSignature || (!signatureDataUrl && !user?.digitalSignature)}
+                  className="gap-1.5 h-8 text-xs font-medium"
+                >
+                  {isSubmittingSignature ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Recording Endorsement...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5" /> Sign & Endorse
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Secretary Endorsement Confirmation Modal */}
-      {isEndorsementModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs no-print"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isSubmittingEndorsement) {
-              setIsEndorsementModalOpen(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-md bg-card border border-border shadow-xl rounded-xl p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <h4 className="text-base font-semibold">Committee Secretary Endorsement</h4>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              As the Committee Secretary, your endorsement certifies that the proponent team has
-              satisfactorily addressed all panel recommendations in accordance with the defense
-              proceedings. This will unlock the digital signatures for the panel members and
-              adviser.
-            </p>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="sec-name">Signatory Full Legal Name</Label>
-                <Input
-                  id="sec-name"
-                  value={endorsementTypedName || formatFullName(user, 'Committee Secretary')}
-                  onChange={(e) => setEndorsementTypedName(e.target.value)}
-                  placeholder="Secretary Full Name"
+      {isEndorsementModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="secretary-endorsement-modal-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isSubmittingEndorsement) {
+                setIsEndorsementModalOpen(false);
+              }
+            }}
+          >
+            <div
+              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 id="secretary-endorsement-modal-title" className="text-base font-semibold">
+                      Committee Secretary Endorsement
+                    </h4>
+                    <p className="text-xs text-muted-foreground">Compliance Verification Gate</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEndorsementModalOpen(false)}
                   disabled={isSubmittingEndorsement}
-                />
+                  className="h-7 w-7 p-0 rounded-md"
+                >
+                  ✕
+                </Button>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sec-notes">Compliance Remarks / Notes (Optional)</Label>
-                <textarea
-                  id="sec-notes"
-                  value={endorsementNotes}
-                  onChange={(e) => setEndorsementNotes(e.target.value)}
-                  placeholder="e.g., All revisions verified against manuscript and source code."
-                  rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                As the Committee Secretary, your endorsement certifies that the proponent team has
+                satisfactorily addressed all panel recommendations in accordance with the defense
+                proceedings. This will unlock digital signatures for the panel members and adviser.
+              </p>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="sec-name" className="text-xs font-medium">
+                    Signatory Full Legal Name
+                  </Label>
+                  <Input
+                    id="sec-name"
+                    value={endorsementTypedName || formatFullName(user, 'Committee Secretary')}
+                    onChange={(e) => setEndorsementTypedName(e.target.value)}
+                    placeholder="Secretary Full Name"
+                    disabled={isSubmittingEndorsement}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sec-notes" className="text-xs font-medium">
+                    Compliance Remarks / Notes (Optional)
+                  </Label>
+                  <textarea
+                    id="sec-notes"
+                    value={endorsementNotes}
+                    onChange={(e) => setEndorsementNotes(e.target.value)}
+                    placeholder="e.g., All revisions verified against manuscript and source code."
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isSubmittingEndorsement}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEndorsementModalOpen(false)}
                   disabled={isSubmittingEndorsement}
-                />
+                  className="h-8 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmEndorsement}
+                  disabled={isSubmittingEndorsement}
+                  className="gap-1.5 h-8 text-xs font-medium"
+                >
+                  {isSubmittingEndorsement ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Endorsing...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEndorsementModalOpen(false)}
-                disabled={isSubmittingEndorsement}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirmEndorsement}
-                disabled={isSubmittingEndorsement}
-                className="gap-1.5"
-              >
-                {isSubmittingEndorsement ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Endorsing...
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Live Defense Minutes Modal */}
       <LiveDefenseMinutesModal
@@ -1181,7 +1412,11 @@ export default function ActionDoneMatrixTab({
 }
 
 /**
- * SignatoryCard component displaying signature line, printed name, designation, and badge
+ * SignatoryCard component displaying signature image/action, printed name, underline, designation, and verified badge.
+ * Strictly adheres to institutional academic hierarchy:
+ * 1. Top: Digital Signature image + micro audit trail stamp (or "Sign Digitally" action when pending)
+ * 2. Middle: Bold printed legal name
+ * 3. Bottom: Horizontal underline, official role subtitle below the line, and Verified badge
  */
 function SignatoryCard({
   name,
@@ -1192,62 +1427,82 @@ function SignatoryCard({
   isLockedBySecretary,
 }) {
   const isSigned = Boolean(signatureState?.signed);
+  const signatureDataUrl = signatureState?.signatureDataUrl;
+  const signedAt = signatureState?.signedAt ? new Date(signatureState.signedAt) : null;
+  const formattedDate = signedAt
+    ? signedAt.toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+  const auditId = signatureState?.userId
+    ? String(signatureState.userId).slice(-6).toUpperCase()
+    : 'SIG-OFFICIAL';
 
   return (
-    <div className="flex flex-col items-center justify-end space-y-1.5 min-h-[90px]">
-      {/* Signature Preview or Line */}
-      <div className="h-10 flex items-end justify-center w-full max-w-[280px]">
+    <div className="flex flex-col items-center justify-end space-y-1 min-h-[110px]">
+      {/* 1. TOP: Digital Signature Image + Micro Audit Trail Stamp (or Sign Action) */}
+      <div className="h-14 flex flex-col items-center justify-center w-full max-w-[280px]">
         {isSigned ? (
-          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-serif italic text-base">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span className="border-b border-black dark:border-border print:border-black pb-0.5">
-              {signatureState.signatoryName || name}
+          <div className="flex flex-col items-center justify-center space-y-0.5">
+            {signatureDataUrl && signatureDataUrl.startsWith('data:image') ? (
+              <img
+                src={signatureDataUrl}
+                alt={`Digital signature of ${name}`}
+                className="max-h-10 max-w-[220px] object-contain filter drop-shadow-xs"
+              />
+            ) : (
+              <span className="font-serif italic text-base text-primary dark:text-primary-foreground">
+                {signatureState?.signatoryName || name}
+              </span>
+            )}
+            <span className="text-[9px] text-muted-foreground font-mono tracking-tight print:hidden">
+              Digitally signed on {formattedDate} | Ref: {auditId}
             </span>
           </div>
+        ) : canSign ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSign}
+            className="h-7 text-xs px-3 text-primary border-primary/50 hover:bg-primary/10 gap-1.5 shadow-xs no-print"
+          >
+            <PenTool className="h-3 w-3" /> Sign Digitally
+          </Button>
         ) : (
-          <div className="w-full border-b border-black dark:border-border print:border-black" />
+          <div className="h-7" />
         )}
       </div>
 
-      {/* Printed Name (Bold, Uppercase, Underlined) */}
+      {/* 2. MIDDLE: Bold Printed Legal Name */}
       <p className="font-bold text-xs sm:text-sm uppercase tracking-wide text-foreground print:text-black">
         {name ? String(name).toUpperCase() : ''}
       </p>
 
-      {/* Official Designation */}
+      {/* 3. BOTTOM: Horizontal Underline */}
+      <div className="w-full max-w-[280px] border-b border-black dark:border-border print:border-black my-1" />
+
+      {/* Subtitle / Official Designation Below Underline */}
       <p className="text-[11px] sm:text-xs text-muted-foreground print:text-neutral-700">
         {designation}
       </p>
 
-      {/* Status & Trigger Badge (Hidden on print) */}
-      <div className="pt-1 no-print">
+      {/* Status Badges (Hidden on print) */}
+      <div className="pt-0.5 no-print">
         {isSigned ? (
           <Badge
             variant="secondary"
             className="text-[10px] h-5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-500/30 gap-1"
           >
             <CheckCircle2 className="h-2.5 w-2.5" />
-            Signed{' '}
-            {signatureState?.signedAt ? new Date(signatureState.signedAt).toLocaleDateString() : ''}
+            Verified
           </Badge>
         ) : isLockedBySecretary ? (
           <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
             <Lock className="h-2.5 w-2.5" /> Awaiting Secretary Endorsement
           </span>
-        ) : canSign ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSign}
-            className="h-6 text-[10px] px-2 text-primary border-primary/40 hover:bg-primary/10 gap-1"
-          >
-            <PenTool className="h-2.5 w-2.5" /> Sign Digitally
-          </Button>
-        ) : (
+        ) : !canSign ? (
           <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
             <Clock className="h-2.5 w-2.5" /> Pending Signature
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );

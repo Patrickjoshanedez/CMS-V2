@@ -583,7 +583,7 @@ class StorageService {
 
       // Replace internal endpoint with public URL if configured (for ngrok/external access)
       if (publicUrl && env.S3_ENDPOINT) {
-        // Replace the internal endpoint (e.g., http://localstack:4566) with the public URL
+        // Replace the internal endpoint (e.g., http://localstack:4566 or http://minio:9000) with the public URL
         // Handle both Docker internal URLs and localhost URLs
         const internalEndpoint = env.S3_ENDPOINT.trim();
         if (signedUrl.startsWith(internalEndpoint)) {
@@ -591,7 +591,14 @@ class StorageService {
         } else if (signedUrl.includes('localstack:')) {
           // Handle Docker internal hostname when S3_ENDPOINT uses localhost
           signedUrl = signedUrl.replace(/http:\/\/localstack:\d+/, publicUrl);
+        } else if (signedUrl.includes('minio:')) {
+          signedUrl = signedUrl.replace(/http:\/\/minio:\d+/, publicUrl);
         }
+      } else if (signedUrl.includes('minio:9000')) {
+        // Automatically translate Docker internal minio:9000 to host-accessible localhost:9000
+        signedUrl = signedUrl.replace('http://minio:9000', 'http://localhost:9000');
+      } else if (signedUrl.includes('localstack:4566')) {
+        signedUrl = signedUrl.replace('http://localstack:4566', 'http://localhost:4566');
       }
 
       return signedUrl;

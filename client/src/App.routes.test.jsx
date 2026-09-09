@@ -75,4 +75,72 @@ describe('App role-protected routes', () => {
 
     view.unmount();
   });
+
+  it('shows 403 forbidden page for student navigating to /secretary-review', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    mockState.user = { _id: 'student-1', role: ROLES.STUDENT };
+
+    act(() => {
+      root.render(
+        <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/secretary-review']}>
+          <Routes>
+            <Route
+              path="/secretary-review"
+              element={
+                <RoleRoute
+                  allowedRoles={[ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}
+                >
+                  <div>Secretary Review Content</div>
+                </RoleRoute>
+              }
+            />
+            <Route path="/forbidden" element={<div>403 Forbidden</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('403 Forbidden');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('allows faculty navigating to /secretary-review', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    mockState.user = { _id: 'faculty-1', role: ROLES.FACULTY };
+
+    act(() => {
+      root.render(
+        <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/secretary-review']}>
+          <Routes>
+            <Route
+              path="/secretary-review"
+              element={
+                <RoleRoute
+                  allowedRoles={[ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}
+                >
+                  <div>Secretary Review Content</div>
+                </RoleRoute>
+              }
+            />
+            <Route path="/forbidden" element={<div>403 Forbidden</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('Secretary Review Content');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });

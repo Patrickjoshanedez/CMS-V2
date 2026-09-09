@@ -40,6 +40,8 @@ class DashboardService {
         return this._getAdviserStats(user);
       case ROLES.PANELIST:
         return this._getPanelistStats(user);
+      case ROLES.FACULTY:
+        return this._getFacultyStats(user);
       default:
         return { role: user.role, message: 'No dashboard data available.' };
     }
@@ -366,6 +368,7 @@ class DashboardService {
       })),
       pendingReviews: pendingReviews.map((s) => ({
         _id: s._id,
+        projectId: s.projectId?._id || s.projectId,
         chapter: s.chapter,
         version: s.version,
         status: s.status,
@@ -903,6 +906,168 @@ class DashboardService {
           .length,
         pendingEvaluations,
       },
+      recentNotifications,
+    };
+  }
+
+  /**
+   * Faculty dashboard — unified multi-hat aggregation across Adviser, Panelist, and Secretary duties.
+   */
+  async _getFacultyStats(user) {
+    const userId = user._id;
+
+    // 1. Adviser query
+    const adviserProjectIds = await Project.find({ adviserId: userId, isArchived: { $ne: true } })
+      .select('_id')
+      .lean()
+      .then((projects) => projects.map((p) => p._id));
+
+    // 2. Panelist query
+    const panelistFilter = {
+      $or: [{ panelistIds: userId }, { 'panelists.userId': userId }],
+      isArchived: { $ne: true },
+    };
+
+    // 3. Secretary query
+    const secretaryFilter = {
+      $or: [{ secretaryId: userId }, { 'panelists.userId': userId, 'panelists.role': 'secretary' }],
+      isArchived: { $ne: true },
+    };
+
+    const [
+      adviserProjects,
+      pendingReviews,
+      panelProjects,
+      pendingEvaluations,
+      secretaryProjects,
+      recentNotifications,
+    ] = await Promise.all([
+      Project.find({ adviserId: userId, isArchived: { $ne: true } })
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      adviserProjectIds.length > 0
+        ? Submission.find({
+            projectId: { $in: adviserProjectIds },
+            status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
+          })
+            .populate('projectId', 'title isArchived projectStatus')
+            .sort({ createdAt: -1 })
+            .lean()
+        : Promise.resolve([]),
+      Project.find(panelistFilter)
+        .populate('teamId', 'name members')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      Evaluation.countDocuments({
+        panelistId: userId,
+        status: EVALUATION_STATUSES.DRAFT,
+      }),
+      Project.find(secretaryFilter)
+        .populate('teamId', 'name members')
+        .populate('adviserId', 'firstName lastName fullName email')
+        .sort({ updatedAt: -1 })
+        .lean(),
+      Notification.find({ userId }).sort({ createdAt: -1 }).limit(10).lean(),
+    ]);
+
+    // Secretary metrics
+    const pendingSecretaryMinutes = secretaryProjects.filter(
+      (p) =>
+        !p.actionDoneMatrix ||
+        p.actionDoneMatrix.length === 0 ||
+        p.admStatus === 'awaiting_minutes_upload' ||
+        p.admStatus === 'not_started',
+    ).length;
+
+    const pendingSecretaryEndorsement = secretaryProjects.filter(
+      (p) =>
+        p.actionDoneMatrix &&
+        p.actionDoneMatrix.length > 0 &&
+        !p.admSignatures?.secretary?.endorsed,
+    ).length;
+
+    const endorsedSecretaryMatrices = secretaryProjects.filter(
+      (p) => p.admSignatures?.secretary?.endorsed === true,
+    ).length;
+
+    return {
+      role: ROLES.FACULTY,
+      counts: {
+        assignedProjects: adviserProjects.length,
+        adviserProjects: adviserProjects.length,
+        activeProjects: adviserProjects.filter(
+          (p) => p.projectStatus !== PROJECT_STATUSES.ARCHIVED && p.isArchived !== true,
+        ).length,
+        activeAdviserProjects: adviserProjects.filter(
+          (p) => p.projectStatus !== PROJECT_STATUSES.ARCHIVED && p.isArchived !== true,
+        ).length,
+        pendingReviews: pendingReviews.length,
+        panelAssignments: panelProjects.length,
+        pendingEvaluations,
+        secretaryProjects: secretaryProjects.length,
+        pendingSecretaryMinutes,
+        pendingSecretaryEndorsement,
+        endorsedSecretaryMatrices,
+      },
+      assignedProjects: adviserProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        capstoneType: p.capstoneType,
+        teamName: p.teamId?.name || 'Unknown Team',
+        memberCount: p.teamId?.members?.length || 0,
+        githubUrl: p.teamId?.githubUrl || '',
+      })),
+      adviserProjects: adviserProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        capstoneType: p.capstoneType,
+        teamName: p.teamId?.name || 'Unknown Team',
+        memberCount: p.teamId?.members?.length || 0,
+        githubUrl: p.teamId?.githubUrl || '',
+      })),
+      pendingReviews: pendingReviews.map((s) => ({
+        _id: s._id,
+        projectId: s.projectId?._id || s.projectId,
+        chapter: s.chapter,
+        version: s.version,
+        status: s.status,
+        projectTitle: s.projectId?.title || 'Unknown',
+        isArchived: s.projectId?.isArchived || false,
+        projectStatus: s.projectId?.projectStatus || null,
+        fileName: s.fileName,
+        createdAt: s.createdAt,
+      })),
+      panelAssignments: panelProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown Team',
+        memberCount: p.teamId?.members?.length || 0,
+      })),
+      secretaryProjects: secretaryProjects.map((p) => ({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: p.capstonePhase,
+        teamName: p.teamId?.name || 'Unknown Team',
+        memberCount: p.teamId?.members?.length || 0,
+        admStatus: p.admStatus || 'not_started',
+        admSignatures: p.admSignatures || {},
+        actionDoneMatrixCount: p.actionDoneMatrix?.length || 0,
+        adviserName: p.adviserId
+          ? `${p.adviserId.firstName || ''} ${p.adviserId.lastName || ''}`.trim()
+          : 'Unassigned',
+      })),
       recentNotifications,
     };
   }

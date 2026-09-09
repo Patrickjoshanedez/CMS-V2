@@ -513,7 +513,7 @@ class ProjectService {
       .populate({
         path: 'teamId',
         select:
-          'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+          'name leaderId members memberRoles academicYear courseId sectionId adviserId secretaryId panelistIds googleDocUrl githubUrl',
         populate: [
           {
             path: 'leaderId',
@@ -522,6 +522,27 @@ class ProjectService {
               path: 'instructorId',
               select: 'firstName middleName lastName email profilePicture',
             },
+          },
+          {
+            path: 'members',
+            select:
+              'firstName middleName lastName email profilePicture role proponentRole capstoneRole',
+          },
+          {
+            path: 'memberRoles.userId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'adviserId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'secretaryId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'panelistIds',
+            select: 'firstName middleName lastName email profilePicture',
           },
         ],
       })
@@ -552,7 +573,7 @@ class ProjectService {
       }
 
       const isTeamMember = project.teamId?.members?.some(
-        (memberId) => memberId.toString() === requester._id.toString(),
+        (member) => (member?._id || member).toString() === requester._id.toString(),
       );
 
       const isArchived = project.isArchived === true || project.projectStatus === 'archived';
@@ -595,7 +616,7 @@ class ProjectService {
       {
         path: 'teamId',
         select:
-          'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+          'name leaderId members memberRoles academicYear courseId sectionId adviserId secretaryId panelistIds googleDocUrl githubUrl',
         populate: [
           {
             path: 'leaderId',
@@ -604,6 +625,27 @@ class ProjectService {
               path: 'instructorId',
               select: 'firstName middleName lastName email profilePicture',
             },
+          },
+          {
+            path: 'members',
+            select:
+              'firstName middleName lastName email profilePicture role proponentRole capstoneRole',
+          },
+          {
+            path: 'memberRoles.userId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'adviserId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'secretaryId',
+            select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'panelistIds',
+            select: 'firstName middleName lastName email profilePicture',
           },
         ],
       },
@@ -659,6 +701,7 @@ class ProjectService {
       search,
       adviserId,
       panelistId,
+      secretaryId,
       excludeArchived,
     } = query;
     const skip = (page - 1) * limit;
@@ -677,10 +720,25 @@ class ProjectService {
       }
     }
 
+    const andClauses = [];
+    if (secretaryId) {
+      andClauses.push({
+        $or: [{ secretaryId }, { 'panelists.userId': secretaryId, 'panelists.role': 'secretary' }],
+      });
+    }
+
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escaped, 'i');
-      filter.$or = [{ title: regex }, { abstract: regex }, { keywords: regex }];
+      andClauses.push({
+        $or: [{ title: regex }, { abstract: regex }, { keywords: regex }],
+      });
+    }
+
+    if (andClauses.length === 1) {
+      Object.assign(filter, andClauses[0]);
+    } else if (andClauses.length > 1) {
+      filter.$and = andClauses;
     }
 
     const [projects, total] = await Promise.all([
@@ -691,7 +749,7 @@ class ProjectService {
         .populate({
           path: 'teamId',
           select:
-            'name leaderId members academicYear courseId sectionId adviserId secretaryId panelistIds',
+            'name leaderId members memberRoles academicYear courseId sectionId adviserId secretaryId panelistIds googleDocUrl githubUrl',
           populate: [
             {
               path: 'leaderId',
@@ -700,6 +758,27 @@ class ProjectService {
                 path: 'instructorId',
                 select: 'firstName middleName lastName email profilePicture',
               },
+            },
+            {
+              path: 'members',
+              select:
+                'firstName middleName lastName email profilePicture role proponentRole capstoneRole',
+            },
+            {
+              path: 'memberRoles.userId',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+            {
+              path: 'adviserId',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+            {
+              path: 'secretaryId',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+            {
+              path: 'panelistIds',
+              select: 'firstName middleName lastName email profilePicture',
             },
           ],
         })
@@ -815,16 +894,63 @@ class ProjectService {
   async updateTitle(projectId, userId, data) {
     const project = await this._getProjectOrFail(projectId);
 
-    if (project.titleStatus !== TITLE_STATUSES.DRAFT) {
-      throw new AppError('Title can only be edited while in draft status.', 400, 'TITLE_NOT_DRAFT');
+    if (project.titleStatus === TITLE_STATUSES.APPROVED) {
+      throw new AppError(
+        'This title has been approved and is locked. Submit a modification request to make changes.',
+        403,
+        'TITLE_LOCKED',
+      );
     }
 
     await this._assertTeamLeader(project.teamId, userId);
 
     // Merge updates
-    if (data.title !== undefined) project.title = data.title;
+    if (Array.isArray(data.titleProposals) && data.titleProposals.length > 0) {
+      const normalizedTitleProposals = this._normalizeTitleProposals(data.titleProposals);
+      const proposalTitles = normalizedTitleProposals.map((p) => p.title);
+      project.titleProposals = proposalTitles;
+      project.titleProposalMetadata = normalizedTitleProposals;
+      project.title = data.title || proposalTitles[0];
+    } else if (data.title !== undefined) {
+      project.title = data.title;
+    }
+
     if (data.abstract !== undefined) project.abstract = data.abstract;
     if (data.keywords !== undefined) project.keywords = data.keywords;
+    if (Array.isArray(data.sdgTags) && data.sdgTags.length > 0) {
+      project.sdgTags = [...new Set(data.sdgTags)];
+    }
+
+    // Support single-proposal pitch deck updates if proposalId is provided
+    if (data.proposalId !== undefined && Array.isArray(project.titleProposalMetadata)) {
+      const targetIndex = project.titleProposalMetadata.findIndex(
+        (m, idx) => String(m._id) === String(data.proposalId) || idx === Number(data.proposalId),
+      );
+      if (targetIndex !== -1) {
+        if (data.title) {
+          project.titleProposalMetadata[targetIndex].title = data.title;
+          if (
+            Array.isArray(project.titleProposals) &&
+            project.titleProposals[targetIndex] !== undefined
+          ) {
+            project.titleProposals[targetIndex] = data.title;
+          }
+        }
+        if (data.description) {
+          project.titleProposalMetadata[targetIndex].description = data.description;
+        }
+        if (data.pitchDeck && typeof data.pitchDeck === 'object') {
+          project.titleProposalMetadata[targetIndex].pitchDeck = data.pitchDeck;
+        }
+      }
+    }
+
+    // Submit / Resubmit transitions
+    if (data.submit || data.resubmit || project.titleStatus === TITLE_STATUSES.REVISION_REQUIRED) {
+      project.titleStatus = TITLE_STATUSES.SUBMITTED;
+      project.rejectionReason = null;
+    }
+
     await project.save();
 
     // Run similarity check on updated title
@@ -1380,7 +1506,7 @@ class ProjectService {
     const project = await this._getProjectOrFail(projectId);
 
     const adviser = await User.findById(data.adviserId);
-    if (!adviser || adviser.role !== ROLES.ADVISER) {
+    if (!adviser || (adviser.role !== ROLES.ADVISER && adviser.role !== ROLES.FACULTY)) {
       throw new AppError('The specified user is not a valid adviser.', 400, 'INVALID_ADVISER');
     }
 
@@ -1566,8 +1692,9 @@ class ProjectService {
 
     if (
       !applyToSection &&
-      requester?.role === ROLES.ADVISER &&
-      (!project.adviserId || project.adviserId.toString() !== requesterId)
+      [ROLES.ADVISER, ROLES.FACULTY].includes(requester?.role) &&
+      (!project.adviserId ||
+        String(project.adviserId?._id || project.adviserId) !== String(requesterId))
     ) {
       throw new AppError(
         'You can only update deadlines for projects assigned to you.',

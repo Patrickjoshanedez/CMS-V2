@@ -126,20 +126,28 @@ Every agent operates strictly within the ASDLC v2.0 lifecycle:
 * **Docker Container Dependency Synchronization**: The Vite dev server runs in Docker container `cms-client`. When installing npm packages (`npm install --workspace=client <pkg>`), also install inside the container (`docker exec cms-client npm install --workspace=client <pkg>`) and restart it (`docker restart cms-client`) to prevent Vite import resolution overlay failures.
 * **Defensive Entity Prefix Normalization**: Entity fields in databases and seeds may already contain classification prefixes (e.g. `team.name = "Team Gamma"`). Formatting logic must sanitize raw strings with regex (e.g. `team.name.replace(/^Team\s+/i, '').trim()`) to prevent duplicate prefix bugs such as `"Team Team Gamma"`.
 * **16:9 Presentation Canvas & Overflow Isolation**: Slide decks and presentation previews must adhere to a strict 16:9 widescreen canvas (`aspect-video`, `LAYOUT_16x9`), using flex column layout with space distribution (`flex flex-col justify-between`), responsive typography (`text-sm sm:text-base lg:text-lg`), dedicated navigation bars external to slide content, and keyboard listeners guarded against active text input focus.
-
+* **Two-Minute Test Timeout & Hanging Diagnostic Protocol**: Any test suite, Playwright visual audit, or automated command that exceeds **120 seconds (2 minutes)** is strictly flagged as a runaway or hanging process. The agent MUST immediately terminate/kill the task, halt retries, and perform a root-cause diagnostic analysis before re-running:
+  * **CMS-V2 Real-Time Network Polling (`networkidle` Ban)**: Never use `{ waitUntil: 'networkidle' }` or `waitForLoadState('networkidle')`. CMS-V2's real-time notification poller (`/api/notifications?page=1&limit=1`) and WebSockets keep network traffic continuously active, causing `networkidle` to hang indefinitely until timeout. Always use `waitUntil: 'domcontentloaded'` with targeted, state-based locators.
+  * **Explicit Scratchpad Timeouts & Process Cleanup**: All automation and test scripts in `scratch/` must configure a hard timeout safety net (`setTimeout(() => { console.error('Watchdog 110s timeout'); process.exit(1); }, 110000)`), ensure `browser.close()` runs in `finally`, and explicitly invoke `process.exit(0)` on completion so node background workers never block agent turns.
+  * **Proposal Phase Display Title Divergence**: Projects in draft/proposal phase render as `${teamName} Title Proposal` in header components rather than `project.title`. Tests must match dynamic headers or target unambiguous semantic test IDs rather than hardcoding static proposal titles.
+* **ASDLC Multi-Scenario 3-Layer Task Architecture**:
+  To eliminate "hallucinated progress" and prevent combinatorial state explosion ($O(2^N)$) across multi-scenario executions, agents MUST configure tasks under the 3-Layer Task Architecture:
+  * **Layer 1 (Hierarchical Statecharts & Parallel Orthogonal Regions)**: Formal Harel tuple $M = (S, \Sigma, \delta, s_0, F)$. Group related scenario steps into composite OR-superstates (with child-to-parent event bubbling) and parallel AND-orthogonal regions (evaluating scenarios concurrently with linear state bounds $O(N)$). Preserve deep ($H^*$) and shallow ($H$) history states so agents pause (e.g. for HITL approval or rate limits) and resume without re-running completed scenarios.
+  * **Layer 2 (Durable Checkpoint Engine & Progress Delta Circuit Breaker)**: Persist task state outside the LLM prompt window in `.agents/ptss/tasks/<scenario_id>.json` carrying 6 explicit attributes: `active_scenario_id`, `completed_subgoals`, `remaining_subgoals`, `last_action_result`, `progress_delta`, `loop_count`. On every iteration, calculate $\text{progress\_delta} = |\text{remaining\_subgoals}_{t-1}| - |\text{remaining\_subgoals}_t|$. If $\text{progress\_delta} == 0$ for two consecutive steps (`loop_count >= 2`), the circuit breaker trips, halting execution and transitioning into `Reflecting` or `Human-Escalation`.
+  * **Layer 3 (DAG Dependencies & Guard Predicates)**: Prerequisite paths structured as a Directed Acyclic Graph (DAG) topologically sorted before dispatching tools for deterministic, deadlock-free execution. Boolean guard predicates simplified via De Morgan's reduction ($\neg (E_{\text{fail}} \lor E_{\text{timeout}}) \equiv \neg E_{\text{fail}} \land \neg E_{\text{timeout}}$) ensuring transitions fire only on verified zero-error signals. Employ standard execution topologies: T2 Route (Classifier), T3 Parallel Fan-Out, and T4 Orchestrator-Worker.
 
 ---
 
 ## 9. SKILLS DICTIONARY & HERMES SELF-IMPROVING PIPELINE
 
-The workspace houses **64 verified cognitive skills** under `.agents/skills/`. This catalog forms the authoritative **Skills Dictionary**.
+The workspace houses **65 verified cognitive skills** under `.agents/skills/`. This catalog forms the authoritative **Skills Dictionary**.
 
 ### Mandatory First-Use Contract
 For any task touching a specialized domain, agents **MUST** inspect and adhere to the matching skill before planning implementation or modifying files:
 * **Backend Architecture & APIs**: `senior-backend`, `mongoose-mongodb`
 * **Frontend UI, Layout & State**: `frontend-patterns`, `frontend-specialist`, `zustand`
 * **Design Polish & Aesthetics**: `i-frontend-design`, `ui-design-principles`, `i-polish`, `i-colorize`, `i-arrange`
-* **Academic Capstone Lifecycle**: `capstone-lifecycle-orchestrator`
+* **Academic Capstone Lifecycle**: `capstone-lifecycle-orchestrator`, `asdlc-task-orchestrator`
 * **Verification & Test Loops**: `verification-loop`, `anti-regression-and-ci-governance`
 * **Production & Infrastructure**: `sre-engineer`, `docker-compose-production`, `devops-iac-engineer`
 * **Cognitive Purity & Anti-Slop**: `anti-slop`

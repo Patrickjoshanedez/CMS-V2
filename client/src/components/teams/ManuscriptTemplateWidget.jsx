@@ -95,7 +95,9 @@ export function ManuscriptTemplateWidget({
 
   // STATE 2: UNLOCKED (Title Approved by Panel/Instructor)
   const isGoogleDocs = effectiveTemplate.type === 'google_docs';
-  const url = effectiveTemplate.url || '#';
+  const rawUrl = effectiveTemplate.url || '#';
+  const copyUrl = rawUrl.replace(/\/(edit|preview)(\?.*)?$/, '/copy$2');
+  const targetUrl = copyUrl.includes('/copy') ? copyUrl : `${copyUrl.replace(/\/$/, '')}/copy`;
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5 transition-colors hover:border-primary/50">
@@ -128,7 +130,7 @@ export function ManuscriptTemplateWidget({
           <Button
             size="sm"
             className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs"
-            onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(targetUrl, '_blank', 'noopener,noreferrer')}
           >
             <Sparkles className="h-3.5 w-3.5" /> Use Google Docs Copy
             <ExternalLink className="h-3 w-3 ml-0.5" />
@@ -137,7 +139,7 @@ export function ManuscriptTemplateWidget({
           <Button
             size="sm"
             className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs"
-            onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open(rawUrl, '_blank', 'noopener,noreferrer')}
           >
             <Download className="h-3.5 w-3.5" /> Download .DOCX Template
           </Button>

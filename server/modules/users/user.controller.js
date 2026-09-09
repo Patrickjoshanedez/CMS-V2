@@ -21,6 +21,22 @@ export const uploadAvatar = catchAsync(async (req, res) => {
   });
 });
 
+/** GET /api/users/:userId/avatar — Stream profile picture directly */
+export const getAvatar = catchAsync(async (req, res) => {
+  const { buffer, mimeType, updatedAt } = await userService.getAvatar(req.params.userId);
+
+  const eTag = `"${req.params.userId}-${new Date(updatedAt).getTime()}"`;
+  if (req.headers['if-none-match'] === eTag) {
+    return res.status(HTTP_STATUS.NOT_MODIFIED).end();
+  }
+
+  res.setHeader('Content-Type', mimeType || 'image/jpeg');
+  res.setHeader('Content-Length', buffer.length);
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600');
+  res.setHeader('ETag', eTag);
+  return res.end(buffer);
+});
+
 /** GET /api/users/instructors — List all instructors (any authenticated user) */
 export const listInstructors = catchAsync(async (req, res) => {
   const { instructors } = await userService.listInstructors();

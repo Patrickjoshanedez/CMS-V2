@@ -183,6 +183,52 @@ export const getViewUrl = catchAsync(async (req, res) => {
   });
 });
 
+/** GET /api/submissions/:submissionId/file — Stream submission file directly */
+export const getSubmissionFile = catchAsync(async (req, res) => {
+  const { buffer, fileName, fileType } = await submissionService.getSubmissionFileBuffer(
+    req.params.submissionId,
+    req.user._id,
+  );
+
+  const isDownload = req.query?.download === 'true' || req.query?.download === '1';
+  const disposition = isDownload ? 'attachment' : 'inline';
+
+  res.setHeader('Content-Type', fileType || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `${disposition}; filename="${encodeURIComponent(fileName)}"`,
+  );
+  res.setHeader('Content-Length', buffer.length);
+  return res.end(buffer);
+});
+
+/** GET /api/submissions/:submissionId/preview-content — Get rendered preview content (HTML for docx, metadata for pdf) */
+export const getSubmissionPreviewContent = catchAsync(async (req, res) => {
+  const preview = await submissionService.getSubmissionPreviewContent(
+    req.params.submissionId,
+    req.user._id,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: preview,
+  });
+});
+
+/** GET /api/submissions/:submissionId/revision-diff — Compare submission text with previous version */
+export const getSubmissionRevisionDiff = catchAsync(async (req, res) => {
+  const diffData = await submissionService.getSubmissionRevisionDiff(
+    req.params.submissionId,
+    req.user._id,
+    req.query?.compareWithId,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: diffData,
+  });
+});
+
 /** GET /api/submissions/:submissionId/google-comments — Get Google Docs comments for synced doc */
 export const getGoogleDocComments = catchAsync(async (req, res) => {
   const commentsData = await submissionService.getGoogleDocComments(

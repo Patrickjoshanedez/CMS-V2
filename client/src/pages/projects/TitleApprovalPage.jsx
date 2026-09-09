@@ -423,7 +423,19 @@ export default function TitleApprovalPage() {
                 <ChevronLeft className="h-3.5 w-3.5" />
                 Back to My Capstone
               </Button>
-              {isApproved ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/project/create?edit=true&projectId=${project?._id || ''}`, {
+                    state: { edit: true, projectId: project?._id, project },
+                  })
+                }
+                className="gap-2 text-xs border-border/80"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-primary" />
+                Update Proposals
+              </Button>
+              {isApproved && (
                 <Button
                   onClick={() => navigate('/project?tab=capstone_2')}
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
@@ -431,15 +443,6 @@ export default function TitleApprovalPage() {
                   <Award className="h-4 w-4" />
                   Proceed to Capstone 2 Workspace
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/project/create')}
-                  className="gap-2 text-xs border-border/80"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-primary" />
-                  Update Proposals
                 </Button>
               )}
             </div>

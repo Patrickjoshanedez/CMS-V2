@@ -92,6 +92,8 @@ export function TabsTrigger({
     <button
       type="button"
       role="tab"
+      data-state={isActive ? 'active' : 'inactive'}
+      data-disabled={locked ? 'true' : undefined}
       aria-selected={isActive}
       aria-disabled={locked}
       title={locked ? lockedReason : undefined}

@@ -27,189 +27,189 @@ import {
 const ACTION_CONFIG = {
   'project.created': {
     icon: FileText,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Project Created',
   },
   'project.title_submitted': {
     icon: FileText,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Title Submitted',
   },
   'project.title_updated': {
     icon: FileText,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Title Updated',
   },
   'project.title_revised': {
     icon: RotateCcw,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Title Revised',
   },
   'project.title_approved': {
     icon: CheckCircle2,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10',
     label: 'Title Approved',
   },
   'project.title_rejected': {
     icon: XCircle,
-    color: 'text-red-400',
-    bg: 'bg-red-400/10',
+    color: 'text-red-600 dark:text-red-400',
+    bg: 'bg-red-500/10',
     label: 'Title Rejected',
   },
   'project.title_modification_requested': {
     icon: AlertCircle,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Modification Requested',
   },
   'project.title_modification_resolved': {
     icon: CheckCircle2,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10',
     label: 'Modification Resolved',
   },
   'project.title_proposal_commented': {
     icon: ClipboardList,
-    color: 'text-sky-400',
-    bg: 'bg-sky-400/10',
+    color: 'text-sky-600 dark:text-sky-400',
+    bg: 'bg-sky-500/10',
     label: 'Title Comment Added',
   },
   'project.adviser_assigned': {
     icon: UserPlus,
-    color: 'text-violet-400',
-    bg: 'bg-violet-400/10',
+    color: 'text-violet-600 dark:text-violet-400',
+    bg: 'bg-violet-500/10',
     label: 'Adviser Assigned',
   },
   'project.panelist_assigned': {
     icon: UserPlus,
-    color: 'text-violet-400',
-    bg: 'bg-violet-400/10',
+    color: 'text-violet-600 dark:text-violet-400',
+    bg: 'bg-violet-500/10',
     label: 'Panelist Assigned',
   },
   'project.panelist_removed': {
     icon: UserMinus,
-    color: 'text-rose-400',
-    bg: 'bg-rose-400/10',
+    color: 'text-rose-600 dark:text-rose-400',
+    bg: 'bg-rose-500/10',
     label: 'Panelist Removed',
   },
   'project.panelist_self_selected': {
     icon: UserPlus,
-    color: 'text-violet-400',
-    bg: 'bg-violet-400/10',
+    color: 'text-violet-600 dark:text-violet-400',
+    bg: 'bg-violet-500/10',
     label: 'Panelist Self-Selected',
   },
   'project.deadlines_updated': {
     icon: Settings,
-    color: 'text-slate-400',
-    bg: 'bg-slate-400/10',
+    color: 'text-slate-600 dark:text-slate-400',
+    bg: 'bg-slate-500/10',
     label: 'Deadlines Updated',
   },
   'project.rejected': {
     icon: XCircle,
-    color: 'text-red-400',
-    bg: 'bg-red-400/10',
+    color: 'text-red-600 dark:text-red-400',
+    bg: 'bg-red-500/10',
     label: 'Project Rejected',
   },
   'project.phase_advanced': {
     icon: ShieldCheck,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10',
     label: 'Phase Advanced',
   },
   'project.archived': {
     icon: Archive,
-    color: 'text-slate-400',
-    bg: 'bg-slate-400/10',
+    color: 'text-slate-600 dark:text-slate-400',
+    bg: 'bg-slate-500/10',
     label: 'Project Archived',
   },
   'project.certificate_uploaded': {
     icon: Award,
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Certificate Uploaded',
   },
   'project.bulk_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Bulk Uploaded',
   },
   'submission.chapter_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Chapter Uploaded',
   },
   'submission.proposal_compiled': {
     icon: FileText,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Proposal Compiled',
   },
   'submission.system_design_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'System Design Uploaded',
   },
   'submission.test_results_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Test Results Uploaded',
   },
   'submission.final_academic_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Final Academic Uploaded',
   },
   'submission.final_journal_uploaded': {
     icon: Upload,
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10',
     label: 'Final Journal Uploaded',
   },
   'submission.reviewed': {
     icon: ClipboardList,
-    color: 'text-sky-400',
-    bg: 'bg-sky-400/10',
+    color: 'text-sky-600 dark:text-sky-400',
+    bg: 'bg-sky-500/10',
     label: 'Submission Reviewed',
   },
   'submission.unlocked': {
     icon: Unlock,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Submission Unlocked',
   },
   'evaluation.submitted': {
     icon: Award,
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Evaluation Submitted',
   },
   'evaluation.unlocked': {
     icon: Unlock,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-500/10',
     label: 'Evaluation Unlocked',
   },
   'evaluation.released': {
     icon: CheckCircle2,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-500/10',
     label: 'Evaluation Released',
   },
 };
 
 const FALLBACK_CONFIG = {
   icon: History,
-  color: 'text-muted-foreground',
+  color: 'text-secondary font-medium',
   bg: 'bg-muted/30',
   label: null,
 };
@@ -319,7 +319,7 @@ export default function ProjectAuditTrail({ projectId }) {
               className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
                 category === opt.value
                   ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                  : 'bg-card text-secondary border-border hover:text-foreground hover:border-foreground/30'
               }`}
             >
               {opt.label}
@@ -329,7 +329,7 @@ export default function ProjectAuditTrail({ projectId }) {
       </div>
 
       {/* ── Count ── */}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs font-medium text-secondary">
         {isLoading ? 'Loading…' : `${filtered.length} event${filtered.length !== 1 ? 's' : ''}`}
         {!isLoading && logs.length > 0 && filtered.length !== logs.length
           ? ` (filtered from ${logs.length})`
@@ -338,16 +338,16 @@ export default function ProjectAuditTrail({ projectId }) {
 
       {/* ── States ── */}
       {isLoading && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <div className="flex items-center justify-center py-16 text-secondary gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading audit trail…</span>
+          <span className="text-sm font-medium">Loading audit trail…</span>
         </div>
       )}
 
       {isError && (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <AlertCircle className="h-8 w-8 text-red-400" />
-          <p className="text-sm text-muted-foreground">Failed to load audit trail.</p>
+          <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <p className="text-sm font-medium text-secondary">Failed to load audit trail.</p>
           <button
             onClick={refetch}
             className="text-xs text-primary underline-offset-2 hover:underline"
@@ -359,8 +359,8 @@ export default function ProjectAuditTrail({ projectId }) {
 
       {!isLoading && !isError && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
-          <History className="h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
+          <History className="h-8 w-8 text-secondary" />
+          <p className="text-sm font-medium text-secondary">
             {logs.length === 0
               ? 'No audit events recorded for this project yet.'
               : 'No events match your filter.'}
@@ -403,21 +403,23 @@ export default function ProjectAuditTrail({ projectId }) {
                         <time
                           dateTime={log.createdAt}
                           title={formatDate(log.createdAt)}
-                          className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0"
+                          className="text-[11px] font-medium text-secondary whitespace-nowrap shrink-0"
                         >
                           {formatRelative(log.createdAt)}
                         </time>
                       </div>
 
                       {/* Description */}
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                      <p className="text-xs text-secondary leading-relaxed mb-2">
                         {log.description}
                       </p>
 
                       {/* Actor row */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">By</span>
-                        <span className="text-[11px] font-medium text-foreground">{actorName}</span>
+                        <span className="text-[11px] font-medium text-secondary">By</span>
+                        <span className="text-[11px] font-semibold text-foreground">
+                          {actorName}
+                        </span>
                         {actorRole && (
                           <Badge
                             variant={getRoleBadgeVariant(actorRole)}

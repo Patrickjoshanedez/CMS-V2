@@ -200,7 +200,9 @@ export default defineConfig(({ mode }) => {
       include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       testTimeout: 30000,
       hookTimeout: 30000,
+      css: false,
     },
+
     define: {
       // Ensure moduleType is defined at transform time
       __VITE_MODULE_TYPE__: '"module"',

@@ -21,6 +21,14 @@ export const plagiarismService = {
     api.post(`/submissions/${submissionId}/plagiarism/check`, payload),
 
   /**
+   * Scan an existing submission directly against the archived corpus (without re-uploading).
+   */
+  scanSubmissionAgainstArchive: (submissionId) =>
+    api.post(`/submissions/${submissionId}/plagiarism/archive-scan`, null, {
+      timeout: 120000,
+    }),
+
+  /**
    * Fetch the plagiarism result object for a submission.
    */
   getPlagiarismResult: (submissionId) => api.get(`/submissions/${submissionId}/plagiarism/result`),
