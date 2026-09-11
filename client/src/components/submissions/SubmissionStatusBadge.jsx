@@ -26,7 +26,7 @@ const statusConfig = {
     variant: 'warning',
   },
   [SUBMISSION_STATUSES.REJECTED]: { label: 'Rejected', variant: 'destructive' },
-  [SUBMISSION_STATUSES.LOCKED]: { label: 'Locked', variant: 'secondary' },
+  [SUBMISSION_STATUSES.LOCKED]: { label: 'Approved', variant: 'success' },
 };
 
 export default function SubmissionStatusBadge({ status }) {

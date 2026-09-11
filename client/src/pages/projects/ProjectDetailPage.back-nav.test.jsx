@@ -127,9 +127,10 @@ const renderPage = () => {
 describe('ProjectDetailPage back navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuthStore.mockImplementation((selector) =>
-      selector({ user: { _id: 'instructor-1', role: 'instructor' } }),
-    );
+    mockUseAuthStore.mockImplementation((selector) => {
+      const state = { user: { _id: 'instructor-1', role: 'instructor' }, fetchUser: vi.fn() };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
     mockUseProject.mockReturnValue({ data: projectFixture, isLoading: false, error: null });
   });
 

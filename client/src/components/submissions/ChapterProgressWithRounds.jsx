@@ -30,8 +30,9 @@ function chapterStatusBadge(status) {
     [SUBMISSION_STATUSES.PENDING]: { label: 'Pending', variant: 'secondary' },
     [SUBMISSION_STATUSES.UNDER_REVIEW]: { label: 'Under Review', variant: 'outline' },
     [SUBMISSION_STATUSES.APPROVED]: { label: 'Approved', variant: 'default' },
+    [SUBMISSION_STATUSES.ACCEPTED]: { label: 'Accepted', variant: 'default' },
     [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: { label: 'Needs Revision', variant: 'destructive' },
-    [SUBMISSION_STATUSES.LOCKED]: { label: 'Locked', variant: 'default' },
+    [SUBMISSION_STATUSES.LOCKED]: { label: 'Approved', variant: 'default' },
     [SUBMISSION_STATUSES.REJECTED]: { label: 'Rejected', variant: 'destructive' },
   };
 
@@ -41,8 +42,8 @@ function chapterStatusBadge(status) {
 function chapterStatusIcon(status) {
   switch (status) {
     case SUBMISSION_STATUSES.LOCKED:
-      return <Lock className="h-4 w-4 text-primary" />;
     case SUBMISSION_STATUSES.APPROVED:
+    case SUBMISSION_STATUSES.ACCEPTED:
       return <CheckCircle2 className="h-4 w-4 text-primary" />;
     case SUBMISSION_STATUSES.UNDER_REVIEW:
     case SUBMISSION_STATUSES.PENDING:
@@ -107,7 +108,11 @@ export default function ChapterProgressWithRounds({
   }, [chapters, submissions]);
 
   const suggestedUploadChapter = useMemo(() => {
-    const approvedStatuses = [SUBMISSION_STATUSES.LOCKED, SUBMISSION_STATUSES.APPROVED];
+    const approvedStatuses = [
+      SUBMISSION_STATUSES.LOCKED,
+      SUBMISSION_STATUSES.APPROVED,
+      SUBMISSION_STATUSES.ACCEPTED,
+    ];
 
     for (let i = 0; i < chapters.length; i++) {
       const chapter = chapters[i];

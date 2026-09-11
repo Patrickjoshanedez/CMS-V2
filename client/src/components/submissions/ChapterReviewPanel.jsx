@@ -66,10 +66,10 @@ const STATUS_CONFIG = {
     iconClass: 'text-emerald-500',
   },
   [SUBMISSION_STATUSES.LOCKED]: {
-    label: 'Locked ✓',
+    label: 'Approved ✓',
     variant: 'default',
-    icon: Lock,
-    iconClass: 'text-primary',
+    icon: CheckCircle2,
+    iconClass: 'text-emerald-500',
   },
   [SUBMISSION_STATUSES.REVISIONS_REQUIRED]: {
     label: 'Needs Revision',

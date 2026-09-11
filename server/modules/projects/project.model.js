@@ -85,6 +85,25 @@ const deadlineSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const defenseScheduleSchema = new mongoose.Schema(
+  {
+    date: { type: Date, default: null },
+    time: { type: String, default: '', trim: true },
+    venue: { type: String, default: '', trim: true },
+    round: { type: String, enum: ['1st', '2nd', '3rd'], default: '2nd' },
+    defenseType: { type: String, enum: ['proposal', 'midterm', 'final'], default: 'midterm' },
+    clientName: { type: String, default: 'Dr. Sales G. Aribe Jr.', trim: true },
+    scheduledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    scheduledAt: { type: Date, default: null },
+    status: {
+      type: String,
+      enum: ['pending_scheduling', 'scheduled', 'completed', 'cancelled'],
+      default: 'pending_scheduling',
+    },
+  },
+  { _id: false },
+);
+
 /**
  * Prototype schema — represents a media item or link showcasing the team's
  * system development progress during Capstone 2 & 3.
@@ -658,6 +677,10 @@ const projectSchema = new mongoose.Schema(
     },
     deadlines: {
       type: deadlineSchema,
+      default: () => ({}),
+    },
+    defenseSchedule: {
+      type: defenseScheduleSchema,
       default: () => ({}),
     },
     titleModificationRequest: {

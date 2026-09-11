@@ -1,4 +1,36 @@
-import { compareTwoStrings } from 'string-similarity';
+/**
+ * Compute the Sørensen-Dice coefficient between two strings.
+ * Standalone zero-dependency replacement for deprecated string-similarity package.
+ *
+ * @param {string} first
+ * @param {string} second
+ * @returns {number} Similarity score between 0 and 1
+ */
+export function compareTwoStrings(first, second) {
+  const str1 = String(first || '').replace(/\s+/g, '');
+  const str2 = String(second || '').replace(/\s+/g, '');
+
+  if (str1 === str2) return 1;
+  if (str1.length < 2 || str2.length < 2) return 0;
+
+  const firstBigrams = new Map();
+  for (let i = 0; i < str1.length - 1; i++) {
+    const bigram = str1.substring(i, i + 2);
+    firstBigrams.set(bigram, (firstBigrams.get(bigram) || 0) + 1);
+  }
+
+  let intersectionSize = 0;
+  for (let i = 0; i < str2.length - 1; i++) {
+    const bigram = str2.substring(i, i + 2);
+    const count = firstBigrams.get(bigram) || 0;
+    if (count > 0) {
+      firstBigrams.set(bigram, count - 1);
+      intersectionSize++;
+    }
+  }
+
+  return (2.0 * intersectionSize) / (str1.length + str2.length - 2);
+}
 
 function normalizeSimilarityText(value) {
   return String(value || '')

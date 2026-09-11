@@ -79,6 +79,10 @@ vi.mock('@/hooks/useProjects', () => ({
     isLoading: false,
     refetch: vi.fn(),
   }),
+  useMyProject: () => ({
+    data: null,
+    isLoading: false,
+  }),
 }));
 
 vi.mock('@/services/authService', () => ({

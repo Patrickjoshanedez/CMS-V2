@@ -812,7 +812,7 @@ export default function TeamCommitteeAssignmentsView() {
                             </p>
                             <p className="text-[10px] text-muted-foreground">
                               {index === 0 ? (
-                                <span className="text-primary font-medium">REC / Chair</span>
+                                <span className="text-primary font-medium">Lead / Chair</span>
                               ) : index === 1 ? (
                                 'Panel Member 1'
                               ) : (

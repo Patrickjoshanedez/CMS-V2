@@ -25,63 +25,67 @@ import {
   FileSignature,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { useMyProject } from '@/hooks/useProjects';
+import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { ROLES } from '@cms/shared';
 
-const studentNavItems = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    path: '/dashboard',
-    section: 'workspace',
-  },
-  {
-    id: 'my-team',
-    label: 'My Team',
-    icon: UsersRound,
-    path: '/teams',
-    section: 'workspace',
-  },
-  {
-    id: 'my-capstone',
-    label: 'My Capstone',
-    icon: BookMarked,
-    path: '/project',
-    badge: 'Draft',
-    badgeVariant: 'warning',
-    section: 'workspace',
-  },
-  {
-    id: 'submissions',
-    label: 'Submissions',
-    icon: Send,
-    path: '/project/submissions',
-    badge: 2,
-    badgeVariant: 'neutral',
-    section: 'tools',
-  },
-  {
-    id: 'archive',
-    label: 'Archive',
-    icon: Archive,
-    path: '/archive',
-    section: 'tools',
-  },
-  {
-    id: 'plagiarism',
-    label: 'Plagiarism Checker',
-    icon: ShieldCheck,
-    path: '/plagiarism-checker',
-    section: 'tools',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: '/settings',
-    section: 'system',
-  },
-];
+function getStudentNavItems(badges = {}) {
+  return [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      path: '/dashboard',
+      section: 'workspace',
+    },
+    {
+      id: 'my-team',
+      label: 'My Team',
+      icon: UsersRound,
+      path: '/teams',
+      section: 'workspace',
+    },
+    {
+      id: 'my-capstone',
+      label: 'My Capstone',
+      icon: BookMarked,
+      path: '/project',
+      badge: badges.capstoneBadge,
+      badgeVariant: badges.capstoneVariant || 'warning',
+      section: 'workspace',
+    },
+    {
+      id: 'submissions',
+      label: 'Submissions',
+      icon: Send,
+      path: '/project/submissions',
+      badge: badges.submissionsBadge,
+      badgeVariant: 'neutral',
+      section: 'tools',
+    },
+    {
+      id: 'archive',
+      label: 'Archive',
+      icon: Archive,
+      path: '/archive',
+      section: 'tools',
+    },
+    {
+      id: 'plagiarism',
+      label: 'Plagiarism Checker',
+      icon: ShieldCheck,
+      path: '/plagiarism-checker',
+      section: 'tools',
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      path: '/settings',
+      section: 'system',
+    },
+  ];
+}
 
 const instructorNavItems = [
   {
@@ -211,7 +215,7 @@ const facultyNavItems = [
   },
 ];
 
-function getRoleNavItems(role) {
+function getRoleNavItems(role, badges = {}) {
   switch (role) {
     case ROLES.INSTRUCTOR:
       return instructorNavItems;
@@ -221,7 +225,7 @@ function getRoleNavItems(role) {
       return facultyNavItems;
     case ROLES.STUDENT:
     default:
-      return studentNavItems;
+      return getStudentNavItems(badges);
   }
 }
 
@@ -334,7 +338,9 @@ function SidebarNavItem({ item, active, collapsed }) {
             className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md ${
               item.badgeVariant === 'warning'
                 ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-                : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                : item.badgeVariant === 'success'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                  : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
             }`}
           >
             {item.badge}
@@ -359,7 +365,9 @@ function SidebarNavItem({ item, active, collapsed }) {
                 className={`px-1.5 py-0.2 text-[9px] rounded font-bold ${
                   item.badgeVariant === 'warning'
                     ? 'bg-amber-500 text-white'
-                    : 'bg-blue-500 text-white'
+                    : item.badgeVariant === 'success'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-blue-500 text-white'
                 }`}
               >
                 {item.badge}
@@ -491,7 +499,81 @@ export function Sidebar({ open = true, onToggle }) {
   const { user, logout } = useAuthStore();
 
   const collapsed = !open;
-  const navItems = useMemo(() => getRoleNavItems(user?.role), [user?.role]);
+  const isStudent = user?.role === ROLES.STUDENT;
+
+  const { data: project } = useMyProject({ enabled: isStudent });
+  const { data: submissionsData } = useProjectSubmissions(
+    project?._id,
+    { limit: 100 },
+    { enabled: Boolean(isStudent && project?._id) },
+  );
+
+  const studentBadges = useMemo(() => {
+    if (!isStudent) return {};
+
+    // 1. My Capstone Badge:
+    let capstoneBadge = undefined;
+    let capstoneVariant = 'warning';
+
+    if (project) {
+      if (project.status === 'archived') {
+        capstoneBadge = 'Archived';
+        capstoneVariant = 'neutral';
+      } else if (project.titleStatus === 'approved') {
+        capstoneBadge = 'Active';
+        capstoneVariant = 'success';
+      } else {
+        capstoneBadge = 'Draft';
+        capstoneVariant = 'warning';
+      }
+    } else {
+      capstoneBadge = 'Draft';
+      capstoneVariant = 'warning';
+    }
+
+    // 2. Submissions Action Badge:
+    let submissionsBadge = undefined;
+    if (project) {
+      const submissions = submissionsData?.submissions || [];
+      const latestChapters = new Map();
+      for (const sub of submissions) {
+        if (sub?.type === 'chapter' && sub.chapter) {
+          const prev = latestChapters.get(sub.chapter);
+          if (!prev || (sub.version || 0) > (prev.version || 0)) {
+            latestChapters.set(sub.chapter, sub);
+          }
+        }
+      }
+
+      let pendingRevisions = 0;
+      for (let ch = 1; ch <= 5; ch++) {
+        const sub = latestChapters.get(ch);
+        if (sub?.status === 'revisions_required') {
+          pendingRevisions++;
+        }
+      }
+
+      const missingAssets = !project.ganttChartUrl || !project.demoVideoUrl ? 1 : 0;
+      const actionCount = pendingRevisions + missingAssets;
+
+      if (actionCount > 0) {
+        submissionsBadge = actionCount;
+      }
+    } else {
+      submissionsBadge = 2;
+    }
+
+    return {
+      capstoneBadge,
+      capstoneVariant,
+      submissionsBadge,
+    };
+  }, [isStudent, project, submissionsData]);
+
+  const navItems = useMemo(
+    () => getRoleNavItems(user?.role, studentBadges),
+    [user?.role, studentBadges],
+  );
   const activePath = useMemo(() => getActivePath(navItems, location), [navItems, location]);
 
   const [signOutCoords, setSignOutCoords] = useState(null);
@@ -514,25 +596,25 @@ export function Sidebar({ open = true, onToggle }) {
       }`}
     >
       {/* 1. Header & Collapse Toggle */}
-      <div className="p-4 flex items-center justify-between border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem]">
+      <div className="px-3.5 py-3 flex items-center justify-between border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem] gap-2">
         <div
-          className={`flex items-center gap-3 overflow-hidden transition-all duration-300 ${
-            collapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+          className={`flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden transition-all duration-300 ${
+            collapsed ? 'opacity-0 w-0 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs flex-shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
             <GraduationCap className="h-4 w-4 text-[#E5A823]" />
           </div>
-          <div className="flex flex-col whitespace-nowrap">
+          <div className="flex flex-col min-w-0 pr-1">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none truncate">
                 BukSU CMS
               </span>
-              <span className="px-1 py-0.2 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded">
+              <span className="px-1 py-0.5 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded shrink-0">
                 COT
               </span>
             </div>
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5">
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5 truncate">
               Capstone Studio
             </span>
           </div>
@@ -541,7 +623,7 @@ export function Sidebar({ open = true, onToggle }) {
         <button
           type="button"
           onClick={onToggle}
-          className={`p-1.5 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors ${
+          className={`p-1.5 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 ${
             collapsed ? 'mx-auto' : ''
           }`}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

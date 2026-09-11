@@ -29,13 +29,19 @@ function getLatestChapterSubmissions(submissions = []) {
       continue;
     }
 
-    const createdAt = new Date(submission.updatedAt || submission.createdAt || 0).getTime();
     const current = latestByChapter.get(submission.chapter);
+    const subVersion = Number(submission.version || 1);
+    const currentVersion = Number(current?.version || 0);
+    const createdAt = new Date(submission.updatedAt || submission.createdAt || 0).getTime();
     const currentCreatedAt = current
       ? new Date(current.updatedAt || current.createdAt || 0).getTime()
       : 0;
 
-    if (!current || createdAt >= currentCreatedAt) {
+    if (
+      !current ||
+      subVersion > currentVersion ||
+      (subVersion === currentVersion && createdAt > currentCreatedAt)
+    ) {
       latestByChapter.set(submission.chapter, submission);
     }
   }

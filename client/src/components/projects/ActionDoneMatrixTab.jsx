@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -12,6 +13,7 @@ import ADMPhaseSelector from '@/components/projects/ADMPhaseSelector';
 import buksuLogo from '@/assets/buksu-logo.png';
 import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
 import SignaturePad from '@/components/ui/SignaturePad';
+import { getSocket, connectSocket } from '@/services/socket';
 import {
   Printer,
   Upload,
@@ -138,6 +140,43 @@ export default function ActionDoneMatrixTab({
       setProjectTitle(project.title || '');
     }
   }, [project]);
+
+  // Real-time synchronization of defense minutes and ADM updates
+  useEffect(() => {
+    const s = getSocket() || connectSocket();
+    const projId = project?._id;
+    if (!s || !projId) return;
+
+    try {
+      s.emit('join:project', projId);
+    } catch {
+      // Non-blocking
+    }
+
+    const handleMinutesUpdate = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (onRefresh) onRefresh();
+      }
+    };
+
+    const handleDefenseScheduled = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (onRefresh) onRefresh();
+      }
+    };
+
+    s.on('defense:minutes_updated', handleMinutesUpdate);
+    s.on('project:defense_scheduled', handleDefenseScheduled);
+    s.on('project:phase_advanced', handleMinutesUpdate);
+    s.on('project:updated', handleMinutesUpdate);
+
+    return () => {
+      s.off('defense:minutes_updated', handleMinutesUpdate);
+      s.off('project:defense_scheduled', handleDefenseScheduled);
+      s.off('project:phase_advanced', handleMinutesUpdate);
+      s.off('project:updated', handleMinutesUpdate);
+    };
+  }, [project?._id, onRefresh]);
 
   // Committee resolution
   const rawPanelists = useMemo(() => {
@@ -320,6 +359,30 @@ export default function ActionDoneMatrixTab({
       if (onRefresh) onRefresh();
     } catch {
       toast.error('Failed to add ADM row.');
+    }
+  };
+
+  // Panel fulfillment verification checkbox handler
+  const handleToggleFulfillment = async (rowId, isVerified) => {
+    if (!projectId) return;
+    const newStatus = isVerified ? 'verified' : 'addressed';
+
+    // Optimistically update local rows
+    setRows((prev) =>
+      prev.map((r) => ((r._id || r.id) === rowId ? { ...r, status: newStatus } : r)),
+    );
+
+    try {
+      await projectService.patchADMRow(projectId, rowId, { status: newStatus });
+      toast.success(
+        isVerified
+          ? 'Recommendation marked as Fulfilled & Verified by Panel!'
+          : 'Recommendation marked as Pending Verification.',
+      );
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update verification status.');
+      if (onRefresh) onRefresh();
     }
   };
 
@@ -597,12 +660,41 @@ export default function ActionDoneMatrixTab({
       </div>
 
       {/* Milestone Revision Scope Selector */}
-      <div className="max-w-5xl mx-auto print:hidden">
+      <div className="max-w-5xl mx-auto print:hidden space-y-3">
         <ADMPhaseSelector
           selectedPhase={selectedMilestone}
           onPhaseChange={setSelectedMilestone}
           academicYear={project?.academicYear || '2025–2026'}
         />
+
+        {/* Real-time Defense Synchronization & Post-Defense Instructions Banner */}
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Real-Time Defense Synchronization & Action Done Matrix
+            </h4>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              During defense hearings, Panelist recommendations and Client feedback are recorded
+              live in the official Secretary Minutes (BukSU Form OVPAA-F-INS-032) and synchronized
+              into this matrix. Post-defense, proponents document their{' '}
+              <strong className="text-foreground">Action Taken</strong>, cite exact{' '}
+              <strong className="text-foreground">Page Number/s</strong>, and upload their revised
+              Chapters 1–3 manuscript for committee verification.
+            </p>
+          </div>
+          {canManageLiveMinutes && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLiveMinutesModalOpen(true)}
+              className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 font-medium shadow-xs"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Live Minutes (OVPAA-F-INS-032)
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
@@ -741,6 +833,13 @@ export default function ActionDoneMatrixTab({
                 const canEditSuggestion =
                   (isFaculty || isUserPanelist || isUserInstructor) && !isLocked;
                 const canEditAction = isStudent && !isLocked;
+                const canVerifyRow =
+                  (isFaculty ||
+                    isUserPanelist ||
+                    isUserSecretary ||
+                    isUserInstructor ||
+                    isUserAdviser) &&
+                  !isLocked;
 
                 return (
                   <div
@@ -759,6 +858,15 @@ export default function ActionDoneMatrixTab({
                         minRows={1}
                       />
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground font-sans print:hidden">
+                        {(row.panelName?.toLowerCase().includes('(client)') ||
+                          row.remarks?.includes('Client')) && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                          >
+                            Client Feedback
+                          </Badge>
+                        )}
                         {row.milestone && (
                           <Badge
                             variant="outline"
@@ -793,8 +901,8 @@ export default function ActionDoneMatrixTab({
                       />
                     </div>
 
-                    {/* Column 3: Action Taken (Col span 4) */}
-                    <div className="col-span-4 p-3">
+                    {/* Column 3: Action Taken & Fulfillment Verification (Col span 4) */}
+                    <div className="col-span-4 p-3 flex flex-col justify-between">
                       <AutoExpandingTextarea
                         value={row.actionDone || ''}
                         onChange={(e) => handleCellChange(rowId, 'actionDone', e.target.value)}
@@ -804,6 +912,52 @@ export default function ActionDoneMatrixTab({
                         className="text-foreground print:text-black whitespace-pre-line"
                         minRows={3}
                       />
+
+                      {/* Panel Fulfillment Verification Checkbox (Interactive for committee) */}
+                      <div className="mt-2.5 pt-2 border-t border-dashed border-border/50 flex items-center justify-between gap-2 text-xs font-sans print:hidden">
+                        <label
+                          htmlFor={`verify-row-${rowId}`}
+                          className={cn(
+                            'inline-flex items-center gap-2 select-none text-[11px] font-medium transition-colors',
+                            canVerifyRow ? 'cursor-pointer' : 'cursor-default opacity-85',
+                            row.status === 'verified'
+                              ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                              : row.status === 'addressed'
+                                ? 'text-amber-600 dark:text-amber-400 font-medium'
+                                : 'text-muted-foreground',
+                          )}
+                        >
+                          <input
+                            id={`verify-row-${rowId}`}
+                            type="checkbox"
+                            checked={row.status === 'verified'}
+                            disabled={!canVerifyRow}
+                            onChange={(e) => handleToggleFulfillment(rowId, e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500 focus:ring-offset-background cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                          />
+                          <span>
+                            {row.status === 'verified' ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                                Fulfilled & Verified by Panel
+                              </span>
+                            ) : row.status === 'addressed' ? (
+                              <span>Action Documented — Pending Panel Verification</span>
+                            ) : (
+                              <span>Pending Student Action</span>
+                            )}
+                          </span>
+                        </label>
+
+                        {row.status === 'verified' && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0 font-semibold"
+                          >
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
                     {/* Column 4: Page Number/s (Col span 1) */}

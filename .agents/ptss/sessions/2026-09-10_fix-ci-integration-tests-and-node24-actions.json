@@ -1,0 +1,67 @@
+{
+  "session_id": "2026-09-10_fix-ci-integration-tests-and-node24-actions",
+  "timestamp": "2026-09-10T10:48:00.000Z",
+  "status": "completed",
+  "task": "Resolve Submissions Integration Test Pre-Signed URL Assertions, GitHub Actions Node.js 20 Deprecations, Qwen Removal, and Dependency Security Audit",
+  "user_intent": "Fix failing GET /:submissionId/view tests expecting mock-s3 pre-signed URL in tests/integration/submissions.test.js, resolve GitHub Actions Node 20 deprecation warnings, purge legacy qwen references, and eliminate security vulnerabilities and deprecated packages without regressions.",
+  "changes_made": [
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "description": "Restored storageService.getSignedUrl in getViewUrl to correctly generate pre-signed S3 URLs with graceful Google Drive and storage unavailable error fallback, satisfying integration test assertions."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "description": "Configured FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true' in workflow env to opt into Node 24 and eliminate Node.js 20 actions deprecation warnings."
+    },
+    {
+      "file": ".github/workflows/governance.yml",
+      "description": "Configured FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true' in workflow env to eliminate Node.js 20 actions deprecation warnings."
+    },
+    {
+      "file": ".agents/skills/anti-regression-and-ci-governance/SKILL.md",
+      "description": "Replaced legacy qwen references with Cloud AI runtime (deepseek-chat via runtime_config.json) and documented Node 24 actions opt-in."
+    },
+    {
+      "file": ".github/hooks/scripts/agent_prefetch.py",
+      "description": "Updated LOCAL_AI_MODEL fallback from legacy qwen to deepseek-chat."
+    },
+    {
+      "file": "orchestrator/local-ai-provider.js",
+      "description": "Updated default AI model fallback from legacy qwen to deepseek-chat."
+    },
+    {
+      "file": "server/utils/similarityAudit.js",
+      "description": "Replaced deprecated string-similarity npm package with inlined zero-dependency Sørensen-Dice coefficient algorithm."
+    },
+    {
+      "file": "server/package.json",
+      "description": "Upgraded puppeteer-core to ^25.10.0 (eliminating extract-zip high vulnerability), nodemailer to ^10.0.2, adm-zip to ^0.6.0, and removed string-similarity."
+    },
+    {
+      "file": "client/package.json",
+      "description": "Upgraded react-router-dom to ^7.18.3 (eliminating react-router moderate open redirect/SSR constructor injection vulnerability)."
+    },
+    {
+      "file": "client/src/components/users/TeamCommitteeAssignmentsView.jsx",
+      "description": "Aligned first panelist designation to 'Lead / Chair' per BukSU institutional ground truth."
+    },
+    {
+      "file": "client/src/components/projects/AcademicExcelGanttChart.test.jsx",
+      "description": "Added localStorage.clear() in beforeEach and afterEach to prevent cross-test state leakage."
+    }
+  ],
+  "verification_evidence": {
+    "endpoint_check": "UNMATCHED_COUNT = 0 (201 server / 179 client)",
+    "agentic_governance": "60 / 60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "server_tests": "66 / 66 passed (tests/integration/submissions.test.js), 13 / 13 passed (comprehensive-all-workflows.test.js)",
+    "client_tests": "261 / 261 passed across all 61 test files (npm test --workspace=client)",
+    "workspace_guardrail": "Pristine workspace, GitHub Actions workflow definitions valid and conflict-free"
+  },
+  "lessons_learned": [
+    "lesson: Do not bypass storageService.getSignedUrl in submission.service.js getViewUrl without maintaining backward compatibility for pre-signed URL callers and test suites.",
+    "prevention: Setting FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true' in workflow env resolves Node.js 20 runner deprecation warnings without conflicting with runner configurations.",
+    "lesson: Upgrading react-router-dom from 6.28 to 7.18.3 resolves open redirect and prototype constructor vulnerabilities while maintaining 100% test compatibility with React 18 and existing v7 future flags.",
+    "prevention: Always call localStorage.clear() in test hooks when components persist draft state to prevent test state leakage."
+  ]
+}

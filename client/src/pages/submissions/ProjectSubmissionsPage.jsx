@@ -9,6 +9,8 @@ import PageSkeleton from '@/components/ui/PageSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
 import ChapterCard from '@/components/submissions/ChapterCard';
+import UploadChapterModal from '@/components/submissions/UploadChapterModal';
+import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
@@ -191,6 +193,39 @@ export default function ProjectSubmissionsPage() {
   const isReadOnlyMode = mode === 'view' && Boolean(targetProjectId);
   const hasTeam = Boolean(user?.teamId);
   const [showGanttModal, setShowGanttModal] = useState(false);
+  const [uploadModalConfig, setUploadModalConfig] = useState({
+    isOpen: false,
+    chapter: 1,
+    isLocked: false,
+    submission: null,
+  });
+
+  const handleGeneralUpload = () => {
+    setUploadModalConfig({
+      isOpen: true,
+      chapter: 1,
+      isLocked: false,
+      submission: null,
+    });
+  };
+
+  const handleCardUpload = (chapterNumber, sub) => {
+    setUploadModalConfig({
+      isOpen: true,
+      chapter: chapterNumber,
+      isLocked: true,
+      submission: sub || null,
+    });
+  };
+
+  const handleCardRevise = (chapterNumber, sub) => {
+    setUploadModalConfig({
+      isOpen: true,
+      chapter: chapterNumber,
+      isLocked: true,
+      submission: sub || null,
+    });
+  };
 
   const {
     data: project,
@@ -230,11 +265,19 @@ export default function ProjectSubmissionsPage() {
   const latestChapterSubmissions = submissions.reduce((map, submission) => {
     if (submission?.type !== 'chapter' || !submission?.chapter) return map;
     const existing = map.get(submission.chapter);
+    const subVersion = Number(submission.version || 1);
+    const existingVersion = Number(existing?.version || 0);
     const currentTs = new Date(submission.updatedAt || submission.createdAt || 0).getTime();
     const existingTs = existing
       ? new Date(existing.updatedAt || existing.createdAt || 0).getTime()
       : 0;
-    if (!existing || currentTs >= existingTs) map.set(submission.chapter, submission);
+    if (
+      !existing ||
+      subVersion > existingVersion ||
+      (subVersion === existingVersion && currentTs > existingTs)
+    ) {
+      map.set(submission.chapter, submission);
+    }
     return map;
   }, new Map());
 
@@ -371,7 +414,14 @@ export default function ProjectSubmissionsPage() {
     if (!canUpload) return false;
     if (chapterNum > 1) {
       const prev = latestChapterSubmissions.get(chapterNum - 1);
-      if (!prev || prev.status !== SUBMISSION_STATUSES.LOCKED) return false;
+      const isApprovedOrLocked =
+        prev &&
+        [
+          SUBMISSION_STATUSES.LOCKED,
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+        ].includes(prev.status);
+      if (!isApprovedOrLocked) return false;
     }
     const current = latestChapterSubmissions.get(chapterNum);
     if (!current) return true;
@@ -419,7 +469,7 @@ export default function ProjectSubmissionsPage() {
                   <Button
                     size="sm"
                     variant={canCompileProposal ? 'outline' : 'default'}
-                    onClick={() => navigate('/project/submissions/upload')}
+                    onClick={handleGeneralUpload}
                   >
                     <Upload className="mr-2 h-4 w-4" />
                     Upload Chapter
@@ -476,6 +526,8 @@ export default function ProjectSubmissionsPage() {
                 isReadOnly={isReadOnlyMode}
                 projectId={activeProject._id}
                 searchSuffix={searchSuffix}
+                onUpload={handleCardUpload}
+                onRevise={handleCardRevise}
               />
             ))}
           </div>
@@ -557,10 +609,37 @@ export default function ProjectSubmissionsPage() {
                   isReadOnly={isReadOnlyMode}
                   projectId={activeProject._id}
                   searchSuffix={searchSuffix}
+                  onUpload={handleCardUpload}
+                  onRevise={handleCardRevise}
                 />
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Phase 4: Capstone 4 — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
+        <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
+                >
+                  Phase 4
+                </Badge>
+                <h2 className="text-lg font-bold tracking-tight text-foreground">
+                  Capstone 4: Final Defense &amp; Manuscript Archival
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Submit the complete 5-chapter Academic Manuscript and Publishable Journal Article
+                for final defense hearing and institutional digital archiving.
+              </p>
+            </div>
+          </div>
+
+          <FinalPaperUpload projectId={activeProject._id} />
         </div>
 
         {/* Full Interactive Academic Gantt Chart Dialog */}
@@ -610,6 +689,21 @@ export default function ProjectSubmissionsPage() {
             </div>
           </div>
         )}
+
+        {/* Upload & Revision Modal */}
+        <UploadChapterModal
+          isOpen={uploadModalConfig.isOpen}
+          onClose={() => setUploadModalConfig((prev) => ({ ...prev, isOpen: false }))}
+          initialChapter={uploadModalConfig.chapter}
+          isLocked={uploadModalConfig.isLocked}
+          projectId={activeProject._id}
+          latestSubmission={uploadModalConfig.submission}
+          deadlines={activeProject.deadlines}
+          onUploadSuccess={() => {
+            refetchSubs();
+            refetchProject?.();
+          }}
+        />
       </div>
     </DashboardLayout>
   );

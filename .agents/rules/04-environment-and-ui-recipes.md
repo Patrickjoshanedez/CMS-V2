@@ -64,3 +64,35 @@ In controlled input components (React Hook Form / `useController`), label floati
   }
   ```
 * **Vertical Headroom**: Use `h-14 pt-5 pb-1.5` on input elements to ensure clear vertical separation between the floating label and the text value.
+
+---
+
+## 5. MANDATORY UNIFIED SOPHISTICATED DOCUMENT READER CONTRACT
+
+All document reading, reviewing, and revision inspection across BukSU CMS-V2 must strictly use the canonical `SophisticatedDocumentViewer` component (`client/src/components/documents/SophisticatedDocumentViewer.jsx`). Isolated, ad-hoc, or simplified viewers (`PaginatedDocumentViewer`, raw `<pre>`, plain unstyled HTML converters) are strictly prohibited to prevent visual and functional inconsistencies.
+
+### Core Feature Mandate (Zero Regression)
+Every document reading surface must retain all institutional capabilities intact:
+1. **Document Identity Bar**: Top bar displaying Chapter / Manuscript Title, Version Badge (`v{N}`), Format Badge (`Word Document` / `PDF Manuscript`), Originality Compliance Badge (`{N}% Original`), Filename, and human-readable File Size.
+2. **Revision Diff (+/-) Studio**: Dynamic side-by-side / inline revision diffing (`v{N-1} → v{N}`) with Word Diff, Sentence Diff, Line Diff, revision search input, deletion marker toggles, comment markers, and word delta counters.
+3. **High-Fidelity Document Rendering**: Direct browser-side OOXML rendering via `docx-preview` reproducing genuine Word styles, fonts, margins, tables, and alignment without lossy server conversions. Native PDF iframe with scroll containment.
+4. **Interactive Toolbar**: Zoom controls (`-`, `100%`, `+`, `Fit`), Details metadata drawer, direct file download (`?download=true`), and Fullscreen/Maximize expansion.
+
+### Implementation Standard: Dual Presentation (Embedded Inline vs. Modal Dialog)
+```jsx
+// 1. Embedded Inline (Page Flow / Tabs)
+<SophisticatedDocumentViewer
+  embedded={true}
+  submission={viewerSubmission}
+  fileUrl={currentDocUrl || `/api/submissions/${submissionId}/file`}
+/>
+
+// 2. Modal Dialog (Fullscreen overlay on trigger)
+<SophisticatedDocumentViewer
+  open={viewerOpen}
+  onOpenChange={setViewerOpen}
+  submission={viewerSubmission}
+  fileUrl={currentDocUrl}
+/>
+```
+In embedded mode (`embedded={true}`), clicking the Maximize button promotes the viewer directly to a full-screen fixed overlay (`fixed inset-0 z-50`), preserving all active states (`viewMode`, zoom, diff comparisons) without layout jumps.

@@ -274,6 +274,30 @@ describe('Submissions API — /api/submissions', () => {
       expect(res.body.success).toBe(false);
     });
 
+    it('should allow chapter 2 upload when chapter 1 is accepted', async () => {
+      // Create an accepted chapter 1 submission
+      await Submission.create({
+        projectId: project._id,
+        chapter: 1,
+        version: 1,
+        fileName: 'chapter1.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1000,
+        storageKey: 'projects/test/chapters/1/v1/chapter1.pdf',
+        status: SUBMISSION_STATUSES.ACCEPTED,
+        submittedBy: studentUser._id,
+      });
+
+      const res = await studentAgent
+        .post(`/api/submissions/${project._id}/chapters`)
+        .field('chapter', '2')
+        .attach('file', createPdfBuffer(), 'chapter2.pdf');
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.submission.chapter).toBe(2);
+    });
+
     it('should reject upload to locked chapter', async () => {
       // Create a locked submission directly
       await Submission.create({

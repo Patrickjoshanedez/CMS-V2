@@ -148,34 +148,26 @@ describe('PlagiarismReportPage', () => {
     expect(mockScanMutate).toHaveBeenCalledWith('sub-test-123', expect.any(Object));
   });
 
-  it('allows toggling between Originality Highlights and Formatted Manuscript view', () => {
+  it('allows toggling originality highlights on and off in formatted manuscript view', () => {
     act(() => {
       root.render(<PlagiarismReportPage />);
     });
 
-    expect(container.querySelector('[data-testid="docx-preview-renderer"]')).toBeNull();
-
-    const formattedDocBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Formatted Manuscript'),
-    );
-    expect(formattedDocBtn).toBeDefined();
+    const toggleBtn = container.querySelector('[data-testid="toggle-highlights-btn"]');
+    expect(toggleBtn).not.toBeNull();
+    expect(toggleBtn.textContent).toContain('Highlights: ON');
 
     act(() => {
-      formattedDocBtn.click();
+      toggleBtn.click();
     });
 
-    expect(container.querySelector('[data-testid="docx-preview-renderer"]')).not.toBeNull();
-
-    const highlightsBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Originality Highlights'),
-    );
-    expect(highlightsBtn).toBeDefined();
+    expect(toggleBtn.textContent).toContain('Highlights: OFF');
 
     act(() => {
-      highlightsBtn.click();
+      toggleBtn.click();
     });
 
-    expect(container.querySelector('[data-testid="docx-preview-renderer"]')).toBeNull();
+    expect(toggleBtn.textContent).toContain('Highlights: ON');
   });
 
   it('allows toggling between Paper Sheet and Theme styles', () => {

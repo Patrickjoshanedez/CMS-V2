@@ -295,3 +295,5 @@ export const submissionService = {
       },
     ),
 };
+
+export default submissionService;

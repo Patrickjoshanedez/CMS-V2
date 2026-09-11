@@ -202,8 +202,16 @@ export const authorizeSecretaryCapability = (capability) => {
         ),
       );
 
+      const isPanelist = Boolean(
+        Array.isArray(project.panelists) &&
+        project.panelists.some(
+          (p) => p.userId && (p.userId._id || p.userId).toString() === userIdStr,
+        ),
+      );
+
       if (
         isSecretary ||
+        ((isChair || isPanelist) && capability === 'defense.minutes:create/update') ||
         (isChair &&
           (capability === 'defense.verdict:finalize' ||
             capability === 'rubrics.composite:view/aggregate'))

@@ -319,6 +319,23 @@ router.patch(
   projectController.setDeadlines,
 );
 
+// Schedule defense hearing (Instructor only)
+router.post(
+  '/:id/defense-schedule',
+  authorize(ROLES.INSTRUCTOR),
+  auditLog('project.defense_scheduled', 'Project', {
+    getDescription: (req) => `Scheduled defense hearing for project ${req.params.id}`,
+  }),
+  projectController.scheduleDefense,
+);
+
+// Get defense hearing schedule (any authenticated project participant)
+router.get(
+  '/:id/defense-schedule',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.getDefenseSchedule,
+);
+
 // Reject entire project
 router.post(
   '/:id/reject',

@@ -93,3 +93,19 @@ export const publishToADM = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
+export const updateSessionDetails = catchAsync(async (req, res) => {
+  const { projectId, defenseType } = req.params;
+  const result = await defenseMinutesService.updateSessionDetails(
+    projectId,
+    defenseType,
+    req.body,
+    req.user,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Defense session details updated.',
+    data: result,
+  });
+});

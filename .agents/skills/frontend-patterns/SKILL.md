@@ -744,5 +744,33 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
 }
 ```
 
+### Canonical Sophisticated Document Reader Pattern
+
+In BukSU CMS-V2, all document reading, review studios, and manuscript diff inspections MUST use the canonical `SophisticatedDocumentViewer` (`client/src/components/documents/SophisticatedDocumentViewer.jsx`). Fragmented or ad-hoc viewers (`PaginatedDocumentViewer`, raw `<pre>`, Mammoth HTML text dumps) are prohibited.
+
+```tsx
+// Standard Embedded Inline Pattern (Page Flow / Tabs)
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
+
+export function ManuscriptTab({ submission, fileUrl }) {
+  return (
+    <div className="relative rounded-xl overflow-hidden shadow-sm">
+      <SophisticatedDocumentViewer
+        embedded={true}
+        submission={submission}
+        fileUrl={fileUrl}
+      />
+    </div>
+  );
+}
+```
+
+**Core Capabilities Kept Intact**:
+1. **Document Identity Bar**: Chapter title, version badge, format badge, originality compliance badge, filename, filesize.
+2. **Revision Diff (+/-) Mode**: Word Diff, Sentence Diff, Line Diff, revision search input, deletion markers, comment markers.
+3. **High-Fidelity Rendering**: Browser-side `docx-preview` OOXML engine (exact Word fonts, margins, tables) + PDF iframe stream.
+4. **Interactive Controls**: Zoom controls, Details metadata drawer, direct file download, Fullscreen/Maximize expansion.
+
 **Remember**: Modern frontend patterns enable maintainable, performant user interfaces. Choose patterns that fit your project complexity.
+
 

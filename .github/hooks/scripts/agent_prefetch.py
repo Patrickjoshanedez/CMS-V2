@@ -40,8 +40,8 @@ MCP_CONFIG_FILE = VSCODE_DIR / "mcp.json"
 ORCHESTRATOR_AGENT_FILE = AGENTS_DIR / "orchestrator.agent.md"
 SERENA_PROJECT_FILE = WORKSPACE_ROOT / ".serena" / "project.yml"
 RUNTIME_CONFIG_FILE = HOOKS_STATE_DIR / "runtime_config.json"
-LOCAL_AI_BASE_URL = "http://localhost:11434"
-LOCAL_AI_MODEL = "qwen2.5-coder:7b"
+LOCAL_AI_BASE_URL = os.environ.get("LOCAL_AI_BASE_URL", "http://localhost:11434")
+LOCAL_AI_MODEL = os.environ.get("LOCAL_AI_MODEL", "deepseek-chat")
 
 REQUIRED_ORCHESTRATOR_TOOLS = {
     "vscode/askQuestions",

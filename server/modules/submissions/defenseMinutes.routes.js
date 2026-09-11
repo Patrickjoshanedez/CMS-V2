@@ -47,6 +47,13 @@ router.post(
   defenseMinutesController.lockCompositeScores,
 );
 
+// PATCH /api/defense-minutes/:projectId/:defenseType/session-details — Update session metadata & client remarks (OVPAA-F-INS-032)
+router.patch(
+  '/:projectId/:defenseType/session-details',
+  authorizeSecretaryCapability(SECRETARY_CAPABILITIES.MINUTES_WRITE),
+  defenseMinutesController.updateSessionDetails,
+);
+
 // POST /api/defense-minutes/:projectId/:defenseType/publish-matrix — Convert & publish to ADM
 router.post(
   '/:projectId/:defenseType/publish-matrix',

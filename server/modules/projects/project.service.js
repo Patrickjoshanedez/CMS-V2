@@ -12,7 +12,7 @@ import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
 import { extractText } from '../../utils/extractText.js';
 import { rankFuzzyConflicts } from '../../utils/similarityAudit.js';
 import storageService from '../../services/storage.index.js';
-import { emitToUser } from '../../services/socket.service.js';
+import { emitToUser, emitToRoom } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
   ROLES,
@@ -3475,6 +3475,124 @@ class ProjectService {
         'ORIGINALITY_BELOW_THRESHOLD',
       );
     }
+  }
+
+  /**
+   * Schedule or update defense hearing for a project (Instructor only).
+   */
+  async scheduleDefense(projectId, data, user) {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    const {
+      date,
+      time = '',
+      venue = 'COT Conference Room',
+      round = '2nd',
+      defenseType = 'midterm',
+      clientName = 'Dr. Sales G. Aribe Jr.',
+    } = data;
+
+    const scheduledDate = date ? new Date(date) : project.defenseSchedule?.date;
+
+    project.defenseSchedule = {
+      date: scheduledDate,
+      time: time || project.defenseSchedule?.time || '',
+      venue: venue || project.defenseSchedule?.venue || 'COT Conference Room',
+      round: round || project.defenseSchedule?.round || '2nd',
+      defenseType: defenseType || project.defenseSchedule?.defenseType || 'midterm',
+      clientName: clientName || project.defenseSchedule?.clientName || 'Dr. Sales G. Aribe Jr.',
+      scheduledBy: user._id,
+      scheduledAt: new Date(),
+      status: 'scheduled',
+    };
+
+    if (scheduledDate) {
+      if (!project.deadlines) project.deadlines = {};
+      project.deadlines.defense = scheduledDate;
+    }
+
+    await project.save();
+
+    // Broadcast WebSocket event
+    try {
+      emitToRoom(`project:${projectId}`, 'project:defense_scheduled', {
+        projectId,
+        defenseSchedule: project.defenseSchedule,
+      });
+    } catch {
+      // Non-blocking
+    }
+
+    // Dispatch notifications
+    try {
+      const recipients = [
+        ...(project.panelistIds || []),
+        project.adviserId,
+        project.secretaryId,
+      ].filter(Boolean);
+
+      const team = await Team.findById(project.teamId);
+      if (team?.members?.length) {
+        recipients.push(...team.members);
+      }
+
+      const uniqueRecipients = [...new Set(recipients.map((r) => String(r?._id || r)))];
+      const dateStr = scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'TBA';
+
+      const notifs = uniqueRecipients.map((uid) => ({
+        userId: uid,
+        type: 'defense_scheduled',
+        title: 'Capstone 2 Defense Scheduled',
+        message: `Defense hearing for "${project.title}" has been scheduled on ${dateStr} at ${project.defenseSchedule.time || '9:00 AM'} in ${project.defenseSchedule.venue}.`,
+        metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
+      }));
+
+      if (notifs.length > 0) {
+        const createdNotifs = await Notification.insertMany(notifs);
+        createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+      }
+    } catch {
+      // Non-blocking
+    }
+
+    return {
+      defenseSchedule: project.defenseSchedule,
+      project: {
+        _id: project._id,
+        title: project.title,
+        defenseSchedule: project.defenseSchedule,
+      },
+    };
+  }
+
+  /**
+   * Get defense schedule for a project.
+   */
+  async getDefenseSchedule(projectId) {
+    const project = await Project.findById(projectId)
+      .select('title defenseSchedule deadlines adviserId secretaryId panelists panelistIds teamId')
+      .populate('adviserId', 'firstName lastName email')
+      .populate('secretaryId', 'firstName lastName email')
+      .populate('panelists.userId', 'firstName lastName email');
+
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    return {
+      defenseSchedule: project.defenseSchedule,
+      deadlines: project.deadlines,
+      project: {
+        _id: project._id,
+        title: project.title,
+        adviser: project.adviserId,
+        secretary: project.secretaryId,
+        panelists: project.panelists,
+      },
+    };
   }
 }
 

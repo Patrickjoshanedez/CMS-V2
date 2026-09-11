@@ -88,6 +88,8 @@ export default function ChapterCard({
   isReadOnly,
   projectId,
   searchSuffix = '',
+  onUpload,
+  onRevise,
 }) {
   const navigate = useNavigate();
   const hasSubmission = Boolean(submission);
@@ -100,14 +102,28 @@ export default function ChapterCard({
     }
   };
 
-  const handleUpload = (e) => {
-    e.stopPropagation();
-    navigate(`/project/submissions/upload?chapter=${chapterNumber}`);
-  };
-
   const canUploadRevision =
     isStudent && !isReadOnly && canUpload && submission?.status === 'revisions_required';
   const canUploadNew = isStudent && !isReadOnly && canUpload && !hasSubmission;
+
+  const handleUpload = (e) => {
+    e.stopPropagation();
+    if (canUploadRevision) {
+      if (onRevise) {
+        onRevise(chapterNumber, submission);
+      } else {
+        navigate(`/project/submissions/upload?chapter=${chapterNumber}&locked=true&mode=revise`);
+      }
+    } else if (canUploadNew) {
+      if (onUpload) {
+        onUpload(chapterNumber, submission);
+      } else {
+        navigate(`/project/submissions/upload?chapter=${chapterNumber}&locked=true`);
+      }
+    } else {
+      navigate(`/project/submissions/upload?chapter=${chapterNumber}`);
+    }
+  };
 
   return (
     <Card

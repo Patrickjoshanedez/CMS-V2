@@ -932,7 +932,13 @@ class SubmissionService {
         projectId,
         chapter: chapter - 1,
         type: 'chapter',
-        status: SUBMISSION_STATUSES.LOCKED,
+        status: {
+          $in: [
+            SUBMISSION_STATUSES.LOCKED,
+            SUBMISSION_STATUSES.APPROVED,
+            SUBMISSION_STATUSES.ACCEPTED,
+          ],
+        },
       });
 
       if (!previousChapterLocked) {
@@ -990,7 +996,13 @@ class SubmissionService {
         projectId,
         chapter: prevChapter,
         type: 'chapter',
-        status: SUBMISSION_STATUSES.LOCKED,
+        status: {
+          $in: [
+            SUBMISSION_STATUSES.LOCKED,
+            SUBMISSION_STATUSES.APPROVED,
+            SUBMISSION_STATUSES.ACCEPTED,
+          ],
+        },
       });
 
       if (!prevChapterLocked) {
@@ -1206,18 +1218,24 @@ class SubmissionService {
       );
     }
 
-    // --- Validate that Chapters 1, 2, and 3 each have a LOCKED submission ---
+    // --- Validate that Chapters 1, 2, and 3 each have an approved/accepted/locked submission ---
     const requiredChapters = [1, 2, 3];
     for (const ch of requiredChapters) {
       const locked = await Submission.findOne({
         projectId,
         chapter: ch,
         type: 'chapter',
-        status: SUBMISSION_STATUSES.LOCKED,
+        status: {
+          $in: [
+            SUBMISSION_STATUSES.LOCKED,
+            SUBMISSION_STATUSES.APPROVED,
+            SUBMISSION_STATUSES.ACCEPTED,
+          ],
+        },
       });
       if (!locked) {
         throw new AppError(
-          `Chapter ${ch} must be approved (locked) before compiling the proposal.`,
+          `Chapter ${ch} must be approved before compiling the proposal.`,
           400,
           'CHAPTER_NOT_LOCKED',
         );
@@ -2009,12 +2027,20 @@ class SubmissionService {
       );
     }
 
-    // Return authenticated streaming proxy URL as primary URL to avoid S3/MinIO SigV4 host mismatches across Docker boundaries
-    return {
-      url: `/api/submissions/${submissionId}/file`,
-      expiresIn,
-      source: 's3',
-    };
+    try {
+      const url = await storageService.getSignedUrl(submission.storageKey, expiresIn);
+      return { url, expiresIn, source: 's3' };
+    } catch {
+      if (fallbackUrl) {
+        return { url: fallbackUrl, expiresIn, source: 'google_drive' };
+      }
+
+      throw new AppError(
+        'Submission file is unavailable in storage. Please ask the student to re-upload.',
+        404,
+        'SUBMISSION_FILE_UNAVAILABLE',
+      );
+    }
   }
 
   /**
@@ -2585,6 +2611,54 @@ class SubmissionService {
         } else {
           projectDoc.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
         }
+
+        // Capstone 2 Defense readiness: notify Course Instructor when compiled 1-3 proposal or chapter 3 is approved
+        if (
+          submission.type === 'proposal' ||
+          (submission.type === 'chapter' && submission.chapter === 3)
+        ) {
+          if (!projectDoc.defenseSchedule) {
+            projectDoc.defenseSchedule = {};
+          }
+          if (projectDoc.defenseSchedule.status !== 'scheduled') {
+            projectDoc.defenseSchedule.status = 'pending_scheduling';
+          }
+
+          try {
+            const Section = (await import('../academics/section.model.js')).default;
+            const User = (await import('../users/user.model.js')).default;
+            const section = await Section.findById(projectDoc.sectionId);
+            let instructorId = section?.instructorId;
+            if (!instructorId) {
+              const defaultInstructor = await User.findOne({
+                role: ROLES.INSTRUCTOR,
+                isDeleted: false,
+              });
+              instructorId = defaultInstructor?._id;
+            }
+
+            if (instructorId) {
+              const instructorNotif = await Notification.create({
+                userId: instructorId,
+                type: 'manuscript_endorsed_for_defense',
+                title: 'Team Ready for Capstone 2 Defense Scheduling',
+                message: `Adviser has approved the compiled Chapters 1–3 manuscript for "${projectDoc.title}". The team is now eligible and ready for defense scheduling.`,
+                metadata: {
+                  projectId: projectDoc._id,
+                  teamId: projectDoc.teamId,
+                  submissionId: submission._id,
+                },
+              });
+              emitToUser(instructorId, 'notification:new', instructorNotif);
+            }
+          } catch (notifErr) {
+            logger.warn(
+              { err: notifErr },
+              'Failed to dispatch defense scheduling notification to instructor',
+            );
+          }
+        }
+
         await projectDoc.save();
       }
     }

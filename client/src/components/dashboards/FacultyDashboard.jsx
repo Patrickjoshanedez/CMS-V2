@@ -141,6 +141,10 @@ function ProjectDetailedStatus({ project }) {
   }
 
   // Case 2: Title approved - focus on Project Lifecycle
+  // Once title is approved, project is actively in Capstone 2 (Chapters 1–3) or higher.
+  const rawPhase = Number(capstonePhase || 1);
+  const effectivePhase = Math.max(2, rawPhase);
+
   // Map capstone phase to proper institutional label
   const phaseLabels = {
     1: 'Capstone 1',
@@ -148,7 +152,7 @@ function ProjectDetailedStatus({ project }) {
     3: 'Capstone 3',
     4: 'Capstone 4 (Final)',
   };
-  const phaseLabel = phaseLabels[capstonePhase] || `Phase ${capstonePhase}`;
+  const phaseLabel = phaseLabels[effectivePhase] || `Capstone ${effectivePhase}`;
 
   // Check specific project statuses within the phase
   if (projectStatus === PROJECT_STATUSES.REVISION_NEEDED) {
@@ -159,9 +163,15 @@ function ProjectDetailedStatus({ project }) {
     );
   }
 
-  if (projectStatus === PROJECT_STATUSES.PENDING_IN_REVIEW) {
+  if (
+    projectStatus === PROJECT_STATUSES.PENDING_IN_REVIEW ||
+    (project.pendingChapter && !['approved', 'completed', 'archived'].includes(projectStatus))
+  ) {
     return (
-      <Badge variant="warning" className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5">
+      <Badge
+        variant="outline"
+        className="shrink-0 text-[10px] uppercase font-bold h-5 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10"
+      >
         Review: {phaseLabel}
       </Badge>
     );
@@ -198,7 +208,7 @@ export default function FacultyDashboard({ user }) {
   );
 
   // Common Dashboard queries
-  const { data: dashboardData } = useDashboard();
+  const { data: dashboardData, isLoading } = useDashboard();
   const ds = dashboardData || {};
   const counts = ds.counts || {};
 
@@ -235,6 +245,24 @@ export default function FacultyDashboard({ user }) {
     mutationFn: (projectId) => dashboardService.selectPanelistTopic(projectId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['panelistTopics'] }),
   });
+
+  if (isLoading && !dashboardData) {
+    return (
+      <div className="flex flex-col space-y-4 animate-pulse">
+        <div className="h-14 rounded-lg border bg-muted/30" />
+        <div className="h-12 rounded-lg border bg-muted/20" />
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-16 rounded-lg border bg-muted/20" />
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 h-64 rounded-lg border bg-muted/20" />
+          <div className="h-64 rounded-lg border bg-muted/20" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col space-y-4">
@@ -369,7 +397,7 @@ export default function FacultyDashboard({ user }) {
                   const isSelected = selectedTeam ? selectedTeam._id === p._id : idx === 0;
                   return (
                     <div
-                      className={`flex flex-col gap-2 cursor-pointer p-2 rounded-lg border transition-all ${
+                      className={`flex flex-col gap-2 cursor-pointer p-2.5 rounded-lg border transition-all ${
                         isSelected
                           ? 'bg-primary/10 border-primary/40 shadow-xs ring-1 ring-primary/20'
                           : 'border-transparent hover:bg-muted/20'
@@ -378,7 +406,9 @@ export default function FacultyDashboard({ user }) {
                     >
                       <div className="flex flex-row items-center justify-between gap-3">
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-semibold">{p.teamName}</span>
+                          <span className="truncate text-sm font-semibold text-foreground">
+                            {p.teamName}
+                          </span>
                           <span className="truncate text-xs text-muted-foreground">
                             {p.title || 'Untitled Project'}
                           </span>
@@ -392,6 +422,18 @@ export default function FacultyDashboard({ user }) {
                             ? p.capstoneType.join(', ')
                             : p.capstoneType || 'IT / Software'}
                         </span>
+                        {p.chapterProgressSummary && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                            <CheckCircle2 className="h-3 w-3" />
+                            {p.chapterProgressSummary}
+                          </span>
+                        )}
+                        {p.pendingChapter && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            <Clock className="h-3 w-3" />
+                            Ch. {p.pendingChapter} in review
+                          </span>
+                        )}
                         {p.githubUrl && (
                           <a
                             href={p.githubUrl}
@@ -401,6 +443,17 @@ export default function FacultyDashboard({ user }) {
                             onClick={(e) => e.stopPropagation()}
                           >
                             📦 GitHub Repo ↗
+                          </a>
+                        )}
+                        {p.googleDocUrl && (
+                          <a
+                            href={p.googleDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            📄 Google Doc ↗
                           </a>
                         )}
                       </div>
@@ -495,7 +548,10 @@ export default function FacultyDashboard({ user }) {
 
             {/* Right-hand Team Member Roster Sidebar (FRAD2) */}
             {(() => {
-              const activeTeam = selectedTeam || assignedProjects[0];
+              const activeTeam =
+                (selectedTeam && assignedProjects.find((p) => p._id === selectedTeam._id)) ||
+                selectedTeam ||
+                assignedProjects[0];
               return (
                 <div className="rounded-lg border bg-card p-4 shadow-sm space-y-3">
                   <div className="flex items-center justify-between border-b pb-2">
@@ -520,6 +576,55 @@ export default function FacultyDashboard({ user }) {
                           {activeTeam.title || 'Untitled'}
                         </p>
                       </div>
+
+                      {/* 5-Chapter Progression Bar */}
+                      <div className="rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-foreground uppercase tracking-wider text-[10px]">
+                            Chapter Progress
+                          </span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {activeTeam.chapterProgressSummary ||
+                              `${activeTeam.approvedChaptersCount || 0}/5 approved`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                            style={{
+                              width: `${Math.round(((activeTeam.approvedChaptersCount || 0) / 5) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-5 gap-1 pt-1">
+                          {[1, 2, 3, 4, 5].map((ch) => {
+                            const isApproved = ch <= (activeTeam.approvedChaptersCount || 0);
+                            const isPending = ch === activeTeam.pendingChapter;
+                            return (
+                              <div
+                                key={ch}
+                                className={`text-center py-1 rounded text-[10px] font-bold border transition-all ${
+                                  isApproved
+                                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                                    : isPending
+                                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                                      : 'bg-muted/40 border-border/40 text-muted-foreground'
+                                }`}
+                                title={
+                                  isApproved
+                                    ? `Chapter ${ch}: Approved`
+                                    : isPending
+                                      ? `Chapter ${ch}: Pending Review`
+                                      : `Chapter ${ch}: Not Approved`
+                                }
+                              >
+                                Ch {ch}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div>
                         <span className="font-semibold text-muted-foreground uppercase text-[10px]">
                           IT Field of Discipline:
@@ -530,48 +635,99 @@ export default function FacultyDashboard({ user }) {
                             : activeTeam.capstoneType || 'Information Technology'}
                         </p>
                       </div>
-                      {activeTeam.githubUrl && (
-                        <div>
-                          <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                            Repository:
-                          </span>
-                          <p className="mt-0.5">
-                            <a
-                              href={activeTeam.githubUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
-                            >
-                              🔗 {activeTeam.githubUrl}
-                            </a>
-                          </p>
+
+                      {(activeTeam.githubUrl || activeTeam.googleDocUrl) && (
+                        <div className="flex flex-col gap-1.5">
+                          {activeTeam.googleDocUrl && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                                Working Document:
+                              </span>
+                              <p className="mt-0.5">
+                                <a
+                                  href={activeTeam.googleDocUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline font-semibold inline-flex items-center gap-1 text-[11px]"
+                                >
+                                  📄 Google Docs Manuscript ↗
+                                </a>
+                              </p>
+                            </div>
+                          )}
+                          {activeTeam.githubUrl && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                                Repository:
+                              </span>
+                              <p className="mt-0.5">
+                                <a
+                                  href={activeTeam.githubUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline font-semibold inline-flex items-center gap-1 text-[11px]"
+                                >
+                                  📦 GitHub Repository ↗
+                                </a>
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
+
                       <div className="border-t pt-2 space-y-2">
-                        <span className="font-semibold text-muted-foreground uppercase text-[10px]">
-                          Members (
-                          {activeTeam.members?.length ||
-                            activeTeam.memberRoles?.length ||
-                            activeTeam.memberCount ||
-                            0}
-                          ):
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-muted-foreground uppercase text-[10px]">
+                            Proponent Team Roster (
+                            {activeTeam.members?.length ||
+                              activeTeam.memberRoles?.length ||
+                              activeTeam.memberCount ||
+                              0}
+                            ):
+                          </span>
+                          {activeTeam.isLocked && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1 py-0 h-4 border-rose-500/30 text-rose-600 bg-rose-500/10"
+                            >
+                              Locked
+                            </Badge>
+                          )}
+                        </div>
                         <div className="space-y-1.5 max-h-48 overflow-y-auto">
                           {(activeTeam.members || activeTeam.memberRoles || []).length > 0 ? (
                             (activeTeam.members || activeTeam.memberRoles || []).map((m, idx) => (
                               <div
                                 key={m._id || idx}
-                                className="p-2 rounded bg-muted/30 border border-border/50 flex flex-col gap-0.5"
+                                className="p-2 rounded-md bg-muted/30 border border-border/50 flex flex-col gap-0.5"
                               >
-                                <span className="font-bold text-foreground">
-                                  {m.fullName ||
-                                    m.name ||
-                                    m.userId?.fullName ||
-                                    `Member ${idx + 1}`}
-                                </span>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-foreground truncate">
+                                    {m.fullName ||
+                                      m.name ||
+                                      m.userId?.fullName ||
+                                      `Member ${idx + 1}`}
+                                  </span>
+                                  {m.isLeader && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] font-bold px-1 py-0 h-4 border-primary/30 text-primary bg-primary/10 shrink-0"
+                                    >
+                                      Lead
+                                    </Badge>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {m.role || m.traditionalRole || m.capstoneTitle || 'Proponent'}
+                                  {m.role ||
+                                    m.traditionalRole ||
+                                    m.capstoneTitle ||
+                                    'Proponent Member'}
                                 </span>
+                                {m.email && (
+                                  <span className="text-[9px] text-muted-foreground/70 truncate">
+                                    {m.email}
+                                  </span>
+                                )}
                               </div>
                             ))
                           ) : (
@@ -582,14 +738,28 @@ export default function FacultyDashboard({ user }) {
                           )}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        className="w-full mt-3 gap-1.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 shadow-none font-semibold"
-                        onClick={() => navigate(`/projects/${activeTeam._id}?tab=capstone_2`)}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Open Project Workspace
-                      </Button>
+
+                      <div className="pt-2 flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          className="w-full gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+                          onClick={() =>
+                            navigate(`/project/submissions?mode=view&projectId=${activeTeam._id}`)
+                          }
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          View Submissions & Progress
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-1.5 text-xs text-foreground hover:bg-muted/30 font-semibold"
+                          onClick={() => navigate(`/projects/${activeTeam._id}?tab=capstone_2`)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Open Project Workspace
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center p-6 text-center text-xs text-muted-foreground">

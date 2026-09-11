@@ -18,6 +18,9 @@ export const defenseMinutesService = {
   lockCompositeScores: (projectId, defenseType, data) =>
     api.post(`/defense-minutes/${projectId}/${defenseType}/lock-scores`, data),
 
+  updateSessionDetails: (projectId, defenseType, data) =>
+    api.patch(`/defense-minutes/${projectId}/${defenseType}/session-details`, data),
+
   publishToADM: (projectId, defenseType) =>
     api.post(`/defense-minutes/${projectId}/${defenseType}/publish-matrix`),
 };

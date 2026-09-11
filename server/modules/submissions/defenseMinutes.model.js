@@ -49,6 +49,10 @@ const defenseMinutesEntrySchema = new mongoose.Schema(
       maxlength: 200,
       default: '',
     },
+    isClient: {
+      type: Boolean,
+      default: false,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -95,6 +99,30 @@ const defenseMinutesSchema = new mongoose.Schema(
       type: String,
       enum: ['scheduled', 'in_progress', 'concluded', 'published'],
       default: 'in_progress',
+    },
+    venue: {
+      type: String,
+      trim: true,
+      default: 'COT Conference Room',
+    },
+    round: {
+      type: String,
+      enum: ['1st', '2nd', '3rd'],
+      default: '2nd',
+    },
+    clientName: {
+      type: String,
+      trim: true,
+      default: 'Dr. Sales G. Aribe Jr.',
+    },
+    clientComments: {
+      type: [String],
+      default: [],
+    },
+    overallRecommendations: {
+      type: String,
+      trim: true,
+      default: '',
     },
     startTime: {
       type: Date,

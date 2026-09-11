@@ -64,9 +64,11 @@ const mockDashboardData = {
   recentNotifications: [],
 };
 
+let currentDashboardData = mockDashboardData;
+
 vi.mock('@/hooks/useDashboard', () => ({
   useDashboard: () => ({
-    data: mockDashboardData,
+    data: currentDashboardData,
     isLoading: false,
     error: null,
   }),
@@ -85,6 +87,7 @@ describe('FacultyDashboard Multi-Hat Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    currentDashboardData = mockDashboardData;
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -171,6 +174,52 @@ describe('FacultyDashboard Multi-Hat Component', () => {
       (b) => b.textContent.includes('Review') && !b.textContent.includes('Studio'),
     );
     expect(reviewButton).toBeDefined();
+
+    view.unmount();
+  });
+
+  it('hydrates Capstone 2 phase progression when title is approved even if raw phase is 1', () => {
+    currentDashboardData = {
+      ...mockDashboardData,
+      assignedProjects: [
+        {
+          _id: 'proj-adv-solo',
+          title: 'AgroSense AI: Federated Learning Framework',
+          teamName: 'Solo Leveling',
+          capstonePhase: 1, // Legacy phase 1 in DB
+          projectStatus: 'pending_in_review',
+          titleStatus: 'approved', // Approved title means Capstone 1 is passed
+          chapterProgressSummary: '1/5 approved',
+          approvedChaptersCount: 1,
+          pendingChapter: 2,
+          members: [
+            {
+              _id: 'mem-1',
+              fullName: 'Megumi Josh Fushiguro',
+              role: 'Full-Stack Developer',
+              isLeader: true,
+              email: 'fushiguro@student.buksu.edu.ph',
+            },
+          ],
+        },
+      ],
+    };
+
+    const view = renderComponent();
+
+    // Must NOT display Review: Capstone 1
+    expect(view.container.textContent).not.toContain('Review: Capstone 1');
+    // Must display Review: Capstone 2
+    expect(view.container.textContent).toContain('Review: Capstone 2');
+    // Must display chapter progress summary
+    expect(view.container.textContent).toContain('1/5 approved');
+    expect(view.container.textContent).toContain('Ch. 2 in review');
+    // Must display team members and lead badge
+    expect(view.container.textContent).toContain('Megumi Josh Fushiguro');
+    expect(view.container.textContent).toContain('Lead');
+    expect(view.container.textContent).toContain('Full-Stack Developer');
+    // Must display Submissions action button
+    expect(view.container.textContent).toContain('View Submissions & Progress');
 
     view.unmount();
   });

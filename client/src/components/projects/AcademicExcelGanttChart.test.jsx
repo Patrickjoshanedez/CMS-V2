@@ -16,6 +16,7 @@ describe('AcademicExcelGanttChart Component', () => {
   let root;
 
   beforeEach(() => {
+    localStorage.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -26,6 +27,7 @@ describe('AcademicExcelGanttChart Component', () => {
       root.unmount();
     });
     container.remove();
+    localStorage.clear();
   });
 
   describe('Utility extraction functions', () => {

@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   useSubmission,
   useViewUrl,
+  useChapterHistory,
   useReviewSubmission,
   useUnlockSubmission,
   useAddAnnotation,
@@ -32,18 +33,22 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  AlertCircle,
   Loader2,
   MessageSquare,
   Trash2,
-  Unlock,
   Lock,
+  Unlock,
   User,
   Send,
   Eye,
   Download,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 /* ────────── Helpers ────────── */
 
@@ -66,6 +71,30 @@ function formatBytes(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+function formatFileType(fileType, fileName) {
+  const lowerType = (fileType || '').toLowerCase();
+  const lowerName = (fileName || '').toLowerCase();
+
+  if (
+    lowerType.includes('wordprocessingml') ||
+    lowerType.includes('msword') ||
+    lowerName.endsWith('.docx') ||
+    lowerName.endsWith('.doc')
+  ) {
+    return 'Word Document (.docx)';
+  }
+  if (lowerType.includes('pdf') || lowerName.endsWith('.pdf')) {
+    return 'PDF Manuscript (.pdf)';
+  }
+  if (lowerType.includes('sheet') || lowerType.includes('excel') || lowerName.endsWith('.xlsx')) {
+    return 'Excel Spreadsheet (.xlsx)';
+  }
+  if (lowerType.includes('presentation') || lowerName.endsWith('.pptx')) {
+    return 'Presentation (.pptx)';
+  }
+  return fileType || 'Document';
 }
 
 /* ────────── Sub-components ────────── */
@@ -110,49 +139,146 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
 
   return (
     <>
-      <Card className="overflow-hidden border-border/70 bg-card/70 shadow-sm">
+      <Card className="overflow-hidden border-border/70 bg-card shadow-xs rounded-2xl">
         <CardHeader className="border-b border-border/60 pb-5">
-          <CardTitle className="flex flex-wrap items-center gap-2 text-xl sm:text-2xl">
-            <FileText className="h-5 w-5 text-primary" />
-            <span>{chapterLabel}</span>
-            <Badge variant="outline" className="font-medium">
-              v{submission.version}
-            </Badge>
-          </CardTitle>
-          <CardDescription>Uploaded {formatDate(submission.createdAt)}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 p-5 sm:p-6">
-          <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/25 p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoRow label="File" value={submission.fileName} />
-            <InfoRow label="Size" value={formatBytes(submission.fileSize)} />
-            <InfoRow label="Type" value={submission.fileType} />
-            <InfoRow label="Status">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                    {chapterLabel}
+                  </CardTitle>
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-xs px-2 py-0.5 border-primary/30 text-primary bg-primary/5"
+                  >
+                    v{submission.version || 1}
+                  </Badge>
+                  {!submission.isLate ? (
+                    <Badge
+                      variant="outline"
+                      className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs px-2.5 py-0.5"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      On-Time Submission
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="gap-1.5 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold text-xs px-2.5 py-0.5"
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      Late Submission
+                    </Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs text-muted-foreground flex items-center gap-2">
+                  <span>Uploaded {formatDate(submission.createdAt)}</span>
+                  {submission.deadlineAt && (
+                    <>
+                      <span>&middot;</span>
+                      <span>Milestone Due: {formatDate(submission.deadlineAt)}</span>
+                    </>
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-center">
               <SubmissionStatusBadge status={submission.status} />
-            </InfoRow>
-            <InfoRow label="Deadline" value={formatDate(submission.deadlineAt)} />
-            {submission.isLate && (
-              <InfoRow label="Late Submission">
-                <Badge variant="warning" className="font-medium">
-                  Late
-                </Badge>
-              </InfoRow>
-            )}
-            {submission.originalityScore !== null && submission.originalityScore !== undefined && (
-              <InfoRow label="Originality" value={`${submission.originalityScore}%`} />
-            )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6 p-5 sm:p-6">
+          {/* Executive Metrics Ribbon */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Document File
+              </p>
+              <p
+                className="text-sm font-semibold text-foreground truncate"
+                title={submission.fileName}
+              >
+                {submission.fileName}
+              </p>
+              <p className="text-xs text-primary font-medium">
+                {formatFileType(submission.fileType, submission.fileName)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                File Size
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {formatBytes(submission.fileSize)}
+              </p>
+              <p className="text-xs text-muted-foreground">Original Manuscript</p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Originality Score
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-foreground">
+                  {submission.originalityScore !== null && submission.originalityScore !== undefined
+                    ? `${submission.originalityScore}%`
+                    : 'Pending'}
+                </p>
+                {submission.originalityScore !== null &&
+                  submission.originalityScore !== undefined && (
+                    <span
+                      className={cn(
+                        'text-[10px] font-bold px-1.5 py-0.5 rounded-sm',
+                        submission.originalityScore >= 75
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+                      )}
+                    >
+                      {submission.originalityScore >= 75 ? 'Compliant' : 'Review Needed'}
+                    </span>
+                  )}
+              </div>
+              <p className="text-xs text-muted-foreground">Target: &gt; 75% Original</p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Milestone Status
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {!submission.isLate ? 'On-Time Delivery' : 'Delivered Past Deadline'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {!submission.isLate ? 'Exempt from justification' : 'Requires justification note'}
+              </p>
+            </div>
           </div>
 
+          {/* Originality Progress Meter */}
           {submission.originalityScore !== null && submission.originalityScore !== undefined && (
-            <div className="space-y-2 rounded-lg border border-border/60 bg-background/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-foreground">Originality Score</p>
-                <p className="text-sm font-semibold text-foreground">
-                  {submission.originalityScore}%
-                </p>
+            <div className="rounded-xl border border-border/60 bg-background/60 p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center gap-1.5 text-foreground">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>BukSU Originality &amp; Similarity Verification</span>
+                </div>
+                <span className="text-muted-foreground font-mono">
+                  {submission.originalityScore}% Originality ·{' '}
+                  {Math.max(0, 100 - submission.originalityScore)}% Similarity Match
+                </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    submission.originalityScore >= 75 ? 'bg-emerald-500' : 'bg-amber-500',
+                  )}
                   style={{ width: `${Math.max(0, Math.min(100, submission.originalityScore))}%` }}
                 />
               </div>
@@ -160,7 +286,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           )}
 
           {isScanning && (
-            <div className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary animate-pulse">
+            <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs text-primary animate-pulse">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               <span>
                 Scanning manuscript directly against institutional capstone archive and vector
@@ -170,26 +296,30 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
           )}
 
           {submission.remarks && (
-            <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-              <p className="text-sm font-medium text-muted-foreground">
-                {submission.isLate ? 'Late Justification Note' : 'Remarks'}
+            <div className="space-y-1.5 rounded-xl border border-border/60 bg-muted/15 p-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {submission.isLate ? 'Late Justification Note' : 'Student Submission Remarks'}
               </p>
-              <p className="text-sm text-foreground">{submission.remarks}</p>
+              <p className="text-sm text-foreground leading-relaxed">{submission.remarks}</p>
             </div>
           )}
 
           {submission.reviewNote && (
-            <div className="space-y-1 rounded-lg border border-border/60 bg-background/60 p-4">
-              <p className="text-sm font-medium text-muted-foreground">Review Note</p>
-              <p className="text-sm text-foreground">{submission.reviewNote}</p>
+            <div className="space-y-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Committee Review Note</span>
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">{submission.reviewNote}</p>
             </div>
           )}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-border/50">
             <Button
               type="button"
               variant="default"
-              className="sm:w-auto gap-2 shadow-xs"
+              className="gap-2 shadow-xs"
               onClick={() => setViewerOpen(true)}
             >
               <Eye className="h-4 w-4" />
@@ -198,7 +328,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
             <Button
               type="button"
               variant="outline"
-              className="sm:w-auto gap-2"
+              className="gap-2"
               disabled={downloading}
               onClick={handleDownload}
             >
@@ -210,14 +340,15 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               Download Original
             </Button>
             {submission.teamResources?.googleDocUrl && (
-              <Button asChild variant="secondary" className="sm:w-auto">
+              <Button asChild variant="secondary" className="gap-2">
                 <a
                   href={submission.teamResources.googleDocUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FileText className="mr-2 h-4 w-4" />
+                  <FileText className="h-4 w-4 text-blue-500" />
                   Open Team Google Doc
+                  <ExternalLink className="h-3 w-3 opacity-70 ml-0.5" />
                 </a>
               </Button>
             )}
@@ -226,7 +357,7 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               variant="outline"
               onClick={() => scanArchiveMutation.mutate(submission._id)}
               disabled={isScanning}
-              className="sm:w-auto"
+              className="gap-2"
             >
               {isScanning ? (
                 <>
@@ -247,22 +378,18 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
               <Button
                 variant="outline"
                 onClick={() => navigate(`/project/submissions/${submission._id}/plagiarism-report`)}
-                className="sm:w-auto"
+                className="gap-2"
               >
                 <BarChart2 className="mr-2 h-4 w-4 text-primary" />
                 View Plagiarism Report
               </Button>
             )}
             {viewUrlLoading && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
                 <Loader2 className="h-3 w-3 animate-spin" /> Generating view link...
               </p>
             )}
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            View the manuscript in the full-screen reader or download the original file.
-          </p>
         </CardContent>
       </Card>
       <SophisticatedDocumentViewer
@@ -272,15 +399,6 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading }) {
         fileUrl={documentUrl}
       />
     </>
-  );
-}
-
-function InfoRow({ label, value, children }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      {children || <p className="text-sm font-medium break-all text-foreground">{value}</p>}
-    </div>
   );
 }
 
@@ -313,29 +431,7 @@ function JustificationCard({ submission, isStudent }) {
   };
 
   if (!submission.isLate) {
-    return (
-      <Card className="border-border/60 bg-muted/15">
-        <CardContent className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">On-Time Submission</p>
-              <p className="text-xs text-muted-foreground">
-                Justifications are locked for on-time uploads (ADM compliance exemption).
-              </p>
-            </div>
-          </div>
-          <Badge
-            variant="outline"
-            className="text-xs font-mono text-emerald-600 border-emerald-300"
-          >
-            Locked (On-Time)
-          </Badge>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
@@ -427,7 +523,7 @@ function ReviewPanel({ submissionId, currentStatus }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Review Submission</CardTitle>
-        <CardDescription>Approve, request revisions, or reject this document.</CardDescription>
+        <CardDescription>Approve or request revisions on this document.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {reviewMutation.error && (
@@ -466,14 +562,6 @@ function ReviewPanel({ submissionId, currentStatus }) {
           >
             <AlertTriangle className="mr-2 h-4 w-4" />
             Request Revisions
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => handleReview(SUBMISSION_STATUSES.REJECTED)}
-            disabled={reviewMutation.isPending}
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            Reject
           </Button>
           {reviewMutation.isPending && <Loader2 className="h-5 w-5 animate-spin self-center" />}
         </div>
@@ -854,6 +942,23 @@ export default function SubmissionDetailPage() {
     enabled: !!submission,
   });
 
+  const projectId = submission?.projectId?._id || submission?.projectId;
+  const chapterNum = submission?.chapter;
+  const { data: chapterHistory = [] } = useChapterHistory(projectId, chapterNum, {
+    enabled: Boolean(projectId && chapterNum),
+  });
+
+  const sortedHistory = [...(Array.isArray(chapterHistory) ? chapterHistory : [])].sort(
+    (a, b) => (b.version || 1) - (a.version || 1),
+  );
+  const latestInHistory = sortedHistory[0];
+  const isViewingOlderVersion = Boolean(
+    latestInHistory &&
+    submission?._id &&
+    String(latestInHistory._id) !== String(submission._id) &&
+    (latestInHistory.version || 1) > (submission.version || 1),
+  );
+
   /* ────── Loading ────── */
   if (isLoading) {
     return (
@@ -895,7 +1000,7 @@ export default function SubmissionDetailPage() {
               Back
             </Button>
             <div className="h-4 w-px bg-border/60" />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">
                 {submission.chapter
                   ? `Chapter ${submission.chapter} Manuscript`
@@ -904,6 +1009,57 @@ export default function SubmissionDetailPage() {
               <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 h-4">
                 v{submission.version || 1}
               </Badge>
+              {!submission.isLate ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium text-[10px] px-1.5 py-0 h-4"
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                  On-Time
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium text-[10px] px-1.5 py-0 h-4"
+                >
+                  <AlertTriangle className="h-2.5 w-2.5 text-amber-500" />
+                  Late
+                </Badge>
+              )}
+              {sortedHistory.length > 1 && (
+                <div className="flex items-center gap-1 ml-1.5">
+                  <span className="text-[11px] text-muted-foreground font-medium">Revisions:</span>
+                  {sortedHistory.map((h) => {
+                    const isCurrent = String(h._id) === String(submission._id);
+                    return (
+                      <Button
+                        key={h._id}
+                        variant={isCurrent ? 'default' : 'outline'}
+                        size="sm"
+                        className={`h-5 px-1.5 text-[10px] font-mono transition-colors ${
+                          isCurrent ? 'font-bold' : 'hover:bg-muted text-muted-foreground'
+                        }`}
+                        onClick={() => {
+                          if (!isCurrent) {
+                            navigate(
+                              `/submissions/${h._id}${
+                                isReadOnlyMode && sourceProjectId
+                                  ? `?mode=view&projectId=${sourceProjectId}`
+                                  : ''
+                              }`,
+                            );
+                          }
+                        }}
+                      >
+                        v{h.version || 1}
+                        {h.status === SUBMISSION_STATUSES.ACCEPTED && (
+                          <span className="ml-0.5 text-[9px] text-emerald-500 font-bold">✓</span>
+                        )}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -931,6 +1087,47 @@ export default function SubmissionDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Outdated Version Alert Banner */}
+        {isViewingOlderVersion && (
+          <Alert className="border-blue-500/40 bg-blue-50/30 dark:bg-blue-950/20 text-blue-950 dark:text-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">
+                  Viewing Earlier Revision (v{submission.version || 1})
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  A newer revision (
+                  <span className="font-semibold text-foreground">v{latestInHistory.version}</span>)
+                  is available with status:{' '}
+                  <span className="font-medium text-foreground uppercase text-[11px]">
+                    {latestInHistory.status?.replace(/_/g, ' ')}
+                  </span>
+                  .
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0 text-xs gap-1.5"
+              onClick={() =>
+                navigate(
+                  `/submissions/${latestInHistory._id}${
+                    isReadOnlyMode && sourceProjectId
+                      ? `?mode=view&projectId=${sourceProjectId}`
+                      : ''
+                  }`,
+                )
+              }
+            >
+              <span>View Latest Revision (v{latestInHistory.version})</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </Alert>
+        )}
 
         {isArchived && (
           <Alert className="border-amber-500/50 bg-amber-500/5 text-amber-600">
@@ -981,11 +1178,6 @@ export default function SubmissionDetailPage() {
         {/* Faculty: review controls */}
         {facultyCanReview && (
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />
-        )}
-
-        {/* Faculty: unlock locked submissions */}
-        {facultyCanReview && (
-          <UnlockPanel submissionId={submission._id} currentStatus={submission.status} />
         )}
 
         {/* Annotations — faculty always has annotation capabilities */}

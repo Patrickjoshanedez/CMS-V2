@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-09-11_synced-tabs-simplified-review-submission-reorganization",
+  "timestamp": "2026-09-11T22:04:00.000Z",
+  "task": "Synchronize Project Detail Tabs with active capstone phase & milestone stepper, simplify Review Studio decisions by removing Accept & Lock and displaying locked as Approved, and reorganize Submission Detail Page with on-time badge placement, executive metrics ribbon, and elimination of redundant card.",
+  "status": "completed",
+  "subgoals": [
+    {
+      "id": "tab-sync",
+      "description": "Add resolveProjectDefaultTab and mapStepToWorkflowTab in ProjectDetailPage, wire activeTab to URL search param ?tab= and default tab, connect stepper node clicks.",
+      "status": "completed"
+    },
+    {
+      "id": "review-decisions",
+      "description": "Remove Accept & Lock button from SubmissionReviewPage toolbar. Map locked status to Approved across SubmissionStatusBadge, ChapterReviewPanel, and ChapterProgressWithRounds.",
+      "status": "completed"
+    },
+    {
+      "id": "submission-detail-reorganize",
+      "description": "Reorganize SubmissionDetailPage: place on-time badge beside title, add metrics ribbon and originality progress bar, remove redundant locked card and Reject button.",
+      "status": "completed"
+    },
+    {
+      "id": "verification",
+      "description": "22 targeted unit tests passed across 4 files, check:endpoints 0 unmatched, validate:agentic 60/60 checks, Playwright visual feedback loop passed.",
+      "status": "completed"
+    }
+  ],
+  "lessons_learned": [
+    "Lesson: In React functional components, all hooks (including useMemo) must be declared unconditionally at the top of the component before any early returns (like if (isLoading) return <PageSkeleton />). Placing useMemo after early returns violates the Rules of Hooks and causes runtime crash 'Rendered more hooks than during the previous render' when state transitions from loading to loaded.",
+    "Prevention: When auditing and intercepting mock API routes in Playwright or testing suites, specific sub-resource routes (e.g. /review-workspace, /view-url, /file) must be evaluated before generic parent item matchers (e.g. /api/submissions/sub-test-1) to avoid premature request swallowing."
+  ]
+}

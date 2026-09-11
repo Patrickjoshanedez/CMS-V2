@@ -18,6 +18,10 @@ import {
   ShieldCheck,
   User2,
   ExternalLink,
+  BookOpen,
+  Maximize2,
+  Sparkles,
+  RefreshCcw,
 } from 'lucide-react';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -29,7 +33,6 @@ import { Label } from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadge';
-import PlagiarismChecker from '@/components/submissions/PlagiarismChecker';
 import {
   useAddAnnotation,
   useAddAnnotationReply,
@@ -38,6 +41,7 @@ import {
   usePlagiarismReport,
   useRequestRevisionRound,
   useReviewSubmission,
+  useScanSubmissionArchive,
   useSubmissionReviewWorkspace,
   useViewUrl,
 } from '@/hooks/useSubmissions';
@@ -76,13 +80,33 @@ function deriveReviewerRole(userId, workspace) {
   if (!userId || !workspace) return null;
   const uid = String(userId);
 
-  if (workspace.adviserId && String(workspace.adviserId) === uid) return 'Adviser';
-  if (
-    Array.isArray(workspace.panelistIds) &&
-    workspace.panelistIds.some((pid) => String(pid) === uid)
-  )
-    return 'Panelist';
-  if (workspace.secretaryId && String(workspace.secretaryId) === uid) return 'Secretary';
+  const rawAdviser =
+    workspace.adviserId || workspace.project?.adviserId || workspace.project?.adviser;
+  const adviserIdStr = rawAdviser?._id
+    ? String(rawAdviser._id)
+    : rawAdviser
+      ? String(rawAdviser)
+      : null;
+  if (adviserIdStr && adviserIdStr === uid) return 'Adviser';
+
+  const panelistIds = workspace.panelistIds || workspace.project?.panelistIds;
+  if (Array.isArray(panelistIds)) {
+    const isPanelist = panelistIds.some((pid) => {
+      const pidStr = pid?._id ? String(pid._id) : String(pid);
+      return pidStr === uid;
+    });
+    if (isPanelist) return 'Panelist';
+  }
+
+  const rawSecretary =
+    workspace.secretaryId || workspace.project?.secretaryId || workspace.project?.secretary;
+  const secretaryIdStr = rawSecretary?._id
+    ? String(rawSecretary._id)
+    : rawSecretary
+      ? String(rawSecretary)
+      : null;
+  if (secretaryIdStr && secretaryIdStr === uid) return 'Secretary';
+
   return null;
 }
 
@@ -138,42 +162,50 @@ function ReviewerRoleBanner({ role, workspace }) {
   );
 }
 
-/* ────────── Originiality Score Bar ────────── */
+/* ────────── Originality Score Bar ────────── */
 
 function OriginalityBar({ score }) {
   const num = Number(score);
   const valid = Number.isFinite(num) && num >= 0;
-  const pct = valid ? Math.min(100, num) : 0;
+  const originality = valid ? Math.min(100, Math.max(0, num)) : 0;
+  const similarity = Math.max(0, 100 - originality);
 
-  // Color thresholds: green < 25%, amber 25–50%, red > 50%
-  const barClass = pct <= 25 ? 'bg-emerald-500' : pct <= 50 ? 'bg-amber-500' : 'bg-rose-500';
-  const textClass =
-    pct <= 25
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : pct <= 50
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-rose-600 dark:text-rose-400';
+  // BukSU Capstone threshold: similarity < 25% (originality >= 75%) is compliant
+  const isCompliant = originality >= 75;
+  const isModerate = originality >= 50 && originality < 75;
+
+  const barClass = isCompliant ? 'bg-emerald-500' : isModerate ? 'bg-amber-500' : 'bg-rose-500';
+  const textClass = isCompliant
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : isModerate
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-rose-600 dark:text-rose-400';
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-muted-foreground">Originality Score</span>
-        <span className={`font-bold text-sm ${textClass}`}>{valid ? `${num}%` : '—'}</span>
+        <span className={`font-bold text-sm ${textClass}`}>{valid ? `${originality}%` : '—'}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full transition-all ${barClass}`}
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full transition-all duration-300 ${barClass}`}
+          style={{ width: `${originality}%` }}
         />
       </div>
       {valid && (
-        <p className={`text-[10px] font-medium ${textClass}`}>
-          {pct <= 25
-            ? 'Excellent — Meets the <25% threshold'
-            : pct <= 50
-              ? 'Moderate — Review for significant overlap'
-              : 'High — Exceeds acceptable threshold'}
-        </p>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className={`font-semibold ${textClass}`}>
+            {isCompliant
+              ? 'Compliant — Passes BukSU Standard'
+              : isModerate
+                ? 'Moderate — Review for overlap'
+                : 'High Overlap — Exceeds threshold'}
+          </span>
+          <span className="text-muted-foreground text-[10px]">
+            {similarity.toFixed(0)}% similarity (&lt;25% target)
+          </span>
+        </div>
       )}
     </div>
   );
@@ -372,22 +404,40 @@ export default function SubmissionReviewPage() {
   const { submissionId } = useParams();
   const user = useAuthStore((state) => state.user);
 
-  const [activeRoundNumber, setActiveRoundNumber] = useState('1');
+  const [activeRoundNumber, setActiveRoundNumber] = useState(null);
   const [overallNotes, setOverallNotes] = useState('');
   const [selectionDraft, setSelectionDraft] = useState(null);
-  const [activeTab, setActiveTab] = useState('comments');
+  const [activeTab, setActiveTab] = useState('reader');
   const [viewerOpen, setViewerOpen] = useState(false);
 
   const workspaceQuery = useSubmissionReviewWorkspace(submissionId);
   const workspace = normalizeWorkspace(workspaceQuery.data);
   const rounds = useMemo(() => workspace?.rounds || [], [workspace]);
 
-  const activeRound = useMemo(() => {
-    const selected = rounds.find((item) => String(item.roundNumber) === String(activeRoundNumber));
-    return selected || rounds[rounds.length - 1] || null;
+  // Default to the latest round number when rounds load and no user selection exists
+  const effectiveRoundNumber = useMemo(() => {
+    if (activeRoundNumber) return String(activeRoundNumber);
+    if (rounds.length > 0) {
+      return String(rounds[rounds.length - 1].roundNumber);
+    }
+    return '1';
   }, [rounds, activeRoundNumber]);
 
+  const activeRound = useMemo(() => {
+    const selected = rounds.find(
+      (item) => String(item.roundNumber) === String(effectiveRoundNumber),
+    );
+    return selected || rounds[rounds.length - 1] || null;
+  }, [rounds, effectiveRoundNumber]);
+
   const activeSubmissionId = activeRound?.sourceSubmissionId || null;
+
+  // Derive team's working Google Doc URL from team resources or synced document
+  const teamGoogleDocUrl =
+    workspace?.teamResources?.googleDocUrl ||
+    activeRound?.syncedGoogleDocUrl ||
+    activeRound?.driveWebViewLink ||
+    null;
 
   // Derive reviewer's committee role client-side
   const reviewerRole = useMemo(
@@ -406,6 +456,49 @@ export default function SubmissionReviewPage() {
   const viewUrlQuery = useViewUrl(activeSubmissionId, { enabled: !!activeSubmissionId });
   const plagiarismQuery = usePlagiarismReport(activeSubmissionId, {
     enabled: !!activeSubmissionId,
+  });
+
+  // Memoize unified submission payload for SophisticatedDocumentViewer
+  const viewerSubmission = useMemo(() => {
+    if (!activeRound && !workspace?.submission) return null;
+    const base = workspace?.submission || {};
+    const subId = activeSubmissionId || base._id;
+    const versionNum = activeRound?.roundNumber || base.version || 1;
+    const rawPlagScore =
+      plagiarismQuery.data?.data?.overallScore ??
+      activeRound?.plagiarismReport?.overallScore ??
+      base.plagiarismReport?.overallScore ??
+      null;
+    const derivedOrigScore =
+      typeof rawPlagScore === 'number'
+        ? Math.round(100 - rawPlagScore)
+        : (base.originalityScore ?? null);
+
+    return {
+      ...base,
+      ...activeRound,
+      _id: subId,
+      version: versionNum,
+      fileName: activeRound?.fileName || base.fileName || 'manuscript.docx',
+      fileSize: activeRound?.fileSize || base.fileSize,
+      fileType:
+        activeRound?.fileType ||
+        base.fileType ||
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      originalityScore: derivedOrigScore,
+      chapter: activeRound?.chapter || base.chapter || workspace?.chapter || workspace?.title || 1,
+    };
+  }, [activeRound, workspace, activeSubmissionId, plagiarismQuery.data]);
+
+  const scanArchive = useScanSubmissionArchive({
+    onSuccess: () => {
+      toast.success('Plagiarism archive scan initiated.');
+      plagiarismQuery.refetch();
+      workspaceQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to initiate plagiarism scan.');
+    },
   });
 
   const addAnnotation = useAddAnnotation({
@@ -464,16 +557,47 @@ export default function SubmissionReviewPage() {
   const viewUrlErrorCode = viewUrlQuery.error?.response?.data?.error?.code || null;
   const isSubmissionFileUnavailable = viewUrlErrorCode === 'SUBMISSION_FILE_UNAVAILABLE';
   const extractedText = plagiarismQuery.data?.extractedText || '';
-  const originalityScore = activeRound?.originalityScore;
+  const originalityScore =
+    activeRound?.originalityScore ?? plagiarismQuery.data?.originalityScore ?? null;
 
   const isRoundPendingUpload = activeRound?.status === SUBMISSION_STATUSES.PENDING_STUDENT_UPLOAD;
   const isArchived = workspace?.isArchived || false;
-  const canModerate = [ROLES.ADVISER, ROLES.INSTRUCTOR].includes(user?.role) && !isArchived;
-  const canTakeDecision = !!activeSubmissionId && !activeRound?.reviewClosed && canModerate;
 
+  const isAssignedAdviser =
+    reviewerRole === 'Adviser' ||
+    Boolean(
+      workspace?.adviserId &&
+      String(workspace.adviserId?._id || workspace.adviserId) === String(user?._id),
+    ) ||
+    Boolean(
+      workspace?.project &&
+      String(
+        workspace.project.adviserId?._id ||
+          workspace.project.adviserId ||
+          workspace.project.adviser,
+      ) === String(user?._id),
+    ) ||
+    user?.role === ROLES.ADVISER;
+
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
+
+  const isPanelistForProposal =
+    workspace?.type === 'proposal' &&
+    (reviewerRole === 'Panelist' ||
+      (Array.isArray(workspace?.panelistIds) &&
+        workspace.panelistIds.some((pid) => String(pid?._id || pid) === String(user?._id))));
+
+  const canModerate = (isAssignedAdviser || isInstructor || isPanelistForProposal) && !isArchived;
+  const canTakeDecision = Boolean(activeSubmissionId && !activeRound?.reviewClosed && canModerate);
+
+  const annotationsCount = activeRound?.annotations?.length || 0;
   const tabs = [
-    { id: 'comments', label: 'Comments', icon: MessageSquare },
-    { id: 'text', label: 'Text Annotation', icon: FileText },
+    { id: 'reader', label: 'Manuscript Reader', icon: BookOpen },
+    {
+      id: 'comments',
+      label: `Comments (${annotationsCount})`,
+      icon: MessageSquare,
+    },
     { id: 'doc-comments', label: 'Doc Comments', icon: ExternalLink },
   ];
 
@@ -528,7 +652,7 @@ export default function SubmissionReviewPage() {
           </CardHeader>
           <CardContent className="p-3">
             <Tabs
-              value={String(activeRound?.roundNumber || '')}
+              value={String(effectiveRoundNumber)}
               onValueChange={(value) => setActiveRoundNumber(value)}
             >
               <TabsList className="w-full justify-start overflow-x-auto flex-wrap gap-1 h-auto p-1">
@@ -579,6 +703,29 @@ export default function SubmissionReviewPage() {
                   <span className="text-muted-foreground">File Size</span>
                   <span className="text-xs font-medium">{formatBytes(activeRound?.fileSize)}</span>
                 </div>
+
+                {/* Team Working Document Link */}
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-border/60">
+                  <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                    <FileText className="h-3.5 w-3.5 text-blue-500" />
+                    Team Google Doc
+                  </span>
+                  {teamGoogleDocUrl ? (
+                    <a
+                      href={teamGoogleDocUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                      title="Open Team Working Google Doc"
+                    >
+                      <span>Open Doc</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Not attached</span>
+                  )}
+                </div>
+
                 {activeRound?.reviewNote && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-700 dark:text-amber-400">
                     <p className="font-semibold mb-1">Faculty Feedback</p>
@@ -597,32 +744,37 @@ export default function SubmissionReviewPage() {
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <OriginalityBar score={originalityScore} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5 text-xs"
-                  disabled={!activeSubmissionId}
-                  onClick={() =>
-                    navigate(`/project/submissions/${activeSubmissionId}/plagiarism-report`)
-                  }
-                >
-                  View Full Report
-                </Button>
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5 text-xs"
+                    disabled={!activeSubmissionId}
+                    onClick={() =>
+                      navigate(`/project/submissions/${activeSubmissionId}/plagiarism-report`)
+                    }
+                  >
+                    View Full Report
+                  </Button>
+                  {activeSubmissionId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                      disabled={scanArchive.isPending}
+                      onClick={() => scanArchive.mutate(activeSubmissionId)}
+                    >
+                      {scanArchive.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                      )}
+                      <span>{scanArchive.isPending ? 'Scanning...' : 'Re-scan Archive'}</span>
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
-
-            {/* Plagiarism Check Trigger */}
-            {!!activeSubmissionId && !isRoundPendingUpload && (
-              <PlagiarismChecker
-                submissionId={activeSubmissionId}
-                submissionTitle={activeRound?.fileName || `Round ${activeRound?.roundNumber || ''}`}
-                showMatchDetails={true}
-                onCheckComplete={() => {
-                  plagiarismQuery.refetch();
-                  workspaceQuery.refetch();
-                }}
-              />
-            )}
 
             {/* File Actions */}
             {!isRoundPendingUpload && (
@@ -641,8 +793,16 @@ export default function SubmissionReviewPage() {
                     disabled={!activeRound}
                   >
                     <Eye className="h-4 w-4" />
-                    View Manuscript
+                    Fullscreen Viewer
                   </Button>
+                  {teamGoogleDocUrl && (
+                    <Button asChild variant="outline" className="w-full gap-2 text-xs">
+                      <a href={teamGoogleDocUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 text-blue-500" />
+                        Open Team Google Doc
+                      </a>
+                    </Button>
+                  )}
                   {activeSubmissionId && (
                     <Button asChild variant="outline" className="w-full gap-2">
                       <a
@@ -677,7 +837,7 @@ export default function SubmissionReviewPage() {
                   onClick={() => setActiveTab(id)}
                   className={[
                     'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-200',
-                    activeTab === id
+                    activeTab === id || (id === 'reader' && activeTab === 'text')
                       ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
                       : 'text-muted-foreground hover:text-foreground hover:bg-background/60',
                   ].join(' ')}
@@ -687,6 +847,57 @@ export default function SubmissionReviewPage() {
                 </button>
               ))}
             </div>
+
+            {/* Manuscript Reader Tab — Canonical SophisticatedDocumentViewer embedded inline */}
+            {(activeTab === 'reader' || activeTab === 'text') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <BookOpen className="h-3.5 w-3.5 text-primary" />
+                    Institutional Manuscript Reader & Revision Diff Studio
+                  </span>
+                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                    Tip: Highlight text on the manuscript to draft an inline comment.
+                  </span>
+                </div>
+
+                {isRoundPendingUpload ? (
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed p-12 text-center bg-card">
+                    <FileText className="h-10 w-10 text-muted-foreground/40" />
+                    <p className="text-sm font-medium text-foreground">
+                      Awaiting Student Submission
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The student has not yet uploaded the manuscript for this round.
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className="relative rounded-xl overflow-hidden shadow-sm"
+                    onMouseUp={(e) => {
+                      const selection = window.getSelection();
+                      const selectedText = selection?.toString().trim();
+                      if (!selectedText || !activeSubmissionId) return;
+                      setSelectionDraft({
+                        selectedText,
+                        x: e.clientX,
+                        y: e.clientY,
+                        content: '',
+                      });
+                    }}
+                  >
+                    <SophisticatedDocumentViewer
+                      embedded={true}
+                      submission={viewerSubmission}
+                      fileUrl={
+                        currentDocUrl ||
+                        (activeSubmissionId ? `/api/submissions/${activeSubmissionId}/file` : null)
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Comments Tab */}
             {activeTab === 'comments' && (
@@ -708,45 +919,25 @@ export default function SubmissionReviewPage() {
               />
             )}
 
-            {/* Text Annotation Tab */}
-            {activeTab === 'text' && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Select text below to leave inline highlight comments.
-                </p>
-                {isRoundPendingUpload ? (
-                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed p-8 text-center">
-                    <FileText className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">Waiting for student upload.</p>
-                  </div>
-                ) : (
-                  <div
-                    className="max-h-[520px] cursor-text overflow-auto rounded-xl border bg-card p-4 text-sm leading-7 shadow-sm selection:bg-primary/20"
-                    onMouseUp={(e) => {
-                      const selection = window.getSelection();
-                      const selectedText = selection?.toString().trim();
-                      if (!selectedText || !activeSubmissionId) return;
-                      setSelectionDraft({
-                        selectedText,
-                        x: e.clientX,
-                        y: e.clientY,
-                        content: '',
-                      });
-                    }}
-                  >
-                    {extractedText ||
-                      'No extracted text available yet. Run a plagiarism check first to extract document text.'}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Doc Comments Tab */}
             {activeTab === 'doc-comments' && (
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Live comments from the synced MS Word / Google Docs document.
-                </p>
+                <div className="flex items-center justify-between gap-2 rounded-lg border bg-blue-500/5 border-blue-500/20 px-3 py-2 text-xs">
+                  <p className="text-muted-foreground">
+                    Live comments synced from the team&apos;s working document.
+                  </p>
+                  {teamGoogleDocUrl && (
+                    <a
+                      href={teamGoogleDocUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <span>Open in Google Docs</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
                 {!activeSubmissionId ? (
                   <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed p-8 text-center">
                     <ExternalLink className="h-8 w-8 text-muted-foreground/40" />
@@ -828,24 +1019,6 @@ export default function SubmissionReviewPage() {
                   )}
                   Request Revision
                 </Button>
-                <Button
-                  variant="secondary"
-                  disabled={!canTakeDecision || markAccepted.isPending}
-                  onClick={() => {
-                    markAccepted.mutate({
-                      submissionId: activeSubmissionId,
-                      overallFeedback: overallNotes.trim() || undefined,
-                    });
-                  }}
-                  className="gap-1.5"
-                >
-                  {markAccepted.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Lock className="h-4 w-4" />
-                  )}
-                  Accept & Lock
-                </Button>
               </div>
             </div>
 
@@ -855,7 +1028,7 @@ export default function SubmissionReviewPage() {
                 Decision actions are available to advisers and course instructors only.
               </p>
             )}
-            {canTakeDecision && activeRound?.reviewClosed && (
+            {canModerate && activeRound?.reviewClosed && (
               <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                 ✓ This round has been closed. Open a new revision round to continue.
               </p>
@@ -917,15 +1090,15 @@ export default function SubmissionReviewPage() {
       </div>
 
       {/* Document Viewer Modal */}
-      {activeRound && (
+      {viewerOpen && viewerSubmission && (
         <SophisticatedDocumentViewer
           open={viewerOpen}
           onOpenChange={setViewerOpen}
-          submission={{
-            ...activeRound,
-            _id: activeSubmissionId || activeRound._id,
-          }}
-          fileUrl={currentDocUrl}
+          submission={viewerSubmission}
+          fileUrl={
+            currentDocUrl ||
+            (activeSubmissionId ? `/api/submissions/${activeSubmissionId}/file` : null)
+          }
         />
       )}
     </DashboardLayout>

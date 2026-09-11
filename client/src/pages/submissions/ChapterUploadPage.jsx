@@ -12,7 +12,16 @@ import { Badge } from '@/components/ui/Badge';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions, useUploadChapter } from '@/hooks/useSubmissions';
 import { SUBMISSION_STATUSES } from '@cms/shared';
-import { Upload, FileText, AlertTriangle, Loader2, CheckCircle2, X, ArrowLeft } from 'lucide-react';
+import {
+  Upload,
+  FileText,
+  AlertTriangle,
+  Loader2,
+  CheckCircle2,
+  X,
+  ArrowLeft,
+  Lock,
+} from 'lucide-react';
 
 /** Maximum file size in MB (must match server config) */
 const MAX_FILE_SIZE_MB = 25;
@@ -27,6 +36,11 @@ const ACCEPTED_FILE_TYPES = {
 
 const ACCEPT_STRING = Object.values(ACCEPTED_FILE_TYPES).join(',');
 const CHAPTER_LABELS = ['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 4', 'Chapter 5'];
+const APPROVED_CHAPTER_STATUSES = [
+  SUBMISSION_STATUSES.LOCKED,
+  SUBMISSION_STATUSES.APPROVED,
+  SUBMISSION_STATUSES.ACCEPTED,
+];
 
 const DOCUMENT_LABELS = {
   chapter: 'Chapter',
@@ -73,6 +87,7 @@ export default function ChapterUploadPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedChapter = searchParams.get('chapter');
+  const isLocked = searchParams.get('locked') === 'true' || searchParams.get('mode') === 'revise';
   const requestedDocumentType = searchParams.get('document');
 
   const selectedDocumentLabel = 'Chapter';
@@ -280,7 +295,17 @@ export default function ChapterUploadPage() {
     for (const item of list) {
       if (item?.type !== 'chapter' || !item?.chapter) continue;
       const existing = map.get(item.chapter);
-      if (!existing || (item.version || 0) > (existing.version || 0)) {
+      const itemVersion = Number(item.version || 1);
+      const existingVersion = Number(existing?.version || 0);
+      const itemTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+      const existingTs = existing
+        ? new Date(existing.updatedAt || existing.createdAt || 0).getTime()
+        : 0;
+      if (
+        !existing ||
+        itemVersion > existingVersion ||
+        (itemVersion === existingVersion && itemTs > existingTs)
+      ) {
         map.set(item.chapter, item);
       }
     }
@@ -296,7 +321,7 @@ export default function ChapterUploadPage() {
   const nextAllowedChapter = (() => {
     for (let candidate = 2; candidate <= 5; candidate += 1) {
       const previous = latestChapterSubmissions.get(candidate - 1);
-      if (previous?.status !== SUBMISSION_STATUSES.LOCKED) return candidate - 1;
+      if (!APPROVED_CHAPTER_STATUSES.includes(previous?.status)) return candidate - 1;
     }
     return 5;
   })();
@@ -306,7 +331,7 @@ export default function ChapterUploadPage() {
 
     if (selectedChapterNumber > 1) {
       const previous = latestChapterSubmissions.get(selectedChapterNumber - 1);
-      if (previous?.status !== SUBMISSION_STATUSES.LOCKED) return false;
+      if (!APPROVED_CHAPTER_STATUSES.includes(previous?.status)) return false;
     }
 
     if (!selectedLatestSubmission) return true;
@@ -642,20 +667,30 @@ export default function ChapterUploadPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Chapter selector */}
               <div className="space-y-2">
-                <Label htmlFor="chapter">Chapter</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="chapter">Chapter</Label>
+                  {isLocked && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                      <Lock className="h-3.5 w-3.5" />
+                      Locked to Chapter {chapter} (Revision)
+                    </span>
+                  )}
+                </div>
                 <select
                   id="chapter"
                   value={chapter}
                   onChange={(e) => setChapter(e.target.value)}
-                  disabled={isSubmitting}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={isSubmitting || isLocked}
+                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    isLocked ? 'cursor-not-allowed opacity-75 bg-muted/50' : ''
+                  }`}
                 >
                   <option value="">Select a chapter...</option>
                   {CHAPTER_LABELS.map((label, idx) => {
                     const chapterValue = idx + 1;
                     const previous = latestChapterSubmissions.get(chapterValue - 1);
                     const hasPreviousApproval =
-                      chapterValue === 1 || previous?.status === SUBMISSION_STATUSES.LOCKED;
+                      chapterValue === 1 || APPROVED_CHAPTER_STATUSES.includes(previous?.status);
 
                     return (
                       <option

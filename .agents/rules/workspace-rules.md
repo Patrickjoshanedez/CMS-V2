@@ -18,7 +18,7 @@ To eliminate cognitive bloat and prevent monolithic rule-limit exhaustion, detai
 | **[01-architecture-and-governance.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/01-architecture-and-governance.md)** | Monorepo stack, Canonical 4-Phase Capstone progression, and Institutional Role boundaries. |
 | **[02-skills-and-hermes-recipe.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/02-skills-and-hermes-recipe.md)** | 64-skill catalog, Mandatory First-Use contract, Hermes loop, and Dual-Persistence memory. |
 | **[03-verification-and-quality-gates.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/03-verification-and-quality-gates.md)** | Fast-Path Targeted Testing, Unified 7-Point Quality battery, Playwright visual feedback, and Git auto-tagging. |
-| **[04-environment-and-ui-recipes.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/04-environment-and-ui-recipes.md)** | Docker container dependency sync, defensive entity prefix normalization, 16:9 canvas, and floating input recipes. |
+| **[04-environment-and-ui-recipes.md](file:///c:/Users/patri/OneDrive/Desktop/Holy%20folder/CMS-V2/.agents/rules/04-environment-and-ui-recipes.md)** | Docker container dependency sync, defensive entity prefix normalization, 16:9 canvas, floating input recipes, and Mandatory Sophisticated Document Reader contract. |
 
 ---
 
@@ -38,6 +38,7 @@ Every agent operates under a strict **Two-Pile Governance Model**:
 * **No Unbounded File Reading**: Full repository dumps, broad wildcard searches, and recursive dumps are strictly blocked.
 * **No Direct DB Mutations**: Direct raw database mutations via terminal scripts are blocked; all changes must flow through official API service layers.
 * **Dual-Persistence Memory**: Trajectories live strictly in `.agents/ptss/` and durable lessons in `memories/repo/`.
+* **Mandatory Unified Sophisticated Document Reader Contract**: All document reading, viewing, revision inspection, and manuscript verification across BukSU CMS-V2 MUST universally use the canonical `SophisticatedDocumentViewer` format (`client/src/components/documents/SophisticatedDocumentViewer.jsx`). Isolated, ad-hoc, or simplified viewers (`PaginatedDocumentViewer`, raw `<pre>`) are strictly prohibited. All features must remain intact: Document Identity Bar, `Revision Diff (+/-)` mode with Word/Sentence/Line diffs, high-fidelity `docx-preview` OOXML rendering, PDF stream viewing, Zoom controls, Details metadata drawer, direct file download, and Fullscreen/Maximize expansion. Both embedded inline (`embedded={true}`) and modal dialog presentations must adhere to this unified format.
 
 ---
 

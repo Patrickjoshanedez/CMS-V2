@@ -247,7 +247,15 @@ class DashboardService {
       Project.aggregate([{ $group: { _id: '$projectStatus', count: { $sum: 1 } } }]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
       Project.find({ adviserId: user._id })
-        .populate('teamId', 'name members')
+        .populate({
+          path: 'teamId',
+          select: 'name members memberRoles leaderId githubUrl googleDocUrl isLocked',
+          populate: [
+            { path: 'members', select: 'firstName lastName email fullName' },
+            { path: 'memberRoles.userId', select: 'firstName lastName email fullName' },
+            { path: 'leaderId', select: 'firstName lastName email fullName' },
+          ],
+        })
         .sort({ updatedAt: -1 })
         .lean(),
       adviserProjectIds.length > 0
@@ -256,6 +264,7 @@ class DashboardService {
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
+            .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
@@ -264,6 +273,8 @@ class DashboardService {
         .sort({ updatedAt: -1 })
         .lean(),
     ]);
+
+    const hydratedAssignedProjects = await this._hydrateAssignedProjects(assignedProjects);
 
     const statusCounts = {};
     for (const item of projectsByStatus) {
@@ -295,15 +306,7 @@ class DashboardService {
         fileName: s.fileName,
         createdAt: s.createdAt,
       })),
-      assignedProjects: assignedProjects.map((p) => ({
-        _id: p._id,
-        title: p.title,
-        titleStatus: p.titleStatus,
-        projectStatus: p.projectStatus,
-        capstonePhase: p.capstonePhase,
-        teamName: p.teamId?.name || 'Unknown',
-        memberCount: p.teamId?.members?.length || 0,
-      })),
+      assignedProjects: hydratedAssignedProjects,
       pendingReviews: pendingReviews.map((s) => ({
         _id: s._id,
         chapter: s.chapter,
@@ -314,6 +317,10 @@ class DashboardService {
         projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
+        submittedBy: s.submittedBy
+          ? `${s.submittedBy.firstName || ''} ${s.submittedBy.lastName || ''}`.trim() ||
+            s.submittedBy.fullName
+          : 'Proponent Team',
       })),
       panelAssignments: panelProjects.map((p) => ({
         _id: p._id,
@@ -340,7 +347,15 @@ class DashboardService {
 
     const [assignedProjects, pendingReviews, recentNotifications] = await Promise.all([
       Project.find({ adviserId: user._id })
-        .populate('teamId', 'name members')
+        .populate({
+          path: 'teamId',
+          select: 'name members memberRoles leaderId githubUrl googleDocUrl isLocked',
+          populate: [
+            { path: 'members', select: 'firstName lastName email fullName' },
+            { path: 'memberRoles.userId', select: 'firstName lastName email fullName' },
+            { path: 'leaderId', select: 'firstName lastName email fullName' },
+          ],
+        })
         .sort({ updatedAt: -1 })
         .lean(),
       adviserProjectIds.length > 0
@@ -349,23 +364,19 @@ class DashboardService {
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
+            .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
       Notification.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
 
+    const hydratedAssignedProjects = await this._hydrateAssignedProjects(assignedProjects);
+
     return {
       role: ROLES.ADVISER,
-      assignedProjects: assignedProjects.map((p) => ({
-        _id: p._id,
-        title: p.title,
-        titleStatus: p.titleStatus,
-        projectStatus: p.projectStatus,
-        capstonePhase: p.capstonePhase,
-        teamName: p.teamId?.name || 'Unknown',
-        memberCount: p.teamId?.members?.length || 0,
-      })),
+      assignedProjects: hydratedAssignedProjects,
+      adviserProjects: hydratedAssignedProjects,
       pendingReviews: pendingReviews.map((s) => ({
         _id: s._id,
         projectId: s.projectId?._id || s.projectId,
@@ -377,6 +388,10 @@ class DashboardService {
         projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
+        submittedBy: s.submittedBy
+          ? `${s.submittedBy.firstName || ''} ${s.submittedBy.lastName || ''}`.trim() ||
+            s.submittedBy.fullName
+          : 'Proponent Team',
       })),
       counts: {
         assignedProjects: assignedProjects.length,
@@ -911,6 +926,160 @@ class DashboardService {
   }
 
   /**
+   * Helper to format and hydrate assigned projects with team details, member roster,
+   * chapter progress, and institutional capstone phase.
+   */
+  async _hydrateAssignedProjects(projects) {
+    if (!projects || projects.length === 0) return [];
+
+    const projectIds = projects.map((p) => p._id);
+    const submissions = await Submission.find({
+      projectId: { $in: projectIds },
+    })
+      .select('projectId chapter type version status submittedAt updatedAt')
+      .sort({ chapter: 1, version: -1 })
+      .lean();
+
+    const subsByProject = new Map();
+    for (const sub of submissions) {
+      const pid = sub.projectId?.toString();
+      if (!pid) continue;
+      if (!subsByProject.has(pid)) subsByProject.set(pid, []);
+      subsByProject.get(pid).push(sub);
+    }
+
+    const hydrated = [];
+    const updatesToPersist = [];
+
+    for (const p of projects) {
+      const pid = p._id?.toString();
+      const projSubs = subsByProject.get(pid) || [];
+
+      // Calculate chapter progress
+      const latestChaptersMap = new Map();
+      for (const sub of projSubs) {
+        if (sub.type === 'chapter' && sub.chapter) {
+          if (!latestChaptersMap.has(sub.chapter)) {
+            latestChaptersMap.set(sub.chapter, sub);
+          }
+        }
+      }
+
+      let approvedChaptersCount = 0;
+      let pendingChapter = null;
+      for (const ch of [1, 2, 3, 4, 5]) {
+        const s = latestChaptersMap.get(ch);
+        if (s) {
+          if (['approved', 'accepted', 'locked'].includes(s.status)) {
+            approvedChaptersCount += 1;
+          } else if (['pending', 'under_review'].includes(s.status) && !pendingChapter) {
+            pendingChapter = ch;
+          }
+        }
+      }
+
+      // Determine effective capstone phase:
+      // Once title is approved, project is in Capstone 2 (Chapters 1-3) or beyond.
+      let effectivePhase = Number(p.capstonePhase || 1);
+      if (p.titleStatus === TITLE_STATUSES.APPROVED && effectivePhase < 2) {
+        effectivePhase = 2;
+      }
+      if (
+        effectivePhase < 3 &&
+        (approvedChaptersCount >= 3 || (pendingChapter && pendingChapter >= 4))
+      ) {
+        effectivePhase = 3;
+      }
+      if (
+        p.projectStatus === PROJECT_STATUSES.DEFENDED ||
+        p.projectStatus === PROJECT_STATUSES.ARCHIVED ||
+        p.isArchived
+      ) {
+        effectivePhase = 4;
+      }
+
+      if (
+        p.titleStatus === TITLE_STATUSES.APPROVED &&
+        Number(p.capstonePhase || 1) < effectivePhase
+      ) {
+        updatesToPersist.push({ id: p._id, phase: effectivePhase });
+      }
+
+      const team = p.teamId;
+      const memberRoleMap = new Map();
+      if (Array.isArray(team?.memberRoles)) {
+        for (const mr of team.memberRoles) {
+          const uid = (mr.userId?._id || mr.userId)?.toString();
+          if (uid) memberRoleMap.set(uid, mr.role);
+        }
+      }
+      if (Array.isArray(p.memberRoleAssignments)) {
+        for (const mr of p.memberRoleAssignments) {
+          const uid = (mr.userId?._id || mr.userId)?.toString();
+          if (uid) memberRoleMap.set(uid, mr.role);
+        }
+      }
+
+      const rawMembers = Array.isArray(team?.members) ? team.members : [];
+      const leaderIdStr = (team?.leaderId?._id || team?.leaderId)?.toString();
+
+      const members = rawMembers.map((m, idx) => {
+        const uid = (m._id || m)?.toString();
+        const fullName = m.firstName
+          ? `${m.firstName} ${m.lastName || ''}`.trim()
+          : m.fullName || `Member ${idx + 1}`;
+        const email = m.email || '';
+        const role =
+          memberRoleMap.get(uid) ||
+          (uid === leaderIdStr ? 'Project Lead & Systems Analyst' : 'Proponent Member');
+        return {
+          _id: uid,
+          fullName,
+          email,
+          role,
+          isLeader: uid === leaderIdStr,
+        };
+      });
+
+      const githubUrl =
+        p.githubUrl ||
+        team?.githubUrl ||
+        p.prototypes?.find((pt) => pt.type === 'link' && /github/i.test(pt.url || ''))?.url ||
+        '';
+      const googleDocUrl = p.googleDocUrl || team?.googleDocUrl || '';
+
+      hydrated.push({
+        _id: p._id,
+        title: p.title,
+        titleStatus: p.titleStatus,
+        projectStatus: p.projectStatus,
+        capstonePhase: effectivePhase,
+        capstoneType: p.capstoneType,
+        teamName: team?.name || 'Unknown Team',
+        memberCount: members.length || team?.members?.length || 0,
+        members,
+        githubUrl,
+        googleDocUrl,
+        approvedChaptersCount,
+        pendingChapter,
+        chapterProgressSummary: `${approvedChaptersCount}/5 approved`,
+        isLocked: team?.isLocked || false,
+      });
+    }
+
+    // Persist any updated phases in background
+    if (updatesToPersist.length > 0) {
+      Promise.all(
+        updatesToPersist.map((u) =>
+          Project.updateOne({ _id: u.id }, { $set: { capstonePhase: u.phase } }).exec(),
+        ),
+      ).catch(() => {});
+    }
+
+    return hydrated;
+  }
+
+  /**
    * Faculty dashboard — unified multi-hat aggregation across Adviser, Panelist, and Secretary duties.
    */
   async _getFacultyStats(user) {
@@ -943,7 +1112,15 @@ class DashboardService {
       recentNotifications,
     ] = await Promise.all([
       Project.find({ adviserId: userId, isArchived: { $ne: true } })
-        .populate('teamId', 'name members')
+        .populate({
+          path: 'teamId',
+          select: 'name members memberRoles leaderId githubUrl googleDocUrl isLocked',
+          populate: [
+            { path: 'members', select: 'firstName lastName email fullName' },
+            { path: 'memberRoles.userId', select: 'firstName lastName email fullName' },
+            { path: 'leaderId', select: 'firstName lastName email fullName' },
+          ],
+        })
         .sort({ updatedAt: -1 })
         .lean(),
       adviserProjectIds.length > 0
@@ -952,6 +1129,7 @@ class DashboardService {
             status: { $in: [SUBMISSION_STATUSES.PENDING, SUBMISSION_STATUSES.UNDER_REVIEW] },
           })
             .populate('projectId', 'title isArchived projectStatus')
+            .populate('submittedBy', 'firstName lastName email fullName')
             .sort({ createdAt: -1 })
             .lean()
         : Promise.resolve([]),
@@ -991,6 +1169,8 @@ class DashboardService {
       (p) => p.admSignatures?.secretary?.endorsed === true,
     ).length;
 
+    const hydratedAssignedProjects = await this._hydrateAssignedProjects(adviserProjects);
+
     return {
       role: ROLES.FACULTY,
       counts: {
@@ -1010,28 +1190,8 @@ class DashboardService {
         pendingSecretaryEndorsement,
         endorsedSecretaryMatrices,
       },
-      assignedProjects: adviserProjects.map((p) => ({
-        _id: p._id,
-        title: p.title,
-        titleStatus: p.titleStatus,
-        projectStatus: p.projectStatus,
-        capstonePhase: p.capstonePhase,
-        capstoneType: p.capstoneType,
-        teamName: p.teamId?.name || 'Unknown Team',
-        memberCount: p.teamId?.members?.length || 0,
-        githubUrl: p.teamId?.githubUrl || '',
-      })),
-      adviserProjects: adviserProjects.map((p) => ({
-        _id: p._id,
-        title: p.title,
-        titleStatus: p.titleStatus,
-        projectStatus: p.projectStatus,
-        capstonePhase: p.capstonePhase,
-        capstoneType: p.capstoneType,
-        teamName: p.teamId?.name || 'Unknown Team',
-        memberCount: p.teamId?.members?.length || 0,
-        githubUrl: p.teamId?.githubUrl || '',
-      })),
+      assignedProjects: hydratedAssignedProjects,
+      adviserProjects: hydratedAssignedProjects,
       pendingReviews: pendingReviews.map((s) => ({
         _id: s._id,
         projectId: s.projectId?._id || s.projectId,
@@ -1043,6 +1203,10 @@ class DashboardService {
         projectStatus: s.projectId?.projectStatus || null,
         fileName: s.fileName,
         createdAt: s.createdAt,
+        submittedBy: s.submittedBy
+          ? `${s.submittedBy.firstName || ''} ${s.submittedBy.lastName || ''}`.trim() ||
+            s.submittedBy.fullName
+          : 'Proponent Team',
       })),
       panelAssignments: panelProjects.map((p) => ({
         _id: p._id,

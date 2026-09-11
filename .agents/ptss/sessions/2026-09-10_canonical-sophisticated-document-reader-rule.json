@@ -1,0 +1,62 @@
+{
+  "session_id": "2026-09-10_canonical-sophisticated-document-reader-rule",
+  "timestamp": "2026-09-10T05:28:00.000Z",
+  "status": "completed",
+  "task": "Codify Mandatory Unified Sophisticated Document Reader Contract and Embed SophisticatedDocumentViewer in SubmissionReviewPage",
+  "user_intent": "Enforce a system-wide rule requiring the canonical SophisticatedDocumentViewer format in any document reading across BukSU CMS-V2 with all original features intact, eliminating fragmented or ad-hoc viewers.",
+  "changes_made": [
+    {
+      "file": "AGENTS.md",
+      "description": "Added Mandatory Unified Sophisticated Document Reader Contract to Pile B: Hard Survival Rules and Section 9 item 18."
+    },
+    {
+      "file": "GEMINI.md",
+      "description": "Added Mandatory Unified Sophisticated Document Reader Contract to Pile B: Hard Survival Rules and Section 8."
+    },
+    {
+      "file": ".agents/rules/04-environment-and-ui-recipes.md",
+      "description": "Added Section 5 on Mandatory Unified Sophisticated Document Reader Contract detailing embedded inline and modal usage."
+    },
+    {
+      "file": ".agents/rules/workspace-rules.md",
+      "description": "Updated master blueprint table and Pile B with Mandatory Unified Sophisticated Document Reader Contract."
+    },
+    {
+      "file": ".agents/skills/frontend-patterns/SKILL.md",
+      "description": "Added Canonical Sophisticated Document Reader Pattern to frontend-patterns skill."
+    },
+    {
+      "file": "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+      "description": "Added embedded inline mode (embedded={true}) and normalized chapterTitle derivation to prevent duplicate prefix bugs."
+    },
+    {
+      "file": "client/src/components/documents/SophisticatedDocumentViewer.test.jsx",
+      "description": "Added unit test asserting embedded inline DOM rendering without modal backdrop."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionReviewPage.jsx",
+      "description": "Replaced PaginatedDocumentViewer with embedded SophisticatedDocumentViewer with memoized viewerSubmission payload."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionReviewPage.test.jsx",
+      "description": "Updated mocks and tests to assert embedded SophisticatedDocumentViewer is rendered for manuscript reading."
+    },
+    {
+      "file": "client/src/pages/submissions/PlagiarismReportPage.jsx",
+      "description": "Removed unused PaginatedDocumentViewer and DocxPreviewRenderer imports."
+    }
+  ],
+  "verification": {
+    "routes_checked": true,
+    "unmatched_routes": 0,
+    "agentic_validation": "60/60 passed",
+    "governance_validation": "0 errors, 0 warnings",
+    "workspace_cleanliness": "pristine",
+    "targeted_tests": "12/12 passed across submissions suite, 8/8 passed in SophisticatedDocumentViewer.test.jsx",
+    "visual_audit": "scratch/submission_review_and_plagiarism_audit.mjs passed across desktop & mobile, light & dark, diff mode"
+  },
+  "lessons_learned": [
+    "Fragmented document viewers lead to visual inconsistencies across tabs; unifying behind SophisticatedDocumentViewer with an embedded={true} prop provides 100% feature parity (identity bar, revision diffing, docx-preview rendering, details drawer) without duplicate implementations.",
+    "String chapter designations (e.g. 'chapter1' vs 1) must be normalized defensively in presenter components to avoid duplicate prefix bugs (e.g. 'Chapter Manuscript Manuscript')."
+  ]
+}

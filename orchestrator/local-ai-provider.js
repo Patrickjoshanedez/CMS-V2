@@ -41,7 +41,7 @@ function emitSystemAlert(level, rolePrompt, message, feedback, attempt) {
 }
 
 /**
- * Isolated provider for the local Qwen 2.5 Coder swarm.
+ * Isolated provider for the AI swarm.
  *
  * @param {string} rolePrompt - The system instructions / agent persona.
  * @param {string} taskContext - The user request or previous agent output.
@@ -68,7 +68,7 @@ export async function callLocalSwarm(rolePrompt, taskContext) {
   });
 
   const payload = {
-    model: 'qwen2.5-coder:7b',
+    model: process.env.LOCAL_AI_MODEL || 'deepseek-chat',
     keep_alive: '1h',
     stream: false,
     options: {

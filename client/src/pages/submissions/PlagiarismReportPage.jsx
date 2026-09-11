@@ -32,10 +32,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import SophisticatedDocumentViewer, {
-  DocxPreviewRenderer,
-} from '@/components/documents/SophisticatedDocumentViewer';
-import PaginatedDocumentViewer from '@/components/documents/PaginatedDocumentViewer';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 import {
   usePlagiarismReport,
   useSubmission,
@@ -657,7 +654,7 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [sourceSearch, setSourceSearch] = useState('');
-  const [canvasViewMode, setCanvasViewMode] = useState('highlights');
+  const [showHighlights, setShowHighlights] = useState(true);
   const [paperMode, setPaperMode] = useState('paper');
   const [zoomLevel, setZoomLevel] = useState(100);
 
@@ -804,7 +801,7 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
 
   const renderLineFragments = (line) =>
     line.fragments.map((frag) => {
-      if (!frag.highlight) {
+      if (!frag.highlight || !showHighlights) {
         return <span key={frag.key}>{frag.text}</span>;
       }
 
@@ -1113,43 +1110,36 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
           <div className="flex flex-col overflow-hidden bg-muted/20">
             {/* Canvas Sub-Header Controls */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs">
-              {/* Left: View Mode Segmented Controls */}
-              <div className="flex items-center gap-1.5">
+              {/* Left: Formatted Manuscript & Highlights Toggle */}
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 px-2 py-1 font-semibold text-foreground">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <span>Formatted Manuscript</span>
+                </div>
+
+                <div className="h-4 w-px bg-border/60" />
+
                 <button
                   type="button"
-                  onClick={() => setCanvasViewMode('highlights')}
+                  data-testid="toggle-highlights-btn"
+                  onClick={() => setShowHighlights((prev) => !prev)}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-medium transition-all text-xs',
-                    canvasViewMode === 'highlights'
-                      ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-medium transition-all text-xs border',
+                    showHighlights
+                      ? 'bg-primary/10 border-primary/30 text-primary font-semibold shadow-2xs'
+                      : 'bg-background/80 border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
+                  title="Toggle originality highlights overlay"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Originality Highlights</span>
+                  <Sparkles className={cn('h-3.5 w-3.5', showHighlights && 'text-primary')} />
+                  <span>Highlights: {showHighlights ? 'ON' : 'OFF'}</span>
                 </button>
-
-                {submission && (
-                  <button
-                    type="button"
-                    onClick={() => setCanvasViewMode('document')}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 font-medium transition-all text-xs',
-                      canvasViewMode === 'document'
-                        ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    )}
-                  >
-                    <BookOpen className="h-3.5 w-3.5" />
-                    <span>Formatted Manuscript</span>
-                  </button>
-                )}
               </div>
 
               {/* Right: Page Navigator, Paper Mode & Zoom */}
               <div className="flex items-center gap-2.5">
-                {/* Page Navigator (Highlights Mode) */}
-                {canvasViewMode === 'highlights' && pages.length > 1 && (
+                {/* Page Navigator */}
+                {pages.length > 1 && (
                   <div className="flex items-center gap-1 bg-background/80 px-2 py-0.5 rounded-lg border border-border/60 text-xs font-mono">
                     <button
                       type="button"
@@ -1177,36 +1167,34 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                   </div>
                 )}
 
-                {canvasViewMode === 'highlights' && (
-                  <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => setPaperMode('paper')}
-                      className={cn(
-                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
-                        paperMode === 'paper'
-                          ? 'bg-card font-semibold text-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      title="Authentic Paper Sheet View"
-                    >
-                      Paper Sheet
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaperMode('theme')}
-                      className={cn(
-                        'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
-                        paperMode === 'theme'
-                          ? 'bg-card font-semibold text-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      title="Theme Card View"
-                    >
-                      Theme
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 p-0.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setPaperMode('paper')}
+                    className={cn(
+                      'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
+                      paperMode === 'paper'
+                        ? 'bg-card font-semibold text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    title="Authentic Paper Sheet View"
+                  >
+                    Paper Sheet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaperMode('theme')}
+                    className={cn(
+                      'rounded px-2.5 py-0.5 text-[11px] font-medium transition-all',
+                      paperMode === 'theme'
+                        ? 'bg-card font-semibold text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    title="Theme Card View"
+                  >
+                    Theme
+                  </button>
+                </div>
 
                 {/* Zoom controls */}
                 <div className="flex items-center gap-1 text-[11px] font-mono">
@@ -1239,166 +1227,87 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
             </div>
 
             {/* Canvas Body */}
-            {canvasViewMode === 'document' && submission ? (
-              <div
-                data-testid="docx-preview-renderer"
-                className="flex-1 overflow-hidden min-h-[650px] flex flex-col"
-              >
-                <PaginatedDocumentViewer
-                  fileUrl={`/api/submissions/${submission._id}/file`}
-                  fileName={submission.fileName}
-                  fileType={submission.fileType}
-                  zoom={zoomLevel}
-                  onZoomChange={setZoomLevel}
-                />
-              </div>
-            ) : (
-              <div
-                ref={canvasContainerRef}
-                onScroll={handleCanvasScroll}
-                className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-slate-900/60 dark:bg-slate-950"
-                style={{ maxHeight: '76vh', scrollBehavior: 'smooth' }}
-                tabIndex={0}
-                role="region"
-                aria-label="Manuscript Pages Canvas"
-              >
-                {text && pages.length > 0 ? (
-                  <article
-                    className={cn(
-                      'w-full flex flex-col items-center gap-10 select-text transition-all',
-                      paperMode === 'paper' ? 'bg-white text-slate-900' : 'bg-card text-foreground',
-                    )}
-                    style={{ background: 'transparent' }}
-                  >
-                    {pages.map((page) => {
-                      const isCover = page.pageType === 'cover';
-                      const isApproval = page.pageType === 'approval';
+            <div
+              ref={canvasContainerRef}
+              onScroll={handleCanvasScroll}
+              className="flex-1 overflow-auto p-4 sm:p-10 flex flex-col items-center gap-10 bg-slate-900/60 dark:bg-slate-950"
+              style={{ maxHeight: '76vh', scrollBehavior: 'smooth' }}
+              tabIndex={0}
+              role="region"
+              aria-label="Manuscript Pages Canvas"
+            >
+              {text && pages.length > 0 ? (
+                <article
+                  className={cn(
+                    'w-full flex flex-col items-center gap-10 select-text transition-all',
+                    paperMode === 'paper' ? 'bg-white text-slate-900' : 'bg-card text-foreground',
+                  )}
+                  style={{ background: 'transparent' }}
+                >
+                  {pages.map((page) => {
+                    const isCover = page.pageType === 'cover';
+                    const isApproval = page.pageType === 'approval';
 
-                      const titleLines = page.lines.filter((l) => l.type === 'cover-title');
-                      const authorLines = page.lines.filter(
-                        (l) => l.type === 'cover-byline' || l.type === 'cover-author',
-                      );
-                      const affiliationLines = page.lines.filter(
-                        (l) =>
-                          l.type === 'cover-affiliation' ||
-                          l.type === 'cover-fulfillment' ||
-                          l.type === 'cover-date',
-                      );
-                      const otherCoverLines = page.lines.filter(
-                        (l) => !l.type.startsWith('cover-'),
-                      );
+                    const titleLines = page.lines.filter((l) => l.type === 'cover-title');
+                    const authorLines = page.lines.filter(
+                      (l) => l.type === 'cover-byline' || l.type === 'cover-author',
+                    );
+                    const affiliationLines = page.lines.filter(
+                      (l) =>
+                        l.type === 'cover-affiliation' ||
+                        l.type === 'cover-fulfillment' ||
+                        l.type === 'cover-date',
+                    );
+                    const otherCoverLines = page.lines.filter((l) => !l.type.startsWith('cover-'));
 
-                      return (
-                        <section
-                          key={page.id}
-                          id={page.id}
-                          data-page-number={page.pageNumber}
-                          role="region"
-                          aria-label={`Manuscript Page ${page.pageNumber}`}
-                          className={cn(
-                            'w-full max-w-[8.5in] min-h-[11in] rounded-sm transition-all duration-200 select-text flex flex-col justify-between shadow-2xl ring-1',
-                            paperMode === 'paper'
-                              ? 'bg-white text-slate-900 border border-slate-200/90 ring-black/10'
-                              : 'bg-card text-foreground border border-border/80 ring-border/20',
-                          )}
-                          style={{
-                            fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
-                            fontSize: `${(11.5 * zoomLevel) / 100}pt`,
-                            lineHeight: '1.85',
-                            padding: 'clamp(1.25rem, 4vw, 1in)',
-                            boxSizing: 'border-box',
-                            position: 'relative',
-                          }}
-                        >
-                          {isCover ? (
-                            <div className="flex-1 flex flex-col justify-between py-2 text-center">
-                              {/* Top: Title */}
-                              <div className="my-auto pt-6">
-                                {titleLines.map((line) => (
-                                  <h1
-                                    key={line.id}
-                                    className={cn(
-                                      'text-center font-bold text-lg sm:text-xl md:text-2xl tracking-tight uppercase max-w-2xl mx-auto my-4',
-                                      paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
-                                    )}
-                                  >
-                                    {renderLineFragments(line)}
-                                  </h1>
-                                ))}
-                              </div>
+                    return (
+                      <section
+                        key={page.id}
+                        id={page.id}
+                        data-page-number={page.pageNumber}
+                        role="region"
+                        aria-label={`Manuscript Page ${page.pageNumber}`}
+                        className={cn(
+                          'w-full max-w-[8.5in] min-h-[11in] rounded-sm transition-all duration-200 select-text flex flex-col justify-between shadow-2xl ring-1',
+                          paperMode === 'paper'
+                            ? 'bg-white text-slate-900 border border-slate-200/90 ring-black/10'
+                            : 'bg-card text-foreground border border-border/80 ring-border/20',
+                        )}
+                        style={{
+                          fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
+                          fontSize: `${(11.5 * zoomLevel) / 100}pt`,
+                          lineHeight: '1.85',
+                          padding: 'clamp(1.25rem, 4vw, 1in)',
+                          boxSizing: 'border-box',
+                          position: 'relative',
+                        }}
+                      >
+                        {isCover ? (
+                          <div className="flex-1 flex flex-col justify-between py-2 text-center">
+                            {/* Top: Title */}
+                            <div className="my-auto pt-6">
+                              {titleLines.map((line) => (
+                                <h1
+                                  key={line.id}
+                                  className={cn(
+                                    'text-center font-bold text-lg sm:text-xl md:text-2xl tracking-tight uppercase max-w-2xl mx-auto my-4',
+                                    paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+                                  )}
+                                >
+                                  {renderLineFragments(line)}
+                                </h1>
+                              ))}
+                            </div>
 
-                              {/* Middle: Byline & Authors */}
-                              <div className="my-auto py-8">
-                                {authorLines.map((line) => {
-                                  if (line.type === 'cover-byline') {
-                                    return (
-                                      <p
-                                        key={line.id}
-                                        className={cn(
-                                          'text-center text-xs sm:text-sm font-semibold uppercase tracking-widest my-3',
-                                          paperMode === 'paper'
-                                            ? 'text-slate-500'
-                                            : 'text-muted-foreground',
-                                        )}
-                                      >
-                                        {renderLineFragments(line)}
-                                      </p>
-                                    );
-                                  }
+                            {/* Middle: Byline & Authors */}
+                            <div className="my-auto py-8">
+                              {authorLines.map((line) => {
+                                if (line.type === 'cover-byline') {
                                   return (
                                     <p
                                       key={line.id}
                                       className={cn(
-                                        'text-center font-semibold text-sm sm:text-base my-0.5 leading-snug',
-                                        paperMode === 'paper'
-                                          ? 'text-slate-800'
-                                          : 'text-foreground',
-                                      )}
-                                    >
-                                      {renderLineFragments(line)}
-                                    </p>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Bottom: Affiliation & Fulfillment */}
-                              <div className="my-auto pb-4">
-                                {affiliationLines.map((line) => {
-                                  if (line.type === 'cover-affiliation') {
-                                    return (
-                                      <p
-                                        key={line.id}
-                                        className={cn(
-                                          'text-center font-medium text-xs sm:text-sm my-1 max-w-xl mx-auto leading-relaxed',
-                                          paperMode === 'paper'
-                                            ? 'text-slate-700'
-                                            : 'text-foreground',
-                                        )}
-                                      >
-                                        {renderLineFragments(line)}
-                                      </p>
-                                    );
-                                  }
-                                  if (line.type === 'cover-fulfillment') {
-                                    return (
-                                      <p
-                                        key={line.id}
-                                        className={cn(
-                                          'text-center text-xs sm:text-sm italic my-1 max-w-md mx-auto leading-relaxed',
-                                          paperMode === 'paper'
-                                            ? 'text-slate-600'
-                                            : 'text-muted-foreground',
-                                        )}
-                                      >
-                                        {renderLineFragments(line)}
-                                      </p>
-                                    );
-                                  }
-                                  return (
-                                    <p
-                                      key={line.id}
-                                      className={cn(
-                                        'text-center text-xs font-medium my-3',
+                                        'text-center text-xs sm:text-sm font-semibold uppercase tracking-widest my-3',
                                         paperMode === 'paper'
                                           ? 'text-slate-500'
                                           : 'text-muted-foreground',
@@ -1407,46 +1316,32 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                                       {renderLineFragments(line)}
                                     </p>
                                   );
-                                })}
-                                {otherCoverLines.map((line) => (
-                                  <p key={line.id} className="text-center text-xs my-1">
+                                }
+                                return (
+                                  <p
+                                    key={line.id}
+                                    className={cn(
+                                      'text-center font-semibold text-sm sm:text-base my-0.5 leading-snug',
+                                      paperMode === 'paper' ? 'text-slate-800' : 'text-foreground',
+                                    )}
+                                  >
                                     {renderLineFragments(line)}
                                   </p>
-                                ))}
-                              </div>
+                                );
+                              })}
                             </div>
-                          ) : isApproval ? (
-                            <div className="flex-1 flex flex-col justify-start py-2">
-                              {page.lines.map((line) => {
-                                if (
-                                  line.type === 'approval-heading' ||
-                                  /^APPROVAL SHEET$/i.test(line.text)
-                                ) {
-                                  return (
-                                    <h2
-                                      key={line.id}
-                                      className={cn(
-                                        'text-center font-bold text-base sm:text-lg uppercase tracking-wider mb-8 pb-3 border-b',
-                                        paperMode === 'paper'
-                                          ? 'text-slate-950 border-slate-200'
-                                          : 'text-foreground border-border/40',
-                                      )}
-                                    >
-                                      {renderLineFragments(line)}
-                                    </h2>
-                                  );
-                                }
-                                if (
-                                  line.type === 'approval-body' ||
-                                  /^This capstone/i.test(line.text)
-                                ) {
+
+                            {/* Bottom: Affiliation & Fulfillment */}
+                            <div className="my-auto pb-4">
+                              {affiliationLines.map((line) => {
+                                if (line.type === 'cover-affiliation') {
                                   return (
                                     <p
                                       key={line.id}
                                       className={cn(
-                                        'text-justify mb-10 indent-8 leading-[1.85] text-sm sm:text-base',
+                                        'text-center font-medium text-xs sm:text-sm my-1 max-w-xl mx-auto leading-relaxed',
                                         paperMode === 'paper'
-                                          ? 'text-slate-800'
+                                          ? 'text-slate-700'
                                           : 'text-foreground',
                                       )}
                                     >
@@ -1454,89 +1349,161 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                                     </p>
                                   );
                                 }
-                                if (line.type === 'approval-name') {
+                                if (line.type === 'cover-fulfillment') {
                                   return (
-                                    <div key={line.id} className="text-center my-2">
-                                      <p className="font-bold underline text-sm sm:text-base tracking-wide">
-                                        {renderLineFragments(line)}
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                                if (line.type === 'approval-role') {
-                                  return (
-                                    <div key={line.id} className="text-center mb-6">
-                                      <p className="text-xs text-muted-foreground italic">
-                                        {renderLineFragments(line)}
-                                      </p>
-                                    </div>
+                                    <p
+                                      key={line.id}
+                                      className={cn(
+                                        'text-center text-xs sm:text-sm italic my-1 max-w-md mx-auto leading-relaxed',
+                                        paperMode === 'paper'
+                                          ? 'text-slate-600'
+                                          : 'text-muted-foreground',
+                                      )}
+                                    >
+                                      {renderLineFragments(line)}
+                                    </p>
                                   );
                                 }
                                 return (
-                                  <p key={line.id} className="mb-4 text-justify indent-6">
+                                  <p
+                                    key={line.id}
+                                    className={cn(
+                                      'text-center text-xs font-medium my-3',
+                                      paperMode === 'paper'
+                                        ? 'text-slate-500'
+                                        : 'text-muted-foreground',
+                                    )}
+                                  >
                                     {renderLineFragments(line)}
                                   </p>
                                 );
                               })}
+                              {otherCoverLines.map((line) => (
+                                <p key={line.id} className="text-center text-xs my-1">
+                                  {renderLineFragments(line)}
+                                </p>
+                              ))}
                             </div>
-                          ) : (
-                            <div className="flex-1 flex flex-col justify-start">
-                              {page.lines.map((line) => {
-                                let Tag = 'p';
-                                let lineClass =
-                                  'text-left sm:text-justify mb-4 indent-8 leading-[1.85]';
-
-                                if (line.type === 'section-heading') {
-                                  Tag = 'h2';
-                                  lineClass = cn(
-                                    'text-center font-bold text-base sm:text-lg uppercase tracking-wider mt-4 mb-6 pt-2',
-                                    paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
-                                  );
-                                } else if (line.type === 'subheading') {
-                                  Tag = 'h3';
-                                  lineClass = cn(
-                                    'text-left font-bold text-sm sm:text-base mt-6 mb-3',
-                                    paperMode === 'paper' ? 'text-slate-900' : 'text-foreground',
-                                  );
-                                }
-
-                                return (
-                                  <Tag key={line.id} className={lineClass}>
-                                    {renderLineFragments(line)}
-                                  </Tag>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Paper Page Footer Stamp */}
-                          <div
-                            className={cn(
-                              'mt-auto pt-4 text-center text-[10px] font-mono select-none border-t',
-                              paperMode === 'paper'
-                                ? 'text-slate-400 border-slate-100'
-                                : 'text-muted-foreground border-border/30',
-                            )}
-                          >
-                            Page {page.pageNumber} of {pages.length}
                           </div>
-                        </section>
-                      );
-                    })}
-                  </article>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
-                    <FileText className="mb-3 h-12 w-12 opacity-30" />
-                    <p className="text-sm font-semibold text-foreground">
-                      No extracted text available
-                    </p>
-                    <p className="mt-1 text-xs">
-                      The document text could not be extracted for visual analysis.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+                        ) : isApproval ? (
+                          <div className="flex-1 flex flex-col justify-start py-2">
+                            {page.lines.map((line) => {
+                              if (
+                                line.type === 'approval-heading' ||
+                                /^APPROVAL SHEET$/i.test(line.text)
+                              ) {
+                                return (
+                                  <h2
+                                    key={line.id}
+                                    className={cn(
+                                      'text-center font-bold text-base sm:text-lg uppercase tracking-wider mb-8 pb-3 border-b',
+                                      paperMode === 'paper'
+                                        ? 'text-slate-950 border-slate-200'
+                                        : 'text-foreground border-border/40',
+                                    )}
+                                  >
+                                    {renderLineFragments(line)}
+                                  </h2>
+                                );
+                              }
+                              if (
+                                line.type === 'approval-body' ||
+                                /^This capstone/i.test(line.text)
+                              ) {
+                                return (
+                                  <p
+                                    key={line.id}
+                                    className={cn(
+                                      'text-justify mb-10 indent-8 leading-[1.85] text-sm sm:text-base',
+                                      paperMode === 'paper' ? 'text-slate-800' : 'text-foreground',
+                                    )}
+                                  >
+                                    {renderLineFragments(line)}
+                                  </p>
+                                );
+                              }
+                              if (line.type === 'approval-name') {
+                                return (
+                                  <div key={line.id} className="text-center my-2">
+                                    <p className="font-bold underline text-sm sm:text-base tracking-wide">
+                                      {renderLineFragments(line)}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              if (line.type === 'approval-role') {
+                                return (
+                                  <div key={line.id} className="text-center mb-6">
+                                    <p className="text-xs text-muted-foreground italic">
+                                      {renderLineFragments(line)}
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <p key={line.id} className="mb-4 text-justify indent-6">
+                                  {renderLineFragments(line)}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex flex-col justify-start">
+                            {page.lines.map((line) => {
+                              let Tag = 'p';
+                              let lineClass =
+                                'text-left sm:text-justify mb-4 indent-8 leading-[1.85]';
+
+                              if (line.type === 'section-heading') {
+                                Tag = 'h2';
+                                lineClass = cn(
+                                  'text-center font-bold text-base sm:text-lg uppercase tracking-wider mt-4 mb-6 pt-2',
+                                  paperMode === 'paper' ? 'text-slate-950' : 'text-foreground',
+                                );
+                              } else if (line.type === 'subheading') {
+                                Tag = 'h3';
+                                lineClass = cn(
+                                  'text-left font-bold text-sm sm:text-base mt-6 mb-3',
+                                  paperMode === 'paper' ? 'text-slate-900' : 'text-foreground',
+                                );
+                              }
+
+                              return (
+                                <Tag key={line.id} className={lineClass}>
+                                  {renderLineFragments(line)}
+                                </Tag>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Paper Page Footer Stamp */}
+                        <div
+                          className={cn(
+                            'mt-auto pt-4 text-center text-[10px] font-mono select-none border-t',
+                            paperMode === 'paper'
+                              ? 'text-slate-400 border-slate-100'
+                              : 'text-muted-foreground border-border/30',
+                          )}
+                        >
+                          Page {page.pageNumber} of {pages.length}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </article>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
+                  <FileText className="mb-3 h-12 w-12 opacity-30" />
+                  <p className="text-sm font-semibold text-foreground">
+                    No extracted text available
+                  </p>
+                  <p className="mt-1 text-xs">
+                    The document text could not be extracted for visual analysis.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sources sidebar */}

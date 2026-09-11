@@ -29,11 +29,11 @@ In this workspace, problems are solved deterministically under the following rul
 ## 2. Codified Resolution Patterns
 
 ### Pattern A: GitHub Actions Runner Node.js Versioning & Cache Alignment
-* **Gotcha**: Setting both `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'` and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'` causes a runner configuration conflict error.
+* **Gotcha**: Setting both `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'` and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'` causes a runner configuration conflict error. Running without `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'` triggers GitHub Actions Node.js 20 deprecation warnings.
 * **Resolution**: In `.github/workflows/ci.yml` and `.github/workflows/governance.yml`, declare only:
   ```yaml
   env:
-    ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   ```
 * **Python Action Cache**: If using `actions/setup-python@v5`, do not set `cache: pip` unless a root/local pip requirements file is explicitly being restored in that step.
 
@@ -94,7 +94,7 @@ python scripts/workspace_guardrail.py
 | :--- | :--- | :--- |
 | `[MISSING_EXPORT]` in client build | Invalid Lucide icon or named export | Run `npm run build --workspace=client` locally, find the file, and replace with valid export. |
 | `expected 2 to be 1` in audit tests | Async fire-and-forget logging | Change assertion to `toBeGreaterThanOrEqual(1)` + `.every(...)`. |
-| `Both FORCE_... and ACTIONS_...` warning | Conflicting workflow env vars | Keep only `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'`. |
+| Both FORCE_... and ACTIONS_... warning | Conflicting workflow env vars | Keep only `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'`. |
+| Cloud AI runtime unavailable | Missing or invalid API key in `runtime_config.json` | Set `DEEPSEEK_API_KEY` or ensure valid API credentials in `.github/hooks/state/runtime_config.json`. |
 | `UNMATCHED_COUNT > 0` | Missing server route for client service | Add corresponding backend route in `server/modules/*/*.routes.js`. |
-| `qwen2.5-coder:7b not found` in dev | Local Ollama empty or model unpulled | `agent_prefetch.py` treats as soft warning in dev (`STRICT_LOCAL_AI!=true`); run `ollama pull qwen2.5-coder:7b` when offline inference is needed. |
 

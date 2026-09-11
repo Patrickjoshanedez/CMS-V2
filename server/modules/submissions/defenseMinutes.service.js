@@ -151,6 +151,7 @@ class DefenseMinutesService {
       expectedAction,
       severity = 'minor',
       pageOrModule = '',
+      isClient = false,
     } = data;
 
     if (!panelistName || !panelistName.trim()) {
@@ -181,6 +182,7 @@ class DefenseMinutesService {
       expectedAction: expectedAction.trim(),
       severity,
       pageOrModule: pageOrModule.trim(),
+      isClient: Boolean(isClient),
       createdAt: new Date(),
     };
 
@@ -264,6 +266,48 @@ class DefenseMinutesService {
   }
 
   /**
+   * Update session metadata and client comments (BukSU OVPAA-F-INS-032).
+   */
+  async updateSessionDetails(projectId, defenseType, data, user) {
+    let minutes = await DefenseMinutes.findOne({ projectId, defenseType });
+    if (!minutes) {
+      minutes = await DefenseMinutes.create({
+        projectId,
+        defenseType,
+        secretaryId: user._id,
+        sessionStatus: 'in_progress',
+      });
+    }
+
+    if (data.venue !== undefined) minutes.venue = data.venue;
+    if (data.round !== undefined) minutes.round = data.round;
+    if (data.clientName !== undefined) minutes.clientName = data.clientName.trim();
+    if (Array.isArray(data.clientComments)) minutes.clientComments = data.clientComments;
+    if (data.overallRecommendations !== undefined)
+      minutes.overallRecommendations = data.overallRecommendations.trim();
+
+    await minutes.save();
+
+    try {
+      emitToRoom(`project:${projectId}`, 'defense:minutes_updated', {
+        projectId,
+        defenseType,
+        action: 'session_updated',
+        venue: minutes.venue,
+        round: minutes.round,
+        clientName: minutes.clientName,
+        clientComments: minutes.clientComments,
+        overallRecommendations: minutes.overallRecommendations,
+        defenseMinutes: minutes,
+      });
+    } catch {
+      // Non-blocking
+    }
+
+    return { defenseMinutes: minutes };
+  }
+
+  /**
    * Finalize the panel's consensus verdict.
    */
   async finalizeVerdict(projectId, defenseType, data, user) {
@@ -296,7 +340,7 @@ class DefenseMinutesService {
   }
 
   /**
-   * Lock composite scores once verified by Secretary and Panel Chair.
+   * Lock composite scores from individual rubric evaluations.
    */
   async lockCompositeScores(projectId, defenseType, data, user) {
     const minutes = await DefenseMinutes.findOne({ projectId, defenseType });
@@ -333,9 +377,12 @@ class DefenseMinutesService {
     if (!minutes)
       throw new AppError('Defense minutes session not found.', 404, 'MINUTES_NOT_FOUND');
 
-    if (!minutes.entries || minutes.entries.length === 0) {
+    const hasEntries = minutes.entries && minutes.entries.length > 0;
+    const hasClientComments = minutes.clientComments && minutes.clientComments.length > 0;
+
+    if (!hasEntries && !hasClientComments) {
       throw new AppError(
-        'Cannot publish an empty Action Done Matrix. Please log at least one defense revision entry before publishing.',
+        'Cannot publish an empty Action Done Matrix. Please log at least one defense revision entry or client comment before publishing.',
         400,
         'NO_MINUTES_ENTRIES',
       );
@@ -352,8 +399,10 @@ class DefenseMinutesService {
     };
     const milestone = milestoneMap[defenseType] || 'CAPSTONE_2';
 
-    const newRows = minutes.entries.map((entry) => ({
-      panelName: entry.panelistName,
+    const newRows = (minutes.entries || []).map((entry) => ({
+      panelName: entry.isClient
+        ? `${minutes.clientName || entry.panelistName} (Client)`
+        : entry.panelistName,
       suggestion: entry.critique,
       expectedAction: entry.expectedAction,
       pageNumbers: entry.pageOrModule || '',
@@ -364,6 +413,30 @@ class DefenseMinutesService {
       isLocked: false,
       signatures: [],
     }));
+
+    // If client comments exist in the dedicated client section, map them into rows as well
+    if (Array.isArray(minutes.clientComments) && minutes.clientComments.length > 0) {
+      const clientLabel = minutes.clientName
+        ? `${minutes.clientName} (Client)`
+        : 'Dr. Sales G. Aribe Jr. (Client)';
+
+      const clientRows = minutes.clientComments
+        .filter((c) => c && c.trim())
+        .map((comment) => ({
+          panelName: clientLabel,
+          suggestion: comment.trim(),
+          expectedAction: 'Address client feedback and integrate requested updates',
+          pageNumbers: '',
+          actionDone: '',
+          status: 'pending',
+          remarks: '[Client Feedback]',
+          milestone,
+          isLocked: false,
+          signatures: [],
+        }));
+
+      newRows.push(...clientRows);
+    }
 
     if (!Array.isArray(project.actionDoneMatrix)) {
       project.actionDoneMatrix = [];

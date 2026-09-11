@@ -113,6 +113,8 @@ export const projectService = {
   assignPanelist: (id, data) => api.post(`/projects/${id}/panelists`, data),
   removePanelist: (id, data) => api.delete(`/projects/${id}/panelists`, { data }),
   setDeadlines: (id, data) => api.patch(`/projects/${id}/deadlines`, data),
+  scheduleDefense: (id, data) => api.post(`/projects/${id}/defense-schedule`, data),
+  getDefenseSchedule: (id) => api.get(`/projects/${id}/defense-schedule`),
   rejectProject: (id, data) => api.post(`/projects/${id}/reject`, data),
 
   // Panelist route

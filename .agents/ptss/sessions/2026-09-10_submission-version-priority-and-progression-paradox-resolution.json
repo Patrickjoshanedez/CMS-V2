@@ -1,0 +1,44 @@
+{
+  "session_id": "2026-09-10_submission-version-priority-and-progression-paradox-resolution",
+  "timestamp": "2026-09-10T17:35:00.000Z",
+  "task_description": "Eliminate chapter progression paradox where accepted round v2 was overwritten by v1 due to timestamp collision, and allow sequential chapter uploads when preceding chapter is accepted/approved/locked.",
+  "root_causes": [
+    "ProjectSubmissionsPage.jsx and ProposalCompilationPage.jsx reduced latest submissions using currentTs >= existingTs without comparing version numbers first. When an adviser accepted a round, bulk updatedAt timestamp update caused v1 to overwrite v2.",
+    "Server uploadChapter, compileProposal, and client ChapterUploadPage strictly gated chapter progression on status === SUBMISSION_STATUSES.LOCKED, rejecting submissions with status 'accepted' or 'approved'.",
+    "SubmissionDetailPage.jsx lacked version context, leaving users on older revisions without notifying them that a newer version was available."
+  ],
+  "modifications": [
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "change": "Updated previousChapterLocked checks in uploadChapter and compileProposal to allow LOCKED, APPROVED, or ACCEPTED statuses."
+    },
+    {
+      "file": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+      "change": "Updated latestChapterSubmissions reduce logic to prioritize version number first before timestamp, and updated canUploadChapter to permit progression when previous chapter is locked, approved, or accepted."
+    },
+    {
+      "file": "client/src/pages/submissions/ChapterUploadPage.jsx",
+      "change": "Defined APPROVED_CHAPTER_STATUSES and allowed ACCEPTED/APPROVED/LOCKED statuses for candidate chapter selection and form validation."
+    },
+    {
+      "file": "client/src/components/submissions/ChapterProgressWithRounds.jsx",
+      "change": "Added SUBMISSION_STATUSES.ACCEPTED to chapterStatusBadge, chapterStatusIcon, and suggestedUploadChapter."
+    },
+    {
+      "file": "client/src/pages/submissions/ProposalCompilationPage.jsx",
+      "change": "Updated getLatestChapterSubmissions to prioritize higher version numbers before timestamps."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionDetailPage.jsx",
+      "change": "Integrated useChapterHistory to display revision switcher pills (v1, v2) and a prominent outdated version alert banner linking directly to the latest revision."
+    }
+  ],
+  "verification": {
+    "client_targeted_tests": "Passed (ProjectSubmissionsPage.test.jsx, SubmissionDetailPage.test.jsx, 17/17 submissions tests)",
+    "server_targeted_tests": "Passed (should allow chapter 2 upload when chapter 1 is accepted)",
+    "playwright_visual_audit": "Passed (10 screenshots captured in desktop & mobile, dark & light)",
+    "route_parity": "Passed (UNMATCHED_COUNT=0)",
+    "agentic_governance": "Passed (60/60 checks)"
+  },
+  "status": "completed"
+}

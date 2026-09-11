@@ -19,6 +19,36 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+let mockProject = {
+  _id: 'proj-123',
+  status: 'active',
+  titleStatus: 'proposal',
+  ganttChartUrl: null,
+  demoVideoUrl: null,
+};
+
+let mockSubmissions = [
+  { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'revisions_required', version: 1 },
+];
+
+vi.mock('@/hooks/useProjects', () => ({
+  useMyProject: () => ({
+    data: mockProject,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
+vi.mock('@/hooks/useSubmissions', () => ({
+  useProjectSubmissions: () => ({
+    data: {
+      submissions: mockSubmissions,
+    },
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: () => ({
     user: mockUser,
@@ -54,6 +84,16 @@ describe('Sidebar Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = { role: ROLES.STUDENT };
+    mockProject = {
+      _id: 'proj-123',
+      status: 'active',
+      titleStatus: 'proposal',
+      ganttChartUrl: null,
+      demoVideoUrl: null,
+    };
+    mockSubmissions = [
+      { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'revisions_required', version: 1 },
+    ];
   });
 
   it('renders in expanded mode with full width, labels, sections, and badges', () => {
@@ -174,6 +214,34 @@ describe('Sidebar Component', () => {
     });
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
+  it('dynamically renders Active badge when project title is approved and updates Submissions action badge', () => {
+    mockProject = {
+      _id: 'proj-123',
+      status: 'active',
+      titleStatus: 'approved',
+      ganttChartUrl: 'https://docs.google.com/spreadsheets/d/123',
+      demoVideoUrl: 'https://drive.google.com/file/d/123',
+    };
+    mockSubmissions = [
+      { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'approved', version: 1 },
+    ];
+
+    const { container, unmount } = renderSidebar({ open: true });
+
+    // My Capstone should be "Active" instead of "Draft"
+    expect(container.textContent).toContain('Active');
+    expect(container.textContent).not.toContain('Draft');
+
+    // Submissions action badge should be hidden when 0 actions required
+    const links = Array.from(container.querySelectorAll('a'));
+    const submissionsLink = links.find((l) => l.getAttribute('href') === '/project/submissions');
+    expect(submissionsLink).toBeTruthy();
+    // No badge span rendered inside submissions link
+    expect(submissionsLink.textContent).toBe('Submissions');
 
     unmount();
   });

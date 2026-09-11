@@ -9,7 +9,7 @@ import {
 import { checkOriginality } from '../../services/plagiarism.service.js';
 import Project from './project.model.js';
 import Notification from '../notifications/notification.model.js';
-import { emitToUser } from '../../services/socket.service.js';
+import { emitToUser, emitToRoom, getIO } from '../../services/socket.service.js';
 
 function buildProposalText({
   title,
@@ -897,6 +897,60 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
   });
 });
 
+/** Helper to verify if all ADM signatures are satisfied and promote phase to Capstone 3 */
+async function checkAndAdvancePhaseIfADMCompleted(project) {
+  const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
+  const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
+  const isChairDone = Boolean(project.admSignatures?.chair?.signed);
+
+  if (isSecretaryDone && isAdviserDone && isChairDone) {
+    project.admStatus = 'approved';
+    const currentPhase = Number(project.capstonePhase ?? 2);
+    if (currentPhase === 2) {
+      project.capstonePhase = 3;
+      project.capstoneCourse = 'Capstone 3';
+
+      try {
+        const Team = (await import('../teams/team.model.js')).default;
+        const team = await Team.findById(project.teamId);
+        if (team?.members?.length > 0) {
+          const notifications = team.members.map((memberId) => ({
+            userId: memberId,
+            type: 'phase_advanced',
+            title: '🎉 Promoted to Capstone 3: System Development!',
+            message: `Congratulations! Your Action Done Matrix has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 3. System Development Roadmap & Gantt Chart are now unlocked!`,
+            metadata: { projectId: project._id, capstonePhase: 3, capstoneCourse: 'Capstone 3' },
+          }));
+          const createdNotifs = await Notification.insertMany(notifications);
+          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        }
+      } catch {
+        // Non-blocking notification
+      }
+
+      try {
+        emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
+          projectId: project._id,
+          capstonePhase: 3,
+          capstoneCourse: 'Capstone 3',
+        });
+        emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+        const io = getIO();
+        if (io) {
+          io.emit('project:phase_advanced', {
+            projectId: project._id,
+            capstonePhase: 3,
+            capstoneCourse: 'Capstone 3',
+          });
+          io.emit('project:updated', { projectId: project._id });
+        }
+      } catch {
+        // Non-blocking socket
+      }
+    }
+  }
+}
+
 /** POST /api/projects/:projectId/adm-signatures — Sign Tiered Signatories Board */
 export const signTieredADM = catchAsync(async (req, res) => {
   const { projectId } = req.params;
@@ -985,6 +1039,9 @@ export const signTieredADM = catchAsync(async (req, res) => {
     }
   }
 
+  // Auto-advance to Capstone 3 if all signatories completed
+  await checkAndAdvancePhaseIfADMCompleted(project);
+
   await project.save({ validateModifiedOnly: true });
 
   res.status(HTTP_STATUS.OK).json({
@@ -994,6 +1051,8 @@ export const signTieredADM = catchAsync(async (req, res) => {
       admSignatures: project.admSignatures,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
+      capstonePhase: project.capstonePhase,
+      capstoneCourse: project.capstoneCourse,
     },
   });
 });
@@ -1042,6 +1101,10 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
   };
 
   project.admStatus = 'under_panel_review';
+
+  // Check if signatures already completed and advance phase
+  await checkAndAdvancePhaseIfADMCompleted(project);
+
   await project.save({ validateModifiedOnly: true });
 
   // Notify team members
@@ -1069,6 +1132,8 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
       admSignatures: project.admSignatures,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
+      capstonePhase: project.capstonePhase,
+      capstoneCourse: project.capstoneCourse,
     },
   });
 });
@@ -1351,5 +1416,26 @@ export const signADMItem = catchAsync(async (req, res) => {
     success: true,
     message: 'ADM item signed successfully.',
     data: { item, projectStatus: project.projectStatus, isArchived: project.isArchived },
+  });
+});
+
+/** POST /api/projects/:id/defense-schedule — Schedule or update defense hearing (Instructor only) */
+export const scheduleDefense = catchAsync(async (req, res) => {
+  const result = await projectService.scheduleDefense(req.params.id, req.body, req.user);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Defense hearing scheduled successfully.',
+    data: result,
+  });
+});
+
+/** GET /api/projects/:id/defense-schedule — Get defense hearing schedule */
+export const getDefenseSchedule = catchAsync(async (req, res) => {
+  const result = await projectService.getDefenseSchedule(req.params.id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    data: result,
   });
 });

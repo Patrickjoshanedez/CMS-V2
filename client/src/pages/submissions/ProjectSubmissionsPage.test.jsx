@@ -15,9 +15,22 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
 }));
 
+let currentSubmissions = [
+  { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'approved', version: 1 },
+  { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
+  { _id: 'sub-3', type: 'chapter', chapter: 3, status: 'approved', version: 1 },
+];
+
 vi.mock('@/components/submissions/ChapterCard', () => ({
-  default: ({ chapterNumber }) => (
-    <div data-testid={`chapter-card-${chapterNumber}`}>Chapter {chapterNumber} Card</div>
+  default: ({ chapterNumber, submission, canUpload }) => (
+    <div
+      data-testid={`chapter-card-${chapterNumber}`}
+      data-submission-version={submission?.version}
+      data-submission-status={submission?.status}
+      data-can-upload={String(canUpload)}
+    >
+      Chapter {chapterNumber} Card
+    </div>
   ),
 }));
 
@@ -80,15 +93,24 @@ vi.mock('@/hooks/useProjects', () => ({
 vi.mock('@/hooks/useSubmissions', () => ({
   useProjectSubmissions: () => ({
     data: {
-      submissions: [
-        { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'approved', version: 1 },
-        { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
-        { _id: 'sub-3', type: 'chapter', chapter: 3, status: 'approved', version: 1 },
-      ],
+      submissions: currentSubmissions,
     },
     isLoading: false,
     error: null,
     refetch: vi.fn(),
+  }),
+  useUploadChapter: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    error: null,
+  }),
+  useUploadFinalAcademic: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUploadFinalJournal: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
   }),
 }));
 
@@ -98,6 +120,11 @@ describe('ProjectSubmissionsPage Suite', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    currentSubmissions = [
+      { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'approved', version: 1 },
+      { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
+      { _id: 'sub-3', type: 'chapter', chapter: 3, status: 'approved', version: 1 },
+    ];
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -130,6 +157,11 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(container.querySelector('[data-testid="development-assets-form"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-4"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-5"]')).toBeTruthy();
+
+    // Phase 4 Capstone 4 assertions
+    expect(container.textContent).toContain('Capstone 4: Final Defense & Manuscript Archival');
+    expect(container.textContent).toContain('Phase 4');
+    expect(container.textContent).toContain('Final Paper Submission');
 
     // Verify mislabeling is eliminated
     expect(container.textContent).not.toContain('Capstone 2\nSystem Development Phase');
@@ -168,5 +200,43 @@ describe('ProjectSubmissionsPage Suite', () => {
 
     // Modal is closed
     expect(container.querySelector('[data-testid="interactive-gantt-chart"]')).toBeNull();
+  });
+
+  it('correctly resolves latest version when v2 is accepted with identical timestamp to v1, and unlocks chapter 2', async () => {
+    const timestamp = '2026-09-10T07:17:21.514Z';
+    // Submissions sorted version desc (v2 first, then v1) with identical updatedAt (simulating markSubmissionAccepted bulk update)
+    currentSubmissions = [
+      {
+        _id: 'sub-ch1-v2',
+        type: 'chapter',
+        chapter: 1,
+        version: 2,
+        status: 'accepted',
+        updatedAt: timestamp,
+        createdAt: timestamp,
+      },
+      {
+        _id: 'sub-ch1-v1',
+        type: 'chapter',
+        chapter: 1,
+        version: 1,
+        status: 'revisions_required',
+        updatedAt: timestamp,
+        createdAt: '2026-09-09T01:00:00.000Z',
+      },
+    ];
+
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    const card1 = container.querySelector('[data-testid="chapter-card-1"]');
+    expect(card1).toBeTruthy();
+    expect(card1.getAttribute('data-submission-version')).toBe('2');
+    expect(card1.getAttribute('data-submission-status')).toBe('accepted');
+
+    const card2 = container.querySelector('[data-testid="chapter-card-2"]');
+    expect(card2).toBeTruthy();
+    expect(card2.getAttribute('data-can-upload')).toBe('true');
   });
 });

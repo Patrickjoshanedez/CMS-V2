@@ -1,0 +1,18 @@
+{
+  "session_id": "2026-09-10_adviser-decision-authority-unlocked",
+  "date": "2026-09-10T15:07:00.000Z",
+  "task_summary": "Resolved adviser decision-making authority block in SubmissionReviewPage where faculty advisers were locked out of decision actions ('You do not have decision-making authority for this project'). Enhanced deriveReviewerRole to defensively resolve object and string IDs with fallback to workspace.project, and refactored canModerate and canTakeDecision to recognize appointed faculty advisers (reviewerRole === 'Adviser', workspace.adviserId === user._id) alongside course instructors. Verified with 5 targeted client tests including positive and negative boundary tests, 0 route mismatches, 60/60 agentic validation checks, pristine workspace guardrails, and full Playwright visual audit across light and dark desktop and mobile viewports showing active and unlocked decision controls.",
+  "task_category": "authorization_and_workflow_alignment",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "affected_files": [
+    "client/src/pages/submissions/SubmissionReviewPage.jsx",
+    "client/src/pages/submissions/SubmissionReviewPage.test.jsx"
+  ],
+  "verification_results": {
+    "targeted_tests": "5/5 passed (539ms)",
+    "route_parity": "SERVER=201, CLIENT=179, UNMATCHED=0",
+    "agentic_governance": "60/60 checks passed",
+    "playwright_visual_audit": "4 screenshots captured, decision controls verified active and unlocked"
+  }
+}

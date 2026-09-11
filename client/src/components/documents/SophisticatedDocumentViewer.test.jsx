@@ -21,8 +21,30 @@ vi.mock('@/hooks/useSubmissions', () => ({
   }),
 }));
 
-// Mock global fetch for the DOCX binary retrieval
+import api from '@/services/api';
+import { submissionService } from '@/services/submissionService';
+
 const mockArrayBuffer = new ArrayBuffer(8);
+
+vi.mock('@/services/api', () => ({
+  default: {
+    get: vi.fn().mockImplementation((url) => {
+      if (url.includes('/file')) {
+        return Promise.resolve({ data: mockArrayBuffer });
+      }
+      return Promise.resolve({ data: {} });
+    }),
+  },
+}));
+
+vi.mock('@/services/submissionService', () => ({
+  submissionService: {
+    downloadFile: vi.fn().mockResolvedValue(undefined),
+    getFile: vi.fn().mockResolvedValue({ data: new Blob() }),
+  },
+}));
+
+// Mock global fetch for external pre-signed URL retrieval
 globalThis.fetch = vi.fn().mockResolvedValue({
   ok: true,
   status: 200,
@@ -134,24 +156,29 @@ describe('SophisticatedDocumentViewer', () => {
     expect(el.textContent).toContain('115%');
   });
 
-  it('fetches the raw DOCX binary from the streaming endpoint', async () => {
+  it('fetches the raw DOCX binary from the streaming endpoint via authenticated api client', async () => {
     await renderViewer();
     // Waits for the useEffect fetch to execute
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      '/api/submissions/sub-789/file',
-      expect.objectContaining({ credentials: 'include' }),
+    expect(api.get).toHaveBeenCalledWith(
+      '/submissions/sub-789/file',
+      expect.objectContaining({ responseType: 'arraybuffer' }),
     );
   });
 
   it('renders a PDF iframe for PDF submissions without zoom controls', async () => {
+    if (!globalThis.URL.createObjectURL) {
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-pdf-url');
+    }
     const el = await renderViewer({ submission: mockPdfSubmission });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
     // Should render an iframe for PDF
     const iframe = el.querySelector('iframe');
     expect(iframe).not.toBeNull();
-    expect(iframe.src).toContain('/api/submissions/sub-pdf-001/file');
     // No zoom controls for PDF
     expect(el.querySelector('button[aria-label="Zoom in"]')).toBeNull();
   });
@@ -166,5 +193,20 @@ describe('SophisticatedDocumentViewer', () => {
     });
     expect(el.textContent).toContain('Manuscript Record');
     expect(el.textContent).toContain('Archival submission metadata');
+  });
+
+  it('renders inline directly into the DOM tree when embedded is true without modal backdrop', async () => {
+    await act(async () => {
+      root.render(
+        <SophisticatedDocumentViewer
+          embedded={true}
+          submission={mockDocxSubmission}
+          portalTarget={false}
+        />,
+      );
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.textContent).toContain('Chapter 1: Problem Definition & Objectives');
+    expect(container.textContent).toContain('Revision Diff (+/-)');
   });
 });

@@ -1,0 +1,20 @@
+{
+  "sessionId": "2026-09-10_submission-review-and-plagiarism-report-polish",
+  "timestamp": "2026-09-10T13:06:00.000Z",
+  "task": "Refactor Submission Review Studio & Plagiarism Report: embedded paginated reader, remove dead UI, fix 100% originality score inversion, merge Originality Highlights with Formatted Manuscript, default to latest revision round, and provide direct Team Google Doc access",
+  "status": "completed",
+  "changes": [
+    "client/src/pages/submissions/SubmissionReviewPage.jsx: Replaced raw unformatted text box with PaginatedDocumentViewer; removed dead unstyled PlagiarismChecker component; fixed OriginalityBar inversion so >=75% originality renders emerald green Compliant (<25% similarity target); defaulted round selector to latest revision round; added Team Google Doc link in Submission Info, File Actions, and Doc Comments",
+    "client/src/pages/submissions/PlagiarismReportPage.jsx: Merged Originality Highlights and Formatted Manuscript into a single canvas; replaced canvasViewMode state with showHighlights; added inline toggle button [Highlights: ON / OFF]; preserved authentic academic paper sheet pagination, headers, and theme switcher",
+    "client/src/pages/submissions/PlagiarismReportPage.test.jsx: Updated tests to verify toggling originality highlights overlay on and off",
+    "client/src/pages/submissions/SubmissionReviewPage.test.jsx: Added unit tests asserting latest round defaulting, 100% originality compliance, Google Doc links, and embedded paginated reader",
+    "scratch/submission_review_and_plagiarism_audit.mjs: Playwright visual audit script across light/dark desktop (1440x900) and mobile (390x844)"
+  ],
+  "verification": {
+    "targetedClientTests": "Passed 12/12 unit tests in src/pages/submissions/",
+    "checkEndpoints": "Passed with UNMATCHED_COUNT=0 (201 Server / 179 Client)",
+    "validateAgentic": "Passed with 60/60 checks",
+    "workspaceGuardrail": "Passed",
+    "playwrightVisualAudit": "Passed across light/dark desktop and mobile viewports"
+  }
+}

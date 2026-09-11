@@ -1,0 +1,58 @@
+{
+  "session_id": "2026-09-10_locked-chapter-upload-modal-and-submissions-refactor",
+  "timestamp": "2026-09-10T12:05:00.000Z",
+  "status": "completed",
+  "task": "Locked Chapter Upload Modal, Dynamic Submissions Refactor, Dynamic Sidebar Badges, and Navigation Header Polish",
+  "user_intent": "When a student clicks 'Revise' on a chapter requiring revision (e.g., Chapter 1), lock the upload chapter selection to that specific chapter to prevent uploading to the wrong chapter or capstone phase; refactor the submissions page to align with Phase 2 (Chapters 1-3), Phase 3 (Development Assets & Chapters 4-5), and Phase 4 (Capstone 4 Final Defense & Archival); fix bugged/hardcoded 'Draft' and '2' sidebar badges with live reactive computation; and eliminate redundant header back arrows and hamburger/sidebar collisions.",
+  "changes_made": [
+    {
+      "file": "client/src/components/submissions/UploadChapterModal.jsx",
+      "description": "Created full-featured modal dialog with initialChapter, isLocked, latestSubmission, and deadlines props. Portaled to document.body to escape CSS transform stacking context. Locks chapter select with a 'Locked for Revision' pill and warning banner when revising, renders previous review remarks, next round (vY) info, file dropzone (25MB limit), and late justification requirement if past deadline."
+    },
+    {
+      "file": "client/src/components/submissions/UploadChapterModal.test.jsx",
+      "description": "Added comprehensive unit tests asserting locked chapter selection, disabled dropdown, revision banner, round computation, unlocked modal chapter changing, and submission callback."
+    },
+    {
+      "file": "client/src/components/submissions/ChapterCard.jsx",
+      "description": "Added onUpload and onRevise prop callbacks. Triggers onRevise(chapterNumber, submission) directly on click, falling back to /submissions/upload?chapter=...&locked=true&mode=revise."
+    },
+    {
+      "file": "client/src/pages/submissions/ChapterUploadPage.jsx",
+      "description": "Parsed locked and mode URL search parameters, locking chapter selection when locked === 'true' and rendering a Locked for Revision badge."
+    },
+    {
+      "file": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+      "description": "Added uploadModalConfig state with handleGeneralUpload, handleCardUpload, and handleCardRevise. Wired header 'Upload Chapter' button and ChapterCard buttons to open the in-place UploadChapterModal. Refactored sections for Phase 2 (Chapters 1-3 & Proposal Document), Phase 3 (Interactive Gantt & Demo Video Assets + Chapters 4-5), and Phase 4 (Capstone 4 Final Defense & Archival with FinalPaperUpload)."
+    },
+    {
+      "file": "client/src/pages/submissions/ProjectSubmissionsPage.test.jsx",
+      "description": "Updated tests to verify Phase 2, Phase 3, Phase 4 sections, and Upload Chapter triggers."
+    },
+    {
+      "file": "client/src/components/layouts/Sidebar.jsx",
+      "description": "Replaced static studentNavItems with dynamic getStudentNavItems(badges). Submissions badge computes actionable count (pending revisions + missing development assets). My Capstone badge renders dynamic state ('Archived', 'Active', 'Draft'). Added emerald 'success' variant for Active. Fixed sidebar header spacing with px-3.5 py-3 gap-2, min-w-0 flex-1 pr-1 on title, shrink-0 on COT tag, and shrink-0 ml-auto on collapse toggle button to eliminate collisions."
+    },
+    {
+      "file": "client/src/components/layouts/Sidebar.test.jsx",
+      "description": "Added tests verifying dynamic badge transitions (Draft -> Active -> Archived, and action required count calculations)."
+    },
+    {
+      "file": "client/src/components/layouts/Header.jsx",
+      "description": "Removed /project/submissions from getBackDestination to eliminate redundant back arrow; added md:hidden to mobile hamburger button to eliminate duplicate desktop expanders."
+    }
+  ],
+  "verification_evidence": {
+    "endpoint_check": "UNMATCHED_COUNT = 0 (201 server / 179 client)",
+    "agentic_governance": "60 / 60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "client_targeted_tests": "30 / 30 passed across layout, submissions, and modal test suites",
+    "playwright_visual_audit": "5 visual screenshots captured and verified across desktop light/dark, collapsed sidebar, and mobile viewports",
+    "workspace_guardrail": "Pristine workspace"
+  },
+  "lessons_learned": [
+    "CSS Transform Stacking Context with Fixed Modals: In DashboardLayout.jsx, the route enter animation uses CSS transform, creating a new local stacking context. Fixed overlay dialogs must use ReactDOM.createPortal(..., document.body) to guarantee viewport centering.",
+    "Dynamic Sidebar Badge Fallbacks: Nav badges that rely on query hooks must provide sensible fallbacks when stores/queries are uninitialized or in unit test mock environments.",
+    "Actionable Items Counting: Defining actionable items as pending revisions plus missing milestone assets (e.g. Gantt or demo video) provides students with clear guidance on what requires immediate attention."
+  ]
+}

@@ -124,9 +124,6 @@ function getRoleLabel(role) {
  * correct for users arriving via direct link (e.g. from an email notification).
  */
 function getBackDestination(pathname) {
-  // Must check exact /project/submissions BEFORE the wildcard sub-route match
-  if (/^\/project\/submissions\/?$/.test(pathname))
-    return { to: '/project', label: 'Back to My Capstone' };
   // Student chapter-upload sits inside /project/submissions
   if (/^\/project\/submissions\/upload\/?$/.test(pathname))
     return { to: '/project/submissions', label: 'Back to Submissions' };
@@ -204,7 +201,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         {!sidebarOpen && (
           <button
             onClick={onMenuClick}
-            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="md:hidden rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label="Open sidebar"
           >
             <Menu className="h-5 w-5" />
