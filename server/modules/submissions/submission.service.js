@@ -1908,7 +1908,8 @@ class SubmissionService {
     );
     enrichedSubmission.isDefenseReady =
       project.defenseSchedule?.status === 'pending_scheduling' ||
-      project.defenseSchedule?.status === 'scheduled';
+      project.defenseSchedule?.status === 'scheduled' ||
+      project.defenseSchedule?.status === 'redefense';
 
     return { submission: enrichedSubmission };
   }

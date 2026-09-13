@@ -73,7 +73,13 @@ import {
   teamKeys,
 } from '@/hooks/useTeams';
 import { useUsers } from '@/hooks/useUsers';
-import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
+import {
+  useMyProject,
+  useAssignAdviser,
+  useAssignPanelist,
+  useRemovePanelist,
+} from '@/hooks/useProjects';
+import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import { useAcademicYears, useSections } from '@/hooks/useAcademics';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
 import { toast } from 'sonner';
@@ -900,6 +906,7 @@ function StudentTeamDetail({ team, userId }) {
   const panelists = assignment.panelists || [];
   const capstonePhase = Number(assignment.capstonePhase) || 1;
   const isTitleApproved = assignment.titleStatus === 'approved';
+  const { data: project } = useMyProject({ enabled: Boolean(team?._id) });
   // Manuscript template gate (unlocks working manuscript document)
   const { data: serverGate } = useTeamManuscriptTemplate(team._id, {
     enabled: Boolean(team._id),
@@ -1060,12 +1067,20 @@ function StudentTeamDetail({ team, userId }) {
               )}
             </>
           )}
-          {team.isLocked && (
-            <Badge variant="secondary" className="px-3 py-1.5 text-xs font-medium gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              Ready for Proposal Submission
-            </Badge>
+          {project?.defenseSchedule?.status && project.defenseSchedule.status !== 'none' && (
+            <DefenseScheduleBadge
+              defenseSchedule={project.defenseSchedule}
+              className="px-3 py-1.5 text-xs font-medium"
+              showTime
+            />
           )}
+          {team.isLocked &&
+            (!project?.defenseSchedule?.status || project.defenseSchedule.status === 'none') && (
+              <Badge variant="secondary" className="px-3 py-1.5 text-xs font-medium gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                Ready for Proposal Submission
+              </Badge>
+            )}
         </div>
       </div>
 

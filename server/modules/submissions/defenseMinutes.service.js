@@ -336,6 +336,30 @@ class DefenseMinutesService {
 
     await minutes.save();
 
+    // Synchronize project defenseSchedule with verdict and status
+    try {
+      const project = await Project.findById(projectId);
+      if (project) {
+        if (!project.defenseSchedule) project.defenseSchedule = {};
+        project.defenseSchedule.verdict = verdict;
+        if (verdict === 'major_revisions_redefense' || verdict === 'rejected') {
+          project.defenseSchedule.status = 'redefense';
+          if (project.defenseSchedule.round === '1st') project.defenseSchedule.round = '2nd';
+          else if (project.defenseSchedule.round === '2nd') project.defenseSchedule.round = '3rd';
+        } else if (
+          verdict === 'approved_with_minor_revisions' ||
+          verdict === 'approved_with_major_revisions'
+        ) {
+          project.defenseSchedule.status = 'completed';
+        } else if (verdict === 'approved') {
+          project.defenseSchedule.status = 'completed';
+        }
+        await project.save();
+      }
+    } catch {
+      // Non-blocking project synchronization
+    }
+
     return { consensusVerdict: minutes.consensusVerdict, defenseMinutes: minutes };
   }
 

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import TitleStatusBadge from './TitleStatusBadge';
 import ProjectStatusBadge from './ProjectStatusBadge';
+import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import { TITLE_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
 import { Users, Calendar, GraduationCap, UserCheck, FileText, Sparkles } from 'lucide-react';
 
@@ -79,6 +80,9 @@ export default function ProjectTitleCard({ project, showAction = true }) {
             </Badge>
             {project.titleStatus && <TitleStatusBadge status={project.titleStatus} />}
             {project.projectStatus && <ProjectStatusBadge status={project.projectStatus} />}
+            {project.defenseSchedule?.status && project.defenseSchedule.status !== 'none' && (
+              <DefenseScheduleBadge defenseSchedule={project.defenseSchedule} showTime />
+            )}
           </div>
 
           {showAction && (

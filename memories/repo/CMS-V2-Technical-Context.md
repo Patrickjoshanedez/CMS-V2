@@ -1878,3 +1878,32 @@
      - Agentic system governance verified: 60/60 checks passed.
      - Workspace cleanliness guardrail passed cleanly.
      - Full 8-screenshot Playwright visual feedback loop passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_fluid_scheduler_and_adm_signatories.mjs` and `scratch/capture_signatories_board.mjs`.
+
+### 2026-09-13: Oral Defense Examination to ADM Revision Flow & Top-Right Semantic Defense Schedule Badge
+- Context & Architectural Impact:
+  1. Top-Right Defense Schedule Badge & Semantic Color Coding:
+     - Replaced plain text indicators (`Schedule: scheduled`) with modular `DefenseScheduleBadge.jsx`.
+     - Displays formatted calendar date (`Sep 25, 2026`), time quantum, and responsive icons (`Calendar`, `Clock`, `AlertTriangle`, `RotateCcw`).
+     - Strictly color-coded according to institutional urgency:
+       - **Orange (`amber-500`)**: Pending scheduling (`pending_scheduling` or `pending`).
+       - **Green (`emerald-500`)**: Scheduled for future or current date (`scheduled`).
+       - **Red (`rose-500`)**: Overdue (scheduled date elapsed) or redefense required (`redefense` or `verdict: rejected`).
+     - Integrated across key top-right anchors: Submission Detail navigation strip, Adviser Endorsement card header, and Student Team Details header.
+  2. Defense-to-ADM Revision Lifecycle:
+     - Committee Secretary takes live minutes during hearing (`LiveDefenseMinutesModal`, Form OVPAA-F-INS-032).
+     - Atomic ADM publishing (`publishToADM`) creates structured rows with panelist attribution, severity, and module/page citations.
+     - Final verdict recording (`finalizeVerdict`) sets `approved_with_minor_revisions` or `approved_with_major_revisions` (or `redefense`).
+     - Student team implements changes, notes specific Actions Taken and Page Numbers in ADM, and uploads revised manuscript (`v2+`).
+     - Panelists verify fulfillment (`[✓] Fulfilled & Verified by Panel`), Secretary completes compliance endorsement, and committee signs off to unlock Capstone 3.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always derive defense urgency through centralized helper `resolveDefenseScheduleState`, ensuring start-of-day comparison so past scheduled dates automatically flag as Red Overdue even if status was left as scheduled.
+  2. Prevention rule: In visual audit scripts, always await semantic content visibility rather than relying on bare timeouts after page navigation to prevent capturing un-hydrated loading screens.
+  3. Checklist, Runbook & Evidence:
+     - 8/8 client unit tests passed (`DefenseScheduleBadge.test.jsx`).
+     - 14/14 client unit tests passed (`SubmissionDetailPage.test.jsx`).
+     - 6/6 server unit tests passed (`submission.review-flow.test.js`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance validation verified: 0 errors, 0 warnings.
+     - Workspace guardrail verified: pristine workspace.
+     - Playwright visual audit verified across Desktop Light/Dark and Mobile Light/Dark viewports.

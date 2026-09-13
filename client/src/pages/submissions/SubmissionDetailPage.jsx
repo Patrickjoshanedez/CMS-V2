@@ -30,6 +30,7 @@ import {
   useUploadFinalJournal,
 } from '@/hooks/useSubmissions';
 import { submissionService } from '@/services/submissionService';
+import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import { ROLES, SUBMISSION_STATUSES, PLAGIARISM_STATUSES } from '@cms/shared';
 import {
   BarChart2,
@@ -656,10 +657,12 @@ function AdviserDefenseReadinessCard({
                 </CardDescription>
               </div>
             </div>
-            {submission.defenseSchedule?.status && (
-              <Badge variant="secondary" className="text-xs">
-                Schedule: {submission.defenseSchedule.status.replace('_', ' ')}
-              </Badge>
+            {submission.defenseSchedule && (
+              <DefenseScheduleBadge
+                defenseSchedule={submission.defenseSchedule}
+                className="text-xs"
+                showTime
+              />
             )}
           </div>
         </CardHeader>
@@ -685,25 +688,34 @@ function AdviserDefenseReadinessCard({
     return (
       <Card className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs">
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="h-5 w-5" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base text-foreground flex items-center gap-2">
+                  Manuscript Revisions Requested
+                  <Badge
+                    variant="outline"
+                    className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[11px]"
+                  >
+                    Needs Revision
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  The adviser has reviewed this compilation and requested revisions before defense
+                  endorsement.
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-base text-foreground flex items-center gap-2">
-                Manuscript Revisions Requested
-                <Badge
-                  variant="outline"
-                  className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[11px]"
-                >
-                  Needs Revision
-                </Badge>
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                The adviser has reviewed this compilation and requested revisions before defense
-                endorsement.
-              </CardDescription>
-            </div>
+            {submission.defenseSchedule && (
+              <DefenseScheduleBadge
+                defenseSchedule={submission.defenseSchedule}
+                className="text-xs"
+                showTime
+              />
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3 pt-0">
@@ -1749,6 +1761,13 @@ export default function SubmissionDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {submission.defenseSchedule && (
+              <DefenseScheduleBadge
+                defenseSchedule={submission.defenseSchedule}
+                className="text-xs"
+                showTime
+              />
+            )}
             {canRevise && (
               <Button
                 variant="default"

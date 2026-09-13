@@ -95,9 +95,10 @@ const defenseScheduleSchema = new mongoose.Schema(
     clientName: { type: String, default: 'Dr. Sales G. Aribe Jr.', trim: true },
     scheduledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     scheduledAt: { type: Date, default: null },
+    verdict: { type: String, default: null },
     status: {
       type: String,
-      enum: ['pending_scheduling', 'scheduled', 'completed', 'cancelled'],
+      enum: ['pending_scheduling', 'scheduled', 'completed', 'cancelled', 'redefense', 'overdue'],
       default: 'pending_scheduling',
     },
   },

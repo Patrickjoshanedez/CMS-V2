@@ -56,6 +56,7 @@ import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
 import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
+import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import CompileProposalModal from '@/components/submissions/CompileProposalModal';
 import submissionService from '@/services/submissionService';
 import { toast } from 'sonner';
@@ -832,14 +833,9 @@ export default function ProjectDetailPage() {
                         <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1">
                           <Clock className="h-3 w-3 text-primary" /> Defense Status
                         </span>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
-                        >
-                          {defenseSchedule.status === 'scheduled'
-                            ? 'Hearing Confirmed'
-                            : 'Scheduled'}
-                        </Badge>
+                        <div>
+                          <DefenseScheduleBadge defenseSchedule={defenseSchedule} showTime />
+                        </div>
                         <p className="text-[10px] text-muted-foreground">Synchronized with ADM</p>
                       </div>
                     </CardContent>
