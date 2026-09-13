@@ -969,8 +969,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
   }
 
   // Institutional Gate: Secretary Endorsement prerequisite
-  const isInstructorUser = req.user.role === ROLES.INSTRUCTOR;
-  if (!project.admSignatures?.secretary?.endorsed && !isInstructorUser) {
+  if (!project.admSignatures?.secretary?.endorsed && role !== 'instructor') {
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
       message:

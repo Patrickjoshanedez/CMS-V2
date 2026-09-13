@@ -276,6 +276,7 @@ export const listProjectsQuerySchema = z.object({
   panelistId: z.string().regex(objectIdPattern).optional(),
   secretaryId: z.string().regex(objectIdPattern).optional(),
   excludeArchived: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+  defenseStatus: z.string().optional(),
 });
 
 /* ───── Advance capstone phase (instructor action) ───── */

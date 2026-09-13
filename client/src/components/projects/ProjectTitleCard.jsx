@@ -19,10 +19,20 @@ function cleanTeamName(name) {
   return stripped ? `Team ${stripped}` : 'Team';
 }
 
-function getPhaseLabel(phase) {
+function getPhaseLabel(phase, project) {
+  const isADMApproved =
+    project?.admStatus === 'approved' ||
+    (Boolean(project?.admSignatures?.secretary?.endorsed) &&
+      Boolean(project?.admSignatures?.adviser?.signed) &&
+      Boolean(project?.admSignatures?.chair?.signed));
+
   const num = Number(phase ?? 0);
-  if (num >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Final Defense & Archival';
-  if (num >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: System Dev & Progress';
+  if (num >= CAPSTONE_PHASES.PHASE_4) {
+    return isADMApproved ? 'Phase 4: Final Defense & Archival' : 'Phase 2: Chapters 1–3 & ADM';
+  }
+  if (num >= CAPSTONE_PHASES.PHASE_3) {
+    return isADMApproved ? 'Phase 3: System Dev & Progress' : 'Phase 2: Chapters 1–3 & ADM';
+  }
   if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Chapters 1–3 Manuscript';
   if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Defense';
   return 'Phase 0: Team Formation';
@@ -49,7 +59,7 @@ export default function ProjectTitleCard({ project, showAction = true }) {
       ? `${project.adviserId.firstName} ${project.adviserId.lastName || ''}`.trim()
       : null);
 
-  const phaseLabel = getPhaseLabel(project.capstonePhase ?? project.phase);
+  const phaseLabel = getPhaseLabel(project.capstonePhase ?? project.phase, project);
 
   return (
     <Card className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 shadow-xs relative overflow-hidden">

@@ -30,6 +30,7 @@ const NOTIFICATION_TYPES = [
   'submission_revisions_required',
   'submission_rejected',
   'submission_locked',
+  'manuscript_endorsed_for_defense',
   'unlock_requested',
   'unlock_resolved',
   'annotation_added',

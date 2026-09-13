@@ -117,8 +117,14 @@ export function resolveProjectDefaultTab(project) {
   if (isArchived) return 'capstone_4';
 
   const numericPhase = Number(project.capstonePhase ?? project.phase ?? 0);
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_4) return 'capstone_4';
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_3) return 'capstone_3';
+  const isADMApproved =
+    project.admStatus === 'approved' ||
+    (Boolean(project.admSignatures?.secretary?.endorsed) &&
+      Boolean(project.admSignatures?.adviser?.signed) &&
+      Boolean(project.admSignatures?.chair?.signed));
+
+  if (numericPhase >= CAPSTONE_PHASES.PHASE_4 && isADMApproved) return 'capstone_4';
+  if (numericPhase >= CAPSTONE_PHASES.PHASE_3 && isADMApproved) return 'capstone_3';
   if (
     numericPhase >= CAPSTONE_PHASES.PHASE_2 ||
     project.titleStatus === TITLE_STATUSES.APPROVED ||

@@ -4,10 +4,11 @@ import { Users, FileText, BookOpen, Code2, ShieldCheck } from 'lucide-react';
 import { PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
 import CapstoneWorkflowStepper, {
   resolveCurrentStep,
+  isADMApproved,
   CAPSTONE_STEPS,
 } from './CapstoneWorkflowStepper';
 
-export { CAPSTONE_STEPS, resolveCurrentStep };
+export { CAPSTONE_STEPS, resolveCurrentStep, isADMApproved };
 
 /**
  * Legacy PHASES array preserved for backwards compatibility with any utility imports.
@@ -31,7 +32,8 @@ export const PHASES = [
     label: 'Capstone 2 (Ch 1-3 & ADM)',
     icon: BookOpen,
     isComplete: (project) =>
-      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_3,
+      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_3 &&
+      isADMApproved(project),
   },
   {
     key: 'capstone_3',

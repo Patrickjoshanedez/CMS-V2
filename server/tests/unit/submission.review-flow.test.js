@@ -169,4 +169,202 @@ describe('SubmissionService — Faculty Committee Review & Concurrency Flow', ()
       ).rejects.toThrow(/concurrently updated|Please refresh/i);
     });
   });
+
+  describe('Proposal Manuscript Adviser Defense Readiness Flow', () => {
+    it('sets defenseSchedule.status = pending_scheduling when adviser approves proposal manuscript', async () => {
+      const { default: submissionService } =
+        await import('../../modules/submissions/submission.service.js');
+      const { default: Submission } = await import('../../modules/submissions/submission.model.js');
+      const { default: User } = await import('../../modules/users/user.model.js');
+      const { default: Project } = await import('../../modules/projects/project.model.js');
+      const { default: Notification } =
+        await import('../../modules/notifications/notification.model.js');
+      const { default: PlagiarismResult } =
+        await import('../../modules/plagiarism/plagiarism.model.js');
+      const { default: Section } = await import('../../modules/academics/section.model.js');
+      const { default: Team } = await import('../../modules/teams/team.model.js');
+
+      const facultyAdviserId = '6aa14c2554d0b79f8e8aa96c';
+      const proposalSubmissionId = '6aa49a6217cb643363be1c74';
+      const mockProject = {
+        _id: '6aa151f9105a281923367325',
+        title: 'AgroSense AI',
+        adviserId: facultyAdviserId,
+        panelistIds: ['6aa14c2554d0b79f8e8aa96d'],
+        secretaryId: '6aa14c2554d0b79f8e8aa96e',
+        teamId: '6aa14c2554d0b79f8e8aa970',
+        sectionId: '6aa14c2554d0b79f8e8aa971',
+        defenseSchedule: { status: 'none' },
+        save: vi.fn().mockResolvedValue(true),
+      };
+
+      const now = new Date();
+      const mockSubmission = {
+        _id: proposalSubmissionId,
+        projectId: mockProject._id,
+        chapter: null,
+        version: 1,
+        type: 'proposal',
+        status: SUBMISSION_STATUSES.PENDING,
+        updatedAt: now,
+        save: vi.fn().mockResolvedValue(true),
+        statusHistory: [],
+      };
+
+      vi.spyOn(Submission, 'findById').mockResolvedValue(mockSubmission);
+      vi.spyOn(User, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({ _id: facultyAdviserId, role: ROLES.FACULTY }),
+      });
+      vi.spyOn(Project, 'findById').mockImplementation(() => {
+        const p = Promise.resolve(mockProject);
+        p.select = vi.fn().mockResolvedValue(mockProject);
+        p.populate = vi.fn().mockResolvedValue(mockProject);
+        return p;
+      });
+      vi.spyOn(PlagiarismResult, 'findOne').mockReturnValue({
+        lean: vi.fn().mockResolvedValue({ status: 'completed', overallScore: 5 }),
+      });
+      vi.spyOn(Section, 'findById').mockResolvedValue({ instructorId: '6aa14c2554d0b79f8e8aa96b' });
+      vi.spyOn(Team, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          name: 'AgroSense Team',
+          members: ['6aa14c2554d0b79f8e8aa97a'],
+          secretaryId: '6aa14c2554d0b79f8e8aa96e',
+          panelistIds: ['6aa14c2554d0b79f8e8aa96d'],
+          adviserId: facultyAdviserId,
+        }),
+      });
+      vi.spyOn(Notification, 'create').mockResolvedValue({ _id: 'notif-1' });
+
+      await submissionService.reviewSubmission(proposalSubmissionId, facultyAdviserId, {
+        status: SUBMISSION_STATUSES.APPROVED,
+        reviewNote: 'Approved for defense',
+      });
+
+      expect(mockSubmission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+      expect(mockProject.defenseSchedule.status).toBe('pending_scheduling');
+      expect(mockProject.save).toHaveBeenCalled();
+    });
+
+    it('rejects panelist from endorsing or reviewing proposal with 403 ENDORSEMENT_FORBIDDEN_ROLE', async () => {
+      const { default: submissionService } =
+        await import('../../modules/submissions/submission.service.js');
+      const { default: Submission } = await import('../../modules/submissions/submission.model.js');
+      const { default: User } = await import('../../modules/users/user.model.js');
+      const { default: Project } = await import('../../modules/projects/project.model.js');
+
+      const facultyAdviserId = '6aa14c2554d0b79f8e8aa96c';
+      const facultyPanelistId = '6aa14c2554d0b79f8e8aa96d';
+      const proposalSubmissionId = '6aa49a6217cb643363be1c74';
+
+      const mockProject = {
+        _id: '6aa151f9105a281923367325',
+        title: 'AgroSense AI',
+        adviserId: facultyAdviserId,
+        panelistIds: [facultyPanelistId],
+        secretaryId: null,
+      };
+
+      const mockSubmission = {
+        _id: proposalSubmissionId,
+        projectId: mockProject._id,
+        chapter: null,
+        type: 'proposal',
+        status: SUBMISSION_STATUSES.PENDING,
+        updatedAt: new Date(),
+      };
+
+      vi.spyOn(Submission, 'findById').mockResolvedValue(mockSubmission);
+      vi.spyOn(User, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({ _id: facultyPanelistId, role: ROLES.FACULTY }),
+      });
+      vi.spyOn(Project, 'findById').mockImplementation(() => {
+        const p = Promise.resolve(mockProject);
+        p.select = vi.fn().mockResolvedValue(mockProject);
+        p.populate = vi.fn().mockResolvedValue(mockProject);
+        return p;
+      });
+
+      await expect(
+        submissionService.reviewSubmission(proposalSubmissionId, facultyPanelistId, {
+          status: SUBMISSION_STATUSES.APPROVED,
+          reviewNote: 'Trying to endorse as panelist',
+        }),
+      ).rejects.toThrow(/Only the assigned adviser and course instructor can endorse/i);
+    });
+
+    it('allows course instructor to endorse proposal manuscript', async () => {
+      const { default: submissionService } =
+        await import('../../modules/submissions/submission.service.js');
+      const { default: Submission } = await import('../../modules/submissions/submission.model.js');
+      const { default: User } = await import('../../modules/users/user.model.js');
+      const { default: Project } = await import('../../modules/projects/project.model.js');
+      const { default: PlagiarismResult } =
+        await import('../../modules/plagiarism/plagiarism.model.js');
+      const { default: Section } = await import('../../modules/academics/section.model.js');
+      const { default: Team } = await import('../../modules/teams/team.model.js');
+      const { default: Notification } =
+        await import('../../modules/notifications/notification.model.js');
+
+      const instructorId = '6aa14c2554d0b79f8e8aa96b';
+      const proposalSubmissionId = '6aa49a6217cb643363be1c74';
+
+      const mockProject = {
+        _id: '6aa151f9105a281923367325',
+        title: 'AgroSense AI',
+        adviserId: '6aa14c2554d0b79f8e8aa96c',
+        panelistIds: ['6aa14c2554d0b79f8e8aa96d'],
+        secretaryId: null,
+        teamId: '6aa14c2554d0b79f8e8aa970',
+        sectionId: '6aa14c2554d0b79f8e8aa971',
+        defenseSchedule: { status: 'none' },
+        save: vi.fn().mockResolvedValue(true),
+      };
+
+      const mockSubmission = {
+        _id: proposalSubmissionId,
+        projectId: mockProject._id,
+        chapter: null,
+        version: 1,
+        type: 'proposal',
+        status: SUBMISSION_STATUSES.PENDING,
+        updatedAt: new Date(),
+        save: vi.fn().mockResolvedValue(true),
+        statusHistory: [],
+      };
+
+      vi.spyOn(Submission, 'findById').mockResolvedValue(mockSubmission);
+      vi.spyOn(User, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({ _id: instructorId, role: ROLES.INSTRUCTOR }),
+      });
+      vi.spyOn(Project, 'findById').mockImplementation(() => {
+        const p = Promise.resolve(mockProject);
+        p.select = vi.fn().mockResolvedValue(mockProject);
+        p.populate = vi.fn().mockResolvedValue(mockProject);
+        return p;
+      });
+      vi.spyOn(PlagiarismResult, 'findOne').mockReturnValue({
+        lean: vi.fn().mockResolvedValue({ status: 'completed', overallScore: 5 }),
+      });
+      vi.spyOn(Section, 'findById').mockResolvedValue({ instructorId });
+      vi.spyOn(Team, 'findById').mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          name: 'AgroSense Team',
+          members: ['6aa14c2554d0b79f8e8aa97a'],
+          secretaryId: null,
+          panelistIds: [],
+          adviserId: '6aa14c2554d0b79f8e8aa96c',
+        }),
+      });
+      vi.spyOn(Notification, 'create').mockResolvedValue({ _id: 'notif-1' });
+
+      await submissionService.reviewSubmission(proposalSubmissionId, instructorId, {
+        status: SUBMISSION_STATUSES.APPROVED,
+        reviewNote: 'Instructor approved for defense',
+      });
+
+      expect(mockSubmission.status).toBe(SUBMISSION_STATUSES.LOCKED);
+      expect(mockProject.defenseSchedule.status).toBe('pending_scheduling');
+    });
+  });
 });

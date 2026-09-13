@@ -1,0 +1,461 @@
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ROLES } from '@cms/shared';
+import DefenseSchedulingPage from './DefenseSchedulingPage';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+const mockUseProjects = vi.fn();
+const mockListSections = vi.fn();
+const mockNavigate = vi.fn();
+const mockScheduleDefense = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockToastError = vi.fn();
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...args) => mockToastSuccess(...args),
+    error: (...args) => mockToastError(...args),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: () => ({
+    user: { _id: 'inst-1', role: ROLES.INSTRUCTOR, firstName: 'Instructor', lastName: 'User' },
+  }),
+}));
+
+vi.mock('@/hooks/useProjects', () => ({
+  useProjects: (...args) => mockUseProjects(...args),
+  projectKeys: {
+    all: ['projects'],
+    lists: () => ['projects', 'list'],
+    list: (filters) => ['projects', 'list', filters],
+    details: () => ['projects', 'detail'],
+    detail: (id) => ['projects', 'detail', id],
+  },
+}));
+
+vi.mock('@/services/authService', () => ({
+  academicService: {
+    listSections: (...args) => mockListSections(...args),
+  },
+  projectService: {
+    scheduleDefense: (...args) => mockScheduleDefense(...args),
+  },
+}));
+
+vi.mock('@/components/layouts/DashboardLayout', () => ({
+  default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
+}));
+
+vi.mock('@/components/defense/ScheduleDefenseModal', () => ({
+  default: ({ isOpen, onClose, project, onScheduled }) => {
+    if (!isOpen) return null;
+    return (
+      <div data-testid="schedule-defense-modal">
+        <span>Modal for {project?.title || 'No Project'}</span>
+        <button type="button" onClick={onClose} data-testid="modal-close-btn">
+          Close
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (onScheduled) onScheduled();
+            onClose();
+          }}
+          data-testid="modal-confirm-btn"
+        >
+          Confirm Schedule
+        </button>
+      </div>
+    );
+  },
+}));
+
+describe('DefenseSchedulingPage', () => {
+  let container;
+  let root;
+
+  const sampleProjects = [
+    {
+      _id: 'proj-1',
+      title: 'AgroSense AI Smart Agriculture',
+      capstonePhase: 2,
+      teamId: {
+        _id: 'team-1',
+        name: 'Team AgroSense',
+        leaderId: { firstName: 'Megumi', lastName: 'Fushiguro' },
+        sectionId: { _id: 'sec-4a', name: 'BSIT-4A' },
+      },
+      sectionId: { _id: 'sec-4a', name: 'BSIT-4A' },
+      adviserId: { _id: 'adv-1', firstName: 'Steven Joe', lastName: 'Bautista' },
+      panelistIds: ['pan-1', 'pan-2', 'pan-3'],
+      defenseSchedule: { status: 'pending_scheduling' },
+    },
+    {
+      _id: 'proj-2',
+      title: 'MediTrack Healthcare Management',
+      capstonePhase: 2,
+      teamId: {
+        _id: 'team-2',
+        name: 'Team MediTrack',
+        leaderId: { firstName: 'Yuji', lastName: 'Itadori' },
+        sectionId: { _id: 'sec-4b', name: 'BSIT-4B' },
+      },
+      sectionId: { _id: 'sec-4b', name: 'BSIT-4B' },
+      adviserId: { _id: 'adv-2', firstName: 'Leon', lastName: 'Mentor' },
+      panelistIds: ['pan-1', 'pan-2'],
+      defenseSchedule: {
+        status: 'scheduled',
+        date: '2026-09-20T09:00:00.000Z',
+        time: '09:00 AM - 10:30 AM',
+        venue: 'COT Conference Room',
+      },
+    },
+    {
+      _id: 'proj-3',
+      title: 'EcoSort Automated Waste Segregation',
+      capstonePhase: 1,
+      teamId: {
+        _id: 'team-3',
+        name: 'Team EcoSort',
+        leaderId: { firstName: 'Nobara', lastName: 'Kugisaki' },
+        sectionId: { _id: 'sec-4a', name: 'BSIT-4A' },
+      },
+      sectionId: { _id: 'sec-4a', name: 'BSIT-4A' },
+      adviserId: { _id: 'adv-1', firstName: 'Steven Joe', lastName: 'Bautista' },
+      panelistIds: [],
+      defenseSchedule: { status: 'none' },
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    mockUseProjects.mockReturnValue({
+      data: { projects: sampleProjects },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    mockListSections.mockResolvedValue({
+      data: {
+        sections: [
+          { _id: 'sec-4a', name: 'BSIT-4A' },
+          { _id: 'sec-4b', name: 'BSIT-4B' },
+        ],
+      },
+    });
+
+    mockScheduleDefense.mockResolvedValue({ data: { success: true } });
+    mockToastSuccess.mockClear();
+    mockToastError.mockClear();
+  });
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    container?.remove();
+  });
+
+  const renderComponent = () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <DefenseSchedulingPage />
+      </QueryClientProvider>,
+    );
+
+  it('renders page header, title, and KPI summary ribbon', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.textContent).toContain('Defense Scheduling Center');
+    expect(container.textContent).toContain('Instructor Command');
+
+    // KPI cards
+    expect(container.textContent).toContain('Total Teams');
+    expect(container.textContent).toContain('Ready for Defense');
+    expect(container.textContent).toContain('Scheduled Hearings');
+    expect(container.textContent).toContain('In Progress');
+
+    // Counts: Total=3, Ready=1, Scheduled=1, InProgress=1
+    expect(container.textContent).toContain('3');
+    expect(container.textContent).toContain('1');
+  });
+
+  it('renders interactive drag-and-drop calendar view by default with 1-hour slots', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.textContent).toContain('Awaiting Scheduling');
+    expect(container.textContent).toContain('Current Week');
+    expect(container.textContent).toContain('08:00 AM');
+    expect(container.textContent).toContain('09:00 AM');
+    expect(container.textContent).toContain('1 Hour');
+    expect(container.textContent).toContain('AgroSense');
+  });
+
+  it('renders all capstone teams in table view when switched to table view', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const tableBtn = container.querySelector('button[title="Table View"]');
+    expect(tableBtn).toBeTruthy();
+
+    await act(async () => {
+      tableBtn.click();
+    });
+
+    // Team 1: Ready for scheduling
+    expect(container.textContent).toContain('AgroSense');
+    expect(container.textContent).toContain('Ready for Scheduling');
+
+    // Team 2: Scheduled
+    expect(container.textContent).toContain('MediTrack');
+    expect(container.textContent).toContain('Scheduled');
+    expect(container.textContent).toContain('COT Conference Room');
+
+    // Team 3: In progress
+    expect(container.textContent).toContain('EcoSort');
+    expect(container.textContent).toContain('In Progress');
+  });
+
+  it('filters teams when clicking the Ready for Defense tab', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Click "Ready for Defense" tab button
+    const readyBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Ready for Defense'),
+    );
+    expect(readyBtn).toBeTruthy();
+
+    await act(async () => {
+      readyBtn.click();
+    });
+
+    // Only AgroSense should be displayed
+    expect(container.textContent).toContain('AgroSense');
+    expect(container.textContent).not.toContain('MediTrack');
+    expect(container.textContent).not.toContain('EcoSort');
+  });
+
+  it('filters teams via search input', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const searchInput = container.querySelector('input[type="search"]');
+    expect(searchInput).toBeTruthy();
+
+    await act(async () => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      nativeInputValueSetter.call(searchInput, 'MediTrack');
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('MediTrack');
+    expect(container.textContent).not.toContain('AgroSense');
+  });
+
+  it('opens ScheduleDefenseModal when clicking Schedule Defense button', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
+
+    // Find the Schedule Defense button for AgroSense
+    const scheduleBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent.includes('Schedule Defense') && !b.textContent.includes('Reschedule'),
+    );
+    expect(scheduleBtn).toBeTruthy();
+
+    await act(async () => {
+      scheduleBtn.click();
+    });
+
+    // Modal should now be mounted with AgroSense pre-selected
+    const modal = container.querySelector('[data-testid="schedule-defense-modal"]');
+    expect(modal).toBeTruthy();
+    expect(modal.textContent).toContain('Modal for AgroSense AI Smart Agriculture');
+  });
+
+  it('displays the team leader name on the awaiting scheduling tray cards', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.textContent).toContain('Lead: Megumi Fushiguro');
+    expect(container.textContent).toContain('Lead: Nobara Kugisaki');
+  });
+
+  it('opens and closes the mini-calendar date popover for rapid jumping', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Find the date range button
+    const dateBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent.includes('–') && b.textContent.includes('2026'),
+    );
+    expect(dateBtn).toBeTruthy();
+
+    // Initially popover is closed
+    expect(container.textContent).not.toContain('Jump to Today');
+
+    // Click to open popover
+    await act(async () => {
+      dateBtn.click();
+    });
+
+    expect(container.textContent).toContain('Jump to Today');
+    expect(container.textContent).toContain('Close');
+
+    // Click Jump to Today
+    const todayBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Jump to Today',
+    );
+    expect(todayBtn).toBeTruthy();
+
+    await act(async () => {
+      todayBtn.click();
+    });
+
+    // Popover closes
+    expect(container.textContent).not.toContain('Jump to Today');
+  });
+
+  it('displays team leader and Capstone terminology in Table View', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const tableBtn = container.querySelector('button[title="Table View"]');
+    expect(tableBtn).toBeTruthy();
+
+    await act(async () => {
+      tableBtn.click();
+    });
+
+    expect(container.textContent).toContain('Lead: Megumi Fushiguro');
+    expect(container.textContent).toContain('Lead: Yuji Itadori');
+    expect(container.textContent).toContain('Section / Capstone');
+    expect(container.textContent).toContain('Capstone 2');
+    expect(container.textContent).toContain('Capstone 1');
+    expect(container.textContent).not.toContain('Phase 2');
+  });
+
+  it('displays team leader and Capstone terminology in Grid View', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const gridBtn = container.querySelector('button[title="Grid View"]');
+    expect(gridBtn).toBeTruthy();
+
+    await act(async () => {
+      gridBtn.click();
+    });
+
+    expect(container.textContent).toContain('Team Lead:');
+    expect(container.textContent).toContain('Megumi Fushiguro');
+    expect(container.textContent).toContain('Yuji Itadori');
+    expect(container.textContent).toContain('Capstone 2');
+    expect(container.textContent).toContain('Capstone 1');
+    expect(container.textContent).not.toContain('Phase 2');
+  });
+
+  it('direct drag-and-drop onto a day column schedules defense directly with 30-min slot without modal', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const dayColumns = container.querySelectorAll('[data-testid^="day-column-"]');
+    expect(dayColumns.length).toBeGreaterThan(0);
+
+    const targetColumn =
+      Array.from(dayColumns).find((col) => col.getAttribute('data-date') !== '2026-09-20') ||
+      dayColumns[0];
+    const targetDate = targetColumn.getAttribute('data-date');
+
+    const dropEvent = new Event('drop', { bubbles: true, cancelable: true });
+    Object.assign(dropEvent, {
+      dataTransfer: {
+        getData: vi.fn().mockReturnValue(JSON.stringify({ projectId: 'proj-1' })),
+      },
+    });
+
+    await act(async () => {
+      targetColumn.dispatchEvent(dropEvent);
+    });
+
+    expect(mockScheduleDefense).toHaveBeenCalledWith(
+      'proj-1',
+      expect.objectContaining({
+        date: targetDate,
+        time: '09:00 AM - 09:30 AM',
+        status: 'scheduled',
+      }),
+    );
+    expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      expect.stringContaining('Defense scheduled for "Team AgroSense"'),
+    );
+  });
+
+  it('rejects drag-and-drop when time slot overlaps with another team and shows error toast', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const conflictColumn = container.querySelector('[data-testid="day-column-2026-09-20"]');
+    if (conflictColumn) {
+      const dropEvent = new Event('drop', { bubbles: true, cancelable: true });
+      Object.assign(dropEvent, {
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue(JSON.stringify({ projectId: 'proj-1' })),
+        },
+      });
+
+      await act(async () => {
+        conflictColumn.dispatchEvent(dropEvent);
+      });
+
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringContaining('Time slot conflict: "Team MediTrack" is already scheduled'),
+      );
+      expect(mockScheduleDefense).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
+    }
+  });
+});

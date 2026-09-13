@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import * as projectController from './project.controller.js';
-import authorize, { authorizeSecretaryCapability } from '../../middleware/authorize.js';
+import authorize, {
+  authorizeSecretaryCapability,
+  verifyAdmSignatoryRole,
+} from '../../middleware/authorize.js';
 import { ROLES, SECRETARY_CAPABILITIES } from '@cms/shared';
 
 const router = Router();
@@ -44,6 +47,7 @@ router.post(
 router.post(
   '/:projectId/signatures',
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  verifyAdmSignatoryRole(),
   projectController.signTieredADM,
 );
 

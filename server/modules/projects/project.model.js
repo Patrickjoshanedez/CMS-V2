@@ -90,7 +90,7 @@ const defenseScheduleSchema = new mongoose.Schema(
     date: { type: Date, default: null },
     time: { type: String, default: '', trim: true },
     venue: { type: String, default: '', trim: true },
-    round: { type: String, enum: ['1st', '2nd', '3rd'], default: '2nd' },
+    round: { type: String, enum: ['1st', '2nd', '3rd'], default: '1st' },
     defenseType: { type: String, enum: ['proposal', 'midterm', 'final'], default: 'midterm' },
     clientName: { type: String, default: 'Dr. Sales G. Aribe Jr.', trim: true },
     scheduledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

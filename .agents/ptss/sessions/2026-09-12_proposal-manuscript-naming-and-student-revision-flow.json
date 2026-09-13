@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-09-12_proposal-manuscript-naming-and-student-revision-flow",
+  "timestamp": "2026-09-12T08:55:00.000Z",
+  "task": "Remove manual abstract requirement for compiled proposals, replace 'Chapter null' with 'Chapter 1–3 Manuscript', trigger committee defense preparedness notifications on proposal compilation, and add student Revise Submission action dialog across submission details.",
+  "outcome": "completed",
+  "files_modified": [
+    "server/modules/submissions/submission.service.js",
+    "client/src/utils/submissionUtils.js",
+    "client/src/pages/submissions/SubmissionDetailPage.jsx",
+    "client/src/pages/submissions/SubmissionDetailPage.test.jsx",
+    "scratch/audit_submission_detail_and_revise.mjs",
+    "memories/repo/lessons/2026-09-12-proposal-manuscript-naming-and-student-revision-flow.md"
+  ],
+  "key_decisions": [
+    "Abstract Gating Removal: Removed manual abstract presence and length check from _validateProposalCompleteness in submission.service.js, ensuring compiled proposals do not receive false Incomplete Metadata panel flags.",
+    "Canonical Manuscript Naming: Centralized getSubmissionDocumentTitle in client/src/utils/submissionUtils.js to cleanly output 'Chapter 1–3 Manuscript' for proposals and null chapters, and 'Chapter N Manuscript' for individual chapters.",
+    "Defense Preparedness Multi-Role Notifications: Added _notifyProposalDefensePreparedness in submission.service.js triggered upon compileProposal to notify Adviser, Defense Committee (Panelists and Secretary), and Instructors via in-app notifications, real-time socket events (emitToUser), and enqueued email.",
+    "Student Self-Correction Revision Modal: Added Revise Submission action to FileInfoCard and header toolbar in SubmissionDetailPage.jsx with drag-and-drop dropzone, file size validation (25MB), remarks, upload progress, and dynamic endpoint routing by submission type.",
+    "Allowed Reupload Status: Added SUBMISSION_STATUSES.PENDING to allowedReuploadStatuses in submission.service.js:uploadChapter so students can correct pending uploads without getting blocked by REVISION_NOT_REQUESTED."
+  ],
+  "verification_results": {
+    "endpoints_parity": "SERVER_COUNT=204, CLIENT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "client_unit_tests": "src/pages/submissions/SubmissionDetailPage.test.jsx (8/8 passed), src/pages/submissions/ProposalCompilationPage.test.jsx (4/4 passed)",
+    "server_unit_tests": "tests/unit/submission.review-flow.test.js (3/3 passed)",
+    "playwright_visual_audit": "6 visual audit screenshots verified across Desktop (1440x900) and Mobile (390x844) in Light and Dark modes"
+  }
+}

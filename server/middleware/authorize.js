@@ -1,7 +1,7 @@
 import AppError from '../utils/AppError.js';
 import Project from '../modules/projects/project.model.js';
 import Team from '../modules/teams/team.model.js';
-import { ROLES, PANEL_ROLES } from '@cms/shared';
+import { ROLES, PANEL_ROLES, SECRETARY_CAPABILITIES } from '@cms/shared';
 
 /**
  * Role-based authorization middleware factory.
@@ -156,8 +156,13 @@ export const authorizeSecretaryCapability = (capability) => {
       return next(new AppError('Authentication required.', 401, 'AUTH_REQUIRED'));
     }
 
-    // Instructors have administrative oversight
-    if (req.user.role === ROLES.INSTRUCTOR) {
+    // Instructors have administrative oversight for live minutes, but matrix endorsement
+    // is strictly restricted to the appointed Committee Secretary
+    if (
+      req.user.role === ROLES.INSTRUCTOR &&
+      capability !== SECRETARY_CAPABILITIES.MATRIX_ENDORSE &&
+      capability !== 'adm.matrix:endorse'
+    ) {
       return next();
     }
 
@@ -225,6 +230,165 @@ export const authorizeSecretaryCapability = (capability) => {
           403,
           'SECRETARY_CAPABILITY_REQUIRED',
         ),
+      );
+    } catch (err) {
+      return next(err);
+    }
+  };
+};
+
+/**
+ * Authorize Designated Signatory Role for Tiered ADM digital signing.
+ * Enforces that only the designated individual (Adviser, designated Instructor, Panelists, Chair)
+ * can sign their specific signatory section, and that the Secretary Endorsement gate is respected.
+ */
+export const verifyAdmSignatoryRole = () => {
+  return async (req, _res, next) => {
+    if (!req.user) {
+      return next(new AppError('Authentication required.', 401, 'AUTH_REQUIRED'));
+    }
+
+    const projectId = req.params.projectId || req.params.id || req.body.projectId;
+    if (!projectId) {
+      return next(new AppError('Project context is required.', 400, 'PROJECT_REQUIRED'));
+    }
+
+    const { role, tier } = req.body;
+    const userIdStr = req.user._id.toString();
+
+    try {
+      const project = await Project.findById(projectId)
+        .select('panelists panelistIds adviserId secretaryId teamId admSignatures sectionId')
+        .populate({
+          path: 'teamId',
+          select: 'adviserId secretaryId panelistIds sectionId',
+          populate: { path: 'sectionId', select: 'createdBy instructorId' },
+        })
+        .populate({
+          path: 'sectionId',
+          select: 'createdBy instructorId',
+        });
+
+      if (!project) {
+        return next(new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND'));
+      }
+
+      const isSecretaryEndorsed = Boolean(project.admSignatures?.secretary?.endorsed);
+
+      // 1. Capstone Adviser
+      if (role === 'adviser' || (tier === 1 && req.user.role === ROLES.ADVISER)) {
+        if (!isSecretaryEndorsed) {
+          return next(
+            new AppError(
+              'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+              403,
+              'SECRETARY_ENDORSEMENT_REQUIRED',
+            ),
+          );
+        }
+
+        const adviserId = (project.adviserId || project.teamId?.adviserId)?.toString();
+        if (adviserId !== userIdStr) {
+          return next(
+            new AppError(
+              'Only the designated Capstone Adviser can sign this section.',
+              403,
+              'DESIGNATED_ADVISER_REQUIRED',
+            ),
+          );
+        }
+        return next();
+      }
+
+      // 2. Course Instructor
+      if (role === 'instructor' || (tier === 1 && req.user.role === ROLES.INSTRUCTOR)) {
+        const section = project.sectionId || project.teamId?.sectionId;
+        const sectionInstructorId = (section?.instructorId || section?.createdBy)?.toString();
+        const isDesignated =
+          req.user.role === ROLES.INSTRUCTOR &&
+          (!sectionInstructorId || sectionInstructorId === userIdStr);
+
+        if (!isDesignated) {
+          return next(
+            new AppError(
+              'Only the designated Course Instructor can sign this section.',
+              403,
+              'DESIGNATED_INSTRUCTOR_REQUIRED',
+            ),
+          );
+        }
+        return next();
+      }
+
+      // 3. REC / Committee Chair
+      if (role === 'chair' || tier === 3) {
+        if (!isSecretaryEndorsed) {
+          return next(
+            new AppError(
+              'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+              403,
+              'SECRETARY_ENDORSEMENT_REQUIRED',
+            ),
+          );
+        }
+
+        const isChair = Boolean(
+          (Array.isArray(project.panelists) &&
+            project.panelists.some(
+              (p) =>
+                (p.userId?._id || p.userId)?.toString() === userIdStr &&
+                (p.role === PANEL_ROLES.CHAIR || p.role === 'chair'),
+            )) ||
+          (req.user.role === ROLES.FACULTY && req.user.facultyRole === 'chair'),
+        );
+
+        if (!isChair) {
+          return next(
+            new AppError(
+              'Only the designated Committee Chair can sign this section.',
+              403,
+              'DESIGNATED_CHAIR_REQUIRED',
+            ),
+          );
+        }
+        return next();
+      }
+
+      // 4. Panel Members (Tier 2)
+      if (role === 'panelist' || role === 'Panel Member' || tier === 2) {
+        if (!isSecretaryEndorsed) {
+          return next(
+            new AppError(
+              'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+              403,
+              'SECRETARY_ENDORSEMENT_REQUIRED',
+            ),
+          );
+        }
+
+        const isPanelist = Boolean(
+          (Array.isArray(project.panelistIds) &&
+            project.panelistIds.some((id) => (id?._id || id)?.toString() === userIdStr)) ||
+          (Array.isArray(project.teamId?.panelistIds) &&
+            project.teamId.panelistIds.some((id) => (id?._id || id)?.toString() === userIdStr)) ||
+          (Array.isArray(project.panelists) &&
+            project.panelists.some((p) => (p.userId?._id || p.userId)?.toString() === userIdStr)),
+        );
+
+        if (!isPanelist) {
+          return next(
+            new AppError(
+              'Only designated Defense Panelists can sign this section.',
+              403,
+              'DESIGNATED_PANELIST_REQUIRED',
+            ),
+          );
+        }
+        return next();
+      }
+
+      return next(
+        new AppError('Invalid signatory role or tier specified.', 400, 'INVALID_SIGNATORY_ROLE'),
       );
     } catch (err) {
       return next(err);

@@ -19,6 +19,7 @@
 import Submission from './submission.model.js';
 import SubmissionRound from './submissionRound.model.js';
 import Project from '../projects/project.model.js';
+import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
 import PlagiarismResult from '../plagiarism/plagiarism.model.js';
@@ -46,6 +47,7 @@ import { extractText } from '../../utils/extractText.js';
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
+  warn: (...args) => console.warn(...args), // eslint-disable-line no-console
   error: (...args) => console.error(...args),
 };
 
@@ -601,6 +603,52 @@ class SubmissionService {
   }
 
   /**
+   * Dispatches notification to the assigned Adviser when Chapter 1–3 manuscript is compiled.
+   * Prompts the Adviser to review the manuscript and provide defense endorsement.
+   */
+  async _notifyAdviserProposalSubmitted({ project, submission, user, version }) {
+    try {
+      const team = await Team.findById(project.teamId).select('name members adviserId');
+      const teamName = team?.name ? team.name.replace(/^Team\s+/i, '').trim() : 'Capstone Team';
+      const metadata = {
+        projectId: project._id,
+        teamId: project.teamId,
+        submissionId: submission._id,
+        version,
+        submittedBy: user?._id,
+        stage: 'proposal_adviser_review',
+      };
+
+      if (project.adviserId) {
+        try {
+          const notif = await Notification.create({
+            userId: project.adviserId,
+            type: 'proposal_submitted',
+            title: 'Adviser Review Needed: Chapter 1–3 Manuscript Submitted',
+            message: `Team "${teamName}" has compiled and submitted Chapter 1–3 Manuscript (v${version}) for "${project.title}". Please review the manuscript and provide your defense endorsement.`,
+            metadata,
+          });
+          emitToUser(project.adviserId, 'notification:new', notif);
+
+          const adviser = await User.findById(project.adviserId).select('email firstName');
+          if (adviser?.email) {
+            enqueueEmailJob({
+              to: adviser.email,
+              subject: `Adviser Review Needed: Chapter 1–3 Manuscript Submitted — ${project.title}`,
+              html: `<p>Dear ${adviser.firstName || 'Adviser'},</p><p>Team <strong>${teamName}</strong> has compiled and submitted their Chapter 1–3 Manuscript (v${version}) for <strong>${project.title}</strong> for your review and defense endorsement.</p><p>Please log in to review the document and check if the team is ready for defense.</p>`,
+              text: `Dear ${adviser.firstName || 'Adviser'}, Team "${teamName}" has compiled and submitted Chapter 1–3 Manuscript (v${version}) for "${project.title}" for your review and defense endorsement. Please log in to review the document.`,
+            });
+          }
+        } catch (err) {
+          logger.error('Failed to dispatch proposal submission notification to adviser:', err);
+        }
+      }
+    } catch (teamErr) {
+      logger.error('Error resolving team for proposal submission notification:', teamErr);
+    }
+  }
+
+  /**
    * Mirror final submissions to Google Drive archive folder when configured.
    * S3 remains the source of truth; Drive mirror is best-effort.
    *
@@ -992,20 +1040,21 @@ class SubmissionService {
       }
 
       const prevChapter = Number(chapter) - 1;
-      const prevChapterLocked = await Submission.findOne({
+      const latestPrevChapter = await Submission.findOne({
         projectId,
         chapter: prevChapter,
         type: 'chapter',
-        status: {
-          $in: [
-            SUBMISSION_STATUSES.LOCKED,
-            SUBMISSION_STATUSES.APPROVED,
-            SUBMISSION_STATUSES.ACCEPTED,
-          ],
-        },
-      });
+      }).sort({ version: -1 });
 
-      if (!prevChapterLocked) {
+      const isPrevChapterApproved =
+        latestPrevChapter &&
+        [
+          SUBMISSION_STATUSES.LOCKED,
+          SUBMISSION_STATUSES.APPROVED,
+          SUBMISSION_STATUSES.ACCEPTED,
+        ].includes(latestPrevChapter.status);
+
+      if (!isPrevChapterApproved) {
         throw new AppError(
           `Chapter ${prevChapter} must be approved before submitting Chapter ${chapter}.`,
           400,
@@ -1038,12 +1087,12 @@ class SubmissionService {
     }
 
     const allowedReuploadStatuses = [
+      SUBMISSION_STATUSES.PENDING,
       SUBMISSION_STATUSES.REVISIONS_REQUIRED,
       SUBMISSION_STATUSES.APPROVED, // safety valve: approved but not yet locked
     ];
     if (latestSubmission && !allowedReuploadStatuses.includes(latestSubmission.status)) {
       const isAwaitingReview = [
-        SUBMISSION_STATUSES.PENDING,
         SUBMISSION_STATUSES.UNDER_REVIEW,
         SUBMISSION_STATUSES.PENDING_INSTRUCTOR_REVIEW,
       ].includes(latestSubmission.status);
@@ -1333,12 +1382,11 @@ class SubmissionService {
     project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
     await project.save();
 
-    await this._notifyAdviser({
+    await this._notifyAdviserProposalSubmitted({
       project,
       submission,
-      notifType: 'proposal_submitted',
-      notifTitle: 'Proposal Submitted',
-      docLabel: `The compiled proposal (v${nextVersion})`,
+      user,
+      version: nextVersion,
     });
 
     return { submission };
@@ -1852,6 +1900,15 @@ class SubmissionService {
     // Attach project metadata
     enrichedSubmission.isArchived = project.isArchived || false;
     enrichedSubmission.projectStatus = project.projectStatus;
+    enrichedSubmission.adviserId = project.adviserId;
+    enrichedSubmission.defenseSchedule = project.defenseSchedule;
+    enrichedSubmission.projectTitle = project.title;
+    enrichedSubmission.isAssignedAdviser = Boolean(
+      project.adviserId && String(project.adviserId) === String(requesterId),
+    );
+    enrichedSubmission.isDefenseReady =
+      project.defenseSchedule?.status === 'pending_scheduling' ||
+      project.defenseSchedule?.status === 'scheduled';
 
     return { submission: enrichedSubmission };
   }
@@ -2456,10 +2513,19 @@ class SubmissionService {
     );
     const isInstructor = reviewer.role === ROLES.INSTRUCTOR;
 
-    // Panelists without adviser assignment can only review proposal submissions
+    // Only assigned adviser and course instructor can endorse proposal submissions for defense
+    if (submission.type === 'proposal' && !isAssignedAdviser && !isInstructor) {
+      throw new AppError(
+        'Only the assigned adviser and course instructor can endorse the proposal manuscript for defense. Other roles can view the manuscript until the defense hearing.',
+        403,
+        'ENDORSEMENT_FORBIDDEN_ROLE',
+      );
+    }
+
+    // Panelists without adviser assignment cannot review chapter submissions
     if (!isAssignedAdviser && !isInstructor && submission.type !== 'proposal') {
       throw new AppError(
-        'Panelists can only review proposal submissions. Chapter reviews are conducted by the assigned adviser.',
+        'Panelists cannot review chapter submissions. Chapter reviews are conducted by the assigned adviser.',
         403,
         'PANELIST_PROPOSAL_ONLY',
       );
@@ -2474,12 +2540,13 @@ class SubmissionService {
     if (
       submission.type === 'proposal' &&
       status === SUBMISSION_STATUSES.APPROVED &&
-      ![ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(reviewer.role)
+      !isAssignedAdviser &&
+      !isInstructor
     ) {
       throw new AppError(
-        'Only instructors, assigned advisers, and assigned panelists can approve proposals.',
+        'Only the assigned adviser and course instructor can endorse the proposal manuscript for defense.',
         403,
-        'PROPOSAL_APPROVAL_FORBIDDEN_ROLE',
+        'ENDORSEMENT_FORBIDDEN_ROLE',
       );
     }
 
@@ -2627,6 +2694,7 @@ class SubmissionService {
           try {
             const Section = (await import('../academics/section.model.js')).default;
             const User = (await import('../users/user.model.js')).default;
+            const Team = (await import('../teams/team.model.js')).default;
             const section = await Section.findById(projectDoc.sectionId);
             let instructorId = section?.instructorId;
             if (!instructorId) {
@@ -2637,29 +2705,78 @@ class SubmissionService {
               instructorId = defaultInstructor?._id;
             }
 
+            const team = await Team.findById(projectDoc.teamId).select(
+              'name members secretaryId panelistIds adviserId',
+            );
+            const teamName = team?.name
+              ? team.name.replace(/^Team\s+/i, '').trim()
+              : 'Capstone Team';
+            const metadata = {
+              projectId: projectDoc._id,
+              teamId: projectDoc.teamId,
+              submissionId: submission._id,
+              stage: 'defense_ready',
+            };
+
+            // 1. Notify Course Instructor (ready for defense scheduling)
             if (instructorId) {
               const instructorNotif = await Notification.create({
                 userId: instructorId,
                 type: 'manuscript_endorsed_for_defense',
                 title: 'Team Ready for Capstone 2 Defense Scheduling',
-                message: `Adviser has approved the compiled Chapters 1–3 manuscript for "${projectDoc.title}". The team is now eligible and ready for defense scheduling.`,
-                metadata: {
-                  projectId: projectDoc._id,
-                  teamId: projectDoc.teamId,
-                  submissionId: submission._id,
-                },
+                message: `Adviser has verified and approved the Chapter 1–3 Manuscript for "${projectDoc.title}". Team "${teamName}" is officially Ready for Defense and pending hearing scheduling.`,
+                metadata,
               });
               emitToUser(instructorId, 'notification:new', instructorNotif);
             }
+
+            // 2. Notify Defense Committee: Secretary & Panelists
+            const committeeUserIds = new Set();
+            if (projectDoc.secretaryId) committeeUserIds.add(String(projectDoc.secretaryId));
+            if (team?.secretaryId) committeeUserIds.add(String(team.secretaryId));
+            if (Array.isArray(projectDoc.panelistIds)) {
+              projectDoc.panelistIds.forEach((pId) => pId && committeeUserIds.add(String(pId)));
+            }
+            if (Array.isArray(team?.panelistIds)) {
+              team.panelistIds.forEach((pId) => pId && committeeUserIds.add(String(pId)));
+            }
+            if (reviewerId) committeeUserIds.delete(String(reviewerId));
+
+            for (const memberId of committeeUserIds) {
+              const panelNotif = await Notification.create({
+                userId: memberId,
+                type: 'manuscript_endorsed_for_defense',
+                title: 'Team Ready for Defense — Adviser Endorsement Granted',
+                message: `Adviser has approved and endorsed Chapter 1–3 Manuscript for "${projectDoc.title}". Team "${teamName}" is officially Ready for Defense evaluation.`,
+                metadata,
+              });
+              emitToUser(memberId, 'notification:new', panelNotif);
+            }
+
+            // 3. Notify Student Proponents
+            if (team?.members && Array.isArray(team.members)) {
+              for (const member of team.members) {
+                const memberId = member.userId?._id || member.userId;
+                if (memberId) {
+                  const studentNotif = await Notification.create({
+                    userId: memberId,
+                    type: 'manuscript_endorsed_for_defense',
+                    title: 'Adviser Endorsement Confirmed: Ready for Defense',
+                    message: `Your adviser has approved your Chapter 1–3 Manuscript and officially signaled your team as Ready for Defense! Your defense schedule will be posted once finalized by the Course Instructor.`,
+                    metadata,
+                  });
+                  emitToUser(memberId, 'notification:new', studentNotif);
+                }
+              }
+            }
           } catch (notifErr) {
-            logger.warn(
-              { err: notifErr },
-              'Failed to dispatch defense scheduling notification to instructor',
-            );
+            logger.warn({ err: notifErr }, 'Failed to dispatch defense readiness notifications');
           }
         }
 
-        await projectDoc.save();
+        if (typeof projectDoc?.save === 'function') {
+          await projectDoc.save();
+        }
       }
     }
 
@@ -3331,10 +3448,6 @@ class SubmissionService {
    */
   _validateProposalCompleteness(project, extractedMetadata) {
     const flagReasons = [];
-    const abstractText = (extractedMetadata?.documentAbstract || project?.abstract || '').trim();
-    if (!abstractText || abstractText.length < 50) {
-      flagReasons.push('Missing proposal abstract or abstract is under 50 characters.');
-    }
     if (!project?.sectionId) {
       flagReasons.push('Missing academic section assignment.');
     }
@@ -3347,6 +3460,10 @@ class SubmissionService {
     const titleText = (project?.title || extractedMetadata?.documentTitle || '').trim();
     if (!titleText || titleText.length < 10) {
       flagReasons.push('Proposal title is incomplete or under 10 characters.');
+    }
+    const abstractText = (extractedMetadata?.documentAbstract || project?.abstract || '').trim();
+    if (project?.abstract && abstractText.length < 50) {
+      flagReasons.push('Missing proposal abstract or abstract is under 50 characters.');
     }
 
     return {

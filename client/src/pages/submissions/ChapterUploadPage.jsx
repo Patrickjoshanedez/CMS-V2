@@ -326,12 +326,16 @@ export default function ChapterUploadPage() {
     return 5;
   })();
 
+  const previousChapter =
+    selectedChapterNumber > 1 ? latestChapterSubmissions.get(selectedChapterNumber - 1) : null;
+  const isPreviousChapterUnapproved =
+    selectedChapterNumber > 1 && !APPROVED_CHAPTER_STATUSES.includes(previousChapter?.status);
+
   const canSubmitSelectedChapter = (() => {
     if (!selectedChapterNumber) return false;
 
     if (selectedChapterNumber > 1) {
-      const previous = latestChapterSubmissions.get(selectedChapterNumber - 1);
-      if (!APPROVED_CHAPTER_STATUSES.includes(previous?.status)) return false;
+      if (!APPROVED_CHAPTER_STATUSES.includes(previousChapter?.status)) return false;
     }
 
     if (!selectedLatestSubmission) return true;
@@ -518,6 +522,20 @@ export default function ChapterUploadPage() {
           </AlertDescription>
         </Alert>
 
+        {isPreviousChapterUnapproved && (
+          <Alert
+            variant="destructive"
+            className="border-destructive/40 bg-destructive/10 text-destructive"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-sm font-medium">
+              {previousChapter?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED
+                ? `Chapter ${selectedChapterNumber - 1} currently requires revisions. You must upload and receive approval for Chapter ${selectedChapterNumber - 1} (Round ${(previousChapter.revisionRound || 1) + 1}) before submitting Chapter ${selectedChapterNumber}.`
+                : `Chapter ${selectedChapterNumber - 1} must be submitted and approved before Chapter ${selectedChapterNumber} can be submitted.`}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Current Workflow Gate</CardTitle>
@@ -699,6 +717,9 @@ export default function ChapterUploadPage() {
                         disabled={!hasPreviousApproval}
                       >
                         {label}
+                        {!hasPreviousApproval
+                          ? ` (Locked — Chapter ${chapterValue - 1} Unapproved)`
+                          : ''}
                       </option>
                     );
                   })}

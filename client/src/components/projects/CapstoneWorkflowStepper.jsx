@@ -47,6 +47,15 @@ export const CAPSTONE_STEPS = [
   },
 ];
 
+export function isADMApproved(project) {
+  if (!project) return false;
+  if (project.admStatus === 'approved') return true;
+  const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
+  const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
+  const isChairDone = Boolean(project.admSignatures?.chair?.signed);
+  return isSecretaryDone && isAdviserDone && isChairDone;
+}
+
 export function resolveCurrentStep(project) {
   if (!project) return 0;
 
@@ -56,8 +65,14 @@ export function resolveCurrentStep(project) {
   }
 
   const phase = Number(project.capstonePhase ?? project.phase ?? 0);
-  if (phase >= CAPSTONE_PHASES.PHASE_4) return 4;
-  if (phase >= CAPSTONE_PHASES.PHASE_3) return 3;
+  if (phase >= CAPSTONE_PHASES.PHASE_4) {
+    // Phase 4 requires ADM approval from prior phases
+    return isADMApproved(project) ? 4 : 2;
+  }
+  if (phase >= CAPSTONE_PHASES.PHASE_3) {
+    // Capstone 2 is not complete unless ADM is approved
+    return isADMApproved(project) ? 3 : 2;
+  }
   if (phase >= CAPSTONE_PHASES.PHASE_2) return 2;
   if (phase >= CAPSTONE_PHASES.PHASE_1) return 1;
 

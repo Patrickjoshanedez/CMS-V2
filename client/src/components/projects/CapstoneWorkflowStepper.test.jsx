@@ -48,8 +48,11 @@ describe('CapstoneWorkflowStepper Component', () => {
     expect(resolveCurrentStep({ projectStatus: 'defended' })).toBe(4);
     expect(resolveCurrentStep({ isArchived: true })).toBe(4);
 
-    // Phase 3 (Dev)
-    expect(resolveCurrentStep({ capstonePhase: 3 })).toBe(3);
+    // Phase 3 (Dev) requires ADM approved
+    expect(resolveCurrentStep({ capstonePhase: 3, admStatus: 'approved' })).toBe(3);
+    // Phase 3 without ADM approved remains at Phase 2
+    expect(resolveCurrentStep({ capstonePhase: 3, admStatus: 'not_started' })).toBe(2);
+    expect(resolveCurrentStep({ capstonePhase: 3 })).toBe(2);
 
     // Phase 2 (Ch 1-3)
     expect(resolveCurrentStep({ capstonePhase: 2 })).toBe(2);

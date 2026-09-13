@@ -1,0 +1,21 @@
+{
+  "session_id": "2026-09-12_adviser-defense-readiness-signaling-and-metadata-alert-removal",
+  "date": "2026-09-12T01:34:00.000Z",
+  "task_summary": "Removed flagged incomplete institutional metadata warning alert from submission detail and proposal list; implemented Adviser Defense Readiness Check card enabling assigned project advisers to inspect Chapter 1-3 Proposal Manuscripts and signal 'Ready for Defense', automatically transitioning project defense status to pending_scheduling and notifying Course Instructors, Defense Committee, and Student proponents.",
+  "task_category": "workflow_and_defense_readiness_orchestration",
+  "skills_written": [],
+  "skills_patched": ["capstone-lifecycle-orchestrator"],
+  "keywords": ["lesson", "learned", "prevention", "runbook", "checklist", "evidence", "passed"],
+  "lessons_learned": [
+    "Lesson: In CMS-V2, approving a manuscript locks it (status = 'locked') to prevent mid-defense tampering. Frontend status cards evaluating approval must recognize both status === 'approved', status === 'locked', and isDefenseReady === true, rather than strictly expecting status === 'approved'.",
+    "Lesson: Adding custom notification event types (e.g. 'manuscript_endorsed_for_defense') requires registering the type in server/modules/notifications/notification.model.js NOTIFICATION_TYPES enum to prevent Mongoose validation rejections.",
+    "Lesson: Any service-level logger fallback must implement all standard log methods (info, warn, error) to avoid unexpected TypeError: logger.warn is not a function in catch blocks."
+  ],
+  "verification_results": {
+    "client_targeted_tests": "PASSED (12/12 in SubmissionDetailPage.test.jsx)",
+    "server_targeted_tests": "PASSED (4/4 in submission.review-flow.test.js)",
+    "endpoint_parity": "PASSED (204 server / 182 client, unmatched = 0)",
+    "agentic_governance": "PASSED (60/60 checks)",
+    "playwright_visual_audit": "PASSED (8 viewports verified across Desktop Light/Dark, Mobile Light/Dark, and Adviser Endorsement)"
+  }
+}

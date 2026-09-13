@@ -503,6 +503,27 @@ class ProjectService {
   /* ═══════════════════ Read ═══════════════════ */
 
   /**
+   * Defensive normalization: Capstone 2 is not complete unless ADM is fully approved.
+   * If a project record carries capstonePhase >= 3 without ADM approval, normalize to Phase 2.
+   */
+  _normalizeProjectADMPhase(project) {
+    if (!project) return project;
+    const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
+    const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
+    const isChairDone = Boolean(project.admSignatures?.chair?.signed);
+    const isADMApproved =
+      project.admStatus === 'approved' || (isSecretaryDone && isAdviserDone && isChairDone);
+
+    if (Number(project.capstonePhase) >= 3 && !isADMApproved) {
+      project.capstonePhase = 2;
+      if (project.capstoneCourse === 'Capstone 3') {
+        project.capstoneCourse = 'Capstone 2';
+      }
+    }
+    return project;
+  }
+
+  /**
    * Get a single project by ID with populated references.
    * @param {string} projectId
    * @param {Object} requester - Authenticated user context
@@ -583,6 +604,7 @@ class ProjectService {
       }
     }
 
+    this._normalizeProjectADMPhase(project);
     return { project };
   }
 
@@ -683,6 +705,7 @@ class ProjectService {
       throw new AppError('Your team does not have a project yet.', 404, 'PROJECT_NOT_FOUND');
     }
 
+    this._normalizeProjectADMPhase(project);
     return { project };
   }
 
@@ -703,6 +726,7 @@ class ProjectService {
       panelistId,
       secretaryId,
       excludeArchived,
+      defenseStatus,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -712,6 +736,18 @@ class ProjectService {
     if (projectStatus) filter.projectStatus = projectStatus;
     if (adviserId) filter.adviserId = adviserId;
     if (panelistId) filter.panelistIds = panelistId;
+
+    if (defenseStatus) {
+      if (defenseStatus === 'none' || defenseStatus === 'unscheduled') {
+        filter.$or = [
+          { 'defenseSchedule.status': { $exists: false } },
+          { 'defenseSchedule.status': null },
+          { 'defenseSchedule.status': '' },
+        ];
+      } else {
+        filter['defenseSchedule.status'] = defenseStatus;
+      }
+    }
 
     if (excludeArchived === 'true' || excludeArchived === true) {
       filter.isArchived = { $ne: true };
@@ -1824,11 +1860,26 @@ class ProjectService {
       }
     }
 
-    // Phase 2 → 3: Requires the midterm evaluation to have been released AND
-    // project asset URLs (Gantt Chart, Demo Video) to be provided.
-    // This ensures Capstone 2 (midterm defense) is formally approved before
+    // Phase 2 → 3: Requires the Action Done Matrix (ADM) to be approved,
+    // the midterm evaluation to have been released AND project asset URLs
+    // (Gantt Chart, Demo Video) to be provided.
+    // This ensures Capstone 2 (midterm defense & revisions) is formally completed before
     // students can proceed to chapters 4-5 (Capstone 3).
     if (capstonePhase === CAPSTONE_PHASES.PHASE_2) {
+      const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
+      const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
+      const isChairDone = Boolean(project.admSignatures?.chair?.signed);
+      const isADMApproved =
+        project.admStatus === 'approved' || (isSecretaryDone && isAdviserDone && isChairDone);
+
+      if (!isADMApproved) {
+        throw new AppError(
+          'Action Done Matrix (ADM) must be fully endorsed and approved before advancing to Capstone 3.',
+          400,
+          'ADM_NOT_APPROVED',
+        );
+      }
+
       const hasReleasedMidterm = await Evaluation.exists({
         projectId: project._id,
         defenseType: 'midterm',
@@ -3490,7 +3541,7 @@ class ProjectService {
       date,
       time = '',
       venue = 'COT Conference Room',
-      round = '2nd',
+      round = '1st',
       defenseType = 'midterm',
       clientName = 'Dr. Sales G. Aribe Jr.',
     } = data;
@@ -3501,7 +3552,7 @@ class ProjectService {
       date: scheduledDate,
       time: time || project.defenseSchedule?.time || '',
       venue: venue || project.defenseSchedule?.venue || 'COT Conference Room',
-      round: round || project.defenseSchedule?.round || '2nd',
+      round: round || project.defenseSchedule?.round || '1st',
       defenseType: defenseType || project.defenseSchedule?.defenseType || 'midterm',
       clientName: clientName || project.defenseSchedule?.clientName || 'Dr. Sales G. Aribe Jr.',
       scheduledBy: user._id,
@@ -3514,7 +3565,12 @@ class ProjectService {
       project.deadlines.defense = scheduledDate;
     }
 
-    await project.save();
+    await Project.findByIdAndUpdate(projectId, {
+      $set: {
+        defenseSchedule: project.defenseSchedule,
+        ...(scheduledDate ? { 'deadlines.defense': scheduledDate } : {}),
+      },
+    });
 
     // Broadcast WebSocket event
     try {
@@ -3550,7 +3606,17 @@ class ProjectService {
         metadata: { projectId: project._id, defenseSchedule: project.defenseSchedule },
       }));
 
-      if (notifs.length > 0) {
+      // Idempotency check: skip sending duplicate notifications if already scheduled with identical details
+      const isExactSameSchedule =
+        project.defenseSchedule?.status === 'scheduled' &&
+        project.defenseSchedule?.date &&
+        scheduledDate &&
+        new Date(project.defenseSchedule.date).toISOString().split('T')[0] ===
+          new Date(scheduledDate).toISOString().split('T')[0] &&
+        project.defenseSchedule?.time === project.defenseSchedule.time &&
+        project.defenseSchedule?.venue === project.defenseSchedule.venue;
+
+      if (!isExactSameSchedule && notifs.length > 0) {
         const createdNotifs = await Notification.insertMany(notifs);
         createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
       }

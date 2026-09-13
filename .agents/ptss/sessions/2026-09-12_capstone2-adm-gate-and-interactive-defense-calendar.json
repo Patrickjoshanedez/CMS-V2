@@ -1,0 +1,91 @@
+{
+  "session_id": "2026-09-12_capstone2-adm-gate-and-interactive-defense-calendar",
+  "timestamp": "2026-09-12T10:40:00.000Z",
+  "status": "completed",
+  "title": "Capstone 2 ADM Completion Gate, Sequential Chapter Revision Blocking & Interactive Drag-and-Drop Defense Calendar",
+  "objectives": [
+    "Strictly gate Capstone 2 completion behind full Action Done Matrix (ADM v1) approval (admStatus === 'approved')",
+    "Normalize capstonePhase to 2 if ADM is unapproved, preventing premature progression to Phase 3 in UI and backend",
+    "Block subsequent chapter submissions on both client and backend when previous chapter has revisions required or is unapproved",
+    "Refactor DefenseSchedulingPage into an interactive weekly calendar with 1-hour time slots and an Awaiting Scheduling draggable tray",
+    "Default defense round to '1st Round (Standard Defense)' for unscheduled hearings and standardize 1-hour presets",
+    "Verify via fast-path targeted tests, full quality gate battery, and Playwright visual audits across Light/Dark and Desktop/Mobile"
+  ],
+  "deliverables": [
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "action": "modified",
+      "summary": "Updated uploadChapter to query latest chapter version via .sort({ version: -1 }) and strictly assert approval before allowing next chapter."
+    },
+    {
+      "file": "server/modules/projects/project.service.js",
+      "action": "modified",
+      "summary": "Enforced isADMApproved in advancePhase and added _normalizeProjectADMPhase to getProject/getMyProject to prevent phase jump if ADM is not approved."
+    },
+    {
+      "file": "client/src/components/projects/CapstoneWorkflowStepper.jsx",
+      "action": "modified",
+      "summary": "Exported isADMApproved helper and updated resolveCurrentStep to hold step at Capstone 2 when ADM is pending."
+    },
+    {
+      "file": "client/src/components/projects/WorkflowPhaseTracker.jsx",
+      "action": "modified",
+      "summary": "Updated PHASES.capstone_2.isComplete to require isADMApproved(project)."
+    },
+    {
+      "file": "client/src/components/projects/ProjectTitleCard.jsx",
+      "action": "modified",
+      "summary": "Updated getPhaseLabel to display Phase 2 when ADM is not approved."
+    },
+    {
+      "file": "client/src/pages/projects/ProjectDetailPage.jsx",
+      "action": "modified",
+      "summary": "Updated resolveProjectDefaultTab to keep default tab on capstone_2 when ADM is pending."
+    },
+    {
+      "file": "client/src/components/submissions/ChapterReviewPanel.jsx",
+      "action": "modified",
+      "summary": "Added accepted status configuration with CheckCircle2 and mapped accepted to GATE_STATUSES and isApproved."
+    },
+    {
+      "file": "client/src/pages/submissions/ChapterUploadPage.jsx",
+      "action": "modified",
+      "summary": "Added explicit previous chapter unapproved checks, inline warning alerts, and locked select options."
+    },
+    {
+      "file": "client/src/components/defense/ScheduleDefenseModal.jsx",
+      "action": "modified",
+      "summary": "Defaulted round to '1st' (1st Round Standard Defense) for unscheduled hearings, set default slot to 1-hour, and added 1-hour preset buttons."
+    },
+    {
+      "file": "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+      "action": "modified",
+      "summary": "Implemented calendar-first view with week navigation, 1-hour slots grid, HTML5 drag-and-drop scheduling/rescheduling, and Awaiting Scheduling tray."
+    },
+    {
+      "file": "scratch/audit_adm_gate_and_defense_calendar.mjs",
+      "action": "created",
+      "summary": "Playwright visual feedback audit validating ADM gate, chapter blocking, interactive calendar, and 1st round modal."
+    }
+  ],
+  "verification": {
+    "client_unit_tests": "9/9 passing (CapstoneWorkflowStepper.test.jsx: 3/3, DefenseSchedulingPage.test.jsx: 6/6)",
+    "server_unit_tests": "9/9 passing (submission.review-flow.test.js: 6/6, admAutoProgression.test.js: 3/3)",
+    "api_endpoint_parity": "204 Server / 182 Client, UNMATCHED_COUNT = 0",
+    "agentic_governance": "60/60 checks passed",
+    "workspace_cleanliness": "pristine, cognitive load within bounds",
+    "playwright_visual_artifacts": [
+      "15_adm_gate_student_desktop_light.png",
+      "16_adm_gate_student_desktop_dark.png",
+      "17_adm_gate_student_mobile_light.png",
+      "18_chapter_revision_blocked_desktop_light.png",
+      "19_chapter_revision_blocked_desktop_dark.png",
+      "20_defense_calendar_desktop_light.png",
+      "21_defense_calendar_desktop_dark.png",
+      "22_defense_calendar_mobile_light.png",
+      "23_defense_calendar_mobile_dark.png",
+      "24_schedule_modal_1st_round_desktop_light.png",
+      "25_schedule_modal_1st_round_desktop_dark.png"
+    ]
+  }
+}

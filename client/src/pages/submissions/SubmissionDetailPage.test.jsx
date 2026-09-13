@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import SubmissionDetailPage from './SubmissionDetailPage';
+import { getSubmissionDocumentTitle } from '@/utils/submissionUtils';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -42,7 +43,9 @@ vi.mock('@/stores/authStore', () => ({
 
 let mockSubmissionData = null;
 let mockChapterHistoryData = [];
+let mockProjectSubmissionsData = { submissions: [] };
 
+const mockReviewMutate = vi.fn();
 vi.mock('@/hooks/useSubmissions', () => ({
   useSubmission: () => ({
     data: mockSubmissionData,
@@ -57,12 +60,28 @@ vi.mock('@/hooks/useSubmissions', () => ({
     data: mockChapterHistoryData,
     isLoading: false,
   }),
-  useReviewSubmission: () => ({ mutate: vi.fn(), isPending: false }),
+  useProjectSubmissions: () => ({
+    data: mockProjectSubmissionsData,
+    isLoading: false,
+  }),
+  useReviewSubmission: (opts) => ({
+    mutate: (...args) => {
+      mockReviewMutate(...args);
+      opts?.onSuccess?.({ success: true }, args[0]);
+    },
+    isPending: false,
+  }),
   useUnlockSubmission: () => ({ mutate: vi.fn(), isPending: false }),
   useAddAnnotation: () => ({ mutate: vi.fn(), isPending: false }),
   useRemoveAnnotation: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateJustification: () => ({ mutate: vi.fn(), isPending: false }),
   useScanSubmissionArchive: () => ({ mutate: vi.fn(), isPending: false }),
+  useUploadChapter: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCompileProposal: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUploadSystemDesign: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUploadTestResults: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUploadFinalAcademic: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUploadFinalJournal: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 describe('SubmissionDetailPage Revision Suite', () => {
@@ -216,5 +235,318 @@ describe('SubmissionDetailPage Revision Suite', () => {
     // Unlock card must NOT be present
     expect(container.textContent).not.toContain('Document Locked');
     expect(container.textContent).not.toContain('Unlock Submission');
+  });
+
+  it('formats document titles cleanly using getSubmissionDocumentTitle (never returns Chapter null)', () => {
+    expect(getSubmissionDocumentTitle(null)).toBe('Submission Document');
+    expect(getSubmissionDocumentTitle({ type: 'proposal' })).toBe('Chapter 1–3 Manuscript');
+    expect(getSubmissionDocumentTitle({ type: 'proposal', chapter: null })).toBe(
+      'Chapter 1–3 Manuscript',
+    );
+    expect(getSubmissionDocumentTitle({ type: 'system_design' })).toBe('System Design Document');
+    expect(getSubmissionDocumentTitle({ type: 'test_results' })).toBe('Test Results Document');
+    expect(getSubmissionDocumentTitle({ type: 'final_academic' })).toBe(
+      'Final Academic Manuscript',
+    );
+    expect(getSubmissionDocumentTitle({ type: 'final_journal' })).toBe(
+      'Publishable Journal Manuscript',
+    );
+    expect(getSubmissionDocumentTitle({ chapter: 2 })).toBe('Chapter 2 Manuscript');
+    expect(getSubmissionDocumentTitle({ chapter: null })).toBe('Chapter 1–3 Manuscript');
+  });
+
+  it('renders Chapter 1–3 Manuscript instead of Chapter null for proposal compilation submissions', async () => {
+    mockSubmissionId = 'sub-proposal-1';
+    mockSubmissionData = {
+      _id: 'sub-proposal-1',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      fileName: 'Capstone-Proposal-Chapters-1-3.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+    mockChapterHistoryData = [];
+    mockProjectSubmissionsData = {
+      submissions: [mockSubmissionData],
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).toContain('Chapter 1–3 Manuscript');
+    expect(container.textContent).not.toContain('Chapter null');
+  });
+
+  it('renders Revise Submission button for students and opens revision modal on click', async () => {
+    mockCurrentUser = {
+      _id: 'student-1',
+      role: 'student',
+      teamId: 'team-1',
+    };
+    mockSubmissionId = 'sub-proposal-1';
+    mockSubmissionData = {
+      _id: 'sub-proposal-1',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      fileName: 'Wrong_File_Uploaded.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    // Revise button should be present in Action Toolbar and top header
+    const reviseButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      b.textContent.includes('Revise Submission'),
+    );
+    expect(reviseButtons.length).toBeGreaterThanOrEqual(1);
+
+    // Click Revise button
+    await act(async () => {
+      reviseButtons[0].click();
+    });
+
+    // Modal dialog should be rendered into DOM
+    const dialog = document.body.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Revise Submission');
+    expect(dialog.textContent).toContain(
+      'Upload a replacement manuscript for Chapter 1–3 Manuscript',
+    );
+    expect(dialog.textContent).toContain('creates v2');
+    expect(dialog.textContent).toContain('Word (.docx) or PDF manuscript up to 25 MB');
+  });
+
+  it('does NOT render Revise Submission button when submission is locked', async () => {
+    mockCurrentUser = {
+      _id: 'student-1',
+      role: 'student',
+      teamId: 'team-1',
+    };
+    mockSubmissionId = 'sub-locked-student';
+    mockSubmissionData = {
+      _id: 'sub-locked-student',
+      chapter: 1,
+      version: 1,
+      status: 'locked',
+      projectId: 'proj-1',
+      fileName: 'chapter1_v1.docx',
+      fileSize: 50000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    const reviseButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      b.textContent.includes('Revise Submission'),
+    );
+    expect(reviseButtons.length).toBe(0);
+  });
+
+  it('does NOT render the flagged for panel review incomplete institutional metadata alert', async () => {
+    mockSubmissionId = 'sub-proposal-flagged';
+    mockSubmissionData = {
+      _id: 'sub-proposal-flagged',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      fileName: 'Proposal_Draft.docx',
+      fileSize: 312000,
+      isLate: false,
+      isFlagged: true,
+      flagReasons: ['Missing proposal abstract or abstract is under 50 characters.'],
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).not.toContain('Flagged for Panel Review');
+    expect(container.textContent).not.toContain('Incomplete Institutional Metadata');
+  });
+
+  it('renders Adviser Defense Readiness Check and allows endorsing proposal as ready for defense', async () => {
+    mockCurrentUser = {
+      _id: 'faculty-adviser-1',
+      role: 'faculty',
+    };
+    mockSubmissionId = 'sub-proposal-adviser';
+    mockSubmissionData = {
+      _id: 'sub-proposal-adviser',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      adviserId: 'faculty-adviser-1',
+      isAssignedAdviser: true,
+      fileName: 'Capstone-Proposal.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).toContain('Adviser Defense Readiness Check');
+    expect(container.textContent).toContain('Check & Endorse: Ready for Defense');
+
+    const endorseBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Check & Endorse: Ready for Defense'),
+    );
+    expect(endorseBtn).toBeTruthy();
+
+    await act(async () => {
+      endorseBtn.click();
+    });
+
+    expect(mockReviewMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submissionId: 'sub-proposal-adviser',
+        status: 'approved',
+      }),
+    );
+  });
+
+  it('renders Awaiting Adviser Defense Endorsement status card for students when proposal is pending', async () => {
+    mockCurrentUser = {
+      _id: 'student-1',
+      role: 'student',
+      teamId: 'team-1',
+    };
+    mockSubmissionId = 'sub-proposal-student';
+    mockSubmissionData = {
+      _id: 'sub-proposal-student',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      fileName: 'Capstone-Proposal.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).toContain('Awaiting Adviser Defense Endorsement');
+    expect(container.textContent).toContain(
+      'Once your adviser or course instructor checks and endorses this submission, your team will be officially signaled as Ready for Defense',
+    );
+  });
+
+  it('renders Adviser Endorsement Confirmed: Ready for Defense when proposal is approved', async () => {
+    mockCurrentUser = {
+      _id: 'student-1',
+      role: 'student',
+      teamId: 'team-1',
+    };
+    mockSubmissionId = 'sub-proposal-approved';
+    mockSubmissionData = {
+      _id: 'sub-proposal-approved',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'approved',
+      projectId: 'proj-1',
+      fileName: 'Capstone-Proposal.docx',
+      fileSize: 312000,
+      isLate: false,
+      reviewNote: 'Well done! Chapters 1-3 are complete and ready for defense.',
+      defenseSchedule: { status: 'pending_scheduling' },
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).toContain('Adviser Endorsement Confirmed: Ready for Defense');
+    expect(container.textContent).toContain('Defense Ready');
+    expect(container.textContent).toContain(
+      'Well done! Chapters 1-3 are complete and ready for defense.',
+    );
+  });
+
+  it('renders Defense Hearing Pending — Committee Preview Mode for defense panelist (cannot endorse)', async () => {
+    mockCurrentUser = {
+      _id: 'panelist-1',
+      role: 'panelist',
+      teamId: null,
+    };
+    mockSubmissionId = 'sub-proposal-panelist';
+    mockSubmissionData = {
+      _id: 'sub-proposal-panelist',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      adviserId: 'adviser-99', // Not panelist-1
+      isAssignedAdviser: false,
+      fileName: 'Capstone-Proposal.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    // Panelist sees Preview Mode banner
+    expect(container.textContent).toContain('Defense Hearing Pending — Committee Preview Mode');
+    expect(container.textContent).toContain('Preview Mode');
+    expect(container.textContent).toContain(
+      'Only the assigned Adviser and Course Instructor can endorse this manuscript for defense scheduling.',
+    );
+    // Decision action buttons must NOT be present for panelist
+    expect(container.textContent).not.toContain('Check & Endorse: Ready for Defense');
+    expect(container.textContent).not.toContain('Request Manuscript Revisions');
+  });
+
+  it('renders Instructor Defense Readiness Check with endorsement authority for Course Instructor', async () => {
+    mockCurrentUser = {
+      _id: 'instructor-1',
+      role: 'instructor',
+      teamId: null,
+    };
+    mockSubmissionId = 'sub-proposal-instructor';
+    mockSubmissionData = {
+      _id: 'sub-proposal-instructor',
+      type: 'proposal',
+      chapter: null,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      adviserId: 'adviser-99',
+      isAssignedAdviser: false,
+      fileName: 'Capstone-Proposal.docx',
+      fileSize: 312000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    expect(container.textContent).toContain('Instructor Defense Readiness Check');
+    expect(container.textContent).toContain('Instructor Authority');
+    expect(container.textContent).toContain('Check & Endorse: Ready for Defense');
+    expect(container.textContent).toContain('Request Manuscript Revisions');
   });
 });

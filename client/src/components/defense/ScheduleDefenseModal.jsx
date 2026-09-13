@@ -27,34 +27,73 @@ const VENUE_PRESETS = [
   'IT Department Audio-Visual Room',
 ];
 
-export default function ScheduleDefenseModal({ isOpen, onClose, project, onScheduled }) {
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('09:00 AM - 10:30 AM');
+const TIME_PRESETS = [
+  '08:00 AM - 08:30 AM',
+  '08:30 AM - 09:00 AM',
+  '09:00 AM - 09:30 AM',
+  '09:30 AM - 10:00 AM',
+  '10:00 AM - 10:30 AM',
+  '10:30 AM - 11:00 AM',
+  '11:00 AM - 11:30 AM',
+  '11:30 AM - 12:00 PM',
+  '01:00 PM - 01:30 PM',
+  '01:30 PM - 02:00 PM',
+  '02:00 PM - 02:30 PM',
+  '02:30 PM - 03:00 PM',
+  '03:00 PM - 03:30 PM',
+  '03:30 PM - 04:00 PM',
+  '04:00 PM - 04:30 PM',
+  '04:30 PM - 05:00 PM',
+];
+
+export default function ScheduleDefenseModal({
+  isOpen,
+  onClose,
+  project,
+  onScheduled,
+  initialDate,
+  initialTime,
+}) {
+  const [date, setDate] = useState(initialDate || '');
+  const [time, setTime] = useState(initialTime || '09:00 AM - 09:30 AM');
   const [venue, setVenue] = useState('COT Conference Room');
-  const [round, setRound] = useState('2nd');
+  const [round, setRound] = useState('1st');
   const [defenseType, setDefenseType] = useState('midterm');
   const [clientName, setClientName] = useState('Dr. Sales G. Aribe Jr.');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (project?.defenseSchedule) {
-      if (project.defenseSchedule.date) {
-        setDate(new Date(project.defenseSchedule.date).toISOString().split('T')[0]);
-      }
-      if (project.defenseSchedule.time) {
-        setTime(project.defenseSchedule.time);
-      }
-      if (project.defenseSchedule.venue) {
-        setVenue(project.defenseSchedule.venue);
-      }
-      if (project.defenseSchedule.round) {
-        setRound(project.defenseSchedule.round);
-      }
-      if (project.defenseSchedule.clientName) {
-        setClientName(project.defenseSchedule.clientName);
-      }
+    if (initialDate) {
+      setDate(initialDate);
+    } else if (project?.defenseSchedule?.date) {
+      setDate(new Date(project.defenseSchedule.date).toISOString().split('T')[0]);
+    } else {
+      setDate(new Date().toISOString().split('T')[0]);
     }
-  }, [project]);
+
+    if (initialTime) {
+      setTime(initialTime);
+    } else if (project?.defenseSchedule?.time) {
+      setTime(project.defenseSchedule.time);
+    } else {
+      setTime('09:00 AM - 09:30 AM');
+    }
+
+    if (project?.defenseSchedule?.venue) {
+      setVenue(project.defenseSchedule.venue);
+    }
+    if (project?.defenseSchedule?.status === 'scheduled' && project?.defenseSchedule?.round) {
+      setRound(project.defenseSchedule.round);
+    } else {
+      setRound('1st');
+    }
+    if (project?.defenseSchedule?.defenseType) {
+      setDefenseType(project.defenseSchedule.defenseType);
+    }
+    if (project?.defenseSchedule?.clientName) {
+      setClientName(project.defenseSchedule.clientName);
+    }
+  }, [project, initialDate, initialTime, isOpen]);
 
   if (!isOpen) return null;
 
@@ -154,9 +193,9 @@ export default function ScheduleDefenseModal({ isOpen, onClose, project, onSched
                 onChange={(e) => setRound(e.target.value)}
                 className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
               >
-                <option value="1st">1st Round</option>
-                <option value="2nd">2nd Round (Standard)</option>
-                <option value="3rd">3rd Round (Re-defense)</option>
+                <option value="1st">1st Round (Standard Defense)</option>
+                <option value="2nd">2nd Round (Re-defense)</option>
+                <option value="3rd">3rd Round (Final Attempt)</option>
               </select>
             </div>
           </div>
@@ -180,15 +219,38 @@ export default function ScheduleDefenseModal({ isOpen, onClose, project, onSched
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-primary" />
-                Time Slot
+                Time Slot (30 Min Standard / Preset)
               </Label>
               <Input
                 type="text"
-                placeholder="e.g. 09:00 AM - 10:30 AM"
+                placeholder="e.g. 09:00 AM - 09:30 AM"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="h-9 text-xs"
+                className="h-9 text-xs font-mono"
               />
+            </div>
+          </div>
+
+          {/* 30-Min Standard Slot Presets */}
+          <div className="space-y-1">
+            <span className="text-[10px] text-muted-foreground font-medium">
+              Standard 30-Min Slots:
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {TIME_PRESETS.map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTime(t)}
+                  className={`text-[10px] font-mono px-2 py-0.5 rounded-md border transition-colors ${
+                    time === t
+                      ? 'border-primary bg-primary/10 text-primary font-bold'
+                      : 'border-border/80 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t.split(' - ')[0]}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -302,4 +364,6 @@ ScheduleDefenseModal.propTypes = {
   onClose: PropTypes.func.isRequired,
   project: PropTypes.object,
   onScheduled: PropTypes.func,
+  initialDate: PropTypes.string,
+  initialTime: PropTypes.string,
 };

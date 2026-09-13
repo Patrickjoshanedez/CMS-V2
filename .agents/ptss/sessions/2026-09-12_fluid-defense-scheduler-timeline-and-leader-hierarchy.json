@@ -1,0 +1,43 @@
+{
+  "session_id": "2026-09-12_fluid-defense-scheduler-timeline-and-leader-hierarchy",
+  "timestamp": "2026-09-12T12:55:00.000Z",
+  "task": "Direct Drag-and-Drop Defense Scheduling, 30-Minute Standard Quantum, Team Leader Hierarchy & Strict Designated ADM Signatories",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "status": "completed",
+  "files_modified": [
+    "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+    "client/src/pages/instructor/DefenseSchedulingPage.test.jsx",
+    "client/src/components/defense/ScheduleDefenseModal.jsx",
+    "client/src/components/projects/ActionDoneMatrixTab.jsx",
+    "server/middleware/authorize.js",
+    "server/modules/projects/adm.routes.js",
+    "server/modules/projects/project.routes.js",
+    "server/modules/projects/project.controller.js",
+    "server/modules/projects/project.service.js",
+    "server/modules/submissions/submission.service.js"
+  ],
+  "visual_artifacts": [
+    "33_fluid_scheduler_30min_blocks_desktop_light.png",
+    "34_fluid_scheduler_30min_blocks_desktop_dark.png",
+    "35_fluid_scheduler_mobile_light.png",
+    "36_fluid_scheduler_mobile_dark.png",
+    "37_defense_roster_table_lead_and_capstone_desktop_light.png",
+    "38_defense_roster_grid_lead_and_capstone_desktop_light.png",
+    "39_adm_designated_signatories_desktop_light.png",
+    "40_adm_designated_signatories_desktop_dark.png",
+    "41_adm_signatories_board_light.png",
+    "42_adm_signatories_board_dark.png"
+  ],
+  "evidence": {
+    "targeted_unit_tests": "12 passed (client DefenseSchedulingPage), 6 passed (client ActionDoneMatrixTab), 15 passed (server ADM)",
+    "api_route_parity": "204 Server / 182 Client (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "60/60 checks passed (100%)",
+    "workspace_cleanliness": "Pristine (0 loose files in root)"
+  },
+  "lessons_learned": [
+    "Lesson: Direct drag-and-drop scheduling removes confirmation modals, preventing click fatigue during bulk scheduling. Dropping onto an occupied timeslot must be actively guarded with conflict detection and an explicit warning toast to protect confirmed hearing times from silent cascade shifts.",
+    "Lesson: Optimistic UI mutations on drag-and-drop provide instant tactile feedback without full refetch latency. The query client cache should be updated immediately with a snapshot saved for instant rollback on server error.",
+    "Lesson: 30-minute blocks (36px at 1.2px/min) require strict CSS flex column styling, leading-[1.2], truncate, and low-profile resize handles (h-1.5) combined with rich hover tooltips to ensure zero text clipping and high information density.",
+    "Lesson: Institutional committee boundaries require strict defense-in-depth: Course instructors cannot serve on committees or sign committee slots. Middleware abstraction (verifyAdmSignatoryRole) paired with client-side capability gating ensures only appointed faculty and designated instructors can sign their specific sections."
+  ]
+}

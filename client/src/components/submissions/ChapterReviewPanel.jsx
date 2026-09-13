@@ -65,6 +65,12 @@ const STATUS_CONFIG = {
     icon: CheckCircle2,
     iconClass: 'text-emerald-500',
   },
+  [SUBMISSION_STATUSES.ACCEPTED]: {
+    label: 'Approved ✓',
+    variant: 'default',
+    icon: CheckCircle2,
+    iconClass: 'text-emerald-500',
+  },
   [SUBMISSION_STATUSES.LOCKED]: {
     label: 'Approved ✓',
     variant: 'default',
@@ -118,7 +124,8 @@ function ReviewActions({ round, onSuccess }) {
   const reviewMutation = useReviewSubmission();
 
   const isLocked = round.status === SUBMISSION_STATUSES.LOCKED;
-  const isApproved = round.status === SUBMISSION_STATUSES.APPROVED;
+  const isApproved =
+    round.status === SUBMISSION_STATUSES.APPROVED || round.status === SUBMISSION_STATUSES.ACCEPTED;
   const isReviewed = isLocked || isApproved || round.status === SUBMISSION_STATUSES.REJECTED;
   const isPending = [
     SUBMISSION_STATUSES.PENDING,
@@ -281,7 +288,11 @@ function ReviewActions({ round, onSuccess }) {
 /* ── ChapterProgressionGate — visual unlock chain indicator ── */
 function ProgressionGate({ chapters, chapterRoundsMap }) {
   const approved = new Set();
-  const GATE_STATUSES = [SUBMISSION_STATUSES.LOCKED, SUBMISSION_STATUSES.APPROVED];
+  const GATE_STATUSES = [
+    SUBMISSION_STATUSES.LOCKED,
+    SUBMISSION_STATUSES.APPROVED,
+    SUBMISSION_STATUSES.ACCEPTED,
+  ];
 
   for (const ch of chapters) {
     const latest = chapterRoundsMap.get(ch)?.[0];

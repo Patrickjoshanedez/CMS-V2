@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as projectController from './project.controller.js';
 import authenticate from '../../middleware/authenticate.js';
-import authorize from '../../middleware/authorize.js';
+import authorize, { verifyAdmSignatoryRole } from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload, { prototypeUpload, archiveDualUpload } from '../../middleware/upload.js';
 import validateFile from '../../middleware/fileValidation.js';
@@ -454,6 +454,7 @@ router.patch(
 router.post(
   '/:projectId/adm-signatures',
   authorize(ROLES.INSTRUCTOR, ROLES.FACULTY),
+  verifyAdmSignatoryRole(),
   projectController.signTieredADM,
 );
 

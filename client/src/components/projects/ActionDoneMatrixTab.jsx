@@ -235,6 +235,18 @@ export default function ActionDoneMatrixTab({
       rawPanelists.some(
         (p) => p.userId === user._id || p.userId?._id === user._id || p._id === user._id,
       ));
+
+  // Discrete panel member 1 and panel member 2 appointment checks
+  const panelist1User =
+    regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0];
+  const panelist1Id = panelist1User?._id || panelist1User;
+  const isUserPanelist1 = Boolean(user && panelist1Id && String(panelist1Id) === String(user._id));
+
+  const panelist2User =
+    regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1];
+  const panelist2Id = panelist2User?._id || panelist2User;
+  const isUserPanelist2 = Boolean(user && panelist2Id && String(panelist2Id) === String(user._id));
+
   const isUserSecretary =
     user &&
     (secretary?._id === user._id ||
@@ -246,9 +258,22 @@ export default function ActionDoneMatrixTab({
       ));
   const isUserAdviser = user && (adviser?._id === user._id || String(adviser) === String(user._id));
   const isUserInstructor = user && user.role === ROLES.INSTRUCTOR;
+
+  const designatedInstructorUser =
+    project?.sectionId?.instructorId ||
+    project?.sectionId?.createdBy ||
+    project?.teamId?.sectionId?.instructorId ||
+    project?.teamId?.sectionId?.createdBy;
+  const designatedInstructorId = designatedInstructorUser?._id || designatedInstructorUser;
+  const isUserDesignatedInstructor = Boolean(
+    user &&
+    user.role === ROLES.INSTRUCTOR &&
+    (!designatedInstructorId || String(designatedInstructorId) === String(user._id)),
+  );
+
   const canUploadMinutes = isFaculty || isUserInstructor;
   const isSecretaryEndorsed = Boolean(admSignatures?.secretary?.endorsed);
-  const canEndorse = isUserSecretary || isUserInstructor;
+  const canEndorse = Boolean(isUserSecretary); // Strictly only the appointed secretary
   const canManageLiveMinutes = isUserSecretary || isUserChair || isUserInstructor || isFaculty;
   const canAddRow = isFaculty || isUserPanelist || isUserInstructor;
   const canSeedTemplate = isFaculty || isUserInstructor;
@@ -1071,8 +1096,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Signature over Printed Name of Adviser"
               signatureState={admSignatures.adviser}
-              canSign={isSecretaryEndorsed && (isUserAdviser || isUserInstructor)}
-              isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserAdviser}
+              canSign={isSecretaryEndorsed && isUserAdviser}
+              isLockedBySecretary={!isSecretaryEndorsed && isUserAdviser}
               onSign={() =>
                 handleOpenSignModal({
                   tier: 1,
@@ -1090,7 +1115,7 @@ export default function ActionDoneMatrixTab({
               }
               designation="Signature over Printed Name of Instructor"
               signatureState={admSignatures.instructor}
-              canSign={isUserInstructor}
+              canSign={isUserDesignatedInstructor}
               isLockedBySecretary={false}
               onSign={() =>
                 handleOpenSignModal({
@@ -1122,8 +1147,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[0]}
-              canSign={isSecretaryEndorsed && isUserPanelist}
-              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
+              canSign={isSecretaryEndorsed && isUserPanelist1}
+              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist1}
               onSign={() =>
                 handleOpenSignModal({
                   tier: 2,
@@ -1147,8 +1172,8 @@ export default function ActionDoneMatrixTab({
               }
               designation="Panel Member"
               signatureState={admSignatures.panelists?.[1]}
-              canSign={isSecretaryEndorsed && isUserPanelist}
-              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist}
+              canSign={isSecretaryEndorsed && isUserPanelist2}
+              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist2}
               onSign={() =>
                 handleOpenSignModal({
                   tier: 2,
@@ -1172,8 +1197,8 @@ export default function ActionDoneMatrixTab({
                 }
                 designation="REC / Chair"
                 signatureState={admSignatures.chair}
-                canSign={isSecretaryEndorsed && (isUserChair || isUserInstructor)}
-                isLockedBySecretary={!isSecretaryEndorsed && !isUserInstructor && isUserChair}
+                canSign={isSecretaryEndorsed && isUserChair}
+                isLockedBySecretary={!isSecretaryEndorsed && isUserChair}
                 onSign={() =>
                   handleOpenSignModal({
                     tier: 3,

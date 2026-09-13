@@ -1,0 +1,72 @@
+{
+  "session_id": "2026-09-12_defense-scheduling-command-center-and-committee-preview-mode",
+  "timestamp": "2026-09-12T09:55:00.000Z",
+  "status": "completed",
+  "title": "Defense Readiness Endorsement Authority, Committee Preview Mode & Dedicated Instructor Defense Scheduling Command Center",
+  "objectives": [
+    "Restrict Chapters 1-3 proposal manuscript endorsement authority strictly to assigned Capstone Adviser and Course Instructor",
+    "Display read-only Committee Preview Mode for defense panelists and secretary with zero endorsement buttons",
+    "Create a dedicated Instructor Defense Scheduling Command Center at /defense-schedule listing all teams with 1-click scheduling",
+    "Verify with targeted unit tests and full Playwright visual audits across Light/Dark modes and Desktop/Mobile viewports"
+  ],
+  "deliverables": [
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "action": "modified",
+      "summary": "Restricted proposal manuscript review authorization to assigned adviser or instructor, returning 403 ENDORSEMENT_FORBIDDEN_ROLE for unauthorized faculty."
+    },
+    {
+      "file": "server/modules/projects/project.validation.js",
+      "action": "modified",
+      "summary": "Added defenseStatus validation to listProjectsQuerySchema."
+    },
+    {
+      "file": "server/modules/projects/project.service.js",
+      "action": "modified",
+      "summary": "Added defenseStatus query filtering to listProjects."
+    },
+    {
+      "file": "server/tests/unit/submission.review-flow.test.js",
+      "action": "modified",
+      "summary": "Added unit tests verifying 403 rejection of panelists on proposal reviews and authorization of instructors and advisers."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionDetailPage.jsx",
+      "action": "modified",
+      "summary": "Rendered Committee Preview Mode for panelists/secretary without endorsement controls, and Instructor Authority readiness check for instructors."
+    },
+    {
+      "file": "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+      "action": "created",
+      "summary": "Built comprehensive Defense Scheduling Command Center with 4 KPI cards, status tabs, search, section filter, and integrated ScheduleDefenseModal."
+    },
+    {
+      "file": "client/src/App.jsx",
+      "action": "modified",
+      "summary": "Registered /defense-schedule, /instructor/defense-schedule, and /defense-scheduling routes guarded by ROLES.INSTRUCTOR."
+    },
+    {
+      "file": "client/src/components/layouts/Sidebar.jsx",
+      "action": "modified",
+      "summary": "Added Defense Scheduling navigation item with CalendarClock icon for instructors."
+    },
+    {
+      "file": "client/src/pages/instructor/DefenseSchedulingPage.test.jsx",
+      "action": "created",
+      "summary": "Unit test suite with 5/5 passing tests verifying KPI cards, table rendering, tab filtering, search, and modal triggers."
+    },
+    {
+      "file": "client/src/pages/submissions/SubmissionDetailPage.test.jsx",
+      "action": "modified",
+      "summary": "Added tests verifying Committee Preview Mode, Instructor Defense Readiness Check, and role-based action gating."
+    }
+  ],
+  "verification": {
+    "client_targeted_tests": "DefenseSchedulingPage.test.jsx (5/5 passed), SubmissionDetailPage.test.jsx (14/14 passed)",
+    "server_targeted_tests": "submission.review-flow.test.js (6/6 passed)",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "validate:agentic (60/60 passed)",
+    "workspace_guardrail": "clean, zero clutter",
+    "playwright_visual_audit": "scratch/audit_defense_scheduling_and_preview.mjs (14 screenshots verified across light/dark & viewports)"
+  }
+}

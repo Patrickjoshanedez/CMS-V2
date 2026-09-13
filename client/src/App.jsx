@@ -51,6 +51,7 @@ const ArchivePlagiarismCheckerPage = lazy(
   () => import('./pages/plagiarism/ArchivePlagiarismCheckerPage'),
 );
 const SecretaryReviewPage = lazy(() => import('./pages/projects/SecretaryReviewPage'));
+const DefenseSchedulingPage = lazy(() => import('./pages/instructor/DefenseSchedulingPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -186,6 +187,22 @@ const PROTECTED_ROUTES = [
   {
     path: '/admin/evaluation-templates',
     Component: EvaluationTemplateBuilderPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
+  // Defense Scheduling (Instructor command center)
+  {
+    path: '/defense-schedule',
+    Component: DefenseSchedulingPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
+  {
+    path: '/instructor/defense-schedule',
+    Component: DefenseSchedulingPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
+  {
+    path: '/defense-scheduling',
+    Component: DefenseSchedulingPage,
     allowedRoles: [ROLES.INSTRUCTOR],
   },
   // Documents

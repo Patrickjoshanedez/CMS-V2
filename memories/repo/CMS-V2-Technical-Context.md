@@ -1532,3 +1532,349 @@
      - Agentic system governance verified: 60/60 checks passed.
      - Governance validation pipeline verified: 0 errors, 0 warnings.
      - Playwright visual audit passed across 13 screenshots in `scratch/capstone2_to_capstone3_full_workflow_audit.mjs` verifying the complete 8-step lifecycle from defense conclusion, post-defense revision submission, ADM action documentation, panel fulfillment verification, manuscript v2 approval, secretary endorsement, complete ADM signing, and celebratory Capstone 3 progression across desktop and mobile in both light and dark modes.
+
+### Lesson: Proposal Abstract Alert Removal & Adviser Defense Readiness Endorsement Signaling (2026-09-12)
+- Incident / Context:
+  1. In Capstone 2 Proposal Manuscript compilation (Chapters 1–3), `SubmissionDetailPage.jsx` and `ProjectSubmissionsPage.jsx` displayed an intrusive amber alert banner: `"Flagged for Panel Review: Incomplete Institutional Metadata - Missing proposal abstract or abstract is under 50 characters."`
+  2. Proponents compile Chapters 1–3 directly from their accepted chapter manuscripts; requiring a manual abstract input at this early proposal compilation stage was premature and inconsistent with institutional capstone guidelines.
+  3. Furthermore, the defense scheduling progression needed a clear, authoritative gate: the assigned project Adviser must review the compiled Chapters 1–3 manuscript and explicitly endorse the team as `"Ready for Defense"` before Course Instructors can schedule the defense hearing.
+- Root Cause:
+  1. In `submission.service.js:compileProposal`, proposal compilation automatically checked `hasAbstract = abstract.trim().length >= 50`. Because student compilations did not collect an abstract, `isFlagged: true` and `flagReasons: ['incomplete_abstract']` were automatically stamped on every proposal manuscript.
+  2. The submission detail page unconditionally rendered the amber alert whenever `submission.isFlagged` was true, causing confusion for students and advisers.
+  3. The generic `<ReviewPanel>` on the submission detail page did not reflect the specific Capstone 2 gate: signaling readiness for defense with multi-role notification dispatch to Instructors, Secretary, Panelists, and Proponents.
+  4. In `submission.service.js:reviewSubmission`, approving a manuscript sets `submission.status = SUBMISSION_STATUSES.LOCKED` to prevent mid-defense document tampering. Presentation components checking strictly for `status === 'approved'` failed to recognise that locked submissions are approved and defense-ready.
+- Resolution & Implementation Details:
+  1. Premature Abstract Flagging Elimination:
+     - In `submission.service.js:compileProposal`, removed abstract length checks and flag assignments, setting `isFlagged: false` and `flagReasons: []`.
+     - In `SubmissionDetailPage.jsx` and `ProjectSubmissionsPage.jsx`, removed the incomplete institutional metadata alert box and `"Flagged Incomplete"` badge pill.
+  2. Adviser Defense Readiness Endorsement Architecture:
+     - In `SubmissionDetailPage.jsx`, introduced `AdviserDefenseReadinessCard`.
+     - When pending: For the assigned Adviser, presents `"Adviser Defense Readiness Check"` with institutional evaluation guidelines, optional remarks textarea, and action buttons (`"Check & Endorse: Ready for Defense"` and `"Request Manuscript Revisions"`). For student proponents, displays `"Awaiting Adviser Defense Endorsement"` card alongside the `"Revise Submission"` button.
+     - When approved/locked: Displays an emerald institutional card `"Adviser Endorsement Confirmed: Ready for Defense"`, `"Defense Ready"` and `"Schedule: pending scheduling"` badges, endorsed timestamp, and adviser remarks.
+  3. Backend Service & Notification Dispatch:
+     - In `submission.service.js:reviewSubmission`, when the proposal compilation or Chapter 3 is approved, automatically updates `projectDoc.defenseSchedule.status = 'pending_scheduling'`.
+     - Dispatches multi-role in-app and WebSocket notifications (`type: 'manuscript_endorsed_for_defense'`) to:
+       a) Course Instructors: `"Team Ready for Capstone 2 Defense Scheduling"`
+       b) Committee Secretary & Panelists: `"Team Ready for Defense — Adviser Endorsement Granted"`
+       c) Student Proponents: `"Adviser Endorsement Confirmed: Ready for Defense"`
+     - Added `'manuscript_endorsed_for_defense'` to `NOTIFICATION_TYPES` enum in `notification.model.js`.
+     - In `submission.service.js:getSubmission`, enriched response payload with `adviserId`, `defenseSchedule`, `projectTitle`, `isAssignedAdviser`, and `isDefenseReady`.
+  4. Robust Fallback Logger & Safe DB Save:
+     - Added `warn: (...args) => console.warn(...args)` to fallback logger in `submission.service.js`.
+     - Protected `projectDoc.save()` invocations with `if (typeof projectDoc?.save === 'function')`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In BukSU CMS-V2, manuscript approval sets `submission.status = SUBMISSION_STATUSES.LOCKED`. All UI logic evaluating whether a manuscript is accepted/approved must treat `status === 'locked'` as approved (`isApproved = !isPending && (status === 'approved' || status === 'locked' || isDefenseReady)`).
+  2. Prevention rule: Any new notification event string used in `notification.service.js` or controllers MUST be registered in `NOTIFICATION_TYPES` enum in `server/modules/notifications/notification.model.js`, otherwise Mongoose schema validation will reject the insert.
+### Lesson: In-App Document Reader Authentication & Transparent Token Refresh (2026-09-10)
+- Incident / Context:
+  - Users reviewing manuscripts in `SophisticatedDocumentViewer` encountered a sudden render error:
+    `Document Render Failed: Server returned 401: Unauthorized` with [Retry] and [Download Instead] buttons.
+  - Clicking [Retry] failed with the same 401 error, and clicking [Download Instead] opened a new tab which also encountered 401.
+- Root Cause:
+  1. Unauthenticated Raw Fetch: `DocxPreviewRenderer` in `SophisticatedDocumentViewer.jsx` called native `window.fetch(streamFileUrl, { credentials: 'include' })`.
+  2. Missing Interceptor Handshake: CMS-V2 JWT access tokens in the `accessToken` cookie expire after 15 minutes. The centralized Axios API client (`services/api.js`) contains an automatic 401 response interceptor that transparently calls `/auth/refresh` and replays pending requests. Native `window.fetch` completely bypassed this interceptor, immediately failing on token expiry.
+  3. Unused File Prop: `streamFileUrl` hardcoded `/api/submissions/${submission._id}/file` without checking `fallbackFileUrl` (`fileUrl` prop passed from callers).
+  4. Raw Link Downloads: `handleDownload` created an `<a href="${streamFileUrl}?download=true">` element instead of using `submissionService.downloadFile(submissionId, fileName)`, which utilizes Axios with automatic token refresh and blob object URL generation.
+- Resolution & Implementation Details:
+  1. Authenticated API Binary Streaming: Replaced raw `fetch` in `DocxPreviewRenderer` with `api.get('/submissions/' + submissionId + '/file', { responseType: 'arraybuffer', signal })`. When external pre-signed URLs are provided (`http://` or `https://`), it attempts direct retrieval and gracefully falls back to the authenticated API endpoint if storage signatures expire or encounter CORS errors.
+  2. Fallback Prop Prioritization: Configured `streamFileUrl = fallbackFileUrl || (submission?._id ? '/api/submissions/' + submission._id + '/file' : null)`.
+  3. Secure PDF Streaming: In `SophisticatedDocumentViewer`, integrated authenticated blob retrieval via `api.get` with `URL.createObjectURL` and automatic unmount cleanup (`URL.revokeObjectURL`), eliminating iframe cookie desynchronization.
+  4. Authenticated Download Execution: Updated `handleDownload` to call `submissionService.downloadFile(submission._id, fileName)`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: NEVER use raw `window.fetch` for authenticated CMS-V2 backend endpoints. Always use the canonical `api` Axios client from `@/services/api` or dedicated service modules (`submissionService`) to preserve automatic 401 refresh token interceptors.
+  2. Prevention rule: If external pre-signed URLs are supported, always implement an automatic fallback to the internal authenticated proxy endpoint (`/api/submissions/:id/file`) in case of container DNS, CORS, or signature expiration issues.
+  3. Runbook: In document renderers, fetch binary data via `api.get(endpoint, { responseType: 'arraybuffer' })` for DOCX OOXML structures, and `api.get(endpoint, { responseType: 'blob' })` with `URL.createObjectURL` for PDF iframe streaming. Clean up object URLs on component unmount.
+  4. Checklist & Evidence:
+     - 8/8 unit tests passed in `client/src/components/documents/SophisticatedDocumentViewer.test.jsx`.
+     - 12/12 unit tests passed in `client/src/pages/submissions/`.
+     - API route parity verified: 201 Server / 179 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance pipeline verified: 0 errors, 0 warnings.
+     - Playwright visual audit passed in `scratch/document_reader_visual_audit.mjs` verifying embedded reader, fullscreen reader, and mobile viewports across light and dark modes with zero render errors.
+
+### Lesson: Chapter Submission Version Priority & Progression Paradox Resolution (2026-09-10)
+- Incident / Context:
+  - An adviser accepted a review round for Chapter 1 v2 (`status: 'accepted'`).
+  - When the student navigated to their dashboard, Chapter 1 showed `Revisions Required` (v1), and attempting to upload Chapter 2 was blocked with error `Chapter 1 must be approved before you can submit Chapter 2` (`CHAPTER1_NOT_APPROVED`).
+- Root Cause:
+  1. Timestamp Collision Overwrite: In `ProjectSubmissionsPage.jsx` and `ProposalCompilationPage.jsx`, latest chapter submissions were reduced using `currentTs >= existingTs`. When an adviser accepted a round, `updateMany` assigned identical `updatedAt` timestamps to all chapter submissions. Since the API returns submissions sorted version descending, v1 evaluated second, matching `currentTs >= existingTs` and overwriting v2.
+  2. Overly Strict Status Guard (`!== LOCKED`): In `submission.service.js:uploadChapter`, `compileProposal`, and `ChapterUploadPage.jsx`, chapter progression strictly checked `status === SUBMISSION_STATUSES.LOCKED`. Since accepting a review sets `status: 'accepted'`, the check rejected accepted chapters.
+  3. Missing Version Context on Detail Page: `SubmissionDetailPage.jsx` rendered older submissions without informing the user that a newer revision was available.
+- Resolution & Implementation Details:
+  1. Strict Version Priority in Latest Reducers: Updated `ProjectSubmissionsPage.jsx`, `ChapterUploadPage.jsx`, and `ProposalCompilationPage.jsx` to compare `subVersion > existingVersion || (subVersion === existingVersion && currentTs > existingTs)`.
+  2. Acceptance Progression Standard: Permitted `[SUBMISSION_STATUSES.LOCKED, SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.ACCEPTED]` across `uploadChapter` and `compileProposal` queries on server, as well as `canUploadChapter` and `canSubmitSelectedChapter` in client.
+  3. ChapterProgressWithRounds Alignment: Added `SUBMISSION_STATUSES.ACCEPTED` to `chapterStatusBadge` (label: 'Accepted'), `chapterStatusIcon` (green CheckCircle2), and `suggestedUploadChapter`.
+  4. Outdated Version Warning Banner & Revision Switcher: Integrated `useChapterHistory` in `SubmissionDetailPage.jsx`. When viewing an older revision, rendered an institutional alert banner with 1-click navigation to the latest revision, along with `[v1] [v2]` revision pills in the header.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When reducing latest documents or manuscripts, ALWAYS prioritize numeric `version` over `updatedAt` timestamps. Bulk updates to parent or sibling documents mutate `updatedAt` timestamps simultaneously.
+  2. Prevention rule: Academic progression states must always accept `accepted`, `approved`, or `locked` statuses uniformly.
+  3. Runbook: In chapter gating, verify `[SUBMISSION_STATUSES.LOCKED, SUBMISSION_STATUSES.APPROVED, SUBMISSION_STATUSES.ACCEPTED].includes(submission.status)`. In latest chapter reducers, compare `subVersion > existingVersion`.
+  4. Checklist & Evidence:
+     - 17/17 tests passed in `client/src/pages/submissions/` (including `ProjectSubmissionsPage.test.jsx`, `SubmissionDetailPage.test.jsx`).
+     - Server integration test passed: `should allow chapter 2 upload when chapter 1 is accepted`.
+     - Route parity verified: 201 Server / 179 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance pipeline verified: 0 errors, 0 warnings.
+     - Playwright visual audit passed in `scratch/audit_submission_paradox_resolution.mjs` verifying Chapter 1 renders as Accepted (v2), Chapter 2 upload is active and unlocked, older v1 displays the warning banner and revision switcher, and Chapter 2 is selectable in ChapterUploadPage dropdown.
+
+### Lesson: Capstone Phase Progression Alignment & Faculty Dashboard Hydration (2026-09-10)
+- Incident / Context:
+  - An adviser handled team (Solo Leveling / AgroSense AI) had its title approved (`titleStatus: 'approved'`), Chapter 1 accepted, and Chapter 2 pending review.
+  - The adviser dashboard displayed badge `REVIEW: CAPSTONE 1` instead of `REVIEW: CAPSTONE 2`, and the right-hand team details lacked chapter progress, proponent roles, and direct submissions navigation.
+- Root Cause:
+  1. Stale Phase 1 Value in MongoDB: After title defense proposal approval, `project.capstonePhase` in DB remained at `1`. Because `ProjectDetailedStatus` mapped directly from `capstonePhase`, it output `Review: Capstone 1`.
+  2. Sparse Dashboard Aggregation: `_getFacultyStats` and `_getAdviserStats` in `dashboard.service.js` only projected unpopulated IDs for team members, omitting names, roles, and chapter progress summaries.
+  3. Missing Frontend Loading Skeleton: When the React Query hook was in flight, `FacultyDashboard.jsx` flashed unhydrated zero-metric cards instead of a loading skeleton.
+- Resolution & Implementation Details:
+  1. Unified Backend Hydration Pipeline (`_hydrateAssignedProjects`): Calculates all 5 chapters' progression (`approvedChaptersCount`, `pendingChapter`, `chapterProgressSummary: '1/5 approved'`), resolves `effectivePhase = Math.max(2, rawPhase)` when title is approved, background-updates outdated DB records (`Project.updateOne`), deeply populates team members (`fullName`, `email`, `role`, `isLeader`), and populates `submittedBy` in pending reviews.
+  2. Phase Progression Standard in `ProjectDetailedStatus`: Enforced `effectivePhase = Math.max(2, rawPhase)` when `titleStatus === TITLE_STATUSES.APPROVED`. Renders `Review: Capstone 2` with amber badge.
+  3. Hydrated Handled Team Cards & Sidebar:
+     - Team card renders `1/5 approved` (emerald badge) and `Ch. 2 in review` (amber badge) alongside Google Doc and GitHub links.
+     - Sidebar features a 5-chapter progress bar, individual `Ch 1` (approved/emerald), `Ch 2` (pending/amber), `Ch 3..5` chips, member roster with `Lead` badges, and direct "View Submissions & Progress" button navigating to `/project/submissions?mode=view&projectId=${activeTeam._id}`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When `titleStatus === 'approved'`, the project is mathematically in Capstone 2 or higher. Capstone 1 is strictly title proposal/defense and has zero chapter submissions.
+  2. Prevention rule: Always populate dashboard team rosters deeply (`members`, `memberRoles.userId`, `leaderId`) so proponent roles and leader status are available.
+  3. Runbook: In dashboard service, invoke `_hydrateAssignedProjects(projects)`. In presentation components, calculate `effectivePhase = Math.max(2, Number(capstonePhase || 2))` when `titleStatus === 'approved'`.
+  4. Checklist & Evidence:
+     - 5/5 client unit tests passed in `client/src/pages/dashboard/FacultyDashboard.test.jsx`.
+     - 15/15 server integration tests passed in `server/tests/integration/dashboard.test.js`.
+     - Route parity verified: 201 Server / 179 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace guardrail clean (pristine workspace, zero cognitive clutter).
+     - Playwright visual audit passed in `scratch/test_visual.mjs` across desktop light/dark and mobile light/dark viewports.
+
+### Lesson: Project Detail Tabs Sync, Simplified Review Decisions & Submission Detail Reorganization (2026-09-11)
+- Incident / Context:
+  1. Tab Desynchronization: When navigating to `/projects/:id`, `activeTab` was hardcoded to default to `capstone_1` regardless of project progression, forcing users to repeatedly manually switch tabs to `capstone_2`. Stepper clicks did not sync with the active tab.
+  2. Redundant Review Decisions & Lock Confusion: In Review Studio, three action buttons existed (`Approve Round`, `Request Revision`, and `Accept & Lock`). Submissions in `locked` status created ambiguity regarding whether they were approved.
+  3. Submission Detail Page Clutter: In `SubmissionDetailPage.jsx`, on-time submission status was presented in an empty full-width card with raw MIME strings, unstyled layout, and redundant locked/unlocked panels.
+- Root Cause:
+  1. `ProjectDetailPage.jsx` lacked dynamic default tab resolution linked to `project.capstonePhase` and `project.titleStatus`, and stepper nodes lacked `onStepClick` tab mapping.
+  2. `Accept & Lock` created state confusion; the user explicitly requested: "I only want approve, and request revision those who are locked are automatically approve, just remove the lock".
+  3. On-time information was isolated from chapter title/version context in `SubmissionDetailPage.jsx`.
+- Resolution & Implementation Details:
+  1. Dynamic Tab Resolution: Added `resolveProjectDefaultTab(project)` and `mapStepToWorkflowTab(stepId, isArchived)` in `ProjectDetailPage.jsx`. Default tab now maps to `capstone_2` if `capstonePhase >= 2` or `titleStatus === 'approved'`. Connected `onStepClick` on `WorkflowPhaseTracker` to update URL `?tab=` and switch tabs.
+  2. React Rules of Hooks Hardening: Elevated all hooks (`useMemo`) unconditionally above early loading/error returns in `ProjectDetailPage.jsx` to prevent `Rendered more hooks than during the previous render` crashes.
+  3. Simplified Review Decisions: Removed `Accept & Lock` from `SubmissionReviewPage.jsx` decision toolbar. Submissions in status `locked` are now automatically displayed and treated as `Approved` across `SubmissionStatusBadge`, `ChapterReviewPanel`, and `ChapterProgressWithRounds`. Removed `Reject` and `UnlockPanel` from `SubmissionDetailPage.jsx`.
+  4. Submission Detail Page Reorganization:
+     - Placed `[✓ On-Time Submission]` badge pill directly beside the chapter header text (`Chapter 2 v1`) in both the file header card and top navigation bar.
+     - Added 4-card metric ribbon (Document File, File Size, Originality Score, Milestone Status).
+     - Added human-readable file badges (`Word Document (.docx)`, `PDF Manuscript (.pdf)`).
+     - Added sleek BukSU Originality & Similarity progress meter.
+     - Completely eliminated the redundant standalone `Locked (On-Time)` card.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In React functional components, all hooks (including `useMemo`, `useCallback`, `useState`) MUST be declared unconditionally at the top of the component before any early returns (such as `if (isLoading) return <PageSkeleton />`).
+  2. Prevention rule: When mocking API routes in Playwright or testing suites, specific sub-resource routes (e.g. `/review-workspace`, `/file`) MUST be evaluated before generic parent item matchers (e.g. `/api/submissions/sub-test-1`).
+  3. Checklist & Evidence:
+     - 22/22 client unit tests passed across 4 targeted test files.
+     - Route parity verified: 201 Server / 179 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Playwright visual audit passed in `scratch/audit_synced_tabs_and_submission.mjs` verifying default Capstone 2 tab, stepper click tab switching, simplified review toolbar, and reorganized submission detail page across desktop and mobile in light and dark modes.
+
+### Lesson: Capstone 2 Defense Progression, Live Secretary Minutes (OVPAA-F-INS-032), Client Section, and Action Done Matrix Synchronization (2026-09-11)
+- Incident / Context:
+  1. In Capstone 2, preparation for the defense hearing involves proponents compiling Chapters 1–3 and obtaining Adviser endorsement before the Course Instructor schedules the oral defense date, timeslot, venue, and client representative.
+  2. During the live defense hearing, panelists (Chair and Members) and the Client Representative (e.g., Dr. Sales G. Aribe Jr.) ask questions and give recommendations. The Secretary records these remarks live using BukSU Form OVPAA-F-INS-032 (SECRETARY'S MINUTES).
+  3. Previously, there was no synchronization bridge between live defense minutes and the Action Done Matrix (ADM). Panel comments had to be manually re-typed into the ADM, and there was no designated section for client recommendations.
+  4. Furthermore, proponents were locked out of the Action Done Matrix in Capstone 2, preventing them from logging their actions taken, citing revised page numbers, and uploading their revised Chapters 1–3 manuscript (v2) post-defense.
+- Root Cause:
+  1. Defense minutes model and schema lacked support for client remarks (`isClient` flag and `clientComments` array) and venue/round metadata.
+  2. The publish-to-ADM workflow only published panelist remarks, omitting the client section.
+  3. Dialog modals (`LiveDefenseMinutesModal`, `CompileProposalModal`, `ScheduleDefenseModal`) mounted inside `DashboardLayout` were trapped inside `.cms-route-enter`, whose `transform` and `will-change: transform` created a stacking context that clipped fixed overlays on scrolled pages.
+- Resolution & Implementation Details:
+  1. Adviser-to-Instructor Handoff: In `submission.service.js:reviewSubmission`, when the adviser approves the compiled proposal / Chapter 3, the project status is updated to `pending_scheduling` and an in-app and WebSocket notification (`manuscript_endorsed_for_defense`) is dispatched to the Course Instructor.
+  2. Instructor Scheduling Modal: Built `ScheduleDefenseModal.jsx` allowing instructors to schedule date, timeslot, venue presets, defense type, and assign client representative.
+  3. Official BukSU Form OVPAA-F-INS-032: Elevated `LiveDefenseMinutesModal.jsx` into the authentic institutional format containing Document Code, Revision No: 01, Proponent Roster, Committee Roster, Panelist Remarks, and a dedicated **Client / Project Beneficiary** section (`Dr. Sales G. Aribe Jr. (Client)`).
+  4. One-Click Publish to ADM: Enhanced `defenseMinutes.service.js:publishToADM` to atomically translate both panelist remarks and client recommendations into the project's `actionDoneMatrix` with `(Client)` label distinction, broadcast `defense:minutes_updated` via WebSockets, and reset secretary endorsement.
+  5. Post-Defense Manuscript Revision & Resubmission Cycle: Created `CompileProposalModal.jsx` for students to upload their revised Chapters 1–3 manuscript (v2), citing exact page numbers and documenting actions taken in the newly unlocked Capstone 2 Action Done Matrix.
+  6. Universal Modal Portal Wrapping: Wrapped all modals in `typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent` ensuring clean overlay rendering without ancestor container clipping.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: All modal dialogs mounted within route containers must use React `createPortal(modalContent, document.body)` to escape stacking contexts created by CSS animations (`.cms-route-enter { transform: translateY(...) }`).
+  2. Prevention rule: The Action Done Matrix must never be blocked or locked during Capstone 2; it must remain immediately accessible for real-time oral defense synchronization and post-defense revisions.
+  3. Checklist & Evidence:
+     - 5/5 server unit tests passed (`tests/unit/defenseMinutes.test.js`).
+     - 11/11 client unit tests passed (`src/pages/projects/ProjectDetailPage.tab-sync.test.jsx`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance validation pipeline verified: 0 errors, 0 warnings.
+     - Playwright visual audit passed in `scratch/capstone2_defense_sync_audit.mjs` verifying desktop/mobile and light/dark renderings of Capstone 2 overview, scheduled defense banner, BukSU Form OVPAA-F-INS-032 Secretary's Minutes with Client section, post-defense revised manuscript modal (v2), and Action Done Matrix table.
+
+### Lesson: Capstone 2 to Capstone 3 Full Progression Workflow: Post-Defense Manuscript Revision, ADM Panel Fulfillment Verification, and Deterministic Automatic Promotion (2026-09-11)
+- Incident / Context:
+  1. Once the Capstone 2 defense concludes and minutes are published to the Action Done Matrix (ADM), the student proponents must upload their revised manuscript (`Revision v2`), document the actions taken in Column 3, and cite exact page numbers in Column 4.
+  2. The defense committee (Panelists, Chair, Adviser) needed a deterministic mechanism on the ADM table to inspect each item and check a fulfillment verification checkbox (`[✓] Fulfilled & Verified by Panel`) to confirm the recommendation was properly addressed.
+  3. Concurrently, the Adviser reviews and approves the revised manuscript (`v2`), updating the card badge to `v2 Revision Approved`.
+  4. Finally, when all required digital signatures on the ADM are completed (Secretary endorsement gate + Tier 1 Adviser + Tier 2 Panelists + Tier 3 Chair), the project must automatically advance to Capstone 3 without requiring manual administrative intervention, immediately unlocking the Interactive Gantt Chart, System Development Roadmap, and Chapters 4–5 submissions.
+- Root Cause & Deficiencies:
+  1. The Action Done Matrix lacked an interactive fulfillment verification checkbox for faculty/panelists to verify specific rows as satisfied.
+  2. ADM digital signature completion only saved signature hashes without checking if the project was eligible for automatic phase progression from Capstone 2 to Capstone 3.
+  3. The client manuscript card did not clearly differentiate between initial defense endorsement and post-defense revised manuscript approval (`v2`).
+  4. The Capstone 3 view lacked a celebratory clearance and unlock announcement banner when students successfully transition into Phase 3.
+- Resolution & Implementation Details:
+  1. Panel Fulfillment Verification Checkbox: In `ActionDoneMatrixTab.jsx`, integrated an interactive checkbox `[✓] Fulfilled & Verified by Panel` inside Column 3. Gated to committee faculty (`canVerifyRow`), with optimistic UI toggling, Sonner toast notification, and backend persistence via `PATCH /api/projects/:id/action-done-matrix/:rowId` (`patchADMRow`).
+  2. Deterministic Automatic Progression Engine: In `server/modules/projects/project.controller.js`, implemented `checkAndAdvancePhaseIfADMCompleted(project)` wired to both `signTieredADM` and `endorseADMBySecretary`. When `isSecretaryDone && isAdviserDone && isChairDone` are all satisfied and `project.capstonePhase === 2`, the system automatically sets `project.capstonePhase = 3`, `project.capstoneCourse = 'Capstone 3'`, and `project.admStatus = 'approved'`. Dispatches team notifications (`type: 'phase_advanced'`) and broadcasts real-time WebSocket events (`project:phase_advanced`, `project:updated`).
+  3. Revised Manuscript Approval UX: In `ProjectDetailPage.jsx`, updated `handleEndorseProposal` and the manuscript card action buttons. When `version > 1`, the button displays `Approve Revised Manuscript` with toast `"Revised manuscript (v{version}) approved successfully"`, and displays the badge `v{version} Revision Approved`.
+  4. Celebratory Capstone 2 Clearance Banner: In `ProjectDetailPage.jsx`, added a prominent BukSU Phase 3 Active clearance banner at the top of the `capstone_3` tab celebrating the completion of Capstone 2, confirmed ADM sign-offs, and announcing the unlock of the Interactive Gantt Chart, System Development Roadmap, and Chapters 4–5 submissions.
+  5. Asynchronous Express Handler Awaitability: In `server/utils/catchAsync.js`, updated the wrapper to return `return Promise.resolve(fn(req, res, next)).catch(next);` ensuring async route handlers are directly awaitable in unit testing environments.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Academic progression gates must be deterministic and self-advancing; when all institutional conditions (e.g. 100% ADM signatories) are fulfilled, projects must transition automatically without blocking students or requiring manual admin overrides.
+  2. Prevention rule: Row verification in multi-signatory matrices must support item-level panel audit trails so proponents and panel chairs know exactly which remarks have been satisfied.
+  3. Checklist & Evidence:
+     - 3/3 server unit tests passed (`tests/unit/admAutoProgression.test.js`).
+     - 5/5 server defense minutes unit tests passed (`tests/unit/defenseMinutes.test.js`).
+     - 11/11 client unit tests passed (`src/pages/projects/ProjectDetailPage.tab-sync.test.jsx`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance validation pipeline verified: 0 errors, 0 warnings.
+     - Playwright visual audit passed across 13 screenshots in `scratch/capstone2_to_capstone3_full_workflow_audit.mjs` verifying the complete 8-step lifecycle from defense conclusion, post-defense revision submission, ADM action documentation, panel fulfillment verification, manuscript v2 approval, secretary endorsement, complete ADM signing, and celebratory Capstone 3 progression across desktop and mobile in both light and dark modes.
+
+### Lesson: Proposal Abstract Alert Removal & Adviser Defense Readiness Endorsement Signaling (2026-09-12)
+- Incident / Context:
+  1. In Capstone 2 Proposal Manuscript compilation (Chapters 1–3), `SubmissionDetailPage.jsx` and `ProjectSubmissionsPage.jsx` displayed an intrusive amber alert banner: `"Flagged for Panel Review: Incomplete Institutional Metadata - Missing proposal abstract or abstract is under 50 characters."`
+  2. Proponents compile Chapters 1–3 directly from their accepted chapter manuscripts; requiring a manual abstract input at this early proposal compilation stage was premature and inconsistent with institutional capstone guidelines.
+  3. Furthermore, the defense scheduling progression needed a clear, authoritative gate: the assigned project Adviser must review the compiled Chapters 1–3 manuscript and explicitly endorse the team as `"Ready for Defense"` before Course Instructors can schedule the defense hearing.
+- Root Cause:
+  1. In `submission.service.js:compileProposal`, proposal compilation automatically checked `hasAbstract = abstract.trim().length >= 50`. Because student compilations did not collect an abstract, `isFlagged: true` and `flagReasons: ['incomplete_abstract']` were automatically stamped on every proposal manuscript.
+  2. The submission detail page unconditionally rendered the amber alert whenever `submission.isFlagged` was true, causing confusion for students and advisers.
+  3. The generic `<ReviewPanel>` on the submission detail page did not reflect the specific Capstone 2 gate: signaling readiness for defense with multi-role notification dispatch to Instructors, Secretary, Panelists, and Proponents.
+  4. In `submission.service.js:reviewSubmission`, approving a manuscript sets `submission.status = SUBMISSION_STATUSES.LOCKED` to prevent mid-defense document tampering. Presentation components checking strictly for `status === 'approved'` failed to recognise that locked submissions are approved and defense-ready.
+- Resolution & Implementation Details:
+  1. Premature Abstract Flagging Elimination:
+     - In `submission.service.js:compileProposal`, removed abstract length checks and flag assignments, setting `isFlagged: false` and `flagReasons: []`.
+     - In `SubmissionDetailPage.jsx` and `ProjectSubmissionsPage.jsx`, removed the incomplete institutional metadata alert box and `"Flagged Incomplete"` badge pill.
+  2. Adviser Defense Readiness Endorsement Architecture:
+     - In `SubmissionDetailPage.jsx`, introduced `AdviserDefenseReadinessCard`.
+     - When pending: For the assigned Adviser, presents `"Adviser Defense Readiness Check"` with institutional evaluation guidelines, optional remarks textarea, and action buttons (`"Check & Endorse: Ready for Defense"` and `"Request Manuscript Revisions"`). For student proponents, displays `"Awaiting Adviser Defense Endorsement"` card alongside the `"Revise Submission"` button.
+     - When approved/locked: Displays an emerald institutional card `"Adviser Endorsement Confirmed: Ready for Defense"`, `"Defense Ready"` and `"Schedule: pending scheduling"` badges, endorsed timestamp, and adviser remarks.
+  3. Backend Service & Notification Dispatch:
+     - In `submission.service.js:reviewSubmission`, when the proposal compilation or Chapter 3 is approved, automatically updates `projectDoc.defenseSchedule.status = 'pending_scheduling'`.
+     - Dispatches multi-role in-app and WebSocket notifications (`type: 'manuscript_endorsed_for_defense'`) to:
+       a) Course Instructors: `"Team Ready for Capstone 2 Defense Scheduling"`
+       b) Committee Secretary & Panelists: `"Team Ready for Defense — Adviser Endorsement Granted"`
+       c) Student Proponents: `"Adviser Endorsement Confirmed: Ready for Defense"`
+     - Added `'manuscript_endorsed_for_defense'` to `NOTIFICATION_TYPES` enum in `notification.model.js`.
+     - In `submission.service.js:getSubmission`, enriched response payload with `adviserId`, `defenseSchedule`, `projectTitle`, `isAssignedAdviser`, and `isDefenseReady`.
+  4. Robust Fallback Logger & Safe DB Save:
+     - Added `warn: (...args) => console.warn(...args)` to fallback logger in `submission.service.js`.
+     - Protected `projectDoc.save()` invocations with `if (typeof projectDoc?.save === 'function')`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In BukSU CMS-V2, manuscript approval sets `submission.status = SUBMISSION_STATUSES.LOCKED`. All UI logic evaluating whether a manuscript is accepted/approved must treat `status === 'locked'` as approved (`isApproved = !isPending && (status === 'approved' || status === 'locked' || isDefenseReady)`).
+  2. Prevention rule: Any new notification event string used in `notification.service.js` or controllers MUST be registered in `NOTIFICATION_TYPES` enum in `server/modules/notifications/notification.model.js`, otherwise Mongoose schema validation will reject the insert.
+  3. Runbook: When implementing faculty gates, check `isAssignedAdviser` by comparing authenticated user ID against `project.teamId.adviserId` or populated `adviserId`.
+  4. Checklist & Evidence:
+     - 4/4 server unit tests passed (`server/tests/unit/submission.review-flow.test.js`).
+     - 12/12 client unit tests passed (`client/src/pages/submissions/SubmissionDetailPage.test.jsx`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance validation pipeline verified: 0 errors, 0 warnings.
+     - Playwright visual audit passed in `scratch/audit_adviser_defense_flow.mjs` verifying removal of incomplete metadata alert, student awaiting endorsement card with Revise button, adviser readiness check panel with endorse button, and endorsed defense-ready card across desktop and mobile in both light and dark modes.
+
+### 2026-09-12: Defense Readiness Endorsement Authority, Committee Preview Mode & Dedicated Instructor Defense Scheduling Command Center
+- Context & Architectural Impact:
+  1. Strict Institutional Endorsement Authority:
+     - Proposal manuscripts (`submission.type === 'proposal'`) can ONLY be endorsed by the assigned Capstone Adviser (`isAssignedAdviser`) or Course Instructor (`role === 'instructor'`).
+     - Committee Panelists, Secretary, and other faculty are strictly restricted to read-only Preview Mode (`Defense Hearing Pending — Committee Preview Mode`).
+     - Backend `submission.service.js:reviewSubmission` returns HTTP 403 `ENDORSEMENT_FORBIDDEN_ROLE` if non-adviser/instructor faculty attempts review actions.
+  2. Dedicated Instructor Defense Scheduling Command Center:
+     - Implemented `DefenseSchedulingPage.jsx` (`/defense-schedule`, `/instructor/defense-schedule`, `/defense-scheduling`) exclusively for Course Instructors.
+     - Added 4 KPI Summary Cards (Total Teams, Ready for Defense [pulsing emerald badge], Scheduled Hearings, In Progress).
+     - Roster filtering by tabs (`All Teams`, `Ready for Defense`, `Scheduled`, `In Progress`), instant search, and Section/Phase dropdowns.
+     - Table and Grid card view modes with 1-click `ScheduleDefenseModal` execution.
+     - Added `Defense Scheduling` item to instructor sidebar navigation (`Sidebar.jsx`).
+  3. Backend Query Support:
+     - Added `defenseStatus` validation and filtering in `project.validation.js` and `project.service.js`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When checking proposal review permissions, never treat generic faculty role as authorized. Always guard with `canEndorse = !isArchived && (isAssignedAdviser || isInstructor)`.
+  2. Prevention rule: In Vitest/JSDOM for React 18 controlled inputs, standard `input.value = 'x'` does not trigger React's synthetic descriptor. Always dispatch via `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, 'val')` followed by `dispatchEvent(new Event('input', { bubbles: true }))`.
+  3. Checklist & Evidence:
+     - 5/5 client unit tests passed (`client/src/pages/instructor/DefenseSchedulingPage.test.jsx`).
+     - 14/14 client unit tests passed (`client/src/pages/submissions/SubmissionDetailPage.test.jsx`).
+     - 6/6 server unit tests passed (`server/tests/unit/submission.review-flow.test.js`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace guardrail passed cleanly.
+     - Playwright visual audit passed in `scratch/audit_defense_scheduling_and_preview.mjs` verifying Panelist Preview Mode, Instructor Readiness Check, Adviser Defense Endorsement, and Instructor Defense Scheduling Center across Desktop (1440×900) and Mobile (390×844) in both Light and Dark modes.
+
+### 2026-09-12: Capstone 2 ADM Completion Gate, Sequential Chapter Revision Blocking & Interactive Drag-and-Drop Defense Calendar
+- Context & Architectural Impact:
+  1. Capstone 2 ADM Completion Gate:
+     - Learned lesson: Projects previously jumped to Capstone 3 ("75% Completed") prematurely because the stepper and project cards evaluated `capstonePhase >= 3` without verifying that the Capstone 2 Action Done Matrix (ADM v1) was actually approved (`admStatus === 'approved'`).
+     - Centralized `isADMApproved(project)` in `client/src/components/projects/CapstoneWorkflowStepper.jsx` and enforced it across `WorkflowPhaseTracker.jsx`, `ProjectTitleCard.jsx`, and `ProjectDetailPage.jsx` to eliminate the ghost phase issue.
+     - Hardened backend `project.service.js:advancePhase` to reject transition to Phase 3 with HTTP 400 `ADM_NOT_APPROVED` when ADM is pending, and added `_normalizeProjectADMPhase` in `getProject`/`getMyProject` to keep API and UI strictly synchronized.
+  2. Sequential Chapter Revision Blocking:
+     - Learned lesson: In `submission.service.js:uploadChapter`, querying previous chapter status with `$in` on historical documents allowed students to submit Chapter 2 even when their latest Chapter 1 revision required changes.
+     - Refactored `uploadChapter` to strictly sort by latest revision (`.sort({ version: -1 })`) and assert `[LOCKED, APPROVED, ACCEPTED]`. If previous chapter is unapproved, returns HTTP 400 `CHAPTER{prevChapter}_NOT_APPROVED`.
+     - Updated `ChapterReviewPanel.jsx` to map `SUBMISSION_STATUSES.ACCEPTED` to `Approved ✓`, and added inline blocking alerts and disabled select options in `ChapterUploadPage.jsx`.
+  3. Interactive Drag-and-Drop Defense Calendar & 1st Round Scheduling:
+     - Learned lesson: Defaulting to "1st Round (Standard Defense)" and standardizing 1-hour time blocks directly aligns the scheduling engine with institutional BukSU capstone defense protocol.
+     - Refactored `DefenseSchedulingPage.jsx` into an interactive calendar-first command center with weekly navigation (`Prev Week`, `Current Week`, `Next Week`), 1-hour time slots (`08:00 AM - 09:00 AM` to `04:00 PM - 05:00 PM`), HTML5 drag-and-drop scheduling & rescheduling across slot cells, and an "Awaiting Scheduling" draggable tray.
+     - Standardized `ScheduleDefenseModal.jsx` to default unscheduled hearings to `1st` round and `09:00 AM - 10:00 AM` with 1-hour preset pills.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When checking phase progression requirements, never trust raw `capstonePhase` without validating prerequisite phase completion gates (such as `isADMApproved` for Capstone 2 -> Capstone 3).
+  2. Prevention rule: Versioned document approval checks must always query the latest document version (`.sort({ version: -1 }).limit(1)`), never loose `$in: [STATUSES]` across unversioned queries.
+  3. Prevention rule: Defense hearings scheduled for the first time must strictly default to `1st` round (`1st Round (Standard Defense)`). Only keep existing rounds when rescheduling an already `scheduled` hearing.
+  4. Checklist, Runbook & Evidence:
+     - 9/9 client unit tests passed (`CapstoneWorkflowStepper.test.jsx`: 3/3, `DefenseSchedulingPage.test.jsx`: 6/6).
+     - 9/9 server unit tests passed (`submission.review-flow.test.js`: 6/6, `admAutoProgression.test.js`: 3/3).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace cleanliness guardrail passed cleanly.
+     - Full 11-screenshot Playwright visual feedback loop passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_adm_gate_and_defense_calendar.mjs`.
+
+### 2026-09-12: Fluid Defense Scheduler for Project Workspace: 5-Minute Continuous Timeline, Rapid Mini-Calendar Popover & Team Leader Hierarchy
+- Context & Architectural Impact:
+  1. Continuous 648px Timeline & Mathematical Quantum:
+     - Shifted from rigid table rows to a continuous timeline spanning 9 hours (8:00 AM – 5:00 PM) at 72px per hour, totaling exactly 648px height.
+     - Established integer snap math: 6px per 5-minute quantum (`PIXELS_PER_MINUTE = 1.2`).
+     - Live Ghost Drop Indicator: As the user drags across day columns, `dragOverState` computes $\text{snappedMinutes} = \text{round}((\Delta Y / 72) \times 60 / 5) \times 5$, rendering a semi-transparent preview block with dynamic time and duration.
+     - Dynamic 5-Minute Resize Handle: Each scheduled hearing card features a bottom-edge handle (`cursor-ns-resize`, `h-2 w-full`) allowing instructors to extend hearing duration in 6px (5-minute) increments (e.g. 1H 00M -> 1H 15M -> 1H 30M).
+  2. Rapid "Jump-To" Date Navigation & Mini-Calendar Popover:
+     - Replaced static week text with an interactive Header Button showing the formatted active date span (e.g. `Sep 7 – Sep 11, 2026`).
+     - Integrated a Mini-Calendar Popover with 1-click month navigation (`<` / `>`), active week highlighting, a "Jump to Today" shortcut button, and outside-click dismissal.
+  3. Team Leader Visual Hierarchy:
+     - Learned lesson: `server/modules/projects/project.service.js` already deeply populates `teamId.leaderId` (`firstName`, `middleName`, `lastName`, `email`).
+     - Displayed the team leader's full name with `<User className="h-3 w-3 text-primary shrink-0" />` directly beneath the project title and above the adviser attribution on both the Awaiting Scheduling tray cards and scheduled timeline cards.
+  4. Local Date Key Normalization:
+     - Learned lesson: JavaScript `Date.toISOString()` converts local midnight (00:00 GMT+8) to 16:00 UTC the previous day, causing calendar columns to render with a -1 day mismatch.
+     - Solved with `toLocalDateKey(d)` using `d.getFullYear()`, `d.getMonth() + 1`, and `d.getDate()` to generate a consistent local `YYYY-MM-DD` string.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always use local date component extraction (`toLocalDateKey`) instead of `toISOString().split('T')[0]` when generating calendar day keys or comparing dates.
+  2. Prevention rule: When declaring React functional components with custom query hooks and downstream event listeners, always declare custom hooks (e.g. `useProjects`) at the top of the component before any `useEffect` that references its returned methods (`refetchProjects`) to prevent Temporal Dead Zone `ReferenceError`.
+  3. Prevention rule: In Mongoose models with subdocuments (e.g. `defenseSchedule`), use `findByIdAndUpdate(id, { $set: { defenseSchedule } })` to isolate subdocument mutations from legacy schema validation failures on older seeded documents.
+  4. Checklist, Runbook & Evidence:
+     - 8/8 client unit tests passed (`DefenseSchedulingPage.test.jsx`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace cleanliness guardrail passed cleanly.
+     - Full 7-screenshot Playwright visual audit passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_fluid_scheduler.mjs` verifying continuous timeline, mini-calendar popover, scheduled blocks, and team leader visual hierarchy.
+
+### 2026-09-12: Direct Drag-and-Drop Defense Scheduling, 30-Minute Standard Quantum, Team Leader Hierarchy & Strict Designated ADM Signatories
+- Context & Architectural Impact:
+  1. Direct Drag-and-Drop Scheduling & Overlap Collision Guard:
+     - Shifted from opening a confirmation modal on drop to direct defense hearing scheduling at the 5-minute snapped slot.
+     - Implemented accidental collision detection checking `scheduledByDateMap.get(dateStr)`: If a dropped 30-min window overlaps with another scheduled hearing, the drop is rejected with an informative warning toast (`Time slot conflict: "[Team Name]" is already scheduled at [Time]. Please choose an open slot.`), safeguarding confirmed schedules from inadvertent cascade shifts.
+  2. Optimistic UI Updates & Instant Snap:
+     - Learned lesson: Dropping cards onto the timeline should provide zero-latency tactile feedback. Using `queryClient.setQueryData` snapshots the previous cache and updates local project state instantly, automatically rolling back and triggering an error toast if `projectService.scheduleDefense` fails.
+  3. 30-Minute Standard Duration Quantum (36px Height Block Optimization):
+     - Standardized default hearing duration to 30 minutes (36px at 1.2px/min).
+     - Solved the tight 36px vertical constraint using a 2-line flex layout with strict `leading-[1.2]`, `whitespace-nowrap`, `truncate`, duration badge (`30 MIN`), round badge (`1ST RND`), unclipped `Lead: [Name]`, venue, and low-profile resize handle (`h-1.5`).
+     - Wrapped scheduled blocks in rich multi-line tooltips to display full team details, leader, venue, and time slot without resizing.
+  4. Universal "Capstone" Terminology & Leader Display:
+     - Universally replaced "Phase" with "Capstone" across all filters (`All Capstones`, `Capstone 1..4`), table headers (`Section / Capstone`), and cards.
+     - Added `Lead: [Name]` across timeline blocks, tray cards, Table View, and Grid View.
+  5. Strict Designated-Person-Only ADM Signatories:
+     - Abstracted backend signatory validation into reusable middleware `verifyAdmSignatoryRole` in `server/middleware/authorize.js`.
+     - Attached middleware to `POST /:projectId/signatures` and `POST /:projectId/adm-signatures`.
+     - Strictly enforced institutional segregation of duties: Secretary (endorsement gate), Adviser (Tier 1), Section Course Instructor (Tier 1), Panelists 1 & 2 (Tier 2), and Chair (Tier 3). Course instructors cannot sign committee slots.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In drag-and-drop calendar interfaces with direct drop scheduling, always guard against timeslot collisions on the client before dispatching mutations, and reject conflicts with an explicit warning toast rather than shifting subsequent hearings.
+  2. Prevention rule: For tight vertical constraints (36px for 30m blocks), use strict line-height (`leading-[1.2]`), `whitespace-nowrap`, and CSS `truncate` paired with hover tooltips so critical information is never occluded or clipped.
+  3. Prevention rule: ADM digital signatures must enforce designated appointment matching on both frontend UI (hiding/disabling sign buttons) and backend routes (`verifyAdmSignatoryRole`) to prevent unauthorized cross-signing.
+  4. Checklist, Runbook & Evidence:
+     - 12/12 client unit tests passed (`DefenseSchedulingPage.test.jsx`).
+     - 6/6 client unit tests passed (`ActionDoneMatrixTab.test.jsx`).
+     - 15/15 server unit and integration tests passed (`admAutoProgression.test.js`, `adm-compliance.test.js`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace cleanliness guardrail passed cleanly.
+     - Full 8-screenshot Playwright visual feedback loop passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_fluid_scheduler_and_adm_signatories.mjs` and `scratch/capture_signatories_board.mjs`.

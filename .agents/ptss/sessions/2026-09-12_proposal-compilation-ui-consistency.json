@@ -1,0 +1,25 @@
+{
+  "session_id": "2026-09-12_proposal-compilation-ui-consistency",
+  "timestamp": "2026-09-12T08:19:00.000Z",
+  "task": "Redesign Proposal Compilation page UI to ensure institutional consistency: replace raw database enums with TitleStatusBadge and ProjectStatusBadge, replace unstyled native file input with interactive drag-and-drop dropzone with selected file card and client validation, add 3-chapter manuscript readiness breakdown (Chapters 1-3), enhance remarks and animated progress bar, and apply design system tokens.",
+  "outcome": "completed",
+  "files_modified": [
+    "client/src/pages/submissions/ProposalCompilationPage.jsx",
+    "client/src/pages/submissions/ProposalCompilationPage.test.jsx",
+    "scratch/audit_proposal_compilation.mjs",
+    "memories/repo/lessons/2026-09-12-proposal-compilation-ui-consistency.md"
+  ],
+  "key_decisions": [
+    "Standardized Status Badges: Replaced raw database text like 'Project pending_for_submission' with ProjectStatusBadge ('Pending for Submission') and 'Title approved' with TitleStatusBadge ('Approved'), along with academic year and Capstone 2 Proposal badges.",
+    "Interactive Drag-and-Drop Dropzone: Replaced unstyled native file input with canonical BukSU CMS-V2 dropzone with drag events, 25MB validation, PDF/Word acceptance, and selected file preview card with remove action.",
+    "Chapter-by-Chapter Readiness Strip: Disaggregated single opaque checkmark into individual status chips for Chapter 1 (Introduction), Chapter 2 (Literature Review), and Chapter 3 (Methodology) with rounds and approval badges.",
+    "Defensive Entity Prefix Normalization: Sanitized team names using regex to avoid duplicate prefixes like 'Team Team'."
+  ],
+  "verification_results": {
+    "endpoints_parity": "SERVER_COUNT=204, CLIENT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "client_unit_tests": "src/pages/submissions/ProposalCompilationPage.test.jsx (4/4 passed), src/pages/submissions/ProjectSubmissionsPage.test.jsx (3/3 passed)",
+    "workspace_cleanliness": "workspace_guardrail.py passed (pristine workspace)",
+    "playwright_visual_audit": "6 visual audit screenshots captured and verified across desktop (1440x900) and mobile (390x844) viewports in light and dark modes"
+  }
+}

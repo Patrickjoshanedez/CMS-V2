@@ -23,6 +23,7 @@ import {
   Upload,
   Search,
   FileSignature,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useMyProject } from '@/hooks/useProjects';
@@ -100,6 +101,13 @@ const instructorNavItems = [
     label: 'Instructor Review',
     icon: ClipboardCheck,
     path: '/projects',
+    section: 'workspace',
+  },
+  {
+    id: 'defense-scheduling',
+    label: 'Defense Scheduling',
+    icon: CalendarClock,
+    path: '/defense-schedule',
     section: 'workspace',
   },
   {
