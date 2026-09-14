@@ -50,6 +50,7 @@ export default function ActionDoneMatrixTab({
   isStudent = false,
   user,
   onRefresh,
+  initialMilestone,
 }) {
   // Local state for immediate responsiveness & autosave
   const [rows, setRows] = useState([]);
@@ -59,13 +60,20 @@ export default function ActionDoneMatrixTab({
 
   // Milestone revision scoping (Capstone 2, Capstone 3, Capstone 4)
   const defaultMilestone = useMemo(() => {
+    if (initialMilestone) return initialMilestone;
     const phase = Number(project?.capstonePhase ?? project?.phase ?? 2);
     if (phase >= 4) return 'CAPSTONE_4';
     if (phase === 3) return 'CAPSTONE_3';
     return 'CAPSTONE_2';
-  }, [project?.capstonePhase, project?.phase]);
+  }, [initialMilestone, project?.capstonePhase, project?.phase]);
 
   const [selectedMilestone, setSelectedMilestone] = useState(defaultMilestone);
+
+  useEffect(() => {
+    if (initialMilestone) {
+      setSelectedMilestone(initialMilestone);
+    }
+  }, [initialMilestone]);
 
   const displayedRows = useMemo(() => {
     if (selectedMilestone === 'ALL') return rows;
@@ -219,6 +227,9 @@ export default function ActionDoneMatrixTab({
     project?.sectionId?.createdBy ||
     project?.teamId?.sectionId?.instructorId ||
     project?.teamId?.sectionId?.createdBy ||
+    project?.teamId?.leaderId?.instructorId ||
+    project?.leaderId?.instructorId ||
+    project?.instructorId ||
     (user?.role === ROLES.INSTRUCTOR ? user : null);
 
   const admSignatures = project?.admSignatures || {};
@@ -258,12 +269,16 @@ export default function ActionDoneMatrixTab({
       ));
   const isUserAdviser = user && (adviser?._id === user._id || String(adviser) === String(user._id));
   const isUserInstructor = user && user.role === ROLES.INSTRUCTOR;
+  const isCurrentUserStudent = Boolean(isStudent || user?.role === ROLES.STUDENT);
 
   const designatedInstructorUser =
     project?.sectionId?.instructorId ||
     project?.sectionId?.createdBy ||
     project?.teamId?.sectionId?.instructorId ||
-    project?.teamId?.sectionId?.createdBy;
+    project?.teamId?.sectionId?.createdBy ||
+    project?.teamId?.leaderId?.instructorId ||
+    project?.leaderId?.instructorId ||
+    project?.instructorId;
   const designatedInstructorId = designatedInstructorUser?._id || designatedInstructorUser;
   const isUserDesignatedInstructor = Boolean(
     user &&
@@ -277,6 +292,10 @@ export default function ActionDoneMatrixTab({
   const canManageLiveMinutes = isUserSecretary || isUserChair || isUserInstructor || isFaculty;
   const canAddRow = isFaculty || isUserPanelist || isUserInstructor;
   const canSeedTemplate = isFaculty || isUserInstructor;
+  const canManageReviewType = Boolean(
+    (isFaculty || isUserInstructor || isUserChair || isUserSecretary || isUserPanelist) &&
+    !isCurrentUserStudent,
+  );
 
   const defenseType = useMemo(() => {
     if (selectedMilestone === 'CAPSTONE_4') return 'final';
@@ -802,24 +821,44 @@ export default function ActionDoneMatrixTab({
             </div>
 
             <div className="flex items-center gap-6 text-xs sm:text-sm">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label
+                className={cn(
+                  'flex items-center gap-2 select-none',
+                  canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
+                )}
+              >
                 <input
+                  id="review-internal"
                   type="checkbox"
                   checked={reviewType === 'internal'}
-                  onChange={() => handleToggleReviewType('internal')}
-                  className="h-4 w-4 rounded border-black text-primary focus:ring-primary"
+                  disabled={!canManageReviewType}
+                  onChange={() => canManageReviewType && handleToggleReviewType('internal')}
+                  className={cn(
+                    'h-4 w-4 rounded border-black text-primary focus:ring-primary',
+                    !canManageReviewType && 'cursor-default',
+                  )}
                 />
                 <span className="font-medium text-foreground print:text-black">
                   Internal Review
                 </span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label
+                className={cn(
+                  'flex items-center gap-2 select-none',
+                  canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
+                )}
+              >
                 <input
+                  id="review-external"
                   type="checkbox"
                   checked={reviewType === 'external'}
-                  onChange={() => handleToggleReviewType('external')}
-                  className="h-4 w-4 rounded border-black text-primary focus:ring-primary"
+                  disabled={!canManageReviewType}
+                  onChange={() => canManageReviewType && handleToggleReviewType('external')}
+                  className={cn(
+                    'h-4 w-4 rounded border-black text-primary focus:ring-primary',
+                    !canManageReviewType && 'cursor-default',
+                  )}
                 />
                 <span className="font-medium text-foreground print:text-black">
                   External Review
@@ -844,8 +883,12 @@ export default function ActionDoneMatrixTab({
           {displayedRows.length === 0 ? (
             <div className="p-8 text-center text-xs sm:text-sm text-muted-foreground italic">
               {rows.length === 0
-                ? 'No recommendations recorded yet. Click "Add Row" or "Load Institutional Template" to begin.'
-                : `No recommendations recorded for ${selectedMilestone.replace('_', ' ')}. Switch phase scope or click "Add Row" to append an item.`}
+                ? isCurrentUserStudent
+                  ? 'No recommendations recorded yet by the defense committee or panel.'
+                  : 'No recommendations recorded yet. Click "Add Row" or "Load Institutional Template" to begin.'
+                : isCurrentUserStudent
+                  ? `No recommendations recorded for ${selectedMilestone.replace('_', ' ')} yet.`
+                  : `No recommendations recorded for ${selectedMilestone.replace('_', ' ')}. Switch phase scope or click "Add Row" to append an item.`}
             </div>
           ) : (
             <div className="divide-y divide-black dark:divide-border print:divide-black">

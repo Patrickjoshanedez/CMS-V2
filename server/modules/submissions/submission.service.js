@@ -1953,6 +1953,7 @@ class SubmissionService {
         .skip(skip)
         .limit(limit)
         .populate('submittedBy', 'firstName middleName lastName email')
+        .populate('reviewedBy', 'firstName middleName lastName email')
         .lean(),
       Submission.countDocuments(filter),
     ]);

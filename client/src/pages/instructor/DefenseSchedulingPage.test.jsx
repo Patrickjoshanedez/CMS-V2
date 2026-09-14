@@ -458,4 +458,53 @@ describe('DefenseSchedulingPage', () => {
       expect(container.querySelector('[data-testid="schedule-defense-modal"]')).toBeNull();
     }
   });
+
+  it('unschedules hearing and returns it to awaiting scheduling when dropped on tray', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const tray = container.querySelector('[data-testid="awaiting-scheduling-tray"]');
+    expect(tray).not.toBeNull();
+
+    const dropEvent = new Event('drop', { bubbles: true, cancelable: true });
+    Object.assign(dropEvent, {
+      dataTransfer: {
+        getData: vi.fn().mockReturnValue(JSON.stringify({ projectId: 'proj-2' })),
+      },
+    });
+
+    await act(async () => {
+      tray.dispatchEvent(dropEvent);
+    });
+
+    expect(mockScheduleDefense).toHaveBeenCalledWith(
+      'proj-2',
+      expect.objectContaining({
+        status: 'pending_scheduling',
+        date: null,
+      }),
+    );
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      expect.stringContaining('returned to Awaiting Scheduling'),
+    );
+  });
+
+  it('allows typing a custom meeting duration in the duration input', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const durationInput = container.querySelector('[data-testid="defense-duration-input"]');
+    expect(durationInput).not.toBeNull();
+    expect(durationInput.value).toBe('30');
+
+    await act(async () => {
+      durationInput.value = '45';
+      durationInput.dispatchEvent(new Event('input', { bubbles: true }));
+      durationInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(durationInput.value).toBe('45');
+  });
 });

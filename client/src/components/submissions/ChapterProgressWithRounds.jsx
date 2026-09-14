@@ -11,7 +11,6 @@ import {
   ClipboardList,
   Clock,
   FileText,
-  Lock,
   Upload,
   Eye,
 } from 'lucide-react';
@@ -65,18 +64,37 @@ function formatDate(value) {
   });
 }
 
-function reviewerName(reviewer) {
-  if (!reviewer) return '—';
-  const fullName = [reviewer.firstName, reviewer.middleName, reviewer.lastName]
-    .filter(Boolean)
-    .join(' ');
-  return fullName || reviewer.email || '—';
+function reviewerName(reviewer, project) {
+  if (reviewer && typeof reviewer === 'object') {
+    const fullName =
+      reviewer.fullName ||
+      [reviewer.firstName, reviewer.middleName, reviewer.lastName].filter(Boolean).join(' ') ||
+      reviewer.name;
+    if (fullName) return fullName;
+    if (reviewer.email) return reviewer.email;
+  }
+
+  // Fallback to assigned project adviser
+  const adviser = project?.adviserId || project?.teamId?.adviserId;
+  if (adviser && typeof adviser === 'object') {
+    const advName =
+      adviser.fullName ||
+      [adviser.firstName, adviser.middleName, adviser.lastName].filter(Boolean).join(' ') ||
+      adviser.name;
+    if (advName) {
+      return reviewer ? advName : `${advName} (Assigned Adviser)`;
+    }
+    if (adviser.email) return adviser.email;
+  }
+
+  return 'Awaiting Adviser Review';
 }
 
 /**
  * Keeps chapter status cards while adding per-round tabs under each chapter.
  */
 export default function ChapterProgressWithRounds({
+  project,
   submissions,
   chapters = [1, 2, 3],
   title = 'Chapter Progress',
@@ -224,7 +242,7 @@ export default function ChapterProgressWithRounds({
                               {round.reviewNote || 'No adviser comment yet.'}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Reviewer: {reviewerName(round.reviewedBy)}
+                              Reviewer: {reviewerName(round.reviewedBy, project)}
                             </p>
                           </div>
 

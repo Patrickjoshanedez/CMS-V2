@@ -74,6 +74,7 @@ export default function UploadChapterModal({
   latestSubmission = null,
   deadlines = {},
   onUploadSuccess = null,
+  isCap2ADMApproved = true,
 }) {
   const [chapter, setChapter] = useState(initialChapter);
   const [file, setFile] = useState(null);
@@ -85,13 +86,14 @@ export default function UploadChapterModal({
   // Sync initialChapter when modal opens
   useEffect(() => {
     if (isOpen) {
-      setChapter(initialChapter);
+      const validInitial = !isCap2ADMApproved && initialChapter >= 4 ? 1 : initialChapter;
+      setChapter(validInitial);
       setFile(null);
       setRemarks('');
       setClientError('');
       setUploadProgress(0);
     }
-  }, [isOpen, initialChapter]);
+  }, [isOpen, initialChapter, isCap2ADMApproved]);
 
   // Handle escape key to close
   useEffect(() => {
@@ -308,11 +310,15 @@ export default function UploadChapterModal({
                 disabled={isSubmitting}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {[1, 2, 3, 4, 5].map((ch) => (
-                  <option key={ch} value={ch}>
-                    Chapter {ch}: {CHAPTER_TITLES[ch]}
-                  </option>
-                ))}
+                {[1, 2, 3, 4, 5].map((ch) => {
+                  const isLockedCh = ch >= 4 && !isCap2ADMApproved;
+                  return (
+                    <option key={ch} value={ch} disabled={isLockedCh}>
+                      Chapter {ch}: {CHAPTER_TITLES[ch]}
+                      {isLockedCh ? ' (Locked — Requires Capstone 2 ADM Approval)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             )}
           </div>
@@ -500,4 +506,5 @@ UploadChapterModal.propTypes = {
   latestSubmission: PropTypes.object,
   deadlines: PropTypes.object,
   onUploadSuccess: PropTypes.func,
+  isCap2ADMApproved: PropTypes.bool,
 };

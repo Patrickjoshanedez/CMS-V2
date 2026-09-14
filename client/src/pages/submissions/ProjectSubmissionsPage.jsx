@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -13,11 +14,13 @@ import UploadChapterModal from '@/components/submissions/UploadChapterModal';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
+import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
 import { useMyProject, useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useAuthStore } from '@/stores/authStore';
 import { DOCUMENT_TYPES, ROLES, SUBMISSION_STATUSES, TITLE_STATUSES } from '@cms/shared';
+import { cn } from '@/lib/utils';
 import {
   FileText,
   Upload,
@@ -26,13 +29,18 @@ import {
   Loader2,
   Clock,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Code,
   TestTube,
   CheckCircle2,
   Paintbrush,
   LineChart,
+  FileSpreadsheet,
+  ShieldCheck,
   Layers,
   Sparkles,
+  Lock,
   X,
 } from 'lucide-react';
 
@@ -138,6 +146,143 @@ function ProposalSection({ submissions, canCompile, isReadOnly, searchSuffix }) 
   );
 }
 
+/* ────────── Action Done Matrix (ADM) Card ────────── */
+
+function ActionDoneMatrixSection({
+  project,
+  onOpenModal,
+  isInlineOpen,
+  onToggleInline,
+  isStudent,
+  isFaculty,
+  user,
+  onRefresh,
+}) {
+  const rows = project?.actionDoneMatrix || [];
+  const capstone2Rows = rows.filter((r) => !r.milestone || r.milestone === 'CAPSTONE_2');
+  const verifiedCount = capstone2Rows.filter((r) => r.status === 'verified').length;
+  const isApproved = project?.admStatus === 'approved';
+  const isSecretaryEndorsed = Boolean(project?.admSignatures?.secretary?.endorsed);
+  const isSubmitted = project?.admStatus === 'submitted';
+
+  return (
+    <Card
+      className={cn(
+        'transition-colors duration-200',
+        capstone2Rows.length > 0 || isApproved
+          ? 'border-primary/20 bg-primary/[0.02]'
+          : 'border-border/70 bg-card/40',
+      )}
+      data-testid="adm-section-card"
+    >
+      <CardContent className="p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
+              <FileSpreadsheet className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">Action Done Matrix (ADM)</p>
+                <Badge
+                  variant="outline"
+                  className="font-mono text-[10px] text-muted-foreground border-border/60"
+                >
+                  v1 Midterm
+                </Badge>
+                {isApproved ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 text-[10px] font-medium">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Approved
+                  </Badge>
+                ) : isSecretaryEndorsed ? (
+                  <Badge className="bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30 gap-1 text-[10px] font-medium">
+                    <ShieldCheck className="h-3 w-3" />
+                    Secretary Endorsed
+                  </Badge>
+                ) : isSubmitted ? (
+                  <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-1 text-[10px] font-medium">
+                    <Clock className="h-3 w-3" />
+                    Under Review
+                  </Badge>
+                ) : capstone2Rows.length > 0 ? (
+                  <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 text-[10px] font-medium">
+                    <Clock className="h-3 w-3" />
+                    In Progress
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="text-muted-foreground border-border/60 text-[10px]"
+                  >
+                    Defense Revisions
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {capstone2Rows.length > 0
+                  ? `${capstone2Rows.length} panel remarks recorded • ${verifiedCount}/${capstone2Rows.length} verified by committee • Multi-signatory sign-off`
+                  : 'Official BukSU Form RU-F-033 for midterm defense panel remarks, action taken citations, and committee sign-off.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleInline}
+              className="gap-1.5 text-xs border-border/60 hover:bg-muted"
+              data-testid="toggle-adm-inline-btn"
+              aria-expanded={isInlineOpen}
+              aria-label={isInlineOpen ? 'Collapse ADM Matrix' : 'Expand ADM Matrix'}
+            >
+              {isInlineOpen ? (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                  <span>Collapse</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  <span>Expand Inline</span>
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenModal}
+              className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
+              data-testid="view-adm-btn"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
+              <span>View ADM</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Inline Expanded ADM Viewer */}
+        {isInlineOpen && (
+          <div
+            className="pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2 duration-200"
+            data-testid="adm-inline-container"
+          >
+            <ActionDoneMatrixTab
+              project={project}
+              isStudent={isStudent}
+              isFaculty={isFaculty}
+              user={user}
+              onRefresh={onRefresh}
+              initialMilestone="CAPSTONE_2"
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ────────── Empty State ────────── */
 
 function EmptySubmissionsState({ canUpload, canCompileProposal }) {
@@ -179,12 +324,16 @@ export default function ProjectSubmissionsPage() {
   const [searchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isStudent = user?.role === ROLES.STUDENT;
-  const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST].includes(user?.role);
+  const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(
+    user?.role,
+  );
   const mode = searchParams.get('mode');
   const targetProjectId = searchParams.get('projectId') || '';
   const isReadOnlyMode = mode === 'view' && Boolean(targetProjectId);
   const hasTeam = Boolean(user?.teamId);
   const [showGanttModal, setShowGanttModal] = useState(false);
+  const [showAdmModal, setShowAdmModal] = useState(false);
+  const [isAdmInlineExpanded, setIsAdmInlineExpanded] = useState(false);
   const [uploadModalConfig, setUploadModalConfig] = useState({
     isOpen: false,
     chapter: 1,
@@ -283,6 +432,45 @@ export default function ProjectSubmissionsPage() {
   });
   const canCompileProposal =
     isStudent && !isReadOnlyMode && titleApproved && chaptersReadyForProposal && !hasProposal;
+
+  const isCap2ADMApproved =
+    activeProject?.admStatus === 'approved' ||
+    (Boolean(activeProject?.admSignatures?.secretary?.endorsed) &&
+      Boolean(activeProject?.admSignatures?.adviser?.signed) &&
+      Boolean(activeProject?.admSignatures?.chair?.signed));
+
+  const all5ChaptersApproved = [1, 2, 3, 4, 5].every((ch) => {
+    const sub = latestChapterSubmissions.get(ch);
+    return (
+      sub &&
+      [
+        SUBMISSION_STATUSES.LOCKED,
+        SUBMISSION_STATUSES.APPROVED,
+        SUBMISSION_STATUSES.ACCEPTED,
+      ].includes(sub.status)
+    );
+  });
+
+  const numericPhase = Number(activeProject?.capstonePhase ?? activeProject?.phase ?? 0);
+  const isCap3ADMApproved =
+    numericPhase >= 4 ||
+    (activeProject?.admStatus === 'approved' &&
+      Boolean(activeProject?.actionDoneMatrix?.some((r) => r.milestone === 'CAPSTONE_3')));
+
+  const canUnlockCapstone4 = Boolean(
+    isStudent &&
+    !isReadOnlyMode &&
+    titleApproved &&
+    all5ChaptersApproved &&
+    isCap2ADMApproved &&
+    (numericPhase >= 4 || isCap3ADMApproved),
+  );
+
+  const capstone4LockMessage = !isCap2ADMApproved
+    ? 'Capstone 4 Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.'
+    : !all5ChaptersApproved
+      ? 'Capstone 4 Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.'
+      : 'Capstone 4 Final Paper Submission unlocks after your Capstone 3 Action Done Matrix (ADM v2) is approved and signed by the committee.';
 
   const searchSuffix = isReadOnlyMode
     ? `?mode=view&projectId=${encodeURIComponent(activeProject?._id || '')}`
@@ -404,6 +592,7 @@ export default function ProjectSubmissionsPage() {
   /* ────── Can-upload per chapter ────── */
   function canUploadChapter(chapterNum) {
     if (!canUpload) return false;
+    if (chapterNum >= 4 && !isCap2ADMApproved) return false;
     if (chapterNum > 1) {
       const prev = latestChapterSubmissions.get(chapterNum - 1);
       const isApprovedOrLocked =
@@ -440,6 +629,16 @@ export default function ProjectSubmissionsPage() {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdmModal(true)}
+              className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
+              data-testid="toolbar-open-adm-btn"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-primary" />
+              <span>Action Done Matrix</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -503,6 +702,18 @@ export default function ProjectSubmissionsPage() {
                 compilation into the official Proposal Document.
               </p>
             </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdmModal(true)}
+                className="gap-1.5 text-xs border-border/60 hover:bg-muted font-medium"
+                data-testid="capstone2-open-adm-btn"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-primary" />
+                <span>Open Action Done Matrix</span>
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -530,6 +741,21 @@ export default function ProjectSubmissionsPage() {
             canCompile={canCompileProposal}
             isReadOnly={isReadOnlyMode}
             searchSuffix={searchSuffix}
+          />
+
+          {/* Action Done Matrix (ADM) Card */}
+          <ActionDoneMatrixSection
+            project={activeProject}
+            onOpenModal={() => setShowAdmModal(true)}
+            isInlineOpen={isAdmInlineExpanded}
+            onToggleInline={() => setIsAdmInlineExpanded((prev) => !prev)}
+            isStudent={isStudent}
+            isFaculty={isFaculty}
+            user={user}
+            onRefresh={() => {
+              refetchProject?.();
+              refetchSubs?.();
+            }}
           />
         </div>
 
@@ -588,6 +814,20 @@ export default function ProjectSubmissionsPage() {
                 System Results &amp; Conclusions (Chapters 4–5)
               </h3>
             </div>
+
+            {!isCap2ADMApproved && isStudent && !isReadOnlyMode && (
+              <Alert
+                className="mb-3 border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                data-testid="capstone3-prerequisite-alert"
+              >
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <AlertDescription>
+                  Capstone 3 chapter uploads (Chapters 4 &amp; 5) unlock after your Capstone 2
+                  Action Done Matrix (ADM v1) is approved and signed by the defense committee.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid gap-3 sm:grid-cols-2">
               {[4, 5].map((ch) => (
                 <ChapterCard
@@ -595,7 +835,10 @@ export default function ProjectSubmissionsPage() {
                   chapterNumber={ch}
                   submission={latestChapterSubmissions.get(ch)}
                   deadline={chapterDeadlineMap[ch]}
-                  isLocked={latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED}
+                  isLocked={
+                    latestChapterSubmissions.get(ch)?.status === SUBMISSION_STATUSES.LOCKED ||
+                    (ch >= 4 && !isCap2ADMApproved)
+                  }
                   canUpload={canUploadChapter(ch)}
                   isStudent={isStudent}
                   isReadOnly={isReadOnlyMode}
@@ -631,56 +874,133 @@ export default function ProjectSubmissionsPage() {
             </div>
           </div>
 
-          <FinalPaperUpload projectId={activeProject._id} />
+          {!canUnlockCapstone4 && isStudent && !isReadOnlyMode && (
+            <Alert
+              className="border-border/70 bg-muted/40"
+              data-testid="capstone4-prerequisite-alert"
+            >
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <AlertDescription className="text-xs text-muted-foreground font-medium">
+                {capstone4LockMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <FinalPaperUpload
+            projectId={activeProject._id}
+            isLocked={!canUnlockCapstone4}
+            lockMessage={capstone4LockMessage}
+          />
         </div>
 
-        {/* Full Interactive Academic Gantt Chart Dialog */}
-        {showGanttModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="academic-gantt-dialog-title"
-          >
-            <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <LineChart className="h-4 w-4" />
+        {/* Full Action Done Matrix (ADM) Viewer Dialog */}
+        {showAdmModal &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="adm-viewer-dialog-title"
+            >
+              <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <FileSpreadsheet className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3
+                        id="adm-viewer-dialog-title"
+                        className="text-base font-bold text-foreground"
+                      >
+                        Capstone 2: Action Done Matrix (ADM)
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Official BukSU Form RU-F-033 — Panel Recommendations, Action Taken, and
+                        Committee Digital Signatures.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3
-                      id="academic-gantt-dialog-title"
-                      className="text-base font-bold text-foreground"
-                    >
-                      Capstone 3: Interactive Academic Gantt Chart
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and Instant
-                      Excel (.xls) Export.
-                    </p>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowAdmModal(false)}
+                    aria-label="Close ADM Dialog"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowGanttModal(false)}
-                  aria-label="Close Gantt Dialog"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
 
-              <div className="flex-1 overflow-y-auto pt-4 min-h-0">
-                <InteractiveGanttChart
-                  project={activeProject}
-                  isReadOnly={!isStudent && !isFaculty}
-                />
+                <div className="flex-1 overflow-y-auto pt-4 min-h-0">
+                  <ActionDoneMatrixTab
+                    project={activeProject}
+                    isStudent={isStudent}
+                    isFaculty={isFaculty}
+                    user={user}
+                    onRefresh={() => {
+                      refetchProject?.();
+                      refetchSubs?.();
+                    }}
+                    initialMilestone="CAPSTONE_2"
+                  />
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body,
+          )}
+
+        {/* Full Interactive Academic Gantt Chart Dialog */}
+        {showGanttModal &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="academic-gantt-dialog-title"
+            >
+              <div className="relative flex flex-col w-full max-w-7xl max-h-[92vh] rounded-xl border border-border/80 bg-card p-4 sm:p-6 shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <LineChart className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3
+                        id="academic-gantt-dialog-title"
+                        className="text-base font-bold text-foreground"
+                      >
+                        Capstone 3: Interactive Academic Gantt Chart
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Live BukSU Gantt Chart with Academic Excel View, Sprint Progress, and
+                        Instant Excel (.xls) Export.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowGanttModal(false)}
+                    aria-label="Close Gantt Dialog"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pt-4 min-h-0">
+                  <InteractiveGanttChart
+                    project={activeProject}
+                    isReadOnly={!isStudent && !isFaculty}
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
 
         {/* Upload & Revision Modal */}
         <UploadChapterModal
@@ -691,6 +1011,7 @@ export default function ProjectSubmissionsPage() {
           projectId={activeProject._id}
           latestSubmission={uploadModalConfig.submission}
           deadlines={activeProject.deadlines}
+          isCap2ADMApproved={isCap2ADMApproved}
           onUploadSuccess={() => {
             refetchSubs();
             refetchProject?.();

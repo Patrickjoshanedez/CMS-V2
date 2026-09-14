@@ -1907,3 +1907,112 @@
      - Governance validation verified: 0 errors, 0 warnings.
      - Workspace guardrail verified: pristine workspace.
      - Playwright visual audit verified across Desktop Light/Dark and Mobile Light/Dark viewports.
+
+### 2026-09-14: Action Done Matrix (ADM) Compliance Report Zero-Loader Readiness Pipeline & Deterministic Hydration Verification
+- Context & Architectural Impact:
+  1. Elimination of Premature Screenshots:
+     - Learned lesson: Automated report generation scripts previously captured viewport snapshots immediately after basic selector queries, capturing active loading screens (`Initializing session...`), `.animate-spin` spinners, and skeleton shimmer placeholders (`PageSkeleton`).
+     - Implemented an exhaustive 7-stage deterministic readiness verification pipeline (`ensureLoaded`) in `scripts/generate_adm_compliance_report.mjs`:
+       * Stage 1: Explicit target UI selector presence (`waitForSelector(uiSelector, { state: 'visible' })`).
+       * Stage 2: DOM-wide session loading screen eradication (asserting `document.querySelector('.loading-screen')` is null).
+       * Stage 3: Zero active spinners (`.animate-spin`).
+       * Stage 4: Zero genuine skeleton loaders (`[data-testid="page-skeleton"], [aria-busy="true"], .cms-skeleton-shimmer, [data-skeleton]`), explicitly ignoring decorative live status pulse dots (`h-2 w-2 rounded-full`).
+       * Stage 5: Zero in-page "Loading..." / "Initializing..." text patterns.
+       * Stage 6: Word/PDF OOXML rendering completion for document viewer states.
+       * Stage 7: Deterministic React Query stabilization settle delay.
+  2. Role Credential & Route Integrity:
+     - Assigned committee secretary credentials correctly set to `joseph.abella@buksu.edu.ph` / `Password123!`.
+     - Route mappings synchronized: `/secretary/review` for LJ-03, `/archive` for JA-02 (under student role), `/project/submissions` for JA-04, and dedicated calendar grid `/defense-schedule` for SA-03.
+     - Header element targeting for SA-02 to capture the ThemeToggle button cleanly.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In visual audit and automated report generation pipelines, never capture a screenshot without verifying that all session loaders, skeleton shimmers, and in-flight API queries have settled to zero.
+  2. Prevention rule: Skeletons must be queried using semantic attributes (`[data-testid="page-skeleton"], [aria-busy="true"], .cms-skeleton-shimmer, [data-skeleton]`) while explicitly excluding decorative live status dots (`h-2 w-2 rounded-full bg-primary animate-pulse`) to prevent hanging readiness checks.
+### 2026-09-14: Capstone 2 Action Done Matrix (ADM) Viewer Integration & Portaled Modal Architecture
+- Context & Architectural Impact:
+  1. Integrated Action Done Matrix (ADM) Viewer into Capstone 2 Card:
+     - Problem: The Submissions page (`/project/submissions`) lacked an accessible Action Done Matrix (ADM) viewer inside the Capstone 2 card (`Phase 2: Capstone 2: Chapters 1–3 Manuscript & Midterm Defense`). Proponents and reviewers had no direct entry point to inspect BukSU Form RU-F-033 defense remarks, actions taken, and committee endorsements from the submissions workspace.
+     - Learned lesson: Submissions cards should provide both in-card contextual inspection and quick header/toolbar actions. Created `ActionDoneMatrixSection` card with status badge, `v1 Midterm` milestone indicator, remarks count, and dual action modes: `[Expand Inline]` for quick in-place review without leaving the page, and `[View ADM]` for comprehensive modal inspection.
+     - Card Header & Toolbar Quick-Access: Added `[Open Action Done Matrix]` header button to Phase 2 card (harmonizing with Phase 3's `[Open Academic Gantt]`) and an `[Action Done Matrix]` quick button in the page top toolbar.
+  2. Modal Dialog Portal Architecture (`createPortal(..., document.body)`):
+     - Problem: In `ProjectSubmissionsPage.jsx`, container components (e.g. `DashboardLayout`, animated page transitions) establish CSS transforms and stacking contexts (`isolation: isolate` or `transform: translate(...)`), causing `fixed inset-0` dialog modals to be constrained within parent bounds instead of covering the full viewport.
+     - Learned lesson & resolution: Always portal full-screen dialog modals directly to `document.body` using `createPortal(..., document.body)`. Portaled both `showAdmModal` and `showGanttModal` to `document.body`.
+  3. Default Milestone Scoping via `initialMilestone`:
+     - Updated `ActionDoneMatrixTab.jsx` to accept `initialMilestone` prop (defaulting to `'CAPSTONE_2'` when launched from Capstone 2 card) while preserving the user's ability to switch to any milestone tab via `selectedMilestone`.
+  4. Unit Test Dom Boundary Assertion:
+     - Learned lesson: When modal dialogs are portaled via `createPortal(..., document.body)`, testing assertions must query `document.body` rather than local test component `container` (e.g., `document.body.querySelector('[role="dialog"]')` or `screen.getByRole('dialog')`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Full-screen overlay modals inside nested dashboard layouts MUST use `createPortal(..., document.body)` to escape ancestor transform and container stacking contexts.
+  2. Prevention rule: When testing portaled modals, assertions must inspect `document.body` rather than the local RTL render `container` to avoid false-negative null assertions.
+  3. Prevention rule: Submissions cards for capstone phases with defense deliverables (Phase 2 Midterm and Phase 4 Final) should provide direct access to BukSU Form RU-F-033 Action Done Matrix to ensure committee compliance verification is immediately accessible.
+  4. Runbook & Checklist:
+     - Checklist: Verify Capstone 2 card renders `ActionDoneMatrixSection` below Proposal Document with status badges and remarks count.
+     - Checklist: Verify `[Open Action Done Matrix]` header button in Capstone 2 card opens the ADM modal.
+     - Checklist: Verify `[Expand Inline]` toggles the BukSU matrix table directly inside the Capstone 2 card.
+     - Checklist: Verify `initialMilestone="CAPSTONE_2"` pre-selects Capstone 2 (Chapters 1–3) in the ADM viewer.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark, Modal Viewer, Inline Expansion, and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectSubmissionsPage.test.jsx` passed, 6/6 `ActionDoneMatrixTab.test.jsx` passed (11/11 client tests passed), route parity verified (204 Server / 182 Client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and 7 Playwright screenshots captured and verified across desktop light/dark, modal dialog, inline expansion, and mobile viewports.
+
+### 2026-09-14: ADM RBAC Controls, Student Empty State, Section Instructor Attribution & Progression Gating for Capstones 3 & 4
+- Context & Architectural Impact:
+  1. ADM RBAC Controls & Student-Facing Empty State:
+     - Learned lesson: Proponent student team members were previously able to interact with the "Type of Review" checkboxes (`Internal Review` / `External Review`) and were shown instructional prompt text (`Click "Add Row" or "Load Institutional Template" to begin.`) even though they lack permission to add recommendations or classify reviews.
+     - Solution & implementation: In `ActionDoneMatrixTab.jsx`, introduced `canManageReviewType = Boolean((isFaculty || isUserInstructor || isUserChair || isUserSecretary || isUserPanelist) && !isCurrentUserStudent)`. The review type checkboxes are strictly disabled for student accounts (`disabled={!canManageReviewType}`). In the empty state, student users are shown `"No recommendations recorded yet by the defense committee or panel."` rather than the authoring prompt.
+  2. Section Instructor Attribution ("PENDING APPOINTMENT" Elimination):
+     - Learned lesson: Projects linked to academic teams where the section record lacked a `createdBy` field or whose population path was incomplete fell back to displaying `"PENDING APPOINTMENT"` under "Signature over Printed Name of Instructor" in the ADM signatory block.
+     - Solution & implementation: In `server/modules/projects/project.service.js`, populated `createdBy` on `teamId.sectionId` in both `getMyProject` and `getProject`. Backfilled section `BSIT-4A` with `createdBy: ObjectId('6aa14c2554d0b79f8e8aa966')` (Dr. Sales G. Aribe Jr.). In `ActionDoneMatrixTab.jsx`, added a robust fallback chain: `project.sectionId?.createdBy || project.teamId?.sectionId?.createdBy || project.leaderId?.instructorId || project.teamId?.leaderId?.instructorId || project.instructorId`, properly rendering `"SALES G. ARIBE JR."`.
+  3. Capstone 3 Progression Gating:
+     - Learned lesson: Students were able to upload Chapter 4 (Results) and Chapter 5 (Conclusions) before Capstone 2 Action Done Matrix (`ADM v1`) was approved by the defense committee.
+     - Solution & implementation: Gated Chapter 4 & 5 uploads behind `isCap2ADMApproved = Boolean(project.admStatus?.v1 === 'APPROVED')`. Rendered an institutional prerequisite banner in the Capstone 3 card (`[data-testid="capstone3-prerequisite-alert"]`), disabled Chapter 4 and 5 upload triggers with explanatory tooltips, and passed `isCap2ADMApproved` into `UploadChapterModal.jsx` to disable Chapter 4 and 5 options in the chapter selector dropdown.
+  4. Capstone 4 Progression Gating:
+     - Learned lesson: The Final Paper upload dropzone on Capstone 4 was active and unlocked even when Chapter 3 was not yet approved and Capstone 3 prototype/ADM milestones were pending.
+     - Solution & implementation: Added `canUnlockCapstone4 = isCap2ADMApproved && all5ChaptersApproved`. When `!canUnlockCapstone4`, rendered an institutional prerequisite alert banner (`[data-testid="capstone4-prerequisite-alert"]`), updated `FinalPaperUpload.jsx` to accept `isLocked`, rendered locked dropzones with `opacity-60 cursor-not-allowed`, and replaced upload actions with a disabled `<Lock /> Upload Locked` button.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Proponent students must never be shown review management controls (such as review type toggles or matrix row addition prompts) in institutional forms like BukSU Form RU-F-033. Always guard with `!isCurrentUserStudent`.
+  2. Prevention rule: Section instructor attribution must always traverse both direct section links (`project.sectionId.createdBy`) and team section links (`project.teamId.sectionId.createdBy`) with leader instructor fallback to avoid falling back to `"PENDING APPOINTMENT"`.
+  3. Prevention rule: Academic capstone deliverables must strictly gate on prior milestone completion: Chapter 4/5 requires Capstone 2 ADM approval, and Capstone 4 Final Paper upload strictly requires all 5 chapters approved and Capstone 3 completed.
+  4. Runbook & Checklist:
+     - Checklist: Verify student accounts see disabled checkboxes for Internal/External review in ADM.
+     - Checklist: Verify student empty state displays informative message without edit instructions.
+     - Checklist: Verify ADM signatory block renders assigned section instructor name ("SALES G. ARIBE JR.").
+     - Checklist: Verify Capstone 3 card displays prerequisite alert banner when Cap 2 ADM is not approved.
+     - Checklist: Verify Chapter 4/5 upload buttons are disabled and UploadChapterModal disables Ch 4/5 options when Cap 2 ADM is pending.
+     - Checklist: Verify Capstone 4 card displays prerequisite alert banner, locked dropzones, and "Upload Locked" button when earlier deliverables are incomplete.
+  5. Evidence & Verification passed:
+     - 7/7 `ProjectSubmissionsPage.test.jsx` passed.
+     - 8/8 `ActionDoneMatrixTab.test.jsx` passed.
+     - 3/3 `UploadChapterModal.test.jsx` passed.
+     - Total targeted test suite: 18/18 passed.
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance check: 60/60 checks passed.
+     - Playwright visual audit passed: 16 high-resolution viewports captured across light and dark modes, desktop and mobile viewports in `scratch/audit_capstone_gating.mjs` and `scratch/audit_adm_rbac.mjs`.
+
+### 2026-09-14: Defense Scheduling Typed Meeting Duration Input, Drag-to-Unschedule & Reviewer Resolution in Capstone Progress
+- Context & Architectural Impact:
+  1. Typed Meeting Duration Input:
+     - Learned lesson: Instructors previously had a fixed dropdown menu for hearing durations (15m, 30m, 45m, 60m, 90m, 120m) which occluded the calendar screen and prevented setting custom durations (e.g. 20m, 40m, 50m).
+     - Solution & implementation: Replaced the fixed `<select>` with an inline typed input badge (`[45] m`) with `min={5} max={360}`, select-on-focus, and Enter-to-blur. Synchronized hearing durations across tray helper text (`Drag team onto calendar (45 min slot)`), timeline quantums, and direct drag-to-unschedule handling.
+  2. Drag-to-Unschedule & Duration Normalization:
+     - Learned lesson: Scheduled defense hearing cards on the timeline could not be returned to the "Awaiting Scheduling" tray by dragging them back, and unscheduling required complex manual modal interactions.
+     - Solution & implementation: Added drag-over and drop event handlers to the Awaiting Scheduling tray (`data-testid="awaiting-scheduling-tray"`), an animated `<RotateCcw /> Drop here to Unschedule` drop zone banner, and optimistic cache updates with API fallback to `projectService.scheduleDefense` with `date: null` and `status: 'pending_scheduling'`. When returned, hearing slots normalize to the currently typed general duration.
+  3. Reviewer Name Attribution in Chapter Progress:
+     - Learned lesson: In `ChapterProgressWithRounds.jsx`, rounds without an active review or with unpopulated `reviewedBy` ObjectIds displayed `Reviewer: —`.
+     - Solution & implementation: In `server/modules/submissions/submission.service.js`, added `.populate('reviewedBy', 'firstName middleName lastName email')` to `getSubmissionsByProject`. In `ChapterProgressWithRounds.jsx`, destructured `project` and resolved reviewer name to assigned adviser (`project?.adviserId` or `project?.teamId?.adviserId`) when review is pending, displaying the adviser's name (e.g. `Steven Joe Bautista`) instead of a blank dash.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When designing inline numeric duration or quantity controls in React, never clamp the minimum value on `onChange` (which prevents typing multi-digit numbers like "45" because typing "4" gets prematurely clamped to "5"). Always clamp on `onBlur` and validate on submission.
+  2. Prevention rule: Reviewer display fields on student-facing progress cards must always implement robust fallback attribution (e.g. to the assigned faculty adviser) so students are never left with confusing blank dashes (`—`).
+  3. Runbook & Checklist:
+     - Checklist: Verify the Awaiting Scheduling tray header renders an inline typed duration input (`data-testid="defense-duration-input"`).
+     - Checklist: Verify typing into the input updates helper labels (e.g. `(45 min slot)`) and preserves custom durations.
+     - Checklist: Verify dragging a scheduled card onto the Awaiting Scheduling tray un-schedules it and shows the drop zone banner.
+     - Checklist: Verify scheduled hearing cards render an upper time badge (`<Clock /> {time}`).
+     - Checklist: Verify student Chapter Progress card renders the reviewer or assigned adviser name without blank `—`.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  4. Evidence & Verification passed:
+     - 3/3 `ChapterProgressWithRounds.test.jsx` passed.
+     - 14/14 `DefenseSchedulingPage.test.jsx` passed (17/17 targeted tests passed).
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance check: 60/60 checks passed.
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+     - Playwright visual audit passed: 7 high-resolution viewports captured across light and dark modes, desktop and mobile viewports in `scratch/audit_defense_scheduling_duration.mjs`.
+

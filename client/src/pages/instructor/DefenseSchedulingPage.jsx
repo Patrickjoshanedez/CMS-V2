@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { useAuthStore } from '@/stores/authStore';
 import { useProjects, projectKeys } from '@/hooks/useProjects';
 import { projectService, academicService } from '@/services/authService';
 import { toast } from 'sonner';
@@ -26,7 +25,6 @@ import {
   ChevronLeft,
   ChevronDown,
   GripVertical,
-  Plus,
   Sparkles,
   LayoutGrid,
   List,
@@ -34,6 +32,7 @@ import {
   UserCheck,
   User,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 
 export const TIMELINE_START_HOUR = 8; // 08:00 AM
@@ -126,8 +125,9 @@ export function formatMinutesToTime(minutesFrom8AM, durationMinutes = 30) {
  * Formats a duration in minutes into a human-readable badge label (e.g. "1h 15m")
  */
 export function formatDurationLabel(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const mNum = Number(minutes) >= 5 ? Number(minutes) : 30;
+  const h = Math.floor(mNum / 60);
+  const m = mNum % 60;
   if (h > 0 && m > 0) return `${h}h ${m}m`;
   if (h > 0) return `${h} hr${h > 1 ? 's' : ''}`;
   return `${m} min`;
@@ -159,7 +159,6 @@ export function toLocalDateKey(d) {
  */
 export default function DefenseSchedulingPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -183,6 +182,18 @@ export default function DefenseSchedulingPage() {
   const [draggedProject, setDraggedProject] = useState(null);
   const [dragOverState, setDragOverState] = useState(null); // { dateStr, topPx, heightPx, slotTime, minutesFrom8AM }
   const [resizingState, setResizingState] = useState(null); // { project, startY, initialDuration, currentDuration, dateStr }
+
+  // Configurable Default Meeting Duration (typed minutes between 5 and 360)
+  const [defaultDefenseDuration, setDefaultDefenseDuration] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cms-default-defense-duration');
+      const parsed = parseInt(stored, 10);
+      return !isNaN(parsed) && parsed >= 5 && parsed <= 360 ? parsed : 30;
+    } catch {
+      return 30;
+    }
+  });
+  const [isTrayDragOver, setIsTrayDragOver] = useState(false);
 
   // Close mini-calendar popover on outside click
   useEffect(() => {
@@ -264,15 +275,15 @@ export default function DefenseSchedulingPage() {
   });
 
   const sections = Array.isArray(sectionsData) ? sectionsData : [];
-  const rawProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
 
   // Filter out any archived records
   const allProjects = useMemo(() => {
+    const rawProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
     return rawProjects.filter((p) => {
       const normalizedStatus = String(p.projectStatus || p.status || '').toLowerCase();
       return p.isArchived !== true && normalizedStatus !== 'archived';
     });
-  }, [rawProjects]);
+  }, [projectsData]);
 
   // Executive KPI calculations
   const kpis = useMemo(() => {
@@ -433,7 +444,7 @@ export default function DefenseSchedulingPage() {
     const rawMinutes = (offsetY / PIXELS_PER_HOUR) * 60;
     // Snap to 5-minute intervals
     const snappedMinutes = Math.round(rawMinutes / 5) * 5;
-    const defaultDuration = 30; // 30 minutes default duration
+    const defaultDuration = defaultDefenseDuration; // Use configurable general duration
     const clampedMinutes = Math.max(
       0,
       Math.min(TOTAL_HOURS * 60 - defaultDuration, snappedMinutes),
@@ -541,6 +552,97 @@ export default function DefenseSchedulingPage() {
         queryClient.setQueryData(queryKey, previousProjectsData);
       }
       toast.error(err?.response?.data?.message || 'Failed to schedule defense. Reverting changes.');
+    }
+
+    setDraggedProject(null);
+  };
+
+  const handleTrayDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isTrayDragOver) {
+      setIsTrayDragOver(true);
+    }
+  };
+
+  const handleTrayDragLeave = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsTrayDragOver(false);
+    }
+  };
+
+  const handleTrayDrop = async (e) => {
+    e.preventDefault();
+    setIsTrayDragOver(false);
+
+    let data = null;
+    try {
+      const raw = e.dataTransfer.getData('application/json');
+      if (raw) data = JSON.parse(raw);
+    } catch {
+      // fallback
+    }
+
+    const targetProjId = data?.projectId || draggedProject?._id;
+    const proj = allProjects.find((p) => p._id === targetProjId) || draggedProject;
+    if (!proj) return;
+
+    // Check if the project is currently scheduled or has a date assigned
+    const isCurrentlyScheduled =
+      proj.defenseSchedule?.status === 'scheduled' || Boolean(proj.defenseSchedule?.date);
+
+    if (!isCurrentlyScheduled) {
+      setDraggedProject(null);
+      return;
+    }
+
+    // Direct Unschedule with Optimistic UI Update:
+    // 1. Snapshot previous cache for instant rollback if API fails
+    const queryFilter = { limit: 100, excludeArchived: true };
+    const queryKey = projectKeys.list(queryFilter);
+    const previousProjectsData = queryClient.getQueryData(queryKey);
+
+    // Normalize duration to the general defaultDefenseDuration
+    const baseStart = parseTimeToMinutes(proj.defenseSchedule?.time).startMinutes;
+    const normalizedTime = formatMinutesToTime(baseStart, defaultDefenseDuration);
+
+    const updatedSchedule = {
+      ...(proj.defenseSchedule || {}),
+      date: null,
+      time: normalizedTime,
+      status: 'pending_scheduling',
+    };
+
+    // 2. Visually move the card back to the tray immediately
+    if (previousProjectsData?.projects) {
+      queryClient.setQueryData(queryKey, {
+        ...previousProjectsData,
+        projects: previousProjectsData.projects.map((p) =>
+          p._id === proj._id ? { ...p, defenseSchedule: updatedSchedule } : p,
+        ),
+      });
+    }
+
+    try {
+      await projectService.scheduleDefense(proj._id, {
+        status: 'pending_scheduling',
+        date: null,
+        time: normalizedTime,
+      });
+      const teamName = proj.teamId?.name || proj.title;
+      toast.success(
+        `Defense hearing for "${teamName}" returned to Awaiting Scheduling (${formatDurationLabel(defaultDefenseDuration)} duration).`,
+      );
+      refetchProjects();
+    } catch (err) {
+      // 3. Rollback seamlessly if the API call fails
+      if (previousProjectsData) {
+        queryClient.setQueryData(queryKey, previousProjectsData);
+      }
+      toast.error(
+        err?.response?.data?.message ||
+          'Failed to move hearing back to awaiting scheduling. Reverting changes.',
+      );
     }
 
     setDraggedProject(null);
@@ -1023,7 +1125,8 @@ export default function DefenseSchedulingPage() {
                 </div>
 
                 <span className="text-xs text-muted-foreground hidden md:inline">
-                  Drag any team or hearing to schedule / reschedule (30-min default, 5-min snap)
+                  Drag any team or hearing to schedule / reschedule (
+                  {formatDurationLabel(defaultDefenseDuration)} default, 5-min snap)
                 </span>
               </div>
             </div>
@@ -1032,24 +1135,116 @@ export default function DefenseSchedulingPage() {
             <div className="flex flex-col lg:flex-row gap-4 items-start">
               {/* Left Column: Awaiting Scheduling Tray */}
               <div className="w-full lg:w-80 shrink-0 space-y-3">
-                <Card className="border-border shadow-xs">
+                <Card
+                  data-testid="awaiting-scheduling-tray"
+                  onDragOver={handleTrayDragOver}
+                  onDragLeave={handleTrayDragLeave}
+                  onDrop={handleTrayDrop}
+                  className={`border-border shadow-xs transition-all ${
+                    isTrayDragOver
+                      ? 'border-primary border-dashed bg-primary/5 ring-2 ring-primary/30 shadow-md'
+                      : ''
+                  }`}
+                >
                   <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/20">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5 text-primary" />
                         {search.trim() ? 'Matching Teams' : 'Awaiting Scheduling'}
                       </CardTitle>
-                      <Badge variant="outline" className="text-[11px] font-mono">
-                        {unscheduledTeams.length}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {/* Configurable Typed Default Duration Input */}
+                        <div className="flex items-center gap-1 bg-background border border-border/70 rounded-md px-2 py-0.5 shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 transition-all">
+                          <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <input
+                            type="number"
+                            min={5}
+                            max={360}
+                            step={5}
+                            data-testid="defense-duration-input"
+                            value={defaultDefenseDuration}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.currentTarget.blur();
+                            }}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setDefaultDefenseDuration('');
+                                return;
+                              }
+                              const num = parseInt(val, 10);
+                              if (!isNaN(num)) {
+                                const capped = Math.min(360, Math.max(0, num));
+                                setDefaultDefenseDuration(capped);
+                                if (capped >= 5) {
+                                  try {
+                                    localStorage.setItem(
+                                      'cms-default-defense-duration',
+                                      String(capped),
+                                    );
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              const num = parseInt(defaultDefenseDuration, 10);
+                              if (isNaN(num) || num < 5) {
+                                setDefaultDefenseDuration(30);
+                                try {
+                                  localStorage.setItem('cms-default-defense-duration', '30');
+                                } catch {
+                                  // ignore
+                                }
+                              } else {
+                                const clamped = Math.min(360, num);
+                                setDefaultDefenseDuration(clamped);
+                                try {
+                                  localStorage.setItem(
+                                    'cms-default-defense-duration',
+                                    String(clamped),
+                                  );
+                                } catch {
+                                  // ignore
+                                }
+                              }
+                            }}
+                            className="w-9 text-[11px] font-bold font-mono bg-transparent border-0 p-0 text-foreground text-right focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            title="Type hearing duration in minutes (e.g. 30, 45, 60)"
+                          />
+                          <span className="text-[11px] font-bold text-muted-foreground select-none">
+                            m
+                          </span>
+                        </div>
+                        <Badge variant="outline" className="text-[11px] font-mono">
+                          {unscheduledTeams.length}
+                        </Badge>
+                      </div>
                     </div>
                     <CardDescription className="text-[11px] text-muted-foreground">
                       {search.trim()
                         ? 'Teams matching search filters'
-                        : 'Drag a team onto a 30-minute slot in the calendar'}
+                        : `Drag team onto calendar (${formatDurationLabel(defaultDefenseDuration)} slot)`}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-3 space-y-2.5 max-h-[660px] overflow-y-auto">
+                    {isTrayDragOver && (
+                      <div
+                        data-testid="tray-drop-zone-banner"
+                        className="rounded-xl border-2 border-dashed border-primary bg-primary/10 p-3 text-center transition-all animate-pulse"
+                      >
+                        <p className="text-xs font-bold text-primary flex items-center justify-center gap-1.5">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Drop here to Unschedule
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Return hearing to Awaiting Scheduling (
+                          {formatDurationLabel(defaultDefenseDuration)})
+                        </p>
+                      </div>
+                    )}
                     {unscheduledTeams.length === 0 ? (
                       <div className="py-8 text-center text-xs text-muted-foreground">
                         All teams are currently scheduled or match other filters.
@@ -1315,6 +1510,15 @@ export default function DefenseSchedulingPage() {
                                         {project.teamId?.name || 'Scheduled Team'}
                                       </span>
                                       <div className="flex items-center gap-1 shrink-0">
+                                        {project.defenseSchedule?.time && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[8px] px-1 py-0 font-mono bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 leading-none h-3.5 flex items-center font-bold tracking-tight"
+                                          >
+                                            <Clock className="h-2 w-2 mr-0.5" />
+                                            {project.defenseSchedule.time.split(' - ')[0]}
+                                          </Badge>
+                                        )}
                                         <Badge
                                           variant="outline"
                                           className="text-[8px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30 leading-none h-3.5 flex items-center font-semibold"
@@ -1352,6 +1556,15 @@ export default function DefenseSchedulingPage() {
                                         {project.teamId?.name || 'Scheduled Team'}
                                       </span>
                                       <div className="flex items-center gap-1 shrink-0">
+                                        {project.defenseSchedule?.time && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px] px-1.5 py-0.5 font-mono bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 font-bold flex items-center"
+                                          >
+                                            <Clock className="h-2.5 w-2.5 mr-1" />
+                                            {project.defenseSchedule.time}
+                                          </Badge>
+                                        )}
                                         <Badge
                                           variant="outline"
                                           className="text-[9px] px-1 py-0 uppercase tracking-tight bg-blue-500/10 text-blue-600 border-blue-500/30"

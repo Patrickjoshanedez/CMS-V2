@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -93,6 +93,13 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    container?.remove();
   });
 
   const renderComponent = async (props = {}) => {
@@ -201,5 +208,57 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
 
     expect(container.textContent).toContain('Endorsed & Unlocked');
     expect(container.textContent).toContain('Sign Digitally');
+  });
+
+  it('disables review type checkboxes and shows student-specific empty state for student users', async () => {
+    const emptyProject = {
+      ...mockProject,
+      actionDoneMatrix: [],
+    };
+
+    await renderComponent({
+      project: emptyProject,
+      isFaculty: false,
+      isStudent: true,
+      user: { _id: 'std-1', role: 'student' },
+    });
+
+    // Checkboxes are disabled for students
+    const internalCheckbox = container.querySelector('#review-internal');
+    const externalCheckbox = container.querySelector('#review-external');
+    expect(internalCheckbox).toBeTruthy();
+    expect(externalCheckbox).toBeTruthy();
+    expect(internalCheckbox.disabled).toBe(true);
+    expect(externalCheckbox.disabled).toBe(true);
+
+    // Empty state should be informative for students, not an action prompt
+    expect(container.textContent).toContain(
+      'No recommendations recorded yet by the defense committee or panel.',
+    );
+    expect(container.textContent).not.toContain(
+      'Click "Add Row" or "Load Institutional Template" to begin.',
+    );
+  });
+
+  it('resolves instructor name from teamId.leaderId.instructorId fallback when sectionId lacks instructor', async () => {
+    const projectWithLeaderInstructor = {
+      ...mockProject,
+      teamId: {
+        leaderId: {
+          instructorId: {
+            _id: 'ins-lead-1',
+            firstName: 'Dr. Sales G.',
+            lastName: 'Aribe Jr.',
+          },
+        },
+      },
+    };
+
+    await renderComponent({
+      project: projectWithLeaderInstructor,
+    });
+
+    expect(container.textContent).toContain('DR. SALES G. ARIBE JR.');
+    expect(container.textContent).not.toContain('PENDING APPOINTMENT');
   });
 });

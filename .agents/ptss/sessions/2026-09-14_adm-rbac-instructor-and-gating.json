@@ -1,0 +1,49 @@
+{
+  "session_id": "2026-09-14_adm-rbac-instructor-and-gating",
+  "timestamp": "2026-09-14T21:45:00.000Z",
+  "task": "ADM RBAC, Student Empty State, Instructor Attribution, and Progression Gating for Capstone 3 & 4",
+  "status": "completed",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "user_intent": {
+    "problem": "1. Student teams could see review type checkboxes and edit instructional prompt in ADM. 2. ADM signatory block displayed 'PENDING APPOINTMENT' instead of section instructor Dr. Sales G. Aribe Jr. 3. Capstone 3 and 4 uploads were permitted prematurely before prerequisites (Cap 2 ADM approval, Ch 1-5 approvals) were satisfied.",
+    "solution": "1. Guarded ADM review type checkboxes with canManageReviewType (!isCurrentUserStudent) and displayed student-facing empty state. 2. Resolved section instructor via teamId.sectionId.createdBy and backfilled BSIT-4A createdBy. 3. Gated Chapter 4/5 uploads behind isCap2ADMApproved and strictly locked Capstone 4 Final Paper dropzones with warning banners and Lock icons."
+  },
+  "changes": {
+    "backend": [
+      "server/modules/projects/project.service.js (populated teamId.sectionId.createdBy in getMyProject and getProject)"
+    ],
+    "frontend": [
+      "client/src/components/projects/ActionDoneMatrixTab.jsx (canManageReviewType guard, disabled review checkboxes, student empty state text, multi-fallback instructor attribution)",
+      "client/src/components/projects/ActionDoneMatrixTab.test.jsx (added tests for student review type disabled, student empty state text, afterEach container cleanup)",
+      "client/src/components/submissions/UploadChapterModal.jsx (added isCap2ADMApproved prop, disabled Chapter 4 & 5 options with locked label, clamped initial chapter)",
+      "client/src/components/submissions/UploadChapterModal.test.jsx (unit tests for locked chapters 4 & 5 when isCap2ADMApproved=false)",
+      "client/src/components/submissions/FinalPaperUpload.jsx (destructured isLocked, rendered locked dropzones, lock banner, disabled upload button)",
+      "client/src/pages/submissions/ProjectSubmissionsPage.jsx (computed isCap2ADMApproved and canUnlockCapstone4, gated canUploadChapter, rendered prerequisite banners in Capstone 3 & 4 cards)",
+      "client/src/pages/submissions/ProjectSubmissionsPage.test.jsx (tests for Capstone 3 & 4 prerequisite alerts, disabled upload triggers, and gating)"
+    ],
+    "captures_generated": [
+      "audit_adm_modal_desktop_dark.png",
+      "audit_adm_modal_desktop_light.png",
+      "audit_adm_modal_mobile_dark.png",
+      "audit_adm_modal_mobile_light.png",
+      "audit_adm_signatories_desktop_dark.png",
+      "audit_adm_signatories_desktop_light.png",
+      "audit_adm_signatories_mobile_dark.png",
+      "audit_adm_signatories_mobile_light.png",
+      "audit_capstone3_gated_desktop_dark.png",
+      "audit_capstone3_gated_desktop_light.png",
+      "audit_capstone3_gated_mobile_dark.png",
+      "audit_capstone3_gated_mobile_light.png",
+      "audit_final_paper_dropzones_desktop_dark.png",
+      "audit_final_paper_dropzones_desktop_light.png",
+      "audit_final_paper_dropzones_mobile_dark.png",
+      "audit_final_paper_dropzones_mobile_light.png"
+    ]
+  },
+  "verification": {
+    "unit_tests": "ProjectSubmissionsPage.test.jsx (7/7 passed), ActionDoneMatrixTab.test.jsx (8/8 passed), UploadChapterModal.test.jsx (3/3 passed) — 18/18 total passed",
+    "route_parity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 governance checks passed",
+    "visual_audit": "Playwright visual audit completed across desktop and mobile, light and dark modes with 16 high-resolution viewports capturing ADM RBAC, resolved instructor, Capstone 3 prerequisite alert, and locked Capstone 4 dropzones."
+  }
+}

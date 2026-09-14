@@ -53,6 +53,14 @@ vi.mock('@/components/projects/InteractiveGanttChart', () => ({
   ),
 }));
 
+vi.mock('@/components/projects/ActionDoneMatrixTab', () => ({
+  default: ({ project, initialMilestone }) => (
+    <div data-testid="action-done-matrix-tab" data-milestone={initialMilestone}>
+      <span>Action Done Matrix Tab Component: {project?.title}</span>
+    </div>
+  ),
+}));
+
 vi.mock('@/components/projects/DeadlineWarning', () => ({
   default: () => <div data-testid="deadline-warning">Deadline Warning</div>,
 }));
@@ -68,10 +76,12 @@ vi.mock('@/stores/authStore', () => ({
     }),
 }));
 
-const mockProjectData = {
+let mockProjectData = {
   _id: 'proj-123',
   title: 'Project Workspace: Capstone Management System with Plagiarism Checker',
   titleStatus: 'approved',
+  capstonePhase: 2,
+  admStatus: 'not_started',
   deadlines: {},
 };
 
@@ -120,6 +130,14 @@ describe('ProjectSubmissionsPage Suite', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockProjectData = {
+      _id: 'proj-123',
+      title: 'Project Workspace: Capstone Management System with Plagiarism Checker',
+      titleStatus: 'approved',
+      capstonePhase: 2,
+      admStatus: 'not_started',
+      deadlines: {},
+    };
     currentSubmissions = [
       { _id: 'sub-1', type: 'chapter', chapter: 1, status: 'approved', version: 1 },
       { _id: 'sub-2', type: 'chapter', chapter: 2, status: 'approved', version: 1 },
@@ -185,13 +203,13 @@ describe('ProjectSubmissionsPage Suite', () => {
       ganttHeaderBtn.click();
     });
 
-    // Modal dialog is open
-    expect(container.querySelector('[role="dialog"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="interactive-gantt-chart"]')).toBeTruthy();
-    expect(container.textContent).toContain('Capstone 3: Interactive Academic Gantt Chart');
+    // Modal dialog is open in document.body (portaled)
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.body.querySelector('[data-testid="interactive-gantt-chart"]')).toBeTruthy();
+    expect(document.body.textContent).toContain('Capstone 3: Interactive Academic Gantt Chart');
 
     // Click close button
-    const closeBtn = container.querySelector('button[aria-label="Close Gantt Dialog"]');
+    const closeBtn = document.body.querySelector('button[aria-label="Close Gantt Dialog"]');
     expect(closeBtn).toBeTruthy();
 
     await act(async () => {
@@ -199,7 +217,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     });
 
     // Modal is closed
-    expect(container.querySelector('[data-testid="interactive-gantt-chart"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="interactive-gantt-chart"]')).toBeNull();
   });
 
   it('correctly resolves latest version when v2 is accepted with identical timestamp to v1, and unlocks chapter 2', async () => {
@@ -238,5 +256,136 @@ describe('ProjectSubmissionsPage Suite', () => {
     const card2 = container.querySelector('[data-testid="chapter-card-2"]');
     expect(card2).toBeTruthy();
     expect(card2.getAttribute('data-can-upload')).toBe('true');
+  });
+
+  it('renders ADM section in Capstone 2 card and opens ADM modal viewer', async () => {
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    // Verify ADM section card in Capstone 2 card
+    const admCard = container.querySelector('[data-testid="adm-section-card"]');
+    expect(admCard).toBeTruthy();
+    expect(admCard.textContent).toContain('Action Done Matrix (ADM)');
+    expect(admCard.textContent).toContain('v1 Midterm');
+
+    // Verify header button in Capstone 2 card
+    const phase2HeaderBtn = container.querySelector('[data-testid="capstone2-open-adm-btn"]');
+    expect(phase2HeaderBtn).toBeTruthy();
+    expect(phase2HeaderBtn.textContent).toContain('Open Action Done Matrix');
+
+    // Modal is initially not open
+    expect(document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]')).toBeNull();
+
+    // Click "View ADM" button in section card
+    const viewAdmBtn = container.querySelector('[data-testid="view-adm-btn"]');
+    expect(viewAdmBtn).toBeTruthy();
+
+    await act(async () => {
+      viewAdmBtn.click();
+    });
+
+    // Modal is now open and renders ActionDoneMatrixTab with initialMilestone="CAPSTONE_2" in document.body
+    const admModal = document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]');
+    expect(admModal).toBeTruthy();
+    expect(admModal.textContent).toContain('Capstone 2: Action Done Matrix (ADM)');
+    const admTab = admModal.querySelector('[data-testid="action-done-matrix-tab"]');
+    expect(admTab).toBeTruthy();
+    expect(admTab.getAttribute('data-milestone')).toBe('CAPSTONE_2');
+
+    // Close modal
+    const closeBtn = document.body.querySelector('button[aria-label="Close ADM Dialog"]');
+    expect(closeBtn).toBeTruthy();
+
+    await act(async () => {
+      closeBtn.click();
+    });
+
+    expect(document.body.querySelector('[aria-labelledby="adm-viewer-dialog-title"]')).toBeNull();
+  });
+
+  it('toggles ADM inline expansion inside the Capstone 2 card', async () => {
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    // Initially inline container is not rendered
+    expect(container.querySelector('[data-testid="adm-inline-container"]')).toBeNull();
+
+    // Click "Expand Inline" button
+    const toggleBtn = container.querySelector('[data-testid="toggle-adm-inline-btn"]');
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Expand Inline');
+
+    await act(async () => {
+      toggleBtn.click();
+    });
+
+    // Inline container is now visible
+    const inlineContainer = container.querySelector('[data-testid="adm-inline-container"]');
+    expect(inlineContainer).toBeTruthy();
+    expect(inlineContainer.querySelector('[data-testid="action-done-matrix-tab"]')).toBeTruthy();
+    expect(toggleBtn.textContent).toContain('Collapse');
+
+    // Click collapse
+    await act(async () => {
+      toggleBtn.click();
+    });
+
+    expect(container.querySelector('[data-testid="adm-inline-container"]')).toBeNull();
+  });
+
+  it('strictly gates Chapter 4 upload and Capstone 4 final paper when Capstone 2 ADM is pending', async () => {
+    // mockProjectData defaults to admStatus: 'not_started' and capstonePhase: 2
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    // Capstone 3 alert banner explaining Capstone 2 ADM prerequisite is displayed
+    const cap3Alert = container.querySelector('[data-testid="capstone3-prerequisite-alert"]');
+    expect(cap3Alert).toBeTruthy();
+    expect(cap3Alert.textContent).toContain(
+      'Capstone 3 chapter uploads (Chapters 4 & 5) unlock after your Capstone 2 Action Done Matrix (ADM v1) is approved and signed by the defense committee.',
+    );
+
+    // Chapter 4 upload is blocked
+    const card4 = container.querySelector('[data-testid="chapter-card-4"]');
+    expect(card4).toBeTruthy();
+    expect(card4.getAttribute('data-can-upload')).toBe('false');
+
+    // Capstone 4 final paper alert banner is displayed
+    const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
+    expect(cap4Alert).toBeTruthy();
+    expect(cap4Alert.textContent).toContain(
+      'Capstone 4 Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.',
+    );
+    expect(container.textContent).toContain('Submission Locked');
+  });
+
+  it('unlocks Chapter 4 upload when Capstone 2 ADM is approved, while keeping Capstone 4 final paper locked until Chapters 4-5 are completed', async () => {
+    mockProjectData = {
+      ...mockProjectData,
+      capstonePhase: 3,
+      admStatus: 'approved',
+    };
+
+    await act(async () => {
+      root.render(<ProjectSubmissionsPage />);
+    });
+
+    // Capstone 3 alert is NOT shown because Capstone 2 ADM is approved
+    expect(container.querySelector('[data-testid="capstone3-prerequisite-alert"]')).toBeNull();
+
+    // Chapter 4 card is now unlocked for upload
+    const card4 = container.querySelector('[data-testid="chapter-card-4"]');
+    expect(card4).toBeTruthy();
+    expect(card4.getAttribute('data-can-upload')).toBe('true');
+
+    // Capstone 4 is still locked because chapters 4 and 5 are not completed
+    const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
+    expect(cap4Alert).toBeTruthy();
+    expect(cap4Alert.textContent).toContain(
+      'Capstone 4 Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.',
+    );
   });
 });

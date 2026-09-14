@@ -17,6 +17,7 @@ function UploadSection({
   description,
   mutation,
   projectId,
+  isLocked = false,
 }) {
   const [file, setFile] = useState(null);
   const inputRef = useRef(null);
@@ -69,30 +70,47 @@ function UploadSection({
 
       {/* Drop zone */}
       <div
-        role="button"
-        tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onDrop={handleDrop}
+        role={isLocked ? 'region' : 'button'}
+        tabIndex={isLocked ? -1 : 0}
+        onClick={() => !isLocked && inputRef.current?.click()}
+        onDrop={!isLocked ? handleDrop : undefined}
         onDragOver={(e) => e.preventDefault()}
-        onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+        onKeyDown={(e) => !isLocked && e.key === 'Enter' && inputRef.current?.click()}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 transition-all text-center',
-          file
-            ? 'border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-500/10'
-            : 'border-border/70 bg-muted/20 hover:border-primary/50 hover:bg-muted/40',
+          'flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 transition-all text-center',
+          isLocked
+            ? 'border-border/60 bg-muted/30 opacity-60 cursor-not-allowed'
+            : file
+              ? 'border-emerald-500/60 bg-emerald-500/5 dark:bg-emerald-500/10 cursor-pointer'
+              : 'border-border/70 bg-muted/20 hover:border-primary/50 hover:bg-muted/40 cursor-pointer',
         )}
       >
         <div
           className={cn(
             'flex h-10 w-10 items-center justify-center rounded-full transition-colors',
-            file
-              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-              : 'bg-muted text-muted-foreground',
+            isLocked
+              ? 'bg-muted text-muted-foreground'
+              : file
+                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-muted text-muted-foreground',
           )}
         >
-          {file ? <CheckCircle2 className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+          {isLocked ? (
+            <Lock className="h-5 w-5 text-muted-foreground" />
+          ) : file ? (
+            <CheckCircle2 className="h-5 w-5" />
+          ) : (
+            <FileText className="h-5 w-5" />
+          )}
         </div>
-        {file ? (
+        {isLocked ? (
+          <div>
+            <span className="text-sm font-medium text-muted-foreground">Submission Locked</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Available in Capstone 4 after prerequisite milestone completion
+            </p>
+          </div>
+        ) : file ? (
           <div className="space-y-1">
             <span className="max-w-[320px] truncate block text-sm font-semibold text-foreground">
               {file.name}
@@ -113,6 +131,7 @@ function UploadSection({
           ref={inputRef}
           type="file"
           accept=".pdf"
+          disabled={isLocked}
           className="hidden"
           onChange={handleFileChange}
         />
@@ -123,13 +142,18 @@ function UploadSection({
         <Button
           type="button"
           onClick={handleUpload}
-          disabled={!file || isPending}
+          disabled={isLocked || !file || isPending}
           className="gap-2"
         >
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Uploading…
+            </>
+          ) : isLocked ? (
+            <>
+              <Lock className="h-4 w-4" />
+              Upload Locked
             </>
           ) : (
             <>
@@ -152,9 +176,10 @@ UploadSection.propTypes = {
   description: PropTypes.string.isRequired,
   mutation: PropTypes.object.isRequired,
   projectId: PropTypes.string.isRequired,
+  isLocked: PropTypes.bool,
 };
 
-export default function FinalPaperUpload({ projectId }) {
+export default function FinalPaperUpload({ projectId, isLocked = false, lockMessage }) {
   const academicMutation = useUploadFinalAcademic();
   const journalMutation = useUploadFinalJournal();
 
@@ -163,12 +188,22 @@ export default function FinalPaperUpload({ projectId }) {
       <CardHeader className="pb-4 border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-            <Upload className="h-5 w-5" />
+            {isLocked ? <Lock className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
           </div>
           <div>
-            <CardTitle className="text-base font-bold text-foreground">
-              Final Paper Submission
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base font-bold text-foreground">
+                Final Paper Submission
+              </CardTitle>
+              {isLocked && (
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[10px] uppercase font-semibold"
+                >
+                  Locked
+                </Badge>
+              )}
+            </div>
             <CardDescription className="text-xs text-muted-foreground mt-0.5">
               Upload both required versions of your final capstone paper for institutional
               archiving.
@@ -178,15 +213,25 @@ export default function FinalPaperUpload({ projectId }) {
       </CardHeader>
 
       <CardContent className="space-y-6 pt-5">
-        {/* Info notice */}
-        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Capstone 4 requires both the Complete Academic Manuscript (internal/restricted) and the
-            Publishable Journal Version (public repository). Ensure all final revisions from defense
-            hearings are incorporated.
-          </p>
-        </div>
+        {/* Lock or Info notice */}
+        {isLocked ? (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-800 dark:text-amber-300">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-xs leading-relaxed font-medium">
+              {lockMessage ||
+                'Capstone 4 Final Paper Submission unlocks after Chapters 4–5 and Capstone 3 Action Done Matrix (ADM v2) are approved by the committee.'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Capstone 4 requires both the Complete Academic Manuscript (internal/restricted) and
+              the Publishable Journal Version (public repository). Ensure all final revisions from
+              defense hearings are incorporated.
+            </p>
+          </div>
+        )}
 
         <UploadSection
           icon={Lock}
@@ -197,6 +242,7 @@ export default function FinalPaperUpload({ projectId }) {
           description="Complete academic manuscript with all 5 chapters, appendices, and references for faculty committee archives."
           mutation={academicMutation}
           projectId={projectId}
+          isLocked={isLocked}
         />
 
         <div className="border-t border-border/50" />
@@ -210,6 +256,7 @@ export default function FinalPaperUpload({ projectId }) {
           description="Condensed paper version adhering to IEEE/CHED formats, indexed for the BukSU Institutional Public Archive."
           mutation={journalMutation}
           projectId={projectId}
+          isLocked={isLocked}
         />
       </CardContent>
     </Card>
@@ -218,4 +265,6 @@ export default function FinalPaperUpload({ projectId }) {
 
 FinalPaperUpload.propTypes = {
   projectId: PropTypes.string.isRequired,
+  isLocked: PropTypes.bool,
+  lockMessage: PropTypes.string,
 };

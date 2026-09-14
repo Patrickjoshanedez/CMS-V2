@@ -1,0 +1,33 @@
+{
+  "session_id": "2026-09-14_capstone2-adm-viewer",
+  "timestamp": "2026-09-14T21:05:00.000Z",
+  "task": "Integrate comprehensive Action Done Matrix (ADM) viewer into Capstone 2 card on Submissions page",
+  "status": "completed",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "user_intent": {
+    "problem": "Submissions page lacked an integrated Action Done Matrix (ADM) viewer inside the Capstone 2 card for viewing BukSU Form RU-F-033 defense remarks, actions taken, and committee endorsements.",
+    "solution": "Added dedicated in-card ADM Section Card with status badges, remarks metrics, in-place inline toggle, Capstone 2 card header button, top toolbar button, and full-screen modal viewer portaled to document.body defaulting to initialMilestone='CAPSTONE_2'."
+  },
+  "changes": {
+    "frontend": [
+      "client/src/components/projects/ActionDoneMatrixTab.jsx (added initialMilestone prop support defaulting to CAPSTONE_2 when invoked from Capstone 2 context)",
+      "client/src/pages/submissions/ProjectSubmissionsPage.jsx (added ActionDoneMatrixSection card, [Open Action Done Matrix] header button, [Action Done Matrix] top toolbar button, inline expansion toggle, and portaled modal dialog with createPortal(..., document.body))",
+      "client/src/pages/submissions/ProjectSubmissionsPage.test.jsx (updated test suite with mocked ActionDoneMatrixTab, modal opening/closing, inline expansion toggle, and portaled document.body dialog queries)"
+    ],
+    "captures_generated": [
+      "01_capstone2_adm_card_desktop_dark.png",
+      "02_capstone2_adm_card_desktop_light.png",
+      "03_adm_modal_viewer_desktop_light.png",
+      "04_adm_modal_viewer_desktop_dark.png",
+      "05_adm_inline_expanded_desktop_dark.png",
+      "06_capstone2_adm_mobile_dark.png",
+      "07_capstone2_adm_mobile_light.png"
+    ]
+  },
+  "verification": {
+    "unit_tests": "ProjectSubmissionsPage.test.jsx (5/5 passed) & ActionDoneMatrixTab.test.jsx (6/6 passed) — 11/11 total passed",
+    "route_parity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 governance checks passed",
+    "visual_audit": "Playwright visual audit completed across desktop dark/light, modal viewer, inline expansion, and mobile viewports with zero errors"
+  }
+}

@@ -565,6 +565,14 @@ class ProjectService {
             path: 'panelistIds',
             select: 'firstName middleName lastName email profilePicture',
           },
+          {
+            path: 'sectionId',
+            select: 'name academicYear courseId createdBy',
+            populate: {
+              path: 'createdBy',
+              select: 'firstName middleName lastName email profilePicture',
+            },
+          },
         ],
       })
       .populate('adviserId', 'firstName middleName lastName email profilePicture')
@@ -668,6 +676,14 @@ class ProjectService {
           {
             path: 'panelistIds',
             select: 'firstName middleName lastName email profilePicture',
+          },
+          {
+            path: 'sectionId',
+            select: 'name academicYear courseId createdBy',
+            populate: {
+              path: 'createdBy',
+              select: 'firstName middleName lastName email profilePicture',
+            },
           },
         ],
       },
@@ -3544,40 +3560,67 @@ class ProjectService {
       round = '1st',
       defenseType = 'midterm',
       clientName = 'Dr. Sales G. Aribe Jr.',
+      status,
     } = data;
 
-    const scheduledDate = date ? new Date(date) : project.defenseSchedule?.date;
+    const isClearingSchedule =
+      status === 'pending_scheduling' ||
+      status === 'unscheduled' ||
+      status === 'cancelled' ||
+      (date === null && (!time || time === ''));
+
+    const targetStatus = status || (isClearingSchedule ? 'pending_scheduling' : 'scheduled');
+    const scheduledDate = isClearingSchedule
+      ? null
+      : date !== undefined
+        ? date
+          ? new Date(date)
+          : null
+        : project.defenseSchedule?.date;
 
     project.defenseSchedule = {
       date: scheduledDate,
-      time: time || project.defenseSchedule?.time || '',
+      time: isClearingSchedule ? time || '' : time || project.defenseSchedule?.time || '',
       venue: venue || project.defenseSchedule?.venue || 'COT Conference Room',
       round: round || project.defenseSchedule?.round || '1st',
       defenseType: defenseType || project.defenseSchedule?.defenseType || 'midterm',
       clientName: clientName || project.defenseSchedule?.clientName || 'Dr. Sales G. Aribe Jr.',
       scheduledBy: user._id,
-      scheduledAt: new Date(),
-      status: 'scheduled',
+      scheduledAt: isClearingSchedule ? null : new Date(),
+      status: targetStatus,
+    };
+
+    const updateOps = {
+      $set: {
+        defenseSchedule: project.defenseSchedule,
+      },
     };
 
     if (scheduledDate) {
       if (!project.deadlines) project.deadlines = {};
       project.deadlines.defense = scheduledDate;
+      updateOps.$set['deadlines.defense'] = scheduledDate;
+    } else if (isClearingSchedule) {
+      updateOps.$unset = { 'deadlines.defense': '' };
     }
 
-    await Project.findByIdAndUpdate(projectId, {
-      $set: {
-        defenseSchedule: project.defenseSchedule,
-        ...(scheduledDate ? { 'deadlines.defense': scheduledDate } : {}),
-      },
-    });
+    await Project.findByIdAndUpdate(projectId, updateOps);
 
     // Broadcast WebSocket event
     try {
-      emitToRoom(`project:${projectId}`, 'project:defense_scheduled', {
+      const eventName = isClearingSchedule
+        ? 'project:defense_unscheduled'
+        : 'project:defense_scheduled';
+      emitToRoom(`project:${projectId}`, eventName, {
         projectId,
         defenseSchedule: project.defenseSchedule,
       });
+      if (isClearingSchedule) {
+        emitToRoom(`project:${projectId}`, 'project:defense_scheduled', {
+          projectId,
+          defenseSchedule: project.defenseSchedule,
+        });
+      }
     } catch {
       // Non-blocking
     }
