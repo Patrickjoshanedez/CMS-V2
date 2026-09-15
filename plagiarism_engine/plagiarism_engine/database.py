@@ -344,6 +344,30 @@ class ChromaStore:
         """
         return {doc_id: self.get_document_texts(doc_id) for doc_id in document_ids}
 
+    def get_document_embeddings(self, document_id: str) -> np.ndarray | None:
+        """Retrieve pre-indexed paragraph embeddings for a document.
+
+        Args:
+            document_id: Unique identifier for the document.
+
+        Returns:
+            Float32 numpy array of shape (n_segments, dim), or None if not found.
+        """
+        results = self._collection.get(
+            where={"document_id": {"$eq": document_id}},
+            include=["embeddings", "metadatas"],
+        )
+
+        if not results["ids"] or not results.get("embeddings"):
+            return None
+
+        entries = sorted(
+            zip(results["metadatas"], results["embeddings"]),
+            key=lambda x: x[0].get("seg_idx", 0),
+        )
+
+        return np.array([emb for _, emb in entries], dtype=np.float32)
+
     # ─── Deletion ─────────────────────────────────────────────────────────────
 
     def delete_document(self, document_id: str) -> int:

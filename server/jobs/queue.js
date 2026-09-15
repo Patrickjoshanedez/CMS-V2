@@ -26,18 +26,18 @@ export const QUEUE_NAMES = Object.freeze({
 
 /* ─────────────── Default Job Options ─────────────── */
 
-const plagiarismJobDefaults = {
+export const plagiarismJobDefaults = {
   attempts: 3,
   backoff: { type: 'exponential', delay: 5000 }, // 5 s → 10 s → 20 s
-  removeOnComplete: { count: 200 }, // keep last 200 completed
-  removeOnFail: { count: 500 }, // keep last 500 failed for inspection
+  removeOnComplete: { age: 3600, count: 50 }, // Keep max 50 jobs or 1 hour
+  removeOnFail: { age: 86400, count: 100 }, // Keep max 100 failed jobs for 24 hours
 };
 
-const emailJobDefaults = {
+export const emailJobDefaults = {
   attempts: 3,
   backoff: { type: 'exponential', delay: 3000 },
-  removeOnComplete: { count: 100 },
-  removeOnFail: { count: 200 },
+  removeOnComplete: { age: 1800, count: 25 }, // Keep max 25 jobs or 30 min
+  removeOnFail: { age: 43200, count: 50 }, // Keep max 50 failed jobs for 12 hours
 };
 
 /* ─────────────── Lazy Initializers ─────────────── */

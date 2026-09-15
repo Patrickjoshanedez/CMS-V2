@@ -857,6 +857,7 @@ describe('Projects API — /api/projects', () => {
       await Project.findByIdAndUpdate(projectId, {
         projectStatus: 'proposal_approved',
         capstonePhase: 2,
+        admStatus: 'approved',
         ganttChartUrl: 'https://example.com/gantt',
         demoVideoUrl: 'https://example.com/demo',
       });

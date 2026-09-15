@@ -158,9 +158,10 @@ describe('ProjectDetailPage back navigation', () => {
   });
 
   it('shows Back to Projects and navigates to /projects by default', () => {
-    mockUseAuthStore.mockImplementation((selector) =>
-      selector({ user: { _id: 'student-1', role: 'student' } }),
-    );
+    mockUseAuthStore.mockImplementation((selector) => {
+      const state = { user: { _id: 'student-1', role: 'student' } };
+      return typeof selector === 'function' ? selector(state) : state;
+    });
     mockUseLocation.mockReturnValue({
       state: {},
       search: '',

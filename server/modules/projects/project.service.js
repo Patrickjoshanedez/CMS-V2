@@ -846,7 +846,8 @@ class ProjectService {
           ],
         })
         .populate('courseId', 'name code')
-        .populate('memberRoleAssignments.userId', 'firstName middleName lastName email'),
+        .populate('memberRoleAssignments.userId', 'firstName middleName lastName email')
+        .lean(),
       Project.countDocuments(filter),
     ]);
 
@@ -915,10 +916,12 @@ class ProjectService {
       candidates = [];
     }
 
-    // If $text returned nothing, broaden to all non-rejected projects
+    // If $text returned nothing, broaden to all non-rejected projects (bounded to recent 100)
     // so Levenshtein can still catch close matches (e.g. word reordering)
     if (candidates.length === 0) {
       candidates = await Project.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(100)
         .select(
           'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
         )

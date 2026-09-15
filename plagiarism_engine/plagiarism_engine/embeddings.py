@@ -119,6 +119,10 @@ class EmbeddingModel:
 
         resolved_device = self._resolve_device(device=device, torch_module=torch)
 
+        if resolved_device == "cpu":
+            torch.set_num_threads(int(os.getenv("TORCH_NUM_THREADS", "2")))
+            torch.set_num_interop_threads(1)
+
         logger.info("Loading embedding model '%s' on device '%s'...", model_name, resolved_device)
         self._model: SentenceTransformer = SentenceTransformer(model_name, device=resolved_device)
         self._model_name = model_name

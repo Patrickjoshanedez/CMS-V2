@@ -48,6 +48,7 @@ import time
 import uuid
 from functools import lru_cache
 from typing import Any
+import numpy as np
 
 from .config import get_settings
 from .database import ChromaStore
@@ -277,23 +278,32 @@ class PlagiarismEngine:
             common_count = len(sub_set & corp_set)
             jaccard = common_count / len(sub_set | corp_set) if (sub_set | corp_set) else 0.0
 
-            # Compute semantic score — max cosine similarity of any submitted
-            # segment vs any corpus segment embedding
-            corpus_segs = segment_paragraphs(corpus_cleaned, min_words=self._cfg.SEGMENT_MIN_WORDS)
-            if corpus_segs:
-                corpus_vecs = self._model.encode_batch([s.text for s in corpus_segs])
-                semantic_score = float(max(
-                    self._model.max_similarity_to_set(qv, corpus_vecs)
-                    for qv in query_vectors
-                ))
+            # Compute semantic score using pre-computed segment embeddings (O(1) vector dot-product)
+            corpus_vecs = self._store.get_document_embeddings(cand_doc_id)
+            if corpus_vecs is not None and len(corpus_vecs) > 0:
+                # Query vectors and corpus vectors are L2-normalized unit vectors; dot product is cosine similarity
+                similarity_matrix = np.dot(query_vectors, corpus_vecs.T)
+                semantic_score = float(np.max(similarity_matrix))
             else:
-                semantic_score = 0.0
+                corpus_segs = segment_paragraphs(corpus_cleaned, min_words=self._cfg.SEGMENT_MIN_WORDS)
+                if corpus_segs:
+                    corpus_vecs = self._model.encode_batch([s.text for s in corpus_segs])
+                    semantic_score = float(max(
+                        self._model.max_similarity_to_set(qv, corpus_vecs)
+                        for qv in query_vectors
+                    ))
+                else:
+                    semantic_score = 0.0
 
             # Blended similarity
             blended = (
                 jaccard * self._cfg.PLAGIARISM_SCORE_WEIGHT_WINNOW
                 + semantic_score * self._cfg.PLAGIARISM_SCORE_WEIGHT_SEMANTIC
             )
+
+            # Early exit: Skip source snippet extraction for low-risk candidates (<10%)
+            if blended < 0.10:
+                continue
 
             for start, end in spans:
                 match_text = cleaned[start:end]

@@ -1877,15 +1877,16 @@ class SubmissionService {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
     }
 
-    const user = await User.findById(requesterId).select('role teamId');
+    const user = await User.findById(requesterId)
+      .select('role teamId')
+      .lean({ virtuals: true, getters: true });
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }
 
-    const project = await Project.findById(submission.projectId).populate(
-      'teamId',
-      'members googleDocUrl',
-    );
+    const project = await Project.findById(submission.projectId)
+      .populate('teamId', 'members googleDocUrl')
+      .lean({ virtuals: true, getters: true });
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
@@ -1925,13 +1926,17 @@ class SubmissionService {
    */
   async getSubmissionsByProject(projectId, query = {}, requesterId) {
     // Fetch project with team members for authorization check
-    const project = await Project.findById(projectId).populate('teamId', 'members');
+    const project = await Project.findById(projectId)
+      .populate('teamId', 'members')
+      .lean({ virtuals: true, getters: true });
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
     // Fetch user for authorization check
-    const user = await User.findById(requesterId).select('role teamId');
+    const user = await User.findById(requesterId)
+      .select('role teamId')
+      .lean({ virtuals: true, getters: true });
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }

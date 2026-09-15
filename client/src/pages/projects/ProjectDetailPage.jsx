@@ -124,8 +124,9 @@ export function resolveProjectDefaultTab(project) {
       Boolean(project.admSignatures?.adviser?.signed) &&
       Boolean(project.admSignatures?.chair?.signed));
 
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_4 && isADMApproved) return 'capstone_4';
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_3 && isADMApproved) return 'capstone_3';
+  if (numericPhase >= CAPSTONE_PHASES.PHASE_4) return 'capstone_4';
+  if (numericPhase >= CAPSTONE_PHASES.PHASE_3) return 'capstone_3';
+  if (numericPhase === CAPSTONE_PHASES.PHASE_2 && isADMApproved) return 'capstone_3';
   if (
     numericPhase >= CAPSTONE_PHASES.PHASE_2 ||
     project.titleStatus === TITLE_STATUSES.APPROVED ||

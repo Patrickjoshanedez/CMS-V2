@@ -840,6 +840,18 @@ projectSchema.index({ capstonePhase: 1 });
 projectSchema.index({ title: 'text', keywords: 'text' });
 projectSchema.index({ isArchived: 1, academicYear: 1 });
 projectSchema.index({ isArchived: 1, academicYear: 1, archivedAt: -1 });
+projectSchema.index(
+  { isArchived: 1, projectStatus: 1, createdAt: -1 },
+  { background: true, name: 'idx_projects_dashboard_lookup' },
+);
+projectSchema.index(
+  { sectionId: 1, projectStatus: 1, isArchived: 1 },
+  { background: true, name: 'idx_projects_section_status' },
+);
+projectSchema.index(
+  { submissionId: 1, pageNumber: 1, createdAt: -1 },
+  { background: true, name: 'idx_submissions_pagination' },
+);
 
 projectSchema.plugin(softDeletePlugin);
 

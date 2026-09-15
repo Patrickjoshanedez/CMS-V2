@@ -808,6 +808,8 @@ export function DocxPreviewRenderer({
         renderFooters: true,
         renderFootnotes: true,
         renderEndnotes: true,
+        renderComments: true,
+        experimental: true,
       });
 
       if (!controller.signal.aborted) {

@@ -178,7 +178,13 @@ export default defineConfig(({ mode }) => {
                 return 'query-vendor';
               }
               if (normalizedId.includes('/recharts/') || normalizedId.includes('/d3-')) {
-                return 'charts-vendor';
+                return 'engine-charts';
+              }
+              if (normalizedId.includes('/docx-preview/') || normalizedId.includes('/jszip/')) {
+                return 'engine-docx';
+              }
+              if (normalizedId.includes('/pdfjs-dist/')) {
+                return 'engine-pdf';
               }
               if (
                 normalizedId.includes('/lucide-react/') ||

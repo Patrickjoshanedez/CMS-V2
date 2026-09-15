@@ -68,7 +68,8 @@ function TargetIcon({ type }) {
 }
 
 export default function AuditLogPage() {
-  const { user } = useAuthStore();
+  const authUser = useAuthStore((state) => state?.user);
+  const user = authUser?.user || authUser;
   const [page, setPage] = useState(1);
   const dateInputRefs = useRef({ startDate: null, endDate: null });
   const [filters, setFilters] = useState({

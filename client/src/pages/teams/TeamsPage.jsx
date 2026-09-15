@@ -2939,7 +2939,8 @@ function StudentTeamView({ user }) {
 /* ────────── Main Page ────────── */
 
 export default function TeamsPage() {
-  const { user } = useAuthStore();
+  const authUser = useAuthStore((state) => state?.user);
+  const user = authUser?.user || authUser;
   const isStudent = user?.role === ROLES.STUDENT;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const pageTitle = isStudent ? 'My Team' : user?.role === ROLES.ADVISER ? 'My Teams' : 'Teams';

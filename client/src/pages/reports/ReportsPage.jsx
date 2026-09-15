@@ -162,7 +162,8 @@ function SearchableDropdown({
  * Layout: Overview → Filters → Table → Charts & Trends.
  */
 export default function ReportsPage() {
-  const { user } = useAuthStore();
+  const authUser = useAuthStore((state) => state?.user);
+  const user = authUser?.user || authUser;
   const isInstructor = user?.role === ROLES.INSTRUCTOR;
   const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
   const { data: academicYears = [] } = useAcademicYears();

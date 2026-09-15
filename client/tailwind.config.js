@@ -96,6 +96,12 @@ export default {
         'text-primary': 'var(--text-primary)',
         'text-muted': 'var(--text-muted)',
       },
+      fontSize: {
+        'fluid-h1': 'clamp(1.5rem, 1.143vw + 1.22rem, 2.25rem)',
+        'fluid-h2': 'clamp(1.25rem, 0.762vw + 1.06rem, 1.75rem)',
+        'fluid-h3': 'clamp(1.125rem, 0.381vw + 1.03rem, 1.375rem)',
+        'fluid-body': 'clamp(0.875rem, 0.19vw + 0.83rem, 1rem)',
+      },
     },
   },
   plugins: [],

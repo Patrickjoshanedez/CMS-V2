@@ -29,6 +29,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useMyProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { ROLES } from '@cms/shared';
+import { prefetchRoute } from '@/lib/routePrefetch';
 
 function getStudentNavItems(badges = {}) {
   return [
@@ -286,6 +287,7 @@ function SidebarNavItem({ item, active, collapsed }) {
   const [coords, setCoords] = useState(null);
 
   const handleShow = (e) => {
+    prefetchRoute(item.path);
     if (!collapsed) return;
     const rect = e?.currentTarget?.getBoundingClientRect?.() || {};
     setCoords({
@@ -304,7 +306,10 @@ function SidebarNavItem({ item, active, collapsed }) {
         to={item.path}
         onMouseEnter={handleShow}
         onMouseOver={handleShow}
-        onFocus={handleShow}
+        onFocus={() => {
+          prefetchRoute(item.path);
+          handleShow();
+        }}
         onMouseLeave={handleHide}
         onMouseOut={handleHide}
         onBlur={handleHide}

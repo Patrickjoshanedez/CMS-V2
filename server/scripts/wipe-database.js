@@ -85,18 +85,35 @@ async function wipeDatabase() {
       forcePathStyle: true,
     });
 
-    const listCmd = new ListObjectsV2Command({ Bucket: S3_BUCKET });
-    const listRes = await s3.send(listCmd);
-    if (listRes.Contents && listRes.Contents.length > 0) {
-      console.log(`Found ${listRes.Contents.length} objects in bucket ${S3_BUCKET}. Deleting...`);
-      const deleteParams = {
+    let isTruncated = true;
+    let continuationToken;
+    let totalDeletedS3 = 0;
+
+    while (isTruncated) {
+      const listCmd = new ListObjectsV2Command({
         Bucket: S3_BUCKET,
-        Delete: {
-          Objects: listRes.Contents.map((obj) => ({ Key: obj.Key })),
-        },
-      };
-      await s3.send(new DeleteObjectsCommand(deleteParams));
-      console.log(`✅ Successfully deleted ${listRes.Contents.length} objects from ${S3_BUCKET}.`);
+        ContinuationToken: continuationToken,
+      });
+      const listRes = await s3.send(listCmd);
+      if (listRes.Contents && listRes.Contents.length > 0) {
+        console.log(
+          `Deleting batch of ${listRes.Contents.length} objects from bucket ${S3_BUCKET}...`,
+        );
+        const deleteParams = {
+          Bucket: S3_BUCKET,
+          Delete: {
+            Objects: listRes.Contents.map((obj) => ({ Key: obj.Key })),
+          },
+        };
+        await s3.send(new DeleteObjectsCommand(deleteParams));
+        totalDeletedS3 += listRes.Contents.length;
+      }
+      isTruncated = Boolean(listRes.IsTruncated);
+      continuationToken = listRes.NextContinuationToken;
+    }
+
+    if (totalDeletedS3 > 0) {
+      console.log(`✅ Successfully deleted ${totalDeletedS3} objects from ${S3_BUCKET}.`);
     } else {
       console.log(`ℹ️ Bucket ${S3_BUCKET} is already empty.`);
     }
@@ -104,8 +121,33 @@ async function wipeDatabase() {
     console.warn(`⚠️ Warning: MinIO S3 bucket clear encountered an issue: ${err.message}`);
   }
 
+  // 4. Clear local uploads folder if present
+  const localUploadsPath = process.env.STORAGE_LOCAL_PATH || '/app/uploads';
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const resolvedPath = path.resolve(localUploadsPath);
+    if (fs.existsSync(resolvedPath)) {
+      const entries = fs.readdirSync(resolvedPath);
+      let localCount = 0;
+      for (const entry of entries) {
+        if (entry === '.probe' || entry === '.gitkeep') continue;
+        const fullPath = path.join(resolvedPath, entry);
+        fs.rmSync(fullPath, { recursive: true, force: true });
+        localCount++;
+      }
+      console.log(
+        `✅ Cleared local uploads folder (${localCount} items removed from ${resolvedPath}).`,
+      );
+    }
+  } catch (err) {
+    console.warn(`⚠️ Warning: Local uploads folder clear encountered an issue: ${err.message}`);
+  }
+
   console.log('\n🎉 DATABASE AND STORAGE WIPE COMPLETED SUCCESSFULLY!');
-  console.log('Everything has been reset to an absolute clean slate (0 documents, 0 keys).');
+  console.log(
+    'Everything has been reset to an absolute clean slate (0 documents, 0 keys, 0 objects).',
+  );
 }
 
 wipeDatabase().catch((err) => {

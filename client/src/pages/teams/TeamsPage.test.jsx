@@ -19,6 +19,7 @@ const mockUseAssignPanelist = vi.fn();
 const mockUseRemovePanelist = vi.fn();
 
 const mockUseMyTeam = vi.fn(() => ({ data: null, isLoading: false, isError: false, error: null }));
+const mockUseMyProject = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamById = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamManuscriptTemplate = vi.fn(() => ({ data: null, isLoading: false }));
 
@@ -72,6 +73,7 @@ vi.mock('@/hooks/useUsers', () => ({
 }));
 
 vi.mock('@/hooks/useProjects', () => ({
+  useMyProject: (...args) => mockUseMyProject(...args),
   useAssignAdviser: (...args) => mockUseAssignAdviser(...args),
   useAssignPanelist: (...args) => mockUseAssignPanelist(...args),
   useRemovePanelist: (...args) => mockUseRemovePanelist(...args),

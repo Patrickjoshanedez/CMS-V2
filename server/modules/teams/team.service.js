@@ -1527,7 +1527,8 @@ class TeamService {
         .populate('members', 'firstName middleName lastName email role')
         .populate('adviserId', 'firstName middleName lastName email profilePicture')
         .populate('secretaryId', 'firstName middleName lastName email profilePicture')
-        .populate('panelistIds', 'firstName middleName lastName email profilePicture'),
+        .populate('panelistIds', 'firstName middleName lastName email profilePicture')
+        .lean({ virtuals: true, getters: true }),
       Team.countDocuments(filter),
     ]);
 
@@ -1541,7 +1542,7 @@ class TeamService {
           .populate('adviserId', 'firstName middleName lastName email profilePicture')
           .populate('secretaryId', 'firstName middleName lastName email profilePicture')
           .populate('panelistIds', 'firstName middleName lastName email profilePicture')
-          .lean()
+          .lean({ virtuals: true, getters: true })
       : [];
 
     const projectByTeamId = new Map();
@@ -1552,7 +1553,7 @@ class TeamService {
     }
 
     const teamsWithAssignment = teams.map((teamDoc) => {
-      const team = teamDoc.toObject();
+      const team = teamDoc.toObject ? teamDoc.toObject() : { ...teamDoc };
       const currentProject = projectByTeamId.get(team._id.toString());
 
       const assignedAdviser = team.adviserId || currentProject?.adviserId || null;

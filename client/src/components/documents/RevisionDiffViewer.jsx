@@ -539,7 +539,7 @@ export default function RevisionDiffViewer({
 
       {/* ── Main Document Reading Surface ── */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 font-sans leading-relaxed text-sm bg-[#fafafa] dark:bg-neutral-900 overscroll-contain">
-        <div className="max-w-4xl mx-auto bg-card text-card-foreground p-6 sm:p-10 rounded-xl shadow-sm border border-border/70 min-h-[600px] whitespace-pre-wrap font-serif text-[15px] sm:text-[16px] leading-[1.85]">
+        <div className="max-w-4xl mx-auto bg-card text-card-foreground p-6 sm:p-10 rounded-xl shadow-sm border border-border/70 min-h-[600px] whitespace-pre-wrap font-serif text-[15px] sm:text-[16px] leading-[1.85] content-visibility-section">
           {filteredChunks.map((chunk) => {
             if (chunk.isHidden) return null;
 

@@ -20,6 +20,10 @@ const commentSchema = new Schema({
 
 // Fast lookups when loading PDF overlays in the DocumentViewer
 commentSchema.index({ submissionId: 1, pageNumber: 1 });
+commentSchema.index(
+  { submissionId: 1, pageNumber: 1, createdAt: -1 },
+  { background: true, name: 'idx_comments_pagination' },
+);
 
 const Comment = mongoose.model('Comment', commentSchema);
 
