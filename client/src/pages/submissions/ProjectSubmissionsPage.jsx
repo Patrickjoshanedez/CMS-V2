@@ -549,10 +549,10 @@ export default function ProjectSubmissionsPage() {
         <DashboardLayout>
           <EmptyState
             icon={FileText}
-            title="No Project Yet"
-            description="Your team does not have a project yet. Create a project to start submitting documents."
-            actionLabel="Create Project"
-            onAction={() => navigate('/project/create')}
+            title="Proceed to My Capstone to Create Proposal"
+            description="Your team does not have an approved capstone proposal yet. Proceed to My Capstone to create and submit your proposal."
+            actionLabel="Proceed to My Capstone"
+            onAction={() => navigate('/project')}
           />
         </DashboardLayout>
       );

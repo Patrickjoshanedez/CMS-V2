@@ -390,12 +390,15 @@ export default function ChapterUploadPage() {
         <DashboardLayout>
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
             <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No Project Yet</h3>
+            <h3 className="text-lg font-semibold text-foreground">
+              Proceed to My Capstone to Create Proposal
+            </h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Your team does not have a project yet. Create a project to start uploading documents.
+              Your team does not have an approved capstone proposal yet. Proceed to My Capstone to
+              create and submit your proposal.
             </p>
-            <Button className="mt-6" onClick={() => navigate('/project/create')}>
-              Create Project
+            <Button className="mt-6" onClick={() => navigate('/project')}>
+              Proceed to My Capstone
             </Button>
           </div>
         </DashboardLayout>

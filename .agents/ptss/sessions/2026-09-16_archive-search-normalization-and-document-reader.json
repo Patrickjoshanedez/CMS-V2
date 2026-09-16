@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-09-16_archive-search-normalization-and-document-reader",
+  "date": "2026-09-16T06:05:00.000Z",
+  "task_summary": "Delivered search input normalization, combobox accessibility contract, and dedicated route document viewer architecture (/archive/document/:projectId) for BukSU CMS-V2: 1) Neutralized native browser search cancel buttons via appearance-none and WebKit pseudo-element overrides, resolving dual clear 'X' button collision with custom state-managed clear button. 2) Implemented WAI-ARIA 1.2 Combobox accessibility contract (role='combobox', aria-expanded, aria-controls, aria-activedescendant), keyboard traversal (ArrowUp/ArrowDown/Enter/Escape), pointerdown outside click dismissal, and inputRef focus restoration. 3) Created useArchiveSearchState hook synchronizing q, year_min, year_max, program, sort, scope, and p with history push/replace semantics (typing replaces, filter changes push), preserving facet filters on clear while resetting p=1, and restoring scroll positions via sessionStorage. 4) Eliminated inline split-canvas and modal viewers in favor of dedicated full-viewport page routing at /archive/document/:projectId. 5) Built CanonicalDocumentViewer stripped of drafting/revision diff tools, featuring a consolidated 5-action toolbar (Back to Search, Download PDF, Cite, Originality Badge/Drawer, Copy DOI/Share) with resilient clipboard fallback, missing PDF preview, and missing DOI states. Verified with 24/24 targeted unit tests, 145/145 full client tests, 204/182 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic checks, and 7-way Playwright visual feedback loop.",
+  "task_category": "search_normalization_and_dedicated_document_viewer",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "modified_files": [
+    "client/src/components/archive/GoogleScholarSearchBar.jsx",
+    "client/src/components/archive/ArchiveSearchBar.jsx",
+    "client/src/components/archive/GoogleScholarSidebar.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.test.jsx",
+    "client/src/components/archive/archiveComponents.test.jsx",
+    "client/src/hooks/useArchiveSearchState.js",
+    "client/src/pages/archive/ArchiveDocumentViewerPage.jsx",
+    "client/src/pages/archive/ArchiveSearchPage.jsx",
+    "client/src/pages/archive/ArchiveSearchPage.test.jsx",
+    "client/src/App.jsx",
+    "client/src/lib/routePrefetch.js",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    ".agents/ptss/chat-starter.json",
+    ".agents/ptss/index.jsonl"
+  ],
+  "verification_evidence": {
+    "targeted_tests_passed": 24,
+    "full_client_tests_passed": 145,
+    "endpoints_parity_unmatched": 0,
+    "agentic_governance_passed": "60/60",
+    "visual_audit_screenshots_count": 7
+  }
+}

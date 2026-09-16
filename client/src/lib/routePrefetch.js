@@ -20,6 +20,7 @@ export const routeRegistry = {
   '/project/submissions': () => import('../pages/submissions/ProjectSubmissionsPage'),
   '/projects': () => import('../pages/projects/ProjectsPage'),
   '/archive': () => import('../pages/archive/ArchiveSearchPage'),
+  '/archive/document': () => import('../pages/archive/ArchiveDocumentViewerPage'),
   '/archive/upload': () => import('../pages/archive/ExistingCapstoneUploadPage'),
   '/archive/upload/academic-paper': () => import('../pages/archive/AcademicPaperArchiveUploadPage'),
   '/archive/upload/academic-journal': () =>

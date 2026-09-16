@@ -138,6 +138,9 @@ const renderPage = () => {
 describe('CreateProjectPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.clear();
+    }
     mockGetCreateProjectDraft.mockResolvedValue({
       data: { data: { draft: null, updatedAt: null } },
     });

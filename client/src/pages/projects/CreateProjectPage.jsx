@@ -391,6 +391,8 @@ export default function CreateProjectPage() {
   const effectiveThreshold = plagiarismThreshold || 15.0;
   const isCleared = hasScanned && currentScanScore <= effectiveThreshold;
 
+  const [isHydrated, setIsHydrated] = useState(false);
+
   // Hydrate saved draft or edit mode project on mount
   useEffect(() => {
     let isMounted = true;
@@ -444,39 +446,102 @@ export default function CreateProjectPage() {
             setKeywordList(projectData.keywords);
           }
           teamDefaultsAppliedRef.current = true;
+          setIsHydrated(true);
           return;
         }
       } catch (err) {
         console.error('Failed to load project for editing:', err);
       }
 
-      // 2. Normal Mode: Hydrate draft
+      // 2. Normal Mode: Dual-Hydrate draft (Remote DB -> LocalStorage -> Backup)
       try {
-        const res = await projectService.getCreateProjectDraft();
-        const draft = res?.data?.data?.draft;
-        if (!isMounted || !draft) return;
+        let draft = null;
 
-        if (draft.form && typeof draft.form === 'object') {
-          setForm((prev) => ({ ...prev, ...draft.form }));
+        // Try remote database draft first
+        try {
+          const res = await projectService.getCreateProjectDraft();
+          const remoteDraft = res?.data?.data?.draft || res?.data?.draft;
+          if (remoteDraft) {
+            draft = remoteDraft;
+          }
+        } catch (remoteErr) {
+          console.warn('Could not fetch remote project draft:', remoteErr);
         }
 
-        if (Array.isArray(draft.titleProposals) && draft.titleProposals.length > 0) {
-          const normalized = draft.titleProposals.slice(0, 5).map(normalizeDraftProposal);
-          setTitleProposals(normalized);
-          if (typeof draft.expandedProposalIndex === 'number') {
-            setActiveProposalIndex(
-              Math.max(0, Math.min(draft.expandedProposalIndex, normalized.length - 1)),
-            );
+        // Check localStorage if remote returned no draft
+        if (!draft && typeof window !== 'undefined') {
+          try {
+            const rawLocal = window.localStorage.getItem('cms.create_project_draft');
+            if (rawLocal) {
+              const localDraft = JSON.parse(rawLocal);
+              const localHasContent =
+                Array.isArray(localDraft?.titleProposals) &&
+                localDraft.titleProposals.some(
+                  (p) =>
+                    p?.title?.trim() ||
+                    p?.pitchDeck?.problemStatement?.trim() ||
+                    p?.pitchDeck?.proposedSolution?.trim(),
+                );
+              if (localHasContent) {
+                draft = localDraft;
+              }
+            }
+          } catch (localErr) {
+            console.warn('Could not parse local project draft:', localErr);
+          }
+
+          // Fallback to persistent backup if still no content
+          if (!draft) {
+            try {
+              const rawBackup = window.localStorage.getItem('cms.create_project_draft.backup');
+              if (rawBackup) {
+                draft = JSON.parse(rawBackup);
+              }
+            } catch {
+              // ignore
+            }
           }
         }
 
-        if (Array.isArray(draft.keywordList)) {
-          setKeywordList(draft.keywordList.filter((item) => typeof item === 'string'));
-        }
+        if (isMounted && draft) {
+          if (draft.form && typeof draft.form === 'object') {
+            setForm((prev) => ({ ...prev, ...draft.form }));
+          }
 
-        teamDefaultsAppliedRef.current = true;
-      } catch {
-        // Fallback gracefully
+          if (Array.isArray(draft.titleProposals) && draft.titleProposals.length > 0) {
+            const normalized = draft.titleProposals.slice(0, 5).map(normalizeDraftProposal);
+            setTitleProposals(normalized);
+            if (typeof draft.expandedProposalIndex === 'number') {
+              setActiveProposalIndex(
+                Math.max(0, Math.min(draft.expandedProposalIndex, normalized.length - 1)),
+              );
+            }
+          }
+
+          if (Array.isArray(draft.keywordList)) {
+            setKeywordList(draft.keywordList.filter((item) => typeof item === 'string'));
+          }
+
+          teamDefaultsAppliedRef.current = true;
+
+          const hasRestoredContent =
+            Array.isArray(draft.titleProposals) &&
+            draft.titleProposals.some(
+              (p) =>
+                p?.title?.trim() ||
+                p?.pitchDeck?.problemStatement?.trim() ||
+                p?.pitchDeck?.proposedSolution?.trim(),
+            );
+          if (hasRestoredContent) {
+            toast.info('Restored your saved capstone proposal draft');
+          }
+        }
+      } catch (err) {
+        console.error('Draft hydration failed:', err);
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true);
+        }
       }
     };
 
@@ -503,11 +568,29 @@ export default function CreateProjectPage() {
   );
 
   const { saveStatus, setSaveStatus } = useAutosave(
-    isEditMode ? null : 'cms.create_project_draft',
+    isEditMode || !isHydrated ? null : 'cms.create_project_draft',
     autosavePayload,
     1200,
     async (payload) => {
-      if (isEditMode) return;
+      if (isEditMode || !isHydrated) return;
+
+      const hasContent =
+        Array.isArray(payload?.titleProposals) &&
+        payload.titleProposals.some(
+          (p) =>
+            p?.title?.trim() ||
+            p?.pitchDeck?.problemStatement?.trim() ||
+            p?.pitchDeck?.proposedSolution?.trim(),
+        );
+
+      if (typeof window !== 'undefined' && hasContent) {
+        try {
+          window.localStorage.setItem('cms.create_project_draft.backup', JSON.stringify(payload));
+        } catch {
+          // ignore
+        }
+      }
+
       try {
         await projectService.saveCreateProjectDraft({
           ...payload,

@@ -396,6 +396,44 @@
      - Checklist: Verify visual contrast and responsive layouts across Light and Dark modes (1440x900 desktop, 390x844 mobile).
   6. Evidence & Verification passed: 7/7 `ProposalTab.test.jsx` tests passed, 14/14 `CreateProjectPage.test.jsx` tests passed, 6/6 `project.create.validation.test.js` tests passed, API route parity verified (196 server / 175 client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, workspace guardrail verified clean, and 11 Playwright screenshots captured across desktop light/dark, proposal unlock dialog, full-height pitch deck details, and mobile responsive views.
 
+64. Google Scholar-Style Research Archive Redesign & Proposal Draft Preservation Architecture:
+- Architectural Root Cause & Mechanics:
+  1. Proposal draft loss on logout / session expiration: When students logged out or their session expired, navigating back to `CreateProjectPage` mounted with empty state and immediately overwrote existing database drafts. Furthermore, un-marked mutations to Mongoose `Schema.Types.Mixed` fields (`user.createProjectDraft`) failed to persist to MongoDB.
+  2. Generic "No project yet" empty states on submission and upload pages failed to provide institutional capstone guidance to students.
+  3. The research archive interface lacked the high visual density, typography, and citation ergonomics of canonical academic search platforms like Google Scholar.
+- Resolution & Implementation Details:
+  1. Mongoose Mixed Reactivity & Dual-Hydration Protection: In `project.service.js:saveCreateProjectDraft`, added `user.markModified('createProjectDraft')` and blank-state overwrite guards. In `CreateProjectPage.jsx`, implemented order-of-precedence hydration (Database -> LocalStorage -> Backup) guarded by an `isHydrated` boolean state flag that prevents `useAutosave` from running until hydration completes.
+  2. Clear Institutional Guidance: In `EmptyProjectState.jsx`, `ProjectSubmissionsPage.jsx`, and `ChapterUploadPage.jsx`, updated generic "No project yet" states to "Proceed to My Capstone to Create Proposal" and added dual-action resumption buttons ("Resume Proposal Draft" and "Start Fresh Proposal").
+  3. Academic Research Archive Redesign (`/archive`): Designed a minimalist, high-density Google Scholar feed featuring `#1a0dab` blue hyperlinked titles, `#006621` green metadata lines with clickable DOI links, 3-line clamped abstracts (`line-clamp-3`), color-coded `OriginalityShieldBadges` (>95% green, 80-95% amber, <80% red), CitationExportModal (APA 7th, IEEE, MLA 9th, BibTeX), and responsive `GoogleScholarSidebar` (fixed 240px desktop, slide-out drawer on mobile).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In Mongoose schemas with `type: Schema.Types.Mixed`, always call `doc.markModified(fieldName)` before save when mutating nested JSON objects.
+  2. Prevention rule: In autosaving form studios, guard all autosave effects behind an explicit `isHydrated` boolean flag to prevent initial empty React component state from wiping out persistent database drafts.
+  3. Checklist: Verify citation modal copies APA, IEEE, MLA, and BibTeX to clipboard and exports `.bib` file.
+  4. Checklist: Verify proposal draft hydration handles database drafts, localStorage, and localStorage backups in strict order of precedence.
+  5. Evidence & Verification passed: 38/38 unit tests passed, 204/182 endpoint parity (`UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and 8-way Playwright visual feedback loop verified across light and dark desktop (1440x900) and mobile (390x844).
+
+65. Search Input Normalization, Combobox Accessibility & Dedicated Route Document Viewer Architecture:
+- Architectural Root Cause & Mechanics:
+  1. Dual Clear "X" Button Collision: In `input[type="search"]`, WebKit-based desktop and mobile browsers render an intrinsic cancel button (`::-webkit-search-cancel-button`) whenever text is entered. Rendering a custom React state-managed clear button resulted in two overlapping or adjacent "X" icons with competing behaviors.
+  2. Combobox Accessibility & Interaction Gaps: Search suggestion dropdowns lacked the WAI-ARIA 1.2 Combobox pattern contract (`role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`), keyboard shortcuts (`ArrowDown`, `ArrowUp`, `Enter`, `Escape`), and outside `pointerdown` listener (native `click` outside swallowed suggestion selection).
+  3. Inline Split-Canvas Screen Contention: Viewing manuscripts inline in a split-canvas or modal crowded the `/archive` feed and restricted document inspection. Transitioning to a dedicated route (`/archive/document/:projectId`) provides full-viewport screen real estate for canonical reading while keeping the search results feed clean.
+  4. URL Synchronization & History Semantics: Search parameters (`q`, `year_min`, `year_max`, `program`, `sort`, `scope`, `p`) were fragmented. Parameter normalization required explicit history push/replace semantics (typing replaces, filter changes push), facet preservation on query clear (resetting `p = 1`), and `sessionStorage` scroll offset restoration.
+  5. Streamlined Canonical Document Viewer: Finalized archived capstone manuscripts do not require drafting or peer-review tools ("Revision Diff (+/-)", inline comments). The viewer toolbar required consolidation into strictly 5 primary actions: Back to Search, Download PDF, Cite, Originality Badge/Audit Drawer, and Copy DOI/Share, with resilient fallback states.
+- Resolution & Implementation Details:
+  1. Browser Search Input Normalization: Applied `appearance-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden` in `GoogleScholarSearchBar.jsx` to eliminate dual clear buttons. Positioned single custom clear button visible strictly when `query.length > 0` with `inputRef.current?.focus()` restoration.
+  2. WAI-ARIA Combobox Contract: Implemented full combobox accessibility contract, active suggestion highlighting (`activeSuggestionIndex`), keyboard traversal, and outside `pointerdown` dismissal. Added dual export for `GoogleScholarSearchBar` and `ArchiveSearchBar`.
+  3. Dedicated Route Architecture: Built `ArchiveDocumentViewerPage.jsx` routed at `/archive/document/:projectId`. Routed article titles and `[PDF]` links with state-preserved return URL (`state: { from: location.pathname + location.search }`).
+  4. Streamlined Canonical Document Viewer (`CanonicalDocumentViewer.jsx`): Removed all drafting/review tools. Consolidated top bar to 5 primary actions, slide-out originality audit drawer with `toFixed(1)` percentage formatting, safe clipboard copy with textarea fallback, and graceful missing PDF and DOI states.
+  5. URL State Synchronization Hook (`useArchiveSearchState.js`): Unified parameter management, history push vs replace semantics, facet preservation on clear, and `sessionStorage` scroll offset restoration.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When styling search inputs (`type="search"`), always explicitly neutralize native browser cancel buttons via `appearance-none [&::-webkit-search-cancel-button]:hidden` to eliminate dual clear button collisions.
+  2. Prevention rule: Dropdowns and combobox suggestions must dismiss via `pointerdown` outside listeners (not `click`), preventing race conditions where mouseup triggers dismissal before selection events fire.
+  3. Prevention rule: Clearing a search query must reset the pagination offset (`p = 1`) while strictly preserving existing facet filters (year ranges, program, sort).
+  4. Prevention rule: Back navigation from dedicated detail routes must inspect `location.state?.from` and fallback to the main archive route (`/archive`) when accessed via direct URL.
+  5. Checklist: Verify that `CanonicalDocumentViewer` renders the 5 consolidated actions with zero revision diff or comment drafting controls.
+  6. Checklist: Verify that `OriginalityShieldBadge` audit drawer formats floating percentages with `toFixed(1)`.
+  7. Evidence & Verification passed: All 24 archive tests in `CanonicalDocumentViewer.test.jsx`, `archiveComponents.test.jsx`, and `ArchiveSearchPage.test.jsx` passed in 9.25s; full client test suite (145/145 passed in 43s); 204/182 API route parity (`UNMATCHED_COUNT = 0`); 60/60 agentic validation checks passed; and full 7-way Playwright visual feedback loop verified across light and dark desktop (1440x900) and mobile (390x844).
+
 43. ADMPhaseSelector Layout Stability & Full-Width Workspace Reorganization:
 - Incident & Root Cause:
   1. ADMPhaseSelector UI Overlap: In `ADMPhaseSelector.jsx`, flex layout used `sm:flex-row` without `min-w-0 flex-1` on the title container or `shrink-0 whitespace-nowrap` on the `AY {academicYear}` badge. Inside an 8-column grid layout (~700px), 480px of tabs forced the title to wrap into 4 lines, squishing the badge into a vertical oval that directly collided and overlapped with the phase tabs.
@@ -2039,6 +2077,201 @@
 - Prevention, Runbook & Checklist:
   1. Prevention rule: When using `content-visibility: auto` to optimize large lists or diff viewers, always pair with `contain-intrinsic-size: auto <estimated_height>` so the browser caches the real rendered size and prevents scrollbar jitter.
   2. Prevention rule: Always use `.lean({ virtuals: true, getters: true })` instead of bare `.lean()` when querying Mongoose models whose virtual properties are consumed by frontend views.
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace cleanliness guardrail passed cleanly.
+     - Full 7-screenshot Playwright visual audit passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_fluid_scheduler.mjs` verifying continuous timeline, mini-calendar popover, scheduled blocks, and team leader visual hierarchy.
+
+### 2026-09-12: Direct Drag-and-Drop Defense Scheduling, 30-Minute Standard Quantum, Team Leader Hierarchy & Strict Designated ADM Signatories
+- Context & Architectural Impact:
+  1. Direct Drag-and-Drop Scheduling & Overlap Collision Guard:
+     - Shifted from opening a confirmation modal on drop to direct defense hearing scheduling at the 5-minute snapped slot.
+     - Implemented accidental collision detection checking `scheduledByDateMap.get(dateStr)`: If a dropped 30-min window overlaps with another scheduled hearing, the drop is rejected with an informative warning toast (`Time slot conflict: "[Team Name]" is already scheduled at [Time]. Please choose an open slot.`), safeguarding confirmed schedules from inadvertent cascade shifts.
+  2. Optimistic UI Updates & Instant Snap:
+     - Learned lesson: Dropping cards onto the timeline should provide zero-latency tactile feedback. Using `queryClient.setQueryData` snapshots the previous cache and updates local project state instantly, automatically rolling back and triggering an error toast if `projectService.scheduleDefense` fails.
+  3. 30-Minute Standard Duration Quantum (36px Height Block Optimization):
+     - Standardized default hearing duration to 30 minutes (36px at 1.2px/min).
+     - Solved the tight 36px vertical constraint using a 2-line flex layout with strict `leading-[1.2]`, `whitespace-nowrap`, `truncate`, duration badge (`30 MIN`), round badge (`1ST RND`), unclipped `Lead: [Name]`, venue, and low-profile resize handle (`h-1.5`).
+     - Wrapped scheduled blocks in rich multi-line tooltips to display full team details, leader, venue, and time slot without resizing.
+  4. Universal "Capstone" Terminology & Leader Display:
+     - Universally replaced "Phase" with "Capstone" across all filters (`All Capstones`, `Capstone 1..4`), table headers (`Section / Capstone`), and cards.
+     - Added `Lead: [Name]` across timeline blocks, tray cards, Table View, and Grid View.
+  5. Strict Designated-Person-Only ADM Signatories:
+     - Abstracted backend signatory validation into reusable middleware `verifyAdmSignatoryRole` in `server/middleware/authorize.js`.
+     - Attached middleware to `POST /:projectId/signatures` and `POST /:projectId/adm-signatures`.
+     - Strictly enforced institutional segregation of duties: Secretary (endorsement gate), Adviser (Tier 1), Section Course Instructor (Tier 1), Panelists 1 & 2 (Tier 2), and Chair (Tier 3). Course instructors cannot sign committee slots.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In drag-and-drop calendar interfaces with direct drop scheduling, always guard against timeslot collisions on the client before dispatching mutations, and reject conflicts with an explicit warning toast rather than shifting subsequent hearings.
+  2. Prevention rule: For tight vertical constraints (36px for 30m blocks), use strict line-height (`leading-[1.2]`), `whitespace-nowrap`, and CSS `truncate` paired with hover tooltips so critical information is never occluded or clipped.
+  3. Prevention rule: ADM digital signatures must enforce designated appointment matching on both frontend UI (hiding/disabling sign buttons) and backend routes (`verifyAdmSignatoryRole`) to prevent unauthorized cross-signing.
+  4. Checklist, Runbook & Evidence:
+     - 12/12 client unit tests passed (`DefenseSchedulingPage.test.jsx`).
+     - 6/6 client unit tests passed (`ActionDoneMatrixTab.test.jsx`).
+     - 15/15 server unit and integration tests passed (`admAutoProgression.test.js`, `adm-compliance.test.js`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Workspace cleanliness guardrail passed cleanly.
+     - Full 8-screenshot Playwright visual feedback loop passed across Light/Dark modes and Desktop/Mobile viewports in `scratch/audit_fluid_scheduler_and_adm_signatories.mjs` and `scratch/capture_signatories_board.mjs`.
+
+### 2026-09-13: Oral Defense Examination to ADM Revision Flow & Top-Right Semantic Defense Schedule Badge
+- Context & Architectural Impact:
+  1. Top-Right Defense Schedule Badge & Semantic Color Coding:
+     - Replaced plain text indicators (`Schedule: scheduled`) with modular `DefenseScheduleBadge.jsx`.
+     - Displays formatted calendar date (`Sep 25, 2026`), time quantum, and responsive icons (`Calendar`, `Clock`, `AlertTriangle`, `RotateCcw`).
+     - Strictly color-coded according to institutional urgency:
+       - **Orange (`amber-500`)**: Pending scheduling (`pending_scheduling` or `pending`).
+       - **Green (`emerald-500`)**: Scheduled for future or current date (`scheduled`).
+       - **Red (`rose-500`)**: Overdue (scheduled date elapsed) or redefense required (`redefense` or `verdict: rejected`).
+     - Integrated across key top-right anchors: Submission Detail navigation strip, Adviser Endorsement card header, and Student Team Details header.
+  2. Defense-to-ADM Revision Lifecycle:
+     - Committee Secretary takes live minutes during hearing (`LiveDefenseMinutesModal`, Form OVPAA-F-INS-032).
+     - Atomic ADM publishing (`publishToADM`) creates structured rows with panelist attribution, severity, and module/page citations.
+     - Final verdict recording (`finalizeVerdict`) sets `approved_with_minor_revisions` or `approved_with_major_revisions` (or `redefense`).
+     - Student team implements changes, notes specific Actions Taken and Page Numbers in ADM, and uploads revised manuscript (`v2+`).
+     - Panelists verify fulfillment (`[✓] Fulfilled & Verified by Panel`), Secretary completes compliance endorsement, and committee signs off to unlock Capstone 3.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always derive defense urgency through centralized helper `resolveDefenseScheduleState`, ensuring start-of-day comparison so past scheduled dates automatically flag as Red Overdue even if status was left as scheduled.
+  2. Prevention rule: In visual audit scripts, always await semantic content visibility rather than relying on bare timeouts after page navigation to prevent capturing un-hydrated loading screens.
+  3. Checklist, Runbook & Evidence:
+     - 8/8 client unit tests passed (`DefenseScheduleBadge.test.jsx`).
+     - 14/14 client unit tests passed (`SubmissionDetailPage.test.jsx`).
+     - 6/6 server unit tests passed (`submission.review-flow.test.js`).
+     - Route parity verified: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed.
+     - Governance validation verified: 0 errors, 0 warnings.
+     - Workspace guardrail verified: pristine workspace.
+     - Playwright visual audit verified across Desktop Light/Dark and Mobile Light/Dark viewports.
+
+### 2026-09-14: Action Done Matrix (ADM) Compliance Report Zero-Loader Readiness Pipeline & Deterministic Hydration Verification
+- Context & Architectural Impact:
+  1. Elimination of Premature Screenshots:
+     - Learned lesson: Automated report generation scripts previously captured viewport snapshots immediately after basic selector queries, capturing active loading screens (`Initializing session...`), `.animate-spin` spinners, and skeleton shimmer placeholders (`PageSkeleton`).
+     - Implemented an exhaustive 7-stage deterministic readiness verification pipeline (`ensureLoaded`) in `scripts/generate_adm_compliance_report.mjs`:
+       * Stage 1: Explicit target UI selector presence (`waitForSelector(uiSelector, { state: 'visible' })`).
+       * Stage 2: DOM-wide session loading screen eradication (asserting `document.querySelector('.loading-screen')` is null).
+       * Stage 3: Zero active spinners (`.animate-spin`).
+       * Stage 4: Zero genuine skeleton loaders (`[data-testid="page-skeleton"], [aria-busy="true"], .cms-skeleton-shimmer, [data-skeleton]`), explicitly ignoring decorative live status pulse dots (`h-2 w-2 rounded-full`).
+       * Stage 5: Zero in-page "Loading..." / "Initializing..." text patterns.
+       * Stage 6: Word/PDF OOXML rendering completion for document viewer states.
+       * Stage 7: Deterministic React Query stabilization settle delay.
+  2. Role Credential & Route Integrity:
+     - Assigned committee secretary credentials correctly set to `joseph.abella@buksu.edu.ph` / `Password123!`.
+     - Route mappings synchronized: `/secretary/review` for LJ-03, `/archive` for JA-02 (under student role), `/project/submissions` for JA-04, and dedicated calendar grid `/defense-schedule` for SA-03.
+     - Header element targeting for SA-02 to capture the ThemeToggle button cleanly.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In visual audit and automated report generation pipelines, never capture a screenshot without verifying that all session loaders, skeleton shimmers, and in-flight API queries have settled to zero.
+  2. Prevention rule: Skeletons must be queried using semantic attributes (`[data-testid="page-skeleton"], [aria-busy="true"], .cms-skeleton-shimmer, [data-skeleton]`) while explicitly excluding decorative live status dots (`h-2 w-2 rounded-full bg-primary animate-pulse`) to prevent hanging readiness checks.
+### 2026-09-14: Capstone 2 Action Done Matrix (ADM) Viewer Integration & Portaled Modal Architecture
+- Context & Architectural Impact:
+  1. Integrated Action Done Matrix (ADM) Viewer into Capstone 2 Card:
+     - Problem: The Submissions page (`/project/submissions`) lacked an accessible Action Done Matrix (ADM) viewer inside the Capstone 2 card (`Phase 2: Capstone 2: Chapters 1–3 Manuscript & Midterm Defense`). Proponents and reviewers had no direct entry point to inspect BukSU Form RU-F-033 defense remarks, actions taken, and committee endorsements from the submissions workspace.
+     - Learned lesson: Submissions cards should provide both in-card contextual inspection and quick header/toolbar actions. Created `ActionDoneMatrixSection` card with status badge, `v1 Midterm` milestone indicator, remarks count, and dual action modes: `[Expand Inline]` for quick in-place review without leaving the page, and `[View ADM]` for comprehensive modal inspection.
+     - Card Header & Toolbar Quick-Access: Added `[Open Action Done Matrix]` header button to Phase 2 card (harmonizing with Phase 3's `[Open Academic Gantt]`) and an `[Action Done Matrix]` quick button in the page top toolbar.
+  2. Modal Dialog Portal Architecture (`createPortal(..., document.body)`):
+     - Problem: In `ProjectSubmissionsPage.jsx`, container components (e.g. `DashboardLayout`, animated page transitions) establish CSS transforms and stacking contexts (`isolation: isolate` or `transform: translate(...)`), causing `fixed inset-0` dialog modals to be constrained within parent bounds instead of covering the full viewport.
+     - Learned lesson & resolution: Always portal full-screen dialog modals directly to `document.body` using `createPortal(..., document.body)`. Portaled both `showAdmModal` and `showGanttModal` to `document.body`.
+  3. Default Milestone Scoping via `initialMilestone`:
+     - Updated `ActionDoneMatrixTab.jsx` to accept `initialMilestone` prop (defaulting to `'CAPSTONE_2'` when launched from Capstone 2 card) while preserving the user's ability to switch to any milestone tab via `selectedMilestone`.
+  4. Unit Test Dom Boundary Assertion:
+     - Learned lesson: When modal dialogs are portaled via `createPortal(..., document.body)`, testing assertions must query `document.body` rather than local test component `container` (e.g., `document.body.querySelector('[role="dialog"]')` or `screen.getByRole('dialog')`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Full-screen overlay modals inside nested dashboard layouts MUST use `createPortal(..., document.body)` to escape ancestor transform and container stacking contexts.
+  2. Prevention rule: When testing portaled modals, assertions must inspect `document.body` rather than the local RTL render `container` to avoid false-negative null assertions.
+  3. Prevention rule: Submissions cards for capstone phases with defense deliverables (Phase 2 Midterm and Phase 4 Final) should provide direct access to BukSU Form RU-F-033 Action Done Matrix to ensure committee compliance verification is immediately accessible.
+  4. Runbook & Checklist:
+     - Checklist: Verify Capstone 2 card renders `ActionDoneMatrixSection` below Proposal Document with status badges and remarks count.
+     - Checklist: Verify `[Open Action Done Matrix]` header button in Capstone 2 card opens the ADM modal.
+     - Checklist: Verify `[Expand Inline]` toggles the BukSU matrix table directly inside the Capstone 2 card.
+     - Checklist: Verify `initialMilestone="CAPSTONE_2"` pre-selects Capstone 2 (Chapters 1–3) in the ADM viewer.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark, Modal Viewer, Inline Expansion, and Mobile Light/Dark viewports.
+  5. Evidence & Verification passed: 5/5 `ProjectSubmissionsPage.test.jsx` passed, 6/6 `ActionDoneMatrixTab.test.jsx` passed (11/11 client tests passed), route parity verified (204 Server / 182 Client, `UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and 7 Playwright screenshots captured and verified across desktop light/dark, modal dialog, inline expansion, and mobile viewports.
+
+### 2026-09-14: ADM RBAC Controls, Student Empty State, Section Instructor Attribution & Progression Gating for Capstones 3 & 4
+- Context & Architectural Impact:
+  1. ADM RBAC Controls & Student-Facing Empty State:
+     - Learned lesson: Proponent student team members were previously able to interact with the "Type of Review" checkboxes (`Internal Review` / `External Review`) and were shown instructional prompt text (`Click "Add Row" or "Load Institutional Template" to begin.`) even though they lack permission to add recommendations or classify reviews.
+     - Solution & implementation: In `ActionDoneMatrixTab.jsx`, introduced `canManageReviewType = Boolean((isFaculty || isUserInstructor || isUserChair || isUserSecretary || isUserPanelist) && !isCurrentUserStudent)`. The review type checkboxes are strictly disabled for student accounts (`disabled={!canManageReviewType}`). In the empty state, student users are shown `"No recommendations recorded yet by the defense committee or panel."` rather than the authoring prompt.
+  2. Section Instructor Attribution ("PENDING APPOINTMENT" Elimination):
+     - Learned lesson: Projects linked to academic teams where the section record lacked a `createdBy` field or whose population path was incomplete fell back to displaying `"PENDING APPOINTMENT"` under "Signature over Printed Name of Instructor" in the ADM signatory block.
+     - Solution & implementation: In `server/modules/projects/project.service.js`, populated `createdBy` on `teamId.sectionId` in both `getMyProject` and `getProject`. Backfilled section `BSIT-4A` with `createdBy: ObjectId('6aa14c2554d0b79f8e8aa966')` (Dr. Sales G. Aribe Jr.). In `ActionDoneMatrixTab.jsx`, added a robust fallback chain: `project.sectionId?.createdBy || project.teamId?.sectionId?.createdBy || project.leaderId?.instructorId || project.teamId?.leaderId?.instructorId || project.instructorId`, properly rendering `"SALES G. ARIBE JR."`.
+  3. Capstone 3 Progression Gating:
+     - Learned lesson: Students were able to upload Chapter 4 (Results) and Chapter 5 (Conclusions) before Capstone 2 Action Done Matrix (`ADM v1`) was approved by the defense committee.
+     - Solution & implementation: Gated Chapter 4 & 5 uploads behind `isCap2ADMApproved = Boolean(project.admStatus?.v1 === 'APPROVED')`. Rendered an institutional prerequisite banner in the Capstone 3 card (`[data-testid="capstone3-prerequisite-alert"]`), disabled Chapter 4 and 5 upload triggers with explanatory tooltips, and passed `isCap2ADMApproved` into `UploadChapterModal.jsx` to disable Chapter 4 and 5 options in the chapter selector dropdown.
+  4. Capstone 4 Progression Gating:
+     - Learned lesson: The Final Paper upload dropzone on Capstone 4 was active and unlocked even when Chapter 3 was not yet approved and Capstone 3 prototype/ADM milestones were pending.
+     - Solution & implementation: Added `canUnlockCapstone4 = isCap2ADMApproved && all5ChaptersApproved`. When `!canUnlockCapstone4`, rendered an institutional prerequisite alert banner (`[data-testid="capstone4-prerequisite-alert"]`), updated `FinalPaperUpload.jsx` to accept `isLocked`, rendered locked dropzones with `opacity-60 cursor-not-allowed`, and replaced upload actions with a disabled `<Lock /> Upload Locked` button.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Proponent students must never be shown review management controls (such as review type toggles or matrix row addition prompts) in institutional forms like BukSU Form RU-F-033. Always guard with `!isCurrentUserStudent`.
+  2. Prevention rule: Section instructor attribution must always traverse both direct section links (`project.sectionId.createdBy`) and team section links (`project.teamId.sectionId.createdBy`) with leader instructor fallback to avoid falling back to `"PENDING APPOINTMENT"`.
+  3. Prevention rule: Academic capstone deliverables must strictly gate on prior milestone completion: Chapter 4/5 requires Capstone 2 ADM approval, and Capstone 4 Final Paper upload strictly requires all 5 chapters approved and Capstone 3 completed.
+  4. Runbook & Checklist:
+     - Checklist: Verify student accounts see disabled checkboxes for Internal/External review in ADM.
+     - Checklist: Verify student empty state displays informative message without edit instructions.
+     - Checklist: Verify ADM signatory block renders assigned section instructor name ("SALES G. ARIBE JR.").
+     - Checklist: Verify Capstone 3 card displays prerequisite alert banner when Cap 2 ADM is not approved.
+     - Checklist: Verify Chapter 4/5 upload buttons are disabled and UploadChapterModal disables Ch 4/5 options when Cap 2 ADM is pending.
+     - Checklist: Verify Capstone 4 card displays prerequisite alert banner, locked dropzones, and "Upload Locked" button when earlier deliverables are incomplete.
+  5. Evidence & Verification passed:
+     - 7/7 `ProjectSubmissionsPage.test.jsx` passed.
+     - 8/8 `ActionDoneMatrixTab.test.jsx` passed.
+     - 3/3 `UploadChapterModal.test.jsx` passed.
+     - Total targeted test suite: 18/18 passed.
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance check: 60/60 checks passed.
+     - Playwright visual audit passed: 16 high-resolution viewports captured across light and dark modes, desktop and mobile viewports in `scratch/audit_capstone_gating.mjs` and `scratch/audit_adm_rbac.mjs`.
+
+### 2026-09-14: Defense Scheduling Typed Meeting Duration Input, Drag-to-Unschedule & Reviewer Resolution in Capstone Progress
+- Context & Architectural Impact:
+  1. Typed Meeting Duration Input:
+     - Learned lesson: Instructors previously had a fixed dropdown menu for hearing durations (15m, 30m, 45m, 60m, 90m, 120m) which occluded the calendar screen and prevented setting custom durations (e.g. 20m, 40m, 50m).
+     - Solution & implementation: Replaced the fixed `<select>` with an inline typed input badge (`[45] m`) with `min={5} max={360}`, select-on-focus, and Enter-to-blur. Synchronized hearing durations across tray helper text (`Drag team onto calendar (45 min slot)`), timeline quantums, and direct drag-to-unschedule handling.
+  2. Drag-to-Unschedule & Duration Normalization:
+     - Learned lesson: Scheduled defense hearing cards on the timeline could not be returned to the "Awaiting Scheduling" tray by dragging them back, and unscheduling required complex manual modal interactions.
+     - Solution & implementation: Added drag-over and drop event handlers to the Awaiting Scheduling tray (`data-testid="awaiting-scheduling-tray"`), an animated `<RotateCcw /> Drop here to Unschedule` drop zone banner, and optimistic cache updates with API fallback to `projectService.scheduleDefense` with `date: null` and `status: 'pending_scheduling'`. When returned, hearing slots normalize to the currently typed general duration.
+  3. Reviewer Name Attribution in Chapter Progress:
+     - Learned lesson: In `ChapterProgressWithRounds.jsx`, rounds without an active review or with unpopulated `reviewedBy` ObjectIds displayed `Reviewer: —`.
+     - Solution & implementation: In `server/modules/submissions/submission.service.js`, added `.populate('reviewedBy', 'firstName middleName lastName email')` to `getSubmissionsByProject`. In `ChapterProgressWithRounds.jsx`, destructured `project` and resolved reviewer name to assigned adviser (`project?.adviserId` or `project?.teamId?.adviserId`) when review is pending, displaying the adviser's name (e.g. `Steven Joe Bautista`) instead of a blank dash.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When designing inline numeric duration or quantity controls in React, never clamp the minimum value on `onChange` (which prevents typing multi-digit numbers like "45" because typing "4" gets prematurely clamped to "5"). Always clamp on `onBlur` and validate on submission.
+  2. Prevention rule: Reviewer display fields on student-facing progress cards must always implement robust fallback attribution (e.g. to the assigned faculty adviser) so students are never left with confusing blank dashes (`—`).
+  3. Runbook & Checklist:
+     - Checklist: Verify the Awaiting Scheduling tray header renders an inline typed duration input (`data-testid="defense-duration-input"`).
+     - Checklist: Verify typing into the input updates helper labels (e.g. `(45 min slot)`) and preserves custom durations.
+     - Checklist: Verify dragging a scheduled card onto the Awaiting Scheduling tray un-schedules it and shows the drop zone banner.
+     - Checklist: Verify scheduled hearing cards render an upper time badge (`<Clock /> {time}`).
+     - Checklist: Verify student Chapter Progress card renders the reviewer or assigned adviser name without blank `—`.
+     - Checklist: Verify Playwright visual audit passes across Desktop Light/Dark and Mobile Light/Dark viewports.
+  4. Evidence & Verification passed:
+     - 3/3 `ChapterProgressWithRounds.test.jsx` passed.
+     - 14/14 `DefenseSchedulingPage.test.jsx` passed (17/17 targeted tests passed).
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance check: 60/60 checks passed.
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+     - Playwright visual audit passed: 7 high-resolution viewports captured across light and dark modes, desktop and mobile viewports in `scratch/audit_defense_scheduling_duration.mjs`.
+
+### 2026-09-16: End-to-End Rendering Speed, Anticipatory Route Prefetching, HTTP 206 Byte-Range PDF Streaming, and Zero-Downtime Deployment
+- Context & Architectural Impact:
+  1. Initial Cold Load & Zero-Flash Theme Bootstrap:
+     - Learned lesson: When theme state is loaded via React `useEffect` or Zustand, the browser renders the default background for 100–300ms before reading `localStorage`, causing an eye-straining dark-mode white flash (FOWT).
+     - Solution & implementation: Injected an inline blocking `<script>` IIFE into `<head>` in `client/index.html` executing synchronously before React mounts. It reads `localStorage['cms-accessibility-settings']` and toggles `document.documentElement.classList.toggle('dark')`. Fluid scaling tokens (`clamp()`) were added in `client/src/index.css` for root typography, headings, and container padding.
+  2. Anticipatory Route Chunking & Link Hover Prefetching:
+     - Learned lesson: Dynamic route chunking creates 150–350ms transition delays while fetching lazy JS chunks over high-latency university networks.
+     - Solution & implementation: Engineered `client/src/lib/routePrefetch.js` caching route dynamic imports with `requestIdleCallback` priority. Wired `prefetchRoute` into `SidebarNavItem` on `onMouseEnter`, `onMouseOver`, and `onFocus`, ensuring JS chunks load anticipatorily during pointer hover (100–250ms before click), slashing route transition latency to < 100ms.
+  3. 60 FPS Scrolling & DOM Layout Virtualization:
+     - Learned lesson: High-density tables and multi-page manuscript diffs with thousands of DOM nodes trigger heavy reflow and scroll lag. Using raw `content-visibility: auto` without height containment causes scrollbar jumping as elements enter/leave viewport.
+     - Solution & implementation: Implemented `.content-visibility-auto` (`contain-intrinsic-size: auto 120px`) and `.content-visibility-section` (`contain-intrinsic-size: auto 320px`) in `client/src/index.css`. The `auto` keyword instructs the browser to retain measured height after first paint. Applied to `RevisionDiffViewer.jsx` main reading surface.
+  4. HTTP 206 Byte-Range PDF Manuscript Streaming:
+     - Learned lesson: Monolithic downloads of 30–50MB defense manuscripts block server worker threads and delay client PDF viewer initialization.
+     - Solution & implementation: Upgraded `getSubmissionFile` in `server/modules/submissions/submission.controller.js` to inspect `req.headers.range`. Serves `206 Partial Content` with `Content-Range: bytes ${start}-${end}/${totalSize}`, `Accept-Ranges: bytes`, and chunk streaming via `fs.createReadStream`. Allows `pdfjs-dist` to render initial pages in < 300ms without buffering the whole file.
+  5. Read-Heavy REST Query Optimization via Lean Virtuals:
+     - Learned lesson: Standard `.lean()` strips Mongoose schema virtuals (such as `fullName`, `isOverdue`, `currentStage`), breaking frontend display models.
+     - Solution & implementation: Applied `.lean({ virtuals: true, getters: true })` across `listTeams` in `team.service.js` and `getSubmissionsByProject`/`getSubmissionById` in `submission.service.js`, retaining 100% schema virtual fidelity while reducing query execution time by 40–60% and cutting V8 memory allocations.
+  6. Zero-Downtime Rolling Deployments & Graceful Connection Draining:
+     - Learned lesson: Immediate `process.exit(0)` on `SIGTERM` or Docker 10s default timeouts abort in-flight multipart uploads and active BullMQ jobs with HTTP 502/504 errors.
+     - Solution & implementation: Enhanced `server/server.js` with structured graceful HTTP draining: closes Express HTTP server to stop accepting new requests, pauses BullMQ workers/queues, closes Redis and MongoDB connections, and enforces a 10s safety timeout. Configured `stop_grace_period: 20s` in `docker-compose.yml` and `docker-compose.prod.yml` to prevent Docker `SIGKILL` races.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When using `content-visibility: auto` to optimize large lists or diff viewers, always pair with `contain-intrinsic-size: auto <estimated_height>` so the browser caches the real rendered size and prevents scrollbar jitter.
+  2. Prevention rule: Always use `.lean({ virtuals: true, getters: true })` instead of bare `.lean()` when querying Mongoose models whose virtual properties are consumed by frontend views.
   3. Prevention rule: In Docker configurations with graceful shutdown hooks, ensure container `stop_grace_period` exceeds the application's internal drain timeout (e.g. 20s Docker vs 10s Node timeout).
   4. Runbook & Checklist:
      - Checklist: Verify `client/index.html` has blocking theme script in `<head>` preventing white flash on dark mode reload.
@@ -2052,5 +2285,48 @@
      - Server tests: `pdfMetadataExtractor.test.js` (2/2), `comprehensive-all-workflows.test.js` (13/13) — 15/15 passed.
      - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Agentic governance check: 60/60 checks passed.
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+98. Google Scholar Research Archive Redesign & Proposal Draft Preservation Rule:
+- Architecture & Implementation Details:
+  1. Proposal Draft Preservation & Mongoose Reactivity:
+     - Learned lesson: Mongoose schemas defining `createProjectDraft` as `Schema.Types.Mixed` do not detect in-place mutations to child objects, causing `user.save()` to silently skip updating database drafts. Additionally, when a user opened `CreateProjectPage.jsx`, mounting with blank state triggered `useAutosave` before draft fetching resolved, overwriting existing progress.
+     - Solution & implementation: In `server/modules/projects/project.service.js:saveCreateProjectDraft`, explicitly invoke `user.markModified('createProjectDraft')` and add a blank-state overwrite guard (`if (!draft || (proposals.length === 0 && !projectType)) return;`). In `CreateProjectPage.jsx`, implemented order-of-precedence dual hydration (`Database Draft` -> `localStorage` -> `localStorage.backup`) guarded by an `isHydrated` state flag that blocks `useAutosave` until hydration is verified.
+  2. Clear Institutional Guidance & Proposal Resumption UI:
+     - Learned lesson: When a team had locked its roster but had no active project record, submission pages and My Capstone showed a confusing *"No project yet"* state without giving students a path to resume draft proposals.
+     - Solution & implementation: Updated `EmptyProjectState.jsx`, `ProjectSubmissionsPage.jsx`, and `ChapterUploadPage.jsx` to display *"Proceed to My Capstone to Create Proposal"*. On `EmptyProjectState.jsx`, added dual-source draft detection displaying a prominent *"Resume Capstone Proposal"* card with *"Resume Proposal Draft"* (navigating to `/project/create`) and *"Start Fresh Proposal"*.
+  3. Google Scholar Academic UI Architecture:
+     - Learned lesson: Academic users navigating capstone archives require high information density, instant originality verification, and standardized citation tools without cluttered cards or multi-step modals.
+     - Solution & implementation: Redesigned `/archive` (`ArchiveSearchPage.jsx`) adhering strictly to canonical academic styling:
+       - Hyperlinked titles: `#1a0dab` (light mode) and `#8ab4f8` (dark mode), 18px font size, semi-bold with hover underline.
+       - Subdued green metadata line: `#006621` (light mode) and `#68b684` (dark mode), 13px font showing Proponents/Authors, `BukSU Studies Center`, publication year, and clickable DOI link.
+       - Abstract snippets: Dark slate text clamped to 3 lines (`line-clamp-3`) with keyword highlighting for matching search terms.
+       - Action footer links: Muted gray `#777777` with **★ Save** (persisting to library), **Cite** (modal trigger), **Related articles** (similar capstone explorer), **All versions**, and right-aligned **[PDF] buksu.edu.ph** badge.
+       - Color-coded OriginalityShieldBadge: Embedded in footers with institutional tiers (>95% green, 80-95% amber, <80% red) and hover popover explanation.
+       - Multi-format CitationExportModal: Provides APA (7th Edition), IEEE, MLA (9th Edition), and BibTeX citations with one-click copy and `.bib` file download.
+  4. Mandatory Unified Sophisticated Document Reader Contract Compliance:
+     - Learned lesson: Ad-hoc or fragment PDF viewers break institutional continuity and fail document verification guidelines.
+     - Solution & implementation: Integrated `SophisticatedDocumentViewer.jsx` in PDF stream mode (`embedded={true}`) within a desktop Split-Canvas view (`lg:col-span-7`), providing the Document Identity Bar, v3 Revision Diff (+/-), Details metadata drawer, Zoom controls, Download, and Fullscreen/Maximize expansion.
+  5. Responsive Viewport Degradation:
+     - Learned lesson: Fixed desktop sidebars squish the snippet feed on mobile viewports (<768px).
+     - Solution & implementation: In `GoogleScholarSidebar.jsx`, the fixed 240px sidebar degrades into a slide-out drawer on mobile viewports (<768px), accessible via an in-feed *"Filters"* button.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When modifying Mongoose `Mixed` fields, always call `document.markModified('<fieldName>')` prior to `.save()`, or Mongoose will silently skip persisting changes.
+  2. Prevention rule: Always guard client autosave hooks with an `isHydrated` boolean flag to prevent blank initial component states from clobbering remote or local drafts.
+  3. Prevention rule: All document reading, viewing, and manuscript verification across BukSU CMS-V2 must universally mount `SophisticatedDocumentViewer.jsx` (`embedded={true}` for split-canvas or `embedded={false}` for modals).
+  4. Runbook & Checklist:
+     - Checklist: Verify `ArchiveSearchPage.jsx` renders `GoogleScholarSearchBar` with scope selector (`all`, `title`, `metadata`, `doi`).
+     - Checklist: Verify search snippets render `#1a0dab` blue titles, `#006621` green metadata lines, 3-line clamped abstracts, and `OriginalityShieldBadge`.
+     - Checklist: Verify clicking "Cite" opens `CitationExportModal` and copies APA/IEEE/MLA/BibTeX citations to clipboard.
+     - Checklist: Verify clicking `[PDF] buksu.edu.ph` opens the split-canvas reader mounting `SophisticatedDocumentViewer`.
+     - Checklist: Verify on mobile (<768px), the sidebar degrades into a slide-out filter drawer without layout clipping.
+     - Checklist: Verify `EmptyProjectState.jsx` renders "Resume Proposal Draft" when a draft exists.
+  5. Evidence & Verification passed:
+     - Client tests: `ArchiveSearchPage.test.jsx` (7/7 passed), `archiveComponents.test.jsx` (10/10 passed), `EmptyProjectState.test.jsx` (4/4 passed), `CreateProjectPage.test.jsx` (17/17 passed) — 38/38 passed.
+     - Server tests: `archive-search.test.js` (1/1 passed in 6552ms).
+     - API route parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance check: 60/60 checks passed.
+     - Playwright visual audit: 8 viewports verified across desktop (1440x900) light/dark, mobile (390x844) light/dark, split-canvas viewer, citation modal, and mobile drawer.
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.

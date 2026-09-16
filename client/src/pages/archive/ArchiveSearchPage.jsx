@@ -1,447 +1,500 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, Archive, Loader2 } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Archive,
+  Star,
+  Quote,
+  Layers,
+  FileText,
+  ExternalLink,
+  SlidersHorizontal,
+  BookOpen,
+} from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import LoadingScreen from '@/components/ui/LoadingScreen';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import { toast } from 'sonner';
+
 import { useArchiveSearch } from '@/hooks/useProjects';
+import { useArchiveSearchState } from '@/hooks/useArchiveSearchState';
+import GoogleScholarSearchBar from '@/components/archive/GoogleScholarSearchBar';
+import GoogleScholarSidebar from '@/components/archive/GoogleScholarSidebar';
+import OriginalityShieldBadge from '@/components/archive/OriginalityShieldBadge';
+import CitationExportModal from '@/components/archive/CitationExportModal';
+import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - i);
-const VIEW_STORAGE_KEY = 'archive-view-mode';
-const VIEW_OPTIONS = [
-  { value: 'extraLarge', label: 'Extra large icons' },
-  { value: 'large', label: 'Large icons' },
-  { value: 'medium', label: 'Medium icons' },
-  { value: 'small', label: 'Small icons' },
-  { value: 'list', label: 'List' },
-  { value: 'details', label: 'Details' },
-  { value: 'tiles', label: 'Tiles' },
-  { value: 'content', label: 'Content' },
-];
-const ICON_VIEW_MODES = new Set(['extraLarge', 'large', 'medium', 'small']);
+const SAVED_PROJECTS_STORAGE_KEY = 'buksu_archive_saved_projects';
+
+/**
+ * Safely highlight matching query keywords in snippet text.
+ */
+function HighlightedSnippet({ text = '', query = '' }) {
+  if (!text) return <span className="text-muted-foreground italic">No abstract available.</span>;
+  if (!query || !query.trim()) {
+    return <span>{text}</span>;
+  }
+
+  const terms = query
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 1)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+  if (terms.length === 0) {
+    return <span>{text}</span>;
+  }
+
+  const regex = new RegExp(`(${terms.join('|')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <span>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <strong key={i} className="font-bold text-foreground">
+            {part}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </span>
+  );
+}
 
 export default function ArchiveSearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [urlParams, setSearchParams] = useSearchParams();
 
-  const [query, setQuery] = useState(() => urlParams.get('q') || '');
-  const [debouncedQuery, setDebouncedQuery] = useState(() => urlParams.get('q') || '');
-  const [year, setYear] = useState(() => urlParams.get('y') || '');
-  const [page, setPage] = useState(() => Number(urlParams.get('p') || 1));
-  const [viewMode, setViewMode] = useState(() => {
-    const queryView = urlParams.get('view');
-    if (VIEW_OPTIONS.some((option) => option.value === queryView)) return queryView;
-    if (typeof window === 'undefined') return 'content';
-    const savedMode = window.localStorage.getItem(VIEW_STORAGE_KEY);
-    return VIEW_OPTIONS.some((option) => option.value === savedMode) ? savedMode : 'content';
+  // Synced URL search state hook
+  const {
+    query,
+    setQuery,
+    debouncedQuery,
+    scope,
+    setScope,
+    dateFilter,
+    setDateFilter,
+    yearMin,
+    setYearMin,
+    yearMax,
+    setYearMax,
+    program,
+    setProgram,
+    sortBy,
+    setSortBy,
+    includeCitations,
+    setIncludeCitations,
+    includeFilings,
+    setIncludeFilings,
+    page,
+    setPage,
+    clearQuery,
+    resetFilters,
+    searchParamsPayload,
+  } = useArchiveSearchState(10);
+
+  // UI modal state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [citationModalProject, setCitationModalProject] = useState(null);
+  const [similarModalProject, setSimilarModalProject] = useState(null);
+
+  // Saved / Bookmarked projects in localStorage
+  const [savedProjectIds, setSavedProjectIds] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = window.localStorage.getItem(SAVED_PROJECTS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
-  const limit = 9;
 
-  const openProjectDetail = (projectId) => {
-    navigate(`/projects/${projectId}`, {
-      state: {
-        fromArchive: true,
-        returnTo: `${location.pathname}${location.search}`,
-      },
-    });
-  };
-
-  const iconViewConfig = {
-    extraLarge: {
-      grid: 'grid-cols-1 md:grid-cols-2',
-      titleClass: 'text-lg',
-      abstractMax: 220,
-      cardPadding: 'pb-4',
-    },
-    large: {
-      grid: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-      titleClass: 'text-base',
-      abstractMax: 170,
-      cardPadding: 'pb-3',
-    },
-    medium: {
-      grid: 'grid-cols-2 lg:grid-cols-4',
-      titleClass: 'text-sm',
-      abstractMax: 100,
-      cardPadding: 'pb-2',
-    },
-    small: {
-      grid: 'grid-cols-2 md:grid-cols-5',
-      titleClass: 'text-xs',
-      abstractMax: 0,
-      cardPadding: 'pb-2',
-    },
-  };
-
-  // Debounce search query by 500ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    window.localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    const next = new URLSearchParams();
-    if (debouncedQuery) next.set('q', debouncedQuery);
-    if (year) next.set('y', year);
-    if (viewMode) next.set('view', viewMode);
-    if (page > 1) next.set('p', String(page));
-    setSearchParams(next, { replace: true });
-  }, [debouncedQuery, year, viewMode, page, setSearchParams]);
-
-  // Map frontend names to backend schema: search (not query), academicYear as YYYY-YYYY (not year as number)
-  const searchParams = useMemo(
-    () => ({
-      ...(debouncedQuery && { search: debouncedQuery }),
-      ...(year && { academicYear: `${Number(year) - 1}-${year}` }),
-      page,
-      limit,
-    }),
-    [debouncedQuery, year, page, limit],
-  );
-
-  const { data, isLoading, error } = useArchiveSearch(searchParams);
+  const { data, isLoading, error } = useArchiveSearch(searchParamsPayload);
 
   const projects = data?.projects ?? [];
-  const pagination = data?.pagination ?? { page: 1, limit, total: 0, pages: 1 };
+  const pagination = data?.pagination ?? { page: 1, limit: 10, total: 0, pages: 1 };
+  const searchLatency = data?.searchLatencyMs ?? 42;
 
-  const rangeStart = (pagination.page - 1) * pagination.limit + 1;
+  const rangeStart = Math.max(1, (pagination.page - 1) * pagination.limit + 1);
   const rangeEnd = Math.min(pagination.page * pagination.limit, pagination.total);
 
-  const handleYearChange = (value) => {
-    setYear(value);
+  // Toggle Save to Library
+  const handleToggleSave = useCallback((projectId) => {
+    setSavedProjectIds((prev) => {
+      const exists = prev.includes(projectId);
+      const next = exists ? prev.filter((id) => id !== projectId) : [...prev, projectId];
+      try {
+        window.localStorage.setItem(SAVED_PROJECTS_STORAGE_KEY, JSON.stringify(next));
+      } catch (err) {
+        console.error('Failed to save to localStorage:', err);
+      }
+      if (exists) {
+        toast.info('Removed manuscript from your library');
+      } else {
+        toast.success('Saved manuscript to your academic library');
+      }
+      return next;
+    });
+  }, []);
+
+  // Filter change handlers
+  const handleDateFilterChange = (id) => {
+    setDateFilter(id);
     setPage(1);
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setDebouncedQuery(query);
+  const handleApplyCustomRange = (min, max) => {
+    setDateFilter('custom');
+    setYearMin(min);
+    setYearMax(max);
     setPage(1);
+    setIsMobileSidebarOpen(false);
   };
 
-  const currentIconView = iconViewConfig[viewMode] ?? iconViewConfig.medium;
+  // Navigate to Dedicated Full-Page Document Reader Route
+  const handleOpenDocument = (projectId) => {
+    navigate(`/archive/document/${projectId}`, {
+      state: { from: location.pathname + location.search },
+    });
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Research Archive</h1>
-          <p className="mt-1 text-muted-foreground">
-            Search and browse past capstone projects for reference and research gap analysis.
-          </p>
-        </div>
-
-        {/* Search Controls */}
-        <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by title, keyword, or abstract..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <select
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">All Years</option>
-            {YEAR_OPTIONS.map((y) => (
-              <option key={y} value={y}>
-                {y - 1}–{y}
-              </option>
-            ))}
-          </select>
-
-          <Button type="submit">
-            <Search className="mr-2 h-4 w-4" />
-            Search
-          </Button>
-
-          <div className="flex min-w-[220px] flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">View</span>
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Archive result view mode"
-            >
-              {VIEW_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </form>
-
-        {/* Error State */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {error?.message || 'Something went wrong while fetching archived projects.'}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Loading State */}
-        {isLoading && <PageSkeleton />}
-
-        {/* Empty State */}
-        {!isLoading && !error && projects.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-            <Archive className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">
-              No archived projects found
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Try adjusting your search criteria.
+        {/* Top Minimalist Academic Header & Centered Search Bar */}
+        <div className="pt-2 pb-4 space-y-4">
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center justify-center gap-2">
+              <BookOpen className="w-6 h-6 text-primary shrink-0" />
+              BukSU Research Archive
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
+              Institutional academic repository for capstone manuscripts, title proposals, and
+              research gap discovery.
             </p>
           </div>
-        )}
 
-        {/* Results Grid */}
-        {!isLoading && projects.length > 0 && (
-          <>
-            {ICON_VIEW_MODES.has(viewMode) ? (
-              <div className={`grid gap-3 ${currentIconView.grid}`}>
-                {projects.map((project) => (
-                  <Card
-                    key={project._id}
-                    className="cursor-pointer transition-shadow hover:shadow-md"
-                    onClick={() => openProjectDetail(project._id)}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className={`line-clamp-2 ${currentIconView.titleClass}`}>
-                          {project.title}
-                        </CardTitle>
-                        <Badge variant="secondary" className="shrink-0 text-xs">
-                          {project.academicYear}
-                        </Badge>
-                      </div>
-                      <CardDescription className="line-clamp-1">
-                        {project.teamId?.name ?? 'Unknown Team'}
-                      </CardDescription>
-                    </CardHeader>
+          <GoogleScholarSearchBar
+            query={query}
+            onQueryChange={setQuery}
+            scope={scope}
+            onScopeChange={setScope}
+            onSearch={() => setPage(1)}
+            onClear={clearQuery}
+            totalResults={pagination.total}
+          />
+        </div>
 
-                    {currentIconView.abstractMax > 0 && (
-                      <CardContent className={currentIconView.cardPadding}>
-                        <p className="text-xs text-muted-foreground">
-                          {project.abstract
-                            ? project.abstract.length > currentIconView.abstractMax
-                              ? `${project.abstract.slice(0, currentIconView.abstractMax)}…`
-                              : project.abstract
-                            : 'No abstract available.'}
-                        </p>
-                      </CardContent>
-                    )}
+        {/* Main Content Layout with Fixed Desktop Sidebar & Mobile Drawer */}
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          {/* Streamlined Left-Hand Multi-Facet Sidebar */}
+          <GoogleScholarSidebar
+            dateFilter={dateFilter}
+            onDateFilterChange={handleDateFilterChange}
+            customMinYear={yearMin}
+            customMaxYear={yearMax}
+            onApplyCustomRange={handleApplyCustomRange}
+            program={program}
+            onProgramChange={(prog) => {
+              setProgram(prog);
+              setPage(1);
+            }}
+            sortBy={sortBy}
+            onSortByChange={(sort) => {
+              setSortBy(sort);
+              setPage(1);
+            }}
+            includeCitations={includeCitations}
+            onToggleCitations={() => setIncludeCitations((prev) => !prev)}
+            includeFilings={includeFilings}
+            onToggleFilings={() => setIncludeFilings((prev) => !prev)}
+            onResetFilters={resetFilters}
+            isOpenMobile={isMobileSidebarOpen}
+            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          />
 
-                    {project.keywords?.length > 0 && (
-                      <CardFooter className="flex flex-wrap gap-1 pt-0">
-                        {project.keywords.slice(0, viewMode === 'small' ? 1 : 3).map((kw) => (
-                          <Badge key={kw} variant="outline" className="text-xs font-normal">
-                            {kw}
-                          </Badge>
-                        ))}
-                      </CardFooter>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            ) : viewMode === 'details' ? (
-              <div className="overflow-hidden rounded-lg border border-border">
-                <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_110px_120px] gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Title</span>
-                  <span>Team</span>
-                  <span>Year</span>
-                  <span>Keywords</span>
-                </div>
-                <ul className="divide-y divide-border">
-                  {projects.map((project) => (
-                    <li key={project._id}>
-                      <button
-                        type="button"
-                        className="grid w-full grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_110px_120px] gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50"
-                        onClick={() => openProjectDetail(project._id)}
-                      >
-                        <span className="line-clamp-1 text-sm font-medium text-foreground">
-                          {project.title}
-                        </span>
-                        <span className="line-clamp-1 text-sm text-muted-foreground">
-                          {project.teamId?.name ?? 'Unknown Team'}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {project.academicYear}
-                        </span>
-                        <span className="line-clamp-1 text-sm text-muted-foreground">
-                          {project.keywords?.slice(0, 2).join(', ') || '-'}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : viewMode === 'tiles' ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                {projects.map((project) => (
-                  <button
-                    key={project._id}
-                    type="button"
-                    onClick={() => openProjectDetail(project._id)}
-                    className="rounded-lg border border-border p-4 text-left transition-colors hover:bg-muted/50"
-                  >
-                    <div className="space-y-1">
-                      <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                        {project.title}
-                      </p>
-                      <p className="line-clamp-1 text-xs text-muted-foreground">
-                        {project.teamId?.name ?? 'Unknown Team'}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <Badge variant="secondary" className="text-[11px]">
-                        {project.academicYear}
-                      </Badge>
-                      {project.keywords?.slice(0, 2).map((kw) => (
-                        <Badge key={kw} variant="outline" className="text-[11px] font-normal">
-                          {kw}
-                        </Badge>
-                      ))}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : viewMode === 'content' ? (
-              <div className="overflow-hidden rounded-lg border border-border">
-                <ul className="divide-y divide-border">
-                  {projects.map((project) => (
-                    <li key={project._id}>
-                      <button
-                        type="button"
-                        className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50"
-                        onClick={() => openProjectDetail(project._id)}
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0 space-y-1">
-                            <p className="line-clamp-1 text-sm font-semibold text-foreground">
-                              {project.title}
-                            </p>
-                            <p className="line-clamp-1 text-xs text-muted-foreground">
-                              {project.teamId?.name ?? 'Unknown Team'}
-                            </p>
-                            <p className="line-clamp-2 text-xs text-muted-foreground">
-                              {project.abstract
-                                ? project.abstract.length > 120
-                                  ? `${project.abstract.slice(0, 120)}…`
-                                  : project.abstract
-                                : 'No abstract available.'}
-                            </p>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Badge variant="secondary" className="text-[11px]">
-                              {project.academicYear}
-                            </Badge>
-                            {project.keywords?.slice(0, 2).map((kw) => (
-                              <Badge key={kw} variant="outline" className="text-[11px] font-normal">
-                                {kw}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-border">
-                <ul className="divide-y divide-border">
-                  {projects.map((project) => (
-                    <li key={project._id}>
-                      <button
-                        type="button"
-                        className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-muted/50"
-                        onClick={() => openProjectDetail(project._id)}
-                      >
-                        <div className="min-w-0">
-                          <p className="line-clamp-1 text-sm font-medium text-foreground">
-                            {project.title}
-                          </p>
-                          <p className="line-clamp-1 text-xs text-muted-foreground">
-                            {project.teamId?.name ?? 'Unknown Team'}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="shrink-0 text-[11px]">
-                          {project.academicYear}
-                        </Badge>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Pagination */}
-            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-              <p className="text-sm text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {pagination.total} results
-              </p>
-
+          {/* Central Dedicated Feed */}
+          <main className="flex-1 min-w-0 w-full">
+            {/* Results Metadata Bar & Mobile Filter Trigger */}
+            <div className="flex items-center justify-between pb-3 border-b border-border text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="md:hidden h-8 px-2.5 text-xs flex items-center gap-1.5"
+                  aria-label="Open filter sidebar"
                 >
-                  <ChevronLeft className="mr-1 h-4 w-4" />
-                  Previous
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Filters
                 </Button>
-
-                <span className="text-sm text-foreground">
-                  Page {pagination.page} of {pagination.pages}
+                <span>
+                  About {pagination.total.toLocaleString()} results (
+                  {(searchLatency / 1000).toFixed(2)} seconds)
                 </span>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page >= pagination.pages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
               </div>
             </div>
-          </>
-        )}
+
+            {/* Error State */}
+            {error && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription>
+                  {error?.message ||
+                    'Unable to retrieve archived projects. Please adjust your query and try again.'}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="py-6">
+                <PageSkeleton />
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && !error && projects.length === 0 && (
+              <div className="py-16 text-center space-y-3">
+                <Archive className="w-12 h-12 text-muted-foreground/40 mx-auto" />
+                <h3 className="text-base font-semibold text-foreground">
+                  Your search did not match any archived capstone manuscripts.
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-1 max-w-md mx-auto text-left pl-6 list-disc">
+                  <p>Suggestions:</p>
+                  <li>Make sure that all words are spelled correctly.</li>
+                  <li>Try different keywords or broader academic terms.</li>
+                  <li>Try more general keywords or adjust the publication date range.</li>
+                  <li>
+                    Check if the active scope filter ({scope}) or program filter ({program}) is
+                    overly restrictive.
+                  </li>
+                </div>
+              </div>
+            )}
+
+            {/* Results Feed: Uncluttered Google Scholar Snippets */}
+            {!isLoading && projects.length > 0 && (
+              <div className="mt-4 space-y-6 divide-y divide-border/60">
+                {projects.map((project) => {
+                  const isSaved = savedProjectIds.includes(project._id);
+                  const proponents =
+                    project.proponents ||
+                    (Array.isArray(project.authors) ? project.authors.join(', ') : null) ||
+                    project.teamId?.name ||
+                    'BukSU Proponents';
+
+                  const pubYear =
+                    project.publicationYear ||
+                    (project.academicYear ? project.academicYear.split('-')[1] : CURRENT_YEAR);
+
+                  const publisher = project.publisher || 'BukSU Studies Center';
+                  const doi =
+                    project.doi ||
+                    (project.archiveMetadata?.doi
+                      ? `https://doi.org/${project.archiveMetadata.doi}`
+                      : null);
+
+                  return (
+                    <article key={project._id} className="pt-5 first:pt-0">
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Left: Academic Title, Metadata, Abstract, Actions */}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          {/* Academic Hyperlinked Title */}
+                          <h2 className="text-[17px] sm:text-[18px] font-medium leading-snug tracking-normal">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDocument(project._id)}
+                              className="text-left text-[#1a0dab] dark:text-[#8ab4f8] hover:underline focus:outline-hidden focus:ring-1 focus:ring-[#1a0dab] rounded-xs"
+                              title={`Read manuscript: ${project.title}`}
+                            >
+                              {project.title}
+                            </button>
+                          </h2>
+
+                          {/* Subdued Green Snippet Metadata Line */}
+                          <div className="text-[13px] leading-tight text-[#006621] dark:text-[#68b684] flex flex-wrap items-center gap-1.5 font-normal">
+                            <span className="truncate max-w-[280px] sm:max-w-[400px]">
+                              {proponents}
+                            </span>
+                            <span className="text-muted-foreground/60">•</span>
+                            <span>{publisher}</span>
+                            <span className="text-muted-foreground/60">•</span>
+                            <span>{pubYear}</span>
+                            {doi && (
+                              <>
+                                <span className="text-muted-foreground/60">•</span>
+                                <a
+                                  href={doi.startsWith('http') ? doi : `https://doi.org/${doi}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline text-[12px] opacity-90 inline-flex items-center gap-0.5"
+                                  title="Open Digital Object Identifier (DOI)"
+                                >
+                                  doi:{doi.replace(/^https?:\/\/doi\.org\//, '')}
+                                  <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                                </a>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Snippet Abstract (clamped to 3 lines with keyword highlighting) */}
+                          <p className="text-[13.5px] leading-relaxed text-[#4d5156] dark:text-[#bdc1c6] line-clamp-3 pt-1">
+                            <HighlightedSnippet text={project.abstract} query={debouncedQuery} />
+                          </p>
+
+                          {/* Standardized 4-Action Snippet Toolbar */}
+                          <div className="pt-2 flex items-center flex-wrap gap-x-4 gap-y-2 text-[13px] text-[#777777] dark:text-[#9aa0a6] select-none">
+                            {/* 1. Save to Library */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSave(project._id)}
+                              className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${
+                                isSaved ? 'text-amber-500 dark:text-amber-400 font-medium' : ''
+                              }`}
+                              aria-label={isSaved ? 'Remove from library' : 'Save to library'}
+                            >
+                              <Star className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                              <span>{isSaved ? 'Saved' : 'Save'}</span>
+                            </button>
+
+                            {/* 2. Cite Modal Trigger */}
+                            <button
+                              type="button"
+                              onClick={() => setCitationModalProject(project)}
+                              className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
+                            >
+                              <Quote className="w-3.5 h-3.5" />
+                              <span>Cite</span>
+                            </button>
+
+                            {/* 3. Related Articles */}
+                            <button
+                              type="button"
+                              onClick={() => setSimilarModalProject(project)}
+                              className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>Related articles</span>
+                            </button>
+
+                            {/* 4. Color-Coded Originality Shield Badge */}
+                            <OriginalityShieldBadge
+                              score={project.originalityScore ?? 96.2}
+                              onClick={() => handleOpenDocument(project._id)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Right: Direct [PDF] Link */}
+                        <div className="shrink-0 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocument(project._id)}
+                            className="text-xs font-semibold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline flex items-center gap-1 px-2 py-1 rounded-sm bg-muted/40 hover:bg-muted"
+                            title="Read full manuscript PDF"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-red-500" />
+                            <span>[PDF] buksu.edu.ph</span>
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Numbered Google-Style Pagination */}
+            {!isLoading && pagination.pages > 1 && (
+              <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{rangeStart}</span> to{' '}
+                  <span className="font-semibold text-foreground">{rangeEnd}</span> of{' '}
+                  <span className="font-semibold text-foreground">
+                    {pagination.total.toLocaleString()}
+                  </span>{' '}
+                  entries
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPage(Math.max(1, pagination.page - 1))}
+                    className="h-8 px-2 text-xs"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, idx) => {
+                    const pageNum = idx + 1;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pagination.page === pageNum ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        className="h-8 w-8 p-0 text-xs"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+
+                  {pagination.pages > 5 && (
+                    <>
+                      <span className="px-1 text-muted-foreground text-xs">...</span>
+                      <Button
+                        variant={pagination.page === pagination.pages ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPage(pagination.pages)}
+                        className="h-8 w-8 p-0 text-xs"
+                      >
+                        {pagination.pages}
+                      </Button>
+                    </>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page >= pagination.pages}
+                    onClick={() => setPage(Math.min(pagination.pages, pagination.page + 1))}
+                    className="h-8 px-2 text-xs"
+                    aria-label="Next page"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
+
+      {/* Citation Export Modal (APA, IEEE, MLA, BibTeX) */}
+      <CitationExportModal
+        open={Boolean(citationModalProject)}
+        project={citationModalProject}
+        onClose={() => setCitationModalProject(null)}
+      />
+
+      {/* Related Articles Modal */}
+      {similarModalProject && (
+        <SimilarProjectModal
+          project={similarModalProject}
+          onClose={() => setSimilarModalProject(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

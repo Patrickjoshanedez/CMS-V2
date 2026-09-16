@@ -1,0 +1,23 @@
+{
+  "session_id": "2026-09-16_google-scholar-archive-and-proposal-draft-resume",
+  "date": "2026-09-16T05:20:00.000Z",
+  "task_summary": "Architected and delivered the Google Scholar-style research archive redesign (/archive) and proposal draft preservation / resume functionality across BukSU CMS-V2. 1) Fixed proposal draft loss on logout/session expiry by implementing order-of-precedence dual-hydration (Database -> LocalStorage -> Backup) guarded by isHydrated flag disabling useAutosave clobbering, and applied user.markModified('createProjectDraft') for Mongoose Mixed reactivity. 2) Replaced generic 'No project yet' empty states in EmptyProjectState.jsx, ProjectSubmissionsPage.jsx, and ChapterUploadPage.jsx with 'Proceed to My Capstone to Create Proposal' and dual resume/start-fresh buttons. 3) Designed and built a minimalist, high-density academic research archive featuring #1a0dab hyperlinked titles, #006621 green metadata lines with DOI links, 3-line clamped abstracts, color-coded OriginalityShieldBadges (>95% green, 80-95% amber, <80% red), CitationExportModal (APA 7th, IEEE, MLA 9th, BibTeX with .bib download), GoogleScholarSearchBar with scope dropdown, GoogleScholarSidebar with fixed 240px desktop width and mobile slide-out drawer (<768px), and Split-Canvas in-app document inspection embedding SophisticatedDocumentViewer in accordance with the Mandatory Unified Sophisticated Document Reader Contract. Verified with 7/7 page tests, 10/10 component tests, 4/4 empty state tests, 17/17 create page tests, 1/1 backend search tests, 204/182 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, and full 8-point Playwright visual feedback loop across desktop (1440x900) and mobile (390x844) in light and dark modes.",
+  "task_category": "academic_archive_redesign_and_proposal_draft_resumption",
+  "skills_written": [],
+  "skills_patched": [],
+  "phases_completed": [
+    "Phase 1: Backend Draft Reactivity & Multi-Facet Archive Search Enhancement",
+    "Phase 2: Client Dual-Hydration & Order-of-Precedence Draft Protection",
+    "Phase 3: Institutional Empty State & Proposal Resumption UI",
+    "Phase 4: Google Scholar Academic Components (SearchBar, Sidebar, OriginalityShield, CitationExport)",
+    "Phase 5: ArchiveSearchPage Split-Canvas & SophisticatedDocumentViewer Integration",
+    "Phase 6: Deterministic Testing Battery & Route Parity Verification",
+    "Phase 7: Playwright Visual Feedback Loop Across Desktop (1440x900) & Mobile (390x844)"
+  ],
+  "verification_battery": {
+    "unit_tests_passed": "38/38 tests passing across client and server suites",
+    "endpoint_parity": "SERVER=204, CLIENT=182, UNMATCHED=0",
+    "agentic_governance": "60/60 checks passed",
+    "playwright_visual_audit": "8/8 viewports verified across desktop light/dark, mobile light/dark, split canvas, and citation modal"
+  }
+}

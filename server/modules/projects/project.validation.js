@@ -341,11 +341,20 @@ export const archiveProjectSchema = z.object({
 export const searchArchiveQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(50).optional().default(10),
-  search: z.string().trim().max(200).optional(),
+  search: z.string().trim().max(300).optional(),
+  scope: z.enum(['all', 'title', 'metadata', 'doi']).optional().default('all'),
+  minYear: z.coerce.number().int().min(1990).max(2100).optional(),
+  maxYear: z.coerce.number().int().min(1990).max(2100).optional(),
   academicYear: z
     .string()
     .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
     .optional(),
+  sortBy: z.enum(['relevance', 'date']).optional().default('relevance'),
+  includeCitations: z.coerce.boolean().optional().default(true),
+  includeFilings: z.coerce.boolean().optional().default(true),
+  program: z.string().trim().max(100).optional(),
+  doi: z.string().trim().max(200).optional(),
+  author: z.string().trim().max(100).optional(),
   courseId: objectId.optional(),
   keyword: z.string().trim().max(100).optional(),
 });

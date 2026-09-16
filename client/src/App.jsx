@@ -31,6 +31,7 @@ const SubmissionDetailPage = lazy(() => import('./pages/submissions/SubmissionDe
 const SubmissionReviewPage = lazy(() => import('./pages/submissions/SubmissionReviewPage'));
 const PlagiarismReportPage = lazy(() => import('./pages/submissions/PlagiarismReportPage'));
 const ArchiveSearchPage = lazy(() => import('./pages/archive/ArchiveSearchPage'));
+const ArchiveDocumentViewerPage = lazy(() => import('./pages/archive/ArchiveDocumentViewerPage'));
 const ExistingCapstoneUploadPage = lazy(() => import('./pages/archive/ExistingCapstoneUploadPage'));
 const AcademicPaperArchiveUploadPage = lazy(
   () => import('./pages/archive/AcademicPaperArchiveUploadPage'),
@@ -174,6 +175,7 @@ const PROTECTED_ROUTES = [
   },
   // Archive & Reports
   { path: '/archive', Component: ArchiveSearchPage },
+  { path: '/archive/document/:projectId', Component: ArchiveDocumentViewerPage },
   { path: '/plagiarism-checker', Component: ArchivePlagiarismCheckerPage },
   { path: '/archive/upload/capstone', Component: ExistingCapstoneUploadPage },
   { path: '/archive/upload/academic-paper', Component: AcademicPaperArchiveUploadPage },
