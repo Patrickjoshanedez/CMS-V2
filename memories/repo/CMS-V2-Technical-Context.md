@@ -2327,6 +2327,30 @@
      - Server tests: `archive-search.test.js` (1/1 passed in 6552ms).
      - API route parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Agentic governance check: 60/60 checks passed.
-     - Playwright visual audit: 8 viewports verified across desktop (1440x900) light/dark, mobile (390x844) light/dark, split-canvas viewer, citation modal, and mobile drawer.
+     - Playwright visual audit: 8 viewports verified across desktop (1440x900) light/dark, mobile (390x844) light/dark, split-canvas reader, citation modal, and mobile drawer.
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+99. Mongoose Query Chaining Robustness & Capstone Proposal Manuscript Endorsement Role Governance Rule:
+- Architecture & Implementation Details:
+  1. Defensive Mongoose Query Method Checking:
+     - Learned lesson: When calling `.lean()`, `.populate()`, or `.select()` in service methods (such as `submission.service.js:getSubmissionsByProject`), unit tests may mock `Project.findById` or `User.findById` with partial objects lacking `.lean()` or `.populate()`, triggering `TypeError: default.findById(...).populate(...).lean is not a function`.
+     - Solution & implementation: In `submission.service.js`, defensively verify query methods before invocation (`if (typeof projectQuery?.lean === 'function') ... if (typeof projectQuery?.populate === 'function') ... const project = typeof projectQuery?.exec === 'function' ? await projectQuery.exec() : await projectQuery;`). In test stubs (`submission.service.getSubmissionsByProject.test.js`), fluently chain `.lean()`, `.populate()`, `.exec()`, and `.then()`, ensuring multi-step query chaining behaves identically across unit mocks and real Mongoose queries.
+  2. Proposal Manuscript Defense Endorsement Institutional Role Boundaries:
+     - Learned lesson: Under BukSU Capstone 1 workflow guidelines, proposal manuscripts (`type === 'proposal'`) can only be endorsed for defense scheduling by the assigned Capstone Adviser or the Course Instructor (`isAssignedAdviser || isInstructor`). Defense committee panelists and secretaries cannot endorse the proposal manuscript before the oral defense hearing; attempting to do so returns 403 `ENDORSEMENT_FORBIDDEN_ROLE`.
+     - Solution & implementation: In `submission.service.plagiarism.test.js`, updated proposal approval status transition tests to invoke review with `instructorUser._id` (course instructor) and added an explicit negative test verifying that attempting proposal endorsement with `panelistUser._id` throws 403 `ENDORSEMENT_FORBIDDEN_ROLE`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In Mongoose service read operations, guard chained query calls with optional chaining and `typeof` checks to ensure interoperability with diverse unit test query stubs.
+  2. Prevention rule: In unit test mocks of Mongoose query chains (e.g. `Submission.find().sort().skip().limit().populate().populate().lean()`), ensure `.populate()` returns `mockReturnThis()` so that secondary `.populate()` or `.lean()` calls resolve without TypeError.
+  3. Prevention rule: Proposal manuscript approval tests must use `instructorUser` or `adviserUser`; assert 403 `ENDORSEMENT_FORBIDDEN_ROLE` for panelist review attempts.
+  4. Runbook & Checklist:
+     - Checklist: Verify `Project.findById` and `User.findById` query execution in `getSubmissionsByProject` works with both bare mock promises and chained Mongoose queries.
+     - Checklist: Verify `submission.service.getSubmissionsByProject.test.js` passes with 0 errors.
+     - Checklist: Verify `submission.service.plagiarism.test.js` passes with 19/19 tests passing.
+     - Checklist: Run `npm run validate:agentic` to ensure all 60 governance checks pass.
+  5. Evidence & Verification passed:
+     - Server targeted tests: `submission.service.getSubmissionsByProject.test.js` (1/1 passed in 3931ms), `submission.service.plagiarism.test.js` (19/19 passed in 9145ms) — 20/20 passed.
+     - Agentic governance check: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.

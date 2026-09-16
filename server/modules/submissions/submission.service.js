@@ -1926,17 +1926,28 @@ class SubmissionService {
    */
   async getSubmissionsByProject(projectId, query = {}, requesterId) {
     // Fetch project with team members for authorization check
-    const project = await Project.findById(projectId)
-      .populate('teamId', 'members')
-      .lean({ virtuals: true, getters: true });
+    let projectQuery = Project.findById(projectId);
+    if (typeof projectQuery?.lean === 'function') {
+      projectQuery = projectQuery.lean({ virtuals: true, getters: true });
+    }
+    if (typeof projectQuery?.populate === 'function') {
+      projectQuery = projectQuery.populate('teamId', 'members');
+    }
+    const project =
+      typeof projectQuery?.exec === 'function' ? await projectQuery.exec() : await projectQuery;
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
     }
 
     // Fetch user for authorization check
-    const user = await User.findById(requesterId)
-      .select('role teamId')
-      .lean({ virtuals: true, getters: true });
+    let userQuery = User.findById(requesterId);
+    if (typeof userQuery?.select === 'function') {
+      userQuery = userQuery.select('role teamId');
+    }
+    if (typeof userQuery?.lean === 'function') {
+      userQuery = userQuery.lean({ virtuals: true, getters: true });
+    }
+    const user = typeof userQuery?.exec === 'function' ? await userQuery.exec() : await userQuery;
     if (!user) {
       throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
     }

@@ -36,20 +36,29 @@ describe('submissionService.getSubmissionsByProject', () => {
   it('returns submissions for an authorized instructor without throwing a ROLES reference error', async () => {
     const deadlineInfo = { deadlineField: 'chapterDeadline', deadlineAt: new Date('2025-01-01') };
 
+    const mockProjectData = {
+      _id: projectId,
+      projectStatus: 'active',
+      adviserId: null,
+      panelistIds: [],
+      teamId: null,
+    };
     Project.findById.mockReturnValue({
-      populate: vi.fn().mockResolvedValue({
-        _id: projectId,
-        projectStatus: 'active',
-        adviserId: null,
-        panelistIds: [],
-        teamId: null,
-      }),
+      lean: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockResolvedValue(mockProjectData),
+      then: (resolve) => resolve(mockProjectData),
     });
 
+    const mockUserData = {
+      _id: requesterId,
+      role: ROLES.INSTRUCTOR,
+    };
     User.findById.mockReturnValue({
-      select: vi.fn().mockResolvedValue({
-        _id: requesterId,
-        role: ROLES.INSTRUCTOR,
+      select: vi.fn().mockReturnValue({
+        lean: vi.fn().mockReturnThis(),
+        exec: vi.fn().mockResolvedValue(mockUserData),
+        then: (resolve) => resolve(mockUserData),
       }),
     });
 
@@ -63,14 +72,14 @@ describe('submissionService.getSubmissionsByProject', () => {
       }),
     };
 
-    Submission.find.mockReturnValue({
+    const submissionQuery = {
       sort: vi.fn().mockReturnThis(),
       skip: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      populate: vi.fn().mockReturnValue({
-        lean: vi.fn().mockResolvedValue([submissionDoc]),
-      }),
-    });
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([submissionDoc]),
+    };
+    Submission.find.mockReturnValue(submissionQuery);
     Submission.countDocuments.mockResolvedValue(1);
 
     vi.spyOn(submissionService, '_resolveSubmissionDeadlineInfo').mockReturnValue(deadlineInfo);

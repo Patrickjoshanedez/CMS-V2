@@ -26,7 +26,7 @@ import {
 } from '@cms/shared';
 
 describe('Submission Review with Plagiarism Check Integration', () => {
-  let studentUser, adviserUser, panelistUser, project, submission;
+  let studentUser, adviserUser, panelistUser, instructorUser, project, submission;
   const envKeysUnderTest = [
     'PLAGIARISM_REJECT_THRESHOLD',
     'AGENT_RUNTIME_USE_DYNAMIC_PLAGIARISM_THRESHOLD',
@@ -68,6 +68,14 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       email: 'panelist@test.com',
       password: 'password',
       role: 'panelist',
+    });
+
+    instructorUser = await User.create({
+      firstName: 'Test',
+      lastName: 'Instructor',
+      email: 'instructor@test.com',
+      password: 'password',
+      role: 'instructor',
     });
 
     // Create test project
@@ -416,13 +424,24 @@ describe('Submission Review with Plagiarism Check Integration', () => {
       });
     });
 
-    it('should transition project status when proposal approved', async () => {
-      await submissionService.reviewSubmission(submission._id, panelistUser._id, {
+    it('should transition project status when proposal approved by course instructor', async () => {
+      await submissionService.reviewSubmission(submission._id, instructorUser._id, {
         status: SUBMISSION_STATUSES.APPROVED,
       });
 
       const updatedProject = await Project.findById(project._id);
       expect(updatedProject.projectStatus).toBe(PROJECT_STATUSES.PROPOSAL_APPROVED);
+    });
+
+    it('should reject panelist from endorsing proposal with 403 ENDORSEMENT_FORBIDDEN_ROLE', async () => {
+      await expect(
+        submissionService.reviewSubmission(submission._id, panelistUser._id, {
+          status: SUBMISSION_STATUSES.APPROVED,
+        }),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        code: 'ENDORSEMENT_FORBIDDEN_ROLE',
+      });
     });
 
     it('should allow adviser to approve proposal', async () => {

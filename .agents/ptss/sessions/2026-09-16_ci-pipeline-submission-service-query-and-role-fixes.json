@@ -1,0 +1,21 @@
+{
+  "session_id": "2026-09-16_ci-pipeline-submission-service-query-and-role-fixes",
+  "timestamp": "2026-09-16T14:20:00.000Z",
+  "status": "completed",
+  "task_summary": "Resolved 2 failing CI pipeline tests in server submission service: 1) Handled Mongoose query chaining in submission.service.js getSubmissionsByProject defensively checking for lean(), populate(), and exec() functions and aligning test mock in submission.service.getSubmissionsByProject.test.js to fluently chain lean, populate, and exec; 2) Aligned proposal manuscript approval test in submission.service.plagiarism.test.js to use instructorUser (course instructor) and added negative assertion verifying panelist approval is rejected with 403 ENDORSEMENT_FORBIDDEN_ROLE in strict compliance with BukSU capstone role boundaries.",
+  "task_category": "ci_pipeline_bugfix_and_role_governance",
+  "skills_written": [],
+  "skills_patched": ["verification-loop"],
+  "modified_files": [
+    "server/modules/submissions/submission.service.js",
+    "server/modules/submissions/__tests__/submission.service.getSubmissionsByProject.test.js",
+    "server/modules/submissions/__tests__/submission.service.plagiarism.test.js"
+  ],
+  "verification_evidence": {
+    "targeted_tests_passed": "20/20 tests passed across 2 test suites",
+    "agentic_governance": "60/60 checks passed",
+    "endpoint_parity": "204 Server / 182 Client, UNMATCHED_COUNT = 0",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "workspace_guardrail": "pristine"
+  }
+}
