@@ -291,25 +291,51 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 variant="ghost"
                 size="sm"
                 onClick={() => setZoom((z) => Math.max(50, z - 10))}
+                disabled={zoom <= 50}
                 className="h-7 w-7 p-0"
                 title="Zoom Out"
                 aria-label="Zoom out"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </Button>
-              <span className="text-[11px] font-mono text-muted-foreground w-9 text-center">
+              <button
+                type="button"
+                onClick={() => setZoom(100)}
+                className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-1 text-center font-semibold"
+                title="Reset zoom to 100%"
+                aria-label="Reset zoom"
+              >
                 {zoom}%
-              </span>
+              </button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setZoom((z) => Math.min(150, z + 10))}
+                onClick={() => setZoom((z) => Math.min(300, z + 10))}
+                disabled={zoom >= 300}
                 className="h-7 w-7 p-0"
                 title="Zoom In"
                 aria-label="Zoom in"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </Button>
+              <div className="flex items-center gap-0.5 ml-1">
+                {[150, 200, 250, 300].map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setZoom(lvl)}
+                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                      zoom === lvl
+                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted font-medium'
+                    }`}
+                    title={`Zoom to ${lvl}%`}
+                    aria-label={`Zoom to ${lvl}%`}
+                  >
+                    {lvl}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* 2. Download PDF Action */}

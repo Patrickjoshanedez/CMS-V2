@@ -235,8 +235,9 @@ export default function PaginatedDocumentViewer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setZoom(Math.max(activeZoom - 10, 60))}
-            className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
+            onClick={() => setZoom(Math.max(activeZoom - 10, 50))}
+            disabled={activeZoom <= 50}
+            className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40"
             title="Zoom Out"
             aria-label="Zoom Out"
           >
@@ -254,13 +255,32 @@ export default function PaginatedDocumentViewer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setZoom(Math.min(activeZoom + 10, 160))}
-            className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
+            onClick={() => setZoom(Math.min(activeZoom + 10, 300))}
+            disabled={activeZoom >= 300}
+            className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40"
             title="Zoom In"
             aria-label="Zoom In"
           >
             <ZoomIn className="h-3.5 w-3.5" />
           </Button>
+          <div className="flex items-center gap-0.5 ml-1">
+            {[150, 200, 250, 300].map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setZoom(lvl)}
+                className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                  activeZoom === lvl
+                    ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800 font-medium'
+                }`}
+                title={`Zoom to ${lvl}%`}
+                aria-label={`Zoom ${lvl}%`}
+              >
+                {lvl}%
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

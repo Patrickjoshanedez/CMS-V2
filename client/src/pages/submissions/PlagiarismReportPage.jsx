@@ -1200,8 +1200,9 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                 <div className="flex items-center gap-1 text-[11px] font-mono">
                   <button
                     type="button"
-                    onClick={() => setZoomLevel((z) => Math.max(z - 10, 70))}
-                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setZoomLevel((z) => Math.max(z - 10, 50))}
+                    disabled={zoomLevel <= 50}
+                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                     title="Zoom out"
                   >
                     <ZoomOut className="h-3 w-3" />
@@ -1216,12 +1217,31 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                   </button>
                   <button
                     type="button"
-                    onClick={() => setZoomLevel((z) => Math.min(z + 10, 160))}
-                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setZoomLevel((z) => Math.min(z + 10, 300))}
+                    disabled={zoomLevel >= 300}
+                    className="h-6 w-6 rounded border border-border/60 bg-background hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                     title="Zoom in"
                   >
                     <ZoomIn className="h-3 w-3" />
                   </button>
+                  <div className="flex items-center gap-0.5 ml-1">
+                    {[150, 200, 250, 300].map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setZoomLevel(lvl)}
+                        className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors ${
+                          zoomLevel === lvl
+                            ? 'bg-primary text-primary-foreground font-bold border-primary'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted border-border/50'
+                        }`}
+                        title={`Zoom to ${lvl}%`}
+                        aria-label={`Zoom ${lvl}%`}
+                      >
+                        {lvl}%
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

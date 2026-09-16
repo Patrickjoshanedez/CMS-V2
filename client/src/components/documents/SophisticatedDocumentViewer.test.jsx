@@ -156,6 +156,29 @@ describe('SophisticatedDocumentViewer', () => {
     expect(el.textContent).toContain('115%');
   });
 
+  it('supports zoom presets 150%, 200%, 250%, and 300%', async () => {
+    const el = await renderViewer();
+    const zoom150Btn = el.querySelector('button[aria-label="Zoom 150%"]');
+    const zoom200Btn = el.querySelector('button[aria-label="Zoom 200%"]');
+    const zoom250Btn = el.querySelector('button[aria-label="Zoom 250%"]');
+    const zoom300Btn = el.querySelector('button[aria-label="Zoom 300%"]');
+
+    expect(zoom150Btn).not.toBeNull();
+    expect(zoom200Btn).not.toBeNull();
+    expect(zoom250Btn).not.toBeNull();
+    expect(zoom300Btn).not.toBeNull();
+
+    await act(async () => {
+      zoom150Btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(el.textContent).toContain('150%');
+
+    await act(async () => {
+      zoom300Btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(el.textContent).toContain('300%');
+  });
+
   it('fetches the raw DOCX binary from the streaming endpoint via authenticated api client', async () => {
     await renderViewer();
     // Waits for the useEffect fetch to execute

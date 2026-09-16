@@ -2354,3 +2354,32 @@
      - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+100. Pure White Dark Mode Text, Pure Black Light Mode Text & Document Zoom Presets (150%, 200%, 250%, 300%) Governance Rule:
+- Architecture & Implementation Details:
+  1. Universal Pure Contrast Governance:
+     - Learned lesson: In Tailwind design systems with slate/neutral palettes, muted foregrounds (`hsl(215 20% 75%)`) and dark foregrounds (`hsl(222.2 47.4% 11.2%)` / `hsl(210 40% 98%)`) result in grayish text that reduces accessibility and visual sharpness.
+     - Solution & implementation: In `client/src/index.css`:
+       - Light mode (`:root:not(.dark)`): Set `--foreground: 0 0% 0%`, `--card-foreground: 0 0% 0%`, `--popover-foreground: 0 0% 0%`, `--secondary-foreground: 0 0% 0%`, `--muted-foreground: 0 0% 0%`, `--text-primary: #000000`, `--text-secondary: #000000`, `--text-muted: #000000`, `--color-text-primary: #000000`, `--color-text-secondary: #000000`. Overrode `:root:not(.dark) [class*='text-slate-']`, `[class*='text-gray-']`, `[class*='text-zinc-']`, `[class*='text-neutral-']` to `#000000`.
+       - Dark mode (`.dark`): Set `--foreground: 0 0% 100%`, `--card-foreground: 0 0% 100%`, `--popover-foreground: 0 0% 100%`, `--secondary-foreground: 0 0% 100%`, `--muted-foreground: 0 0% 100%`, `--accent-foreground: 0 0% 100%`, `--destructive-foreground: 0 0% 100%`, `--text-primary: #ffffff`, `--text-secondary: #ffffff`, `--text-muted: #ffffff`, `--color-text-primary: #ffffff`, `--color-text-secondary: #ffffff`. Overrode `.dark [class*='text-slate-']`, `[class*='dark:text-slate-']`, `[class*='text-gray-']`, `[class*='dark:text-gray-']`, etc. to `#ffffff`.
+       - Preservation: Non-neutral status and accent colors (`text-emerald-*`, `text-amber-*`, `text-rose-*`, `text-primary`, `text-blue-*`) remain intact and visually expressive.
+  2. Document Viewer Zoom Presets (150%, 200%, 250%, 300%):
+     - Learned lesson: Users inspecting detailed academic manuscripts need rapid, one-click magnification jumps beyond standard 100% and 200% maximum bounds.
+     - Solution & implementation:
+       - In `SophisticatedDocumentViewer.jsx`, expanded zoom bounds to 300% (`handleZoomIn` caps at 300), disabled state at `>= 300`, and added one-click preset buttons for `[150, 200, 250, 300]`. Updated `DocxPreviewRenderer` with `minWidth: zoom > 100 ? `${zoom}%` : undefined` to ensure scrollbars reflect wide zoom.
+       - In `PaginatedDocumentViewer.jsx`, `CanonicalDocumentViewer.jsx`, and `PlagiarismReportPage.jsx`, added matching `[150, 200, 250, 300]` preset buttons and expanded zoom range to 300%.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When enforcing contrast across themes, update both CSS variable definitions and utility overrides for neutral color families (`slate`, `gray`, `zinc`, `neutral`) while protecting semantic status colors.
+  2. Prevention rule: In document viewers, always support high magnification tiers (150%, 200%, 250%, 300%) with accessible `aria-label` buttons and proper overflow expansion.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client test `npm test --workspace=client -- src/components/documents/SophisticatedDocumentViewer.test.jsx`.
+     - Checklist: Run Playwright visual audit across Desktop (1440x900) and Mobile (390x844) in light and dark modes to verify computed text color (`rgb(0, 0, 0)` in light mode, `rgb(255, 255, 255)` in dark mode).
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`) and 60/60 governance checks (`npm run validate:agentic`).
+  4. Evidence & Verification passed:
+     - Targeted tests: `SophisticatedDocumentViewer.test.jsx` (9/9 tests passed).
+     - Playwright visual audit: Verified light mode text is `rgb(0, 0, 0)` and dark mode text is `rgb(255, 255, 255)` across viewports.
+     - Playwright zoom audit: Verified clicking 150%, 200%, 250%, and 300% zoom presets updates zoom and applies scale cleanly.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.

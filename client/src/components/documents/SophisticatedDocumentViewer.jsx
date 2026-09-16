@@ -232,7 +232,7 @@ export default function SophisticatedDocumentViewer({
 
   if ((!embedded && !open) || !submission) return null;
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 15, 200));
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 15, 300));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 15, 50));
   const handleResetZoom = () => setZoom(100);
 
@@ -390,14 +390,33 @@ export default function SophisticatedDocumentViewer({
               <button
                 type="button"
                 onClick={handleZoomIn}
-                disabled={zoom >= 200}
+                disabled={zoom >= 300}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
                 title="Zoom in (+15%)"
                 aria-label="Zoom in"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </button>
-              <div className="h-3.5 w-px bg-border/60 mx-1" />
+              <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+              <div className="flex items-center gap-0.5" role="group" aria-label="Zoom presets">
+                {[150, 200, 250, 300].map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setZoom(level)}
+                    className={`px-1.5 py-0.5 font-mono text-[10px] rounded transition-colors ${
+                      zoom === level
+                        ? 'bg-primary text-primary-foreground font-bold shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted font-medium'
+                    }`}
+                    title={`Set zoom to ${level}%`}
+                    aria-label={`Zoom ${level}%`}
+                  >
+                    {level}%
+                  </button>
+                ))}
+              </div>
+              <div className="h-3.5 w-px bg-border/60 mx-0.5" />
               <button
                 type="button"
                 onClick={handleResetZoom}
@@ -883,8 +902,9 @@ export function DocxPreviewRenderer({
           style={{
             transform: `scale(${zoom / 100})`,
             transformOrigin: 'top center',
-            // Expand the wrapper height so scrollbar reflects zoomed size
+            // Expand the wrapper dimensions so scrollbar reflects zoomed size
             minHeight: zoom !== 100 ? `${zoom}%` : undefined,
+            minWidth: zoom > 100 ? `${zoom}%` : undefined,
           }}
         >
           {/* docx-preview injects .docx-wrapper > .docx > pages here */}

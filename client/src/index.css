@@ -17,19 +17,19 @@ input::-webkit-credentials-auto-fill-button {
   :root {
     --font-size-multiplier: 1;
     --background: 210 40% 96.1%;
-    --foreground: 222 47% 4%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 4%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 4%;
+    --popover-foreground: 0 0% 0%;
     --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 30% 5%;
+    --secondary-foreground: 0 0% 0%;
     --muted: 210 20% 94%;
-    --muted-foreground: 217 19% 27%;
+    --muted-foreground: 0 0% 0%;
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222 30% 5%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84.2% 60.2%;
     --border: 215 25% 27%;
     --input: 215 25% 27%;
@@ -38,8 +38,8 @@ input::-webkit-credentials-auto-fill-button {
 
     /* Semantic text contrast tokens (WCAG AA/AAA compliance) */
     --text-primary: #000000;
-    --text-secondary: #374151;
-    --text-muted: #4b5563;
+    --text-secondary: #000000;
+    --text-muted: #000000;
 
     /* Semantic status colors */
     --success: 142 76% 36%;
@@ -65,8 +65,8 @@ input::-webkit-credentials-auto-fill-button {
     --color-high: #e07b39;
     --color-ok: #2a9d8f;
     --color-neutral: #457b9d;
-    --color-text-primary: #1a1a2e;
-    --color-text-secondary: #6b7a99;
+    --color-text-primary: #000000;
+    --color-text-secondary: #000000;
     --color-border: #334155;
     --font-display: 'DM Serif Display', serif;
     --font-body: 'DM Sans', sans-serif;
@@ -75,30 +75,30 @@ input::-webkit-credentials-auto-fill-button {
 
   .dark {
     --background: 220 60% 5%;
-    --foreground: 210 40% 98%;
+    --foreground: 0 0% 100%;
     --card: 220 50% 9.5%;
-    --card-foreground: 210 40% 98%;
+    --card-foreground: 0 0% 100%;
     --popover: 220 50% 9.5%;
-    --popover-foreground: 210 40% 98%;
+    --popover-foreground: 0 0% 100%;
     --primary: 217 91% 60%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 217 33% 12%;
-    --muted-foreground: 215 20% 75%;
+    --muted-foreground: 0 0% 100%;
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
     --border: 215 25% 27%;
     --input: 215 25% 27%;
     --ring: 212.7 26.8% 83.9%;
     --radius: 0.5rem;
 
     /* Semantic text contrast tokens (dark mode) */
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --text-muted: #ffffff;
 
     /* Semantic status colors (dark mode) */
     --success: 142 71% 45%;
@@ -111,6 +111,10 @@ input::-webkit-credentials-auto-fill-button {
     /* Brand gradient colors (dark mode) */
     --brand-orange: 14 100% 60%;
     --brand-pink: 340 82% 55%;
+
+    /* Archive checker theme tokens (dark mode) */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #ffffff;
   }
 }
 
@@ -238,24 +242,50 @@ html.dark[data-high-contrast='true'] {
   /* Nullify browser autofill color destruction */
   input:-webkit-autofill,
   textarea:-webkit-autofill {
-    -webkit-text-fill-color: theme('colors.slate.900') !important;
+    -webkit-text-fill-color: #000000 !important;
     -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
     transition: background-color 5000s ease-in-out 0s;
   }
 
   .dark input:-webkit-autofill,
   .dark textarea:-webkit-autofill {
-    -webkit-text-fill-color: theme('colors.slate.100') !important;
+    -webkit-text-fill-color: #ffffff !important;
     -webkit-box-shadow: 0 0 0px 1000px #080d18 inset !important;
   }
 
   select option {
     background-color: #ffffff;
-    color: #1e293b;
+    color: #000000;
   }
   .dark select option {
     background-color: #0f172a;
-    color: #f1f5f9;
+    color: #ffffff;
+  }
+
+  /* Pure black text for text-muted-foreground and gray/slate text in light mode */
+  :root:not(.dark) .text-muted-foreground,
+  :root:not(.dark) .text-secondary,
+  :root:not(.dark) .text-text-secondary,
+  :root:not(.dark) [class*='text-slate-'],
+  :root:not(.dark) [class*='text-gray-'],
+  :root:not(.dark) [class*='text-zinc-'],
+  :root:not(.dark) [class*='text-neutral-'] {
+    color: #000000;
+  }
+
+  /* Pure white text for text-muted-foreground and gray/slate text in dark mode */
+  .dark .text-muted-foreground,
+  .dark .text-secondary,
+  .dark .text-text-secondary,
+  .dark [class*='text-slate-'],
+  .dark [class*='text-gray-'],
+  .dark [class*='text-zinc-'],
+  .dark [class*='text-neutral-'],
+  .dark [class*='dark:text-slate-'],
+  .dark [class*='dark:text-gray-'],
+  .dark [class*='dark:text-zinc-'],
+  .dark [class*='dark:text-neutral-'] {
+    color: #ffffff;
   }
 
   /* Floating label autofill & placeholder-shown bulletproofing */
