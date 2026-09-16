@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-09-15T17:52:10.492223Z",
+  "generated_at": "2026-09-16T11:24:03.240223Z",
   "metadata": {
     "agent_count": 10,
     "edges_count": 8,
@@ -92,6 +92,21 @@
   "edges": [
     {
       "source": "orchestrator",
+      "target": "product-design-handoff",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "context-manager",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "logic-debugger",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
       "target": "100x code reviewer",
       "bidirectional": false
     },
@@ -102,12 +117,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "product-design-handoff",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "thinker pro",
+      "target": "researcher",
       "bidirectional": false
     },
     {
@@ -117,17 +127,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "researcher",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "logic-debugger",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "context-manager",
+      "target": "thinker pro",
       "bidirectional": false
     }
   ],

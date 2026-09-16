@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,8 @@ export default function GoogleScholarSidebar({
   onApplyCustomRange,
   program = 'all',
   onProgramChange,
+  courses = [],
+  programs: customPrograms,
   sortBy = 'relevance',
   onSortByChange,
   includeCitations = true,
@@ -32,6 +34,25 @@ export default function GoogleScholarSidebar({
 }) {
   const [localMinYear, setLocalMinYear] = useState(customMinYear || '');
   const [localMaxYear, setLocalMaxYear] = useState(customMaxYear || '');
+
+  const resolvedProgramOptions = useMemo(() => {
+    if (Array.isArray(customPrograms) && customPrograms.length > 0) {
+      return customPrograms;
+    }
+    if (Array.isArray(courses) && courses.length > 0) {
+      const activeCourses = courses.filter((c) => c && c.isActive !== false);
+      return [
+        { id: 'all', label: 'All Programs' },
+        ...activeCourses.map((c) => ({
+          id: c.code || c._id,
+          label: c.name || c.code,
+          code: c.code,
+          _id: c._id,
+        })),
+      ];
+    }
+    return PROGRAM_OPTIONS;
+  }, [courses, customPrograms]);
 
   const datePresets = [
     { id: 'any', label: 'Any time' },
@@ -128,8 +149,11 @@ export default function GoogleScholarSidebar({
         <div className="space-y-2.5 pt-2 border-t border-border">
           <h3 className="text-xs font-semibold text-foreground tracking-tight">Academic Program</h3>
           <ul className="space-y-1">
-            {PROGRAM_OPTIONS.map((opt) => {
-              const isSelected = program === opt.id;
+            {resolvedProgramOptions.map((opt) => {
+              const isSelected =
+                program === opt.id ||
+                (opt.code && program === opt.code) ||
+                (opt._id && String(program) === String(opt._id));
               return (
                 <li key={opt.id}>
                   <button
@@ -261,6 +285,20 @@ GoogleScholarSidebar.propTypes = {
   onApplyCustomRange: PropTypes.func.isRequired,
   program: PropTypes.string,
   onProgramChange: PropTypes.func,
+  courses: PropTypes.arrayOf(
+    PropTypes.shape({
+      _id: PropTypes.string,
+      code: PropTypes.string,
+      name: PropTypes.string,
+      isActive: PropTypes.bool,
+    }),
+  ),
+  programs: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+    }),
+  ),
   sortBy: PropTypes.string.isRequired,
   onSortByChange: PropTypes.func.isRequired,
   includeCitations: PropTypes.bool,

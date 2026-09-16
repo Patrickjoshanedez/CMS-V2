@@ -99,6 +99,16 @@ vi.mock('@/hooks/useProjects', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useAcademics', () => ({
+  useCourses: () => ({
+    data: [
+      { _id: 'c-1', code: 'BSIT', name: 'BS Information Technology', isActive: true },
+      { _id: 'c-2', code: 'BSCS', name: 'BS Computer Science', isActive: true },
+      { _id: 'c-3', code: 'BSIS', name: 'BS Information Systems', isActive: true },
+    ],
+  }),
+}));
+
 describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
   let container;
   let root;
@@ -247,5 +257,29 @@ describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
     act(() => {
       resetButton.click();
     });
+  });
+
+  it('renders dynamic academic programs from Student Management Hierarchy and allows filtering', () => {
+    act(() => {
+      root.render(<ArchiveSearchPage />);
+    });
+
+    expect(container.textContent).toContain('Academic Program');
+    expect(container.textContent).toContain('All Programs');
+    expect(container.textContent).toContain('BS Information Technology');
+    expect(container.textContent).toContain('BS Computer Science');
+    expect(container.textContent).toContain('BS Information Systems');
+
+    const bscsBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('BS Computer Science'),
+    );
+    expect(bscsBtn).toBeTruthy();
+
+    act(() => {
+      bscsBtn.click();
+    });
+
+    // Check that searchParams was updated with program=BSCS
+    expect(mockSetSearchParams).toHaveBeenCalled();
   });
 });

@@ -283,6 +283,54 @@ describe('Google Scholar Research Archive Components', () => {
       expect(onProgramChange).toHaveBeenCalledWith('BSCS');
     });
 
+    it('renders dynamic courses from student management hierarchy and selects them', () => {
+      const onProgramChange = vi.fn();
+      const mockCourses = [
+        {
+          _id: 'course-it',
+          code: 'BSIT',
+          name: 'Bachelor of Science in Information Technology',
+          isActive: true,
+        },
+        {
+          _id: 'course-data',
+          code: 'BSDSA',
+          name: 'BS Data Science and Analytics',
+          isActive: true,
+        },
+      ];
+
+      act(() => {
+        root.render(
+          <GoogleScholarSidebar
+            dateFilter="any"
+            onDateFilterChange={vi.fn()}
+            onApplyCustomRange={vi.fn()}
+            courses={mockCourses}
+            program="BSDSA"
+            onProgramChange={onProgramChange}
+            sortBy="relevance"
+            onSortByChange={vi.fn()}
+            onResetFilters={vi.fn()}
+          />,
+        );
+      });
+
+      expect(container.textContent).toContain('Bachelor of Science in Information Technology');
+      expect(container.textContent).toContain('BS Data Science and Analytics');
+
+      const itBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Bachelor of Science in Information Technology'),
+      );
+      expect(itBtn).toBeTruthy();
+
+      act(() => {
+        itBtn.click();
+      });
+
+      expect(onProgramChange).toHaveBeenCalledWith('BSIT');
+    });
+
     it('renders mobile drawer when isOpenMobile is true', () => {
       const onCloseMobile = vi.fn();
 

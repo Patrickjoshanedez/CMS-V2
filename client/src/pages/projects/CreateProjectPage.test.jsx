@@ -316,7 +316,7 @@ describe('CreateProjectPage', () => {
     const view = renderPage();
     const sdgBtn = view.container.querySelector('button[id="proposal-0-sdg-btn"]');
     expect(sdgBtn).not.toBeNull();
-    expect(view.container.textContent).toContain('SDG 4: Quality Education');
+    expect(view.container.textContent).toContain('No SDGs selected');
 
     // Click button to open modal dialog
     await act(async () => {
@@ -361,7 +361,7 @@ describe('CreateProjectPage', () => {
     const view = renderPage();
     const disciplineBtn = view.container.querySelector('button[id="proposal-0-discipline-btn"]');
     expect(disciplineBtn).not.toBeNull();
-    expect(view.container.textContent).toContain('Software Engineering & Web Applications');
+    expect(view.container.textContent).toContain('No IT disciplines selected');
 
     // Click button to open modal dialog
     await act(async () => {
@@ -1089,6 +1089,189 @@ describe('CreateProjectPage', () => {
 
     // Check proposal pill indicator shows multiple candidate proposals
     expect(view.container.textContent).toContain('Proposal 1 of 2');
+
+    view.unmount();
+  });
+
+  it('enforces accessible submission gating with aria-describedby and alert banner when similarity conflict occurs', async () => {
+    let latestSimilarityProps = null;
+    mockSimilarityChecker.mockImplementation((props) => {
+      latestSimilarityProps = props;
+    });
+
+    mockGetCreateProjectDraft.mockResolvedValueOnce({
+      data: {
+        data: {
+          draft: {
+            form: { academicYear: '2024-2025', sectionId: 'section-1' },
+            titleProposals: [
+              {
+                id: 'prop-test-1',
+                title: 'High Conflict Proposal Title',
+                pitchDeck: {
+                  problemStatement: 'Problem text',
+                  proposedSolution: 'Solution text',
+                  uniqueContribution: 'Unique text',
+                  targetUsers: 'Target users',
+                  expectedImpact: 'Impact text',
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const view = renderPage();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(latestSimilarityProps).not.toBeNull();
+
+    // Trigger similarity conflict callback
+    await act(async () => {
+      latestSimilarityProps.onScanStatusChange({
+        isLoading: false,
+        hasMatches: true,
+        similarProjects: [
+          {
+            title: 'Conflicting Legacy Project',
+            similarityScore: 85,
+          },
+        ],
+      });
+    });
+
+    // Check banner presence and accessibility attributes
+    const banner = view.container.querySelector('#similarity-conflict-banner');
+    expect(banner).not.toBeNull();
+    expect(banner.getAttribute('role')).toBe('alert');
+    expect(banner.getAttribute('data-testid')).toBe('similarity-conflict-banner');
+    expect(banner.textContent).toContain('Submission & Update Locked:');
+    expect(banner.textContent).toContain('Distinctiveness Required');
+
+    // Check submit button is disabled with aria-describedby and informative title
+    const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit for Committee Review'),
+    );
+    expect(submitBtn).not.toBeUndefined();
+    expect(submitBtn.disabled).toBe(true);
+    expect(submitBtn.getAttribute('aria-describedby')).toBe('similarity-conflict-banner');
+    expect(submitBtn.getAttribute('title')).toContain(
+      'Cannot update: Similar title detected above 65% threshold.',
+    );
+
+    // Clearing conflict restores accessibility and unlocks button
+    await act(async () => {
+      latestSimilarityProps.onScanStatusChange({
+        isLoading: false,
+        hasMatches: false,
+        similarProjects: [],
+      });
+    });
+
+    expect(view.container.querySelector('#similarity-conflict-banner')).toBeNull();
+    expect(submitBtn.disabled).toBe(false);
+    expect(submitBtn.getAttribute('aria-describedby')).toBeNull();
+
+    view.unmount();
+  });
+
+  it('persists proposal similarity conflict on Proposal 2 across reorder and deletion of Proposal 1 via stable proposal IDs', async () => {
+    const capturedProps = [];
+    mockSimilarityChecker.mockImplementation((props) => {
+      capturedProps.push(props);
+    });
+
+    mockGetCreateProjectDraft.mockResolvedValueOnce({
+      data: {
+        data: {
+          draft: {
+            form: { academicYear: '2024-2025', sectionId: 'section-1' },
+            titleProposals: [
+              {
+                id: 'stable-prop-aaa',
+                title: 'Unique Clean Title One',
+                pitchDeck: {
+                  problemStatement: 'Problem A',
+                  proposedSolution: 'Solution A',
+                  uniqueContribution: 'Unique A',
+                  targetUsers: 'Users A',
+                  expectedImpact: 'Impact A',
+                },
+              },
+              {
+                id: 'stable-prop-bbb',
+                title: 'Duplicate Conflicting Title Two',
+                pitchDeck: {
+                  problemStatement: 'Problem B',
+                  proposedSolution: 'Solution B',
+                  uniqueContribution: 'Unique B',
+                  targetUsers: 'Users B',
+                  expectedImpact: 'Impact B',
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const view = renderPage();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Switch to Proposal 2
+    const proposal2Button = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Proposal 2'),
+    );
+    expect(proposal2Button).not.toBeUndefined();
+
+    await act(async () => {
+      proposal2Button.click();
+    });
+
+    // Simulate conflict on Proposal 2
+    const latestChecker = capturedProps[capturedProps.length - 1];
+    expect(latestChecker).not.toBeUndefined();
+
+    await act(async () => {
+      latestChecker.onScanStatusChange({
+        isLoading: false,
+        hasMatches: true,
+        similarProjects: [
+          {
+            title: 'Existing Archive Match',
+            similarityScore: 92,
+          },
+        ],
+      });
+    });
+
+    // Verify Proposal 2 has active similarity conflict
+    expect(view.container.querySelector('#similarity-conflict-banner')).not.toBeNull();
+
+    // Switch back to Proposal 1
+    const proposal1Button = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Proposal 1'),
+    );
+    expect(proposal1Button).not.toBeUndefined();
+    await act(async () => {
+      proposal1Button.click();
+    });
+
+    // Proposal 1 has NO conflict
+    expect(view.container.querySelector('#similarity-conflict-banner')).toBeNull();
+
+    // Switch back to Proposal 2 - conflict state should be preserved by ID
+    await act(async () => {
+      proposal2Button.click();
+    });
+    expect(view.container.querySelector('#similarity-conflict-banner')).not.toBeNull();
 
     view.unmount();
   });

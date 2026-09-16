@@ -93,5 +93,20 @@ describe('Projects API — Archive search course filter', () => {
     const titles = res.body.data.projects.map((project) => project.title);
     expect(titles).toContain(courseOneTitle);
     expect(titles).not.toContain(courseTwoTitle);
+
+    // Test dynamic filtering by course program code
+    const programRes = await instructorAgent.get(
+      `/api/projects/archive/search?program=${courseOne.code}`,
+    );
+    expect(programRes.status).toBe(200);
+    expect(programRes.body.success).toBe(true);
+    const programTitles = programRes.body.data.projects.map((p) => p.title);
+    expect(programTitles).toContain(courseOneTitle);
+    expect(programTitles).not.toContain(courseTwoTitle);
+
+    // Non-existent program code returns 0 results
+    const emptyRes = await instructorAgent.get('/api/projects/archive/search?program=UNKNOWN_PROG');
+    expect(emptyRes.status).toBe(200);
+    expect(emptyRes.body.data.projects).toHaveLength(0);
   });
 });

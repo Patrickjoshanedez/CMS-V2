@@ -1,0 +1,31 @@
+{
+  "session_id": "2026-09-16_proposal-stage-similarity-and-update-gating",
+  "date": "2026-09-16T10:55:00.000Z",
+  "task_summary": "Resolved self-similarity false positives, added canonical similarity thresholds, enforced accessible proposal submission gating (disabled button with aria-describedby, alert banner, and server 409 conflict gate), implemented stable proposal ID keying, strict stage/modal precedence, and comprehensive test battery.",
+  "task_category": "proposal_similarity_and_submission_gating",
+  "status": "completed",
+  "hypothesis_proof": {
+    "self_similarity_backfire": "When proponents edited existing proposals, checkProposalSimilarity and checkTitleSimilarity omitted excludeProjectId or matched against the user's active team project, producing 100% false-positive match against their own project. Fixed in server controller, service, and client TitleSimilarityChecker by passing, validating via mongoose.Types.ObjectId.isValid, and auto-resolving excludeProjectId to team project with safe unassigned student fallback.",
+    "stage_indicator_and_pitch_deck_modal": "Matched records in proposal stage lack abstracts and tech stacks. Updated TitleSimilarityChecker and SimilarProjectModal to compute stageInfo with strict precedence (Archived Manuscript > Capstone 4 > Capstone 3 > Capstone 2 > Capstone 1 > safe defaults), render the 6 BukSU pitch deck sections (Problem Statement, Solution, Innovation, Beneficiaries, Expected Value/Impact, Disciplines & SDGs) when in proposal mode, and provide institutional navigation buttons (View in Archive / View Project).",
+    "proposal_update_gating_and_accessibility": "Proponents were previously able to submit or update proposals during pending scans or when high similarity conflicts (>= 65%) were present. Standardized on accessible disabled button with aria-describedby='similarity-conflict-banner', tooltip title, and role='alert' warning banner. Eliminated contradictory toast nagging and added server-side 409 TITLE_SIMILARITY_CONFLICT clearance gate in submitTitle.",
+    "stable_proposal_ids": "Keyed proposal similarity results, live scan, and plagiarism results by stable proposal.id (generateProposalId()) rather than array index, ensuring state persistence across proposal switching, reordering, and deletion."
+  },
+  "verification_evidence": {
+    "server_tests": "tests/integration/title-similarity.test.js (9/9 PASSED)",
+    "client_tests": "SimilarProjectModal.test.jsx (7/7), TitleSimilarityChecker.test.jsx (4/4), CreateProjectPage.test.jsx (19/19) — 30/30 PASSED",
+    "endpoint_parity": "check:endpoints (204 Server / 182 Client, UNMATCHED_COUNT = 0)",
+    "agentic_governance": "validate:agentic (60/60 checks PASSED)",
+    "governance_pipeline": "validate:governance (100% DAG & Coherence PASSED)",
+    "playwright_visual_audit": "8 visual audit screenshots captured across desktop (1440x900) & mobile (390x844) in light & dark modes verifying conflict warning banner, locked submit button, and SimilarProjectModal pitch deck presentation"
+  },
+  "artifacts_produced": [
+    "proposal_conflict_desktop_light.png",
+    "proposal_scope_modal_desktop_light.png",
+    "proposal_conflict_desktop_dark.png",
+    "proposal_scope_modal_desktop_dark.png",
+    "proposal_conflict_mobile_light.png",
+    "proposal_scope_modal_mobile_light.png",
+    "proposal_conflict_mobile_dark.png",
+    "proposal_scope_modal_mobile_dark.png"
+  ]
+}

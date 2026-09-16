@@ -201,6 +201,45 @@ describe('Title Similarity & Lock — /api/projects', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.similarProjects).toEqual([]);
     });
+
+    it('should exclude own project from matches when excludeProjectId is passed or inferred from team', async () => {
+      const selfTitle = 'Self Owned Unique Capstone Title Alpha';
+      const payload = buildProjectRequestPayload(selfTitle);
+      const createRes = await studentAgent.post('/api/projects').send(payload);
+      expect(createRes.status).toBe(201);
+      const projectId = createRes.body.data.project._id;
+
+      // 1. Explicit excludeProjectId
+      const resExplicit = await studentAgent.post('/api/projects/title-check').send({
+        title: selfTitle,
+        excludeProjectId: projectId,
+      });
+      expect(resExplicit.status).toBe(200);
+      expect(resExplicit.body.data.similarProjects).toEqual([]);
+
+      // 2. Inferred excludeProjectId from user's team
+      const resInferred = await studentAgent.post('/api/projects/title-check').send({
+        title: selfTitle,
+      });
+      expect(resInferred.status).toBe(200);
+      expect(resInferred.body.data.similarProjects).toEqual([]);
+    });
+
+    it('should safely return 200 when user has no team and no excludeProjectId is passed', async () => {
+      const { agent: unassignedStudent } = await createAuthenticatedUserWithRole('student', {
+        email: 'unassigned-student@test.com',
+        firstName: 'Unassigned',
+        lastName: 'Student',
+      });
+
+      const res = await unassignedStudent.post('/api/projects/title-check').send({
+        title: 'Autonomous Drone Swarm Navigation in Forest Canopy',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data.similarProjects)).toBe(true);
+    });
   });
 
   /* ─────────────────────────────────────────────────────────────── */
@@ -261,6 +300,45 @@ describe('Title Similarity & Lock — /api/projects', () => {
 
       expect(reviseRes.status).toBe(403);
       expect(reviseRes.body.error.code).toBe('TITLE_LOCKED');
+    });
+  });
+
+  /* ─────────────────────────────────────────────────────────────── */
+  /*  4) POST /:projectId/title/submit — Server-side Clearance Gate   */
+  /* ─────────────────────────────────────────────────────────────── */
+
+  describe('POST /:projectId/title/submit — Server-side Similarity Clearance Gate', () => {
+    it('should reject title submission with 409 Conflict if title has >= 65% similarity with an existing project', async () => {
+      // Seeded project 0: "Capstone Management System with Integrated Plagiarism Checker"
+      // Submit a near-duplicate title that will score >= 65%
+      const conflictingTitle = 'Capstone Management System with Plagiarism Checker';
+      const payload = buildProjectRequestPayload(conflictingTitle);
+
+      const createRes = await studentAgent.post('/api/projects').send(payload);
+      expect(createRes.status).toBe(201);
+      const projectId = createRes.body.data.project._id;
+
+      // Attempt to submit title for defense review — must be rejected by similarity gate
+      const submitRes = await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
+      expect(submitRes.status).toBe(409);
+      expect(submitRes.body.error.code).toBe('TITLE_SIMILARITY_CONFLICT');
+      expect(submitRes.body.error.message).toContain('65%');
+    });
+
+    it('should permit title submission with 200 OK if title has no similarity conflict', async () => {
+      const distinctTitle = 'Autonomous Drone Swarm Navigation in Tropical Agroforest Canopies';
+      const payload = buildProjectRequestPayload(distinctTitle);
+
+      const createRes = await studentAgent.post('/api/projects').send(payload);
+      expect(createRes.status).toBe(201);
+      const projectId = createRes.body.data.project._id;
+
+      const submitRes = await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
+      expect(submitRes.status).toBe(200);
+      expect(submitRes.body.success).toBe(true);
+
+      const updated = await Project.findById(projectId);
+      expect(updated.titleStatus).toBe(TITLE_STATUSES.SUBMITTED);
     });
   });
 });

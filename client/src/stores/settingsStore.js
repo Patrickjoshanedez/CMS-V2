@@ -1,11 +1,12 @@
 import { create } from 'zustand';
+import { DEFAULT_TITLE_SIMILARITY_THRESHOLD } from '@cms/shared';
 import { settingsService } from '../services/settingsService';
 
 export const useSettingsStore = create((set, get) => ({
   plagiarismThreshold: 75,
   plagiarismWarningThreshold: 15,
   plagiarismRejectThreshold: 25,
-  titleSimilarityThreshold: 0.65,
+  titleSimilarityThreshold: DEFAULT_TITLE_SIMILARITY_THRESHOLD,
   maxFileSize: 25 * 1024 * 1024,
   documentTemplates: [
     {
@@ -66,7 +67,8 @@ export const useSettingsStore = create((set, get) => ({
         plagiarismThreshold: data.plagiarismThreshold ?? 75,
         plagiarismWarningThreshold: data.plagiarismWarningThreshold ?? 15,
         plagiarismRejectThreshold: data.plagiarismRejectThreshold ?? 25,
-        titleSimilarityThreshold: data.titleSimilarityThreshold ?? 0.65,
+        titleSimilarityThreshold:
+          data.titleSimilarityThreshold ?? DEFAULT_TITLE_SIMILARITY_THRESHOLD,
         maxFileSize: data.maxFileSize ?? 25 * 1024 * 1024,
         documentTemplates: data.documentTemplates || [],
         deadlines: data.deadlines || [],

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import {
@@ -65,7 +65,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
+import { SDG_TAG_SUGGESTIONS, DEFAULT_TITLE_SIMILARITY_PERCENTAGE } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
 import {
@@ -133,29 +133,30 @@ const createEmptyPitchDeck = () => ({
   expectedImpact: '',
 });
 
+const generateProposalId = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `prop_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
 const createEmptyProposal = () => ({
+  id: generateProposalId(),
   title: '',
   description: '',
   pitchDeck: createEmptyPitchDeck(),
-  capstoneType: ['Software Engineering & Web Applications'],
-  sdgTags: ['SDG 4: Quality Education'],
+  capstoneType: [],
+  sdgTags: [],
 });
 
 const normalizeDraftProposal = (proposal = {}) => ({
   ...createEmptyProposal(),
   ...proposal,
+  id: proposal?.id || (proposal?._id ? String(proposal._id) : generateProposalId()),
   pitchDeck: {
     ...createEmptyPitchDeck(),
     ...(proposal?.pitchDeck || {}),
   },
-  capstoneType:
-    Array.isArray(proposal?.capstoneType) && proposal.capstoneType.length > 0
-      ? proposal.capstoneType
-      : ['Software Engineering & Web Applications'],
-  sdgTags:
-    Array.isArray(proposal?.sdgTags) && proposal.sdgTags.length > 0
-      ? proposal.sdgTags
-      : ['SDG 4: Quality Education'],
+  capstoneType: Array.isArray(proposal?.capstoneType) ? proposal.capstoneType : [],
+  sdgTags: Array.isArray(proposal?.sdgTags) ? proposal.sdgTags : [],
 });
 
 /**
@@ -222,7 +223,7 @@ export function extractProposalsFromProject(project) {
             ? rawItem.capstoneType
             : Array.isArray(project.capstoneType) && project.capstoneType.length > 0
               ? project.capstoneType
-              : ['Software Engineering & Web Applications'];
+              : [];
 
       const sdgTags =
         Array.isArray(meta.sdgTags) && meta.sdgTags.length > 0
@@ -231,10 +232,17 @@ export function extractProposalsFromProject(project) {
             ? rawItem.sdgTags
             : Array.isArray(project.sdgTags) && project.sdgTags.length > 0
               ? project.sdgTags
-              : ['SDG 4: Quality Education'];
+              : [];
+
+      const proposalId = meta._id
+        ? String(meta._id)
+        : isObj && rawItem._id
+          ? String(rawItem._id)
+          : generateProposalId();
 
       if (title.trim()) {
         results.push({
+          id: proposalId,
           title,
           description: rawDesc,
           pitchDeck: parsedPitchDeck,
@@ -256,17 +264,12 @@ export function extractProposalsFromProject(project) {
     }
     return [
       {
+        id: project._id ? String(project._id) : generateProposalId(),
         title: project.title,
         description: rawDesc,
         pitchDeck: parsedPitchDeck,
-        capstoneType:
-          Array.isArray(project.capstoneType) && project.capstoneType.length > 0
-            ? project.capstoneType
-            : ['Software Engineering & Web Applications'],
-        sdgTags:
-          Array.isArray(project.sdgTags) && project.sdgTags.length > 0
-            ? project.sdgTags
-            : ['SDG 4: Quality Education'],
+        capstoneType: Array.isArray(project.capstoneType) ? project.capstoneType : [],
+        sdgTags: Array.isArray(project.sdgTags) ? project.sdgTags : [],
       },
     ];
   }
@@ -315,7 +318,7 @@ export default function CreateProjectPage() {
   const {
     plagiarismThreshold = 15.0,
     plagiarismRejectThreshold = 50.0,
-    titleSimilarityThreshold = 65.0,
+    titleSimilarityThreshold = DEFAULT_TITLE_SIMILARITY_PERCENTAGE,
     fetchSettings,
   } = useSettingsStore();
 
@@ -339,11 +342,33 @@ export default function CreateProjectPage() {
   const [generatingProposalIndex, setGeneratingProposalIndex] = useState(null);
   const [proposalSimilarityResults, setProposalSimilarityResults] = useState({});
   const [proposalPlagiarismResults, setProposalPlagiarismResults] = useState({});
+  const [proposalLiveSimilarity, setProposalLiveSimilarity] = useState({});
   const [selectedSimilarProject, setSelectedSimilarProject] = useState(null);
   const [keywordList, setKeywordList] = useState([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [isFullscreenDeckOpen, setIsFullscreenDeckOpen] = useState(false);
   const [exportingPptxIndex, setExportingPptxIndex] = useState(null);
+
+  const teamProjectId =
+    (typeof team?.projectId === 'string' && team.projectId) ||
+    (typeof team?.project === 'string' && team.project) ||
+    (team?.project?._id ? String(team.project._id) : null);
+
+  const effectiveExcludeProjectId =
+    (editingProjectId ? String(editingProjectId) : null) || teamProjectId || undefined;
+
+  const handleSimilarityScanChange = useCallback((proposalKey, status) => {
+    setProposalLiveSimilarity((prev) => ({
+      ...prev,
+      [proposalKey]: status,
+    }));
+    if (!status?.isLoading && !status?.isDebouncing && Array.isArray(status?.similarProjects)) {
+      setProposalSimilarityResults((prev) => ({
+        ...prev,
+        [proposalKey]: status.similarProjects,
+      }));
+    }
+  }, []);
 
   const teamMembers = useMemo(() => {
     if (team?.members?.length > 0) return team.members;
@@ -382,14 +407,79 @@ export default function CreateProjectPage() {
 
   const currentProposal =
     titleProposals[activeProposalIndex] || titleProposals[0] || createEmptyProposal();
-  const currentScanData = proposalPlagiarismResults[activeProposalIndex];
-  const hasScanned = Boolean(currentScanData);
-  const currentScanScore = hasScanned ? (currentScanData.similarityScore ?? 0) : 0;
-  const winnowingScore = hasScanned ? (currentScanData.winnowingScore ?? 0) : 0;
-  const semanticScore = hasScanned ? (currentScanData.semanticScore ?? 0) : 0;
-  const currentMatches = proposalSimilarityResults[activeProposalIndex] || [];
+  const currentProposalKey = currentProposal?.id || String(activeProposalIndex);
+
+  const currentScanData = proposalPlagiarismResults[currentProposalKey];
+  const liveScan = proposalLiveSimilarity[currentProposalKey];
+
+  const currentMatches = useMemo(() => {
+    const manualMatches = proposalSimilarityResults[currentProposalKey];
+    if (Array.isArray(manualMatches) && manualMatches.length > 0) {
+      return manualMatches;
+    }
+    if (Array.isArray(liveScan?.similarProjects)) {
+      return liveScan.similarProjects;
+    }
+    return [];
+  }, [proposalSimilarityResults, currentProposalKey, liveScan?.similarProjects]);
+
+  const isLiveScanning = Boolean(liveScan?.isLoading || isScanning);
+  const hasLiveScanCompleted = Boolean(
+    liveScan &&
+    !liveScan.isLoading &&
+    !liveScan.isTooShort &&
+    liveScan.similarProjects !== undefined,
+  );
+  const hasScanned = Boolean(currentScanData) || hasLiveScanCompleted;
+
+  const topLiveScore = useMemo(() => {
+    if (!currentMatches || currentMatches.length === 0) return 0;
+    return Math.max(
+      ...currentMatches.map((p) => p.similarityScore ?? Math.round((p.score || 0) * 100)),
+    );
+  }, [currentMatches]);
+
+  const currentScanScore = currentScanData
+    ? (currentScanData.similarityScore ?? 0)
+    : hasLiveScanCompleted
+      ? topLiveScore
+      : 0;
+
+  const winnowingScore = currentScanData ? (currentScanData.winnowingScore ?? 0) : 0;
+  const semanticScore = currentScanData ? (currentScanData.semanticScore ?? 0) : 0;
+
   const effectiveThreshold = plagiarismThreshold || 15.0;
-  const isCleared = hasScanned && currentScanScore <= effectiveThreshold;
+  const titleThreshold =
+    typeof titleSimilarityThreshold === 'number' && titleSimilarityThreshold <= 1
+      ? Math.round(titleSimilarityThreshold * 100)
+      : Number(titleSimilarityThreshold) || DEFAULT_TITLE_SIMILARITY_PERCENTAGE;
+
+  const hasSimilarityConflict = useMemo(() => {
+    if (
+      currentMatches.some(
+        (m) => (m.similarityScore ?? Math.round((m.score || 0) * 100)) >= titleThreshold,
+      )
+    ) {
+      return true;
+    }
+    if (liveScan?.hasMatches && topLiveScore >= titleThreshold) {
+      return true;
+    }
+    if (Boolean(currentScanData) && currentScanScore > effectiveThreshold) {
+      return true;
+    }
+    return false;
+  }, [
+    currentMatches,
+    titleThreshold,
+    liveScan?.hasMatches,
+    topLiveScore,
+    currentScanData,
+    currentScanScore,
+    effectiveThreshold,
+  ]);
+
+  const isCleared = hasScanned && !hasSimilarityConflict;
 
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -633,6 +723,15 @@ export default function CreateProjectPage() {
     setTitleProposals((prev) => {
       const next = [...prev];
       if (!next[index]) next[index] = createEmptyProposal();
+      const pKey = next[index].id || String(index);
+      setProposalSimilarityResults((pResults) => {
+        if (pResults[pKey]) {
+          const updated = { ...pResults };
+          delete updated[pKey];
+          return updated;
+        }
+        return pResults;
+      });
       next[index] = { ...next[index], title: value };
       return next;
     });
@@ -668,7 +767,7 @@ export default function CreateProjectPage() {
 
   const handleSaveModalAlignments = (items, type) => {
     if (type === 'discipline') {
-      const selected = items.length > 0 ? items : ['Software Engineering & Web Applications'];
+      const selected = items;
       setTitleProposals((prev) => {
         const next = [...prev];
         if (!next[activeProposalIndex]) next[activeProposalIndex] = createEmptyProposal();
@@ -679,7 +778,7 @@ export default function CreateProjectPage() {
         description: `${selected.length} discipline${selected.length === 1 ? '' : 's'} linked to Proposal ${activeProposalIndex + 1}.`,
       });
     } else {
-      const selected = items.length > 0 ? items : ['SDG 4: Quality Education'];
+      const selected = items;
       setTitleProposals((prev) => {
         const next = [...prev];
         if (!next[activeProposalIndex]) next[activeProposalIndex] = createEmptyProposal();
@@ -697,10 +796,6 @@ export default function CreateProjectPage() {
       const next = [...prev];
       if (!next[activeProposalIndex]) return prev;
       const current = next[activeProposalIndex].capstoneType || [];
-      if (current.length <= 1) {
-        toast.error('Proposal must retain at least 1 IT Field of Discipline.');
-        return prev;
-      }
       const updated = current.filter((d) => d !== discName);
       next[activeProposalIndex] = { ...next[activeProposalIndex], capstoneType: updated };
       return next;
@@ -713,10 +808,6 @@ export default function CreateProjectPage() {
       const next = [...prev];
       if (!next[activeProposalIndex]) return prev;
       const current = next[activeProposalIndex].sdgTags || [];
-      if (current.length <= 1) {
-        toast.error('Proposal must retain at least 1 Target SDG alignment.');
-        return prev;
-      }
       const updated = current.filter((s) => s !== sdgTag);
       next[activeProposalIndex] = { ...next[activeProposalIndex], sdgTags: updated };
       return next;
@@ -765,8 +856,8 @@ export default function CreateProjectPage() {
           title: p.title.trim(),
           description: formatPitchDeckDescription(p.pitchDeck),
           pitchDeck: p.pitchDeck || {},
-          capstoneType: p.capstoneType || ['Software Engineering & Web Applications'],
-          sdgTags: p.sdgTags || ['SDG 4: Quality Education'],
+          capstoneType: Array.isArray(p.capstoneType) ? p.capstoneType : [],
+          sdgTags: Array.isArray(p.sdgTags) ? p.sdgTags : [],
         }));
         await projectService.updateTitle(editingProjectId, {
           title: normalized[0]?.title || '',
@@ -816,6 +907,7 @@ export default function CreateProjectPage() {
         uniqueContribution: currentProposal.pitchDeck?.uniqueContribution,
         expectedImpact: currentProposal.pitchDeck?.expectedImpact,
         academicYear: form.academicYear,
+        excludeProjectId: effectiveExcludeProjectId,
       });
 
       const matches = res?.data?.data?.matches || res?.data?.matches || [];
@@ -825,8 +917,8 @@ export default function CreateProjectPage() {
         semanticScore: 0,
       };
 
-      setProposalSimilarityResults((prev) => ({ ...prev, [activeProposalIndex]: matches }));
-      setProposalPlagiarismResults((prev) => ({ ...prev, [activeProposalIndex]: plagiarism }));
+      setProposalSimilarityResults((prev) => ({ ...prev, [currentProposalKey]: matches }));
+      setProposalPlagiarismResults((prev) => ({ ...prev, [currentProposalKey]: plagiarism }));
       toast.success(`Similarity verification completed for Proposal ${activeProposalIndex + 1}.`);
     } catch {
       toast.error('Failed to verify similarity against institutional repository.');
@@ -924,8 +1016,8 @@ export default function CreateProjectPage() {
         category: 'Discipline & UN SDG Alignment',
         tag: 'Curriculum & SDGs',
         title: 'Field of Discipline & UN SDG Alignment',
-        disciplines: currentProposal.capstoneType || ['Software Engineering & Web Applications'],
-        sdgs: currentProposal.sdgTags || ['SDG 4: Quality Education'],
+        disciplines: currentProposal.capstoneType || [],
+        sdgs: currentProposal.sdgTags || [],
         type: 'alignment',
       },
       {
@@ -1184,6 +1276,11 @@ export default function CreateProjectPage() {
 
   const handleSubmit = (e) => {
     e?.preventDefault();
+
+    if (isLiveScanning || hasSimilarityConflict) {
+      return;
+    }
+
     const filled = titleProposals.filter((p) => p.title?.trim());
     if (filled.length === 0) {
       toast.error('Please complete at least 1 candidate title proposal.');
@@ -1194,8 +1291,8 @@ export default function CreateProjectPage() {
       title: p.title.trim(),
       description: formatPitchDeckDescription(p.pitchDeck),
       pitchDeck: p.pitchDeck || {},
-      capstoneType: p.capstoneType || ['Software Engineering & Web Applications'],
-      sdgTags: p.sdgTags || ['SDG 4: Quality Education'],
+      capstoneType: Array.isArray(p.capstoneType) ? p.capstoneType : [],
+      sdgTags: Array.isArray(p.sdgTags) ? p.sdgTags : [],
     }));
 
     if (editingProjectId) {
@@ -1287,11 +1384,29 @@ export default function CreateProjectPage() {
               type="button"
               size="sm"
               onClick={handleSubmit}
-              disabled={createProject.isPending || updateTitleMutation.isPending}
-              className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs"
+              disabled={
+                createProject.isPending ||
+                updateTitleMutation.isPending ||
+                isLiveScanning ||
+                hasSimilarityConflict
+              }
+              aria-describedby={hasSimilarityConflict ? 'similarity-conflict-banner' : undefined}
+              title={
+                hasSimilarityConflict
+                  ? `Cannot update: Similar title detected above ${titleThreshold}% threshold.`
+                  : isLiveScanning
+                    ? 'Verifying title similarity...'
+                    : undefined
+              }
+              className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createProject.isPending || updateTitleMutation.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isLiveScanning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Verifying Similarity...
+                </>
               ) : isEditMode ? (
                 <>
                   Update Proposals <ArrowRight className="h-3.5 w-3.5" />
@@ -1305,6 +1420,31 @@ export default function CreateProjectPage() {
           </div>
         </div>
 
+        {/* Similarity Conflict Warning Banner */}
+        {hasSimilarityConflict && (
+          <div
+            id="similarity-conflict-banner"
+            role="alert"
+            className="rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-3.5 text-xs text-rose-900 dark:text-rose-200 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150"
+            data-testid="similarity-conflict-banner"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span className="leading-snug">
+                <strong>Submission & Update Locked:</strong> Similar existing capstone titles above
+                the {titleThreshold}% threshold were detected for Proposal {activeProposalIndex + 1}
+                . Please revise your title or scope to achieve distinctiveness before submitting.
+              </span>
+            </div>
+            <Badge
+              variant="outline"
+              className="border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[10px] shrink-0 font-semibold uppercase tracking-wider"
+            >
+              Distinctiveness Required
+            </Badge>
+          </div>
+        )}
+
         {/* 2. Candidate Proposal Switcher & Main Studio Navigation */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-border/60 pb-3">
           {/* Candidate Option Pills */}
@@ -1317,10 +1457,48 @@ export default function CreateProjectPage() {
                 const isActive = activeProposalIndex === idx;
                 const isPrimary = idx === 0;
                 const hasTitle = Boolean(prop.title?.trim());
+                const propKey = prop.id || String(idx);
+
+                // Check hearing defense clearance per proposal
+                const pScan = proposalPlagiarismResults[propKey];
+                const pLive = proposalLiveSimilarity[propKey];
+                const pMatches =
+                  proposalSimilarityResults[propKey] ||
+                  (Array.isArray(pLive?.similarProjects) ? pLive.similarProjects : []);
+                const pLiveCompleted = Boolean(
+                  pLive &&
+                  !pLive.isLoading &&
+                  !pLive.isTooShort &&
+                  pLive.similarProjects !== undefined,
+                );
+                const pScanned = Boolean(pScan) || pLiveCompleted;
+                const pConflict =
+                  pMatches.some(
+                    (m) =>
+                      (m.similarityScore ?? Math.round((m.score || 0) * 100)) >= titleThreshold,
+                  ) ||
+                  (pLive?.hasMatches &&
+                    (pLive.similarProjects || []).some(
+                      (m) =>
+                        (m.similarityScore ?? Math.round((m.score || 0) * 100)) >= titleThreshold,
+                    ));
+
+                const pCleared = Boolean(hasFinalizedTeam && pScanned && !pConflict && hasTitle);
+
+                let dotColor = 'bg-muted-foreground/30';
+                if (pCleared) {
+                  dotColor = 'bg-emerald-500';
+                } else if (pConflict) {
+                  dotColor = 'bg-rose-500';
+                } else if (pLive?.isLoading) {
+                  dotColor = 'bg-sky-500 animate-pulse';
+                } else if (hasTitle) {
+                  dotColor = 'bg-amber-500';
+                }
 
                 return (
                   <button
-                    key={idx}
+                    key={prop.id || idx}
                     type="button"
                     onClick={() => setActiveProposalIndex(idx)}
                     className={cn(
@@ -1330,16 +1508,7 @@ export default function CreateProjectPage() {
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/80',
                     )}
                   >
-                    <span
-                      className={cn(
-                        'h-2 w-2 rounded-full',
-                        isPrimary
-                          ? 'bg-emerald-500'
-                          : hasTitle
-                            ? 'bg-amber-500'
-                            : 'bg-muted-foreground/40',
-                      )}
-                    />
+                    <span className={cn('h-2 w-2 rounded-full transition-colors', dotColor)} />
                     Proposal {idx + 1} {isPrimary ? '(Primary)' : ''}
                   </button>
                 );
@@ -1455,9 +1624,15 @@ export default function CreateProjectPage() {
                           Title Similarity Live Clearance
                         </p>
                         <TitleSimilarityChecker
+                          key={currentProposalKey}
                           title={currentProposal.title}
                           keywords={keywordList}
                           debounceMs={400}
+                          threshold={titleThreshold}
+                          excludeProjectId={effectiveExcludeProjectId}
+                          onScanStatusChange={(status) =>
+                            handleSimilarityScanChange(currentProposalKey, status)
+                          }
                         />
                       </div>
                     )}
@@ -1574,28 +1749,31 @@ export default function CreateProjectPage() {
                           <Plus className="h-3 w-3" /> Edit Disciplines
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px]">
-                        {(
-                          currentProposal.capstoneType || [
-                            'Software Engineering & Web Applications',
-                          ]
-                        ).map((disc) => (
-                          <span
-                            key={disc}
-                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white border border-slate-300 dark:bg-slate-800 dark:border-slate-600 text-slate-800 dark:text-slate-200 shadow-2xs"
-                          >
-                            <Layers className="h-3 w-3 text-blue-500" />
-                            <span>{disc}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveDiscipline(disc)}
-                              className="text-slate-400 hover:text-rose-500 ml-0.5"
-                              title={`Remove ${disc}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px] items-center">
+                        {(currentProposal.capstoneType || []).length === 0 ? (
+                          <span className="text-xs text-muted-foreground italic px-1">
+                            No IT disciplines selected. Click &quot;Edit Disciplines&quot; to
+                            assign.
                           </span>
-                        ))}
+                        ) : (
+                          (currentProposal.capstoneType || []).map((disc) => (
+                            <span
+                              key={disc}
+                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white border border-slate-300 dark:bg-slate-800 dark:border-slate-600 text-slate-800 dark:text-slate-200 shadow-2xs"
+                            >
+                              <Layers className="h-3 w-3 text-blue-500" />
+                              <span>{disc}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDiscipline(disc)}
+                                className="text-slate-400 hover:text-rose-500 ml-0.5"
+                                title={`Remove ${disc}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -1614,24 +1792,30 @@ export default function CreateProjectPage() {
                           <Plus className="h-3 w-3" /> Edit SDGs
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px]">
-                        {(currentProposal.sdgTags || ['SDG 4: Quality Education']).map((sdg) => (
-                          <span
-                            key={sdg}
-                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 shadow-2xs"
-                          >
-                            <Globe className="h-3 w-3 text-emerald-500" />
-                            <span>{sdg}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSdg(sdg)}
-                              className="text-emerald-600/70 hover:text-rose-500 ml-0.5"
-                              title={`Remove ${sdg}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-[#080d18] min-h-[42px] items-center">
+                        {(currentProposal.sdgTags || []).length === 0 ? (
+                          <span className="text-xs text-muted-foreground italic px-1">
+                            No SDGs selected. Click &quot;Edit SDGs&quot; to assign.
                           </span>
-                        ))}
+                        ) : (
+                          (currentProposal.sdgTags || []).map((sdg) => (
+                            <span
+                              key={sdg}
+                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 shadow-2xs"
+                            >
+                              <Globe className="h-3 w-3 text-emerald-500" />
+                              <span>{sdg}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSdg(sdg)}
+                                className="text-emerald-600/70 hover:text-rose-500 ml-0.5"
+                                title={`Remove ${sdg}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1762,6 +1946,11 @@ export default function CreateProjectPage() {
                         title={currentProposal.title}
                         keywords={keywordList}
                         debounceMs={300}
+                        threshold={titleThreshold}
+                        excludeProjectId={effectiveExcludeProjectId}
+                        onScanStatusChange={(status) =>
+                          handleSimilarityScanChange(activeProposalIndex, status)
+                        }
                       />
                     </CardContent>
                   </Card>
@@ -1842,6 +2031,28 @@ export default function CreateProjectPage() {
                               <span className="font-semibold text-foreground break-words leading-tight">
                                 {item.title}
                               </span>
+                              {(() => {
+                                const stageLabel =
+                                  item.projectStatus === 'archived' ||
+                                  item.isArchived ||
+                                  item.status === 'ARCHIVED'
+                                    ? 'Archived'
+                                    : Number(item.capstonePhase) === 4
+                                      ? 'Capstone 4'
+                                      : Number(item.capstonePhase) === 3
+                                        ? 'Capstone 3'
+                                        : Number(item.capstonePhase) === 2
+                                          ? 'Capstone 2'
+                                          : 'Capstone 1 (Proposal)';
+                                return (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] shrink-0 whitespace-nowrap px-1.5 py-0.5 border-rose-200 dark:border-rose-900/80 text-muted-foreground"
+                                  >
+                                    {stageLabel}
+                                  </Badge>
+                                );
+                              })()}
                               <Badge
                                 variant="secondary"
                                 className="text-[10px] font-mono shrink-0 whitespace-nowrap px-1.5 py-0.5"
@@ -2229,8 +2440,8 @@ export default function CreateProjectPage() {
         type={alignmentModalType}
         selectedItems={
           alignmentModalType === 'discipline'
-            ? currentProposal.capstoneType || ['Software Engineering & Web Applications']
-            : currentProposal.sdgTags || ['SDG 4: Quality Education']
+            ? currentProposal.capstoneType || []
+            : currentProposal.sdgTags || []
         }
         proposalIndex={activeProposalIndex}
         onSave={handleSaveModalAlignments}

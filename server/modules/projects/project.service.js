@@ -3,6 +3,7 @@ import Project from './project.model.js';
 import Team from '../teams/team.model.js';
 import User from '../users/user.model.js';
 import Section from '../academics/section.model.js';
+import Course from '../academics/course.model.js';
 import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
 import Evaluation from '../evaluations/evaluation.model.js';
@@ -941,7 +942,7 @@ class ProjectService {
         .sort({ score: { $meta: 'textScore' } })
         .limit(50)
         .select(
-          'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+          'title abstract keywords academicYear targetBeneficiary targetUsers techStack titleProposalMetadata capstoneType projectStatus capstonePhase titleStatus sdgTags problemStatement proposedSolution uniqueContribution expectedImpact isArchived',
         )
         .lean();
     } catch {
@@ -956,7 +957,7 @@ class ProjectService {
         .sort({ createdAt: -1 })
         .limit(100)
         .select(
-          'title abstract keywords academicYear targetBeneficiary techStack titleProposalMetadata capstoneType',
+          'title abstract keywords academicYear targetBeneficiary targetUsers techStack titleProposalMetadata capstoneType projectStatus capstonePhase titleStatus sdgTags problemStatement proposedSolution uniqueContribution expectedImpact isArchived',
         )
         .lean();
     }
@@ -1118,6 +1119,26 @@ class ProjectService {
     }
 
     await this._assertTeamLeader(project.teamId, userId);
+
+    // Server-side Title Similarity Clearance Gate:
+    // Reject title submission if candidate title has a conflict (similarity >= threshold) against existing non-rejected projects
+    const { similarProjects, threshold } = await this.checkTitleSimilarity(
+      project.title,
+      project.keywords || [],
+      String(project._id),
+    );
+    const thr = threshold <= 1 ? Math.round(threshold * 100) : threshold;
+    const hasConflict = similarProjects.some((p) => {
+      const score = p.similarityScore ?? Math.round((p.score || 0) * 100);
+      return score >= thr;
+    });
+    if (hasConflict) {
+      throw new AppError(
+        `Cannot submit proposals: Similar title detected above the ${thr}% threshold. Please revise your title to achieve distinctiveness.`,
+        409,
+        'TITLE_SIMILARITY_CONFLICT',
+      );
+    }
 
     project.titleStatus = TITLE_STATUSES.SUBMITTED;
     await project.save();
@@ -2248,6 +2269,7 @@ class ProjectService {
       doi,
       author,
       courseId,
+      program,
       keyword,
     } = query;
     const skip = (page - 1) * limit;
@@ -2256,7 +2278,29 @@ class ProjectService {
 
     const filter = { isArchived: true };
     if (academicYear) filter.academicYear = academicYear;
-    if (courseId) filter.courseId = courseId;
+    if (courseId) {
+      filter.courseId = courseId;
+    } else if (program && program !== 'all') {
+      if (mongoose.Types.ObjectId.isValid(program)) {
+        filter.courseId = program;
+      } else {
+        const escapedProgram = escapeRegex(program.trim());
+        const matchedCourse = await Course.findOne({
+          $or: [
+            { code: new RegExp(`^${escapedProgram}$`, 'i') },
+            { name: new RegExp(`^${escapedProgram}$`, 'i') },
+          ],
+        })
+          .select('_id')
+          .lean();
+
+        if (matchedCourse) {
+          filter.courseId = matchedCourse._id;
+        } else {
+          filter.courseId = new mongoose.Types.ObjectId();
+        }
+      }
+    }
     if (keyword) filter.keywords = { $in: [keyword] };
 
     // Exact or partial DOI filter

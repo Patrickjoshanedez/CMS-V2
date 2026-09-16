@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 
 import { useArchiveSearch } from '@/hooks/useProjects';
 import { useArchiveSearchState } from '@/hooks/useArchiveSearchState';
+import { useCourses } from '@/hooks/useAcademics';
 import GoogleScholarSearchBar from '@/components/archive/GoogleScholarSearchBar';
 import GoogleScholarSidebar from '@/components/archive/GoogleScholarSidebar';
 import OriginalityShieldBadge from '@/components/archive/OriginalityShieldBadge';
@@ -114,6 +115,9 @@ export default function ArchiveSearchPage() {
     }
   });
 
+  // Dynamic courses catalog from Student Management Hierarchy
+  const { data: courses = [] } = useCourses();
+
   const { data, isLoading, error } = useArchiveSearch(searchParamsPayload);
 
   const projects = data?.projects ?? [];
@@ -204,6 +208,7 @@ export default function ArchiveSearchPage() {
               setProgram(prog);
               setPage(1);
             }}
+            courses={courses}
             sortBy={sortBy}
             onSortByChange={(sort) => {
               setSortBy(sort);

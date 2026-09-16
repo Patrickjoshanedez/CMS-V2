@@ -1,3 +1,5 @@
+import { DEFAULT_TITLE_SIMILARITY_THRESHOLD } from '@cms/shared';
+
 /**
  * Title similarity utility — provides Levenshtein distance and keyword overlap
  * scoring for detecting duplicate or near-duplicate capstone titles.
@@ -159,7 +161,7 @@ const DEFAULT_WEIGHTS = { title: 0.7, keyword: 0.3 };
  * Default threshold above which two projects are considered "similar".
  * @type {number}
  */
-const DEFAULT_THRESHOLD = 0.65;
+const DEFAULT_THRESHOLD = DEFAULT_TITLE_SIMILARITY_THRESHOLD;
 
 /**
  * Compare a candidate title + keywords against an array of existing projects.
@@ -207,6 +209,12 @@ export function findSimilarProjects(candidate, existingProjects, options = {}) {
         techStack = proj.keywords;
       }
 
+      const meta =
+        Array.isArray(proj.titleProposalMetadata) && proj.titleProposalMetadata.length > 0
+          ? proj.titleProposalMetadata[0]
+          : null;
+      const pitchDeck = meta?.pitchDeck || null;
+
       results.push({
         id: proj._id ? String(proj._id) : proj.id || '',
         projectId: proj._id,
@@ -216,7 +224,19 @@ export function findSimilarProjects(candidate, existingProjects, options = {}) {
         academicYear: proj.academicYear || '',
         abstract: proj.abstract || '',
         targetBeneficiary,
+        targetUsers: proj.targetUsers || pitchDeck?.targetUsers || targetBeneficiary,
         techStack,
+        projectStatus: proj.projectStatus || (proj.isArchived ? 'archived' : 'active'),
+        capstonePhase: proj.capstonePhase || 1,
+        titleStatus: proj.titleStatus || 'draft',
+        capstoneType: proj.capstoneType || meta?.capstoneType || [],
+        sdgTags: proj.sdgTags || meta?.sdgTags || [],
+        problemStatement:
+          proj.problemStatement || pitchDeck?.problemStatement || meta?.description || '',
+        proposedSolution: proj.proposedSolution || pitchDeck?.proposedSolution || '',
+        uniqueContribution: proj.uniqueContribution || pitchDeck?.uniqueContribution || '',
+        expectedImpact: proj.expectedImpact || pitchDeck?.expectedImpact || '',
+        pitchDeck,
       });
     }
   }

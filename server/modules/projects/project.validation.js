@@ -51,7 +51,7 @@ export const checkTitleSimilaritySchema = z.object({
     .max(10, 'A project can have at most 10 keywords')
     .optional()
     .default([]),
-  excludeProjectId: z.string().regex(objectIdPattern, 'Invalid ObjectId').optional(),
+  excludeProjectId: z.string().regex(objectIdPattern, 'Invalid ObjectId').optional().nullable(),
 });
 
 const createProjectDraftPayloadSchema = z

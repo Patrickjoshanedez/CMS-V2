@@ -38,3 +38,8 @@ export {
   getDisciplineByNameOrId,
 } from './constants/disciplines.js';
 export { STRICT_EMAIL_REGEX } from './constants/validation.js';
+export {
+  DEFAULT_TITLE_SIMILARITY_THRESHOLD,
+  DEFAULT_TITLE_SIMILARITY_PERCENTAGE,
+  DEFAULT_PLAGIARISM_TOLERANCE_PERCENTAGE,
+} from './constants/similarityThresholds.js';

@@ -1,6 +1,7 @@
+import mongoose from 'mongoose';
 import projectService from './project.service.js';
 import catchAsync from '../../utils/catchAsync.js';
-import { HTTP_STATUS, ROLES } from '@cms/shared';
+import { HTTP_STATUS, ROLES, PROJECT_STATUSES } from '@cms/shared';
 import {
   calculateProposalSimilarityDetailed,
   extractMatchingKeywords,
@@ -8,8 +9,48 @@ import {
 } from '../../utils/proposalSimilarity.js';
 import { checkOriginality } from '../../services/plagiarism.service.js';
 import Project from './project.model.js';
+import Team from '../teams/team.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToRoom, getIO } from '../../services/socket.service.js';
+
+/**
+ * Safely resolve a project ID to exclude from similarity checks.
+ * Validates any client-provided ID with mongoose.Types.ObjectId.isValid.
+ * If not provided, and the requester is a student, safely resolves their team's project.
+ *
+ * @param {string|null} clientExcludeId - Candidate ID supplied by client.
+ * @param {Object|null} user - Authenticated user object.
+ * @returns {Promise<string|null>} Validated project ID string or null.
+ */
+async function resolveValidatedExcludeProjectId(clientExcludeId, user) {
+  if (clientExcludeId && mongoose.Types.ObjectId.isValid(String(clientExcludeId))) {
+    return String(clientExcludeId);
+  }
+
+  // If user is a student (proponent), look up their active team project
+  if (user && user.role === ROLES.STUDENT) {
+    try {
+      const userTeam = await Team.findOne({ members: user._id }).select('_id').lean();
+      if (userTeam) {
+        const teamProject = await Project.findOne({
+          teamId: userTeam._id,
+          projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
+        })
+          .sort({ createdAt: -1 })
+          .select('_id')
+          .lean();
+
+        if (teamProject && mongoose.Types.ObjectId.isValid(String(teamProject._id))) {
+          return String(teamProject._id);
+        }
+      }
+    } catch {
+      // Safe fallback to null
+    }
+  }
+
+  return null;
+}
 
 function buildProposalText({
   title,
@@ -37,7 +78,11 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
     uniqueContribution,
     expectedImpact,
     academicYear,
+    excludeProjectId,
   } = req.body;
+
+  const validatedExcludeId = await resolveValidatedExcludeProjectId(excludeProjectId, req.user);
+
   const tokenizedProjectInput = {
     title: tokenize(title),
     problemStatement: tokenize(problemStatement),
@@ -47,20 +92,23 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
   };
 
   const matchFilter = {
-    status: { $in: ['APPROVED', 'PENDING', 'ARCHIVED'] },
+    projectStatus: { $ne: 'rejected' },
   };
   if (academicYear) {
     matchFilter.academicYear = academicYear;
   }
+  if (validatedExcludeId) {
+    matchFilter._id = { $ne: validatedExcludeId };
+  }
 
-  // Find approved, pending, archived projects
+  // Find non-rejected projects (approved, pending, archived, active)
   // Limit to recent active projects or limit the scan pool to prevent DOS
   // And use lean() with strict selected fields only to minimize memory loading.
   const allProjects = await Project.find(matchFilter)
     .sort({ createdAt: -1 })
     .limit(500)
     .select(
-      'title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status academicYear abstract targetBeneficiary techStack createdAt',
+      'title titleProposals problemStatement proposedSolution uniqueContribution expectedImpact status projectStatus capstonePhase titleStatus academicYear abstract targetBeneficiary targetUsers techStack capstoneType sdgTags isArchived createdAt',
     )
     .lean();
 
@@ -116,13 +164,24 @@ export const checkProposalSimilarity = catchAsync(async (req, res) => {
       return {
         _id: p._id,
         id: String(p._id),
+        projectId: p._id,
         title: p.title,
-        status: p.status,
+        status: p.projectStatus || p.status,
+        projectStatus: p.projectStatus || (p.isArchived ? 'archived' : 'active'),
+        capstonePhase: p.capstonePhase || 1,
+        titleStatus: p.titleStatus || 'draft',
         academicYear,
         year: academicYear,
         abstract: p.abstract || '',
-        targetBeneficiary: p.targetBeneficiary || '',
+        targetBeneficiary: p.targetBeneficiary || p.targetUsers || '',
+        targetUsers: p.targetUsers || p.targetBeneficiary || '',
         techStack: p.techStack || [],
+        capstoneType: p.capstoneType || [],
+        sdgTags: p.sdgTags || [],
+        problemStatement: p.problemStatement || '',
+        proposedSolution: p.proposedSolution || '',
+        uniqueContribution: p.uniqueContribution || '',
+        expectedImpact: p.expectedImpact || '',
         score: similarity.overall,
         similarityScore: Math.round(similarity.overall * 100),
         match: `${Math.round(similarity.overall * 100)}%`,
@@ -364,10 +423,13 @@ export const resolveTitleModification = catchAsync(async (req, res) => {
 /** POST /api/projects/title-check — Real-time title similarity check */
 export const checkTitleSimilarity = catchAsync(async (req, res) => {
   const { title, keywords, excludeProjectId } = req.body;
+
+  const validatedExcludeId = await resolveValidatedExcludeProjectId(excludeProjectId, req.user);
+
   const { similarProjects, threshold } = await projectService.checkTitleSimilarity(
     title,
     keywords,
-    excludeProjectId || null,
+    validatedExcludeId,
   );
 
   res.status(HTTP_STATUS.OK).json({
