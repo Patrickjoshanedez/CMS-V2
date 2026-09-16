@@ -1,4 +1,19 @@
 import puppeteer from 'puppeteer-core';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cotLogoPath = path.resolve(__dirname, '../../assets/buksu-cot-logo.png');
+const itLogoPath = path.resolve(__dirname, '../../assets/buksu-it-logo.png');
+
+const cotLogoBase64 = fs.existsSync(cotLogoPath)
+  ? `data:image/png;base64,${fs.readFileSync(cotLogoPath).toString('base64')}`
+  : '';
+const itLogoBase64 = fs.existsSync(itLogoPath)
+  ? `data:image/png;base64,${fs.readFileSync(itLogoPath).toString('base64')}`
+  : '';
 
 // Slide dimensions: 16:9 aspect ratio
 // Width: 13.333in = 338.5mm, Height: 7.5in = 190.5mm
@@ -87,15 +102,15 @@ function buildDeckHtml({ title, deckData }) {
       body: deckData.proposedSolution,
     },
     {
-      heading: 'Unique Contribution / Innovation',
+      heading: 'Unique Technical Contribution',
       body: deckData.uniqueContribution,
     },
     {
-      heading: 'Target Users / Beneficiaries',
+      heading: 'Target Users & Beneficiaries',
       body: deckData.targetUsers,
     },
     {
-      heading: 'Expected Impact / Value',
+      heading: 'Expected Institutional Impact',
       body: deckData.expectedImpact,
     },
   ];
@@ -104,36 +119,21 @@ function buildDeckHtml({ title, deckData }) {
   const footerHtml = `
     <footer>
       <div class="text-right">
-        <div>BUKIDNON STATE UNIVERSITY</div>
-        <div>COLLEGE OF TECHNOLOGIES</div>
-        <div>Information Technology Department</div>
+        <div class="inst-bold">BUKIDNON STATE UNIVERSITY</div>
+        <div class="inst-bold">COLLEGE OF TECHNOLOGIES</div>
+        <div class="inst-reg">Information Technology Department</div>
       </div>
       <div class="logo-container">
-        <div class="logo logo-white"><span>BUKSU</span></div>
-        <div class="logo logo-orange"><span>COT/IT</span></div>
+        ${cotLogoBase64 ? `<img class="logo-img" src="${cotLogoBase64}" alt="BukSU COT Seal" />` : ''}
+        ${itLogoBase64 ? `<img class="logo-img" src="${itLogoBase64}" alt="BukSU IT Shield" />` : ''}
       </div>
     </footer>
   `;
 
   const coverSlideHtml = `
-    <section class="slide cover-slide" style="background-color: #0A3254;">
+    <section class="slide cover-slide" style="background-color: #0B3064;">
       <main>
-        <h1>Capstone Project<br/>Pitch Proposal</h1>
-        <div class="text-white">
-          <p>Group Members / Authors / Team</p>
-        </div>
-        <div class="timestamp">
-          1st Semester – AY 2025 – 2026
-        </div>
-      </main>
-      ${footerHtml}
-    </section>
-  `;
-
-  const titleSlideHtml = `
-    <section class="slide title-slide" style="background-color: #0A3254;">
-      <main>
-        <h1>${titleSafe}</h1>
+        <h1 class="cover-title">${titleSafe}</h1>
       </main>
       ${footerHtml}
     </section>
@@ -202,139 +202,96 @@ function buildDeckHtml({ title, deckData }) {
         bottom: 0;
         width: 100%;
         height: 28.5mm;
-        background-color: #F58220;
+        background-color: #FF7300;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        padding: 0 36mm;
+        padding: 0 24mm;
         z-index: 20;
+      }
+      div.text-right {
+        text-align: right;
+        color: #000000;
+        line-height: 1.25;
+      }
+      .inst-bold {
+        font-weight: 800;
+        font-size: 4.8mm;
+      }
+      .inst-reg {
+        font-weight: normal;
+        font-size: 4.0mm;
+      }
+      div.logo-container {
+        display: flex;
+        gap: 3.5mm;
+        margin-left: 6mm;
+        align-items: center;
+      }
+      .logo-img {
+        width: 18mm;
+        height: 18mm;
+        object-fit: contain;
+        flex-shrink: 0;
       }
       main {
         flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        padding: 18mm 36mm;
+        padding: 16mm 24mm 32mm 24mm;
         position: relative;
         z-index: 10;
         width: 100%;
       }
-      h1 {
-        font-weight: 900;
-        letter-spacing: -0.02em;
-        line-height: 1.2;
-      }
-      div.text-right {
-        text-align: right;
-        color: black;
-        font-weight: bold;
-        font-size: 6.35mm;
-      }
-      div.logo-container {
-        display: flex;
-        gap: 4.76mm;
-        margin-left: 9.52mm;
-      }
-      div.logo {
-        width: 19.05mm;
-        height: 19.05mm;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1.27mm solid black;
-        font-weight: bold;
-        font-size: 3.81mm;
-        flex-shrink: 0;
-      }
-      div.logo-white {
-        background-color: white;
-        border-radius: 50%;
-      }
-      div.logo-orange {
-        background-color: #F58220;
-      }
-      /* Title slide specific */
-      .title-slide main {
+      /* Cover slide specific (Image 2) */
+      .cover-slide main {
         justify-content: center;
         align-items: center;
         text-align: center;
       }
-      .title-slide h1 {
-        font-size: 19.05mm;
-        color: #F58220;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        max-width: 85%;
-        text-transform: uppercase;
-        margin-bottom: 19.05mm;
+      .cover-title {
+        font-size: 15mm;
+        font-weight: 900;
+        color: #FFA726;
+        line-height: 1.25;
+        max-width: 90%;
+        letter-spacing: -0.01em;
       }
-      .title-slide .text-white {
-        color: white;
-        font-size: 8.47mm;
-        font-weight: 500;
-      }
-      .title-slide .timestamp {
-        margin-top: 38.1mm;
-        color: #FFD6A3;
-        font-size: 4.76mm;
-      }
-      /* Cover slide specific */
-      .cover-slide main {
-        justify-content: center;
-        padding-left: 75.4mm;
-      }
-      .cover-slide h1 {
-        font-size: 19.05mm;
-        color: #F58220;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        margin-bottom: 19.05mm;
-      }
-      .cover-slide .text-white {
-        color: white;
-        font-size: 8.47mm;
-        font-weight: 500;
-      }
-      /* Content slides specific */
+      /* Content slides specific (Image 3) */
       .content-slide {
         background-color: white;
-        color: black;
+        color: #1E293B;
       }
       .content-slide main {
-        padding-bottom: 21.2mm;
+        justify-content: flex-start;
       }
       .content-slide h1 {
-        font-size: 17.78mm;
-        color: black;
-        margin-bottom: 11.43mm;
+        font-size: 13mm;
+        color: #000000;
+        margin-bottom: 8mm;
         font-style: italic;
+        font-weight: 900;
+        letter-spacing: -0.02em;
       }
       .content-slide ul {
-        font-size: 7.62mm;
+        font-size: 5.6mm;
         line-height: 1.75;
-        color: #4B5563;
+        color: #262626;
         list-style: disc;
-        padding-left: 7.62mm;
-        margin-right: 11.43mm;
+        padding-left: 8mm;
       }
       .content-slide li {
-        margin-bottom: 3.81mm;
+        margin-bottom: 4mm;
         font-weight: 500;
         word-break: break-word;
         overflow-wrap: anywhere;
       }
       .content-slide li::marker {
-        color: #999;
-      }
-      footer .text-right {
-        font-size: 5.08mm;
-      }
-      footer .text-right div:nth-child(3) {
-        font-size: 4.23mm;
-        font-weight: normal;
+        color: #64748B;
       }
     </style>
   </head>
   <body>
-    ${titleSlideHtml}
     ${coverSlideHtml}
     ${contentSlidesHtml}
   </body>
@@ -359,7 +316,7 @@ class ProposalService {
         width: Math.round((SLIDE_WIDTH_MM * 96) / 25.4), // Convert mm to pixels at 96 DPI
         height: Math.round((SLIDE_HEIGHT_MM * 96) / 25.4),
       });
-      await page.setContent(html, { waitUntil: 'load' });
+      await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdfBuffer = await page.pdf({
         width: `${SLIDE_WIDTH_MM}mm`,
         height: `${SLIDE_HEIGHT_MM}mm`,

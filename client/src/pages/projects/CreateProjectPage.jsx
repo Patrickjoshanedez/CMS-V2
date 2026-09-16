@@ -67,6 +67,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { SDG_TAG_SUGGESTIONS } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
+import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
 import {
   formatPitchDeckDescription,
   parsePitchDeckFromDescription,
@@ -774,7 +775,7 @@ export default function CreateProjectPage() {
         numberStr: '02',
         category: 'Problem Statement & Literature Gap',
         tag: 'Problem & Context',
-        title: 'Identified Problem & Literature Gap',
+        title: 'Problem Statement',
         content:
           pitch.problemStatement ||
           'Current manual processes lack real-time visibility, automated validation, and institutional tracking, creating operational friction and compliance risks.',
@@ -787,7 +788,7 @@ export default function CreateProjectPage() {
         numberStr: '03',
         category: 'Proposed Solution & Technical Framework',
         tag: 'Technical Framework',
-        title: 'Proposed Solution & Architecture',
+        title: 'Proposed Solution',
         content:
           pitch.proposedSolution ||
           'An end-to-end automated platform integrating role-based workflows, automated similarity checks, and verifiable multi-signatory digital approvals.',
@@ -826,7 +827,7 @@ export default function CreateProjectPage() {
         numberStr: '06',
         category: 'Expected Value & Operational Impact',
         tag: 'Impact & ROI',
-        title: 'Expected Value & Institutional Impact',
+        title: 'Expected Institutional Impact',
         content:
           pitch.expectedImpact ||
           'Reduces defense turnaround times by 65%, eliminates document loss, and enforces 100% compliance with BukSU IT capstone manual standards.',
@@ -839,7 +840,7 @@ export default function CreateProjectPage() {
         numberStr: '07',
         category: 'Discipline & UN SDG Alignment',
         tag: 'Curriculum & SDGs',
-        title: 'Field of Discipline & UN SDG Mapping',
+        title: 'Field of Discipline & UN SDG Alignment',
         disciplines: currentProposal.capstoneType || ['Software Engineering & Web Applications'],
         sdgs: currentProposal.sdgTags || ['SDG 4: Quality Education'],
         type: 'alignment',
@@ -849,7 +850,7 @@ export default function CreateProjectPage() {
         numberStr: '08',
         category: 'Committee Discussion',
         tag: 'Panel Inquiries',
-        title: 'Defense Inquiries & Technical Review',
+        title: 'Committee Discussion & Recommendations',
         content:
           'Thank you to the Panel of Examiners. Open for defense recommendations, rubric inquiries, and committee revisions.',
         type: 'qa',
@@ -1274,16 +1275,29 @@ export default function CreateProjectPage() {
           </div>
 
           {/* View Switcher: Write vs Similarity vs Pitch Deck */}
-          <Tabs value={activeStudioTab} onValueChange={setActiveStudioTab} className="space-y-0">
-            <TabsList className="bg-muted/50 border border-border h-9 p-1 shadow-2xs">
-              <TabsTrigger value="write" className="text-xs gap-1.5 px-3 h-7">
+          <Tabs
+            value={activeStudioTab}
+            onValueChange={setActiveStudioTab}
+            className="space-y-0 max-w-full"
+          >
+            <TabsList className="bg-muted/50 border border-border h-auto sm:h-9 p-1 shadow-2xs flex flex-wrap sm:flex-nowrap gap-1 max-w-full">
+              <TabsTrigger
+                value="write"
+                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+              >
                 <FileText className="h-3.5 w-3.5" /> Write Proposal
               </TabsTrigger>
-              <TabsTrigger value="similarity" className="text-xs gap-1.5 px-3 h-7">
+              <TabsTrigger
+                value="similarity"
+                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+              >
                 <Search className="h-3.5 w-3.5" /> Similarity Clearance
               </TabsTrigger>
-              <TabsTrigger value="deck" className="text-xs gap-1.5 px-3 h-7">
-                <Presentation className="h-3.5 w-3.5" /> Pitch Deck Builder
+              <TabsTrigger
+                value="deck"
+                className="text-xs gap-1.5 px-2.5 sm:px-3 h-7 whitespace-nowrap flex-1 sm:flex-initial"
+              >
+                <Presentation className="h-3.5 w-3.5" /> Pitch Deck
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1789,36 +1803,15 @@ export default function CreateProjectPage() {
               <div className="space-y-6">
                 {/* 16:9 Slide Presentation Frame */}
                 <div
-                  className="relative rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm flex flex-col justify-between aspect-video max-w-3xl mx-auto overflow-hidden transition-all select-none"
+                  className="max-w-3xl mx-auto w-full aspect-video rounded-xl shadow-md overflow-hidden transition-all"
                   data-testid="pitch-deck-preview"
                 >
-                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-mono font-bold text-xs text-primary shrink-0">
-                        SLIDE {currentSlide.numberStr}
-                      </span>
-                      <span className="text-muted-foreground/50 shrink-0">/</span>
-                      <span className="text-xs uppercase font-semibold text-muted-foreground tracking-wider truncate">
-                        {currentSlide.category}
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-border shrink-0">
-                      BukSU Proposal Defense
-                    </Badge>
-                  </div>
-
-                  <div className="flex-1 flex flex-col justify-center my-auto">
-                    {renderSlideBody(currentSlide)}
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[11px] text-muted-foreground">
-                    <span className="truncate pr-2">
-                      Proponent: {proponentsList} · {cleanTeamName}
-                    </span>
-                    <span className="font-mono shrink-0">
-                      AY {team?.academicYear || form.academicYear || defaultAcademicYear}
-                    </span>
-                  </div>
+                  <ProposalSlideCanvas
+                    slide={currentSlide}
+                    proponents={proponentsList}
+                    teamName={cleanTeamName}
+                    academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
+                  />
                 </div>
 
                 {/* Slide Carousel Navigation Controls */}
@@ -1959,26 +1952,14 @@ export default function CreateProjectPage() {
                     </div>
 
                     <div className="flex-1 flex items-center justify-center p-2 sm:p-6">
-                      <div className="w-full max-w-4xl aspect-video rounded-xl border border-border bg-card p-6 sm:p-10 shadow-2xl flex flex-col justify-between">
-                        <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                          <span className="font-mono text-xs font-bold text-primary">
-                            SLIDE {currentSlide.numberStr}
-                          </span>
-                          <Badge variant="outline" className="text-xs">
-                            BukSU Capstone Proposal Defense
-                          </Badge>
-                        </div>
-                        <div className="flex-1 flex flex-col justify-center my-auto">
-                          {renderSlideBody(currentSlide)}
-                        </div>
-                        <div className="flex items-center justify-between border-t border-border/40 pt-3 text-xs text-muted-foreground">
-                          <span>
-                            Proponent: {proponentsList} · {cleanTeamName}
-                          </span>
-                          <span className="font-mono">
-                            AY {team?.academicYear || form.academicYear || defaultAcademicYear}
-                          </span>
-                        </div>
+                      <div className="w-full max-w-5xl aspect-video rounded-xl shadow-2xl overflow-hidden">
+                        <ProposalSlideCanvas
+                          slide={currentSlide}
+                          proponents={proponentsList}
+                          teamName={cleanTeamName}
+                          academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
+                          fullscreen
+                        />
                       </div>
                     </div>
 

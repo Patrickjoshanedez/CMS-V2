@@ -6,27 +6,39 @@ const DEFAULT_PASSWORD = 'Password123!';
 const ROLES_TO_TEST = [
   {
     roleName: 'Instructor / Capstone Coordinator',
-    email: '2301103203@student.buksu.edu.ph',
+    email: 'instructor@student.buksu.edu.ph',
     password: DEFAULT_PASSWORD,
     expectedTabs: ['Dashboard', 'Projects', 'Classes', 'Rubrics', 'Archive'],
   },
   {
-    roleName: 'Student Proponent (Team Lead)',
-    email: 'bennettchristiangeofferdon15@gmail.com',
-    password: DEFAULT_PASSWORD,
-    expectedTabs: ['Dashboard', 'Projects', 'Submissions', 'Team'],
-  },
-  {
     roleName: 'Faculty Adviser',
-    email: 'leon.mentor.buksu@gmail.com',
+    email: 'adviser@student.buksu.edu.ph',
     password: DEFAULT_PASSWORD,
     expectedTabs: ['Dashboard', 'Projects', 'Consultations'],
   },
   {
-    roleName: 'Faculty Panelist',
-    email: '2301105311@student.buksu.edu.ph',
+    roleName: 'Faculty Panel Chair',
+    email: 'panelchair@student.buksu.edu.ph',
     password: DEFAULT_PASSWORD,
     expectedTabs: ['Dashboard', 'Projects', 'Evaluations'],
+  },
+  {
+    roleName: 'Student (Team Alpha Lead)',
+    email: 'student@student.buksu.edu.ph',
+    password: DEFAULT_PASSWORD,
+    expectedTabs: ['Dashboard', 'Projects', 'Submissions', 'Team'],
+  },
+  {
+    roleName: 'Student (Team Beta Lead)',
+    email: 'student2@student.buksu.edu.ph',
+    password: DEFAULT_PASSWORD,
+    expectedTabs: ['Dashboard', 'Projects', 'Submissions', 'Team'],
+  },
+  {
+    roleName: 'Student (Team Gamma Lead)',
+    email: 'student3@student.buksu.edu.ph',
+    password: DEFAULT_PASSWORD,
+    expectedTabs: ['Dashboard', 'Projects', 'Team'],
   },
 ];
 
@@ -65,7 +77,7 @@ async function runBrowserTests() {
     try {
       // 1. Navigate to Login
       console.log('  1. Navigating to login page...');
-      await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle', timeout: 15000 });
+      await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
       // Verify Login Form
       await page.waitForSelector('input[name="email"], input[type="email"], #email', { timeout: 5000 });
@@ -84,7 +96,8 @@ async function runBrowserTests() {
       console.log(`  ✔ Successfully authenticated. Current URL: ${page.url()}`);
 
       // 3. Verify Dashboard components
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForTimeout(1000);
       roleResult.dashboardLoaded = true;
       roleResult.pageTitle = await page.title();
 

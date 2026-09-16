@@ -35,6 +35,7 @@ import PageSkeleton from '@/components/ui/PageSkeleton';
 import EmptyProjectState from '@/components/projects/EmptyProjectState';
 import { TITLE_STATUSES } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
+import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
 import { projectService } from '@/services/authService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -290,7 +291,7 @@ export default function TitleApprovalPage() {
         id: 2,
         numberStr: '02',
         tag: 'Problem & Context',
-        title: 'Problem Statement & Literature Gap',
+        title: 'Problem Statement',
         content: pitch.problemStatement || 'Problem statement details under review.',
         type: 'statement',
         icon: AlertTriangle,
@@ -300,7 +301,7 @@ export default function TitleApprovalPage() {
         id: 3,
         numberStr: '03',
         tag: 'Technical Framework',
-        title: 'Proposed Solution & Technical Framework',
+        title: 'Proposed Solution',
         content: pitch.proposedSolution || 'Proposed solution framework under review.',
         type: 'solution',
         icon: Sparkles,
@@ -330,7 +331,7 @@ export default function TitleApprovalPage() {
         id: 6,
         numberStr: '06',
         tag: 'Impact & ROI',
-        title: 'Expected Value & Institutional Impact',
+        title: 'Expected Institutional Impact',
         content: pitch.expectedImpact || 'Expected research outcomes and operational ROI.',
         type: 'impact',
         icon: CheckCircle2,
@@ -340,7 +341,7 @@ export default function TitleApprovalPage() {
         id: 7,
         numberStr: '07',
         tag: 'Institutional Alignment',
-        title: 'Discipline & UN SDG Alignment',
+        title: 'Field of Discipline & UN SDG Alignment',
         disciplines: proposalItem.disciplines,
         sdgs: proposalItem.sdgs,
         type: 'alignment',
@@ -349,7 +350,7 @@ export default function TitleApprovalPage() {
         id: 8,
         numberStr: '08',
         tag: 'Committee Discussion',
-        title: 'Defense Inquiries & Technical Review',
+        title: 'Committee Discussion & Recommendations',
         content: 'Open for defense recommendations, committee inquiries, and rubric grading.',
         type: 'qa',
       },
@@ -773,109 +774,66 @@ export default function TitleApprovalPage() {
                           </div>
 
                           {/* Slide Canvas */}
-                          <div className="aspect-video max-h-[360px] rounded-lg border border-border/80 bg-muted/20 p-4 sm:p-6 flex flex-col justify-between overflow-hidden relative">
-                            <div className="flex items-center justify-between text-[11px] text-muted-foreground border-b border-border/40 pb-2">
-                              <span className="font-semibold text-foreground flex items-center gap-1.5">
-                                <Presentation className="h-3.5 w-3.5 text-primary" />
-                                Slide {currentSlide.numberStr} of 08
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider text-primary font-medium">
-                                {currentSlide.tag}
-                              </span>
-                            </div>
+                          <div className="w-full aspect-video rounded-xl shadow-md overflow-hidden">
+                            <ProposalSlideCanvas
+                              slide={currentSlide}
+                              teamName={team?.name}
+                              academicYear={`AY ${team?.academicYear || '2024–2025'}`}
+                            />
+                          </div>
 
-                            <div className="my-auto py-2">
-                              <h3 className="text-base sm:text-lg font-bold text-foreground mb-2">
-                                {currentSlide.title}
-                              </h3>
-                              {currentSlide.content && (
-                                <div
+                          {/* Slide Navigation Bar */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={slideIdx === 0}
+                              onClick={() =>
+                                setActiveSlideIndex((prev) => ({
+                                  ...prev,
+                                  [prop.index]: Math.max(0, slideIdx - 1),
+                                }))
+                              }
+                              className="h-7 text-xs gap-1"
+                            >
+                              <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                            </Button>
+
+                            <div className="flex items-center gap-1">
+                              {slides.map((_, sIdx) => (
+                                <button
+                                  key={sIdx}
+                                  onClick={() =>
+                                    setActiveSlideIndex((prev) => ({
+                                      ...prev,
+                                      [prop.index]: sIdx,
+                                    }))
+                                  }
                                   className={cn(
-                                    'bg-background/80 rounded-lg p-3 text-xs sm:text-sm text-foreground/90 border border-border/50',
-                                    currentSlide.accent,
+                                    'h-1.5 rounded-full transition-all',
+                                    sIdx === slideIdx
+                                      ? 'w-4 bg-primary'
+                                      : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50',
                                   )}
-                                >
-                                  {currentSlide.content}
-                                </div>
-                              )}
-                              {currentSlide.subtitle && (
-                                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-xl">
-                                  {currentSlide.subtitle}
-                                </p>
-                              )}
-                              {currentSlide.type === 'alignment' && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                  <div className="p-2 rounded bg-background border border-border/60">
-                                    <span className="font-semibold text-primary">Disciplines:</span>
-                                    <p className="text-muted-foreground">
-                                      {currentSlide.disciplines.join(', ')}
-                                    </p>
-                                  </div>
-                                  <div className="p-2 rounded bg-background border border-border/60">
-                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                      Target SDGs:
-                                    </span>
-                                    <p className="text-muted-foreground">
-                                      {currentSlide.sdgs.join(', ')}
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
+                                  title={`Slide ${sIdx + 1}`}
+                                />
+                              ))}
                             </div>
 
-                            {/* Slide Navigation Bar */}
-                            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={slideIdx === 0}
-                                onClick={() =>
-                                  setActiveSlideIndex((prev) => ({
-                                    ...prev,
-                                    [prop.index]: Math.max(0, slideIdx - 1),
-                                  }))
-                                }
-                                className="h-7 text-xs gap-1"
-                              >
-                                <ChevronLeft className="h-3.5 w-3.5" /> Previous
-                              </Button>
-
-                              <div className="flex items-center gap-1">
-                                {slides.map((_, sIdx) => (
-                                  <button
-                                    key={sIdx}
-                                    onClick={() =>
-                                      setActiveSlideIndex((prev) => ({
-                                        ...prev,
-                                        [prop.index]: sIdx,
-                                      }))
-                                    }
-                                    className={cn(
-                                      'h-1.5 rounded-full transition-all',
-                                      sIdx === slideIdx
-                                        ? 'w-4 bg-primary'
-                                        : 'w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50',
-                                    )}
-                                    title={`Slide ${sIdx + 1}`}
-                                  />
-                                ))}
-                              </div>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={slideIdx === slides.length - 1}
-                                onClick={() =>
-                                  setActiveSlideIndex((prev) => ({
-                                    ...prev,
-                                    [prop.index]: Math.min(slides.length - 1, slideIdx + 1),
-                                  }))
-                                }
-                                className="h-7 text-xs gap-1"
-                              >
-                                Next <ChevronRight className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={slideIdx === slides.length - 1}
+                              onClick={() =>
+                                setActiveSlideIndex((prev) => ({
+                                  ...prev,
+                                  [prop.index]: Math.min(slides.length - 1, slideIdx + 1),
+                                }))
+                              }
+                              className="h-7 text-xs gap-1"
+                            >
+                              Next <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
 
@@ -1011,7 +969,7 @@ export default function TitleApprovalPage() {
             </div>
 
             <div className="flex-1 flex items-center justify-center py-6">
-              <div className="w-full max-w-4xl aspect-video rounded-2xl border border-border bg-card p-6 sm:p-10 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+              <div className="w-full max-w-5xl flex flex-col gap-4">
                 {(() => {
                   const p = normalizedProposals[fullscreenProposalIndex];
                   const sList = renderSlides(p);
@@ -1019,34 +977,13 @@ export default function TitleApprovalPage() {
                   const slide = sList[activeIdx] || sList[0];
                   return (
                     <>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border/60 pb-3">
-                        <span className="font-bold text-foreground">
-                          Slide {slide.numberStr} / 08
-                        </span>
-                        <span className="font-medium text-primary uppercase tracking-wider">
-                          {slide.tag}
-                        </span>
-                      </div>
-
-                      <div className="my-auto py-4">
-                        <h2 className="text-xl sm:text-3xl font-bold text-foreground mb-3">
-                          {slide.title}
-                        </h2>
-                        {slide.content && (
-                          <div
-                            className={cn(
-                              'bg-muted/40 rounded-xl p-4 sm:p-6 text-sm sm:text-base text-foreground/90 border border-border/60',
-                              slide.accent,
-                            )}
-                          >
-                            {slide.content}
-                          </div>
-                        )}
-                        {slide.subtitle && (
-                          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl">
-                            {slide.subtitle}
-                          </p>
-                        )}
+                      <div className="w-full aspect-video rounded-2xl shadow-2xl overflow-hidden">
+                        <ProposalSlideCanvas
+                          slide={slide}
+                          teamName={team?.name}
+                          academicYear={`AY ${team?.academicYear || '2024–2025'}`}
+                          fullscreen
+                        />
                       </div>
 
                       <div className="flex items-center justify-between pt-4 border-t border-border/60">

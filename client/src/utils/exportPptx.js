@@ -1,4 +1,5 @@
 import PptxGenJS from 'pptxgenjs';
+import { BUKSU_COT_LOGO_BASE64, BUKSU_IT_LOGO_BASE64 } from '@/assets/logoBase64';
 
 /**
  * Sanitize string to create safe filename
@@ -44,12 +45,56 @@ function formatProponents(teamMembers = [], user = null) {
 }
 
 /**
+ * Format string into clean bullet points for presentation slides.
+ * If text already contains bullets or multiple lines, splits by line.
+ * If text is a paragraph, splits into concise sentences.
+ */
+function formatToBulletPoints(text, maxBullets = 5) {
+  if (!text || typeof text !== 'string') {
+    return ['No details provided for this section.'];
+  }
+
+  const rawLines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+    .filter(Boolean);
+
+  if (rawLines.length > 1) {
+    return rawLines.slice(0, maxBullets);
+  }
+
+  // Single paragraph - split by sentence
+  const sentences = text
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 5);
+
+  if (sentences.length > 0) {
+    return sentences.slice(0, maxBullets);
+  }
+
+  return [text.trim()];
+}
+
+/**
+ * Dynamic font sizing based on character count and bullet count to prevent overflow
+ */
+function getScaledFontSize(totalChars, bulletCount = 1, baseSize = 16) {
+  if (totalChars > 600 || bulletCount >= 6) return Math.max(10, baseSize - 6);
+  if (totalChars > 450 || bulletCount >= 5) return Math.max(11, baseSize - 5);
+  if (totalChars > 300 || bulletCount >= 4) return Math.max(12, baseSize - 3);
+  if (totalChars > 180) return Math.max(14, baseSize - 2);
+  return baseSize;
+}
+
+/**
  * Export a Proposal Pitch Deck as a professional 16:9 PowerPoint (.pptx) file.
  *
  * Designed to BukSU institutional standards:
  * - 16:9 Widescreen aspect ratio (LAYOUT_16x9)
- * - BukSU Navy (#0A3254) and Academic Gold (#E5A823) branding
- * - Clean, legible typography with proper visual hierarchy
+ * - Deep BukSU Navy (#0B3064) cover with Warm Amber (#FFA726) title
+ * - Pure White (#FFFFFF) content slides with bold italic headers & clean bullets
+ * - Full-bleed Vibrant Orange (#FF7300) bottom banner with institutional hierarchy & logos
  * - 8 comprehensive slides: Title, Problem, Solution, Innovation, Users, Impact, Alignment, Q&A
  *
  * @param {Object} options
@@ -83,33 +128,66 @@ export async function exportProposalDeckPptx({
   const proponents = formatProponents(teamMembers.length > 0 ? teamMembers : team?.members, user);
   const ay = team?.academicYear || academicYear || '2024–2025';
 
-  const BUKSU_NAVY = '0A3254';
-  const BUKSU_GOLD = 'E5A823';
+  const BUKSU_NAVY = '0B3064';
+  const BUKSU_AMBER = 'FFA726';
+  const BUKSU_ORANGE = 'FF7300';
   const SLATE_BODY = '334155';
-  const MUTED_TEXT = '64748B';
 
-  const addStandardFooter = (slide, slideNumStr) => {
+  // Institutional footer ribbon matching BukSU COT/IT Department template
+  const addInstitutionalFooter = (slide) => {
+    // 1. Vibrant orange footer ribbon full-bleed across bottom (y: 5.95 to 7.5)
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0,
+      y: 5.95,
+      w: 13.333,
+      h: 1.55,
+      fill: { color: BUKSU_ORANGE },
+      line: { color: BUKSU_ORANGE, width: 0 },
+    });
+
+    // 2. Right-aligned Institutional Hierarchy text
     slide.addText(
-      `Bukidnon State University · College of Technologies · IT Department  |  Slide ${slideNumStr}`,
+      [
+        {
+          text: 'BUKIDNON STATE UNIVERSITY\n',
+          options: { bold: true, fontSize: 11, color: '000000', fontFace: 'Arial' },
+        },
+        {
+          text: 'COLLEGE OF TECHNOLOGIES\n',
+          options: { bold: true, fontSize: 11, color: '000000', fontFace: 'Arial' },
+        },
+        {
+          text: 'Information Technology Department',
+          options: { bold: false, fontSize: 10, color: '000000', fontFace: 'Arial' },
+        },
+      ],
       {
-        x: 0.8,
-        y: 6.9,
-        w: 8.5,
-        h: 0.35,
-        fontSize: 9,
-        color: MUTED_TEXT,
+        x: 4.5,
+        y: 6.1,
+        w: 5.9,
+        h: 1.25,
+        align: 'right',
+        valign: 'middle',
         fontFace: 'Arial',
+        lineSpacing: 16,
       },
     );
-    slide.addText(`AY ${ay}`, {
-      x: 9.5,
-      y: 6.9,
-      w: 3.0,
-      h: 0.35,
-      fontSize: 9,
-      color: MUTED_TEXT,
-      fontFace: 'Arial',
-      align: 'right',
+
+    // 3. Two Institutional Logos side-by-side on the far right
+    slide.addImage({
+      data: BUKSU_COT_LOGO_BASE64,
+      x: 10.55,
+      y: 6.12,
+      w: 1.2,
+      h: 1.2,
+    });
+
+    slide.addImage({
+      data: BUKSU_IT_LOGO_BASE64,
+      x: 11.85,
+      y: 6.12,
+      w: 1.2,
+      h: 1.2,
     });
   };
 
@@ -119,213 +197,97 @@ export async function exportProposalDeckPptx({
   const slide1 = pptx.addSlide();
   slide1.background = { color: BUKSU_NAVY };
 
-  slide1.addText('BUKIDNON STATE UNIVERSITY · COLLEGE OF TECHNOLOGIES', {
+  // Calculate dynamic font size for title
+  const titleText = title || 'Capstone Project Proposal Pitch';
+  const titleFontSize = titleText.length > 110 ? 26 : titleText.length > 70 ? 30 : 36;
+
+  slide1.addText(titleText, {
     x: 0.8,
-    y: 0.7,
-    w: 11.7,
-    h: 0.35,
-    fontSize: 11,
-    color: BUKSU_GOLD,
+    y: 0.8,
+    w: 11.733,
+    h: 4.5,
+    fontSize: titleFontSize,
+    color: BUKSU_AMBER,
     bold: true,
     fontFace: 'Arial',
-    charSpacing: 2,
+    align: 'center',
+    valign: 'middle',
+    lineSpacing: titleFontSize + 8,
   });
 
-  slide1.addText('Information Technology Department · Capstone Proposal Defense', {
-    x: 0.8,
-    y: 1.05,
-    w: 11.7,
-    h: 0.35,
-    fontSize: 10,
-    color: '94A3B8',
-    fontFace: 'Arial',
-  });
+  addInstitutionalFooter(slide1);
 
-  slide1.addText(title || 'Capstone Project Proposal Pitch', {
-    x: 0.8,
-    y: 2.0,
-    w: 11.7,
-    h: 2.2,
-    fontSize: 26,
-    color: 'FFFFFF',
-    bold: true,
-    fontFace: 'Arial',
-    valign: 'top',
-  });
-
-  if (deckData.proposedSolution) {
-    slide1.addText(
-      deckData.proposedSolution.slice(0, 240) +
-        (deckData.proposedSolution.length > 240 ? '...' : ''),
-      {
-        x: 0.8,
-        y: 4.4,
-        w: 11.7,
-        h: 1.2,
-        fontSize: 12,
-        color: 'CBD5E1',
-        fontFace: 'Arial',
-        valign: 'top',
-        lineSpacing: 18,
-      },
-    );
-  }
-
-  slide1.addShape(pptx.ShapeType.line, {
-    x: 0.8,
-    y: 5.9,
-    w: 11.7,
-    h: 0,
-    line: { color: '1E4976', width: 1 },
-  });
-
-  slide1.addText(`Proponents: ${proponents}  ·  ${teamName}`, {
-    x: 0.8,
-    y: 6.1,
-    w: 8.5,
-    h: 0.4,
-    fontSize: 11,
-    color: 'E2E8F0',
-    fontFace: 'Arial',
-  });
-
-  slide1.addText(`Academic Year ${ay}`, {
-    x: 9.5,
-    y: 6.1,
-    w: 3.0,
-    h: 0.4,
-    fontSize: 11,
-    color: BUKSU_GOLD,
-    fontFace: 'Arial',
-    bold: true,
-    align: 'right',
-  });
-
-  // Helper for standard content slides
-  const createContentSlide = (slideNumStr, tag, heading, textContent) => {
+  // Helper for standard content slides matching Image 3
+  const createContentSlide = (heading, textContent) => {
     const slide = pptx.addSlide();
     slide.background = { color: 'FFFFFF' };
 
-    // Header tag
-    slide.addText(`SLIDE ${slideNumStr}  /  ${tag.toUpperCase()}`, {
-      x: 0.8,
-      y: 0.6,
-      w: 8.5,
-      h: 0.3,
-      fontSize: 10,
-      color: BUKSU_NAVY,
-      bold: true,
-      fontFace: 'Arial',
-    });
-
-    slide.addText('BukSU Proposal Defense', {
-      x: 9.5,
-      y: 0.6,
-      w: 3.0,
-      h: 0.3,
-      fontSize: 9,
-      color: MUTED_TEXT,
-      fontFace: 'Arial',
-      align: 'right',
-    });
-
-    // Heading
+    // Heading: Top-left, bold + italic matching Image 3
     slide.addText(heading, {
       x: 0.8,
-      y: 0.95,
-      w: 11.7,
-      h: 0.6,
-      fontSize: 22,
-      color: BUKSU_NAVY,
+      y: 0.65,
+      w: 11.733,
+      h: 0.8,
+      fontSize: 28,
+      color: '000000',
       bold: true,
+      italic: true,
       fontFace: 'Arial',
     });
 
-    // Accent line
-    slide.addShape(pptx.ShapeType.line, {
-      x: 0.8,
+    // Content: Bulleted list format
+    const bullets = formatToBulletPoints(textContent);
+    const totalChars = bullets.join(' ').length;
+    const bodyFontSize = getScaledFontSize(totalChars, bullets.length, 16);
+    const lineSpacing = bodyFontSize + 10;
+
+    const bulletObjects = bullets.map((item) => ({
+      text: item,
+      options: {
+        bullet: true,
+        fontSize: bodyFontSize,
+        color: SLATE_BODY,
+        fontFace: 'Arial',
+      },
+    }));
+
+    slide.addText(bulletObjects, {
+      x: 0.9,
       y: 1.6,
-      w: 11.7,
-      h: 0,
-      line: { color: BUKSU_GOLD, width: 2 },
-    });
-
-    // Content container
-    slide.addShape(pptx.ShapeType.rect, {
-      x: 0.8,
-      y: 1.85,
-      w: 11.7,
-      h: 4.7,
-      fill: { color: 'F8FAFC' },
-      line: { color: 'E2E8F0', width: 1 },
-    });
-
-    // Content body
-    slide.addText(textContent || 'No details provided for this section.', {
-      x: 1.1,
-      y: 2.1,
-      w: 11.1,
-      h: 4.2,
-      fontSize: 13,
-      color: SLATE_BODY,
-      fontFace: 'Arial',
+      w: 11.5,
+      h: 4.0,
       valign: 'top',
-      lineSpacing: 22,
+      lineSpacing,
     });
 
-    addStandardFooter(slide, slideNumStr);
+    addInstitutionalFooter(slide);
     return slide;
   };
 
   // ==========================================
-  // SLIDE 2: Problem Statement & Literature Gap
+  // SLIDE 2: Problem Statement (Image 3)
   // ==========================================
-  createContentSlide(
-    '02',
-    'Problem Statement & Literature Gap',
-    'Problem Statement & Literature Gap',
-    deckData.problemStatement,
-  );
+  createContentSlide('Problem Statement', deckData.problemStatement);
 
   // ==========================================
-  // SLIDE 3: Proposed Solution & Technical Framework
+  // SLIDE 3: Proposed Solution
   // ==========================================
-  createContentSlide(
-    '03',
-    'Proposed Solution & Architecture',
-    'Proposed Solution & Technical Framework',
-    deckData.proposedSolution,
-  );
+  createContentSlide('Proposed Solution', deckData.proposedSolution);
 
   // ==========================================
   // SLIDE 4: Unique Technical Innovation
   // ==========================================
-  createContentSlide(
-    '04',
-    'Unique Technical Innovation',
-    'Unique Technical Innovation & Differentiators',
-    deckData.uniqueContribution,
-  );
+  createContentSlide('Unique Technical Contribution', deckData.uniqueContribution);
 
   // ==========================================
   // SLIDE 5: Target Users & Beneficiaries
   // ==========================================
-  createContentSlide(
-    '05',
-    'Target Users & Scope',
-    'Target Users & Beneficiary Stakeholders',
-    deckData.targetUsers,
-  );
+  createContentSlide('Target Users & Beneficiaries', deckData.targetUsers);
 
   // ==========================================
   // SLIDE 6: Expected Value & Impact
   // ==========================================
-  createContentSlide(
-    '06',
-    'Expected Value & Operational ROI',
-    'Expected Value & Operational Impact',
-    deckData.expectedImpact,
-  );
+  createContentSlide('Expected Institutional Impact', deckData.expectedImpact);
 
   // ==========================================
   // SLIDE 7: Discipline & SDG Alignment
@@ -333,63 +295,25 @@ export async function exportProposalDeckPptx({
   const slide7 = pptx.addSlide();
   slide7.background = { color: 'FFFFFF' };
 
-  slide7.addText('SLIDE 07  /  INSTITUTIONAL ALIGNMENT', {
-    x: 0.8,
-    y: 0.6,
-    w: 8.5,
-    h: 0.3,
-    fontSize: 10,
-    color: BUKSU_NAVY,
-    bold: true,
-    fontFace: 'Arial',
-  });
-
-  slide7.addText('BukSU Proposal Defense', {
-    x: 9.5,
-    y: 0.6,
-    w: 3.0,
-    h: 0.3,
-    fontSize: 9,
-    color: MUTED_TEXT,
-    fontFace: 'Arial',
-    align: 'right',
-  });
-
   slide7.addText('Field of Discipline & UN SDG Alignment', {
     x: 0.8,
-    y: 0.95,
-    w: 11.7,
-    h: 0.6,
-    fontSize: 22,
-    color: BUKSU_NAVY,
+    y: 0.65,
+    w: 11.733,
+    h: 0.8,
+    fontSize: 28,
+    color: '000000',
     bold: true,
+    italic: true,
     fontFace: 'Arial',
   });
 
-  slide7.addShape(pptx.ShapeType.line, {
-    x: 0.8,
-    y: 1.6,
-    w: 11.7,
-    h: 0,
-    line: { color: BUKSU_GOLD, width: 2 },
-  });
-
-  // Card 1: Disciplines
-  slide7.addShape(pptx.ShapeType.rect, {
-    x: 0.8,
-    y: 1.85,
-    w: 5.65,
-    h: 4.7,
-    fill: { color: 'F8FAFC' },
-    line: { color: 'E2E8F0', width: 1 },
-  });
-
+  // Column 1: Disciplines
   slide7.addText('IT FIELDS OF DISCIPLINE', {
-    x: 1.1,
-    y: 2.1,
-    w: 5.0,
-    h: 0.35,
-    fontSize: 11,
+    x: 0.9,
+    y: 1.6,
+    w: 5.5,
+    h: 0.4,
+    fontSize: 13,
     bold: true,
     color: BUKSU_NAVY,
     fontFace: 'Arial',
@@ -400,108 +324,93 @@ export async function exportProposalDeckPptx({
       ? capstoneType
       : ['Software Engineering & Web Applications'];
 
-  slide7.addText(disciplinesList.map((d) => `•  ${d}`).join('\n\n'), {
-    x: 1.1,
-    y: 2.6,
-    w: 5.0,
-    h: 3.6,
-    fontSize: 12,
-    color: SLATE_BODY,
-    fontFace: 'Arial',
-    valign: 'top',
-    lineSpacing: 18,
-  });
+  slide7.addText(
+    disciplinesList.map((d) => ({
+      text: d,
+      options: { bullet: true, fontSize: 13, color: SLATE_BODY, fontFace: 'Arial' },
+    })),
+    {
+      x: 0.9,
+      y: 2.1,
+      w: 5.5,
+      h: 3.5,
+      valign: 'top',
+      lineSpacing: 22,
+    },
+  );
 
-  // Card 2: SDGs
-  slide7.addShape(pptx.ShapeType.rect, {
-    x: 6.85,
-    y: 1.85,
-    w: 5.65,
-    h: 4.7,
-    fill: { color: 'F8FAFC' },
-    line: { color: 'E2E8F0', width: 1 },
-  });
-
+  // Column 2: SDGs
   slide7.addText('TARGET UN SUSTAINABLE DEVELOPMENT GOALS', {
-    x: 7.15,
-    y: 2.1,
-    w: 5.0,
-    h: 0.35,
-    fontSize: 11,
+    x: 6.8,
+    y: 1.6,
+    w: 5.5,
+    h: 0.4,
+    fontSize: 13,
     bold: true,
-    color: '059669', // Emerald/Green for SDGs
+    color: '059669',
     fontFace: 'Arial',
   });
 
   const sdgsList =
     Array.isArray(sdgTags) && sdgTags.length > 0 ? sdgTags : ['SDG 4: Quality Education'];
 
-  slide7.addText(sdgsList.map((s) => `•  ${s}`).join('\n\n'), {
-    x: 7.15,
-    y: 2.6,
-    w: 5.0,
-    h: 3.6,
-    fontSize: 12,
-    color: SLATE_BODY,
-    fontFace: 'Arial',
-    valign: 'top',
-    lineSpacing: 18,
-  });
+  slide7.addText(
+    sdgsList.map((s) => ({
+      text: s,
+      options: { bullet: true, fontSize: 13, color: SLATE_BODY, fontFace: 'Arial' },
+    })),
+    {
+      x: 6.8,
+      y: 2.1,
+      w: 5.5,
+      h: 3.5,
+      valign: 'top',
+      lineSpacing: 22,
+    },
+  );
 
-  addStandardFooter(slide7, '07');
+  addInstitutionalFooter(slide7);
 
   // ==========================================
-  // SLIDE 8: Q&A / Defense Recommendations
+  // SLIDE 8: Committee Discussion & Q&A
   // ==========================================
   const slide8 = pptx.addSlide();
-  slide8.background = { color: BUKSU_NAVY };
+  slide8.background = { color: 'FFFFFF' };
 
-  slide8.addText('BUKIDNON STATE UNIVERSITY · CAPSTONE STUDIO', {
+  slide8.addText('Committee Discussion & Recommendations', {
     x: 0.8,
-    y: 1.8,
-    w: 11.7,
-    h: 0.4,
-    fontSize: 12,
-    color: BUKSU_GOLD,
+    y: 0.65,
+    w: 11.733,
+    h: 0.8,
+    fontSize: 28,
+    color: '000000',
     bold: true,
+    italic: true,
     fontFace: 'Arial',
-    align: 'center',
-    charSpacing: 2,
   });
 
-  slide8.addText('Thank You', {
-    x: 0.8,
-    y: 2.5,
-    w: 11.7,
-    h: 1.0,
-    fontSize: 36,
-    color: 'FFFFFF',
-    bold: true,
-    fontFace: 'Arial',
-    align: 'center',
-  });
+  const qaItems = [
+    'Open for Defense Committee questions, clarifications, and recommendations.',
+    'Panelist feedback and required modifications will be logged in the Action Done Matrix (ADM).',
+    `Proponents: ${proponents}  ·  ${teamName}  ·  AY ${ay}`,
+  ];
 
-  slide8.addText('Open for Panel Questions, Clarifications, and Recommendations', {
-    x: 0.8,
-    y: 3.6,
-    w: 11.7,
-    h: 0.6,
-    fontSize: 14,
-    color: 'CBD5E1',
-    fontFace: 'Arial',
-    align: 'center',
-  });
+  slide8.addText(
+    qaItems.map((item) => ({
+      text: item,
+      options: { bullet: true, fontSize: 15, color: SLATE_BODY, fontFace: 'Arial' },
+    })),
+    {
+      x: 0.9,
+      y: 1.8,
+      w: 11.5,
+      h: 3.8,
+      valign: 'top',
+      lineSpacing: 26,
+    },
+  );
 
-  slide8.addText(`Committee Defense Evaluation  ·  AY ${ay}`, {
-    x: 0.8,
-    y: 5.5,
-    w: 11.7,
-    h: 0.4,
-    fontSize: 11,
-    color: '94A3B8',
-    fontFace: 'Arial',
-    align: 'center',
-  });
+  addInstitutionalFooter(slide8);
 
   const filename = `${sanitizeFilename(title)}_PitchDeck.pptx`;
   await pptx.writeFile({ fileName: filename });
