@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-09-16T15:16:50.591036Z",
+  "generated_at": "2026-09-16T15:50:43.860761Z",
   "metadata": {
-    "agent_count": 10,
+    "agent_count": 11,
     "edges_count": 8,
     "has_cycles": false,
     "has_deadlocks": false,
@@ -74,6 +74,13 @@
       "can_receive_from": ["orchestrator"],
       "errors": []
     },
+    "serena-autonomous-agent": {
+      "name": "serena-autonomous-agent",
+      "tools_count": 15,
+      "can_delegate_to": [],
+      "can_receive_from": [],
+      "errors": []
+    },
     "test-automation": {
       "name": "test-automation",
       "tools_count": 19,
@@ -92,22 +99,7 @@
   "edges": [
     {
       "source": "orchestrator",
-      "target": "thinker pro",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "logic-debugger",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "context-manager",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "product-design-handoff",
       "bidirectional": false
     },
     {
@@ -122,20 +114,35 @@
     },
     {
       "source": "orchestrator",
+      "target": "100x code reviewer",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
       "target": "test-automation",
       "bidirectional": false
     },
     {
       "source": "orchestrator",
-      "target": "100x code reviewer",
+      "target": "context-manager",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "product-design-handoff",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "thinker pro",
       "bidirectional": false
     }
   ],
   "validation": {
-    "total_agents": 10,
+    "total_agents": 11,
     "bidirectional_pairs": 0,
     "unidirectional_edges": 8,
-    "isolated_agents": 1,
+    "isolated_agents": 2,
     "cycles": [],
     "deadlocks": [],
     "errors": []
