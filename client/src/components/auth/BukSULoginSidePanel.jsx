@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Compass,
   ShieldCheck,
@@ -77,10 +78,14 @@ export function BukSULoginSidePanel() {
         <line x1="80" y1="0" x2="20" y2="90" />
       </svg>
 
-      {/* 2. Top Header & Official BukSU Institutional Seal */}
+      {/* 2. Top Header & Official BukSU Institutional Seal (Clickable to Landing Page) */}
       <div className="relative z-10 flex-shrink-0">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-white border border-[#E5A823] p-1 flex items-center justify-center shadow-lg shadow-black/30">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-3.5 group cursor-pointer hover:opacity-95 transition-all focus:outline-hidden focus:ring-2 focus:ring-[#E5A823]/50 rounded-xl"
+          title="Return to BukSU Capstone Portal Home"
+        >
+          <div className="w-11 h-11 rounded-xl bg-white border border-[#E5A823] p-1 flex items-center justify-center shadow-lg shadow-black/30 group-hover:scale-105 group-hover:border-[#F5C253] transition-all">
             <img
               src={buksuLogo}
               alt="Bukidnon State University Seal"
@@ -88,17 +93,17 @@ export function BukSULoginSidePanel() {
             />
           </div>
           <div>
-            <h2 className="text-xs font-bold tracking-widest text-[#E5A823] uppercase">
+            <h2 className="text-xs font-bold tracking-widest text-[#E5A823] group-hover:text-[#F5C253] uppercase transition-colors">
               Bukidnon State University
             </h2>
             <p
-              className="text-[11px] font-sans font-medium tracking-tight text-slate-200"
+              className="text-[11px] font-sans font-medium tracking-tight text-slate-200 group-hover:text-white transition-colors"
               style={{ color: '#e2e8f0' }}
             >
               College of Technologies · BSIT Capstone Studio
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* 3. Center Narrative & Real System Architecture Stack */}

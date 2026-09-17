@@ -58,19 +58,19 @@ export default function AuthLayout({ children, title, description, wide = false 
           }}
         />
 
-        {/* Light Mode Gradient Overlay: Deep Architectural Navy wash on left column, seamlessly transitioning to frosted Ivory on right */}
+        {/* Light Mode Gradient Overlay: Unified, continuous BukSU campus wash soft on the eyes, eliminating harsh center seams and glare */}
         <div
           className="absolute inset-0 block dark:hidden"
           style={{
             background:
-              'linear-gradient(100deg, rgba(7, 19, 41, 0.96) 0%, rgba(11, 27, 61, 0.92) 48%, rgba(15, 30, 60, 0.65) 54%, rgba(241, 245, 249, 0.90) 60%, rgba(248, 250, 252, 0.98) 100%)',
+              'linear-gradient(115deg, rgba(7, 19, 41, 0.92) 0%, rgba(11, 27, 61, 0.86) 45%, rgba(15, 32, 67, 0.82) 100%)',
           }}
         />
         <div
           className="absolute inset-0 block dark:hidden"
           style={{
             background:
-              'radial-gradient(circle at 80% 20%, rgba(229, 168, 35, 0.08) 0%, transparent 50%)',
+              'radial-gradient(circle at 75% 25%, rgba(229, 168, 35, 0.10) 0%, transparent 60%)',
           }}
         />
 
@@ -124,7 +124,7 @@ export default function AuthLayout({ children, title, description, wide = false 
           <div
             className={`auth-form w-full ${
               wide ? 'max-w-xl' : 'max-w-md'
-            } ${loaded ? 'auth-loaded' : ''} p-7 sm:p-9 rounded-2xl bg-white/95 dark:bg-[#0B1B3D]/85 backdrop-blur-xl border border-slate-300/90 dark:border-[#1E3356] shadow-2xl shadow-slate-900/10 dark:shadow-black/70 transition-all`}
+            } ${loaded ? 'auth-loaded' : ''} p-7 sm:p-9 rounded-2xl bg-white/95 dark:bg-[#0B1B3D]/90 backdrop-blur-2xl border border-slate-200/90 dark:border-[#1E3356] shadow-2xl shadow-black/35 dark:shadow-black/70 transition-all`}
           >
             {/* Form Title & Subtitle */}
             {title && (
@@ -150,7 +150,7 @@ export default function AuthLayout({ children, title, description, wide = false 
           </div>
 
           {/* Institutional Compliance & Archival Tag */}
-          <div className="mt-8 text-center text-xs text-slate-500 dark:text-slate-400 font-sans select-none tracking-normal">
+          <div className="mt-8 text-center text-xs text-slate-300/90 dark:text-slate-400 font-sans select-none tracking-normal">
             Bukidnon State University · College of Technologies Capstone Management System
           </div>
         </div>
