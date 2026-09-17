@@ -72,7 +72,7 @@ class ProjectService {
 
       const normalized = text.trim();
       return normalized.length >= MIN_CORPUS_TEXT_LENGTH ? normalized : null;
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
@@ -1179,9 +1179,6 @@ class ProjectService {
     const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
     const metadataEntries = Array.isArray(project.titleProposalMetadata)
       ? project.titleProposalMetadata
-      : [];
-    const proposalComments = Array.isArray(project.titleProposalComments)
-      ? project.titleProposalComments
       : [];
 
     let selectedProposalIndex = -1;

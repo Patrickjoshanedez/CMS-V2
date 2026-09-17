@@ -1,0 +1,66 @@
+{
+  "session_id": "2026-09-17_gantt-chart-null-pending-and-dual-view-sync",
+  "timestamp": "2026-09-17T06:35:00.000Z",
+  "task": "Gantt chart null/pending initial states, template task removal, dual-view bidirectional synchronization, and independent Add Section / Add Row buttons",
+  "role": "Senior Full-Stack & Capstone Lifecycle Architect (BukSU CMS-V2)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "user_directives": [
+    "The gantt chart should start at null for the chart or 'pending' for the fields when no data exists.",
+    "Template data should be removed if no data is present in the chart.",
+    "On each view (Academic Excel View and Compact Roadmap), make sure everything is synchronized in real-time.",
+    "When adding, editing, or deleting tasks on the two views, it should be the same.",
+    "Be able to create section as a separate button: separate 'Add Section' and 'Add Row' / 'Add Task' buttons."
+  ],
+  "modifications": [
+    {
+      "file": "client/src/utils/exportExcelGantt.js",
+      "type": "MODIFIED",
+      "summary": "Updated default parameters in buildExcelXml from hardcoded mock values to 'Pending' (projectTitle, students, adviser, instructor, sectionCode). Returns 'Pending' for accomplishment and asOfDate when validTasks.length === 0."
+    },
+    {
+      "file": "client/src/components/projects/AcademicExcelGanttChart.jsx",
+      "type": "MODIFIED",
+      "summary": "Updated extraction helpers to return 'Pending' for unassigned adviser/instructor and empty array for unassigned members. Removed auto-injection of DEFAULT_ACADEMIC_TASKS on empty localStorage. Enabled controlled props (tasks, sections, onAddSection, onAddRow, onDeleteRow, onDeleteSection). Display 'Pending' for empty project title, students, adviser, instructor, section, accomplishment, and as-of date. Added separate '+ Add Section' button in toolbar, dedicated Add Section modal dialog with presets, and section divider actions (+ Add row, delete section)."
+    },
+    {
+      "file": "client/src/components/projects/InteractiveGanttChart.jsx",
+      "type": "MODIFIED",
+      "summary": "Hoisted tasks, sections, and localStorage persistence state to parent level. Cleared INITIAL_TASKS and DEFAULT_SECTIONS to empty arrays []. Connected Compact Roadmap and passed state down to AcademicExcelGanttChart for 100% bidirectional real-time synchronization. Added separate '+ Add Section' and '+ Add Task' buttons in toolbar and within section headers. Enabled task and section deletion across both views."
+    },
+    {
+      "file": "client/src/components/projects/AcademicExcelGanttChart.test.jsx",
+      "type": "MODIFIED",
+      "summary": "Added tests verifying null/empty initial state, 'Pending' metadata display, separate '+ Add Section' and '+ Add Row' buttons, and modal dialog behavior."
+    },
+    {
+      "file": "client/src/components/projects/InteractiveGanttChart.test.jsx",
+      "type": "MODIFIED",
+      "summary": "Added tests verifying bidirectional synchronization between views, empty roadmap state, and separate '+ Add Section' and '+ Add Task' buttons."
+    }
+  ],
+  "verification_battery": {
+    "targeted_unit_test": "PASSED (npm test --workspace=client -- src/components/projects/AcademicExcelGanttChart.test.jsx src/components/projects/InteractiveGanttChart.test.jsx - 15/15 passed)",
+    "api_endpoint_parity": "PASSED (182 Client / 204 Server, UNMATCHED_COUNT = 0)",
+    "agentic_governance": "PASSED (60/60 checks passed)",
+    "workspace_cleanliness": "PASSED (python scripts/workspace_guardrail.py - pristine workspace)",
+    "playwright_visual_audit": "PASSED (9 screenshots verified across empty/populated states, modal dialog, light/dark modes, desktop 1440x900 and mobile 390x844)"
+  },
+  "lessons_learned_and_prevention": {
+    "lesson": "Hoisting the single source of truth (tasks, sections) to the parent InteractiveGanttChart prevents view desynchronization and ensures edits in Academic Excel View immediately reflect in the Compact Roadmap and vice versa.",
+    "learned": "Hardcoded template tasks (e.g. DEFAULT_ACADEMIC_TASKS, INITIAL_TASKS) in component defaults or localStorage initializers cause ghost tasks to appear for brand-new capstone projects. Empty states must default strictly to [] and unassigned fields to 'Pending'.",
+    "prevention": "Ensure all capstone data components adhere to the Null-or-Pending contract: empty arrays for collections, 'Pending' for unassigned metadata strings, and separate, explicit creation triggers for sections versus tasks.",
+    "runbook": "When modifying Gantt or roadmap views: 1) Check parent component for hoisted state; 2) Pass tasks/sections as controlled props; 3) Verify empty state renders 'Pending'; 4) Run targeted vitest suites; 5) Execute Playwright visual audit with audit_gantt_sync_and_empty_state.mjs.",
+    "checklist": [
+      "No hardcoded template tasks in initializers",
+      "Unassigned metadata displays 'Pending'",
+      "Adding section updates both views",
+      "Adding task updates both views",
+      "Deleting section/task updates both views",
+      "Targeted unit tests pass 100%",
+      "Playwright visual evidence captured and passed"
+    ],
+    "evidence": "Artifacts 01_gantt_empty_excel_desktop_light.png through 09_gantt_mobile_dark.png in artifact repository and scratch/screenshots/gantt_sync/.",
+    "passed": true
+  },
+  "status": "completed"
+}

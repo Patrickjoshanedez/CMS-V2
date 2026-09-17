@@ -1,0 +1,254 @@
+{
+  "suspicious_doc_001": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 280,
+      "suspicious_end": 455,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 742,
+      "suspicious_end": 920,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_002": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 285,
+      "suspicious_end": 484,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 769,
+      "suspicious_end": 944,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "verbatim",
+      "suspicious_start": 1231,
+      "suspicious_end": 1406,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_4",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 1693,
+      "suspicious_end": 1868,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_003": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 280,
+      "suspicious_end": 466,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "verbatim",
+      "suspicious_start": 751,
+      "suspicious_end": 926,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 1211,
+      "suspicious_end": 1403,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_004": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 283,
+      "suspicious_end": 453,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 740,
+      "suspicious_end": 925,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 1207,
+      "suspicious_end": 1382,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_005": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 280,
+      "suspicious_end": 487,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 774,
+      "suspicious_end": 949,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 1234,
+      "suspicious_end": 1423,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_006": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "verbatim",
+      "suspicious_start": 280,
+      "suspicious_end": 455,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 742,
+      "suspicious_end": 917,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_007": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "verbatim",
+      "suspicious_start": 280,
+      "suspicious_end": 455,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "verbatim",
+      "suspicious_start": 740,
+      "suspicious_end": 915,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_008": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 283,
+      "suspicious_end": 458,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 740,
+      "suspicious_end": 915,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 1200,
+      "suspicious_end": 1375,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_4",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 1657,
+      "suspicious_end": 1832,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_009": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "structural",
+      "suspicious_start": 283,
+      "suspicious_end": 458,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "synonym_swap",
+      "suspicious_start": 743,
+      "suspicious_end": 929,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ],
+  "suspicious_doc_010": [
+    {
+      "passage_id": "plag_1",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 283,
+      "suspicious_end": 476,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_2",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 758,
+      "suspicious_end": 945,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_3",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 1232,
+      "suspicious_end": 1412,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    },
+    {
+      "passage_id": "plag_4",
+      "source_id": "test_src",
+      "technique": "paraphrase",
+      "suspicious_start": 1694,
+      "suspicious_end": 1907,
+      "original_snippet": "This study investigates machine learning applications in natural language processing. The algorithm ..."
+    }
+  ]
+}

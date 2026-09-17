@@ -132,9 +132,9 @@ function LoadingScreenComponent({
               </p>
             )}
 
-            {/* Institutional Coordinates */}
+            {/* Institutional Affiliation */}
             <div className="mt-6 flex items-center gap-2 text-[10px] font-mono tracking-wider opacity-60 text-slate-500 dark:text-slate-400">
-              <span>8.156° N, 125.127° E</span>
+              <span>BukSU College of Technologies</span>
               <span>&bull;</span>
               <span>CHED CMO 25</span>
             </div>

@@ -15,7 +15,6 @@ import User from '../../users/user.model.js';
 import Notification from '../../notifications/notification.model.js';
 import submissionService from '../submission.service.js';
 import settingsService from '../../settings/settings.service.js';
-import agentRuntimeConfigService from '../../../services/agentRuntimeConfig.service.js';
 import { AppError } from '../../../utils/AppError.js';
 import {
   SUBMISSION_STATUSES,

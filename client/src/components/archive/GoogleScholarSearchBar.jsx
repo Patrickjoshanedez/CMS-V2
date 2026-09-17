@@ -30,7 +30,7 @@ export default function GoogleScholarSearchBar({
   onScopeChange,
   onSearch,
   onClear,
-  totalResults = 0,
+  totalResults: _totalResults = 0,
 }) {
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);

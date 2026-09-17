@@ -1,0 +1,52 @@
+{
+  "document_id": "suspicious_doc_010",
+  "originality_score": 64.7,
+  "plagiarism_percentage": 35.3,
+  "matches": [
+    {
+      "match_id": "m_test_src_283",
+      "start_index": 283,
+      "end_index": 476,
+      "similarity_score": 0.6068,
+      "winnow_score": 0.6471,
+      "semantic_score": 0.5321,
+      "source_id": "test_src",
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
+      "match_text": "This study look into simple machine learning applications in natural language processing . Consequently , the algorithm utilizes n-gram character fingerprinting and Karp-Rabin hash algorithms ."
+    },
+    {
+      "match_id": "m_test_src_758",
+      "start_index": 758,
+      "end_index": 945,
+      "similarity_score": 0.2911,
+      "winnow_score": 0.2188,
+      "semantic_score": 0.4254,
+      "source_id": "test_src",
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
+      "match_text": "Specifically , this study investigates motorcar learning application in natural language work on . The algorithmic rule utilize n-gram case fingerprint and Karp-Rabin hashing algorithms ."
+    },
+    {
+      "match_id": "m_test_src_1232",
+      "start_index": 1232,
+      "end_index": 1412,
+      "similarity_score": 0.4132,
+      "winnow_score": 0.3448,
+      "semantic_score": 0.5401,
+      "source_id": "test_src",
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
+      "match_text": "This read investigates machine acquire applications in cancel language processing . therefore , the algorithm utilizes n-gram character fingerprint and Karp-Rabin hash algorithms ."
+    },
+    {
+      "match_id": "m_test_src_1694",
+      "start_index": 1694,
+      "end_index": 1907,
+      "similarity_score": 0.5354,
+      "winnow_score": 0.5263,
+      "semantic_score": 0.5522,
+      "source_id": "test_src",
+      "source_snippet": "This study investigates machine learning applications in natural language processing. The algorithm utilizes n-gram char...",
+      "match_text": "Furthermore , this study investigates simple machine learning applications in cancel language processing . In particular , the algorithm utilizes n-gram character fingerprinting and Karp-Rabin hashing algorithms ."
+    }
+  ],
+  "status": "completed"
+}

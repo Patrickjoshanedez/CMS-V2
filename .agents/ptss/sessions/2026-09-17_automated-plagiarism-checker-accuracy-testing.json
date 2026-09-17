@@ -1,0 +1,62 @@
+{
+  "session_id": "2026-09-17_automated-plagiarism-checker-accuracy-testing",
+  "timestamp": "2026-09-17T14:10:00.000Z",
+  "title": "Automated Plagiarism Checker Accuracy Testing Framework (PAN@CLEF)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "status": "completed",
+  "task_summary": "Implemented and executed the full automated PAN@CLEF accuracy testing framework for the BukSU CMS-V2 hybrid plagiarism detection engine. Synthesized controlled ground-truth test corpus, executed batch detection with in-process resilient execution fallback, computed character-level Precision, Recall, F1, Granularity, and PlagDet scores, performed operational threshold sweep (0.05-0.90), and generated 5 publication-ready thesis diagrams.",
+  "metrics": {
+    "lexical": {
+      "precision": 0.9857,
+      "recall": 0.7525,
+      "f1": 0.8221,
+      "granularity": 1.0,
+      "plagdet": 0.8221,
+      "tp_chars": 3853,
+      "fp_chars": 71,
+      "fn_chars": 1412
+    },
+    "semantic": {
+      "precision": 0.9857,
+      "recall": 0.7767,
+      "f1": 0.8359,
+      "granularity": 1.0,
+      "plagdet": 0.8359,
+      "tp_chars": 4040,
+      "fp_chars": 71,
+      "fn_chars": 1225
+    },
+    "hybrid": {
+      "precision": 0.9857,
+      "recall": 0.7767,
+      "f1": 0.8359,
+      "granularity": 1.0,
+      "plagdet": 0.8359,
+      "tp_chars": 4040,
+      "fp_chars": 71,
+      "fn_chars": 1225
+    },
+    "operating_threshold": 0.25,
+    "gate_status": "PASSED (0.8359 >= 0.6000 required)"
+  },
+  "artifacts_recorded": [
+    "plagiarism_engine/evaluation/corpus/ground_truth.json",
+    "plagiarism_engine/evaluation/corpus/ground_truth.xml",
+    "plagiarism_engine/evaluation/results/*.json",
+    "plagiarism_engine/evaluation/reports/metrics.json",
+    "plagiarism_engine/evaluation/reports/report.md",
+    "plagiarism_engine/evaluation/reports/threshold_sweep.csv",
+    "plagiarism_engine/evaluation/reports/fig1_metric_bars.png",
+    "plagiarism_engine/evaluation/reports/fig2_pr_curve.png",
+    "plagiarism_engine/evaluation/reports/fig3_plagdet_threshold.png",
+    "plagiarism_engine/evaluation/reports/fig4_confusion_chars.png",
+    "plagiarism_engine/evaluation/reports/fig5_heatmap.png"
+  ],
+  "verification_status": {
+    "run_plagiarism_evaluation": "PASSED (exit 0)",
+    "check_endpoints": "PASSED (UNMATCHED_COUNT=0)",
+    "validate_agentic": "PASSED (60/60 checks)",
+    "validate_governance": "PASSED"
+  }
+}

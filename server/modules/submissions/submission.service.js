@@ -47,7 +47,7 @@ import { extractText } from '../../utils/extractText.js';
 
 const logger = {
   info: (...args) => console.info(...args), // eslint-disable-line no-console
-  warn: (...args) => console.warn(...args), // eslint-disable-line no-console
+  warn: (...args) => console.warn(...args),
   error: (...args) => console.error(...args),
 };
 
@@ -2864,7 +2864,7 @@ class SubmissionService {
           .then((n) => emitToUser(uid, 'notification:new', n))
           .catch(() => {});
       }
-    } catch (_) {
+    } catch {
       // Non-blocking notification dispatch
     }
 

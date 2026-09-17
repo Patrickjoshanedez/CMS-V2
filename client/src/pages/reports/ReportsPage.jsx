@@ -230,8 +230,11 @@ export default function ReportsPage() {
   const trend = data?.trend || [];
   const categoryBreakdown = data?.categoryBreakdown || [];
 
-  const table = data?.table || { rows: [], page, limit, total: 0, totalPages: 1 };
-  const records = table.rows || [];
+  const table = useMemo(
+    () => data?.table || { rows: [], page, limit, total: 0, totalPages: 1 },
+    [data?.table, page, limit],
+  );
+  const records = useMemo(() => table.rows || [], [table.rows]);
 
   // filterOptions.authors is an array of strings from the API
   const filterOptions = data?.filterOptions || {

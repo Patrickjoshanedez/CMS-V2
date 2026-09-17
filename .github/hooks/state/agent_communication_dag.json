@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-09-16T15:50:43.860761Z",
+  "generated_at": "2026-09-17T06:09:06.362252Z",
   "metadata": {
     "agent_count": 11,
     "edges_count": 8,
@@ -76,7 +76,7 @@
     },
     "serena-autonomous-agent": {
       "name": "serena-autonomous-agent",
-      "tools_count": 15,
+      "tools_count": 4,
       "can_delegate_to": [],
       "can_receive_from": [],
       "errors": []
@@ -99,7 +99,7 @@
   "edges": [
     {
       "source": "orchestrator",
-      "target": "logic-debugger",
+      "target": "100x code reviewer",
       "bidirectional": false
     },
     {
@@ -109,17 +109,17 @@
     },
     {
       "source": "orchestrator",
-      "target": "coder",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
-      "target": "100x code reviewer",
-      "bidirectional": false
-    },
-    {
-      "source": "orchestrator",
       "target": "test-automation",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "thinker pro",
+      "bidirectional": false
+    },
+    {
+      "source": "orchestrator",
+      "target": "logic-debugger",
       "bidirectional": false
     },
     {
@@ -134,7 +134,7 @@
     },
     {
       "source": "orchestrator",
-      "target": "thinker pro",
+      "target": "coder",
       "bidirectional": false
     }
   ],

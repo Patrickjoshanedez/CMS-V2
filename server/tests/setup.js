@@ -56,14 +56,14 @@ afterAll(async () => {
     if (mongoose.connection.readyState !== 0) {
       await mongoose.disconnect();
     }
-  } catch (_err) {
+  } catch {
     // Ignore disconnect errors on teardown
   }
   try {
     if (mongoServer) {
       await mongoServer.stop({ force: true });
     }
-  } catch (_err) {
+  } catch {
     // Ignore server stop errors on teardown
   }
 });

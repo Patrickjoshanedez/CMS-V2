@@ -309,7 +309,7 @@ export function extractProjectMembers(project) {
     project.members.forEach(add);
   }
 
-  return members.length > 0 ? members : CANONICAL_MEMBERS;
+  return members;
 }
 
 /**
@@ -317,14 +317,14 @@ export function extractProjectMembers(project) {
  */
 export function extractProjectAdviser(project) {
   const adv = project?.adviserId || project?.teamId?.adviserId || project?.team?.adviserId;
-  if (!adv) return 'Glaiza Mae A. Libe';
+  if (!adv) return 'Pending';
   if (typeof adv === 'string') return adv;
   if (adv.fullName) return adv.fullName;
   if (adv.firstName || adv.lastName) {
     return `${adv.firstName || ''} ${adv.lastName || ''}`.trim();
   }
   if (adv.name) return adv.name;
-  return 'Glaiza Mae A. Libe';
+  return 'Pending';
 }
 
 /**
@@ -337,14 +337,14 @@ export function extractProjectInstructor(project) {
     project?.team?.instructorId ||
     project?.teamId?.leaderId?.instructorId ||
     project?.team?.leaderId?.instructorId;
-  if (!inst) return 'Dr. Teles O. Aribe Jr.';
+  if (!inst) return 'Pending';
   if (typeof inst === 'string') return inst;
   if (inst.fullName) return inst.fullName;
   if (inst.firstName || inst.lastName) {
     return `${inst.firstName || ''} ${inst.lastName || ''}`.trim();
   }
   if (inst.name) return inst.name;
-  return 'Dr. Teles O. Aribe Jr.';
+  return 'Pending';
 }
 
 export const DEFAULT_ACADEMIC_SECTIONS = [
@@ -986,7 +986,14 @@ function InlineDaysCell({ value, onChange }) {
 
 export default function AcademicExcelGanttChart({
   project = null,
-  tasks: tasksProp = DEFAULT_ACADEMIC_TASKS,
+  tasks: controlledTasks,
+  setTasks: controlledSetTasks,
+  sections: controlledSections,
+  setSections: controlledSetSections,
+  onAddSection: propOnAddSection,
+  onAddRow: propOnAddRow,
+  onDeleteRow: propOnDeleteRow,
+  onDeleteSection: propOnDeleteSection,
   selectedOwner: propOwner,
   onOwnerChange: propOnOwnerChange,
   onAddTask = null,
@@ -997,17 +1004,34 @@ export default function AcademicExcelGanttChart({
     const pid = project?._id || project?.id || 'default';
     return `gantt_state_${pid}`;
   }, [project]);
+  const sectionsStorageKey = `${storageKey}_sections`;
+  const headerStorageKey = `${storageKey}_header`;
 
-  // ── Load from localStorage on mount ─────────────────────────────────────────
-  const [tasks, setTasksInternal] = useState(() => {
+  // ── Load from localStorage on mount (uncontrolled fallback) ─────────────────
+  const [internalTasks, setInternalTasks] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
     } catch (_) {
       /* ignore */
     }
-    return tasksProp;
+    return [];
   });
+
+  const [internalSections, setInternalSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem(sectionsStorageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (_) {
+      /* ignore */
+    }
+    return [];
+  });
+
+  const isTasksControlled = Array.isArray(controlledTasks);
+  const tasks = isTasksControlled ? controlledTasks : internalTasks;
+
+  const isSectionsControlled = Array.isArray(controlledSections);
 
   // ── Autosave: debounced write to localStorage ─────────────────────────────
   const saveTimerRef = useRef(null);
@@ -1015,7 +1039,11 @@ export default function AcademicExcelGanttChart({
 
   const setTasks = useCallback(
     (updaterOrValue) => {
-      setTasksInternal((prev) => {
+      if (isTasksControlled && controlledSetTasks) {
+        controlledSetTasks(updaterOrValue);
+        return;
+      }
+      setInternalTasks((prev) => {
         const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
         setSaveStatus('saving');
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -1031,7 +1059,26 @@ export default function AcademicExcelGanttChart({
         return next;
       });
     },
-    [storageKey],
+    [isTasksControlled, controlledSetTasks, storageKey],
+  );
+
+  const setSections = useCallback(
+    (updaterOrValue) => {
+      if (isSectionsControlled && controlledSetSections) {
+        controlledSetSections(updaterOrValue);
+        return;
+      }
+      setInternalSections((prev) => {
+        const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
+        try {
+          localStorage.setItem(sectionsStorageKey, JSON.stringify(next));
+        } catch (_) {
+          // Ignore storage quota or private browsing errors
+        }
+        return next;
+      });
+    },
+    [isSectionsControlled, controlledSetSections, sectionsStorageKey],
   );
 
   // ── Canonical proponent list for dropdowns and filter ────────────────────
@@ -1055,7 +1102,6 @@ export default function AcademicExcelGanttChart({
   }, [proponentList, setTasks]);
 
   // ── Header state (also editable, persisted) ──────────────────────────────
-  const headerStorageKey = `${storageKey}_header`;
   const [headerState, setHeaderStateInternal] = useState(() => {
     try {
       const saved = localStorage.getItem(headerStorageKey);
@@ -1082,11 +1128,10 @@ export default function AcademicExcelGanttChart({
   );
 
   // ── Derive display values (project > saved header > defaults) ────────────
-  const derivedProjectTitle =
-    project?.title || 'Project Workspace: Capstone Management System with Plagiarism Checker';
+  const derivedProjectTitle = project?.title || 'Pending';
 
   const derivedStudents = useMemo(() => {
-    return proponentList.join(', ');
+    return proponentList.length > 0 ? proponentList.join(', ') : 'Pending';
   }, [proponentList]);
 
   const derivedAdviser = useMemo(() => extractProjectAdviser(project), [project]);
@@ -1097,8 +1142,18 @@ export default function AcademicExcelGanttChart({
       project?.sectionId?.code ||
       project?.teamId?.sectionId?.code ||
       project?.team?.sectionId?.code ||
-      'T87';
-    return `${secCode} / TF 10:00AM-12:30PM`;
+      project?.sectionId?.name ||
+      null;
+    const schedule =
+      project?.sectionId?.schedule ||
+      project?.teamId?.sectionId?.schedule ||
+      project?.schedule ||
+      null;
+
+    if (!secCode && !schedule) return 'Pending';
+    if (secCode && schedule) return `${secCode} / ${schedule}`;
+    if (secCode) return `${secCode} / Pending Schedule`;
+    return schedule;
   }, [project]);
 
   // Resolved header values (edits override derived)
@@ -1106,7 +1161,6 @@ export default function AcademicExcelGanttChart({
   const students = headerState?.students ?? derivedStudents;
   const adviser = headerState?.adviser ?? derivedAdviser;
   const sectionCodeAndSchedule = headerState?.sectionCodeAndSchedule ?? derivedSection;
-  const asOfDate = headerState?.asOfDate ?? '19/03/2026';
 
   // ── Owner filter ─────────────────────────────────────────────────────────
   const [internalOwner, setInternalOwner] = useState('ALL');
@@ -1122,22 +1176,29 @@ export default function AcademicExcelGanttChart({
     return tasks.filter((t) => isOwnerMatch(t.owner, selectedOwner));
   }, [tasks, selectedOwner]);
 
-  const sections = useMemo(() => {
-    return Array.from(new Set(filteredTasks.map((t) => t.section)));
-  }, [filteredTasks]);
-
-  // All sections across entire project (for comprehensive export)
+  // All sections across entire project (for comprehensive export and display)
+  const rawSections = isSectionsControlled ? controlledSections : internalSections;
   const allSections = useMemo(() => {
-    return Array.from(new Set(tasks.map((t) => t.section).filter(Boolean)));
-  }, [tasks]);
+    const fromTasks = tasks.map((t) => t.section).filter(Boolean);
+    return Array.from(new Set([...rawSections, ...fromTasks]));
+  }, [rawSections, tasks]);
+
+  const sections = useMemo(() => {
+    if (selectedOwner === 'ALL') return allSections;
+    return allSections.filter((sec) => filteredTasks.some((t) => t.section === sec));
+  }, [allSections, filteredTasks, selectedOwner]);
 
   // ── Overall accomplishment ─────────────────────────────────────────────
   const overallAccomplishment = useMemo(() => {
     const valid = tasks.filter((t) => t && (t.id || t.title));
-    if (!valid.length) return '100.00%';
+    if (!valid.length) return 'Pending';
     const total = valid.reduce((sum, t) => sum + normalizeProgress(t.progress), 0);
     return `${((total / valid.length) * 100).toFixed(2)}%`;
   }, [tasks]);
+
+  const asOfDate =
+    headerState?.asOfDate ??
+    (tasks.length > 0 ? new Date().toLocaleDateString('en-GB') : 'Pending');
 
   // ── Task mutation helpers ─────────────────────────────────────────────────
   const updateTaskField = useCallback(
@@ -1276,12 +1337,68 @@ export default function AcademicExcelGanttChart({
     [isDragging, dragAction, isReadOnly, activeColor, setTasks],
   );
 
-  // ── Add / Delete row helpers ─────────────────────────────────────────────
+  // ── Section & Row helpers ────────────────────────────────────────────────
+  const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+
+  const handleAddSection = useCallback(
+    (customTitle = null) => {
+      if (isReadOnly) return;
+      const title = (typeof customTitle === 'string' ? customTitle : newSectionTitle).trim();
+      if (!title) {
+        toast.error('Please enter a section name.');
+        return;
+      }
+      if (propOnAddSection) {
+        propOnAddSection(title);
+        setNewSectionTitle('');
+        setIsAddSectionOpen(false);
+        return;
+      }
+      setSections((prev) => {
+        if (prev.includes(title)) {
+          toast.info(`Section "${title}" already exists.`);
+          return prev;
+        }
+        return [...prev, title];
+      });
+      setNewSectionTitle('');
+      setIsAddSectionOpen(false);
+      toast.success(`Section "${title}" added.`);
+    },
+    [isReadOnly, newSectionTitle, propOnAddSection, setSections],
+  );
+
+  const handleDeleteSection = useCallback(
+    (sectionName) => {
+      if (isReadOnly) return;
+      if (propOnDeleteSection) {
+        propOnDeleteSection(sectionName);
+        return;
+      }
+      setSections((prev) => prev.filter((s) => s !== sectionName));
+      setTasks((prev) => prev.filter((t) => t.section !== sectionName));
+      toast.info(`Deleted ${sectionName}.`);
+    },
+    [isReadOnly, propOnDeleteSection, setSections, setTasks],
+  );
+
   const handleAddRow = useCallback(
     (targetSection = null) => {
       if (isReadOnly) return;
-      const sectionName =
-        targetSection || (sections.length > 0 ? sections[0] : DEFAULT_ACADEMIC_SECTIONS[0]);
+      if (propOnAddRow) {
+        propOnAddRow(targetSection);
+        return;
+      }
+      let sectionName = targetSection;
+      if (!sectionName) {
+        if (allSections.length > 0) {
+          sectionName = allSections[0];
+        } else {
+          sectionName = 'SECTION 1 — PROJECT PLANNING & RESEARCH';
+          setSections([sectionName]);
+        }
+      }
       const secTasks = tasks.filter((t) => t.section === sectionName);
       const newIndex = secTasks.length + 1;
       const secPrefix = sectionName.includes('PLAN')
@@ -1308,7 +1425,7 @@ export default function AcademicExcelGanttChart({
         id: newId,
         section: sectionName,
         title: 'New Capstone Deliverable',
-        owner: proponentList[0] || 'Researcher',
+        owner: proponentList[0] || 'Pending',
         startDate,
         dueDate,
         durationDays: 2,
@@ -1321,16 +1438,29 @@ export default function AcademicExcelGanttChart({
       setTasks((prev) => [...prev, newTask]);
       toast.success(`Row ${newId} added to ${sectionName}. Click any cell to edit.`);
     },
-    [isReadOnly, sections, tasks, activeColor, proponentList, setTasks],
+    [
+      isReadOnly,
+      propOnAddRow,
+      allSections,
+      tasks,
+      setSections,
+      proponentList,
+      activeColor,
+      setTasks,
+    ],
   );
 
   const handleDeleteRow = useCallback(
     (taskId) => {
       if (isReadOnly) return;
+      if (propOnDeleteRow) {
+        propOnDeleteRow(taskId);
+        return;
+      }
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       toast.info(`Deleted row ${taskId}.`);
     },
-    [isReadOnly, setTasks],
+    [isReadOnly, propOnDeleteRow, setTasks],
   );
 
   // ── Excel export ──────────────────────────────────────────────────────────
@@ -1444,6 +1574,18 @@ export default function AcademicExcelGanttChart({
               ))}
             </select>
           </div>
+
+          {/* Add Section Button (Separate Button) */}
+          {!isReadOnly && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsAddSectionOpen(true)}
+              className="h-8 text-xs border-primary/40 text-primary hover:bg-primary/10 gap-1.5 shadow-xs"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Section
+            </Button>
+          )}
 
           {/* Add Row Button */}
           {!isReadOnly && (
@@ -1701,7 +1843,38 @@ export default function AcademicExcelGanttChart({
             </thead>
 
             <tbody>
-              {sections.length === 0 && (
+              {allSections.length === 0 && (
+                <tr>
+                  <td colSpan={68} className="p-12 text-center bg-card">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                        <TableIcon className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-foreground">No Gantt Roadmap Data</h4>
+                        <p className="text-xs text-muted-foreground">
+                          No milestone sections or deliverable tasks have been created yet. Click
+                          &quot;Add Section&quot; to create your first milestone section, or add
+                          deliverable rows.
+                        </p>
+                      </div>
+                      {!isReadOnly && (
+                        <div className="flex items-center justify-center gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => setIsAddSectionOpen(true)}
+                            className="h-8 text-xs bg-primary text-primary-foreground gap-1.5 shadow-xs"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add Section
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {allSections.length > 0 && sections.length === 0 && (
                 <tr>
                   <td colSpan={68} className="p-8 text-center text-muted-foreground font-medium">
                     No tasks found matching the selected filter.
@@ -1720,20 +1893,50 @@ export default function AcademicExcelGanttChart({
                         <div className="flex items-center justify-between pr-2">
                           <span>{sec}</span>
                           {!isReadOnly && (
-                            <button
-                              type="button"
-                              onClick={() => handleAddRow(sec)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary-foreground hover:bg-primary px-1.5 py-0.5 rounded bg-background border border-primary/30 shadow-2xs transition-colors cursor-pointer"
-                              title={`Add row under ${sec}`}
-                            >
-                              <Plus className="h-3 w-3" /> Add
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleAddRow(sec)}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary-foreground hover:bg-primary px-1.5 py-0.5 rounded bg-background border border-primary/30 shadow-2xs transition-colors cursor-pointer"
+                                title={`Add row under ${sec}`}
+                              >
+                                <Plus className="h-3 w-3" /> Add
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSection(sec)}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-destructive hover:text-destructive-foreground hover:bg-destructive px-1.5 py-0.5 rounded bg-background border border-destructive/30 shadow-2xs transition-colors cursor-pointer"
+                                title={`Delete ${sec}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
                       <td className="sticky left-[315px] z-20 bg-slate-300 dark:bg-slate-700 border-r border-slate-400 dark:border-slate-500" />
                       <td colSpan={65} className="bg-slate-300 dark:bg-slate-700" />
                     </tr>
+
+                    {secTasks.length === 0 && (
+                      <tr className="border-b border-slate-300 dark:border-slate-700 bg-muted/5">
+                        <td
+                          colSpan={68}
+                          className="p-4 text-center text-xs text-muted-foreground italic"
+                        >
+                          No tasks in {sec} yet.{' '}
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleAddRow(sec)}
+                              className="text-primary font-semibold underline hover:text-primary/80 ml-1 cursor-pointer"
+                            >
+                              + Add a deliverable row
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )}
 
                     {secTasks.map((task, idx) => {
                       const pct = Number(task.progress) || 0;
@@ -1962,7 +2165,7 @@ export default function AcademicExcelGanttChart({
               <div className="space-y-0.5">
                 <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
                 <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                  {proponentList[0] || 'Researcher 1'}
+                  {proponentList[0] || 'Pending'}
                 </p>
                 <p className="text-[11px] text-muted-foreground italic">Researcher</p>
               </div>
@@ -2003,7 +2206,7 @@ export default function AcademicExcelGanttChart({
             <div className="space-y-0.5">
               <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
               <p className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase">
-                {adviser}
+                {adviser || 'Pending'}
               </p>
               <p className="text-[11px] text-muted-foreground italic">Adviser</p>
             </div>
@@ -2012,13 +2215,106 @@ export default function AcademicExcelGanttChart({
             <div className="space-y-0.5">
               <div className="border-b border-slate-900 dark:border-slate-400 mb-1 pb-8" />
               <p className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                {derivedInstructor}
+                {derivedInstructor || 'Pending'}
               </p>
               <p className="text-[11px] text-muted-foreground italic">Instructor</p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Add Section Modal */}
+      {isAddSectionOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-section-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div className="relative w-full max-w-md rounded-xl border border-border/80 bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <h3 id="add-section-modal-title" className="text-base font-bold text-foreground">
+                Create Milestone Section
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddSectionOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="space-y-1.5">
+                <label htmlFor="new-section-input" className="font-semibold text-foreground">
+                  Section Name *
+                </label>
+                <input
+                  id="new-section-input"
+                  placeholder="e.g. SECTION 1 — PROJECT PLANNING & RESEARCH"
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/70"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSection();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  Standard Capstone Suggestions:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'SECTION 1 — PROJECT PLANNING & RESEARCH',
+                    'SECTION 2 — ARCHITECTURE & SYSTEM DESIGN',
+                    'SECTION 3 — DEVELOPMENT & SYSTEM INTEGRATION',
+                    'SECTION 4 — TESTING & QA',
+                    'SECTION 5 — DEPLOYMENT & DOCUMENTATION',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setNewSectionTitle(preset)}
+                      className="text-[10px] px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
+                    >
+                      {preset.split('—')[1]?.trim() || preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsAddSectionOpen(false);
+                    setNewSectionTitle('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleAddSection()}
+                  className="bg-primary text-primary-foreground gap-1.5 shadow-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Create Section
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2026,6 +2322,13 @@ export default function AcademicExcelGanttChart({
 AcademicExcelGanttChart.propTypes = {
   project: PropTypes.object,
   tasks: PropTypes.array,
+  setTasks: PropTypes.func,
+  sections: PropTypes.array,
+  setSections: PropTypes.func,
+  onAddSection: PropTypes.func,
+  onAddRow: PropTypes.func,
+  onDeleteRow: PropTypes.func,
+  onDeleteSection: PropTypes.func,
   selectedOwner: PropTypes.string,
   onOwnerChange: PropTypes.func,
   onAddTask: PropTypes.func,

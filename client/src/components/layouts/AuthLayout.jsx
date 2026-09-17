@@ -5,6 +5,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import BukSULoginSidePanel from '@/components/auth/BukSULoginSidePanel';
 import buksuLogo from '@/assets/buksu-logo.png';
 import buksuCampusGate from '@/assets/buksu-campus-gate.jpg';
+import { useParallax } from '@/hooks/useParallax';
 
 /**
  * AuthLayout — Split-screen layout for authentication pages.
@@ -19,6 +20,7 @@ import buksuCampusGate from '@/assets/buksu-campus-gate.jpg';
  */
 export default function AuthLayout({ children, title, description, wide = false }) {
   const [loaded, setLoaded] = useState(false);
+  const { coords } = useParallax({ ease: 0.05 });
 
   useEffect(() => {
     // Kick off the stagger entry animation after mount.
@@ -33,7 +35,11 @@ export default function AuthLayout({ children, title, description, wide = false 
         <img
           src={buksuCampusGate}
           alt="BukSU Campus Main Gate"
-          className="w-full h-full object-cover object-[center_32%] filter brightness-[0.92] contrast-[1.06] transform scale-102"
+          style={{
+            transform: `scale(1.06) translate3d(${coords.x * -18}px, ${coords.y * -18}px, 0)`,
+            transition: 'transform 0.1s ease-out',
+          }}
+          className="w-full h-full object-cover object-[center_32%] filter brightness-[0.92] contrast-[1.06]"
         />
 
         {/* Dark Mode Gradient Overlay: Rich Obsidian & Institutional Navy */}
@@ -145,7 +151,7 @@ export default function AuthLayout({ children, title, description, wide = false 
 
           {/* Institutional Compliance & Archival Tag */}
           <div className="mt-8 text-center text-xs text-slate-600 dark:text-slate-400 font-mono select-none px-3.5 py-1 rounded-full bg-white/60 dark:bg-transparent backdrop-blur-xs border border-slate-200/50 dark:border-transparent">
-            BukSU College of Technologies · CHED CMO 25 Compliant
+            Bukidnon State University · College of Technologies Capstone Management System
           </div>
         </div>
       </div>

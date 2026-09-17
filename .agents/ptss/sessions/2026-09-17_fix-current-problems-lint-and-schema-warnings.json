@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-09-17_fix-current-problems-lint-and-schema-warnings",
+  "timestamp": "2026-09-17T05:22:00.000Z",
+  "task": "Remediate all IDE-reported warnings and lints in @[current_problems]",
+  "status": "completed",
+  "evidence": {
+    "agentic_governance": "60/60 checks passed",
+    "endpoint_parity": "204 server / 182 client, UNMATCHED_COUNT = 0",
+    "governance_pipeline": "0 errors, 0 warnings across DAG and decision coherence",
+    "targeted_tests": [
+      "client: src/components/archive/archiveComponents.test.jsx (13/13 passed)",
+      "client: src/pages/projects/CreateProjectPage.test.jsx (19/19 passed)",
+      "server: modules/submissions/__tests__/submission.service.plagiarism.test.js (19/19 passed)"
+    ]
+  },
+  "files_remediated": [
+    ".github/agents/serena-autonomous-agent.agent.md",
+    ".vscode/mcp.json",
+    ".vscode/settings.json",
+    "client/src/components/archive/CanonicalDocumentViewer.jsx",
+    "client/src/components/archive/GoogleScholarSearchBar.jsx",
+    "client/src/components/layouts/Sidebar.jsx",
+    "client/src/pages/projects/CreateProjectPage.jsx",
+    "client/src/pages/reports/ReportsPage.jsx",
+    "client/src/pages/teams/TeamsPage.jsx",
+    "client/vite.config.js",
+    "server/jobs/pdfProcessor.js",
+    "server/modules/projects/project.service.js",
+    "server/modules/submissions/__tests__/submission.service.plagiarism.test.js",
+    "server/modules/submissions/submission.service.js",
+    "server/tests/setup.js",
+    "server/worker.js"
+  ],
+  "lessons_learned": [
+    "Lesson: VS Code Copilot agent files require exact tool names registered in .vscode/mcp.json or recognized standard tools; prune unsupported tools to prevent IDE schema warnings.",
+    "Lesson: In ES2022 / Node 20+, use optional catch binding (try {} catch {}) when the error object is unused to prevent no-unused-vars warnings.",
+    "Lesson: Add 'css.lint.unknownAtRules': 'ignore' to .vscode/settings.json when Tailwind CSS at-rules (@config, @tailwind, @apply) are used.",
+    "Lesson: Avoid instantiating array literals in component render bodies (data?.teams || []) when passed into hook dependencies; wrap in useMemo to maintain referential identity."
+  ]
+}

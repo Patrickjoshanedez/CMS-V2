@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -8,20 +8,15 @@ import {
   Share2,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
   FileText,
   ShieldCheck,
   AlertCircle,
   ExternalLink,
-  BookOpen,
-  Info,
   X,
-  Copy,
   Check,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import CitationExportModal from './CitationExportModal';
 import api from '@/services/api';
@@ -80,7 +75,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   const [copiedLink, setCopiedLink] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(true);
-  const [pdfError, setPdfError] = useState(null);
+  const [_pdfError, setPdfError] = useState(null);
 
   const proponents =
     project?.proponents ||
@@ -107,6 +102,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   // Fetch or prepare PDF blob stream
   useEffect(() => {
     let active = true;
+    let createdObjectUrl = null;
     if (!manuscriptUrl) {
       setPdfLoading(false);
       return;
@@ -121,8 +117,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       .then((res) => {
         if (!active) return;
         const blob = new Blob([res.data], { type: 'application/pdf' });
-        const objectUrl = URL.createObjectURL(blob);
-        setPdfBlobUrl(objectUrl);
+        createdObjectUrl = URL.createObjectURL(blob);
+        setPdfBlobUrl(createdObjectUrl);
         setPdfLoading(false);
       })
       .catch((err) => {
@@ -134,8 +130,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
     return () => {
       active = false;
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
+      if (createdObjectUrl) {
+        URL.revokeObjectURL(createdObjectUrl);
       }
     };
   }, [manuscriptUrl]);

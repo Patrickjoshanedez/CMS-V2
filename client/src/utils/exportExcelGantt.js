@@ -36,13 +36,13 @@ function escapeXml(unsafe) {
  * Build spreadsheet XML string conforming to authentic BukSU academic specification.
  */
 export function buildExcelXml({
-  projectTitle = 'Project Workspace: Capstone Management System with Plagiarism Checker',
-  students = 'Añedez, Patrick Josh, Antipuesto, Throylan, Bautista, Steven Joe, Canoy, Chijay',
-  adviser = 'Glaiza Mae A. Libe',
-  instructor = 'Dr. Teles O. Aribe Jr.',
-  sectionCode = 'T87 / TF 10:00AM-12:30PM',
+  projectTitle = 'Pending',
+  students = 'Pending',
+  adviser = 'Pending',
+  instructor = 'Pending',
+  sectionCode = 'Pending',
   accomplishment = null,
-  asOfDate = '19/03/2026',
+  asOfDate = null,
   tasks = [],
   sections = [],
   proponentList = [],
@@ -52,12 +52,13 @@ export function buildExcelXml({
   // Compute overall accomplishment from tasks if not provided
   const validTasks = tasks.filter((t) => t && (t.id || t.title));
   const calcAccomplishment = () => {
-    if (validTasks.length === 0) return '100.00%';
+    if (validTasks.length === 0) return 'Pending';
     const total = validTasks.reduce((sum, t) => sum + normalizeProgress(t.progress), 0);
     return `${((total / validTasks.length) * 100).toFixed(2)}%`;
   };
   const finalAccomplishment = accomplishment || calcAccomplishment();
-  const finalAsOfDate = asOfDate || '19/03/2026';
+  const finalAsOfDate =
+    asOfDate || (validTasks.length > 0 ? new Date().toLocaleDateString('en-GB') : 'Pending');
 
   // Resolve proponent members array for dynamic signatures
   const resolvedProponents =

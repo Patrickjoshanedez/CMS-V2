@@ -2383,3 +2383,71 @@
      - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+101. Authentic System Architecture, Zero Fabricated Data Displays & CodePen Parallax Animation Governance Rule:
+- Architecture & Implementation Details:
+  1. Ban on Fabricated Metrics & "Out of Thin Air" Displays:
+     - Learned lesson: Displaying unverified or hardcoded mock numbers (e.g. `500+ Ratified Papers`, `≤ 75% Plagiarism Cap`, `100% Panel Verified`, fake thesis codes `PROP-2026-BSIT-042`, `THESIS-2024-019`, or arbitrary coordinate numbers `8.156° N, 125.127° E`) misrepresents the academic system. Interfaces should instead transparently showcase genuine platform architecture, governance gates, and institutional identity.
+     - Solution & implementation:
+       - In `client/src/pages/LandingPage.jsx`, replaced all fake statistics and mock candidate cards with the authentic BukSU CMS-V2 System Architecture:
+         - Layer 1: Presentation & Workspace (`React 18 · Vite · Zustand Store · Unified Document Viewer`)
+         - Layer 2: API & Async Pipeline (`Express 5 · Mongoose 9 · BullMQ Async Jobs · Redis PubSub`)
+         - Layer 3: Plagiarism & Similarity (`FastAPI · SentenceTransformers · Winnowing · ChromaDB HNSW`)
+         - Layer 4: Storage & Digital Vault (`MinIO Cloud Vault · Sealed Certificate Engine · ADM Hashes`)
+       - Replaced fake thesis mockups with authentic Knowledge Vault Platform Pillars (`Live Cosine Similarity Pre-Screening`, `Unified Sophisticated Document Reader`, `Dean Ratification & MinIO Archival Vault`).
+       - In `BukSULoginSidePanel.jsx`, replaced fake metrics with the authentic 4-Phase Capstone Progression (Proposal Defense, Manuscript Evaluation, Gantt Prototype Implementation, and Final Defense Multi-Tier Sign-off).
+       - In `LandingPage.jsx` and `LoadingScreen.jsx`, replaced arbitrary geo-coordinates with official institutional affiliation: `BukSU College of Technologies · CHED CMO 25`.
+  2. CodePen-Inspired Multi-Depth Parallax Engine (`useParallax.js`):
+     - Learned lesson: Standard CSS hover effects lack depth and visual delight. A dedicated, requestAnimationFrame-driven parallax hook using LERP linear interpolation (`current + (target - current) * ease`) creates smooth 60fps responsive 3D tilt, depth offsets, and dynamic specular lighting without layout thrashing.
+     - Solution & implementation:
+       - Built `client/src/hooks/useParallax.js` with mouse tracking normalized to `[-1, 1]`, configurable depth and tilt factors, dynamic CSS variables (`--mouse-x`, `--mouse-y`), and fallback safety for `prefers-reduced-motion`.
+       - Fronted `LandingPage.jsx` with the authentic BukSU campus gate photo (`buksuCampusGate`) as a layered parallax backdrop under a blueprint grid and atmospheric contrast gradient.
+       - Integrated interactive 3D parallax tilt cards with specular reflections on both the landing page architecture stack and login side panel.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never place arbitrary or fabricated numbers, mock thesis IDs, or coordinates in production landing, login, or informational components. Always represent real system architecture, capstone lifecycle stages, and institutional affiliations.
+  2. Prevention rule: For complex parallax animations, always use LERP linear interpolation and requestAnimationFrame, respect `prefers-reduced-motion`, and run visual audits on both desktop and mobile viewports.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client tests: `npm test --workspace=client -- src/pages/LandingPage.test.jsx`.
+     - Checklist: Run Playwright visual audit script `node scratch/audit_landing_and_login_parallax.mjs` across light and dark modes, desktop (1440x900) and mobile (390x844).
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`), 60/60 agentic validation checks (`npm run validate:agentic`), and pristine workspace cleanliness.
+  4. Evidence & Verification passed:
+     - Targeted tests: `LandingPage.test.jsx` (1/1 passed with 0 errors), `CreateProjectPage.test.jsx` (19/19 passed).
+     - Playwright visual audit: 10/10 screenshots verified across desktop (1440x900) and mobile (390x844) in light and dark modes with active parallax tilt and specular highlights.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+102. Gantt Chart Null/Pending Initial States, Dual-View Bidirectional Synchronization & Independent Section/Row Creation Architecture Governance Rule:
+- Architecture & Implementation Details:
+  1. Elimination of Template Data & Enforcement of Null/Pending Initial States:
+     - Learned lesson: Injecting hardcoded task templates (`DEFAULT_ACADEMIC_TASKS`, `INITIAL_TASKS`) or mock personnel/schedules (`PLAN-01`, `Antipuesto, Throylan`, `T87 / TF 10:00AM-12:30PM`) when no user data exists creates ghost tasks and invalidates real capstone progress tracking.
+     - Solution & implementation:
+       - In `client/src/utils/exportExcelGantt.js`: Replaced hardcoded default parameters with `'Pending'` (`projectTitle`, `students`, `adviser`, `instructor`, `sectionCode`), and calculate accomplishment as `'Pending'` when `validTasks.length === 0`.
+       - In `client/src/components/projects/AcademicExcelGanttChart.jsx`: Updated extraction helpers to return `'Pending'` for unassigned adviser/instructor and empty array for unassigned members; stripped auto-injection of `DEFAULT_ACADEMIC_TASKS` on empty `localStorage`; display `'Pending'` for `derivedProjectTitle`, `derivedStudents`, `derivedAdviser`, `derivedInstructor`, `derivedSection`, `overallAccomplishment`, and `asOfDate`.
+       - In `client/src/components/projects/InteractiveGanttChart.jsx`: Initialized `INITIAL_TASKS = []` and `DEFAULT_SECTIONS = []`. Empty roadmap renders "No Gantt Roadmap Data" with a prompt to add the first section.
+  2. Dual-View Bidirectional State Synchronization:
+     - Learned lesson: When `AcademicExcelGanttChart` manages tasks in internal state while `InteractiveGanttChart` maintains static or separate state, edits made in one view fail to synchronize with the other, leading to split-brain data loss.
+     - Solution & implementation:
+       - Hoisted `tasks`, `sections`, `setTasks`, and `setSections` up to `InteractiveGanttChart.jsx`, backed by synchronized debounced `localStorage` keys (`gantt_state_${projectId}` and `gantt_sections_${projectId}`).
+       - Passed `tasks`, `sections`, and mutation callbacks (`onAddSection`, `onAddRow`, `onDeleteRow`, `onDeleteSection`, `selectedOwner`, `onOwnerChange`) down into `<AcademicExcelGanttChart ... />` as controlled props.
+       - Any task or section added, edited, or deleted in Academic Excel View is instantly and bidirectionally reflected in Compact Roadmap and vice versa.
+  3. Independent Add Section & Add Row / Add Task Triggers:
+     - Learned lesson: Conflating section creation with task creation makes it difficult for capstone teams to structure their roadmap according to BukSU milestones.
+     - Solution & implementation:
+       - In `AcademicExcelGanttChart.jsx`, added a distinct `+ Add Section` button in the toolbar alongside `+ Add Row`. Built a dedicated `+ Add Section` modal dialog with name input and quick BukSU milestone suggestion pills (e.g. `System Architecture & Database Schema`, `Frontend Component Integration`, `Backend API & Plagiarism Service`, `Quality Assurance & Security Audit`). Each section divider carries quick `+ Add` row and trash (Delete Section) buttons.
+       - In `InteractiveGanttChart.jsx`, provided separate `+ Add Section` and `+ Add Task` buttons in the toolbar, section header action triggers, and row deletion buttons on each task card.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never embed static mock tasks or hardcoded personnel into Gantt or project planning initializers. All project charts must start at `[]` and unassigned fields must display `'Pending'`.
+  2. Prevention rule: Dual-view or multi-tab representations of the same underlying dataset must share a hoisted single source of truth; never allow child view components to diverge into isolated internal state.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted tests `npm test --workspace=client -- src/components/projects/AcademicExcelGanttChart.test.jsx src/components/projects/InteractiveGanttChart.test.jsx`.
+     - Checklist: Run Playwright visual audit `node scratch/audit_gantt_sync_and_empty_state.mjs` verifying empty states, modal dialog, and real-time dual-view synchronization in light and dark modes across desktop (1440x900) and mobile (390x844).
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`), 60/60 agentic validation checks (`npm run validate:agentic`), and pristine workspace cleanliness (`python scripts/workspace_guardrail.py`).
+  4. Evidence & Verification passed:
+     - Targeted tests: `AcademicExcelGanttChart.test.jsx` (11/11 passed) and `InteractiveGanttChart.test.jsx` (4/4 passed) — 15/15 passed.
+     - Playwright visual audit: 9 screenshots verified (`01_gantt_empty_excel_desktop_light.png` to `09_gantt_mobile_dark.png`) showing empty null/pending states, modal dialog, populated dual-view sync, and dark/mobile responsive layouts.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.

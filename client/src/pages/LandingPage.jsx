@@ -23,11 +23,18 @@ import {
   Lock,
   Building2,
   MapPin,
+  Server,
+  Cpu,
+  Database,
+  Workflow,
+  Layout,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useAuthStore } from '@/stores/authStore';
 import buksuLogo from '@/assets/buksu-logo.png';
+import buksuCampusGate from '@/assets/buksu-campus-gate.jpg';
 import buksuStudiesCenter from '@/assets/buksu-studies-center.jpg';
+import { useParallax } from '@/hooks/useParallax';
 
 /**
  * BukSU Institutional Landing Page —
@@ -41,6 +48,11 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [faqSearch, setFaqSearch] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+  // Parallax Controllers for Hero Backdrop and System Architecture 3D Stack Card
+  const { ref: heroContainerRef, coords: heroCoords } = useParallax({ ease: 0.05 });
+
+  const { ref: archContainerRef, getStyle: getArchStyle } = useParallax({ ease: 0.08 });
 
   // ---------------------------------------------------------------------------
   // Milestone Pipeline Data (The 4 Stages of Ratification)
@@ -77,60 +89,78 @@ export default function LandingPage() {
   ];
 
   // ---------------------------------------------------------------------------
-  // Archived Theses Samples (College Research Vault)
+  // Knowledge Vault Platform Pillars (Archival & Research Intelligence)
   // ---------------------------------------------------------------------------
-  const ARCHIVED_THESES = [
+  const ARCHIVE_PLATFORM_PILLARS = [
     {
-      id: 'THESIS-2024-019',
-      title: 'Decentralized Barangay Disaster Response and Resource Dispatch Platform',
-      year: 'A.Y. 2023–2024',
-      beneficiary: 'MDRRMO Malaybalay',
-      stack: ['PWA', 'Leaflet.js', 'CouchDB', 'Node.js'],
-      score: '11.8% Similarity',
+      id: 'ARCH-01',
+      title: 'Live Cosine Similarity Pre-Screening',
+      category: 'FastAPI & ChromaDB Vector Index',
+      badge: 'Pre-Defense Cleared',
+      desc: 'Real-time cosine distance computation against the 5-year BukSU thesis repository. Eliminates duplication before candidate titles reach committee defense hearings.',
+      capabilities: [
+        'SentenceTransformers',
+        'ChromaDB HNSW',
+        'SDG 1–17 Tagging',
+        'IT Disciplines 1–10',
+      ],
+      icon: Search,
     },
     {
-      id: 'THESIS-2024-044',
-      title: 'Edge-Based Automated Post-Harvest Grain Defect Classifier with Mechanical Sorting',
-      year: 'A.Y. 2023–2024',
-      beneficiary: 'Local Agricultural Cooperatives',
-      stack: ['Jetson Nano', 'YOLOv8', 'Express', 'MQTT'],
-      score: '14.2% Similarity',
+      id: 'ARCH-02',
+      title: 'Unified Sophisticated Document Reader',
+      category: 'Client-Side High-Fidelity Inspection',
+      badge: 'OOXML & PDF Native',
+      desc: 'Universal client-side docx-preview OOXML rendering and native PDF streaming. Features multi-granularity Revision Diff (+/-), sentence diffing, and zoom controls.',
+      capabilities: [
+        'OOXML docx-preview',
+        'Revision Diff Studio',
+        'Multi-Granularity Diff',
+        'APA 7th Export',
+      ],
+      icon: BookOpen,
     },
     {
-      id: 'THESIS-2023-012',
-      title: 'Integrated Campus Laboratory Inventory & Equipment Calibration Tracker',
-      year: 'A.Y. 2022–2023',
-      beneficiary: 'BukSU IT Department',
-      stack: ['React', 'Express', 'PostgreSQL', 'Redis'],
-      score: '9.6% Similarity',
+      id: 'ARCH-03',
+      title: 'Dean Ratification & MinIO Archival Vault',
+      category: 'Distributed Object Storage & Seals',
+      badge: 'Permanent Catalog',
+      desc: 'Automated cryptographic archival upon Phase 4 final oral defense completion. Packages the full 5-chapter manuscript and generates verifiable sealed completion certificates.',
+      capabilities: [
+        'MinIO / S3 Storage',
+        'Multi-Tier ADM Sign-off',
+        'Cryptographic Seal',
+        'Zero-Trust Audit',
+      ],
+      icon: ShieldCheck,
     },
   ];
 
   // ---------------------------------------------------------------------------
-  // Clearance Standards Matrix
+  // Institutional Clearance Standards Matrix
   // ---------------------------------------------------------------------------
   const CLEARANCE_STANDARDS = [
     {
       metric: '≤ 25.0%',
-      title: 'Plagiarism Tolerance Cap',
-      desc: 'Dual-engine originality screening using Winnowing fingerprinting and SentenceTransformers embeddings across institutional archives.',
+      title: 'Originality Compliance Threshold',
+      desc: 'Dual-engine originality screening combining Winnowing n-gram fingerprinting and SentenceTransformers embeddings across institutional archives.',
       badge: 'Academic Integrity',
     },
     {
-      metric: '≥ 75.0%',
-      title: 'Composite Defense Passing Threshold',
-      desc: 'Consolidated committee rubric scores validated against institutional standards and confirmed by the Defense Panel Chair.',
-      badge: 'Panel Evaluation',
+      metric: 'Phase 0–4',
+      title: 'Standardized Progression Gates',
+      desc: 'Deterministic capstone progression from team roster locking through proposal defense, manuscript build, progress demo, to university archival.',
+      badge: 'Defense Lifecycle',
     },
     {
       metric: 'Tier-Gated',
-      title: 'Secretary Compliance Gate',
+      title: 'Secretary Compliance Endorsement',
       desc: 'Committee digital sign-offs remain locked until the Committee Secretary certifies complete student revision compliance.',
       badge: 'ADM Ratification',
     },
     {
-      metric: '100% Vaulted',
-      title: 'MinIO Institutional Archival',
+      metric: 'Atomic Archival',
+      title: 'MinIO Institutional Vault',
       desc: 'Full 5-chapter manuscript and sealed completion certificate PDF securely registered into university permanent storage.',
       badge: 'Permanent Catalog',
     },
@@ -334,20 +364,48 @@ export default function LandingPage() {
       </header>
 
       {/* =========================================================================
-          2. HERO SECTION: DUAL-COLUMN MANUSCRIPT SHOWCASE
+          2. HERO SECTION: PARALLAX CAMPUS GATE & SYSTEM ARCHITECTURE
          ========================================================================= */}
-      <section className="relative pt-12 pb-24 px-4 sm:px-6 max-w-7xl mx-auto overflow-hidden">
-        {/* Subtle Institutional Architectural Grid (Blueprint Texture) */}
+      <section
+        ref={heroContainerRef}
+        className="relative pt-12 pb-24 px-4 sm:px-6 max-w-7xl mx-auto overflow-hidden rounded-3xl mt-4 border border-slate-200/80 dark:border-[#1E3356]/60 shadow-xl dark:shadow-2xl"
+      >
+        {/* Parallax Hero Backdrop with BukSU Campus Gate */}
         <div
-          className="absolute inset-0 opacity-15 dark:opacity-20 pointer-events-none"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, #1A448A 1px, transparent 1px),
-              linear-gradient(to bottom, #1A448A 1px, transparent 1px)
-            `,
-            backgroundSize: '44px 44px',
-          }}
-        />
+          className="absolute inset-0 overflow-hidden pointer-events-none rounded-3xl"
+          aria-hidden="true"
+        >
+          {/* Depth Layer 0: Campus Gate with smooth parallax motion */}
+          <div
+            style={{
+              transform: `scale(1.06) translate3d(${heroCoords.x * -24}px, ${heroCoords.y * -24}px, 0)`,
+              transition: 'transform 0.1s ease-out',
+            }}
+            className="absolute -inset-8 bg-cover bg-center will-change-transform"
+          >
+            <img
+              src={buksuCampusGate}
+              alt="Bukidnon State University Main Campus Gate"
+              className="w-full h-full object-cover object-center filter brightness-[0.72] contrast-[1.1] dark:brightness-[0.32] dark:contrast-[1.2]"
+            />
+          </div>
+
+          {/* Depth Layer 1: Contrast Masks (Daylight/Navy) ensuring 100% WCAG contrast */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/90 to-white/80 dark:from-[#071329]/95 dark:via-[#071329]/90 dark:to-[#0B1B3D]/85 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-slate-900/5 to-slate-900/25 dark:via-[#071329]/30 dark:to-[#040A14]/80" />
+
+          {/* Depth Layer 2: Institutional Architectural Grid (Blueprint Texture) */}
+          <div
+            className="absolute inset-0 opacity-15 dark:opacity-25"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, #1A448A 1px, transparent 1px),
+                linear-gradient(to bottom, #1A448A 1px, transparent 1px)
+              `,
+              backgroundSize: '44px 44px',
+            }}
+          />
+        </div>
 
         {/* Angular Geometric Louver Vectors (Mindanao & BukSU Canopy Facet Inspiration) */}
         <svg
@@ -365,7 +423,7 @@ export default function LandingPage() {
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Narrative Column */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-300 bg-white dark:border-[#E5A823]/40 dark:bg-[#E5A823]/10 text-xs font-mono font-medium text-[#1A448A] dark:text-[#E5A823] shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-300 bg-white/90 dark:border-[#E5A823]/40 dark:bg-[#E5A823]/10 text-xs font-mono font-medium text-[#1A448A] dark:text-[#E5A823] shadow-sm backdrop-blur-sm">
               <Compass className="w-3.5 h-3.5 text-[#E5A823]" />
               BUKSU BSIT CAPSTONE PORTAL · AY 2025–2026
             </div>
@@ -377,7 +435,7 @@ export default function LandingPage() {
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
+            <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed max-w-xl font-normal">
               The centralized repository and defense management ledger for Bukidnon State
               University. Screen candidate titles for real-time similarity, draft standardized
               proposals, and maintain committee compliance from Title Defense to University Library
@@ -395,121 +453,171 @@ export default function LandingPage() {
 
               <a
                 href="#repository"
-                className="px-5 py-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-[#1E3356] bg-white dark:bg-[#0B1B3D] hover:border-slate-400 dark:hover:border-[#E5A823]/40 transition-all flex items-center gap-2"
+                className="px-5 py-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-[#1E3356] bg-white/90 dark:bg-[#0B1B3D]/90 backdrop-blur-sm hover:border-slate-400 dark:hover:border-[#E5A823]/40 transition-all flex items-center gap-2"
               >
                 <Search className="w-4 h-4 text-[#E5A823]" /> Query Archive
               </a>
             </div>
 
-            {/* Verified Institutional Trust Metrics */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-6 border-t border-slate-300 dark:border-[#1E3356] font-mono">
-              <div className="p-3 rounded-xl bg-white/80 dark:bg-[#071329]/75 border border-slate-200 dark:border-[#1E3356] shadow-sm">
-                <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white block">
-                  500+
-                </span>
-                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                  Archive
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-[#1A448A] dark:text-[#E5A823] font-sans font-medium block mt-0.5">
-                  Ratified Papers
-                </span>
+            {/* Institutional Architecture Pillars (Replaces arbitrary fake stats) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-slate-200/80 dark:border-[#1E3356]/80">
+              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Workflow className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
+                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                    Phase 0–4 Flow
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                  Automated progression from title proposal defense to permanent archival.
+                </p>
               </div>
-              <div className="p-3 rounded-xl bg-white/80 dark:bg-[#071329]/75 border border-slate-200 dark:border-[#1E3356] shadow-sm">
-                <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white block">
-                  ≤ 75%
-                </span>
-                <span className="text-[10px] sm:text-[11px] text-[#1A448A] dark:text-[#E5A823] uppercase tracking-wider block">
-                  Clearance
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-medium block mt-0.5">
-                  Plagiarism Cap
-                </span>
+              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
+                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                    Dual Plagiarism AI
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                  FastAPI Winnowing + SentenceTransformers cosine vector pre-screening.
+                </p>
               </div>
-              <div className="p-3 rounded-xl bg-white/80 dark:bg-[#071329]/75 border border-slate-200 dark:border-[#1E3356] shadow-sm">
-                <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white block">
-                  100%
-                </span>
-                <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                  Audited
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-sans font-medium block mt-0.5">
-                  Panel Verified
-                </span>
+              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Scale className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
+                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                    Secretary ADM Gate
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                  3-tier digital signatures unlocked only after Secretary compliance endorsement.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Tactile Academic Manuscript Stack Card */}
-          <div className="lg:col-span-5 relative">
+          {/* Right Column: Interactive 3D System Architecture Stack Card */}
+          <div
+            ref={archContainerRef}
+            className="lg:col-span-5 relative"
+            style={{ perspective: '1200px' }}
+          >
             {/* Offset Ambient Glow */}
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-[#1A448A]/20 to-[#E5A823]/20 blur-xl opacity-60 dark:opacity-40 pointer-events-none" />
+            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-[#1A448A]/30 via-[#2563EB]/20 to-[#E5A823]/30 blur-2xl opacity-60 dark:opacity-40 pointer-events-none" />
 
-            <div className="relative rounded-xl border border-slate-300 bg-white p-6 shadow-xl dark:border-[#1E3356] dark:bg-[#0B1B3D] space-y-5">
-              {/* Proposal Registry Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-[#1E3356]">
+            <div
+              style={getArchStyle(18, 8)}
+              className="relative rounded-2xl border border-slate-300/90 dark:border-[#E5A823]/30 bg-white/95 dark:bg-[#0B1B3D]/95 backdrop-blur-xl p-6 shadow-2xl space-y-4 transform-gpu transition-all duration-200"
+            >
+              {/* Specular Glare Overlay */}
+              <div
+                className="absolute inset-0 rounded-2xl pointer-events-none opacity-40 dark:opacity-30 mix-blend-overlay transition-opacity duration-300"
+                style={{
+                  background: `radial-gradient(circle 400px at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(229,168,35,0.4), transparent 70%)`,
+                }}
+              />
+
+              {/* Architecture Header */}
+              <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#1E3356]">
                 <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-mono font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase">
-                    PROP-2026-BSIT-042
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  </span>
+                  <span className="text-xs font-mono font-bold tracking-wider text-slate-800 dark:text-slate-200 uppercase">
+                    SYSTEM ARCHITECTURE
                   </span>
                 </div>
-                <span className="px-2.5 py-0.5 text-[11px] font-mono font-semibold rounded bg-[#E5A823]/15 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823]">
-                  Pre-Defense Stage
+                <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#1A448A]/10 text-[#1A448A] dark:bg-[#E5A823]/15 dark:text-[#E5A823] border border-[#1A448A]/20 dark:border-[#E5A823]/40">
+                  BUKSU CMS-V2 STACK
                 </span>
               </div>
 
-              {/* Candidate Pitch Entry */}
-              <div>
-                <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
-                  Candidate Project Title
+              {/* Architecture 4-Layer Hierarchy */}
+              <div className="relative z-10 space-y-2.5">
+                {/* Layer 1: Client Application */}
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1">
+                    <div className="flex items-center gap-2">
+                      <Layout className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        Layer 1: Presentation & Workspace
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      Client SPA
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                    React 18 · Vite · Zustand Store · Unified Document Viewer
+                  </p>
+                </div>
+
+                {/* Layer 2: API Gateway & Job Orchestration */}
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1">
+                    <div className="flex items-center gap-2">
+                      <Server className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        Layer 2: API & Async Pipeline
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                      REST & Queues
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                    Express 5 · Mongoose 9 · BullMQ Async Jobs · Redis PubSub
+                  </p>
+                </div>
+
+                {/* Layer 3: Vector & Plagiarism Intelligence */}
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        Layer 3: Plagiarism & Similarity
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-amber-600 dark:text-[#E5A823] font-semibold">
+                      PyTorch Engine
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                    FastAPI · SentenceTransformers · Winnowing · ChromaDB HNSW
+                  </p>
+                </div>
+
+                {/* Layer 4: Permanent Vault & Storage */}
+                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        Layer 4: Storage & Digital Vault
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                      S3 Object Storage
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                    MinIO Cloud Vault · Sealed Certificate Engine · ADM Hashes
+                  </p>
+                </div>
+              </div>
+
+              {/* Verification Footer */}
+              <div className="relative z-10 pt-3 border-t border-slate-200 dark:border-[#1E3356] flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>ASDLC [v2.0] Verified</span>
                 </span>
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-snug">
-                  Edge-Assisted Cold Chain Monitoring System for Rural Health Units
-                </h3>
-              </div>
-
-              {/* Live Plagiarism & Title Clearance Gauge */}
-              <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 dark:border-[#1E3356] dark:bg-[#071329] space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    Institutional Similarity Index
-                  </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    12.4% (Cleared)
-                  </span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: '12.4%' }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1 font-mono">
-                  <span>Threshold Limit: ≤ 75.0%</span>
-                  <span>Status: Eligible for Ratification</span>
-                </div>
-              </div>
-
-              {/* Committee Verification Badges */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Proponent roster locked with verified student IDs</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Literature gap & architectural framework specified</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>No unmitigated scope collision against archived BukSU records</span>
-                </div>
-              </div>
-
-              {/* Bottom Verification Footer */}
-              <div className="pt-3 border-t border-slate-200 dark:border-[#1E3356] flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                <span>Committee Lead: College of Technologies</span>
-                <span className="text-[#1A448A] dark:text-[#E5A823] font-bold">PASS VERIFIED</span>
+                <span className="text-[#1A448A] dark:text-[#E5A823] font-bold">
+                  COLLEGE OF TECHNOLOGIES
+                </span>
               </div>
             </div>
           </div>
@@ -575,58 +683,60 @@ export default function LandingPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <span className="text-xs font-mono font-bold tracking-widest text-[#1A448A] dark:text-[#E5A823] uppercase">
-              College Research Vault
+              Institutional Knowledge Repository
             </span>
             <h2 className="text-3xl font-serif font-bold text-slate-900 dark:text-white mt-1">
-              Recently Archived Theses
+              Research Archive & Clearance Engine
             </h2>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1">
+              BukSU research knowledge platform backed by real-time vector similarity, unified
+              document inspection, and permanent digital archival.
+            </p>
           </div>
           <Link
             to="/archive"
             className="text-xs font-semibold text-[#1A448A] dark:text-[#E5A823] hover:underline flex items-center gap-1"
           >
-            Browse complete university database <ChevronRight className="w-3.5 h-3.5" />
+            Explore university research archive <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {ARCHIVED_THESES.map((thesis) => (
+          {ARCHIVE_PLATFORM_PILLARS.map((pillar) => (
             <div
-              key={thesis.id}
-              className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm dark:border-[#1E3356] dark:bg-[#0B1B3D] flex flex-col justify-between hover:shadow-md transition-shadow"
+              key={pillar.id}
+              className="rounded-xl border border-slate-300 bg-white p-6 shadow-sm dark:border-[#1E3356] dark:bg-[#0B1B3D] flex flex-col justify-between hover:shadow-md hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-all group"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                  <span>{thesis.id}</span>
-                  <span className="text-[#1A448A] dark:text-[#E5A823] font-semibold">
-                    {thesis.year}
+                  <span className="font-bold text-[#1A448A] dark:text-[#E5A823]">{pillar.id}</span>
+                  <span className="px-2 py-0.5 rounded bg-[#1A448A]/10 text-[#1A448A] dark:bg-[#E5A823]/10 dark:text-[#E5A823] font-semibold border border-[#1A448A]/20 dark:border-[#E5A823]/30">
+                    {pillar.badge}
                   </span>
                 </div>
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-snug">
-                  {thesis.title}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Beneficiary:{' '}
-                  <span className="font-medium text-slate-700 dark:text-slate-200">
-                    {thesis.beneficiary}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <pillar.icon className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823] group-hover:scale-110 transition-transform" />
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    {pillar.title}
+                  </h4>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block">
+                  {pillar.category}
+                </span>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {pillar.desc}
                 </p>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-slate-200 dark:border-[#1E3356] flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {thesis.stack.map((item, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-100 border border-slate-300 text-slate-700 dark:bg-[#071329] dark:border-slate-700 dark:text-slate-300"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {thesis.score}
-                </span>
+              <div className="pt-4 mt-4 border-t border-slate-200 dark:border-[#1E3356] flex flex-wrap items-center gap-1.5">
+                {pillar.capabilities.map((cap, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-100 border border-slate-300 text-slate-700 dark:bg-[#071329] dark:border-[#1E3356] dark:text-slate-300"
+                  >
+                    {cap}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -703,13 +813,13 @@ export default function LandingPage() {
                 powering student capstone excellence in Malaybalay City.
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-4 text-xs font-mono text-slate-600 dark:text-slate-300">
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-[#E5A823]" />
                 Malaybalay City, Bukidnon
               </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                8.156° N, 125.127° E
+              <span className="px-2 py-0.5 rounded bg-[#1A448A]/10 dark:bg-[#E5A823]/10 text-[#1A448A] dark:text-[#E5A823] border border-[#1A448A]/20 dark:border-[#E5A823]/30 font-semibold">
+                College of Technologies
               </span>
             </div>
           </div>
@@ -873,18 +983,18 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Institutional Status & Geo-Coordinates Bar (Direct Login Page Parity) */}
+          {/* Institutional Status Bar */}
           <div className="py-2.5 px-4 rounded-lg bg-slate-50 dark:bg-[#071329] border border-slate-200 dark:border-[#1E3356] flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-semibold text-slate-700 dark:text-slate-300">
-                PROJECT WORKSPACE V2.6
+                CAPSTONE MANAGEMENT PLATFORM
               </span>
               <span>·</span>
-              <span>8.156° N, 125.127° E</span>
+              <span>COLLEGE OF TECHNOLOGIES</span>
             </div>
             <span className="text-slate-600 dark:text-slate-400">
-              BukSU College of Technologies · CHED CMO 25 Compliant
+              BukSU BSIT Department · CHED CMO 25 Compliant
             </span>
           </div>
 

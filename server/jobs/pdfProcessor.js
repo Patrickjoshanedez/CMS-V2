@@ -11,7 +11,7 @@ import Submission from '../modules/submissions/submission.model.js';
 
 export async function processPdfJob(job) {
   const { submissionId, storageKey, fileType } = job.data;
-  console.log(`[PDF Worker] Processing PDF metadata extraction for submission: ${submissionId}`);
+  console.warn(`[PDF Worker] Processing PDF metadata extraction for submission: ${submissionId}`);
 
   try {
     let fileBuffer = null;
@@ -37,7 +37,7 @@ export async function processPdfJob(job) {
       },
     });
 
-    console.log(`[PDF Worker] Metadata extraction completed for submission: ${submissionId}`);
+    console.warn(`[PDF Worker] Metadata extraction completed for submission: ${submissionId}`);
     return { success: true, submissionId };
   } catch (err) {
     console.error(

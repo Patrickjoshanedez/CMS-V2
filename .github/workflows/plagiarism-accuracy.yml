@@ -1,0 +1,91 @@
+name: Plagiarism Engine Accuracy & PAN Benchmark
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'plagiarism_engine/**'
+      - '.github/workflows/plagiarism-accuracy.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  pan-accuracy-evaluation:
+    name: Evaluate Plagiarism Engine Accuracy (PAN@CLEF)
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Evaluation & Plagiarism Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r plagiarism_engine/requirements.txt
+          pip install -r plagiarism_engine/evaluation/requirements-eval.txt
+
+      - name: Download NLTK Tokenizers and Lexicons
+        run: |
+          python -c "import nltk; nltk.download('punkt'); nltk.download('wordnet'); nltk.download('omw-1.4')"
+
+      - name: Start Plagiarism Engine API (Background)
+        env:
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_RESULT_BACKEND: redis://localhost:6379/1
+          CHROMA_PERSIST_DIR: /tmp/chroma_store
+          EMBEDDING_DEVICE: cpu
+          LOG_LEVEL: INFO
+        run: |
+          # Start Celery Worker in background
+          celery -A plagiarism_engine.tasks.celery_app worker --loglevel=info --concurrency=1 &
+          # Start FastAPI Service in background
+          uvicorn plagiarism_engine.main:app --host 0.0.0.0 --port 8001 &
+          # Wait for health endpoint readiness
+          timeout 30 bash -c 'until curl -s http://localhost:8001/health | grep -q "status"; do sleep 1; done'
+          echo "Plagiarism API is healthy and listening on port 8001."
+
+      - name: Step 1 — Synthesize Controlled Ground-Truth Corpus
+        working-directory: plagiarism_engine/evaluation
+        run: |
+          python generate_corpus.py --num-docs 12
+
+      - name: Step 2 — Execute Plagiarism Detection Pipeline
+        working-directory: plagiarism_engine/evaluation
+        env:
+          PLAGIARISM_API_URL: http://localhost:8001
+        run: |
+          python run_detection.py
+
+      - name: Step 3 — Compute PAN Benchmark Metrics & Evaluate CI Gate
+        working-directory: plagiarism_engine/evaluation
+        run: |
+          python evaluate.py --threshold 0.25 --min-plagdet 0.70
+
+      - name: Upload Accuracy Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plagiarism-accuracy-report
+          path: |
+            plagiarism_engine/evaluation/metrics.json
+            plagiarism_engine/evaluation/report.md
+            plagiarism_engine/evaluation/pr_curve.png
+            plagiarism_engine/evaluation/corpus/ground_truth.json

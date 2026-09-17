@@ -11,28 +11,23 @@ import { Label } from '@/components/ui/Label';
 import { TagInput } from '@/components/ui/TagInput';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
-import LoadingScreen from '@/components/ui/LoadingScreen';
 import {
   UsersRound,
   UserPlus,
-  Mail,
   Crown,
   Loader2,
   AlertTriangle,
   Search,
   Send,
-  Link as LinkIcon,
   ExternalLink,
   X,
   LogOut,
   Copy,
   Clock,
-  Hash,
   Ticket,
   Sparkles,
   CheckCircle2,
   Lock,
-  Unlock,
   GitBranch,
   FileText,
   AlertCircle,
@@ -962,11 +957,6 @@ function StudentTeamDetail({ team, userId }) {
     onSuccess: () => toast.success('You left the team successfully.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
   });
-
-  const dynamicTemplateUrl = useSettingsStore(
-    (state) =>
-      state.getTemplateUrl('proposal_template') || state.getTemplateUrl('team_template') || '',
-  );
 
   const members = team.members || [];
   const memberCount = members.length;
@@ -2348,7 +2338,7 @@ function FacultyTeamsView({ canAssignCommittee }) {
     enabled: Boolean(urlTeamId),
   });
 
-  const teams = data?.teams || [];
+  const teams = useMemo(() => data?.teams || [], [data?.teams]);
   const pagination = data?.pagination;
 
   // Sync deep-linked team from URL and auto-open roster inspection

@@ -15,7 +15,7 @@ let pdfWorker = null;
 async function bootstrap() {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/cms';
   await mongoose.connect(mongoUri, { maxPoolSize: 10 });
-  console.log('[Worker] Connected to MongoDB.');
+  console.warn('[Worker] Connected to MongoDB.');
 
   const redisOpts = getRedisConnectionOpts();
 
@@ -24,7 +24,7 @@ async function bootstrap() {
     concurrency: parseInt(process.env.WORKER_PDF_CONCURRENCY || '2', 10),
   });
 
-  pdfWorker.on('completed', (job) => console.log(`[Worker] Job ${job.id} complete.`));
+  pdfWorker.on('completed', (job) => console.warn(`[Worker] Job ${job.id} complete.`));
   pdfWorker.on('failed', async (job, err) => {
     console.error(`[Worker] Job ${job?.id} failed:`, err.message);
     if (job?.data?.submissionId) {
@@ -34,11 +34,11 @@ async function bootstrap() {
     }
   });
 
-  console.log('[Worker] PDF Processing Worker initialized and listening.');
+  console.warn('[Worker] PDF Processing Worker initialized and listening.');
 }
 
 async function shutdown() {
-  console.log('[Worker] Shutting down worker...');
+  console.warn('[Worker] Shutting down worker...');
   if (pdfWorker) await pdfWorker.close();
   await mongoose.connection.close(false);
   process.exit(0);

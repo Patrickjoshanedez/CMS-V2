@@ -1,0 +1,38 @@
+{
+  "at_threshold": 0.25,
+  "summary": {
+    "lexical": {
+      "precision": 0.9857,
+      "recall": 0.7525,
+      "f1": 0.8221,
+      "granularity": 1.0,
+      "plagdet": 0.8221,
+      "tp_chars": 3853,
+      "fp_chars": 71,
+      "fn_chars": 1412,
+      "evaluated_documents": 10
+    },
+    "semantic": {
+      "precision": 0.9857,
+      "recall": 0.7767,
+      "f1": 0.8359,
+      "granularity": 1.0,
+      "plagdet": 0.8359,
+      "tp_chars": 4040,
+      "fp_chars": 71,
+      "fn_chars": 1225,
+      "evaluated_documents": 10
+    },
+    "hybrid": {
+      "precision": 0.9857,
+      "recall": 0.7767,
+      "f1": 0.8359,
+      "granularity": 1.0,
+      "plagdet": 0.8359,
+      "tp_chars": 4040,
+      "fp_chars": 71,
+      "fn_chars": 1225,
+      "evaluated_documents": 10
+    }
+  }
+}

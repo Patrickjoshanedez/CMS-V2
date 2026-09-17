@@ -11,18 +11,9 @@ import {
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/Select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Progress } from '@/components/ui/Progress';
-import { TagInput } from '@/components/ui/TagInput';
 import TitleSimilarityChecker from '@/components/projects/TitleSimilarityChecker';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import AlignmentSelectorDialog from '@/components/projects/AlignmentSelectorDialog';
@@ -49,7 +40,6 @@ import {
   Layers,
   Download,
   Eye,
-  ExternalLink,
   Globe,
   Tag,
   ChevronLeft,
@@ -58,72 +48,18 @@ import {
   Plus,
   Trash2,
   Loader2,
-  Lock,
-  Maximize2,
-  Minimize2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { SDG_TAG_SUGGESTIONS, DEFAULT_TITLE_SIMILARITY_PERCENTAGE } from '@cms/shared';
+import { DEFAULT_TITLE_SIMILARITY_PERCENTAGE } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
-import {
-  formatPitchDeckDescription,
-  parsePitchDeckFromDescription,
-  emptyPitchDeck,
-} from '@/utils/pitchDeckParser';
+import { formatPitchDeckDescription, parsePitchDeckFromDescription } from '@/utils/pitchDeckParser';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
 
 const currentYear = new Date().getFullYear();
 const defaultAcademicYear = `${currentYear}-${currentYear + 1}`;
-
-const CAPSTONE_DISCIPLINE_OPTIONS = [
-  { value: 'se_web', label: 'Software Engineering & Web Applications' },
-  { value: 'ai_ml', label: 'Artificial Intelligence & Machine Learning' },
-  { value: 'net_sec', label: 'Networking & Cybersecurity' },
-  { value: 'data_sci', label: 'Data Science & Analytics' },
-  { value: 'iot_embedded', label: 'IoT & Embedded Systems' },
-  { value: 'mobile_app', label: 'Mobile Application Development' },
-];
-
-const SDG_ALIGNMENT_OPTIONS = [
-  { value: 'sdg_4', label: 'SDG 4: Quality Education' },
-  { value: 'sdg_9', label: 'SDG 9: Industry, Innovation & Infrastructure' },
-  { value: 'sdg_11', label: 'SDG 11: Sustainable Cities & Communities' },
-  { value: 'sdg_3', label: 'SDG 3: Good Health and Well-being' },
-  { value: 'sdg_8', label: 'SDG 8: Decent Work and Economic Growth' },
-  { value: 'sdg_12', label: 'SDG 12: Responsible Consumption & Production' },
-];
-
-const PROPOSAL_PITCH_DECK_FIELDS = [
-  {
-    key: 'problemStatement',
-    label: 'Problem Statement & Literature Gap',
-    placeholder: 'Describe the high prevalence of the issue, existing gaps, and current costs...',
-  },
-  {
-    key: 'proposedSolution',
-    label: 'Proposed Solution & Technical Framework',
-    placeholder: 'Explain how your system solves the problem, architecture, and core features...',
-  },
-  {
-    key: 'uniqueContribution',
-    label: 'Unique Technical Innovation',
-    placeholder:
-      'What makes this system different from existing tools? Automation, campus DB-linked, algorithms...',
-  },
-  {
-    key: 'targetUsers',
-    label: 'Target Users / Beneficiaries',
-    placeholder: 'Primary and secondary users, beneficiary institutions...',
-  },
-  {
-    key: 'expectedImpact',
-    label: 'Expected Value / Impact',
-    placeholder: 'Efficiency improvements, academic integrity enforcement, operational ROI...',
-  },
-];
 
 const createEmptyPitchDeck = () => ({
   problemStatement: '',
@@ -313,11 +249,10 @@ export default function CreateProjectPage() {
   );
   const { user } = useAuthStore();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
-  const { data: academicYears = [] } = useAcademicYears();
+  const { data: _academicYears = [] } = useAcademicYears();
 
   const {
     plagiarismThreshold = 15.0,
-    plagiarismRejectThreshold = 50.0,
     titleSimilarityThreshold = DEFAULT_TITLE_SIMILARITY_PERCENTAGE,
     fetchSettings,
   } = useSettingsStore();
@@ -639,7 +574,7 @@ export default function CreateProjectPage() {
     return () => {
       isMounted = false;
     };
-  }, [isEditMode, targetProjectId]);
+  }, [isEditMode, targetProjectId, editState]);
 
   // Autosave setup with local cache and background synchronization
   const autosavePayload = useMemo(
@@ -1086,117 +1021,6 @@ export default function CreateProjectPage() {
       toast.error(err?.message || 'Failed to export PowerPoint presentation.');
     } finally {
       setExportingPptxIndex(null);
-    }
-  };
-
-  // Helper renderer for slide body content
-  const renderSlideBody = (slide) => {
-    if (!slide) return null;
-    switch (slide.type) {
-      case 'cover':
-        return (
-          <div className="py-4 sm:py-6 space-y-2.5 sm:space-y-3">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] sm:text-[11px] font-medium">
-              <Presentation className="h-3 w-3" /> BukSU IT Capstone Proposal
-            </div>
-            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground leading-snug line-clamp-3">
-              {slide.title}
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl line-clamp-3 sm:line-clamp-4">
-              {slide.subtitle}
-            </p>
-          </div>
-        );
-      case 'statement':
-      case 'solution':
-      case 'innovation':
-      case 'users':
-      case 'impact': {
-        const Icon = slide.icon;
-        return (
-          <div className="py-3 sm:py-4 space-y-2 sm:space-y-3">
-            <div className="flex items-center gap-1.5 text-primary font-medium text-xs">
-              {Icon && <Icon className="h-4 w-4" />}
-              <span>{slide.tag}</span>
-            </div>
-            <h3 className="text-base sm:text-xl font-bold tracking-tight text-foreground">
-              {slide.title}
-            </h3>
-            <div
-              className={cn(
-                'bg-muted/40 rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-foreground/90 leading-relaxed',
-                slide.accent,
-              )}
-            >
-              {slide.content}
-            </div>
-          </div>
-        );
-      }
-      case 'alignment':
-        return (
-          <div className="py-2 sm:py-3 space-y-2 sm:space-y-3">
-            <div className="flex items-center gap-1.5 text-primary font-medium text-xs">
-              <Globe className="h-4 w-4" />
-              <span>Institutional Mapping</span>
-            </div>
-            <h3 className="text-base sm:text-xl font-bold tracking-tight text-foreground">
-              {slide.title}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-1">
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 sm:p-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <Tag className="h-3.5 w-3.5 text-primary" /> IT Disciplines
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {slide.disciplines.map((d, i) => (
-                    <Badge key={i} variant="outline" className="text-[10px] bg-background">
-                      {d}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 sm:p-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Target
-                  SDGs
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {slide.sdgs.map((s, i) => (
-                    <Badge
-                      key={i}
-                      variant="secondary"
-                      className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                    >
-                      {s}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'qa':
-        return (
-          <div className="py-4 sm:py-6 space-y-2.5 sm:space-y-3 text-center flex flex-col items-center justify-center">
-            <div className="h-10 sm:h-12 w-10 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1">
-              <Presentation className="h-5 sm:h-6 w-5 sm:w-6" />
-            </div>
-            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground">
-              {slide.title}
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg">
-              {slide.content}
-            </p>
-            <div className="pt-1 sm:pt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{cleanTeamName}</span>
-              <span>·</span>
-              <span>Bukidnon State University</span>
-            </div>
-          </div>
-        );
-      default:
-        return null;
     }
   };
 
