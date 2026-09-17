@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   GraduationCap,
@@ -53,6 +53,51 @@ export default function LandingPage() {
   const { ref: heroContainerRef, coords: heroCoords } = useParallax({ ease: 0.05 });
 
   const { ref: archContainerRef, getStyle: getArchStyle } = useParallax({ ease: 0.08 });
+
+  // CodePen-Style 60fps Multi-Layer Scroll Parallax Engine (Vanilla rAF with Desktop Guard)
+  useEffect(() => {
+    // Disable on mobile/touch viewports (<1024px) or when reduced motion is preferred
+    const isDesktop =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(min-width: 1024px)').matches;
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!isDesktop || prefersReducedMotion) return;
+
+    const layers = document.querySelectorAll('.parallax-layer');
+    if (!layers.length) return;
+
+    let rafId = null;
+    let lastScrollY = -1;
+
+    function updateParallax() {
+      const scrollY = window.scrollY;
+
+      if (scrollY !== lastScrollY) {
+        lastScrollY = scrollY;
+        layers.forEach((layer) => {
+          const speed = parseFloat(layer.getAttribute('data-speed')) || 0.1;
+          const yPos = Math.round(scrollY * speed * 100) / 100;
+          layer.style.transform = `translate3d(0, ${yPos}px, 0)`;
+        });
+      }
+
+      rafId = requestAnimationFrame(updateParallax);
+    }
+
+    rafId = requestAnimationFrame(updateParallax);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      layers.forEach((layer) => {
+        layer.style.transform = '';
+      });
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Milestone Pipeline Data (The 4 Stages of Ratification)
@@ -209,15 +254,15 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 dark:bg-[#071329] dark:text-slate-100 transition-colors duration-200 selection:bg-[#E5A823] selection:text-[#071329]">
+    <div className="min-h-screen bg-[#F4F7F9] text-[#1E293B] dark:bg-[#071329] dark:text-slate-100 transition-colors duration-200 selection:bg-[#E5A823] selection:text-[#071329]">
       {/* =========================================================================
           1. INSTITUTIONAL NAVBAR (STICKY, FIXED H-20 WITH OFFICIAL BUKSU BRANDING)
          ========================================================================= */}
-      <header className="sticky top-0 z-50 border-b border-slate-300 bg-white/95 backdrop-blur-md dark:border-[#1E3356] dark:bg-[#071329]/95 transition-colors duration-200">
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-[#FCFCFD]/90 backdrop-blur-md dark:border-[#1E3356] dark:bg-[#071329]/95 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Official University Monogram & Department Badge */}
           <Link to="/" className="flex items-center gap-3.5 group">
-            <div className="w-11 h-11 rounded-xl bg-white border border-[#E5A823] p-1 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-200">
+            <div className="w-11 h-11 rounded-xl bg-[#FCFCFD] border border-[#E5A823]/60 p-1 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-200">
               <img
                 src={buksuLogo}
                 alt="Bukidnon State University Seal"
@@ -226,21 +271,21 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-serif font-bold text-base tracking-tight text-slate-900 dark:text-white">
+                <span className="font-serif font-bold text-base tracking-tight text-[#1E293B] dark:text-white">
                   BukSU CMS
                 </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded">
+                <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-[#E5A823]/15 border border-[#E5A823]/40 text-[#92400E] dark:text-[#E5A823] rounded">
                   COT
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 hidden xs:inline-block">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-[#64748B] dark:text-slate-400 hidden xs:inline-block">
                 Capstone Archiving & Evaluation
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation Nodes */}
-          <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-[#475569] dark:text-slate-300">
             <a
               href="#pipeline"
               className="hover:text-[#1A448A] dark:hover:text-[#E5A823] transition-colors"
@@ -281,7 +326,7 @@ export default function LandingPage() {
             {/* Sign In / Dashboard Link */}
             <Link
               to={isAuthenticated ? '/dashboard' : '/login'}
-              className="hidden sm:inline-flex px-4 py-2 text-xs font-semibold rounded-lg text-slate-700 hover:text-slate-950 dark:text-slate-200 dark:hover:text-white border border-slate-300 dark:border-[#1E3356] bg-white dark:bg-[#0B1B3D] hover:bg-slate-100 dark:hover:bg-[#132752] transition-all"
+              className="hidden sm:inline-flex px-4 py-2 text-xs font-semibold rounded-lg text-[#334155] hover:text-[#0F172A] dark:text-slate-200 dark:hover:text-white border border-slate-200/90 dark:border-[#1E3356] bg-[#FCFCFD] dark:bg-[#0B1B3D] hover:bg-slate-50 dark:hover:bg-[#132752] transition-all shadow-xs"
             >
               {isAuthenticated ? 'Dashboard' : 'Sign In'}
             </Link>
@@ -289,7 +334,7 @@ export default function LandingPage() {
             {/* Submit Proposal Primary Action Button */}
             <Link
               to={isAuthenticated ? '/project/create' : '/login'}
-              className="hidden sm:inline-flex px-4 py-2 text-xs font-bold rounded-lg text-[#071329] bg-gradient-to-r from-[#F5C253] via-[#E5A823] to-[#C68A1B] hover:brightness-110 shadow-sm transition-all items-center gap-1.5"
+              className="hidden sm:inline-flex px-4 py-2 text-xs font-bold rounded-lg text-[#1E293B] bg-gradient-to-r from-[#F5C253] via-[#E5A823] to-[#D99A1E] hover:brightness-105 shadow-[0_2px_10px_rgba(229,168,35,0.3)] transition-all items-center gap-1.5"
             >
               Submit Proposal <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -368,7 +413,7 @@ export default function LandingPage() {
          ========================================================================= */}
       <section
         ref={heroContainerRef}
-        className="relative pt-12 pb-24 px-4 sm:px-6 max-w-7xl mx-auto overflow-hidden rounded-3xl mt-4 border border-slate-200/80 dark:border-[#1E3356]/60 shadow-xl dark:shadow-2xl"
+        className="relative pt-12 pb-24 px-4 sm:px-6 max-w-7xl mx-auto overflow-hidden rounded-3xl mt-4 border-gradient-institutional shadow-[0_20px_50px_-15px_rgba(15,23,42,0.06),0_4px_12px_-2px_rgba(15,23,42,0.02)]"
       >
         {/* Parallax Hero Backdrop with BukSU Campus Gate */}
         <div
@@ -386,23 +431,25 @@ export default function LandingPage() {
             <img
               src={buksuCampusGate}
               alt="Bukidnon State University Main Campus Gate"
-              className="w-full h-full object-cover object-center filter brightness-[0.72] contrast-[1.1] dark:brightness-[0.32] dark:contrast-[1.2]"
+              className="w-full h-full object-cover object-center filter brightness-[1.02] contrast-[0.95] opacity-35 dark:opacity-20 dark:brightness-[0.32] dark:contrast-[1.2]"
             />
           </div>
 
-          {/* Depth Layer 1: Contrast Masks (Daylight/Navy) ensuring 100% WCAG contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/90 to-white/80 dark:from-[#071329]/95 dark:via-[#071329]/90 dark:to-[#0B1B3D]/85 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-slate-900/5 to-slate-900/25 dark:via-[#071329]/30 dark:to-[#040A14]/80" />
+          {/* Depth Layer 1: Contrast Masks (Soft Warm Slate-50 / Navy) ensuring 100% WCAG contrast without eye strain or dark bleed */}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-50 via-slate-50/95 to-slate-100/90 dark:from-[#071329]/95 dark:via-[#071329]/90 dark:to-[#0B1B3D]/85 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent dark:via-[#071329]/30 dark:to-[#040A14]/80 pointer-events-none" />
 
-          {/* Depth Layer 2: Institutional Architectural Grid (Blueprint Texture) */}
+          {/* Depth Layer 2: Institutional Architectural Grid (Blueprint Texture — Soft & Subtle Scroll Parallax Layer) */}
           <div
-            className="absolute inset-0 opacity-15 dark:opacity-25"
+            data-speed="0.2"
+            className="parallax-layer absolute -top-16 -bottom-32 -left-12 -right-12 pointer-events-none opacity-[0.06] dark:opacity-20"
             style={{
               backgroundImage: `
                 linear-gradient(to right, #1A448A 1px, transparent 1px),
                 linear-gradient(to bottom, #1A448A 1px, transparent 1px)
               `,
               backgroundSize: '44px 44px',
+              height: '135%',
             }}
           />
         </div>
@@ -421,21 +468,21 @@ export default function LandingPage() {
         </svg>
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Narrative Column */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-300 bg-white/90 dark:border-[#E5A823]/40 dark:bg-[#E5A823]/10 text-xs font-mono font-medium text-[#1A448A] dark:text-[#E5A823] shadow-sm backdrop-blur-sm">
+          {/* Midground Layer: Left Narrative Column */}
+          <div data-speed="-0.1" className="parallax-layer lg:col-span-7 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#1A448A]/20 bg-[#1A448A]/8 dark:border-[#E5A823]/40 dark:bg-[#E5A823]/10 text-xs font-mono font-medium text-[#1A448A] dark:text-[#E5A823] shadow-xs backdrop-blur-sm">
               <Compass className="w-3.5 h-3.5 text-[#E5A823]" />
               BUKSU BSIT CAPSTONE PORTAL · AY 2025–2026
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-bold text-slate-900 dark:text-white tracking-tight leading-[1.15]">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-bold text-[#1E293B] dark:text-white tracking-tight leading-[1.15]">
               Manage your capstone projects with{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1A448A] to-[#2563EB] dark:from-[#F5C253] dark:via-[#E5A823] dark:to-[#C68A1B]">
                 institutional rigor.
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed max-w-xl font-normal">
+            <p className="text-sm sm:text-base text-[#475569] dark:text-slate-200 leading-relaxed max-w-xl font-normal">
               The centralized repository and defense management ledger for Bukidnon State
               University. Screen candidate titles for real-time similarity, draft standardized
               proposals, and maintain committee compliance from Title Defense to University Library
@@ -446,61 +493,62 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link
                 to={isAuthenticated ? '/project/create' : '/login'}
-                className="px-6 py-3 rounded-lg text-xs sm:text-sm font-bold text-[#071329] bg-gradient-to-r from-[#F5C253] to-[#E5A823] hover:brightness-110 shadow-md shadow-[#E5A823]/20 flex items-center gap-2 transition-all"
+                className="px-6 py-3 rounded-lg text-xs sm:text-sm font-bold text-[#1E293B] bg-gradient-to-r from-[#F5C253] via-[#E5A823] to-[#D99A1E] hover:brightness-105 shadow-[0_4px_16px_rgba(229,168,35,0.38)] hover:shadow-[0_6px_22px_rgba(229,168,35,0.48)] flex items-center gap-2 transition-all"
               >
                 Enter Title Proposal Studio <ArrowRight className="w-4 h-4" />
               </Link>
 
               <a
                 href="#repository"
-                className="px-5 py-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-[#1E3356] bg-white/90 dark:bg-[#0B1B3D]/90 backdrop-blur-sm hover:border-slate-400 dark:hover:border-[#E5A823]/40 transition-all flex items-center gap-2"
+                className="px-5 py-3 rounded-lg text-xs sm:text-sm font-semibold text-[#334155] dark:text-slate-100 border border-slate-200/90 dark:border-[#1E3356] bg-[#FCFCFD] dark:bg-[#0B1B3D]/90 backdrop-blur-sm hover:border-slate-300 hover:bg-white dark:hover:border-[#E5A823]/40 transition-all flex items-center gap-2 shadow-[0_2px_8px_rgba(15,23,42,0.04)]"
               >
                 <Search className="w-4 h-4 text-[#E5A823]" /> Query Archive
               </a>
             </div>
 
-            {/* Institutional Architecture Pillars (Replaces arbitrary fake stats) */}
+            {/* Institutional Architecture Pillars (Lifted white cards with subtle gradient borders) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-slate-200/80 dark:border-[#1E3356]/80">
-              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+              <div className="p-3.5 rounded-xl bg-[#FCFCFD]/95 dark:bg-[#071329]/85 backdrop-blur-md border-gradient-subtle shadow-[0_4px_12px_-2px_rgba(15,23,42,0.04)] hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-1">
                   <Workflow className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
-                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-mono font-bold text-[#1E293B] dark:text-white">
                     Phase 0–4 Flow
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                <p className="text-[11px] text-[#64748B] dark:text-slate-300 leading-snug">
                   Automated progression from title proposal defense to permanent archival.
                 </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+              <div className="p-3.5 rounded-xl bg-[#FCFCFD]/95 dark:bg-[#071329]/85 backdrop-blur-md border-gradient-subtle shadow-[0_4px_12px_-2px_rgba(15,23,42,0.04)] hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldCheck className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
-                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-mono font-bold text-[#1E293B] dark:text-white">
                     Dual Plagiarism AI
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                <p className="text-[11px] text-[#64748B] dark:text-slate-300 leading-snug">
                   FastAPI Winnowing + SentenceTransformers cosine vector pre-screening.
                 </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#071329]/85 backdrop-blur-md border border-slate-200 dark:border-[#1E3356] shadow-sm">
+              <div className="p-3.5 rounded-xl bg-[#FCFCFD]/95 dark:bg-[#071329]/85 backdrop-blur-md border-gradient-subtle shadow-[0_4px_12px_-2px_rgba(15,23,42,0.04)] hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-1">
                   <Scale className="w-4 h-4 text-[#1A448A] dark:text-[#E5A823]" />
-                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-mono font-bold text-[#1E293B] dark:text-white">
                     Secretary ADM Gate
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                <p className="text-[11px] text-[#64748B] dark:text-slate-300 leading-snug">
                   3-tier digital signatures unlocked only after Secretary compliance endorsement.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Interactive 3D System Architecture Stack Card */}
+          {/* Foreground Layer: Interactive 3D System Architecture Stack Card */}
           <div
             ref={archContainerRef}
-            className="lg:col-span-5 relative"
+            data-speed="-0.3"
+            className="parallax-layer lg:col-span-5 relative"
             style={{ perspective: '1200px' }}
           >
             {/* Offset Ambient Glow */}
@@ -508,7 +556,7 @@ export default function LandingPage() {
 
             <div
               style={getArchStyle(18, 8)}
-              className="relative rounded-2xl border border-slate-300/90 dark:border-[#E5A823]/30 bg-white/95 dark:bg-[#0B1B3D]/95 backdrop-blur-xl p-6 shadow-2xl space-y-4 transform-gpu transition-all duration-200"
+              className="relative rounded-2xl bg-[#FCFCFD] dark:bg-[#0B1B3D]/95 backdrop-blur-xl p-6 shadow-[0_20px_45px_-12px_rgba(15,23,42,0.08),0_4px_12px_-2px_rgba(15,23,42,0.03)] border-gradient-institutional space-y-4 transform-gpu transition-all duration-200"
             >
               {/* Specular Glare Overlay */}
               <div
@@ -519,98 +567,98 @@ export default function LandingPage() {
               />
 
               {/* Architecture Header */}
-              <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#1E3356]">
+              <div className="relative z-10 flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-[#1E3356]">
                 <div className="flex items-center gap-2.5">
                   <span className="relative flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                   </span>
-                  <span className="text-xs font-mono font-bold tracking-wider text-slate-800 dark:text-slate-200 uppercase">
+                  <span className="text-xs font-mono font-bold tracking-wider text-[#334155] dark:text-slate-200 uppercase">
                     SYSTEM ARCHITECTURE
                   </span>
                 </div>
-                <span className="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#1A448A]/10 text-[#1A448A] dark:bg-[#E5A823]/15 dark:text-[#E5A823] border border-[#1A448A]/20 dark:border-[#E5A823]/40">
+                <span className="px-2.5 py-0.5 text-[10px] font-mono font-semibold rounded-full bg-slate-100 text-slate-700 dark:bg-[#E5A823]/15 dark:text-[#E5A823] border border-slate-200/80 dark:border-[#E5A823]/40">
                   BUKSU CMS-V2 STACK
                 </span>
               </div>
 
-              {/* Architecture 4-Layer Hierarchy */}
+              {/* Architecture 4-Layer Hierarchy (Border-free with soft diffused shadows and tinted accent badges) */}
               <div className="relative z-10 space-y-2.5">
                 {/* Layer 1: Client Application */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                <div className="p-3 rounded-xl bg-[#F1F5F9]/80 dark:bg-[#071329]/80 hover:bg-[#E2E8F0]/70 dark:hover:bg-[#071329] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.02)] transition-all">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <div className="flex items-center gap-2">
                       <Layout className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
-                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                      <span className="font-bold text-[#1E293B] dark:text-slate-100">
                         Layer 1: Presentation & Workspace
                       </span>
                     </div>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100/80 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/40">
                       Client SPA
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-300 font-mono">
                     React 18 · Vite · Zustand Store · Unified Document Viewer
                   </p>
                 </div>
 
                 {/* Layer 2: API Gateway & Job Orchestration */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                <div className="p-3 rounded-xl bg-[#F1F5F9]/80 dark:bg-[#071329]/80 hover:bg-[#E2E8F0]/70 dark:hover:bg-[#071329] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.02)] transition-all">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <div className="flex items-center gap-2">
                       <Server className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
-                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                      <span className="font-bold text-[#1E293B] dark:text-slate-100">
                         Layer 2: API & Async Pipeline
                       </span>
                     </div>
-                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100/80 text-blue-900 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/40">
                       REST & Queues
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-300 font-mono">
                     Express 5 · Mongoose 9 · BullMQ Async Jobs · Redis PubSub
                   </p>
                 </div>
 
                 {/* Layer 3: Vector & Plagiarism Intelligence */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                <div className="p-3 rounded-xl bg-[#F1F5F9]/80 dark:bg-[#071329]/80 hover:bg-[#E2E8F0]/70 dark:hover:bg-[#071329] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.02)] transition-all">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <div className="flex items-center gap-2">
                       <Cpu className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
-                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                      <span className="font-bold text-[#1E293B] dark:text-slate-100">
                         Layer 3: Plagiarism & Similarity
                       </span>
                     </div>
-                    <span className="text-[10px] text-amber-600 dark:text-[#E5A823] font-semibold">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100/80 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/40">
                       PyTorch Engine
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-300 font-mono">
                     FastAPI · SentenceTransformers · Winnowing · ChromaDB HNSW
                   </p>
                 </div>
 
                 {/* Layer 4: Permanent Vault & Storage */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-[#1E3356] bg-slate-50/90 dark:bg-[#071329]/90 hover:border-[#1A448A]/40 dark:hover:border-[#E5A823]/40 transition-colors">
+                <div className="p-3 rounded-xl bg-[#F1F5F9]/80 dark:bg-[#071329]/80 hover:bg-[#E2E8F0]/70 dark:hover:bg-[#071329] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.02)] transition-all">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <div className="flex items-center gap-2">
                       <Database className="w-3.5 h-3.5 text-[#1A448A] dark:text-[#E5A823]" />
-                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                      <span className="font-bold text-[#1E293B] dark:text-slate-100">
                         Layer 4: Storage & Digital Vault
                       </span>
                     </div>
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-100/80 text-purple-900 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200/70 dark:border-purple-800/40">
                       S3 Object Storage
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-300 font-mono">
                     MinIO Cloud Vault · Sealed Certificate Engine · ADM Hashes
                   </p>
                 </div>
               </div>
 
               {/* Verification Footer */}
-              <div className="relative z-10 pt-3 border-t border-slate-200 dark:border-[#1E3356] flex items-center justify-between text-[11px] font-mono text-slate-600 dark:text-slate-400">
+              <div className="relative z-10 pt-3 border-t border-slate-200/80 dark:border-[#1E3356] flex items-center justify-between text-[11px] font-mono text-[#64748B] dark:text-slate-400">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                   <span>ASDLC [v2.0] Verified</span>

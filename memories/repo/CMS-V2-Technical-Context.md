@@ -2554,5 +2554,99 @@
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 cognitive clutter.
 
+107. Eye-Comfort Continuous Authentication Backdrop & Interactive Institutional Seal Navigation Rule:
+- Architecture & Root Cause:
+  1. Glaring Right-Side Split Gradient:
+     - Learned lesson: When interpolating an RGB CSS linear gradient between deep institutional navy (rgba(7, 19, 41)) and stark white (rgba(248, 250, 252)), the midpoint stops (50–60%) inevitably produce a muddy, desaturated grayish haze. When displayed across full-bleed campus photographs, this created an unnatural vertical blur seam slicing directly through the students at the campus gate, while the stark white on the right half caused intense eye strain and harsh glare.
+     - Solution: Replaced the steep split gradient in client/src/components/layouts/AuthLayout.jsx with a continuous, unified BukSU campus architectural wash (linear-gradient(115deg, rgba(7, 19, 41, 0.92) 0%, rgba(11, 27, 61, 0.86) 45%, rgba(15, 32, 67, 0.82) 100%)) layered with an ambient warm radial accent (radial-gradient(circle at 75% 25%, rgba(229, 168, 35, 0.10) 0%, transparent 60%)). This completely eliminated the harsh right-side glare and awkward color seam.
+  2. Tailwind CSS Opacity Class Normalization:
+     - Learned lesson: Arbitrary opacity stops not included in Tailwind's core spacing/opacity palette (e.g. bg-white/96) fail to compile without JIT arbitrary syntax (bg-white/[0.96]), silently rendering background color as rgba(0, 0, 0, 0) (transparent). Always use standard palette stops like bg-white/95 or standard tokens.
+     - Solution: Upgraded auth form card to bg-white/95 dark:bg-[#0B1B3D]/90 backdrop-blur-2xl border border-slate-200/90 dark:border-[#1E3356] shadow-2xl shadow-black/35 dark:shadow-black/70, providing a gentle, frosted manuscript card with optimal contrast.
+  3. Interactive Institutional Seal Navigation:
+     - Learned lesson: In split-screen authentication panels, university seals and branding must never be dead non-interactive elements. On mobile, the seal linked to /, but desktop had a static div.
+     - Solution: Wrapped the seal header in client/src/components/auth/BukSULoginSidePanel.jsx with <Link to="/" className="inline-flex items-center gap-3.5 group cursor-pointer hover:opacity-95 transition-all focus:outline-hidden focus:ring-2 focus:ring-[#E5A823]/50 rounded-xl" title="Return to BukSU Capstone Portal Home"> with subtle scale hover (group-hover:scale-105) and gold typography transition (group-hover:text-[#F5C253]).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In split-column authentication layouts, avoid steep dark-to-white linear gradients across photography backdrops. Use continuous ambient washes so background imagery remains cohesive across both columns.
+  2. Prevention rule: In Tailwind CSS, always use standard opacity stops (e.g. 95, 90, 80) or explicit arbitrary values (/[0.96]). Never use non-existent stop tokens like /96 which compile to transparent backgrounds.
+  3. Prevention rule: Branding elements (university seal, system title) on authentication pages must universally link back to the landing page / across both desktop and mobile viewports.
+  4. Runbook & Checklist:
+     - Checklist: Verify clicking the BukSU seal on desktop routes directly to / (http://localhost:43211/).
+     - Checklist: Verify clicking the BukSU seal on mobile routes directly to /.
+     - Checklist: Run Playwright visual audit across Desktop (1440x900) and Mobile (390x844) viewports in Light and Dark modes. Verify zero harsh glare, continuous backdrop flow, and crisp readability on the frosted credentials card.
+     - Checklist: Verify 0 route mismatches (npm run check:endpoints) and 60/60 agentic validation checks (npm run validate:agentic).
+  5. Evidence & Verification passed:
+     - Interactive Playwright seal navigation test passed: Both desktop and mobile seal clicks navigate to http://localhost:43211/.
+     - Auth unit tests: 5/5 passed (authService.test.js, authStore.test.js).
+     - Endpoint parity: 204 Server / 182 Client (UNMATCHED_COUNT = 0).
+     - Agentic governance: 60/60 checks passed (npm run validate:agentic).
+     - Playwright visual audit: 4 screenshots verified (login_desktop_light.png, login_desktop_dark.png, login_mobile_light.png, login_mobile_dark.png) confirming soft eye comfort, continuous background, and crisp card presentation in both modes.
 
+### Lesson: Light Mode Theme Refactor, 60-30-10 Golden Rule & Collegiate Gradient Borders (2026-09-18)
+- Incident / Context:
+  - User requested a comprehensive light mode refactor of the BukSU CMS-V2 landing page: stark, high-contrast pure white (#FFFFFF) backgrounds caused severe eye strain, pure black (#000000) typography produced halation, harsh thin gray borders cluttered architecture cards, and accent tags used high-saturation text on white.
+  - Required the implementation of the 60-30-10 golden design rule, collegiate gradient borders, soft warm slate canvas, lifted ivory cards with diffused drop shadows, tinted badges, and glowing yellow CTA buttons without changing core brand colors (BukSU Blue, Academic Gold, Ivory White).
+- Root Cause:
+  1. Excessive Contrast & Canvas Glare: Pure white (#FFFFFF) background created harsh luminance disparity against text and photography.
+  2. Typographic Halation: Pure black (#000000) text on bright backgrounds triggers optical halation (blurring around glyph edges), straining user vision during prolonged reading.
+  3. Border Clutter: Monochromatic 1px gray borders around architecture layers broke depth hierarchy and felt rigid.
+  4. Invalid Tailwind Arbitrary Opacity: Attempting arbitrary opacity on hex values (e.g. from-[#F8FAFC]/98) failed in Tailwind CSS, causing light mode gradient masks to collapse and allow dark background photography to bleed directly behind narrative typography.
+- Resolution & Implementation Details:
+  1. 60-30-10 Color Architecture:
+     - 60% Dominant Canvas: Soft warm slate (#F4F7F9 / slate-50 #F8FAFC) removing stark #FFFFFF glare while keeping the space open and calm.
+     - 30% Structural Cards & Depth: Main cards rendered in crisp ivory white (#FCFCFD) lifted with diffused drop shadows (shadow-[0_20px_45px_-12px_rgba(15,23,42,0.08)]) and nested architecture layers tinted with soft gray (bg-[#F1F5F9]/80) without harsh borders.
+     - 10% Academic Accents & Badges: Brand Blue (#1A448A) and Academic Gold (#E5A823) used strategically on icons, progression pillars, active pills, and glowing CTA buttons. Architecture layer tags converted to tinted badges (dark semantic text on low-opacity matching background: emerald-100/900, blue-100/900, amber-100/900, purple-100/900).
+  2. Collegiate Gradient Borders: Added utility classes .border-gradient-institutional and .border-gradient-subtle in client/src/index.css utilizing double linear gradients (padding-box and border-box) that smoothly transition between BukSU Blue (rgba(26, 68, 138, 0.22)), soft slate, and Academic Gold (rgba(229, 168, 35, 0.28)).
+  3. Typography Anti-Halation: Replaced #000000 and pure black text with dark slate charcoal (#1E293B for headings, #475569 for body copy, #64748B for metadata).
+  4. Glowing Yellow CTA Button: Ensured the primary button text uses dark charcoal (#1E293B font-bold) with an ambient gold glow shadow (shadow-[0_4px_16px_rgba(229,168,35,0.38)] hover:shadow-[0_6px_22px_rgba(229,168,35,0.48)]).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In light mode design systems, avoid pure white (#FFFFFF) page canvases and pure black (#000000) typography. Standardize on soft slate (#F8FAFC / #F4F7F9) and charcoal (#1E293B) to eliminate halation and visual fatigue.
+  2. Prevention rule: In Tailwind CSS, use standard color tokens for opacity stops (e.g. from-slate-50 via-slate-50/95 to-slate-100/90) instead of arbitrary hex with slash syntax (e.g. from-[#F8FAFC]/98) which fails parsing.
+  3. Prevention rule: For complex multi-layered card components, prefer soft diffused drop shadows and subtle background tinting over harsh thin borders to establish natural depth hierarchy.
+  4. Runbook & Checklist:
+     - Checklist: Verify landing page canvas renders soft slate (#F4F7F9) and main cards render lifted ivory (#FCFCFD).
+     - Checklist: Verify System Architecture card and hero section render collegiate gradient borders.
+     - Checklist: Verify nested architecture layers 1–4 have no harsh borders, subtle gray tint, and tinted badge tags.
+     - Checklist: Verify yellow CTA button features dark charcoal text (#1E293B) and subtle gold glow shadow.
+     - Checklist: Run Playwright visual audit across Desktop (1440x900) and Mobile (390x844) viewports in both Light and Dark modes.
+     - Checklist: Verify 0 route mismatches (npm run check:endpoints) and 60/60 agentic validation checks (npm run validate:agentic).
+  5. Evidence & Verification passed:
+     - Client unit tests: 19/19 passed in CreateProjectPage.test.jsx.
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Playwright visual audit: 4 screenshots verified (`landing_desktop_light.png`, `landing_desktop_dark.png`, `landing_mobile_light.png`, `landing_mobile_dark.png`) confirming optimal contrast, elegant gradient borders, soft eye comfort, and perfect typography clarity.
 
+### Lesson: CodePen-Style 60fps Multi-Layer Scroll Parallax Engine (2026-09-18)
+- Incident / Context:
+  - User requested a lightweight, smooth CodePen-style scroll parallax effect on the landing page hero section.
+  - Required distinct depth movement across three layers as the user scrolls: Background Grid moving slowly downwards (data-speed="0.2"), Midground Narrative moving upwards (data-speed="-0.1"), and Foreground Architecture Card moving upwards faster (data-speed="-0.3").
+  - Needed zero-jank mobile guards and zero React re-render overhead.
+- Root Cause:
+  1. Parallax Jitter / Scroll Jank: Binding scroll parallax directly to React state (e.g. useState(scrollY)) causes continuous full component tree re-renders on every scroll event, producing severe frame drops and jank.
+  2. Mobile Touch Incompatibility: Scroll parallax on mobile screens (<1024px) creates visual disorientation, layout shifting, and touch scrolling sluggishness.
+- Resolution & Implementation Details:
+  1. Pure Vanilla requestAnimationFrame Loop: Engineered a dedicated useEffect in LandingPage.jsx that polls window.scrollY on each frame and updates element.style.transform = `translate3d(0, ${yPos}px, 0)` directly via DOM manipulation, maintaining a solid 60fps with zero React state re-render overhead.
+  2. Multi-Layer Speed Calibration:
+     - Background Grid Layer: data-speed="0.2", height 135%, -top-16 -bottom-32, moving downwards slowly to simulate vast distance without boundary clipping.
+     - Midground Narrative Column: data-speed="-0.1", moving upwards gently to provide subtle visual lift.
+     - Foreground Architecture Card Column: data-speed="-0.3", moving upwards faster to pop out toward the user.
+  3. Hardware-Accelerated CSS: Defined .parallax-layer in client/src/index.css with will-change: transform and transition: transform 0.1s linear.
+  4. Desktop & Accessibility Guards: Strictly disabled on screens narrower than 1024px ((min-width: 1024px)) and on devices where prefers-reduced-motion is active.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: NEVER use React state hooks (useState) to drive 60fps scroll or mouse parallax transforms. Always manipulate style.transform directly on the DOM nodes via requestAnimationFrame inside useEffect to preserve 60fps performance without triggering re-renders.
+  2. Prevention rule: Always guard scroll parallax animations with window.matchMedia('(min-width: 1024px)') and window.matchMedia('(prefers-reduced-motion: reduce)') to prevent mobile scrolling jank and accessibility compliance violations.
+  3. Runbook & Checklist:
+     - Checklist: Verify background grid layer has data-speed="0.2" and extended height (135%) to avoid edge clipping.
+     - Checklist: Verify midground narrative column has data-speed="-0.1".
+     - Checklist: Verify architecture card column has data-speed="-0.3".
+     - Checklist: Verify mobile viewports (<1024px) cleanly leave layer.style.transform as empty strings.
+     - Checklist: Verify Playwright assertions at scrollY = 0px and scrollY = 250px.
+  4. Evidence & Verification passed:
+     - Playwright transform assertion at scrollY = 250px:
+       - Grid: translate3d(0px, 50px, 0px) (computed: matrix(1, 0, 0, 1, 0, 50)).
+       - Narrative: translate3d(0px, -25px, 0px) (computed: matrix(1, 0, 0, 1, 0, -25)).
+       - Card: translate3d(0px, -75px, 0px) (computed: matrix(1, 0, 0, 1, 0, -75)).
+     - Mobile check: [ '', '', '' ] (transforms verified 100% disabled).
+     - Client unit tests: 19/19 passed in CreateProjectPage.test.jsx.
+     - Endpoint parity: 204 Server / 182 Client (UNMATCHED_COUNT = 0).
+     - Agentic governance: 60/60 checks passed (npm run validate:agentic).
+     - Visual captures: parallax_scroll_0.png, parallax_scroll_250.png, and parallax_scroll_light_250.png verified.

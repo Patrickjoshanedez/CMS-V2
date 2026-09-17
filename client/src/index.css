@@ -36,10 +36,10 @@ input::-webkit-credentials-auto-fill-button {
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
 
-    /* Semantic text contrast tokens (WCAG AA/AAA compliance) */
-    --text-primary: #000000;
-    --text-secondary: #000000;
-    --text-muted: #000000;
+    /* Semantic text contrast tokens (WCAG AA/AAA compliance — soft charcoal to reduce halation) */
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
 
     /* Semantic status colors */
     --success: 142 76% 36%;
@@ -65,9 +65,9 @@ input::-webkit-credentials-auto-fill-button {
     --color-high: #e07b39;
     --color-ok: #2a9d8f;
     --color-neutral: #457b9d;
-    --color-text-primary: #000000;
-    --color-text-secondary: #000000;
-    --color-border: #334155;
+    --color-text-primary: #1e293b;
+    --color-text-secondary: #475569;
+    --color-border: #e2e8f0;
     --font-display: 'DM Serif Display', serif;
     --font-body: 'DM Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -128,6 +128,56 @@ input::-webkit-credentials-auto-fill-button {
   .text-muted-token {
     color: var(--text-muted);
   }
+
+  /* Institutional Gradient Borders: Soft, diffused collegiate blue & gold transitions */
+  .border-gradient-institutional {
+    border: 1.5px solid transparent;
+    background-image:
+      linear-gradient(var(--card-bg, #fcfcfd), var(--card-bg, #fcfcfd)),
+      linear-gradient(
+        135deg,
+        rgba(26, 68, 138, 0.22),
+        rgba(226, 232, 240, 0.8) 50%,
+        rgba(229, 168, 35, 0.28)
+      );
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  .dark .border-gradient-institutional {
+    background-image:
+      linear-gradient(var(--card-bg-dark, #0b1b3d), var(--card-bg-dark, #0b1b3d)),
+      linear-gradient(
+        135deg,
+        rgba(30, 58, 138, 0.5),
+        rgba(30, 51, 86, 0.8) 50%,
+        rgba(229, 168, 35, 0.35)
+      );
+  }
+
+  .border-gradient-subtle {
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(var(--card-bg, #fcfcfd), var(--card-bg, #fcfcfd)),
+      linear-gradient(
+        135deg,
+        rgba(26, 68, 138, 0.15),
+        rgba(226, 232, 240, 0.75) 50%,
+        rgba(229, 168, 35, 0.18)
+      );
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  .dark .border-gradient-subtle {
+    background-image:
+      linear-gradient(var(--card-bg-dark, #071329), var(--card-bg-dark, #071329)),
+      linear-gradient(
+        135deg,
+        rgba(30, 51, 86, 0.7),
+        rgba(11, 27, 61, 0.6) 50%,
+        rgba(229, 168, 35, 0.2)
+      );
+  }
+
   /* 60 FPS scrolling optimization with auto height retention to eliminate scrollbar jitter */
   .content-visibility-auto {
     content-visibility: auto;
@@ -136,6 +186,12 @@ input::-webkit-credentials-auto-fill-button {
   .content-visibility-section {
     content-visibility: auto;
     contain-intrinsic-size: auto 320px;
+  }
+
+  /* CodePen-Style 60fps Scroll Parallax Layers */
+  .parallax-layer {
+    will-change: transform;
+    transition: transform 0.1s linear;
   }
 }
 
