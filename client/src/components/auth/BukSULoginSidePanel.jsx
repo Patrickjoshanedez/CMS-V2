@@ -55,6 +55,7 @@ export function BukSULoginSidePanel() {
   return (
     <div
       ref={ref}
+      data-dark-surface="true"
       className="relative hidden lg:flex flex-col justify-between w-full h-screen max-h-screen sticky top-0 px-8 pt-8 pb-10 xl:px-12 xl:pt-10 xl:pb-12 select-none overflow-hidden"
       style={{
         perspective: '1200px',
@@ -90,7 +91,10 @@ export function BukSULoginSidePanel() {
             <h2 className="text-xs font-bold tracking-widest text-[#E5A823] uppercase">
               Bukidnon State University
             </h2>
-            <p className="text-[11px] font-mono text-slate-300 tracking-tight">
+            <p
+              className="text-[11px] font-sans font-medium tracking-tight text-slate-200"
+              style={{ color: '#e2e8f0' }}
+            >
               College of Technologies · BSIT Capstone Studio
             </p>
           </div>
@@ -112,14 +116,18 @@ export function BukSULoginSidePanel() {
           to university archival.
         </h1>
 
-        <p className="text-xs xl:text-sm text-slate-200/90 leading-relaxed font-sans max-w-md">
+        <p
+          className="text-xs xl:text-sm leading-relaxed font-sans max-w-md text-slate-200"
+          style={{ color: '#e2e8f0' }}
+        >
           Standardized submission lifecycle, dual plagiarism screening, Action Done Matrix (ADM)
           endorsement, and permanent archival under BukSU institutional standards.
         </p>
 
         {/* 3D Interactive Parallax Architecture Showcase Card */}
         <div
-          className="relative rounded-xl bg-[#071329]/80 border border-white/15 backdrop-blur-xl p-4 shadow-2xl transition-transform duration-100 ease-out overflow-hidden group"
+          data-dark-surface="true"
+          className="relative rounded-2xl bg-[#071329]/92 border border-slate-700/60 dark:border-white/15 backdrop-blur-xl p-4.5 shadow-2xl transition-transform duration-100 ease-out overflow-hidden group"
           style={getStyle(18, 9)}
         >
           {/* Specular light highlight following mouse */}
@@ -130,34 +138,51 @@ export function BukSULoginSidePanel() {
             }}
           />
 
-          <div className="relative z-10 flex items-center justify-between pb-2.5 mb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-mono font-bold tracking-wider text-slate-300 uppercase">
+          <div className="relative z-10 flex items-center justify-between pb-3 mb-3.5 border-b border-slate-700/60 dark:border-white/10">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-xs shadow-emerald-400/50" />
+              <span
+                className="text-xs font-sans font-bold tracking-wider text-slate-200 uppercase"
+                style={{ color: '#e2e8f0' }}
+              >
                 4-Phase Capstone Lifecycle
               </span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#F5C253]">
+            <span
+              className="text-[11px] font-sans font-semibold px-2.5 py-0.5 rounded-full bg-[#E5A823]/20 border border-[#E5A823]/50 text-[#F5C253] tracking-tight shadow-xs"
+              style={{ color: '#F5C253' }}
+            >
               Deterministic Gating
             </span>
           </div>
 
-          <div className="relative z-10 grid grid-cols-2 gap-2.5">
+          <div className="relative z-10 grid grid-cols-2 gap-3">
             {CAPSTONE_STAGES.map((stage, idx) => {
               const Icon = stage.icon;
               return (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-[#E5A823]/40 hover:bg-white/10 transition-all space-y-1"
+                  className="p-3 rounded-xl bg-slate-900/70 dark:bg-white/5 border border-slate-700/50 dark:border-white/10 hover:border-[#E5A823]/50 hover:bg-slate-800/70 transition-all space-y-1.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-mono text-[#E5A823] font-bold uppercase tracking-wider">
+                    <span
+                      className="text-[10px] font-mono text-[#F5C253] font-bold uppercase tracking-wider"
+                      style={{ color: '#F5C253' }}
+                    >
                       {stage.phase}
                     </span>
-                    <Icon className="w-3.5 h-3.5 text-slate-400" />
+                    <Icon className="w-3.5 h-3.5 text-slate-300" style={{ color: '#cbd5e1' }} />
                   </div>
-                  <h3 className="text-xs font-semibold text-white leading-tight">{stage.title}</h3>
-                  <p className="text-[10px] text-slate-300/80 leading-snug line-clamp-2">
+                  <h3
+                    className="text-xs font-semibold text-white leading-tight font-sans"
+                    style={{ color: '#ffffff' }}
+                  >
+                    {stage.title}
+                  </h3>
+                  <p
+                    className="text-[11px] leading-snug line-clamp-2 font-sans text-slate-300"
+                    style={{ color: '#cbd5e1' }}
+                  >
                     {stage.desc}
                   </p>
                 </div>
@@ -166,26 +191,32 @@ export function BukSULoginSidePanel() {
           </div>
 
           {/* System Security & Compliance Footer */}
-          <div className="relative z-10 mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-slate-400">
-            <span className="flex items-center gap-1 text-slate-300">
-              <ShieldCheck className="w-3 h-3 text-emerald-400" /> Secretary Compliance Gate
+          <div className="relative z-10 mt-3.5 pt-3 border-t border-slate-700/60 dark:border-white/10 flex items-center justify-between text-[10.5px] font-sans px-1">
+            <span
+              className="flex items-center gap-1.5 text-slate-200 font-medium"
+              style={{ color: '#e2e8f0' }}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secretary Compliance Gate
             </span>
-            <span className="flex items-center gap-1 text-[#E5A823]">
-              <Database className="w-3 h-3" /> MinIO Vault
+            <span
+              className="flex items-center gap-1.5 text-[#F5C253] font-medium"
+              style={{ color: '#F5C253' }}
+            >
+              <Database className="w-3.5 h-3.5" /> MinIO Vault
             </span>
           </div>
         </div>
       </div>
 
       {/* 4. Bottom System Architectural Badge */}
-      <div className="relative z-10 flex-shrink-0 flex items-center justify-between text-xs text-slate-400 font-mono pt-3 border-t border-white/15 dark:border-[#1E3356]">
+      <div className="relative z-10 flex-shrink-0 flex items-center justify-between text-xs text-slate-300 font-sans pt-3 border-t border-white/15 dark:border-[#1E3356]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-slate-300 font-medium">
+          <span className="text-slate-200 font-medium" style={{ color: '#e2e8f0' }}>
             BukSU CMS V2 · Full-Stack Capstone System
           </span>
         </div>
-        <span className="text-[11px] text-[#E5A823]">College of Technologies</span>
+        <span className="text-[11px] text-[#F5C253] font-medium">College of Technologies</span>
       </div>
     </div>
   );

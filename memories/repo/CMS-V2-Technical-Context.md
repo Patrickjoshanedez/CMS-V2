@@ -18,6 +18,11 @@
 - For archive OCR UX, always keep a client-side fallback that derives metadata from filename and keyword inference when extraction is empty/unavailable; never leave the metadata form blank after a PDF selection.
 - When hot-patching large JSX files, run a quick tail check to ensure no detached statements were appended outside the component scope.
 - Institutional Capstone Workflow Ground Truth: BukSU CMS-V2 strictly operates under the canonical 4-Phase Capstone / 5-Milestone progression (`Phase 0: Team Formation & Lock`, `Phase 1: Capstone 1 - Proposal & Similarity Pre-Scan`, `Phase 2: Capstone 2 - Chapters 1-3 & ADM v1`, `Phase 3: Capstone 3 - System Dev, Gantt Tracker & ADM v2`, `Phase 4: Capstone 4 - Final Defense, Multi-Tier ADM Sign-off & Archival`). Never reintroduce or reference legacy 6-phase or 3-phase workflows.
+- Light Mode Dark Architectural Surface Inoculation Rule:
+  1. Global CSS selectors targeting text classes (e.g. `:root:not(.dark) [class*='text-slate-'] { color: #000000; }`) match every descendant in the DOM tree because ancestor elements like `#root` or `<body>` match `:not(.dark)`.
+  2. Dark architectural surfaces (such as `BukSULoginSidePanel`, terminal viewers, dark code diffs) rendered in light mode MUST be explicitly tagged with `data-dark-surface="true"`, set `color-scheme: dark`, and have protected text rules (`.text-white`, `.text-slate-100`, `.text-slate-200`, `.text-slate-300`, `.text-slate-400`, `.text-muted-foreground` with `!important`) in `index.css`.
+  3. Components on dark surfaces should also use explicit fallback inline color styles (`style={{ color: '#e2e8f0' }}`) on critical descriptions and badges to guarantee 100% legibility across light and dark modes regardless of global style cascades.
+  4. Playwright visual audit across light and dark modes (desktop and mobile) must be executed to confirm contrast and legibility before declaring completion.
 - Cross-Session Memory Invariant: Every agent in every chat must perform Stage 0 startup preflight by inspecting `.agents/ptss/index.jsonl` (last 2-3 sessions) and `memories/repo/CMS-V2-Technical-Context.md` to establish architectural continuity. On task completion, lessons learned must be dual-persisted to `.agents/ptss/sessions/` and `memories/repo/lessons/` (with required keywords: `lesson`, `learned`, `prevention`, `runbook`, `checklist`).
 - Committee Assignment & Faculty Querying Prevention Rule: In `user.validation.js`, keep `listUsersQuerySchema` limit cap aligned with frontend bulk selects (max 500) and support multi-role filtering (`role: instructor,adviser,panelist,faculty`). When querying candidate faculty in modals or views, always pass explicit faculty role filters and handle loading/empty placeholders gracefully so student records never crowd out faculty.
 - Runbook & Checklist for User Filter Endpoints:
@@ -2451,3 +2456,103 @@
      - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+104. Proposal Defense Slide Canvas Bullet Hydration, Dark-Mode Contrast Preservation & PPTX A4 Standard Layout Rule:
+- Architecture & Implementation Details:
+  1. Dark-Mode Slide Inversion Inoculation (`client/src/index.css` & `ProposalSlideCanvas.jsx`):
+     - Learned lesson: A global rule `.dark [class*='text-slate-'] { color: #ffffff; }` in `index.css` turned all slide header text (`text-slate-900`) and bullet text (`text-slate-800`) pure white (#ffffff). Because `ProposalSlideCanvas` renders on a pure white slide background (`bg-white`), the text became invisible (white on white), showing only the gray bullet marker dots and leaving the slide looking completely empty.
+     - Solution & implementation:
+       - Added explicit exclusion in `client/src/index.css`: `.dark [data-slide-canvas] *` enforces `#0f172a` text, protecting the slide canvas from dark-mode color inversion.
+       - In `ProposalSlideCanvas.jsx`, applied `data-slide-canvas="content"` and inline `style={{ color: '#0f172a' }}` on headings and `style={{ color: '#1e293b' }}` on list items alongside `!text-slate-900` / `!text-slate-800` classes to guarantee dark contrast regardless of theme context.
+  2. Bullet Sanitization & Rich Domain Fallback Hydration:
+     - Learned lesson: Proposal drafts with empty fields or blank bullet characters (e.g. `•\n•\n•`) yielded empty bullet items when stripped, rendering naked bullet points with no content.
+     - Solution & implementation:
+       - In `ProposalSlideCanvas.jsx` and `exportPptx.js`, enhanced `formatToBullets()` to strip leading bullet characters (`•`, `-`, `*`), numbers, and whitespace. If cleaned content is empty, automatic domain fallbacks (`SLIDE_FALLBACKS`) are injected based on slide type (`statement`, `solution`, `innovation`, `users`, `impact`, `qa`).
+       - In `TitleApprovalPage.jsx`, updated `renderSlides()` to populate explicit `category` attributes and rich default proposal content for all 8 slides.
+  3. PPTX A4 Standard Layout Export (`client/src/utils/exportPptx.js`):
+     - Learned lesson: Standard PowerPoint widescreen `LAYOUT_16x9` (13.33" x 7.5") is unsuitable for institutional printouts and A4 compliance.
+     - Solution & implementation:
+       - Configured `exportProposalDeckPptx` with `pptx.defineLayout({ name: 'A4', width: 11.69, height: 8.27 })` and `pptx.layout = 'A4'`.
+       - Re-calibrated all slide coordinates, typography, and footer ribbon to A4 landscape (11.69" x 8.27" / 297mm x 210mm) with BukSU institutional hierarchy, dual logos, and category indicators.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Any component rendering a fixed-background projection canvas (such as white slide decks) inside a dark-mode theme MUST explicitly inoculate its children from global text color overrides using data attributes and inline color guards.
+  2. Prevention rule: All presentation slide formatters must strip empty bullet markers and supply domain fallback points so slides are never rendered or exported blank.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/components/projects/ProposalSlideCanvas.test.jsx src/pages/projects/CreateProjectPage.test.jsx src/pages/projects/TitleApprovalPage.test.jsx`.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`), 60/60 agentic validation checks (`npm run validate:agentic`), and pristine workspace cleanliness (`python scripts/workspace_guardrail.py`).
+  4. Evidence & Verification passed:
+     - Targeted tests: `ProposalSlideCanvas.test.jsx` (3/3 passed), `CreateProjectPage.test.jsx` (19/19 passed), `TitleApprovalPage.test.jsx` (4/4 passed) — 26/26 passed with zero errors.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 cognitive clutter.
+
+105. Proposal Defense Slide Typography Proportioning & Committee Roster Visual Hierarchy Rule:
+- Architecture & Implementation Details:
+  1. Presentation-Standard Typography Scaling (`client/src/utils/exportPptx.js` & `ProposalSlideCanvas.jsx`):
+     - Learned lesson: Slide text sized at 11-13pt takes up only the top 20% of an A4 slide canvas (11.69" x 8.27"), leaving large void whitespace and making the presentation illegible from a defense room distance. Slides require presentation-scale typography proportional to bullet density.
+     - Solution & implementation:
+       - In `exportPptx.js`, engineered `getScaledTypography()`: scaled body bullet font sizes to 24pt (<= 2 bullets, spaceAfter: 28pt, lineSpacing: 34pt), 22pt (3 bullets, spaceAfter: 20pt, lineSpacing: 31pt), 19pt (4 bullets, spaceAfter: 16pt, lineSpacing: 27pt), and 17pt (5 bullets, spaceAfter: 12pt, lineSpacing: 24pt).
+       - Scaled content slide headings from 26pt to 34pt bold italic (`fontSize: 34`, `h: 0.9`).
+       - Scaled Cover Slide title from 24-34pt to 28-40pt bold (`fontSize: 40` for <70 chars, `34` for 70-120 chars).
+       - Scaled Slide 7 (Disciplines & SDGs) category headers to 16pt bold and bullets to 18pt with 14pt spaceAfter.
+       - Scaled Slide 8 (Committee Discussion & Q&A) bullet text to 20pt with 20pt spaceAfter.
+       - In `ProposalSlideCanvas.jsx`, scaled cover title to `text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black`, content slide headers to `text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic`, and dynamically scaled bullet text up to `text-sm sm:text-lg md:text-xl lg:text-2xl` with `space-y-4 sm:space-y-6 md:space-y-8` for optimal visual balance.
+  2. Appointed Defense Committee & Institutional Roster Positioning (`TitleApprovalPage.jsx`):
+     - Learned lesson: Placing the defense committee composition card at the very bottom of the page below all candidate proposals buried critical governance and panel information.
+     - Solution & implementation:
+       - In `TitleApprovalPage.jsx`, repositioned `<Card>` ("Appointed Defense Committee & Institutional Roster") above the Candidate Capstone Titles Proposed by Team section, directly under the Capstone 1 Title Defense Progression Stepper and Approved Banner Notice.
+       - Added targeted unit test assertion in `TitleApprovalPage.test.jsx` verifying that `committeeIdx < candidateIdx` in rendered DOM hierarchy.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Presentation slide text must never use document-sized font sizes (11-14pt). Always compute slide typography dynamically based on bullet counts (18-24pt for bullets, 32-40pt for titles) with proportionate paragraph spacing (`spaceAfter`) and line height (`lineSpacing`).
+  2. Prevention rule: Institutional defense committee composition cards must be presented prominently above candidate proposals to establish defense panel authority before reviewing proposal blueprints.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/projects/TitleApprovalPage.test.jsx src/components/projects/ProposalSlideCanvas.test.jsx src/pages/projects/CreateProjectPage.test.jsx`.
+     - Checklist: Run Playwright visual audit `node scratch/audit_updated_title_approval_and_deck.mjs` verifying desktop (1440x900) and mobile (390x844) viewports in both light and dark modes.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`), 60/60 agentic validation checks (`npm run validate:agentic`), and pristine workspace cleanliness.
+  4. Evidence & Verification passed:
+     - Targeted tests: `TitleApprovalPage.test.jsx` (4/4 passed), `ProposalSlideCanvas.test.jsx` (3/3 passed), `CreateProjectPage.test.jsx` (19/19 passed) — 26/26 passed with zero errors.
+     - Playwright visual audit: 12 screenshots verified in `scratch/screenshots_typography_and_layout/` showing Appointed Committee roster positioned above candidate proposals, large authoritative slide headings, and well-proportioned bullet typography across light and dark modes.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 cognitive clutter.
+
+106. Synchronized 7-Tier Zoom Scaling Architecture & Bidirectional Cross-Component Reactivity Rule:
+- Architecture & Root Cause:
+  1. Header & Settings Desynchronization:
+     - Learned lesson: `TextScaleDropdown.jsx` maintained isolated local state reading only `app_text_scale` from `localStorage` and was constrained to 3 hardcoded options (`100%`, `110%`, `125%`). Meanwhile, `AppearanceSection.jsx` in the Settings page connected to `settingsStore.js` (`fontSize`) with 4 separate keyword values (`'standard'`, `'medium'`, `'large'`, `'xl'`). This caused state divergence where the top navbar showed `125%` while the settings page showed `Extra Large — 140%`.
+  2. Solution & 7-Tier Canonical Scaling:
+     - In `client/src/stores/settingsStore.js`, established single source of truth `ZOOM_OPTIONS` providing exactly 7 synchronized zoom tiers:
+       1. `75%` (Compact) — `75% (12px base)`, multiplier: `0.75`
+       2. `90%` (Small) — `90% (14.4px base)`, multiplier: `0.9`
+       3. `100%` (Standard) — `100% (16px base)`, multiplier: `1.0` (Default)
+       4. `110%` (Medium) — `110% (17.6px base)`, multiplier: `1.1`
+       5. `125%` (Large) — `125% (20px base)`, multiplier: `1.25`
+       6. `140%` (Extra Large) — `140% (22.4px base)`, multiplier: `1.4` (Dr. Aribe requirement)
+       7. `150%` (Maximum) — `150% (24px base)`, multiplier: `1.5`
+     - Added bidirectional mapper `resolveZoomOption(input)` and centralized `applyZoom(input)`:
+       - Sets `document.documentElement.style.fontSize = `${opt.multiplier * 16}px``.
+       - Sets CSS variable `--font-size-multiplier` to `${opt.multiplier}`.
+       - Sets/removes `data-font-size` attribute on `<html>`.
+       - Persists to `localStorage` under `app_text_scale`, `cms-font-size`, and `cms-zoom-level`.
+       - Updates both `fontSize` and `zoomLevel` reactively in Zustand.
+     - Updated `client/src/index.css` with CSS rules for all 7 levels (`compact/75`, `small/90`, `standard/100`, `medium/110`, `large/125`, `xl/140`, `max/150`).
+     - Refactored `TextScaleDropdown.jsx` and `AppearanceSection.jsx` to subscribe to `useSettingsStore` and map through `ZOOM_OPTIONS`, achieving 100% immediate bidirectional synchronization.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Typography and root zoom adjustments must NEVER use fragmented component-level states or diverging storage keys. Always use a centralized Zustand store (`settingsStore.js`) and canonical `ZOOM_OPTIONS`.
+  2. Prevention rule: Any zoom adjustment must update both the rem root base (`document.documentElement.style.fontSize`) and the CSS custom property token (`--font-size-multiplier`) so all scalable layouts adapt in real time without layout shifts.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/components/TextScaleDropdown.test.jsx src/components/settings/AppearanceSection.test.jsx`.
+     - Checklist: Run Playwright visual audit `node scratch/audit_zoom_synchronization.mjs` verifying that changing zoom in the Settings page immediately updates the Header dropdown, and changing the Header dropdown immediately updates the Settings page across desktop (1440x900) and mobile (390x844) viewports in both light and dark modes.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`), 60/60 agentic validation checks (`npm run validate:agentic`), and pristine workspace cleanliness.
+  4. Evidence & Verification passed:
+     - Targeted tests: `TextScaleDropdown.test.jsx` (5/5 passed in 230ms), `AppearanceSection.test.jsx` (4/4 passed in 387ms) — 9/9 passed with zero errors.
+     - Playwright visual audit: 4 screenshots verified in `scratch/screenshots/` (`settings_zoom_sync_desktop_light.png`, `settings_zoom_sync_desktop_dark.png`, `settings_zoom_sync_mobile_light.png`, `settings_zoom_sync_mobile_dark.png`) confirming 100% bidirectional sync (both show 140%, both show 110%, both show 125%) across desktop and mobile in both themes.
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 cognitive clutter.
+
+
+

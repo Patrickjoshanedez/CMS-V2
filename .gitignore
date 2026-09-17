@@ -62,6 +62,7 @@ exhaustive_audit_screenshots/
 scratch/screenshots/
 screenshots/
 /*.pdf
+*.pptx
 server/test-*.txt
 server/test-*.json
 server/vitest-results.json

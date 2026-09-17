@@ -1,18 +1,13 @@
 import { Label } from '@/components/ui/Label';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore, ZOOM_OPTIONS } from '@/stores/settingsStore';
 import { Palette } from 'lucide-react';
 import { SettingSection } from './SettingsShared';
 import ThemeSelector from './ThemeSelector';
 
 export default function AppearanceSection() {
-  const { fontSize, setFontSize, highContrast, setHighContrast } = useSettingsStore();
+  const { zoomLevel, setZoomLevel, highContrast, setHighContrast } = useSettingsStore();
 
-  const fontOptions = [
-    { value: 'standard', label: 'Standard', desc: '100% (16px base)' },
-    { value: 'medium', label: 'Medium', desc: '110% (17.6px base)' },
-    { value: 'large', label: 'Large', desc: '125% (20px base)' },
-    { value: 'xl', label: 'Extra Large', desc: '140% (22.4px base)' },
-  ];
+  const currentOption = ZOOM_OPTIONS.find((opt) => opt.value === zoomLevel) || ZOOM_OPTIONS[2];
 
   return (
     <SettingSection
@@ -56,19 +51,17 @@ export default function AppearanceSection() {
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             <select
               id="font-size-select"
-              value={fontSize}
-              onChange={(e) => setFontSize(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary sm:max-w-[220px]"
+              value={zoomLevel}
+              onChange={(e) => setZoomLevel(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary sm:max-w-[240px]"
             >
-              {fontOptions.map((opt) => (
+              {ZOOM_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label} — {opt.desc}
+                  {opt.label} — {opt.scale}
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">
-              {fontOptions.find((o) => o.value === fontSize)?.desc ?? ''}
-            </p>
+            <p className="text-xs text-muted-foreground">{currentOption.desc}</p>
           </div>
         </div>
       </div>

@@ -122,10 +122,22 @@ describe('TitleApprovalPage', () => {
     });
 
     expect(container.textContent).toContain('Capstone Title Proposals & Committee Approval');
+    expect(container.textContent).toContain('Appointed Defense Committee & Institutional Roster');
     expect(container.textContent).toContain('Candidate Capstone Titles Proposed by Team (2)');
     expect(container.textContent).toContain('Smart Campus Emergency Dispatch System');
     expect(container.textContent).toContain('AI Curriculum Analytics Platform');
     expect(container.textContent).toContain('Under Committee Review');
+
+    // Assert Defense Committee Roster is positioned ABOVE Candidate Proposals
+    const committeeIdx = container.textContent.indexOf(
+      'Appointed Defense Committee & Institutional Roster',
+    );
+    const candidateIdx = container.textContent.indexOf(
+      'Candidate Capstone Titles Proposed by Team',
+    );
+    expect(committeeIdx).toBeGreaterThan(-1);
+    expect(candidateIdx).toBeGreaterThan(-1);
+    expect(committeeIdx).toBeLessThan(candidateIdx);
   });
 
   it('reveals proposal blueprint details and committee comments for Proposal 1', async () => {

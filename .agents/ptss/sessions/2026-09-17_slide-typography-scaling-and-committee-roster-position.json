@@ -1,0 +1,19 @@
+{
+  "session_id": "2026-09-17_slide-typography-scaling-and-committee-roster-position",
+  "timestamp": "2026-09-17T15:38:00.000Z",
+  "status": "completed",
+  "task": "Enlarge slide typography and reposition Appointed Defense Committee & Institutional Roster card above Candidate Capstone Titles",
+  "changes": {
+    "TitleApprovalPage.jsx": "Moved Appointed Defense Committee & Institutional Roster card from the page bottom to sit directly below the Capstone 1 Title Defense Progression Stepper / Approved Banner, positioned above Candidate Capstone Titles Proposed by Team.",
+    "exportPptx.js": "Replaced small 11-13pt font calculation with dynamic presentation-grade typography scaling (getScaledTypography returning 24pt for <=2 bullets, 22pt for 3 bullets, 19pt for 4 bullets, 17pt for 5 bullets) with lineSpacing: 24-34pt, spaceAfter: 12-28pt, heading fontSize: 34, cover title: 28-40pt, and Slide 7/8 scaled to 16-20pt.",
+    "ProposalSlideCanvas.jsx": "Scaled web slide canvas typography: title text to text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black, content slide header to text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic, and bullet text dynamically scaled up to text-sm sm:text-lg md:text-xl lg:text-2xl with space-y-4 to space-y-8.",
+    "TitleApprovalPage.test.jsx": "Added test assertion verifying Appointed Defense Committee & Institutional Roster appears before Candidate Capstone Titles Proposed by Team."
+  },
+  "verifications": {
+    "targeted_tests": "npm test --workspace=client -- src/pages/projects/TitleApprovalPage.test.jsx src/components/projects/ProposalSlideCanvas.test.jsx (All 7 passed)",
+    "create_project_tests": "npm test --workspace=client -- src/pages/projects/CreateProjectPage.test.jsx (All 19 passed)",
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "playwright_visual_audit": "Executed across desktop (1440x900) and mobile (390x844), light and dark modes with 0 errors"
+  }
+}

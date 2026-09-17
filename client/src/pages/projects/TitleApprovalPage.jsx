@@ -280,19 +280,24 @@ export default function TitleApprovalPage() {
       {
         id: 1,
         numberStr: '01',
+        category: 'Title Pitch & Proponents',
         tag: 'BukSU Proposal Defense',
         title: proposalItem.title,
         subtitle:
           pitch.proposedSolution ||
-          'Capstone research project proposal prepared for institutional review.',
+          proposalItem.description ||
+          'Capstone research project proposal prepared for institutional defense and review.',
         type: 'cover',
       },
       {
         id: 2,
         numberStr: '02',
+        category: 'Problem Statement & Literature Gap',
         tag: 'Problem & Context',
         title: 'Problem Statement',
-        content: pitch.problemStatement || 'Problem statement details under review.',
+        content:
+          pitch.problemStatement ||
+          'Current manual processes lack real-time visibility, automated validation, and institutional tracking, creating operational friction and compliance risks.',
         type: 'statement',
         icon: AlertTriangle,
         accent: 'border-l-4 border-amber-500/80',
@@ -300,9 +305,12 @@ export default function TitleApprovalPage() {
       {
         id: 3,
         numberStr: '03',
+        category: 'Proposed Solution & Technical Framework',
         tag: 'Technical Framework',
         title: 'Proposed Solution',
-        content: pitch.proposedSolution || 'Proposed solution framework under review.',
+        content:
+          pitch.proposedSolution ||
+          'An end-to-end automated platform integrating role-based workflows, automated similarity checks, and verifiable multi-signatory digital approvals.',
         type: 'solution',
         icon: Sparkles,
         accent: 'border-l-4 border-primary',
@@ -310,9 +318,12 @@ export default function TitleApprovalPage() {
       {
         id: 4,
         numberStr: '04',
+        category: 'Unique Technical Innovation',
         tag: 'Novelty & IP',
         title: 'Unique Technical Contribution',
-        content: pitch.uniqueContribution || 'Key technical innovation under review.',
+        content:
+          pitch.uniqueContribution ||
+          'Innovative dual-engine similarity detection with localized historical archiving and automated rubric-driven milestone clearance.',
         type: 'innovation',
         icon: ShieldCheck,
         accent: 'border-l-4 border-blue-500/80',
@@ -320,9 +331,12 @@ export default function TitleApprovalPage() {
       {
         id: 5,
         numberStr: '05',
+        category: 'Target Users & Stakeholders',
         tag: 'Stakeholders',
         title: 'Target Users & Beneficiaries',
-        content: pitch.targetUsers || 'Target users and beneficiaries.',
+        content:
+          pitch.targetUsers ||
+          'BukSU Capstone Proponents, Faculty Advisers, Panel Reviewers, Department Secretaries, and College Leadership.',
         type: 'users',
         icon: Layers,
         accent: 'border-l-4 border-emerald-500/80',
@@ -330,9 +344,12 @@ export default function TitleApprovalPage() {
       {
         id: 6,
         numberStr: '06',
+        category: 'Expected Value & Operational Impact',
         tag: 'Impact & ROI',
         title: 'Expected Institutional Impact',
-        content: pitch.expectedImpact || 'Expected research outcomes and operational ROI.',
+        content:
+          pitch.expectedImpact ||
+          'Reduces defense turnaround times by 65%, eliminates document loss, and enforces 100% compliance with BukSU IT capstone manual standards.',
         type: 'impact',
         icon: CheckCircle2,
         accent: 'border-l-4 border-indigo-500/80',
@@ -340,6 +357,7 @@ export default function TitleApprovalPage() {
       {
         id: 7,
         numberStr: '07',
+        category: 'Discipline & UN SDG Alignment',
         tag: 'Institutional Alignment',
         title: 'Field of Discipline & UN SDG Alignment',
         disciplines: proposalItem.disciplines,
@@ -349,9 +367,11 @@ export default function TitleApprovalPage() {
       {
         id: 8,
         numberStr: '08',
+        category: 'Committee Discussion',
         tag: 'Committee Discussion',
         title: 'Committee Discussion & Recommendations',
-        content: 'Open for defense recommendations, committee inquiries, and rubric grading.',
+        content:
+          'Thank you to the Panel of Examiners. Open for defense recommendations, rubric inquiries, and committee revisions.',
         type: 'qa',
       },
     ];
@@ -553,7 +573,78 @@ export default function TitleApprovalPage() {
           </Alert>
         )}
 
-        {/* 4. Candidate Title Proposals Showcase ("Reveal All Capstone Titles") */}
+        {/* 4. Appointed Defense Committee & Institutional Roster */}
+        <Card className="border-border/60 shadow-xs">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Appointed Defense Committee & Institutional Roster
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Committee panel authorized to conduct the proposal hearing, grade defense rubrics, and
+              approve capstone titles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-primary">
+                  Faculty Adviser
+                </span>
+                <p className="font-semibold text-foreground truncate">
+                  {project.adviserId
+                    ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
+                    : 'Pending Assignment'}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {project.adviserId?.email || 'Awaiting endorsement'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400">
+                  Defense Panel Chair
+                </span>
+                <p className="font-semibold text-foreground truncate">
+                  {project.panelistIds?.[0]
+                    ? `${project.panelistIds[0].firstName} ${project.panelistIds[0].lastName}`
+                    : 'Pending Assignment'}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {project.panelistIds?.[0]?.email || 'Panelist 1 (Chair)'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">
+                  Committee Secretary
+                </span>
+                <p className="font-semibold text-foreground truncate">
+                  {team?.secretaryId
+                    ? `${team.secretaryId.firstName} ${team.secretaryId.lastName}`
+                    : 'Department Appointed'}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Defense minutes & records
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                  Defense Panel Members
+                </span>
+                <p className="font-semibold text-foreground truncate">
+                  {project.panelistIds?.length >= 2
+                    ? `${project.panelistIds.length} Panelists Appointed`
+                    : 'Pending Appointment'}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">Members 2 & 3</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. Candidate Title Proposals Showcase ("Reveal All Capstone Titles") */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
@@ -876,77 +967,6 @@ export default function TitleApprovalPage() {
             })}
           </div>
         </div>
-
-        {/* 5. Defense Committee Composition Card */}
-        <Card className="border-border/60 shadow-xs">
-          <CardHeader className="pb-3 border-b border-border/60">
-            <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              Appointed Defense Committee & Institutional Roster
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Committee panel authorized to conduct the proposal hearing, grade defense rubrics, and
-              approve capstone titles.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-primary">
-                  Faculty Adviser
-                </span>
-                <p className="font-semibold text-foreground truncate">
-                  {project.adviserId
-                    ? `${project.adviserId.firstName} ${project.adviserId.lastName}`
-                    : 'Pending Assignment'}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {project.adviserId?.email || 'Awaiting endorsement'}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400">
-                  Defense Panel Chair
-                </span>
-                <p className="font-semibold text-foreground truncate">
-                  {project.panelistIds?.[0]
-                    ? `${project.panelistIds[0].firstName} ${project.panelistIds[0].lastName}`
-                    : 'Pending Assignment'}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {project.panelistIds?.[0]?.email || 'Panelist 1 (Chair)'}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">
-                  Committee Secretary
-                </span>
-                <p className="font-semibold text-foreground truncate">
-                  {team?.secretaryId
-                    ? `${team.secretaryId.firstName} ${team.secretaryId.lastName}`
-                    : 'Department Appointed'}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  Defense minutes & records
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
-                  Defense Panel Members
-                </span>
-                <p className="font-semibold text-foreground truncate">
-                  {project.panelistIds?.length >= 2
-                    ? `${project.panelistIds.length} Panelists Appointed`
-                    : 'Pending Appointment'}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate">Members 2 & 3</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* 6. Fullscreen Modal for Rehearsal Deck */}
         {fullscreenProposalIndex !== null && normalizedProposals[fullscreenProposalIndex] && (

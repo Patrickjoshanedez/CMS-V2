@@ -58,12 +58,12 @@ export default function AuthLayout({ children, title, description, wide = false 
           }}
         />
 
-        {/* Light Mode Gradient Overlay: Architectural Navy wash on left, seamlessly transitioning to frosted Ivory on right */}
+        {/* Light Mode Gradient Overlay: Deep Architectural Navy wash on left column, seamlessly transitioning to frosted Ivory on right */}
         <div
           className="absolute inset-0 block dark:hidden"
           style={{
             background:
-              'linear-gradient(100deg, rgba(7, 19, 41, 0.84) 0%, rgba(11, 27, 61, 0.72) 36%, rgba(15, 30, 60, 0.35) 48%, rgba(241, 245, 249, 0.72) 62%, rgba(248, 250, 252, 0.82) 100%)',
+              'linear-gradient(100deg, rgba(7, 19, 41, 0.96) 0%, rgba(11, 27, 61, 0.92) 48%, rgba(15, 30, 60, 0.65) 54%, rgba(241, 245, 249, 0.90) 60%, rgba(248, 250, 252, 0.98) 100%)',
           }}
         />
         <div
@@ -129,9 +129,9 @@ export default function AuthLayout({ children, title, description, wide = false 
             {/* Form Title & Subtitle */}
             {title && (
               <div className="auth-item mb-6">
-                <div className="hidden lg:flex items-center gap-2 mb-2">
+                <div className="hidden lg:flex items-center gap-2 mb-2.5">
                   <span className="w-2 h-2 rounded-full bg-[#E5A823] shadow-xs shadow-[#E5A823]/50" />
-                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide font-sans">
                     Bukidnon State University · Portal Authentication
                   </span>
                 </div>
@@ -150,7 +150,7 @@ export default function AuthLayout({ children, title, description, wide = false 
           </div>
 
           {/* Institutional Compliance & Archival Tag */}
-          <div className="mt-8 text-center text-xs text-slate-600 dark:text-slate-400 font-mono select-none px-3.5 py-1 rounded-full bg-white/60 dark:bg-transparent backdrop-blur-xs border border-slate-200/50 dark:border-transparent">
+          <div className="mt-8 text-center text-xs text-slate-500 dark:text-slate-400 font-sans select-none tracking-normal">
             Bukidnon State University · College of Technologies Capstone Management System
           </div>
         </div>

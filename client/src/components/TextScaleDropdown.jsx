@@ -1,39 +1,27 @@
-import React, { useState, useEffect } from 'react';
-
-const SCALE_OPTIONS = [
-  { label: '1x (Normal)', scale: '100%', value: '100' },
-  { label: '1.1x (Medium)', scale: '110%', value: '110' },
-  { label: '1.25x (Large)', scale: '125%', value: '125' },
-];
+import React, { useEffect } from 'react';
+import { useSettingsStore, ZOOM_OPTIONS } from '@/stores/settingsStore';
 
 /**
  * TextScaleDropdown
  *
- * Dynamically adjusts root document font sizing across three tiers (1x, 1.1x, 1.25x).
- * Persists user preference in localStorage under 'app_text_scale'.
+ * Dynamically adjusts root document font sizing across 7 synchronized tiers (75% to 150%).
+ * Synchronized bidirectionally with Settings > Appearance and persisted in localStorage.
  */
 export function TextScaleDropdown() {
-  const [scale, setScale] = useState(() => {
-    if (typeof window === 'undefined') return '100';
-    try {
-      return localStorage.getItem('app_text_scale') || '100';
-    } catch {
-      return '100';
-    }
-  });
+  const zoomLevel = useSettingsStore((s) => s.zoomLevel);
+  const setZoomLevel = useSettingsStore((s) => s.setZoomLevel);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const num = parseInt(scale, 10) || 100;
-    // Scales the root document font so all rem-based typography scales together
-    document.documentElement.style.fontSize = `${(num / 100) * 16}px`;
-    document.documentElement.style.setProperty('--font-size-multiplier', `${num / 100}`);
-    try {
-      localStorage.setItem('app_text_scale', scale);
-    } catch {
-      // Ignore localStorage errors in private mode / restricted environments
+    const handleStorage = (e) => {
+      if ((e.key === 'app_text_scale' || e.key === 'cms-zoom-level') && e.newValue) {
+        setZoomLevel(e.newValue);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorage);
+      return () => window.removeEventListener('storage', handleStorage);
     }
-  }, [scale]);
+  }, [setZoomLevel]);
 
   return (
     <div className="relative inline-flex items-center">
@@ -42,12 +30,12 @@ export function TextScaleDropdown() {
           T
         </span>
         <select
-          value={scale}
-          onChange={(e) => setScale(e.target.value)}
+          value={zoomLevel}
+          onChange={(e) => setZoomLevel(e.target.value)}
           className="bg-transparent text-xs font-medium text-slate-700 dark:text-slate-200 outline-none cursor-pointer pr-1"
           aria-label="Adjust text scaling"
         >
-          {SCALE_OPTIONS.map((opt) => (
+          {ZOOM_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}

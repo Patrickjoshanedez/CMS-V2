@@ -1,0 +1,38 @@
+{
+  "sessionId": "2026-09-17_proposal-slide-population-and-pptx-a4-format",
+  "task": "Fix empty slide preview in proposal defense slide deck and set presentation export format to PPTX in A4 landscape",
+  "timestamp": "2026-09-17T15:20:00.000Z",
+  "status": "completed",
+  "rootCauseAnalysis": {
+    "slidePreviewEmpty": "In client/src/index.css, .dark [class*='text-slate-'] was globally inverting text colors to #ffffff. Because ProposalSlideCanvas uses a white canvas (bg-white), the top slide header (text-slate-900) and bullet point items (text-slate-800) were converted to pure white text (#ffffff) on a pure white background, making the slide appear empty except for the bullet marker dots. Additionally, empty or blank bullet strings (e.g. '•\\n•\\n•') in proposal drafts lacked institutional fallback population.",
+    "exportPptxLayout": "The PowerPoint exporter previously used 16:9 widescreen layout (LAYOUT_16x9). The user explicitly required standard A4 dimensions (11.69\" x 8.27\" / 297mm x 210mm)."
+  },
+  "changesMade": [
+    {
+      "file": "client/src/index.css",
+      "action": "Inoculated [data-slide-canvas] from dark mode text inversion so headings and body list items remain pitch-dark (#0f172a / #1e293b) on the white slide canvas."
+    },
+    {
+      "file": "client/src/components/projects/ProposalSlideCanvas.jsx",
+      "action": "Added data-slide-canvas='content'/'cover' attribute, explicit inline color styles (#0f172a, #1e293b), cleaned up formatToBullets to strip empty bullet symbols, and added SLIDE_FALLBACKS for rich institutional defaults."
+    },
+    {
+      "file": "client/src/pages/projects/TitleApprovalPage.jsx",
+      "action": "Updated renderSlides to include explicit category attributes and rich default proposal content for all 8 slides."
+    },
+    {
+      "file": "client/src/utils/exportPptx.js",
+      "action": "Configured default layout to A4 Landscape (11.69\" x 8.27\"), scaled coordinates, font sizes, columns, and footer ribbon to A4 standard, and added fallback bullet population to prevent empty exported slides."
+    },
+    {
+      "file": "client/src/components/projects/ProposalSlideCanvas.test.jsx",
+      "action": "Added automated Vitest suite asserting bullet fallback hydration, contrast preservation, and A4 PPTX file generation."
+    }
+  ],
+  "verification": {
+    "targetedVitest": "All 19 tests in CreateProjectPage.test.jsx, 4 tests in TitleApprovalPage.test.jsx, and 3 tests in ProposalSlideCanvas.test.jsx passed with 0 errors.",
+    "endpointParity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agenticGovernance": "60/60 checks passed",
+    "workspaceGuardrail": "Pristine workspace"
+  }
+}

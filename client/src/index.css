@@ -139,14 +139,33 @@ input::-webkit-credentials-auto-fill-button {
   }
 }
 
-html[data-font-size='medium'] {
+html[data-font-size='compact'],
+html[data-font-size='75'] {
+  --font-size-multiplier: 0.75;
+}
+html[data-font-size='small'],
+html[data-font-size='90'] {
+  --font-size-multiplier: 0.9;
+}
+html[data-font-size='standard'],
+html[data-font-size='100'] {
+  --font-size-multiplier: 1;
+}
+html[data-font-size='medium'],
+html[data-font-size='110'] {
   --font-size-multiplier: 1.1;
 }
-html[data-font-size='large'] {
+html[data-font-size='large'],
+html[data-font-size='125'] {
   --font-size-multiplier: 1.25;
 }
-html[data-font-size='xl'] {
+html[data-font-size='xl'],
+html[data-font-size='140'] {
   --font-size-multiplier: 1.4;
+}
+html[data-font-size='max'],
+html[data-font-size='150'] {
+  --font-size-multiplier: 1.5;
 }
 
 html[data-high-contrast='true'] {
@@ -263,14 +282,54 @@ html.dark[data-high-contrast='true'] {
   }
 
   /* Pure black text for text-muted-foreground and gray/slate text in light mode */
-  :root:not(.dark) .text-muted-foreground,
-  :root:not(.dark) .text-secondary,
-  :root:not(.dark) .text-text-secondary,
-  :root:not(.dark) [class*='text-slate-'],
-  :root:not(.dark) [class*='text-gray-'],
-  :root:not(.dark) [class*='text-zinc-'],
-  :root:not(.dark) [class*='text-neutral-'] {
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) .text-muted-foreground,
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) .text-secondary,
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) .text-text-secondary,
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) [class*='text-slate-'],
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) [class*='text-gray-'],
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) [class*='text-zinc-'],
+  :root:not(.dark) :not([data-dark-surface], [data-dark-surface] *) [class*='text-neutral-'] {
     color: #000000;
+  }
+
+  /* Inoculate dark architectural surfaces in light mode from pure-black text destruction */
+  :root:not(.dark) [data-dark-surface],
+  :root:not(.dark) [data-dark-surface] * {
+    color-scheme: dark;
+  }
+  :root:not(.dark) [data-dark-surface] .text-white,
+  :root:not(.dark) [data-dark-surface] [class*='text-white'],
+  :root:not(.dark) [data-dark-surface].text-white {
+    color: #ffffff !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-slate-100,
+  :root:not(.dark) [data-dark-surface] [class*='text-slate-100'],
+  :root:not(.dark) [data-dark-surface].text-slate-100 {
+    color: #f1f5f9 !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-slate-200,
+  :root:not(.dark) [data-dark-surface] [class*='text-slate-200'],
+  :root:not(.dark) [data-dark-surface].text-slate-200 {
+    color: #e2e8f0 !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-slate-300,
+  :root:not(.dark) [data-dark-surface] [class*='text-slate-300'],
+  :root:not(.dark) [data-dark-surface].text-slate-300 {
+    color: #cbd5e1 !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-slate-400,
+  :root:not(.dark) [data-dark-surface] [class*='text-slate-400'],
+  :root:not(.dark) [data-dark-surface].text-slate-400 {
+    color: #94a3b8 !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-slate-500,
+  :root:not(.dark) [data-dark-surface] [class*='text-slate-500'],
+  :root:not(.dark) [data-dark-surface].text-slate-500 {
+    color: #64748b !important;
+  }
+  :root:not(.dark) [data-dark-surface] .text-muted-foreground,
+  :root:not(.dark) [data-dark-surface] [class*='text-muted-foreground'] {
+    color: #94a3b8 !important;
   }
 
   /* Pure white text for text-muted-foreground and gray/slate text in dark mode */
@@ -286,6 +345,33 @@ html.dark[data-high-contrast='true'] {
   .dark [class*='dark:text-zinc-'],
   .dark [class*='dark:text-neutral-'] {
     color: #ffffff;
+  }
+
+  /* Inoculate white institutional presentation slide canvas from dark mode inversion */
+  .dark [data-slide-canvas],
+  .dark [data-slide-canvas] h1,
+  .dark [data-slide-canvas] h2,
+  .dark [data-slide-canvas] h3,
+  .dark [data-slide-canvas] p,
+  .dark [data-slide-canvas] span,
+  .dark [data-slide-canvas] li,
+  .dark [data-slide-canvas] ul,
+  .dark [data-slide-canvas] [class*='text-slate-'],
+  .dark [data-slide-canvas] [class*='text-gray-'],
+  .dark [data-slide-canvas] [class*='text-zinc-'],
+  .dark [data-slide-canvas] [class*='text-neutral-'] {
+    color: #0f172a !important;
+  }
+
+  /* Keep cover slide text color intact */
+  .dark [data-slide-canvas='cover'] h1 {
+    color: #ffa726 !important;
+  }
+
+  /* Keep orange footer ribbon text crisp and dark */
+  .dark [data-slide-canvas] [data-slide-footer],
+  .dark [data-slide-canvas] [data-slide-footer] * {
+    color: #000000 !important;
   }
 
   /* Floating label autofill & placeholder-shown bulletproofing */
