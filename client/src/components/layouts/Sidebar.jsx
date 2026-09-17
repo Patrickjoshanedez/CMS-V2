@@ -313,8 +313,8 @@ function SidebarNavItem({ item, active, collapsed }) {
         onMouseLeave={handleHide}
         onMouseOut={handleHide}
         onBlur={handleHide}
-        className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
-          collapsed ? 'justify-center' : ''
+        className={`relative w-full min-h-[2.5rem] flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+          collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
         } ${
           active
             ? 'text-blue-700 dark:text-blue-400 font-semibold shadow-2xs'
@@ -333,14 +333,17 @@ function SidebarNavItem({ item, active, collapsed }) {
 
         {/* Leading Icon */}
         <Icon
-          className={`w-4 h-4 relative z-10 transition-transform duration-200 flex-shrink-0 group-hover:scale-110 ${
+          className={`w-4 h-4 relative z-10 transition-transform duration-200 shrink-0 group-hover:scale-110 ${
             active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
           }`}
         />
 
         {/* Label Text (hidden when collapsed) */}
         {!collapsed && (
-          <span className="relative z-10 truncate tracking-tight transition-transform duration-150 group-hover:translate-x-0.5">
+          <span
+            className="relative z-10 flex-1 min-w-0 truncate tracking-tight transition-transform duration-150 group-hover:translate-x-0.5"
+            title={item.label}
+          >
             {item.label}
           </span>
         )}
@@ -348,7 +351,7 @@ function SidebarNavItem({ item, active, collapsed }) {
         {/* Trailing Status Badges */}
         {!collapsed && item.badge !== undefined && (
           <span
-            className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md ${
+            className={`relative z-10 ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
               item.badgeVariant === 'warning'
                 ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
                 : item.badgeVariant === 'success'
@@ -429,7 +432,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
           onMouseLeave={handleHide}
           onMouseOut={handleHide}
           onBlur={handleHide}
-          className={`relative w-full min-h-[2.5rem] flex items-center justify-center px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+          className={`relative w-full min-h-[2.5rem] flex items-center justify-center px-0 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
             isChildActive
               ? 'text-blue-700 dark:text-blue-400 font-semibold'
               : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
@@ -438,7 +441,7 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
           {isChildActive && (
             <div className="absolute inset-0 bg-blue-100/70 border border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/60 rounded-lg pointer-events-none shadow-2xs" />
           )}
-          <Icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover:scale-110 text-slate-500 dark:text-slate-400" />
+          <Icon className="w-4 h-4 relative z-10 transition-transform duration-200 group-hover:scale-110 text-slate-500 dark:text-slate-400 shrink-0" />
         </Link>
 
         {coords &&
@@ -463,15 +466,17 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
+        className={`relative w-full min-h-[2.5rem] flex items-center min-w-0 gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group outline-none select-none ${
           isChildActive
             ? 'text-blue-700 dark:text-blue-400 font-semibold'
             : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100'
         }`}
         aria-expanded={open}
       >
-        <Icon className="w-4 h-4 transition-transform duration-200 flex-shrink-0 group-hover:scale-110" />
-        <span className="flex-1 truncate text-left tracking-tight">{item.label}</span>
+        <Icon className="w-4 h-4 transition-transform duration-200 shrink-0 group-hover:scale-110" />
+        <span className="flex-1 min-w-0 truncate text-left tracking-tight" title={item.label}>
+          {item.label}
+        </span>
         <ChevronDown
           className={`h-3.5 w-3.5 shrink-0 transition-transform duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             open ? 'rotate-0' : '-rotate-90'
@@ -602,43 +607,49 @@ export function Sidebar({ open = true, onToggle }) {
 
   return (
     <aside
-      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-700 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 ${
+      className={`relative flex flex-col justify-between h-screen bg-slate-50 border-r border-slate-700 dark:bg-[#080d1a] dark:border-slate-800 transition-[width] duration-300 ease-in-out select-none shrink-0 z-30 overflow-hidden ${
         collapsed
-          ? 'hidden md:flex w-[76px]'
-          : 'fixed inset-y-0 left-0 z-50 w-[260px] md:relative shadow-2xl md:shadow-none'
+          ? 'hidden md:flex w-20 min-w-[5rem]'
+          : 'fixed inset-y-0 left-0 z-50 w-72 min-w-[16.5rem] max-w-[85vw] md:max-w-[21rem] md:relative shadow-2xl md:shadow-none'
       }`}
     >
       {/* 1. Header & Collapse Toggle */}
-      <div className="px-3.5 py-3 flex items-center justify-between border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem] gap-2">
-        <div
-          className={`flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden transition-all duration-300 ${
-            collapsed ? 'opacity-0 w-0 pointer-events-none' : 'opacity-100'
-          }`}
-        >
-          <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
-            <GraduationCap className="h-4 w-4 text-[#E5A823]" />
-          </div>
-          <div className="flex flex-col min-w-0 pr-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none truncate">
-                BukSU CMS
-              </span>
-              <span className="px-1 py-0.5 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded shrink-0">
-                COT
+      <div
+        className={`py-3 flex items-center border-b border-slate-700 dark:border-slate-800/80 min-h-[4rem] transition-all duration-300 ${
+          collapsed ? 'justify-center px-2' : 'justify-between px-3.5 gap-2'
+        }`}
+      >
+        {!collapsed && (
+          <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-[#1A448A] border border-[#E5A823]/40 flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
+              <GraduationCap className="h-4 w-4 text-[#E5A823]" />
+            </div>
+            <div className="flex flex-col min-w-0 pr-1 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none truncate"
+                  title="BukSU CMS"
+                >
+                  BukSU CMS
+                </span>
+                <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-[#E5A823]/20 border border-[#E5A823]/40 text-[#B45309] dark:text-[#E5A823] rounded shrink-0">
+                  COT
+                </span>
+              </div>
+              <span
+                className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-1 truncate"
+                title="Capstone Studio"
+              >
+                Capstone Studio
               </span>
             </div>
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5 truncate">
-              Capstone Studio
-            </span>
           </div>
-        </div>
+        )}
 
         <button
           type="button"
           onClick={onToggle}
-          className={`p-1.5 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 ${
-            collapsed ? 'mx-auto' : ''
-          }`}
+          className="p-2 rounded-lg border border-slate-700 bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors shrink-0 flex items-center justify-center"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -649,11 +660,15 @@ export function Sidebar({ open = true, onToggle }) {
       </div>
 
       {/* 2. Navigation Content */}
-      <nav className="relative flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+      <nav
+        className={`relative flex-1 py-4 min-h-0 overflow-y-auto overflow-x-hidden ${
+          collapsed ? 'px-2 space-y-3' : 'px-3 space-y-5'
+        }`}
+      >
         {/* Workspace Section */}
         <div className="space-y-1">
           {!collapsed && (
-            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase truncate">
               Workspace
             </p>
           )}
@@ -681,7 +696,7 @@ export function Sidebar({ open = true, onToggle }) {
         {/* Tools Section */}
         <div className="pt-3 border-t border-slate-700 dark:border-slate-800 space-y-1">
           {!collapsed && (
-            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase truncate">
               Evaluation
             </p>
           )}
@@ -708,7 +723,11 @@ export function Sidebar({ open = true, onToggle }) {
       </nav>
 
       {/* 3. Footer Actions */}
-      <div className="p-3 border-t border-slate-700 dark:border-slate-800 space-y-1">
+      <div
+        className={`border-t border-slate-700 dark:border-slate-800 space-y-1 shrink-0 ${
+          collapsed ? 'p-2' : 'p-3'
+        }`}
+      >
         {systemItems.map((item) => (
           <SidebarNavItem
             key={item.id}
@@ -726,7 +745,7 @@ export function Sidebar({ open = true, onToggle }) {
             const rect = e.currentTarget.getBoundingClientRect();
             setSignOutCoords({
               top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 76) + 10,
+              left: (rect.right || 80) + 10,
             });
           }}
           onMouseOver={(e) => {
@@ -734,7 +753,7 @@ export function Sidebar({ open = true, onToggle }) {
             const rect = e.currentTarget.getBoundingClientRect();
             setSignOutCoords({
               top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 76) + 10,
+              left: (rect.right || 80) + 10,
             });
           }}
           onFocus={(e) => {
@@ -742,19 +761,26 @@ export function Sidebar({ open = true, onToggle }) {
             const rect = e.currentTarget.getBoundingClientRect();
             setSignOutCoords({
               top: (rect.top || 0) + (rect.height || 40) / 2,
-              left: (rect.right || 76) + 10,
+              left: (rect.right || 80) + 10,
             });
           }}
           onMouseLeave={() => setSignOutCoords(null)}
           onBlur={() => setSignOutCoords(null)}
-          className={`relative w-full min-h-[2.5rem] flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none ${
-            collapsed ? 'justify-center' : ''
+          className={`relative w-full min-h-[2.5rem] flex items-center px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-all group outline-none select-none ${
+            collapsed ? 'justify-center px-0' : 'gap-3 min-w-0'
           }`}
           title={collapsed ? 'Sign out' : undefined}
           aria-label="Sign out"
         >
-          <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 flex-shrink-0" />
-          {!collapsed && <span className="text-xs font-semibold">Sign out</span>}
+          <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5 shrink-0" />
+          {!collapsed && (
+            <span
+              className="text-xs font-semibold truncate min-w-0 flex-1 text-left"
+              title="Sign out"
+            >
+              Sign out
+            </span>
+          )}
         </button>
       </div>
 

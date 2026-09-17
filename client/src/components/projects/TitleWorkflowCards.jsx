@@ -445,6 +445,7 @@ export function PanelistsPendingCard() {
 
 /* ── TitlePendingCard ── */
 export function TitlePendingCard({ titleStatus }) {
+  const navigate = useNavigate();
   const configs = {
     [TITLE_STATUSES.DRAFT]: {
       icon: Edit3,
@@ -505,15 +506,27 @@ export function TitlePendingCard({ titleStatus }) {
     <Card className={config.bgClass}>
       <CardContent className="flex items-start gap-3 pt-6">
         <IconComponent className={`mt-0.5 h-5 w-5 shrink-0 ${config.iconClass}`} />
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1 min-w-0">
           <p className={`text-sm font-semibold ${config.textClass}`}>{config.title}</p>
           <p className={`text-sm ${config.descClass}`}>{config.description}</p>
           {titleStatus !== TITLE_STATUSES.APPROVED && (
-            <div className="mt-3 flex items-center gap-2 rounded-md bg-white/60 dark:bg-black/20 px-3 py-2">
-              <Lock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                Chapter submissions are locked until your title is approved.
-              </span>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-white/60 dark:bg-black/20 p-2.5 border border-border/40">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground">
+                  Chapter submissions are locked until your title is approved.
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/project/approval')}
+                className="gap-1.5 text-xs h-7 border-border/80 bg-background/80 hover:bg-background shrink-0 font-medium"
+              >
+                <Eye className="h-3.5 w-3.5 text-primary" />
+                Open Title Approval Studio
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           )}
         </div>

@@ -139,9 +139,10 @@ const SUBMISSION_NOTIFICATION_TYPES = new Set([
 
 const TAB_BY_DEFENSE = {
   proposal: 'capstone_1',
+  progress: 'capstone_2',
   midterm: 'capstone_2',
   paper: 'capstone_3',
-  final: 'capstone_4',
+  final: 'capstone_3',
 };
 
 function getNotificationTarget(notification, role) {
@@ -195,7 +196,7 @@ function getNotificationTarget(notification, role) {
   }
 
   if (notification.type === 'certificate_uploaded' || notification.type === 'project_archived') {
-    return '/project?tab=capstone_4';
+    return '/project?tab=capstone_3';
   }
 
   if (role !== ROLES.STUDENT && projectId) {

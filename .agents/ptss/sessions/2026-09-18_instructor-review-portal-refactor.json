@@ -1,0 +1,25 @@
+{
+  "sessionId": "2026-09-18_instructor-review-portal-refactor",
+  "timestamp": "2026-09-18T06:18:00.000Z",
+  "task": "Instructor Review UI/UX Refactor & Workflow Task Category Filtering",
+  "role": "Senior Frontend & Full-Stack Architect (BukSU CMS-V2)",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "status": "completed",
+  "summary": "Refactored the outdated Instructor Review portal (/projects) into a modern BukSU Evaluation Studio. Replaced flat, uncontextual status buttons with an actionable workflow queue (Needs Action, All Capstones, Phase 1 Title Defense, Phase 2 Manuscripts, Phase 3 System Dev, Phase 4 Final Defense). Added an Executive KPI metric strip with live counts, left attention accent strips for projects awaiting deliberation, sanitized team names against prefix duplication, and contextual primary action buttons.",
+  "filesModified": [
+    "server/modules/projects/project.validation.js",
+    "server/modules/projects/project.service.js",
+    "client/src/pages/projects/ProjectsPage.jsx",
+    "client/src/pages/projects/ProjectsPage.test.jsx",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    ".agents/ptss/chat-starter.json"
+  ],
+  "verification": {
+    "clientTests": "4/4 passed (ProjectsPage.test.jsx)",
+    "serverTests": "72/72 passed (projects.test.js)",
+    "endpointParity": "SERVER=204, CLIENT=182, UNMATCHED=0",
+    "agenticGovernance": "60/60 checks passed",
+    "playwrightVisualAudit": "12 screenshots captured and verified across desktop (1440x900) and mobile (390x844) in light and dark modes",
+    "workspaceCleanliness": "Pristine, 0 clutter"
+  }
+}

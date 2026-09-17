@@ -193,4 +193,99 @@ describe('Action Done Matrix Auto-Progression to Capstone 3 Suite', () => {
       expect.objectContaining({ capstonePhase: 3, capstoneCourse: 'Capstone 3' }),
     );
   });
+
+  it('automatically advances project from Capstone 1 to Capstone 2 once Secretary, Adviser, and Chair sign ADM v1', async () => {
+    mockProject.capstonePhase = 1;
+    mockProject.capstoneCourse = 'Capstone 1';
+    mockProject.admSignatures.secretary.endorsed = true;
+    mockProject.admSignatures.secretary.signatoryName = 'Prof. Mary Secretary';
+
+    const next = vi.fn((err) => {
+      if (err) throw err;
+    });
+
+    // Adviser signs Tier 1
+    const reqAdviser = {
+      params: { projectId },
+      body: { tier: 1, role: 'adviser', signatoryName: 'Dr. Alan Adviser' },
+      user: {
+        _id: adviserId,
+        role: ROLES.ADVISER,
+        firstName: 'Alan',
+        lastName: 'Adviser',
+      },
+    };
+    const resAdviser = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await signTieredADM(reqAdviser, resAdviser, next);
+
+    expect(resAdviser.status).toHaveBeenCalledWith(200);
+    expect(mockProject.capstonePhase).toBe(1);
+
+    // Chair signs Tier 3
+    const reqChair = {
+      params: { projectId },
+      body: { tier: 3, role: 'chair', signatoryName: 'Dr. John Chair' },
+      user: {
+        _id: chairId,
+        role: ROLES.FACULTY,
+        firstName: 'John',
+        lastName: 'Chair',
+      },
+    };
+    const resChair = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await signTieredADM(reqChair, resChair, next);
+
+    expect(resChair.status).toHaveBeenCalledWith(200);
+
+    // AUTOMATIC ADVANCEMENT TO CAPSTONE 2!
+    expect(mockProject.admStatus).toBe('approved');
+    expect(mockProject.capstonePhase).toBe(2);
+    expect(mockProject.capstoneCourse).toBe('Capstone 2');
+  });
+
+  it('ratifies ADM v3 in Capstone 3 without advancing beyond Phase 3', async () => {
+    mockProject.capstonePhase = 3;
+    mockProject.capstoneCourse = 'Capstone 3';
+    mockProject.admSignatures.secretary.endorsed = true;
+    mockProject.admSignatures.secretary.signatoryName = 'Prof. Mary Secretary';
+
+    const next = vi.fn((err) => {
+      if (err) throw err;
+    });
+
+    // Adviser signs Tier 1
+    const reqAdviser = {
+      params: { projectId },
+      body: { tier: 1, role: 'adviser', signatoryName: 'Dr. Alan Adviser' },
+      user: {
+        _id: adviserId,
+        role: ROLES.ADVISER,
+        firstName: 'Alan',
+        lastName: 'Adviser',
+      },
+    };
+    const resAdviser = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await signTieredADM(reqAdviser, resAdviser, next);
+
+    // Chair signs Tier 3
+    const reqChair = {
+      params: { projectId },
+      body: { tier: 3, role: 'chair', signatoryName: 'Dr. John Chair' },
+      user: {
+        _id: chairId,
+        role: ROLES.FACULTY,
+        firstName: 'John',
+        lastName: 'Chair',
+      },
+    };
+    const resChair = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await signTieredADM(reqChair, resChair, next);
+
+    expect(resChair.status).toHaveBeenCalledWith(200);
+
+    // ADM is approved and ready for archival, phase remains 3
+    expect(mockProject.admStatus).toBe('approved');
+    expect(mockProject.capstonePhase).toBe(3);
+    expect(mockProject.capstoneCourse).toBe('Capstone 3');
+  });
 });

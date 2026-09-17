@@ -416,12 +416,13 @@ class DefenseMinutesService {
     if (!project) throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
 
     const milestoneMap = {
-      [DEFENSE_TYPES.PROPOSAL]: 'CAPSTONE_2',
-      [DEFENSE_TYPES.MIDTERM]: 'CAPSTONE_3',
+      [DEFENSE_TYPES.PROPOSAL]: 'CAPSTONE_1',
+      [DEFENSE_TYPES.PROGRESS]: 'CAPSTONE_2',
+      [DEFENSE_TYPES.MIDTERM]: 'CAPSTONE_2',
       [DEFENSE_TYPES.PAPER]: 'CAPSTONE_3',
-      [DEFENSE_TYPES.FINAL]: 'CAPSTONE_4',
+      [DEFENSE_TYPES.FINAL]: 'CAPSTONE_3',
     };
-    const milestone = milestoneMap[defenseType] || 'CAPSTONE_2';
+    const milestone = milestoneMap[defenseType] || 'CAPSTONE_1';
 
     const newRows = (minutes.entries || []).map((entry) => ({
       panelName: entry.isClient

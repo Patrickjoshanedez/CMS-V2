@@ -27,6 +27,7 @@ import {
   Award,
   RefreshCw,
   MessageSquare,
+  Lock,
 } from 'lucide-react';
 import { useMyProject } from '@/hooks/useProjects';
 import { useMyTeam } from '@/hooks/useTeams';
@@ -36,6 +37,8 @@ import EmptyProjectState from '@/components/projects/EmptyProjectState';
 import { TITLE_STATUSES } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
+import ProposalRehearsalModal from '@/components/projects/ProposalRehearsalModal';
+import { usePresentationEditorStore } from '@/stores/presentationEditorStore';
 import { projectService } from '@/services/authService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -147,6 +150,9 @@ export default function TitleApprovalPage() {
   const [fullscreenProposalIndex, setFullscreenProposalIndex] = useState(null);
   const [exportingPptxIndex, setExportingPptxIndex] = useState(null);
   const [exportingPdfIndex, setExportingPdfIndex] = useState(null);
+
+  // Persistent presentation edits from rehearsal editor
+  const allDeckEdits = usePresentationEditorStore((s) => s.deckEdits);
 
   const toggleProposalExpansion = (index) => {
     setExpandedProposals((prev) => ({
@@ -405,6 +411,56 @@ export default function TitleApprovalPage() {
 
   const isApproved = project.titleStatus === TITLE_STATUSES.APPROVED;
   const isSubmitted = project.titleStatus === TITLE_STATUSES.SUBMITTED;
+  const defenseStage = isApproved ? 4 : isSubmitted ? 3 : normalizedProposals.length > 0 ? 2 : 1;
+  const defenseProgressPercent = isApproved
+    ? 100
+    : isSubmitted
+      ? 75
+      : normalizedProposals.length > 0
+        ? 50
+        : 25;
+  const currentStageLabel = isApproved
+    ? 'Stage 4: Title Approval (Approved)'
+    : isSubmitted
+      ? 'Stage 3: Committee Defense (Deliberation)'
+      : normalizedProposals.length > 0
+        ? 'Stage 2: Similarity Pre-Scan'
+        : 'Stage 1: Proposals Submitted';
+
+  const defenseSteps = [
+    {
+      id: 1,
+      name: '1. Proposals Submitted',
+      description: `${normalizedProposals.length} candidate proposal${normalizedProposals.length === 1 ? '' : 's'} logged`,
+      icon: CheckCircle2,
+      status: 'completed',
+    },
+    {
+      id: 2,
+      name: '2. Similarity Pre-Scan',
+      description: 'Archive cross-check passed',
+      icon: ShieldCheck,
+      status: defenseStage >= 2 ? 'completed' : 'pending',
+    },
+    {
+      id: 3,
+      name: '3. Committee Defense',
+      description: isApproved
+        ? 'Defense hearing approved'
+        : isSubmitted
+          ? 'Deliberation in progress'
+          : 'Awaiting hearing schedule',
+      icon: Clock,
+      status: isApproved ? 'completed' : isSubmitted ? 'current' : 'pending',
+    },
+    {
+      id: 4,
+      name: '4. Title Approval',
+      description: isApproved ? 'Officially endorsed' : 'Pending committee sign-off',
+      icon: isApproved ? Award : Lock,
+      status: isApproved ? 'completed' : 'pending',
+    },
+  ];
 
   return (
     <DashboardLayout>
@@ -438,7 +494,7 @@ export default function TitleApprovalPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/project')}
+                onClick={() => navigate('/project?view=overview')}
                 className="gap-2 text-xs border-border/80 hover:bg-muted"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -470,88 +526,124 @@ export default function TitleApprovalPage() {
           </div>
         </div>
 
-        {/* 2. Capstone 1 Title Defense Progression Stepper */}
-        <Card className="border-border/60 shadow-xs">
-          <CardContent className="p-4 sm:p-5">
+        {/* 2. Capstone 1 Title Defense Progression Stepper & Connected Progress Bar */}
+        <Card className="rounded-2xl border-border/70 shadow-xs overflow-hidden">
+          <CardContent className="p-5 sm:p-6 space-y-6">
+            {/* Stepper Header Bar: Title, Subtitle, and Progress Metrics */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-pulse shrink-0" />
+                  <h3 className="text-base font-bold tracking-tight text-foreground">
+                    Title Defense & Approval Pipeline
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Live candidate title submission, similarity pre-scan, defense hearing & committee
+                  clearance
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {currentStageLabel}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted border border-border/60 px-2.5 py-1 text-xs font-semibold text-foreground">
+                  {defenseProgressPercent}% Completed
+                </span>
+              </div>
+            </div>
+
+            {/* Continuous Connected Progress Track Bar */}
+            <div className="space-y-2">
+              <div className="relative h-2.5 w-full rounded-full bg-muted/80 overflow-hidden border border-border/40">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-primary to-blue-600 transition-all duration-500"
+                  style={{ width: `${defenseProgressPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-[10px] sm:text-xs font-medium text-muted-foreground px-1">
+                <span className={defenseStage >= 1 ? 'text-foreground font-semibold' : ''}>
+                  1. Proposals
+                </span>
+                <span className={defenseStage >= 2 ? 'text-foreground font-semibold' : ''}>
+                  2. Pre-Scan
+                </span>
+                <span className={defenseStage >= 3 ? 'text-foreground font-semibold' : ''}>
+                  3. Defense Hearing
+                </span>
+                <span className={defenseStage >= 4 ? 'text-foreground font-semibold' : ''}>
+                  4. Institutional Approval
+                </span>
+              </div>
+            </div>
+
+            {/* 4 Connected Milestone Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <div className="h-8 w-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground">1. Proposals Submitted</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {normalizedProposals.length} candidate proposal
-                    {normalizedProposals.length === 1 ? '' : 's'} logged
-                  </p>
-                </div>
-              </div>
+              {defenseSteps.map((step) => {
+                const Icon = step.icon;
+                const isCompleted = step.status === 'completed';
+                const isCurrent = step.status === 'current';
+                const isPending = step.status === 'pending';
 
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <div className="h-8 w-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground">2. Similarity Pre-Scan</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    Archive cross-check passed
-                  </p>
-                </div>
-              </div>
+                return (
+                  <div
+                    key={step.id}
+                    className={cn(
+                      'relative flex flex-col justify-between gap-3 p-3.5 sm:p-4 rounded-xl border transition-all',
+                      isCompleted &&
+                        'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20',
+                      isCurrent &&
+                        'border-primary/50 bg-primary/5 dark:bg-primary/10 ring-2 ring-primary/20 shadow-xs',
+                      isPending && 'border-border/60 bg-card/50 text-muted-foreground',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div
+                        className={cn(
+                          'h-9 w-9 rounded-full flex items-center justify-center shrink-0 transition-all',
+                          isCompleted && 'bg-emerald-500 text-white shadow-xs',
+                          isCurrent && 'bg-primary text-primary-foreground shadow-xs animate-pulse',
+                          isPending && 'bg-muted text-muted-foreground border border-border/60',
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                          isCompleted &&
+                            'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+                          isCurrent && 'border-primary/40 text-primary bg-primary/10',
+                          isPending && 'border-border/60 text-muted-foreground bg-muted/40',
+                        )}
+                      >
+                        {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Pending'}
+                      </Badge>
+                    </div>
 
-              <div
-                className={cn(
-                  'flex items-center gap-3 p-3 rounded-xl border',
-                  isApproved
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : isSubmitted
-                      ? 'border-blue-500/40 bg-blue-500/10'
-                      : 'border-border/60 bg-muted/20',
-                )}
-              >
-                <div
-                  className={cn(
-                    'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                    isApproved
-                      ? 'bg-emerald-500 text-white'
-                      : isSubmitted
-                        ? 'bg-primary text-primary-foreground animate-pulse'
-                        : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  <Clock className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground">3. Committee Defense</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {isApproved ? 'Defense hearing approved' : 'Deliberation in progress'}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  'flex items-center gap-3 p-3 rounded-xl border',
-                  isApproved
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : 'border-border/60 bg-muted/20',
-                )}
-              >
-                <div
-                  className={cn(
-                    'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                    isApproved ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  <Award className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground">4. Title Approval</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {isApproved ? 'Officially endorsed' : 'Pending committee sign-off'}
-                  </p>
-                </div>
-              </div>
+                    <div className="min-w-0 space-y-1">
+                      <p
+                        className={cn(
+                          'text-xs sm:text-sm font-semibold truncate',
+                          isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground',
+                        )}
+                        title={step.name}
+                      >
+                        {step.name}
+                      </p>
+                      <p
+                        className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2"
+                        title={step.description}
+                      >
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -690,6 +782,21 @@ export default function TitleApprovalPage() {
               const slides = renderSlides(prop);
               const slideIdx = activeSlideIndex[prop.index] || 0;
               const currentSlide = slides[slideIdx] || slides[0];
+              const deckId = `proposal_deck_${prop.index}_${(prop.title || '')
+                .slice(0, 25)
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')}`;
+              const deckEdits = allDeckEdits[deckId] || {};
+              const slideEdits = deckEdits[currentSlide.id || slideIdx + 1] || {};
+              const effectiveSlide = {
+                ...currentSlide,
+                title: slideEdits.title !== undefined ? slideEdits.title : currentSlide.title,
+                subtitle:
+                  slideEdits.subtitle !== undefined ? slideEdits.subtitle : currentSlide.subtitle,
+                content:
+                  slideEdits.content !== undefined ? slideEdits.content : currentSlide.content,
+                fontSize: slideEdits.fontSize || 100,
+              };
 
               return (
                 <Card
@@ -867,7 +974,7 @@ export default function TitleApprovalPage() {
                           {/* Slide Canvas */}
                           <div className="w-full aspect-video rounded-xl shadow-md overflow-hidden">
                             <ProposalSlideCanvas
-                              slide={currentSlide}
+                              slide={effectiveSlide}
                               teamName={team?.name}
                               academicYear={`AY ${team?.academicYear || '2024–2025'}`}
                             />
@@ -968,84 +1075,39 @@ export default function TitleApprovalPage() {
           </div>
         </div>
 
-        {/* 6. Fullscreen Modal for Rehearsal Deck */}
-        {fullscreenProposalIndex !== null && normalizedProposals[fullscreenProposalIndex] && (
-          <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md flex flex-col p-4 sm:p-8">
-            <div className="flex items-center justify-between pb-4 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <Presentation className="h-5 w-5 text-primary" />
-                <h3 className="text-base sm:text-lg font-bold text-foreground">
-                  Proposal Defense Rehearsal — {normalizedProposals[fullscreenProposalIndex].title}
-                </h3>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFullscreenProposalIndex(null)}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center py-6">
-              <div className="w-full max-w-5xl flex flex-col gap-4">
-                {(() => {
-                  const p = normalizedProposals[fullscreenProposalIndex];
-                  const sList = renderSlides(p);
-                  const activeIdx = activeSlideIndex[fullscreenProposalIndex] || 0;
-                  const slide = sList[activeIdx] || sList[0];
-                  return (
-                    <>
-                      <div className="w-full aspect-video rounded-2xl shadow-2xl overflow-hidden">
-                        <ProposalSlideCanvas
-                          slide={slide}
-                          teamName={team?.name}
-                          academicYear={`AY ${team?.academicYear || '2024–2025'}`}
-                          fullscreen
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-border/60">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={activeIdx === 0}
-                          onClick={() =>
-                            setActiveSlideIndex((prev) => ({
-                              ...prev,
-                              [fullscreenProposalIndex]: Math.max(0, activeIdx - 1),
-                            }))
-                          }
-                          className="gap-1.5"
-                        >
-                          <ChevronLeft className="h-4 w-4" /> Previous Slide
-                        </Button>
-                        <span className="text-xs text-muted-foreground font-semibold">
-                          Slide {activeIdx + 1} of {sList.length}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={activeIdx === sList.length - 1}
-                          onClick={() =>
-                            setActiveSlideIndex((prev) => ({
-                              ...prev,
-                              [fullscreenProposalIndex]: Math.min(sList.length - 1, activeIdx + 1),
-                            }))
-                          }
-                          className="gap-1.5"
-                        >
-                          Next Slide <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* 6. Fullscreen Modal for Rehearsal Deck (Portaled to document.body for true fullscreen) */}
+        {fullscreenProposalIndex !== null &&
+          normalizedProposals[fullscreenProposalIndex] &&
+          (() => {
+            const prop = normalizedProposals[fullscreenProposalIndex];
+            const slides = renderSlides(prop);
+            const activeIdx = activeSlideIndex[fullscreenProposalIndex] || 0;
+            return (
+              <ProposalRehearsalModal
+                isOpen={true}
+                onClose={() => setFullscreenProposalIndex(null)}
+                deckId={`proposal_deck_${prop.index}_${(prop.title || '')
+                  .slice(0, 25)
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]/g, '_')}`}
+                title={prop.title}
+                slides={slides}
+                activeSlideIndex={activeIdx}
+                onSlideChange={(newIdx) =>
+                  setActiveSlideIndex((prev) => ({
+                    ...prev,
+                    [fullscreenProposalIndex]: newIdx,
+                  }))
+                }
+                teamName={team?.name}
+                academicYear={`AY ${team?.academicYear || '2024–2025'}`}
+                onExportPptx={() => handleExportPptx(prop)}
+                isExportingPptx={exportingPptxIndex === prop.index}
+                onExportPdf={() => handleExportPdf(prop)}
+                isExportingPdf={exportingPdfIndex === prop.index}
+              />
+            );
+          })()}
       </div>
     </DashboardLayout>
   );

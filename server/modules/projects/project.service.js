@@ -548,7 +548,14 @@ class ProjectService {
     const isADMApproved =
       project.admStatus === 'approved' || (isSecretaryDone && isAdviserDone && isChairDone);
 
-    if (Number(project.capstonePhase) >= 3 && !isADMApproved) {
+    if (
+      Number(project.capstonePhase) >= 3 &&
+      !isADMApproved &&
+      !project.isArchived &&
+      project.projectStatus !== 'archived' &&
+      project.projectStatus !== PROJECT_STATUSES.ARCHIVED &&
+      project.projectStatus !== PROJECT_STATUSES.DEFENDED
+    ) {
       project.capstonePhase = 2;
       if (project.capstoneCourse === 'Capstone 3') {
         project.capstoneCourse = 'Capstone 2';
@@ -771,6 +778,8 @@ class ProjectService {
       academicYear,
       titleStatus,
       projectStatus,
+      capstonePhase,
+      actionNeeded,
       search,
       adviserId,
       panelistId,
@@ -782,8 +791,20 @@ class ProjectService {
 
     const filter = {};
     if (academicYear) filter.academicYear = academicYear;
-    if (titleStatus) filter.titleStatus = titleStatus;
+    if (titleStatus) {
+      filter.titleStatus = titleStatus;
+    } else if (actionNeeded === 'true' || actionNeeded === true) {
+      filter.titleStatus = { $in: ['submitted', 'revision_required', 'pending_modification'] };
+    }
     if (projectStatus) filter.projectStatus = projectStatus;
+    if (capstonePhase) {
+      const phaseNum = Number(capstonePhase);
+      if (phaseNum >= 3) {
+        filter.capstonePhase = { $in: [3, 4] };
+      } else {
+        filter.capstonePhase = phaseNum;
+      }
+    }
     if (adviserId) filter.adviserId = adviserId;
     if (panelistId) filter.panelistIds = panelistId;
 
@@ -1902,7 +1923,7 @@ class ProjectService {
 
     const { capstonePhase } = project;
 
-    if (capstonePhase >= CAPSTONE_PHASES.PHASE_4) {
+    if (capstonePhase >= 3 || capstonePhase >= CAPSTONE_PHASES.PHASE_3) {
       throw new AppError(
         'This project is already at the final capstone phase.',
         400,
@@ -1931,10 +1952,10 @@ class ProjectService {
     }
 
     // Phase 2 → 3: Requires the Action Done Matrix (ADM) to be approved,
-    // the midterm evaluation to have been released AND project asset URLs
+    // the progress/midterm evaluation to have been released AND project asset URLs
     // (Gantt Chart, Demo Video) to be provided.
-    // This ensures Capstone 2 (midterm defense & revisions) is formally completed before
-    // students can proceed to chapters 4-5 (Capstone 3).
+    // This ensures Capstone 2 (system development & progress defense) is formally completed before
+    // students can proceed to chapters 4-5 and final defense (Capstone 3).
     if (capstonePhase === CAPSTONE_PHASES.PHASE_2) {
       const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
       const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
@@ -1952,13 +1973,13 @@ class ProjectService {
 
       const hasReleasedMidterm = await Evaluation.exists({
         projectId: project._id,
-        defenseType: 'midterm',
+        defenseType: { $in: ['progress', 'midterm'] },
         status: 'released',
       });
 
       if (!hasReleasedMidterm) {
         throw new AppError(
-          'Capstone 2 midterm evaluation must be released before advancing to Capstone 3 (chapters 4-5).',
+          'Capstone 2 progress defense evaluation must be released before advancing to Capstone 3.',
           400,
           'MIDTERM_EVALUATION_REQUIRED_FOR_PHASE_ADVANCE',
         );
@@ -1974,7 +1995,8 @@ class ProjectService {
     }
 
     const previousPhase = project.capstonePhase;
-    project.capstonePhase = capstonePhase + 1;
+    project.capstonePhase = Math.min(3, capstonePhase + 1);
+    project.capstoneCourse = `Capstone ${project.capstonePhase}`;
     await project.save();
 
     await this._notifyTeamMembers(project.teamId, {
@@ -3392,7 +3414,8 @@ class ProjectService {
             responsibilities: defaultRoleMapping.responsibilities,
           },
         ],
-        capstonePhase: 4,
+        capstonePhase: 3,
+        capstoneCourse: 'Capstone 3',
         titleStatus: TITLE_STATUSES.APPROVED,
         projectStatus: PROJECT_STATUSES.ARCHIVED,
         isArchived: true,

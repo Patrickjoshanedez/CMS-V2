@@ -868,8 +868,8 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.capstonePhase).toBe(3);
     });
 
-    it('should NOT allow advancing beyond phase 4', async () => {
-      await Project.findByIdAndUpdate(projectId, { capstonePhase: 4 });
+    it('should NOT allow advancing beyond phase 3', async () => {
+      await Project.findByIdAndUpdate(projectId, { capstonePhase: 3 });
 
       const res = await instructorAgent.post(`/api/projects/${projectId}/advance-phase`).send({});
 

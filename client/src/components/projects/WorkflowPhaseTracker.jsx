@@ -22,29 +22,22 @@ export const PHASES = [
   },
   {
     key: 'capstone_1',
-    label: 'Capstone 1 (Proposal Defense)',
+    label: 'Capstone 1 (Proposal & Ch 1–3)',
     icon: FileText,
     isComplete: (project) =>
       Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_2,
   },
   {
     key: 'capstone_2',
-    label: 'Capstone 2 (Ch 1-3 & ADM)',
-    icon: BookOpen,
+    label: 'Capstone 2 (System Dev & Gantt)',
+    icon: Code2,
     isComplete: (project) =>
       Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_3 &&
       isADMApproved(project),
   },
   {
     key: 'capstone_3',
-    label: 'Capstone 3 (System Dev & ADM)',
-    icon: Code2,
-    isComplete: (project) =>
-      Number(project?.capstonePhase ?? project?.phase ?? 0) >= CAPSTONE_PHASES.PHASE_4,
-  },
-  {
-    key: 'capstone_4',
-    label: 'Capstone 4 (Paper, Journal & Archival)',
+    label: 'Capstone 3 (Final Manuscript, Journal & Archival)',
     icon: ShieldCheck,
     isComplete: (project) =>
       (project?.projectStatus ?? project?.status) === PROJECT_STATUSES.DEFENDED ||

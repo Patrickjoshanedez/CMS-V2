@@ -40,29 +40,29 @@ describe('ProjectDetailPage Tab Synchronization Suite', () => {
       expect(resolveProjectDefaultTab(project)).toBe('capstone_3');
     });
 
-    it('returns capstone_4 when capstonePhase is 4', () => {
+    it('returns capstone_3 when capstonePhase is 4 (legacy normalization)', () => {
       const project = {
         capstonePhase: 4,
         titleStatus: TITLE_STATUSES.APPROVED,
         projectStatus: PROJECT_STATUSES.IN_PROGRESS,
       };
-      expect(resolveProjectDefaultTab(project)).toBe('capstone_4');
+      expect(resolveProjectDefaultTab(project)).toBe('capstone_3');
     });
 
-    it('returns capstone_4 when project is defended or archived', () => {
+    it('returns capstone_3 when project is defended or archived', () => {
       expect(
         resolveProjectDefaultTab({
           capstonePhase: 2,
           isArchived: true,
         }),
-      ).toBe('capstone_4');
+      ).toBe('capstone_3');
 
       expect(
         resolveProjectDefaultTab({
           capstonePhase: 2,
           projectStatus: PROJECT_STATUSES.DEFENDED,
         }),
-      ).toBe('capstone_4');
+      ).toBe('capstone_3');
     });
   });
 
@@ -80,12 +80,13 @@ describe('ProjectDetailPage Tab Synchronization Suite', () => {
       expect(mapStepToWorkflowTab(3)).toBe('capstone_3');
     });
 
-    it('maps stepper index 4 to capstone_4', () => {
-      expect(mapStepToWorkflowTab(4)).toBe('capstone_4');
+    it('maps stepper index 4 to capstone_3 (legacy step fallback)', () => {
+      expect(mapStepToWorkflowTab(4)).toBe('capstone_3');
     });
 
     it('maps archived steps correctly', () => {
-      expect(mapStepToWorkflowTab(4, true)).toBe('capstone_4');
+      expect(mapStepToWorkflowTab(4, true)).toBe('capstone_3');
+      expect(mapStepToWorkflowTab(3, true)).toBe('capstone_3');
       expect(mapStepToWorkflowTab(2, true)).toBe('adm');
     });
   });

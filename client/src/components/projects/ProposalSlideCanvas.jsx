@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { BUKSU_COT_LOGO_BASE64, BUKSU_IT_LOGO_BASE64 } from '@/assets/logoBase64';
 import { cn } from '@/lib/utils';
+import { Pencil } from 'lucide-react';
 
 /**
  * Domain-specific BukSU Capstone Slide Fallbacks
@@ -42,7 +44,7 @@ const SLIDE_FALLBACKS = {
  * Format string into bullet point items with clean stripping of existing bullets
  * and automatic injection of domain defaults if text is empty or blank.
  */
-function formatToBullets(content, slideType = 'statement', maxBullets = 5) {
+function formatToBullets(content, slideType = 'statement', maxBullets = 6) {
   if (!content || typeof content !== 'string') {
     return (
       SLIDE_FALLBACKS[slideType] || ['Capstone research project details under committee review.']
@@ -79,7 +81,6 @@ function formatToBullets(content, slideType = 'statement', maxBullets = 5) {
     }
   }
 
-  // Fallback if no valid text was parsed
   return (
     SLIDE_FALLBACKS[slideType] || ['Capstone research project details under committee review.']
   );
@@ -87,7 +88,9 @@ function formatToBullets(content, slideType = 'statement', maxBullets = 5) {
 
 /**
  * High-fidelity 16:9 BukSU Institutional Proposal Slide Canvas
- * Matches the official university defense deck template.
+ * Matches the official university defense deck template with:
+ * - Real-time per-slide text size adjustments
+ * - Interactive inline editing for titles, subtitles, and bullet points
  */
 export default function ProposalSlideCanvas({
   slide,
@@ -96,7 +99,11 @@ export default function ProposalSlideCanvas({
   academicYear: _academicYear = 'AY 2025–2026',
   className = '',
   fullscreen: _fullscreen = false,
+  isEditMode = false,
+  onEditField,
 }) {
+  const bulletListRef = useRef(null);
+
   if (!slide) return null;
 
   const isCover = slide.type === 'cover' || slide.id === 1;
@@ -104,6 +111,9 @@ export default function ProposalSlideCanvas({
   const categoryStr = slide.category || slide.tag || '';
   const slideTitle =
     slide.title || (isCover ? 'Capstone Project Proposal Pitch' : 'Problem Statement');
+
+  // Font scale multiplier (default 100% = 1.0)
+  const fontScale = (slide.fontSize || 100) / 100;
 
   // Standard BukSU Institutional Footer Banner
   const renderOrangeBanner = () => (
@@ -151,6 +161,21 @@ export default function ProposalSlideCanvas({
     </div>
   );
 
+  // Helper to collect bullets on blur
+  const handleBulletBlur = () => {
+    if (!onEditField || !bulletListRef.current) return;
+    const items = Array.from(bulletListRef.current.querySelectorAll('li[data-bullet-item="true"]'));
+    const textLines = items
+      .map((li) => li.innerText || li.textContent || '')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    onEditField('content', textLines.join('\n'));
+  };
+
+  /* ─────────────────────────────────────────────────────────────
+     COVER SLIDE (BLUE THEME)
+  ───────────────────────────────────────────────────────────── */
   if (isCover) {
     return (
       <div
@@ -160,14 +185,70 @@ export default function ProposalSlideCanvas({
           className,
         )}
       >
+        {/* Edit mode indicator */}
+        {isEditMode && (
+          <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-[10px] font-bold text-amber-300 shadow-sm animate-in fade-in">
+            <Pencil className="h-3 w-3 text-amber-400" />
+            <span>Click text to edit</span>
+          </div>
+        )}
+
         {/* Main Title Area */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-4 sm:py-8 text-center my-auto">
           <h1
-            style={{ color: '#FFA726' }}
-            className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-[#FFA726] leading-tight max-w-4xl drop-shadow-sm"
+            style={{
+              color: '#FFA726',
+              fontSize: `calc(clamp(1.5rem, 3.8vw, 3.4rem) * ${fontScale})`,
+            }}
+            contentEditable={isEditMode}
+            suppressContentEditableWarning={true}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Escape') e.currentTarget.blur();
+            }}
+            onBlur={(e) => {
+              if (onEditField) {
+                const text = e.currentTarget.innerText || e.currentTarget.textContent || '';
+                onEditField('title', text.trim());
+              }
+            }}
+            className={cn(
+              'font-black tracking-tight text-[#FFA726] leading-tight max-w-4xl drop-shadow-sm transition-all',
+              isEditMode &&
+                'border border-dashed border-amber-400/60 hover:border-amber-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 rounded-lg px-3 py-1 cursor-text outline-none bg-amber-400/5',
+            )}
+            title={isEditMode ? 'Click to edit proposal title' : undefined}
           >
             {slideTitle}
           </h1>
+
+          {slide.subtitle && (
+            <p
+              style={{
+                fontSize: `calc(clamp(0.85rem, 1.6vw, 1.25rem) * ${fontScale})`,
+              }}
+              contentEditable={isEditMode}
+              suppressContentEditableWarning={true}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') e.currentTarget.blur();
+              }}
+              onBlur={(e) => {
+                if (onEditField) {
+                  const text = e.currentTarget.innerText || e.currentTarget.textContent || '';
+                  onEditField('subtitle', text.trim());
+                }
+              }}
+              className={cn(
+                'mt-3 sm:mt-5 text-white/80 max-w-2xl text-center font-normal transition-all',
+                isEditMode &&
+                  'border border-dashed border-white/30 hover:border-white/60 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30 rounded px-2 py-0.5 cursor-text outline-none bg-white/5',
+              )}
+              title={isEditMode ? 'Click to edit subtitle' : undefined}
+            >
+              {slide.subtitle}
+            </p>
+          )}
         </div>
 
         {/* Vibrant Orange Footer Banner with Institutional Logos */}
@@ -176,7 +257,9 @@ export default function ProposalSlideCanvas({
     );
   }
 
-  // Content Slides
+  /* ─────────────────────────────────────────────────────────────
+     CONTENT SLIDES (WHITE THEME WITH INSTITUTIONAL NAVY/ORANGE)
+  ───────────────────────────────────────────────────────────── */
   const bullets =
     slide.type === 'alignment'
       ? []
@@ -190,11 +273,39 @@ export default function ProposalSlideCanvas({
         className,
       )}
     >
+      {/* Edit mode subtle indicator */}
+      {isEditMode && (
+        <div className="absolute top-2.5 right-4 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 shadow-xs animate-in fade-in">
+          <Pencil className="h-3 w-3 text-emerald-600" />
+          <span>Interactive Editor Active</span>
+        </div>
+      )}
+
       {/* Top Slide Header: Bold + Italic with guaranteed dark contrast */}
       <div className="px-6 sm:px-10 pt-5 sm:pt-8 pb-2 shrink-0">
         <h2
-          style={{ color: '#0f172a' }}
-          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic !text-slate-900 tracking-tight"
+          style={{
+            color: '#0f172a',
+            fontSize: `calc(clamp(1.35rem, 3.2vw, 2.75rem) * ${fontScale})`,
+          }}
+          contentEditable={isEditMode}
+          suppressContentEditableWarning={true}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            if (onEditField) {
+              const text = e.currentTarget.innerText || e.currentTarget.textContent || '';
+              onEditField('title', text.trim());
+            }
+          }}
+          className={cn(
+            'font-black italic !text-slate-900 tracking-tight transition-all',
+            isEditMode &&
+              'border border-dashed border-primary/50 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20 rounded px-2 py-0.5 cursor-text outline-none bg-primary/5',
+          )}
+          title={isEditMode ? 'Click to edit slide title' : undefined}
         >
           {slideTitle}
         </h2>
@@ -206,19 +317,25 @@ export default function ProposalSlideCanvas({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 pt-1">
             <div className="space-y-2 sm:space-y-3">
               <h3
-                style={{ color: '#0B3064' }}
-                className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider text-[#0B3064]"
+                style={{
+                  color: '#0B3064',
+                  fontSize: `calc(clamp(0.75rem, 1.4vw, 1.1rem) * ${fontScale})`,
+                }}
+                className="font-bold uppercase tracking-wider text-[#0B3064]"
               >
                 IT Fields of Discipline
               </h3>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm md:text-base lg:text-lg text-slate-700 list-disc list-inside">
+              <ul className="space-y-2 sm:space-y-3 text-slate-700 list-disc list-inside">
                 {(slide.disciplines && slide.disciplines.length > 0
                   ? slide.disciplines
                   : ['Software Engineering & Web Applications']
                 ).map((d, i) => (
                   <li
                     key={i}
-                    style={{ color: '#334155' }}
+                    style={{
+                      color: '#334155',
+                      fontSize: `calc(clamp(0.8rem, 1.5vw, 1.15rem) * ${fontScale})`,
+                    }}
                     className="leading-relaxed !text-slate-700 font-medium"
                   >
                     {d}
@@ -228,19 +345,25 @@ export default function ProposalSlideCanvas({
             </div>
             <div className="space-y-2 sm:space-y-3">
               <h3
-                style={{ color: '#047857' }}
-                className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider text-emerald-700"
+                style={{
+                  color: '#047857',
+                  fontSize: `calc(clamp(0.75rem, 1.4vw, 1.1rem) * ${fontScale})`,
+                }}
+                className="font-bold uppercase tracking-wider text-emerald-700"
               >
                 Target UN SDGs
               </h3>
-              <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm md:text-base lg:text-lg text-slate-700 list-disc list-inside">
+              <ul className="space-y-2 sm:space-y-3 text-slate-700 list-disc list-inside">
                 {(slide.sdgs && slide.sdgs.length > 0
                   ? slide.sdgs
                   : ['SDG 4: Quality Education']
                 ).map((s, i) => (
                   <li
                     key={i}
-                    style={{ color: '#334155' }}
+                    style={{
+                      color: '#334155',
+                      fontSize: `calc(clamp(0.8rem, 1.5vw, 1.15rem) * ${fontScale})`,
+                    }}
                     className="leading-relaxed !text-slate-700 font-medium"
                   >
                     {s}
@@ -251,21 +374,38 @@ export default function ProposalSlideCanvas({
           </div>
         ) : (
           <ul
+            ref={bulletListRef}
             style={{ color: '#1e293b' }}
             className={cn(
               'list-disc list-outside pl-6 sm:pl-8 !text-slate-800 font-medium leading-relaxed',
               bullets.length <= 2
-                ? 'space-y-4 sm:space-y-6 md:space-y-8 text-sm sm:text-lg md:text-xl lg:text-2xl'
+                ? 'space-y-3 sm:space-y-5 md:space-y-7'
                 : bullets.length <= 3
-                  ? 'space-y-3 sm:space-y-5 md:space-y-6 text-xs sm:text-base md:text-lg lg:text-xl'
-                  : 'space-y-2 sm:space-y-3 md:space-y-4 text-xs sm:text-sm md:text-base lg:text-lg',
+                  ? 'space-y-2.5 sm:space-y-4 md:space-y-5'
+                  : 'space-y-2 sm:space-y-3 md:space-y-3.5',
             )}
           >
             {bullets.map((item, idx) => (
               <li
                 key={idx}
-                style={{ color: '#1e293b' }}
-                className="marker:text-slate-500 !text-slate-800 font-medium leading-relaxed"
+                data-bullet-item="true"
+                style={{
+                  color: '#1e293b',
+                  fontSize: `calc(clamp(0.82rem, 1.65vw, 1.35rem) * ${fontScale})`,
+                }}
+                contentEditable={isEditMode}
+                suppressContentEditableWarning={true}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Escape') e.currentTarget.blur();
+                }}
+                onBlur={handleBulletBlur}
+                className={cn(
+                  'marker:text-slate-500 !text-slate-800 font-medium leading-relaxed transition-all',
+                  isEditMode &&
+                    'border border-dashed border-primary/40 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20 rounded px-1.5 py-0.5 cursor-text outline-none bg-primary/5',
+                )}
+                title={isEditMode ? 'Click to edit bullet text' : undefined}
               >
                 {item}
               </li>
@@ -279,3 +419,14 @@ export default function ProposalSlideCanvas({
     </div>
   );
 }
+
+ProposalSlideCanvas.propTypes = {
+  slide: PropTypes.object,
+  proponents: PropTypes.string,
+  teamName: PropTypes.string,
+  academicYear: PropTypes.string,
+  className: PropTypes.string,
+  fullscreen: PropTypes.bool,
+  isEditMode: PropTypes.bool,
+  onEditField: PropTypes.func,
+};

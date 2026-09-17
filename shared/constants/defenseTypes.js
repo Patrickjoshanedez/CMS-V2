@@ -1,15 +1,21 @@
 /**
  * Defense types for the Capstone Management System.
- * Maps to each capstone phase's evaluation event.
+ * Maps to each institutional capstone phase's evaluation event:
+ * - PROPOSAL: Capstone 1 (Proposal & Chapters 1–3 Manuscript Defense)
+ * - PROGRESS: Capstone 2 (System Development & Prototype Demonstration)
+ * - FINAL: Capstone 3 (Final Oral Defense & Academic Journal Evaluation)
  */
 export const DEFENSE_TYPES = Object.freeze({
-  PROPOSAL: 'proposal', // Capstone 1 — paper/manuscript evaluation
-  MIDTERM: 'midterm', // Capstone 2 — presentation/progress defense
-  PAPER: 'paper', // Capstone 3 — chapters 4-5 paper evaluation
-  FINAL: 'final', // Capstone 4 — final system defense
+  PROPOSAL: 'proposal', // Capstone 1 — Proposal & Manuscript (Chapters 1–3) Evaluation
+  PROGRESS: 'progress', // Capstone 2 — System Development & Prototype Progress Defense
+  FINAL: 'final', // Capstone 3 — Final Oral Defense & Academic Journal Evaluation
+  // Backward compatibility aliases:
+  MIDTERM: 'progress',
+  PAPER: 'final',
 });
 
 /**
  * All valid defense type values as an array (for Mongoose enum validation).
+ * Includes backward compatibility aliases 'midterm' and 'paper'.
  */
-export const DEFENSE_TYPE_VALUES = Object.values(DEFENSE_TYPES);
+export const DEFENSE_TYPE_VALUES = ['proposal', 'progress', 'final', 'midterm', 'paper'];

@@ -102,31 +102,8 @@ function getNextStep(project, submissions) {
       }
     }
 
-    // Phase 4: Final Defense, Secretary Gate, Multi-Tier ADM
-    if (phase >= 4) {
-      const isSecretaryEndorsed = Boolean(project.admSignatures?.secretary?.endorsed);
-      if (!isSecretaryEndorsed) {
-        return {
-          title: 'Secretary ADM Endorsement Pending',
-          description:
-            'Defense Secretary compliance verification is required before committee signatures can unlock.',
-          action: { label: 'Open Action Done Matrix', path: '/project?tab=capstone_4' },
-          icon: ShieldCheck,
-          color: 'text-amber-600 dark:text-amber-400',
-        };
-      }
-      return {
-        title: 'Final Paper & Digital Signatures',
-        description:
-          'Upload your final manuscript papers and verify Tier 1–3 committee digital signatures in the ADM.',
-        action: { label: 'View Capstone 4 Workspace', path: '/project?tab=capstone_4' },
-        icon: CheckCircle2,
-        color: 'text-emerald-600 dark:text-emerald-400',
-      };
-    }
-
-    // Phase 3: System Prototype, Interactive Gantt, Chapters 4 & 5
-    if (phase === 3) {
+    // Phase 3: Final Defense, Secretary Gate, Multi-Tier ADM & Chapters 4 & 5
+    if (phase >= 3) {
       for (const ch of [4, 5]) {
         const sub = chapterMap[ch];
         if (sub?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
@@ -160,17 +137,40 @@ function getNextStep(project, submissions) {
         };
       }
 
+      const isSecretaryEndorsed = Boolean(project.admSignatures?.secretary?.endorsed);
+      if (!isSecretaryEndorsed) {
+        return {
+          title: 'Secretary ADM Endorsement Pending',
+          description:
+            'Defense Secretary compliance verification is required before committee signatures can unlock.',
+          action: { label: 'Open Action Done Matrix', path: '/project?tab=capstone_3' },
+          icon: ShieldCheck,
+          color: 'text-amber-600 dark:text-amber-400',
+        };
+      }
+      return {
+        title: 'Final Paper & Digital Signatures',
+        description:
+          'Upload your final manuscript papers and verify Tier 1–3 committee digital signatures in the ADM.',
+        action: { label: 'View Capstone 3 Workspace', path: '/project?tab=capstone_3' },
+        icon: CheckCircle2,
+        color: 'text-emerald-600 dark:text-emerald-400',
+      };
+    }
+
+    // Phase 2: System Development, Interactive Gantt, Progress Defense
+    if (phase === 2) {
       return {
         title: 'Prototype & Milestone Roadmap',
         description:
           'Track sprint tasks on your Interactive Gantt Chart and prepare for progress defense.',
-        action: { label: 'View Gantt Roadmap', path: '/project?tab=capstone_3' },
+        action: { label: 'View Gantt Roadmap', path: '/project?tab=capstone_2' },
         icon: Code2,
         color: 'text-primary',
       };
     }
 
-    // Phase 2: Chapters 1–3 & Midterm Defense
+    // Phase 1: Chapters 1–3 & Proposal Defense
     for (let ch = 1; ch <= 3; ch++) {
       const sub = chapterMap[ch];
       if (sub?.status === SUBMISSION_STATUSES.REVISIONS_REQUIRED) {
@@ -200,19 +200,19 @@ function getNextStep(project, submissions) {
       const hasProposal = submissions?.submissions?.some((s) => s.type === DOCUMENT_TYPES.PROPOSAL);
       if (!hasProposal) {
         return {
-          title: 'Compile Midterm Proposal',
+          title: 'Compile Proposal Manuscript',
           description:
-            'All chapters 1–3 are approved. Compile your full proposal for midterm defense hearing.',
+            'All chapters 1–3 are approved. Compile your full proposal for proposal defense hearing.',
           action: { label: 'Compile Proposal', path: '/project/proposal' },
           icon: BookOpen,
           color: 'text-emerald-600 dark:text-emerald-400',
         };
       }
       return {
-        title: 'Midterm Defense & ADM Sign-Off',
+        title: 'Proposal Defense & ADM Sign-Off',
         description:
           'Proposal compiled. Review panel defense remarks and track committee sign-offs in the ADM.',
-        action: { label: 'View Action Done Matrix', path: '/project?tab=capstone_2' },
+        action: { label: 'View Action Done Matrix', path: '/project?tab=capstone_1' },
         icon: CheckCircle2,
         color: 'text-emerald-600 dark:text-emerald-400',
       };

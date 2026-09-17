@@ -13,6 +13,7 @@ import {
   CAPSTONE_TITLE_VALUES,
   SDG_TAG_SUGGESTIONS,
   PANEL_ROLE_VALUES,
+  DEFENSE_TYPE_VALUES,
 } from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
 
@@ -91,7 +92,7 @@ const defenseScheduleSchema = new mongoose.Schema(
     time: { type: String, default: '', trim: true },
     venue: { type: String, default: '', trim: true },
     round: { type: String, enum: ['1st', '2nd', '3rd'], default: '1st' },
-    defenseType: { type: String, enum: ['proposal', 'midterm', 'final'], default: 'midterm' },
+    defenseType: { type: String, enum: DEFENSE_TYPE_VALUES, default: 'proposal' },
     clientName: { type: String, default: 'Dr. Sales G. Aribe Jr.', trim: true },
     scheduledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     scheduledAt: { type: Date, default: null },
@@ -301,8 +302,8 @@ const actionDoneMatrixItemSchema = new mongoose.Schema(
     },
     milestone: {
       type: String,
-      enum: ['CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'],
-      default: 'CAPSTONE_2',
+      enum: ['CAPSTONE_1', 'CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'],
+      default: 'CAPSTONE_1',
     },
     /**
      * Digital signature blocks per ADM row.

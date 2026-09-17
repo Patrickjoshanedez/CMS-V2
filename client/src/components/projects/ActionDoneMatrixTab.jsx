@@ -58,13 +58,13 @@ export default function ActionDoneMatrixTab({
   const [projectTitle, setProjectTitle] = useState('');
   const [savingCells, setSavingCells] = useState({}); // { [rowId_field]: 'saving' | 'saved' | 'error' }
 
-  // Milestone revision scoping (Capstone 2, Capstone 3, Capstone 4)
+  // Milestone revision scoping (Capstone 1, Capstone 2, Capstone 3)
   const defaultMilestone = useMemo(() => {
     if (initialMilestone) return initialMilestone;
-    const phase = Number(project?.capstonePhase ?? project?.phase ?? 2);
-    if (phase >= 4) return 'CAPSTONE_4';
-    if (phase === 3) return 'CAPSTONE_3';
-    return 'CAPSTONE_2';
+    const phase = Number(project?.capstonePhase ?? project?.phase ?? 1);
+    if (phase >= 3) return 'CAPSTONE_3';
+    if (phase === 2) return 'CAPSTONE_2';
+    return 'CAPSTONE_1';
   }, [initialMilestone, project?.capstonePhase, project?.phase]);
 
   const [selectedMilestone, setSelectedMilestone] = useState(defaultMilestone);
@@ -77,7 +77,7 @@ export default function ActionDoneMatrixTab({
 
   const displayedRows = useMemo(() => {
     if (selectedMilestone === 'ALL') return rows;
-    return rows.filter((r) => (r.milestone || 'CAPSTONE_2') === selectedMilestone);
+    return rows.filter((r) => (r.milestone || 'CAPSTONE_1') === selectedMilestone);
   }, [rows, selectedMilestone]);
 
   // Modals & Uploads
@@ -298,8 +298,8 @@ export default function ActionDoneMatrixTab({
   );
 
   const defenseType = useMemo(() => {
-    if (selectedMilestone === 'CAPSTONE_4') return 'final';
-    if (selectedMilestone === 'CAPSTONE_3') return 'midterm';
+    if (selectedMilestone === 'CAPSTONE_3' || selectedMilestone === 'CAPSTONE_4') return 'final';
+    if (selectedMilestone === 'CAPSTONE_2') return 'progress';
     return 'proposal';
   }, [selectedMilestone]);
 
@@ -940,11 +940,11 @@ export default function ActionDoneMatrixTab({
                             variant="outline"
                             className="text-[9px] py-0 px-1 border-primary/30 text-primary"
                           >
-                            {row.milestone === 'CAPSTONE_3'
+                            {row.milestone === 'CAPSTONE_3' || row.milestone === 'CAPSTONE_4'
                               ? 'Cap 3'
-                              : row.milestone === 'CAPSTONE_4'
-                                ? 'Cap 4'
-                                : 'Cap 2'}
+                              : row.milestone === 'CAPSTONE_2'
+                                ? 'Cap 2'
+                                : 'Cap 1'}
                           </Badge>
                         )}
                         {isLocked && (

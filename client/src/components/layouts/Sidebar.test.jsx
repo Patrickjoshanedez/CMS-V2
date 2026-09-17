@@ -101,7 +101,7 @@ describe('Sidebar Component', () => {
 
     const aside = container.querySelector('aside');
     expect(aside).not.toBeNull();
-    expect(aside.className).toContain('w-[260px]');
+    expect(aside.className).toContain('w-72');
 
     // Check branding
     expect(container.textContent).toContain('CMS');
@@ -121,6 +121,12 @@ describe('Sidebar Component', () => {
     expect(container.textContent).toContain('Settings');
     expect(container.textContent).toContain('Sign out');
 
+    // Check title attributes for text zoom truncation accessibility
+    const capstoneSpan = container.querySelector('span[title="My Capstone"]');
+    expect(capstoneSpan).not.toBeNull();
+    const plagiarismSpan = container.querySelector('span[title="Plagiarism Checker"]');
+    expect(plagiarismSpan).not.toBeNull();
+
     // Check live badges
     expect(container.textContent).toContain('Draft');
     expect(container.textContent).toContain('2');
@@ -128,13 +134,13 @@ describe('Sidebar Component', () => {
     unmount();
   });
 
-  it('renders in collapsed rail mode (w-[76px]) and calls onToggle on collapse button click', async () => {
+  it('renders in collapsed rail mode (w-20) and calls onToggle on collapse button click', async () => {
     const onToggle = vi.fn();
     const { container, unmount } = renderSidebar({ open: false, onToggle });
 
     const aside = container.querySelector('aside');
     expect(aside).not.toBeNull();
-    expect(aside.className).toContain('w-[76px]');
+    expect(aside.className).toContain('w-20');
 
     const toggleBtn = container.querySelector('button[aria-label="Expand sidebar"]');
     expect(toggleBtn).not.toBeNull();

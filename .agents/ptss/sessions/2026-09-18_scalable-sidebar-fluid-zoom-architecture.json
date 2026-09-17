@@ -1,0 +1,41 @@
+{
+  "session_id": "2026-09-18_scalable-sidebar-fluid-zoom-architecture",
+  "timestamp": "2026-09-18T05:25:00.000Z",
+  "task_summary": "Resolved layout collision and text truncation in expanded and collapsed sidebar under text zoom (100%, 125%, 150%) by replacing hardcoded pixel widths with scalable relative dimensions (w-72 min-w-[16.5rem] expanded, w-20 min-w-[5rem] collapsed), centering the collapse toggle button and icon rail, adding min-w-0 on flex containers and flex-1 min-w-0 truncate on label text with accessible browser title tooltips, enforcing shrink-0 on icons and badges, and isolating vertical scrolling with min-h-0 overflow-y-auto on the navigation element.",
+  "task_category": "ui_layout_zoom_resilience_and_fluid_sidebar",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "ui-design-principles", "verification-loop"],
+  "verification_results": {
+    "targeted_unit_tests": {
+      "Sidebar_test": "7/7 passed",
+      "layouts_suite": "14/14 passed"
+    },
+    "playwright_visual_audit": {
+      "100_percent_zoom": "verified light & dark desktop",
+      "125_percent_zoom": "verified light & dark desktop (zero truncation, centered toggle button)",
+      "150_percent_zoom": "verified light & dark desktop (flawless scaling)",
+      "mobile_drawer": "verified light & dark (390x844)"
+    },
+    "endpoint_parity": "204 Server / 182 Client (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "60/60 passed",
+    "governance_pipeline": "All 4 stages valid, 0 errors, 0 warnings",
+    "workspace_cleanliness": "Pristine workspace, 0 clutter"
+  },
+  "post_mortem": {
+    "lesson": "Hardcoded pixel widths (e.g. w-[260px] or w-[76px]) do not scale when font sizes are magnified via document.documentElement.style.fontSize or browser zoom, causing text that needs 16-18rem of space to be squeezed and truncated. Additionally, flex items inside a flex container without min-w-0 refuse to shrink, causing layout overflow.",
+    "learned": "Using scalable rem-based widths (w-72 / min-w-[16.5rem] and w-20 / min-w-[5rem]) allows the navigation containers to scale proportionally with font zoom. In collapsed state, unmounting the brand container completely and using justify-center px-2 ensures the toggle button and all icons stay centered on the vertical axis without clipping against borders.",
+    "prevention": "Rule 110: Always use relative rem-based dimensions for navigation containers, apply min-w-0 to flex parents, flex-1 min-w-0 truncate with title={label} to text spans, shrink-0 to icons and badges, and min-h-0 overflow-y-auto to scrollable column areas.",
+    "runbook": "Run targeted test npm test --workspace=client -- src/components/layouts/Sidebar.test.jsx, run Playwright visual audit across 100%, 125%, 150% zoom in Light & Dark modes, and verify endpoint parity.",
+    "checklist": [
+      "Sidebar width uses relative units (w-72 min-w-[16.5rem], w-20 min-w-[5rem])",
+      "Icons and status badges enforce shrink-0",
+      "Text labels enforce flex-1 min-w-0 truncate with title attribute",
+      "Collapsed rail centers toggle button and icons with justify-center and px-0/px-2",
+      "Navigation container has min-h-0 overflow-y-auto to prevent pushing bottom actions off-screen",
+      "7/7 unit tests pass",
+      "Visual screenshots inspected across zoom levels"
+    ],
+    "evidence": "Screenshots in scratch/screenshots/ and brain screenshots directory: sidebar_expanded_light_zoom125.png, sidebar_collapsed_light_zoom125.png, sidebar_expanded_dark_zoom125.png, sidebar_collapsed_dark_zoom125.png, sidebar_expanded_light_zoom150.png, sidebar_mobile_light.png.",
+    "passed": true
+  }
+}

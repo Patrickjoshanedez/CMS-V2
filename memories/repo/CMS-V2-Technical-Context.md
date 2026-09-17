@@ -2650,3 +2650,203 @@
      - Endpoint parity: 204 Server / 182 Client (UNMATCHED_COUNT = 0).
      - Agentic governance: 60/60 checks passed (npm run validate:agentic).
      - Visual captures: parallax_scroll_0.png, parallax_scroll_250.png, and parallax_scroll_light_250.png verified.
+
+109. True Fullscreen Presentation Rehearsal Mode & DOM Portal Escape Architecture:
+- Architecture & Implementation Details:
+  1. Containing-Block Breakout via createPortal:
+     - Learned lesson: When presentation modals or slide previewers are rendered directly within page components wrapped in `DashboardLayout`, CSS properties on ancestor containers (e.g. `.cms-route-enter` having `animation: cms-route-enter ...` and `will-change: transform, opacity`) establish a new stacking context and containing block. Consequently, `position: fixed; inset: 0;` traps the modal within the layout's inner content bounds, keeping the application `<Header>` and `<Sidebar>` visibly exposed outside the presentation.
+     - Solution & implementation: Created canonical `ProposalRehearsalModal.jsx` (`client/src/components/projects/ProposalRehearsalModal.jsx`) which utilizes `createPortal(modalContent, document.body)` in browsers while gracefully falling back to inline rendering in unit test environments (`process.env.NODE_ENV === 'test'`), escaping all containing blocks.
+  2. Immersive 100vw × 100vh Theater Backdrop:
+     - Replaced stark white/light grey page gutters with a deep obsidian theater canvas (`bg-[#05070B]`) and subtle radial ambient lighting (`radial-gradient`), matching professional presentation suites (Keynote, PowerPoint, Google Slides).
+  3. Dynamic 16:9 Widescreen Auto-Scaling Canvas:
+     - Dynamically computes canvas dimensions using viewport constraints:
+       `maxHeight: calc(100vh - 140px)`, `maxWidth: min(calc(100vw - 48px), calc((100vh - 140px) * 16 / 9))`, ensuring maximum screen real estate utilization across monitors without distortion or clipping.
+  4. Native HTML5 Fullscreen API Integration:
+     - Integrated `modalRef.current.requestFullscreen()` and `document.exitFullscreen()` with keyboard shortcut `[F]`, synchronized with `fullscreenchange` event listeners.
+  5. Comprehensive Keyboard & Interactive Scrubber Navigation:
+     - Added full presentation keyboard support: `ArrowRight` / `Down` / `PageDown` / `Space` (Next), `ArrowLeft` / `Up` / `PageUp` / `Backspace` (Previous), `Home` / `End` (First/Last), and `Escape` (Exit).
+     - Body scroll locking (`document.body.style.overflow = 'hidden'`) prevents background dashboard scrolling during presentations.
+     - Provided interactive slide scrubber pills allowing direct jumping to any slide.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: NEVER render true fullscreen overlays directly within layout-constrained component trees. Always port to `document.body` using `createPortal` with an environment-aware test fallback.
+  2. Prevention rule: Presentation slide decks MUST maintain strict 16:9 aspect ratios (`aspect-video`) using mathematical height-to-width bounds `maxHeight: calc(100vh - chrome)` and `maxWidth: min(calc(100vw - padding), calc((100vh - chrome) * 16 / 9))`.
+  3. Runbook & Checklist:
+     - Checklist: Verify `ProposalRehearsalModal` mounts into `document.body` in dev/prod browser.
+     - Checklist: Verify modal bounding box strictly equals `100vw × 100vh` (e.g. 1440×900 desktop, 390×844 mobile).
+     - Checklist: Verify top application Header and left Sidebar are 100% hidden.
+     - Checklist: Verify keyboard navigation (`ArrowRight`, `ArrowLeft`, `Escape`) advances slides and closes smoothly.
+     - Checklist: Run targeted client test suite: `ProposalRehearsalModal.test.jsx`, `TitleApprovalPage.test.jsx`, and `CreateProjectPage.test.jsx`.
+  4. Evidence & Verification passed:
+     - Client targeted tests: 29/29 tests passed across 3 suites (ProposalRehearsalModal 5/5, TitleApprovalPage 5/5, CreateProjectPage 19/19).
+     - Playwright visual audit: Verified modal bounds `w=1440, h=900` on Desktop and `w=390, h=844` on Mobile across both light and dark modes with 0 errors.
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Visual captures: `rehearsal_cover_desktop_light.png`, `rehearsal_slide2_desktop_light.png`, `rehearsal_cover_desktop_dark.png`, `rehearsal_cover_mobile_light.png` verified.
+
+110. Scalable Sidebar Fluid Zoom Architecture & Text Overflow Resilience Governance Rule:
+- Architecture & Implementation Details:
+  1. Root Cause of Layout Collision Under Zoom:
+     - Learned lesson: When application font size is magnified (e.g. 125%, 140%, 150% text zoom or browser zoom via `document.documentElement.style.fontSize`), fixed pixel widths (such as `w-[260px]` for expanded sidebar and `w-[76px]` for collapsed rail) fail to expand proportionally. Text elements that require 16rem–18rem of horizontal space are crushed into rigid pixel bounds, resulting in severe truncation ("Bu... COT", "CAPSTONE ST...", "My Cap... [Draft]", "Plagiarism Che...").
+     - In collapsed state, invisible ghost widths on flex children (`flex-1 w-0`) coupled with `gap-2` and `justify-between` pushed the collapse toggle button (`>`) against the right border, clipping its outline and creating off-center icon rails.
+  2. Fluid Relative Dimensional Scaling:
+     - Expanded Sidebar: Converted from rigid `w-[260px]` to scalable relative dimensions `w-72 min-w-[16.5rem] max-w-[85vw] md:max-w-[21rem]`. At 100% (16px base font), width is 288px; at 125% (20px base font), width automatically expands to 360px; at 150% (24px base font), width expands to 432px, ensuring complete unclipped rendering of institutional branding ("BukSU CMS COT Capstone Studio"), all navigation links, and live badges.
+     - Collapsed Icon Rail: Converted from fixed `w-[76px]` to relative `w-20 min-w-[5rem]` (80px at 100%, 100px at 125%, 120px at 150%).
+  3. Header & Toggle Button Alignment Restoration:
+     - When `collapsed` is active, the brand identity container is completely removed (`!collapsed &&`) rather than lingering with ghost flex growth. The header container transitions to `justify-center px-2`, and the toggle button is given `p-2 shrink-0 flex items-center justify-center`, placing it dead-center in the 5rem rail with equal lateral margins and zero edge clipping.
+  4. Flexbox Child Protection & Accessible Tooltips:
+     - Applied `min-w-0` to parent `<Link>` and `<button>` navigation elements, allowing flex shrinking without overflowing boundaries.
+     - Enforced `shrink-0` on all icons and status badges (`[Draft]`, `[Active]`, action counters) so they are never compressed or displaced.
+     - Enhanced label text spans with `flex-1 min-w-0 truncate` and accessible browser `title={item.label}` tooltips so users can hover to inspect full names if text ever truncates in extreme viewports.
+  5. Vertical Scroller Isolation:
+     - Configured `<nav className="relative flex-1 py-4 min-h-0 overflow-y-auto overflow-x-hidden ...">`. The `min-h-0` class is critical in flex column containers to ensure vertical overflow scrolling triggers rather than expanding the outer container and pushing bottom items ("Settings", "Sign out") off-screen.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: NEVER use hardcoded pixel widths (`w-[260px]`, `w-[76px]`) on primary navigation containers or toolbars. Always use relative units (`rem`, `w-72`, `w-20`, `min-w-[16.5rem]`) that scale in harmony with `document.documentElement.style.fontSize`.
+  2. Prevention rule: Always include `flex-1 min-w-0 truncate` on flex text labels accompanied by `title={label}` attributes, and apply `shrink-0` to icons and trailing badges.
+  3. Runbook & Checklist:
+     - Checklist: Verify expanded sidebar renders `w-72` and collapsed rail renders `w-20`.
+     - Checklist: Run targeted unit test `npm test --workspace=client -- src/components/layouts/Sidebar.test.jsx` (7/7 tests passed).
+     - Checklist: Run full layouts test suite `npm test --workspace=client -- src/components/layouts/` (14/14 tests passed).
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+113. Instructor Review Portal UI/UX Refactor, Task Category Workflow Queuing & Executive Metric Strip Governance Rule:
+- Architecture & Implementation Details:
+  1. Workflow-First Task Category Queue Architecture:
+     - Learned lesson: Previous instructor review interfaces presented flat, raw status filter buttons (`[All] [Pending Review] [Draft] [Approved] [Revision Required]`) with no institutional context. Capstone instructors prioritize urgent action queues over static lifecycle tags—they need immediate visibility into candidate proposals requiring deliberation, manuscripts needing ADM evaluation, and project defense progression.
+     - Solution & implementation:
+       - In `server/modules/projects/project.validation.js` & `server/modules/projects/project.service.js`, extended `listProjectsQuerySchema` and query builder with `actionNeeded` (`boolean`) and `capstonePhase` (`string`) filters. `actionNeeded: true` immediately isolates projects with pending instructor action (`titleStatus: { $in: ['submitted', 'revision_required', 'pending_modification'] }`).
+       - In `client/src/pages/projects/ProjectsPage.jsx`, implemented high-impact task category tabs:
+         - `Needs Action` (urgent priority queue with live counter pill and amber pulse indicator)
+         - `All Capstones` (global cohort portfolio)
+         - `Phase 1: Title Defense` (candidate proposals & deliberation)
+         - `Phase 2: Manuscripts` (chapters 1–3 & ADM v1)
+         - `Phase 3: System Dev` (interactive Gantt prototypes & results)
+         - `Phase 4: Final Defense` (5-chapter manuscript & MinIO archival)
+  2. Executive KPI Metric Strip:
+     - Replaced plain text headers with an interactive 5-card metric summary strip (`Needs Action`, `Title Defense`, `Manuscripts`, `System Dev`, `Final Defense`) rendering real-time cohort counts. Clicking any card instantly activates the corresponding category queue.
+  3. BukSU Theming Consistency & Defensive Prefix Sanitization:
+     - Replaced raw, flat cards with modern BukSU design tokens (`bg-card`, `border-border/60`, `text-foreground`, `bg-background`).
+     - Added left attention accent borders (`border-l-4 border-l-amber-500/80`) for projects needing immediate deliberation.
+     - Sanitized redundant team prefixes using defensive regex (`team.name.replace(/^Team\s+/i, '').trim()`) to prevent `"Team Team Beta"` duplication.
+     - Enriched cards with academic year badges (`2025-2026 • BSIT 4A`), candidate focus highlights, deliberation notice banners, proponent roster summaries, assigned adviser metadata, and contextual primary action links (`Deliberate Proposals →`, `Review Manuscript & ADM →`, `Inspect Prototype & Gantt →`, `Archival & Final Defense →`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Review portals must prioritize actionable evaluation queues (`Needs Action`) over passive status tags, mapping directly to institutional academic workflow stages (Phases 1–4).
+  2. Prevention rule: Always sanitize entity names against duplicated prefixes before rendering (`replace(/^Team\s+/i, '')`), and ensure cards display clear contextual CTAs matching the team's active capstone phase.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/projects/ProjectsPage.test.jsx` (4/4 tests passed).
+     - Checklist: Run targeted server integration tests: `npm test --workspace=server -- tests/integration/projects.test.js` (72/72 tests passed).
+     - Checklist: Run Playwright visual audit `node scratch/audit_instructor_review_redesign.mjs` across Desktop (1440x900) and Mobile (390x844) in both light and dark modes.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`) and 60/60 governance checks (`npm run validate:agentic`).
+  4. Evidence & Verification passed:
+     - Client targeted tests: 4/4 passed in `ProjectsPage.test.jsx` (658ms).
+     - Server targeted integration tests: 72/72 passed in `projects.test.js`.
+     - Playwright visual audit: 12 screenshots verified in `scratch/screenshots_instructor_review/` (`01_needs_action_desktop_dark.png`, `01_needs_action_desktop_light.png`, `01_needs_action_mobile_dark.png`, `02_all_capstones_desktop_dark.png`, `03_phase2_manuscripts_desktop_dark.png`, etc.) verifying executive KPI cards, tab queuing, amber attention strips, and mobile responsive wrapping.
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Workspace cleanliness: Pristine workspace, 0 clutter (`python scripts/workspace_guardrail.py`).
+
+111. Title Approval Redirect Resilience & Connected Progress Pipeline Governance Rule:
+- Architecture & Implementation Details:
+  1. Root Cause of the "Back to My Capstone" Redirect Bounce Loop:
+     - Learned lesson: When proponents on `TitleApprovalPage.jsx` clicked `< Back to My Capstone`, the button invoked `navigate('/project')`. However, `MyProjectPage.jsx` contained an aggressive `useEffect` redirect hook that unconditionally checked `project.titleStatus !== TITLE_STATUSES.APPROVED` and immediately invoked `navigate('/project/approval', { replace: true })`. This trapped students whose titles were currently submitted, in revision, or under deliberation in an inescapable redirect loop whenever they attempted to view their capstone overview or workspace.
+     - Solution & implementation:
+       - In `TitleApprovalPage.jsx`, updated the `< Back to My Capstone` button to explicitly navigate to `navigate('/project?view=overview')`.
+       - In `MyProjectPage.jsx`, updated the redirect guard so it only redirects when `searchParams.get('view') !== 'overview'` and `!searchParams.get('tab')`. This allows students to freely inspect their team roster, deadlines, and project details in overview mode while preserving intentional first-visit routing.
+       - In `MyProjectPage.jsx`, removed the restrictive `{titleApproved && (` wrapper on the top action button, exposing "Title Proposals & Approval Studio" unconditionally so students can seamlessly return to `/project/approval` at any time.
+       - In `TitleWorkflowCards.jsx`, updated `TitlePendingCard` to include an explicit "Open Title Approval Studio" quick action button within the lock notice.
+  2. Modern Connected Progress Pipeline Architecture:
+     - Learned lesson: A progression stepper rendered as disjointed cards floating in a static grid lacks visual hierarchy, progress bar continuity, and clarity regarding milestone completion. Under text magnification (125%–150% zoom), disjointed cards compress awkwardly with no unifying container.
+     - Solution & implementation:
+       - In `TitleApprovalPage.jsx`, replaced the disjointed grid with a canonical, unified `Title Defense & Approval Pipeline` card matching the institutional standard of `CapstoneWorkflowStepper.jsx`.
+       - Header Bar: Features an animated pulse dot, title ("Title Defense & Approval Pipeline"), subtitle, active stage pill (`Stage 3: Committee Defense (Deliberation)`), and completion percentage badge (`75% Completed`).
+       - Continuous Connected Progress Track: Implemented a full-width background track (`h-2.5 rounded-full bg-muted/80`) with an active animated gradient fill (`bg-gradient-to-r from-emerald-500 via-primary to-blue-600`) set to `${defenseProgressPercent}%` alongside milestone text ticks below the bar.
+       - Four Interconnected Milestone Cards: Each milestone card features a distinct icon container, status badge (`Completed`, `In Progress`, `Pending`), bold title, and contextual description with `truncate` and `title` tooltips ensuring resilient layout under all zoom levels.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Never implement unconditional route redirects without query parameter bypasses (`?view=overview` or explicit intents). Inescapable redirect loops severely degrade usability and violate navigation contracts.
+  2. Prevention rule: Progression steppers must always feature a real, continuous progress bar track line with an active completion percentage and clear milestone status badges (`Completed`, `In Progress`, `Pending`) rather than disjointed floating cards.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/projects/TitleApprovalPage.test.jsx src/pages/projects/MyProjectPage.test.jsx` (10/10 tests passed).
+     - Checklist: Run Playwright visual audit `node scratch/audit_back_to_capstone_and_progress_bar.mjs` across Desktop (1440x900) and Mobile (390x844) in both light and dark modes, plus 125% zoom.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`) and 60/60 governance checks (`npm run validate:agentic`).
+     - Checklist: Verify governance validation pipeline (`npm run validate:governance`).
+  4. Evidence & Verification passed:
+     - Client targeted tests: 10/10 tests passed across 2 suites (`TitleApprovalPage.test.jsx` 7/7, `MyProjectPage.test.jsx` 3/3).
+     - Playwright visual audit: Verified Back to My Capstone navigates to `/project?view=overview` with zero bounce loop, verified Title Proposals & Approval Studio button navigates back, and verified connected progress bar pipeline across all viewports and themes.
+     - Visual captures: `01_title_approval_desktop_light.png`, `02_pipeline_card_desktop_light.png`, `01_title_approval_desktop_dark.png`, `02_pipeline_card_desktop_dark.png`, `03_my_capstone_overview_light.png`, `04_title_approval_125zoom_light.png`, `01_title_approval_mobile_light.png`, `01_title_approval_mobile_dark.png` verified.
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+112. Interactive Rehearsal Presentation Editor, Dynamic Per-Slide Text Scaling & Mini PowerPoint Inline Editing Architecture:
+- Architecture & Implementation Details:
+  1. Modular Interactive Rehearsal Architecture:
+     - Learned lesson: Presenters testing proposal slides during defense rehearsal need the flexibility to fine-tune text sizing for projector visibility and fix typos directly on the slide canvas without exiting to a form. Combining text scaling and inline editing in a giant modal component violates modularity and causes state-churn loops.
+     - Solution & implementation:
+       - Zustand Store (`client/src/stores/presentationEditorStore.js`): Manages a normalized `deckEdits[deckId]` dictionary with `slides[slideId]` storing per-slide font scaling (`fontSize`: 65% to 180%, step 15%), customized text overrides (`title`, `subtitle`, `content`), edit mode state (`isEditMode`), and `persist` middleware in `localStorage` (`cms-presentation-editor-storage`).
+       - Custom Hook (`client/src/hooks/usePresentationEditor.js`): Modular hook linking raw proposal slides with persistent Zustand edits. Uses a module-scoped immutable empty object `EMPTY_DECK_EDITS` to prevent Zustand `useSyncExternalStore` selector churn (`Maximum update depth exceeded`). Exposes `mergedSlides`, `activeSlide`, `currentFontSize`, `isEditMode`, `toggleEditMode`, `increaseFontSize`, `decreaseFontSize`, `resetFontSize`, and `updateActiveSlideField`.
+       - Fullscreen HUD Toolbar (`client/src/components/projects/presentation/FullscreenToolbar.jsx`): Dark HUD matching BukSU presentation theater aesthetics. Features slide counter badge (`01 / 08`), per-slide text size stepper (`-`, `100%`, `+` with `Type` icon), inline "Mini PowerPoint" Edit Mode toggle button (`Edit Slide` $\leftrightarrow$ emerald `Done Editing`), revert button, export buttons, native fullscreen toggle, and keyboard shortcut indicators.
+       - Slide Canvas with Inline Editing & Dynamic Font Scaling (`client/src/components/projects/ProposalSlideCanvas.jsx`): Scaled via `fontScale = (slide.fontSize || 100) / 100` applied to heading, subtitle, and bullet points. In `isEditMode`, wraps editable text in `contentEditable` containers with dashed amber/blue outlines, visual helper badge (`Click text to edit`), auto-saving to Zustand on `onBlur` (avoiding keystroke re-render cursor jumps), and `e.stopPropagation()` on `keydown`.
+       - Hotkey Typing Protection (`client/src/components/projects/ProposalRehearsalModal.jsx`): In rehearsal presentation mode, hotkeys (`ArrowRight`, `ArrowLeft`, `Space`, `Backspace`) advance slides. Guarded the listener against `e.target?.isContentEditable` and `e.target?.getAttribute('contenteditable') === 'true'` so editing text does not inadvertently skip slides. Added `Ctrl+E` shortcut to toggle edit mode.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When implementing inline text editing (`contentEditable`) in presentation canvases, never bind state to controlled `onInput` rerenders; always commit on `onBlur` to prevent cursor repositioning flickers, and stop keydown event propagation so presentation navigation hotkeys (Space, Arrows) do not hijack text input.
+  2. Prevention rule: In Zustand selectors returning nested dictionary records, never return a fresh object literal fallback (`s.deckEdits[deckId] || {}`) inside the selector function; always reference a module-scoped frozen constant (`EMPTY_DECK_EDITS = Object.freeze({})`) to prevent `useSyncExternalStore` infinite rerender loops.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/stores/presentationEditorStore.test.js src/hooks/usePresentationEditor.test.jsx src/components/projects/presentation/FullscreenToolbar.test.jsx src/components/projects/ProposalRehearsalModal.test.jsx` (20/20 tests passed).
+     - Checklist: Run Playwright visual audit `node scratch/audit_rehearsal_interactive_editor.mjs` across Desktop (1440x900) and Mobile (390x844) in both light and dark modes to visually verify text scaling, dashed outlines, and Done Editing state.
+     - Checklist: Verify 0 route mismatches (`npm run check:endpoints`) and 60/60 governance checks (`npm run validate:agentic`).
+  4. Evidence & Verification passed:
+     - Client targeted tests: 20/20 tests passed across 4 suites (`presentationEditorStore.test.js` 7/7, `usePresentationEditor.test.jsx` 4/4, `FullscreenToolbar.test.jsx` 4/4, `ProposalRehearsalModal.test.jsx` 5/5).
+     - Playwright visual audit: 16 screenshots captured and verified across desktop (1440x900) and mobile (390x844) in light and dark modes: verified initial view with 100% font size, verified 130% scaled text size, verified edit mode active with dashed outlines and `Done Editing` badge, verified slide 2 independent font size (100%), and verified `Done Editing` cleanly removes edit outlines.
+     - Endpoint parity: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed (`npm run validate:agentic`).
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+
+113. Instructor Review Portal Workflow Queuing & Executive Metric Strip:
+- Architecture & Implementation Details:
+  1. Root Cause & Modernization:
+     - Learned lesson: A flat table view with generic status buttons fails to convey workflow urgency or actionable backlogs for instructors managing dozens of capstone groups. Instructors need a streamlined evaluation studio with categorized queues.
+     - Solution & implementation:
+       - Transformed `/projects` into modern BukSU Evaluation Studio with an Executive KPI Metric Strip (4 high-impact cards: Needs Action, Title & Ch 1–3, System Dev, Final & Journal).
+       - Workflow queue category pills: Needs Action, All Capstones, Phase 1: Title & Ch 1–3, Phase 2: System Dev, Phase 3: Final & Journal.
+       - Clean defensive entity prefix sanitization preventing duplicate prefixes (`team.name.replace(/^Team\s+/i, '').trim()`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always provide high-impact summary metric cards and segmented category filters for review workspaces.
+  2. Checklist: Run client tests and visual feedback loops in light and dark modes across desktop and mobile.
+  3. Evidence & Verification passed: 4/4 client tests, 72/72 server integration tests, 204/182 endpoint parity (UNMATCHED_COUNT = 0), and 12-way Playwright visual audit verified.
+
+114. Canonical 3-Phase Capstone Academic Progression Architecture (Monorepo Overhaul):
+- Architecture & Implementation Details:
+  1. Institutional 3-Semester Progression (BukSU IT Department Standard):
+     - Learned lesson: The legacy 4-phase model with separate Midterm and Paper defenses did not align with the authentic BukSU IT Department curriculum, which spans a strictly sequenced 3-semester progression from 3rd Year to 4th Year.
+     - Canonical 3-Phase Structure:
+       - Phase 1 (Capstone 1: Proposal & Ch 1–3): Title Proposals, SDG Tagging, Cosine Similarity Pre-Scan, BukSU Manuscript Hub, Chapters 1–3 Submission, Proposal Defense Evaluation (`defenseType: 'proposal'`), and Capstone 1 Action Done Matrix (`ADM v1`).
+       - Phase 2 (Capstone 2: System Development & Prototype): System Development, Interactive Gantt Chart Roadmap (4 milestone sections), Development Assets & Prototype Gallery, Progress Defense Evaluation (`defenseType: 'progress'`), and Capstone 2 Action Done Matrix (`ADM v2`).
+       - Phase 3 (Capstone 3: Final Manuscript, Journal & Archival): Chapters 4–5 Final Manuscript, Academic Journal Submission (IMRAD / IEEE format), Deep Vector Plagiarism Scan, Final Oral Defense Evaluation (`defenseType: 'final'`), Capstone 3 Action Done Matrix (`ADM v3`) with Secretary Endorsement Gate & 3-Tier Multi-Signatory Sign-Off, S3/MinIO Archival & Sealed Completion Certificate.
+  2. Monorepo System-Wide Realignment:
+     - Shared Constants (`@cms/shared`): Updated `CAPSTONE_PHASES` (`PHASE_1: 1`, `PHASE_2: 2`, `PHASE_3: 3`, `PHASE_4: 3` alias) and `CAPSTONE_PHASE_VALUES = [1, 2, 3]`. Standardized `DEFENSE_TYPES` (`PROPOSAL: 'proposal'`, `PROGRESS: 'progress'`, `FINAL: 'final'`) with legacy aliases (`MIDTERM -> progress`, `PAPER -> final`).
+     - Backend Mongoose Schema & Services: Updated `defenseScheduleSchema.defenseType` to `DEFENSE_TYPE_VALUES` and `actionDoneMatrix.milestone` enum to `['CAPSTONE_1', 'CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4']`. Updated `evaluation.service.js` criteria mapping (`proposal` -> Cap 1, `progress`/`midterm` -> Cap 2, `final`/`paper` -> Cap 3). Updated `defenseMinutes.service.js` milestone mapping.
+     - Sequential Phase Auto-Advancement: In `project.controller.js` and `project.service.js`, full committee ADM endorsement sequentially promotes projects: Phase 1 -> Phase 2 (`Capstone 2: System Development & Prototype`); Phase 2 -> Phase 3 (`Capstone 3: Final Manuscript & Defense`); Phase 3 -> ratifies ADM v3 and marks project ready for archival. Hard-capped at Phase 3 (`ALREADY_FINAL_PHASE`).
+     - Frontend UI Realignment: Updated `CapstoneWorkflowStepper.jsx` to 4 nodes (Phase 0: Team Formation, Phase 1: Capstone 1, Phase 2: Capstone 2, Phase 3: Capstone 3). Replaced 4-phase tab structure in `MyProjectPage.jsx` and `ProjectDetailPage.jsx` with 3 capstone tabs (`capstone_1`, `capstone_2`, `capstone_3`). Moved Ch 1–3 into Capstone 1; Gantt chart & Prototype assets into Capstone 2; Ch 4–5, Final Manuscript, and Defense into Capstone 3. Updated `ADMPhaseSelector.jsx` to `ALL`, `CAPSTONE_1`, `CAPSTONE_2`, `CAPSTONE_3`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When deprecating an academic phase or defense type in a production monorepo, always retain backward-compatible aliases (`MIDTERM -> progress`, `PAPER -> final`, `PHASE_4 -> 3`) in `@cms/shared` and query with `{ $in: [3, 4] }` so legacy and archived database records never cause runtime breakage or unhandled exceptions.
+  2. Prevention rule: ADM milestone filtering must strictly match the active phase defaults (`CAPSTONE_1` for Phase 1, `CAPSTONE_2` for Phase 2, `CAPSTONE_3` for Phase 3+) while allowing `ALL` for complete historical inspection.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/projects/ProjectDetailPage.tab-sync.test.jsx src/pages/projects/MyProjectPage.test.jsx src/components/projects/CapstoneWorkflowStepper.test.jsx`.
+     - Checklist: Run server unit & integration tests: `npm test --workspace=server -- tests/unit/admAutoProgression.test.js` and `npm test --workspace=server -- tests/integration/projects.test.js -t "advance capstone phase"`.
+     - Checklist: Run comprehensive server 13-stage workflow tests: `npm test --workspace=server -- tests/integration/comprehensive-all-workflows.test.js`.
+     - Checklist: Verify 0 route mismatches: `npm run check:endpoints` (204 Server / 182 Client, UNMATCHED_COUNT = 0).
+     - Checklist: Verify 60/60 agentic validation checks: `npm run validate:agentic`.
+     - Checklist: Verify governance validation pipeline: `npm run validate:governance`.
+     - Checklist: Verify workspace cleanliness: `python scripts/workspace_guardrail.py`.
+     - Checklist: Run 8-way Playwright visual feedback loop: `node scratch/audit_3phase_capstone_tabs.mjs` across desktop (1440x900) and mobile (390x844) in both light and dark modes for student and instructor portals.
+  4. Evidence & Verification passed:
+     - Client targeted tests: 17/17 tests passed across 3 suites (`ProjectDetailPage.tab-sync.test.jsx` 11/11, `MyProjectPage.test.jsx` 3/3, `CapstoneWorkflowStepper.test.jsx` 3/3).
+     - Server tests: 5/5 unit tests passed (`admAutoProgression.test.js`), 6/6 integration tests passed (`projects.test.js`), 13/13 comprehensive server workflow tests passed (`comprehensive-all-workflows.test.js`).
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
+     - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
+     - Workspace cleanliness: Pristine workspace, 0 clutter.
+     - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (`audit_3phase_student_stepper_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_3phase_instructor_projects_desktop_light.png`, `dark`, `mobile_light`, `dark`).
+

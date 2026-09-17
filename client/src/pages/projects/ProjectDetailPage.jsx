@@ -115,7 +115,7 @@ export function resolveProjectDefaultTab(project) {
     project.status === PROJECT_STATUSES.DEFENDED ||
     project.status === 'defended',
   );
-  if (isArchived) return 'capstone_4';
+  if (isArchived) return 'capstone_3';
 
   const numericPhase = Number(project.capstonePhase ?? project.phase ?? 0);
   const isADMApproved =
@@ -124,7 +124,6 @@ export function resolveProjectDefaultTab(project) {
       Boolean(project.admSignatures?.adviser?.signed) &&
       Boolean(project.admSignatures?.chair?.signed));
 
-  if (numericPhase >= CAPSTONE_PHASES.PHASE_4) return 'capstone_4';
   if (numericPhase >= CAPSTONE_PHASES.PHASE_3) return 'capstone_3';
   if (numericPhase === CAPSTONE_PHASES.PHASE_2 && isADMApproved) return 'capstone_3';
   if (
@@ -141,9 +140,9 @@ export function resolveProjectDefaultTab(project) {
 
 export function mapStepToWorkflowTab(stepId, isArchived = false) {
   if (isArchived) {
-    if (stepId >= 4) return 'capstone_4';
+    if (stepId >= 3) return 'capstone_3';
     if (stepId >= 2) return 'adm';
-    return 'capstone_4';
+    return 'capstone_3';
   }
   switch (stepId) {
     case 0:
@@ -152,9 +151,8 @@ export function mapStepToWorkflowTab(stepId, isArchived = false) {
     case 2:
       return 'capstone_2';
     case 3:
-      return 'capstone_3';
     case 4:
-      return 'capstone_4';
+      return 'capstone_3';
     default:
       return 'capstone_1';
   }
@@ -310,7 +308,7 @@ export default function ProjectDetailPage() {
         status: 'approved',
         remarks: isRevision
           ? `Compiled Chapters 1–3 revised manuscript (v${compiledProposalSub.version}) approved. Post-defense revisions satisfied.`
-          : 'Compiled Chapters 1–3 manuscript approved and endorsed for Capstone 2 oral defense hearing.',
+          : 'Compiled Chapters 1–3 manuscript approved and endorsed for Capstone 1 oral defense hearing.',
       });
       toast.success(
         isRevision
@@ -380,7 +378,7 @@ export default function ProjectDetailPage() {
                 {isArchived ? (
                   <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     <WorkflowTabTrigger
-                      value="capstone_4"
+                      value="capstone_3"
                       icon={BookMarked}
                       label="Full Manuscript Paper"
                     />
@@ -404,9 +402,8 @@ export default function ProjectDetailPage() {
                 ) : (
                   <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
-                    <WorkflowTabTrigger value="capstone_2" icon={BookOpen} label="Capstone 2" />
-                    <WorkflowTabTrigger value="capstone_3" icon={Code2} label="Capstone 3" />
-                    <WorkflowTabTrigger value="capstone_4" icon={Award} label="Capstone 4" />
+                    <WorkflowTabTrigger value="capstone_2" icon={Code2} label="Capstone 2" />
+                    <WorkflowTabTrigger value="capstone_3" icon={Award} label="Capstone 3" />
                     <WorkflowTabTrigger
                       value="consultation"
                       icon={MessageSquareMore}
@@ -498,10 +495,6 @@ export default function ProjectDetailPage() {
                   </Card>
                 )}
 
-                <EvaluationPanel projectId={project._id} defenseType="proposal" />
-              </TabsContent>
-
-              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-6">
                 {/* Attached Working Manuscripts Card for fast document notation and inspection */}
                 <Card className="border-border/60 shadow-xs">
                   <CardHeader className="pb-3 border-b border-border/60">
@@ -873,21 +866,78 @@ export default function ProjectDetailPage() {
                 <ChapterReviewPanel
                   submissions={submissionsData}
                   chapters={[1, 2, 3]}
-                  title="Capstone 2 — Chapter Submissions"
+                  title="Capstone 1 — Chapter Submissions"
                   description="Approve or request revisions for each chapter. Approving locks the chapter and unlocks the next one for the student."
                   showReviewActions
                 />
 
-                {/* Action Done Matrix — Always Accessible in Capstone 2 for Real-Time Defense Remarks & Post-Defense Revisions */}
+                {/* Action Done Matrix — Capstone 1 */}
                 <ActionDoneMatrixTab
                   project={project}
                   isFaculty={isFaculty}
                   isStudent={isStudent}
                   user={user}
                   onRefresh={() => refetch()}
+                  initialMilestone="CAPSTONE_1"
                 />
 
-                <EvaluationPanel projectId={project._id} defenseType="midterm" />
+                <EvaluationPanel projectId={project._id} defenseType="proposal" />
+              </TabsContent>
+
+              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-6">
+                {/* Celebratory Capstone 1 Clearance & Progression Banner */}
+                <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-background to-primary/10 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                      <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-foreground">
+                          Capstone 1 Proposal Cleared & Approved!
+                        </h3>
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 text-[10px] uppercase tracking-wider font-semibold"
+                        >
+                          Phase 2 Active
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Title proposal and Chapters 1–3 defense cleared. System development roadmap,
+                        interactive Gantt milestones, and prototype assets are active.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-xs border-primary/30 text-primary px-3 py-1"
+                    >
+                      Capstone 2 · Development
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Capstone 2 Interactive Gantt Chart Roadmap */}
+                <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
+
+                <DevelopmentAssetsForm project={project} isReadOnly />
+
+                <div className="mt-4">
+                  <PrototypeGallery projectId={project._id} canDelete={false} canAdd={false} />
+                </div>
+
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  isStudent={isStudent}
+                  user={user}
+                  onRefresh={() => refetch()}
+                  initialMilestone="CAPSTONE_2"
+                />
+
+                <EvaluationPanel projectId={project._id} defenseType="progress" />
               </TabsContent>
 
               <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
@@ -900,7 +950,7 @@ export default function ProjectDetailPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-bold text-foreground">
-                          Capstone 2 Oral Defense Cleared & Approved!
+                          Capstone 2 Progress Defense Cleared!
                         </h3>
                         <Badge
                           variant="secondary"
@@ -910,9 +960,9 @@ export default function ProjectDetailPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Action Done Matrix is fully signed and endorsed by the Committee. System
-                        development roadmap, sprint milestones, and Chapters 4–5 submissions are
-                        officially unlocked.
+                        System prototype progress cleared and ADM v2 ratified. Chapters 4–5
+                        submissions, academic journal manuscript, final oral defense, and
+                        institutional archival are unlocked.
                       </p>
                     </div>
                   </div>
@@ -921,18 +971,9 @@ export default function ProjectDetailPage() {
                       variant="outline"
                       className="font-mono text-xs border-primary/30 text-primary px-3 py-1"
                     >
-                      Capstone 3 · Development
+                      Capstone 3 · Final & Archival
                     </Badge>
                   </div>
-                </div>
-
-                {/* Capstone 3 Interactive Gantt Chart Roadmap */}
-                <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
-
-                <DevelopmentAssetsForm project={project} isReadOnly />
-
-                <div className="mt-4">
-                  <PrototypeGallery projectId={project._id} canDelete={false} canAdd={false} />
                 </div>
 
                 <ChapterReviewPanel
@@ -943,17 +984,6 @@ export default function ProjectDetailPage() {
                   showReviewActions
                 />
 
-                <ActionDoneMatrixTab
-                  project={project}
-                  isFaculty={isFaculty}
-                  user={user}
-                  onRefresh={() => refetch()}
-                />
-
-                <EvaluationPanel projectId={project._id} defenseType="paper" />
-              </TabsContent>
-
-              <TabsContent value="capstone_4" className="mt-0 focus-visible:outline-none space-y-6">
                 {/* Full Manuscript Paper Reader & Archival Document Package */}
                 <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
@@ -1027,16 +1057,26 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
-                {/* Capstone 4 Action Done Matrix & Secretary Endorsement Gate */}
+                {/* Capstone 3 Action Done Matrix & Secretary Endorsement Gate */}
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                  initialMilestone="CAPSTONE_3"
+                />
+
+                {/* Final Defense Evaluation Rubric Panel */}
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </TabsContent>
+
+              <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
                 <ActionDoneMatrixTab
                   project={project}
                   isFaculty={isFaculty}
                   user={user}
                   onRefresh={() => refetch()}
                 />
-
-                {/* Final Defense Evaluation Rubric Panel */}
-                <EvaluationPanel projectId={project._id} defenseType="final" />
               </TabsContent>
 
               <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
@@ -1157,7 +1197,13 @@ export default function ProjectDetailPage() {
         onClose={() => setIsLiveMinutesOpen(false)}
         onOpenChange={setIsLiveMinutesOpen}
         projectId={project?._id}
-        defenseType="midterm"
+        defenseType={
+          activeTab === 'capstone_3'
+            ? 'final'
+            : activeTab === 'capstone_2'
+              ? 'progress'
+              : 'proposal'
+        }
         project={project}
         user={user}
         onPublished={() => refetch()}

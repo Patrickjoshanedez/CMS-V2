@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { CheckCircle2, Clock, Award, Layers } from 'lucide-react';
 
 export default function ADMPhaseSelector({
-  selectedPhase = 'CAPSTONE_2',
+  selectedPhase = 'CAPSTONE_1',
   onPhaseChange,
   academicYear = '2025–2026',
 }) {
@@ -30,7 +30,7 @@ export default function ADMPhaseSelector({
 
       <div className="w-full lg:w-auto overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shrink-0">
         <Tabs
-          value={selectedPhase}
+          value={selectedPhase === 'CAPSTONE_4' ? 'CAPSTONE_3' : selectedPhase}
           onValueChange={onPhaseChange}
           className="shrink-0 w-full sm:w-auto"
         >
@@ -39,17 +39,17 @@ export default function ADMPhaseSelector({
               <Layers className="h-3 w-3" />
               All Phases
             </TabsTrigger>
-            <TabsTrigger value="CAPSTONE_2" className="text-xs gap-1.5 px-3 whitespace-nowrap">
+            <TabsTrigger value="CAPSTONE_1" className="text-xs gap-1.5 px-3 whitespace-nowrap">
               <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-              Cap 2 (Ch. 1–3)
+              Cap 1 (Proposal & Ch. 1–3)
+            </TabsTrigger>
+            <TabsTrigger value="CAPSTONE_2" className="text-xs gap-1.5 px-3 whitespace-nowrap">
+              <Clock className="h-3 w-3 text-primary animate-pulse" />
+              Cap 2 (System Dev)
             </TabsTrigger>
             <TabsTrigger value="CAPSTONE_3" className="text-xs gap-1.5 px-3 whitespace-nowrap">
-              <Clock className="h-3 w-3 text-primary animate-pulse" />
-              Cap 3 (Dev / Midterm)
-            </TabsTrigger>
-            <TabsTrigger value="CAPSTONE_4" className="text-xs gap-1.5 px-3 whitespace-nowrap">
               <Award className="h-3 w-3 text-purple-500" />
-              Cap 4 (Final Defense)
+              Cap 3 (Final & Journal)
             </TabsTrigger>
           </TabsList>
         </Tabs>

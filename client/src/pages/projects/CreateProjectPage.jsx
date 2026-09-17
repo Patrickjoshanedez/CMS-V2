@@ -55,6 +55,7 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_TITLE_SIMILARITY_PERCENTAGE } from '@cms/shared';
 import { exportProposalDeckPptx } from '@/utils/exportPptx';
 import ProposalSlideCanvas from '@/components/projects/ProposalSlideCanvas';
+import ProposalRehearsalModal from '@/components/projects/ProposalRehearsalModal';
 import { formatPitchDeckDescription, parsePitchDeckFromDescription } from '@/utils/pitchDeckParser';
 import { formatSectionWithCode } from '@/utils/sectionUtils';
 
@@ -2031,93 +2032,21 @@ export default function CreateProjectPage() {
                 </div>
 
                 {/* Fullscreen Rehearsal Presentation Modal */}
-                {isFullscreenDeckOpen && (
-                  <div
-                    className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200"
-                    data-testid="fullscreen-deck-modal"
-                  >
-                    <div className="flex items-center justify-between border-b border-border/60 pb-3 max-w-5xl mx-auto w-full">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-sm text-primary">
-                          SLIDE {currentSlide.numberStr} / {deckSlides.length}
-                        </span>
-                        <span className="text-xs uppercase font-semibold text-muted-foreground hidden sm:inline">
-                          {currentSlide.category}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleExportPptx}
-                          disabled={exportingPptxIndex !== null}
-                          className="h-8 text-xs gap-1.5"
-                        >
-                          <Presentation className="h-3.5 w-3.5 text-amber-500" /> Export (.pptx)
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsFullscreenDeckOpen(false)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          data-testid="close-fullscreen-button"
-                        >
-                          <X className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex items-center justify-center p-2 sm:p-6">
-                      <div className="w-full max-w-5xl aspect-video rounded-xl shadow-2xl overflow-hidden">
-                        <ProposalSlideCanvas
-                          slide={currentSlide}
-                          proponents={proponentsList}
-                          teamName={cleanTeamName}
-                          academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
-                          fullscreen
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between max-w-4xl mx-auto w-full pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handlePrevSlide}
-                        disabled={activeSlide === 0}
-                        className="gap-1.5"
-                      >
-                        <ChevronLeft className="h-4 w-4" /> Previous
-                      </Button>
-                      <div className="flex items-center gap-1.5">
-                        {deckSlides.map((slide, idx) => (
-                          <button
-                            key={slide.id}
-                            type="button"
-                            onClick={() => setActiveSlide(idx)}
-                            className={cn(
-                              'h-2.5 rounded-full transition-all',
-                              activeSlide === idx
-                                ? 'w-8 bg-primary'
-                                : 'w-2.5 bg-muted-foreground/30 hover:bg-muted-foreground/50',
-                            )}
-                          />
-                        ))}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleNextSlide}
-                        disabled={activeSlide === deckSlides.length - 1}
-                        className="gap-1.5"
-                      >
-                        Next <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <ProposalRehearsalModal
+                  isOpen={isFullscreenDeckOpen}
+                  onClose={() => setIsFullscreenDeckOpen(false)}
+                  title={currentProposal?.title || 'Capstone Title Proposal'}
+                  slides={deckSlides}
+                  activeSlideIndex={activeSlide}
+                  onSlideChange={setActiveSlide}
+                  teamName={cleanTeamName}
+                  proponents={proponentsList}
+                  academicYear={`AY ${team?.academicYear || form.academicYear || defaultAcademicYear}`}
+                  onExportPptx={handleExportPptx}
+                  isExportingPptx={exportingPptxIndex !== null}
+                  dataTestId="fullscreen-deck-modal"
+                  closeTestId="close-fullscreen-button"
+                />
               </div>
             )}
           </div>

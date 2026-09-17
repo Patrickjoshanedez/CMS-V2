@@ -1,0 +1,33 @@
+{
+  "$schema": "../schemas/ptss-session.schema.json",
+  "sessionId": "2026-09-18_title-approval-redirect-and-connected-progress-bar",
+  "timestamp": "2026-09-18T05:39:30.000Z",
+  "task": "Fix Back to My Capstone redirect bounce loop and upgrade broken progress bar UI into connected milestone pipeline",
+  "status": "completed",
+  "affectedComponents": [
+    "client/src/pages/projects/TitleApprovalPage.jsx",
+    "client/src/pages/projects/MyProjectPage.jsx",
+    "client/src/components/projects/TitleWorkflowCards.jsx",
+    "client/src/pages/projects/TitleApprovalPage.test.jsx",
+    "client/src/pages/projects/MyProjectPage.test.jsx"
+  ],
+  "rootCauses": [
+    {
+      "issue": "Infinite Redirect Loop on Back to My Capstone button",
+      "cause": "TitleApprovalPage navigated to /project without query params. In MyProjectPage, a useEffect unconditionally redirected any project with titleStatus !== 'approved' to /project/approval, immediately bouncing the student back.",
+      "resolution": "Updated TitleApprovalPage button to navigate('/project?view=overview'). Updated MyProjectPage redirect guard to verify searchParams.get('view') !== 'overview' and !searchParams.get('tab'). Exposed Title Proposals & Approval Studio button on MyProjectPage unconditionally."
+    },
+    {
+      "issue": "Broken Progress Bar UI on TitleApprovalPage",
+      "cause": "Milestone progression was rendered as 4 disjointed static grid boxes with no progress bar track, no completion percentage, and no connected step pipeline.",
+      "resolution": "Replaced disjointed grid with a unified Title Defense & Approval Pipeline card featuring a dynamic stage pill, dynamic progress percentage (e.g. 75% Completed), continuous connected gradient progress track line with milestone ticks, and 4 interconnected milestone cards with Completed, In Progress, and Pending badges."
+    }
+  ],
+  "evidence": {
+    "targetedClientTests": "10/10 passed (TitleApprovalPage.test.jsx 7/7, MyProjectPage.test.jsx 3/3)",
+    "apiEndpointsParity": "SERVER=204, CLIENT=182, UNMATCHED_COUNT=0",
+    "agenticGovernance": "60/60 checks passed",
+    "governancePipeline": "All 4 stages valid, 0 errors, 0 warnings",
+    "playwrightVisualAudit": "Verified desktop (1440x900), mobile (390x844), light/dark modes, 125% zoom, and back-and-forth navigation without bounce"
+  }
+}

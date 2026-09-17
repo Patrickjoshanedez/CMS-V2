@@ -16,32 +16,24 @@ export const CAPSTONE_STEPS = [
   {
     id: 1,
     label: 'Capstone 1',
-    sublabel: 'Title & Similarity Scan',
+    sublabel: 'Proposal & Ch. 1–3 (ADM v1)',
     tag: 'Phase 1',
     icon: Search,
-    hasADM: false,
+    hasADM: true,
   },
   {
     id: 2,
     label: 'Capstone 2',
-    sublabel: 'Chapters 1–3 & ADM (v1)',
+    sublabel: 'System Dev & Demo (ADM v2)',
     tag: 'Phase 2',
-    icon: FileText,
+    icon: Code2,
     hasADM: true,
   },
   {
     id: 3,
     label: 'Capstone 3',
-    sublabel: 'System Dev & ADM (v2)',
+    sublabel: 'Final Defense & Archival',
     tag: 'Phase 3',
-    icon: Code2,
-    hasADM: true,
-  },
-  {
-    id: 4,
-    label: 'Capstone 4',
-    sublabel: 'Final Defense & Archive',
-    tag: 'Phase 4',
     icon: Award,
     hasADM: true,
   },
@@ -61,17 +53,12 @@ export function resolveCurrentStep(project) {
 
   const status = project.projectStatus || project.status;
   if (status === PROJECT_STATUSES.DEFENDED || status === 'archived' || project.isArchived) {
-    return 4;
+    return 3;
   }
 
   const phase = Number(project.capstonePhase ?? project.phase ?? 0);
-  if (phase >= CAPSTONE_PHASES.PHASE_4) {
-    // Phase 4 requires ADM approval from prior phases
-    return isADMApproved(project) ? 4 : 2;
-  }
-  if (phase >= CAPSTONE_PHASES.PHASE_3) {
-    // Capstone 2 is not complete unless ADM is approved
-    return isADMApproved(project) ? 3 : 2;
+  if (phase >= 3 || phase >= CAPSTONE_PHASES.PHASE_3) {
+    return 3;
   }
   if (phase >= CAPSTONE_PHASES.PHASE_2) return 2;
   if (phase >= CAPSTONE_PHASES.PHASE_1) return 1;
@@ -84,14 +71,14 @@ export function resolveCurrentStep(project) {
 }
 
 /**
- * CapstoneWorkflowStepper — Modern milestone progress pipeline for the 5-phase capstone lifecycle.
+ * CapstoneWorkflowStepper — Modern milestone progress pipeline for the 3-semester capstone lifecycle.
  * Features a continuous connected progress track, animated completion line, distinct milestone nodes,
  * and interactive tab switching.
  */
 export default function CapstoneWorkflowStepper({ currentStep, project, onStepClick, className }) {
   const activeStep = typeof currentStep === 'number' ? currentStep : resolveCurrentStep(project);
   const isArchived =
-    project?.projectStatus === 'archived' || project?.isArchived || activeStep >= 4;
+    project?.projectStatus === 'archived' || project?.isArchived || activeStep >= 3;
   const currentStepObj =
     CAPSTONE_STEPS[Math.min(activeStep, CAPSTONE_STEPS.length - 1)] || CAPSTONE_STEPS[0];
   const progressPercent = Math.min(
@@ -116,7 +103,7 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
             </h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            BukSU Institutional 4-Phase Capstone Lifecycle & Deliverable Milestones
+            BukSU Institutional 3-Phase Capstone Lifecycle & Deliverable Milestones
           </p>
         </div>
 

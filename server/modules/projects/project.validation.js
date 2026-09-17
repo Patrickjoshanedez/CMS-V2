@@ -271,6 +271,8 @@ export const listProjectsQuerySchema = z.object({
   academicYear: z.string().regex(academicYearPattern, 'Invalid academic year format').optional(),
   titleStatus: z.enum(TITLE_STATUS_VALUES).optional(),
   projectStatus: z.enum(PROJECT_STATUS_VALUES).optional(),
+  capstonePhase: z.coerce.number().int().min(1).max(4).optional(),
+  actionNeeded: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
   search: z.string().trim().max(200).optional(),
   adviserId: z.string().regex(objectIdPattern).optional(),
   panelistId: z.string().regex(objectIdPattern).optional(),

@@ -959,7 +959,7 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
   });
 });
 
-/** Helper to verify if all ADM signatures are satisfied and promote phase to Capstone 3 */
+/** Helper to verify if all ADM signatures are satisfied and promote phase sequentially */
 async function checkAndAdvancePhaseIfADMCompleted(project) {
   const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
   const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
@@ -967,8 +967,50 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
 
   if (isSecretaryDone && isAdviserDone && isChairDone) {
     project.admStatus = 'approved';
-    const currentPhase = Number(project.capstonePhase ?? 2);
-    if (currentPhase === 2) {
+    const currentPhase = Number(project.capstonePhase ?? 1);
+
+    if (currentPhase === 1) {
+      project.capstonePhase = 2;
+      project.capstoneCourse = 'Capstone 2';
+
+      try {
+        const Team = (await import('../teams/team.model.js')).default;
+        const team = await Team.findById(project.teamId);
+        if (team?.members?.length > 0) {
+          const notifications = team.members.map((memberId) => ({
+            userId: memberId,
+            type: 'phase_advanced',
+            title: '🎉 Promoted to Capstone 2: System Development & Prototype!',
+            message: `Congratulations! Your Action Done Matrix (ADM v1) has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 2. System Development Roadmap & Gantt Chart are now unlocked!`,
+            metadata: { projectId: project._id, capstonePhase: 2, capstoneCourse: 'Capstone 2' },
+          }));
+          const createdNotifs = await Notification.insertMany(notifications);
+          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        }
+      } catch {
+        // Non-blocking notification
+      }
+
+      try {
+        emitToRoom(`project:${project._id}`, 'project:phase_advanced', {
+          projectId: project._id,
+          capstonePhase: 2,
+          capstoneCourse: 'Capstone 2',
+        });
+        emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+        const io = getIO();
+        if (io) {
+          io.emit('project:phase_advanced', {
+            projectId: project._id,
+            capstonePhase: 2,
+            capstoneCourse: 'Capstone 2',
+          });
+          io.emit('project:updated', { projectId: project._id });
+        }
+      } catch {
+        // Non-blocking socket
+      }
+    } else if (currentPhase === 2) {
       project.capstonePhase = 3;
       project.capstoneCourse = 'Capstone 3';
 
@@ -979,8 +1021,8 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
           const notifications = team.members.map((memberId) => ({
             userId: memberId,
             type: 'phase_advanced',
-            title: '🎉 Promoted to Capstone 3: System Development!',
-            message: `Congratulations! Your Action Done Matrix has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 3. System Development Roadmap & Gantt Chart are now unlocked!`,
+            title: '🎉 Promoted to Capstone 3: Final Manuscript & Defense!',
+            message: `Congratulations! Your Action Done Matrix (ADM v2) has been fully signed and endorsed by the committee. Your project "${project.title}" has officially advanced to Capstone 3. Chapters 4–5, Academic Journal submission, and Final Oral Defense are now unlocked!`,
             metadata: { projectId: project._id, capstonePhase: 3, capstoneCourse: 'Capstone 3' },
           }));
           const createdNotifs = await Notification.insertMany(notifications);
@@ -1004,6 +1046,35 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
             capstonePhase: 3,
             capstoneCourse: 'Capstone 3',
           });
+          io.emit('project:updated', { projectId: project._id });
+        }
+      } catch {
+        // Non-blocking socket
+      }
+    } else if (currentPhase === 3) {
+      // Phase 3 ADM v3 finalized
+      try {
+        const Team = (await import('../teams/team.model.js')).default;
+        const team = await Team.findById(project.teamId);
+        if (team?.members?.length > 0) {
+          const notifications = team.members.map((memberId) => ({
+            userId: memberId,
+            type: 'phase_advanced',
+            title: '🎉 Capstone 3 ADM Ratified — Cleared for Archival!',
+            message: `Congratulations! Your Capstone 3 Action Done Matrix (ADM v3) has been fully signed and ratified. Your project "${project.title}" is cleared for final Dean ratification and digital vault archival!`,
+            metadata: { projectId: project._id, capstonePhase: 3, capstoneCourse: 'Capstone 3' },
+          }));
+          const createdNotifs = await Notification.insertMany(notifications);
+          createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
+        }
+      } catch {
+        // Non-blocking notification
+      }
+
+      try {
+        emitToRoom(`project:${project._id}`, 'project:updated', { projectId: project._id });
+        const io = getIO();
+        if (io) {
           io.emit('project:updated', { projectId: project._id });
         }
       } catch {

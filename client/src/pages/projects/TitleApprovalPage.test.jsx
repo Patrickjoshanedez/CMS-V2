@@ -195,4 +195,62 @@ describe('TitleApprovalPage', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/project?tab=capstone_2');
   });
+
+  it('opens and closes Proposal Defense Rehearsal fullscreen presentation modal', async () => {
+    await act(async () => {
+      root.render(<TitleApprovalPage />);
+    });
+
+    const fullscreenBtn = container.querySelector('button[title="Fullscreen Preview"]');
+    expect(fullscreenBtn).toBeTruthy();
+
+    await act(async () => {
+      fullscreenBtn.click();
+    });
+
+    expect(container.textContent).toContain('Proposal Defense Rehearsal');
+    expect(container.textContent).toContain('Smart Campus Emergency Dispatch System');
+
+    const closeBtn = container.querySelector('button[title="Close Rehearsal (Esc)"]');
+    expect(closeBtn).toBeTruthy();
+
+    await act(async () => {
+      closeBtn.click();
+    });
+
+    expect(container.querySelector('[data-testid="fullscreen-rehearsal-modal"]')).toBeNull();
+  });
+
+  it('navigates to capstone overview when Back to My Capstone is clicked', async () => {
+    await act(async () => {
+      root.render(<TitleApprovalPage />);
+    });
+
+    const backBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Back to My Capstone'),
+    );
+    expect(backBtn).toBeTruthy();
+
+    await act(async () => {
+      backBtn.click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/project?view=overview');
+  });
+
+  it('renders connected Title Defense & Approval Pipeline with progress percentage and milestones', async () => {
+    await act(async () => {
+      root.render(<TitleApprovalPage />);
+    });
+
+    expect(container.textContent).toContain('Title Defense & Approval Pipeline');
+    expect(container.textContent).toContain('75% Completed');
+    expect(container.textContent).toContain('Stage 3: Committee Defense (Deliberation)');
+    expect(container.textContent).toContain('1. Proposals Submitted');
+    expect(container.textContent).toContain('2. Similarity Pre-Scan');
+    expect(container.textContent).toContain('3. Committee Defense');
+    expect(container.textContent).toContain('4. Title Approval');
+    expect(container.textContent).toContain('In Progress');
+    expect(container.textContent).toContain('Pending');
+  });
 });

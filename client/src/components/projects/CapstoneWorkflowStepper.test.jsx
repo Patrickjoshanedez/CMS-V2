@@ -25,7 +25,7 @@ describe('CapstoneWorkflowStepper Component', () => {
     container.remove();
   });
 
-  it('renders all 5 standardized capstone milestone cards', async () => {
+  it('renders all 4 standardized capstone milestone cards', async () => {
     await act(async () => {
       root.render(<CapstoneWorkflowStepper currentStep={2} />);
     });
@@ -34,30 +34,26 @@ describe('CapstoneWorkflowStepper Component', () => {
     expect(container.textContent).toContain('Capstone 1');
     expect(container.textContent).toContain('Capstone 2');
     expect(container.textContent).toContain('Capstone 3');
-    expect(container.textContent).toContain('Capstone 4');
 
     expect(container.textContent).toContain('Phase 0');
     expect(container.textContent).toContain('Phase 1');
     expect(container.textContent).toContain('Phase 2');
     expect(container.textContent).toContain('Phase 3');
-    expect(container.textContent).toContain('Phase 4');
   });
 
   it('correctly resolves active currentStep from project metadata', () => {
     // Archived / Defended
-    expect(resolveCurrentStep({ projectStatus: 'defended' })).toBe(4);
-    expect(resolveCurrentStep({ isArchived: true })).toBe(4);
+    expect(resolveCurrentStep({ projectStatus: 'defended' })).toBe(3);
+    expect(resolveCurrentStep({ isArchived: true })).toBe(3);
 
-    // Phase 3 (Dev) requires ADM approved
-    expect(resolveCurrentStep({ capstonePhase: 3, admStatus: 'approved' })).toBe(3);
-    // Phase 3 without ADM approved remains at Phase 2
-    expect(resolveCurrentStep({ capstonePhase: 3, admStatus: 'not_started' })).toBe(2);
-    expect(resolveCurrentStep({ capstonePhase: 3 })).toBe(2);
+    // Phase 3 (Final & Archival)
+    expect(resolveCurrentStep({ capstonePhase: 3 })).toBe(3);
 
-    // Phase 2 (Ch 1-3)
+    // Phase 2 (System Dev)
     expect(resolveCurrentStep({ capstonePhase: 2 })).toBe(2);
 
-    // Phase 1 (Title approved)
+    // Phase 1 (Title proposal / approved)
+    expect(resolveCurrentStep({ capstonePhase: 1 })).toBe(1);
     expect(resolveCurrentStep({ titleStatus: 'approved' })).toBe(1);
 
     // Default Phase 0

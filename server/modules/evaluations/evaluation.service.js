@@ -21,48 +21,77 @@ class EvaluationService {
    */
   getDefaultCriteria(defenseType) {
     if (defenseType === DEFENSE_TYPES.PROPOSAL) {
-      // Capstone 1 — Paper/Manuscript Evaluation (Chapters 1-3)
+      // Capstone 1 — Proposal & Manuscript Evaluation (Chapters 1–3)
       // Scoring: 1 = Needs Improvement, 2 = Meets Expectations, 3 = Exceeds Expectations
       return [
         { name: 'Problem Definition and Objectives', maxScore: 3, score: null, comment: '' },
-        { name: 'Presentation and Writing Quality', maxScore: 3, score: null, comment: '' },
+        { name: 'Methodology and Technical Approach', maxScore: 3, score: null, comment: '' },
         { name: 'Originality and Innovation', maxScore: 3, score: null, comment: '' },
-        { name: 'Independence', maxScore: 3, score: null, comment: '' },
+        { name: 'Presentation and Writing Quality', maxScore: 3, score: null, comment: '' },
+        { name: 'Independence and Feasibility', maxScore: 3, score: null, comment: '' },
       ];
     }
-    if (defenseType === DEFENSE_TYPES.MIDTERM) {
-      // Capstone 2 — Presentation/Progress Defense
+    if (defenseType === DEFENSE_TYPES.PROGRESS || defenseType === 'midterm') {
+      // Capstone 2 — System Development & Prototype Demonstration
       // Scoring: 1 = Needs Improvement, 2 = Satisfactory, 3 = Proficient, 4 = Excellent
       return [
-        { name: 'Completeness of Report', maxScore: 4, score: null, comment: '' },
-        { name: 'System Development Progress', maxScore: 4, score: null, comment: '' },
-        { name: 'Alignment with Objectives', maxScore: 4, score: null, comment: '' },
-        { name: 'Technical Quality', maxScore: 4, score: null, comment: '' },
-        { name: 'Documentation of Progress', maxScore: 4, score: null, comment: '' },
-        { name: 'Adherence to Timeline', maxScore: 4, score: null, comment: '' },
+        {
+          name: 'System Development Progress & Implementation',
+          maxScore: 4,
+          score: null,
+          comment: '',
+        },
+        { name: 'Technical Architecture & Code Quality', maxScore: 4, score: null, comment: '' },
+        { name: 'Alignment with Capstone Objectives', maxScore: 4, score: null, comment: '' },
+        {
+          name: 'Interactive Gantt Chart & Milestone Adherence',
+          maxScore: 4,
+          score: null,
+          comment: '',
+        },
+        {
+          name: 'Working Prototype Demonstration & Functionality',
+          maxScore: 4,
+          score: null,
+          comment: '',
+        },
         { name: 'Problem Identification and Resolution', maxScore: 4, score: null, comment: '' },
-        { name: 'Presentation Quality', maxScore: 4, score: null, comment: '' },
+        { name: 'Presentation Quality & Q&A Response', maxScore: 4, score: null, comment: '' },
       ];
     }
-    if (defenseType === DEFENSE_TYPES.PAPER) {
-      // Capstone 3 — Paper/Manuscript Evaluation (Chapters 4-5)
-      // Scoring: 1 = Needs Improvement, 2 = Meets Expectations, 3 = Exceeds Expectations
-      return [
-        { name: 'Presentation of Results', maxScore: 3, score: null, comment: '' },
-        { name: 'Analysis and Interpretation', maxScore: 3, score: null, comment: '' },
-        { name: 'Summary, Conclusions and Recommendations', maxScore: 3, score: null, comment: '' },
-        { name: 'Presentation and Writing Quality', maxScore: 3, score: null, comment: '' },
-        { name: 'Independence', maxScore: 3, score: null, comment: '' },
-      ];
-    }
-    // Capstone 4 — Final System Defense
+    // Capstone 3 (and legacy 'paper') — Final Oral Defense & Academic Journal Evaluation
     return [
-      { name: 'System Functionality & Completeness', maxScore: 25, score: null, comment: '' },
-      { name: 'Technical Implementation', maxScore: 20, score: null, comment: '' },
-      { name: 'Documentation Quality', maxScore: 15, score: null, comment: '' },
-      { name: 'Innovation & Contribution', maxScore: 15, score: null, comment: '' },
-      { name: 'Presentation & Communication', maxScore: 15, score: null, comment: '' },
-      { name: 'Q&A / Defense Responses', maxScore: 10, score: null, comment: '' },
+      {
+        name: 'Presentation of Results & Analysis (Chapter 4)',
+        maxScore: 20,
+        score: null,
+        comment: '',
+      },
+      {
+        name: 'Summary, Conclusions & Recommendations (Chapter 5)',
+        maxScore: 15,
+        score: null,
+        comment: '',
+      },
+      {
+        name: 'Academic Journal Manuscript Quality (IMRAD/IEEE format)',
+        maxScore: 20,
+        score: null,
+        comment: '',
+      },
+      {
+        name: 'System Functionality & Prototype Completeness',
+        maxScore: 20,
+        score: null,
+        comment: '',
+      },
+      { name: 'Oral Defense Presentation Quality', maxScore: 15, score: null, comment: '' },
+      {
+        name: 'Defense Committee Q&A & Rebuttal Responses',
+        maxScore: 10,
+        score: null,
+        comment: '',
+      },
     ];
   }
 

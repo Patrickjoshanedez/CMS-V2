@@ -38,10 +38,9 @@ function cleanTeamName(name) {
 
 function getPhaseLabel(phase) {
   const num = Number(phase ?? 0);
-  if (num >= CAPSTONE_PHASES.PHASE_4) return 'Phase 4: Final Defense & Archival';
-  if (num >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: System Dev & Progress';
-  if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: Chapters 1–3 Manuscript';
-  if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Defense';
+  if (num >= CAPSTONE_PHASES.PHASE_3) return 'Phase 3: Final Manuscript & Archival';
+  if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: System Development & Prototype';
+  if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposal & Ch 1–3';
   return 'Phase 0: Team Formation';
 }
 
