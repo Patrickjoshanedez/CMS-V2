@@ -507,4 +507,62 @@ describe('DefenseSchedulingPage', () => {
 
     expect(durationInput.value).toBe('45');
   });
+
+  it('identifies incomplete committee and displays committee warning when adviser or panelists are missing', async () => {
+    const incompleteProjects = [
+      {
+        _id: 'proj-incomplete',
+        title: 'Blockchain Voting Security',
+        capstonePhase: 2,
+        teamId: { _id: 'team-inc', name: 'Team ChainVote' },
+        sectionId: { _id: 'sec-4a', name: 'BSIT-4A' },
+        adviserId: null, // Missing adviser!
+        panelistIds: ['pan-1'], // Only 1 panelist!
+        defenseSchedule: { status: 'pending_scheduling' },
+      },
+    ];
+
+    mockUseProjects.mockReturnValue({
+      data: { projects: incompleteProjects },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Tray view should display "Missing Committee"
+    expect(container.textContent).toContain('Missing Committee');
+    expect(container.textContent).toContain('Missing Adviser & 2 Panelists');
+
+    // Switch to table view
+    const tableBtn = container.querySelector('button[title="Table View"]');
+    await act(async () => {
+      tableBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Committee Incomplete');
+    expect(container.textContent).toContain('Appoint committee first');
+  });
+
+  it('highlights the selected day when clicked on day header', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Find day headers: 1 time slot header + 5 days = 6 divs
+    const dayHeaders = container.querySelectorAll(
+      '.grid-cols-\\[72px_repeat\\(5\\,1fr\\)\\] > div',
+    );
+    expect(dayHeaders.length).toBeGreaterThanOrEqual(6);
+
+    // Click on 2nd day (index 2)
+    await act(async () => {
+      dayHeaders[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Selected');
+  });
 });

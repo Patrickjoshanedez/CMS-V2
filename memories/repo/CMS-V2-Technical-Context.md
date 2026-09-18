@@ -2849,4 +2849,37 @@
      - Governance validation pipeline: All 4 stages valid, 0 errors, 0 warnings.
      - Workspace cleanliness: Pristine workspace, 0 clutter.
      - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (`audit_3phase_student_stepper_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_3phase_instructor_projects_desktop_light.png`, `dark`, `mobile_light`, `dark`).
+117. Defense Scheduling Calendar Week Highlighting, Committee Readiness Gate, Reports Analytics Dashboard Overhaul, and 70/30 Faculty Committee Card Governance Rule:
+- Architecture & Implementation Details:
+  1. Defense Scheduling Calendar Week Highlighting & Cross-Month Synchronization:
+     - Learned lesson: When picking a date from a mini-calendar popover, users expect the full 5-day academic week (Mon–Fri) to be visibly highlighted across both the date picker and the large timeline schedule, including when the week spans adjacent month boundaries (e.g. Sep 28 – Oct 2).
+     - Solution & implementation: In `DefenseSchedulingPage.jsx`, updated `popoverDays` to generate a 35/42-day calendar matrix including adjacent month trailing and leading dates with `{ date, isCurrentMonth }`. Set `isInCurrentWeek` whenever an adjacent day falls within the active Monday–Friday span. Highlighted big timeline header and body column when `isSelected` is active.
+  2. Committee Defense Readiness Gate & Ergonomic Modal:
+     - Learned lesson: Teams with incomplete defense committees (e.g. unassigned adviser or fewer than 3 panelists) were prematurely labeled "Ready for Scheduling" and flooded the schedule modal with 16 giant time buttons that blew out vertical height.
+     - Solution & implementation: Built `getDefenseReadiness(project)` verifying `hasAdviser && panelistCount >= 3`. Projects lacking appointments render amber `Missing Committee` / `Committee Incomplete` badges with exact missing appointment counts (e.g. "3 more panelists needed"). Redesigned `ScheduleDefenseModal.jsx` to a compact container (`max-h-[88vh] flex flex-col`) with scrollable body, pinned header and footer, quick timeslot chips (`08:30 AM`, `09:00 AM`, etc.), and an institutional advisory banner summarizing missing committee appointments.
+  3. Reports & Analytics Dashboard Overhaul (`ReportsPage.jsx`):
+     - Learned lesson: Requiring users to configure up to 7 dropdown filters before seeing any data created an onerous "query builder" chore that discouraged exploration.
+     - Solution & implementation: Flipped the paradigm to an automatically hydrated dashboard on mount (`hasGenerated = true`, defaulting to the active Academic Year). Built:
+       - `CohortKPIRibbon.jsx`: 5-metric demographic strip (Enrolled Proponents, Capstone Teams, Academic Sections, Academic Cycle, ADM Yield Rate).
+       - `ReportsFilterDrawer.jsx`: Slim persistent quick filter ribbon with slide-out Advanced Query Studio drawer.
+       - `DynamicChartWidget.jsx`: Universal Recharts studio supporting runtime switching between Bar, Line, Pie, Radar, and Tabular representations with fullscreen expansion.
+       - `exportReportsToCSV.js`: Enterprise RFC 4180 CSV export engine with DDE injection sanitization (`=, +, -, @, \t, \r` prefixed with `'`) and institutional audit headers.
+  4. Project Viewer 70/30 Workspace & Faculty Committee Card:
+     - Learned lesson: Ad-hoc widgets violated the 60-30-10 visual rule and lacked institutional workload transparency.
+     - Solution & implementation: Refactored `FacultyWidget.jsx` into `FacultyCommitteeCard.jsx` embedded in an asymmetric 70/30 workspace layout (`xl:col-span-8` / `xl:col-span-4`). Implemented committee completeness badges (`Complete (Ready)` emerald, `Incomplete (Missing...)` amber), faculty workload indicators (`Optimal Workload <3`, `Near Capacity 3-5`, `Overloaded >5`), searchable comboboxes restricted to faculty, and FRAD2 proponent team roster with standardized technical roles.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Defense scheduling systems must strictly gate readiness behind full committee appointments (`hasAdviser && panelistCount >= 3`) to prevent unratified defense hearings.
+  2. Prevention rule: Analytics and reporting interfaces must hydrate baseline metrics for the active cohort by default (`hasGenerated = true`) rather than forcing a blank empty query state.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/instructor/DefenseSchedulingPage.test.jsx src/pages/reports/ReportsPage.test.jsx src/components/projects/FacultyCommitteeCard.test.jsx src/pages/projects/ProjectDetailPage.tab-sync.test.jsx src/pages/projects/ProjectDetailPage.back-nav.test.jsx`.
+     - Checklist: Verify 0 route mismatches: `npm run check:endpoints` (204 Server / 182 Client, UNMATCHED_COUNT = 0).
+     - Checklist: Verify 60/60 agentic validation checks: `npm run validate:agentic`.
+     - Checklist: Verify workspace cleanliness: `python scripts/workspace_guardrail.py`.
+     - Checklist: Run full Playwright visual audit: `node scratch/visual_audit_defense_reports_faculty.mjs` across desktop (1440x900) and mobile (390x844) in light and dark modes.
+  4. Evidence & Verification passed:
+     - Client targeted tests: 38/38 tests passed across 5 test files (`DefenseSchedulingPage.test.jsx` 16/16, `ReportsPage.test.jsx` 5/5, `FacultyCommitteeCard.test.jsx` 4/4, `ProjectDetailPage.tab-sync.test.jsx` 11/11, `ProjectDetailPage.back-nav.test.jsx` 2/2).
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
+     - Workspace cleanliness: Pristine workspace, 0 clutter (`scripts/workspace_guardrail.py`).
+     - Playwright visual audit: 12 visual captures generated and verified in brain artifacts (`audit_defense_schedule_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_defense_modal_compact_desktop_light.png`, `dark`; `audit_reports_dashboard_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_reports_filter_drawer_desktop_light.png`; `audit_reports_chart_table_view_desktop_light.png`; `audit_project_detail_70_30_desktop_light.png`, `dark`, `mobile_light`, `dark`).
 

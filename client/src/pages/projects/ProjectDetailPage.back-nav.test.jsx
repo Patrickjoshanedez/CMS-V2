@@ -46,6 +46,8 @@ vi.mock('@/hooks/useProjects', () => ({
   useAdvancePhase: () => ({ mutate: vi.fn(), isPending: false }),
   useArchiveProject: () => ({ mutate: vi.fn(), isPending: false }),
   useArchiveSearch: () => ({ data: { projects: [] } }),
+  useUpdateGanttChartUrl: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateDemoVideoUrl: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/useSubmissions', () => ({

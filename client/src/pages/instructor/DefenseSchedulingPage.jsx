@@ -151,6 +151,45 @@ export function toLocalDateKey(d) {
 }
 
 /**
+ * Evaluates defense readiness including committee composition requirements.
+ * A team is ready for defense scheduling if:
+ * 1. Adviser has endorsed (defenseSchedule.status === 'pending_scheduling')
+ * 2. An Adviser is appointed (adviserId exists)
+ * 3. At least 3 defense panelists are appointed (panelistIds.length >= 3)
+ */
+export function getDefenseReadiness(project) {
+  const defStatus = project?.defenseSchedule?.status;
+  const isScheduled = defStatus === 'scheduled';
+  const hasAdviser = Boolean(project?.adviserId);
+  const panelistCount = project?.panelistIds?.length || 0;
+  const hasFullCommittee = hasAdviser && panelistCount >= 3;
+  const isEndorsed = defStatus === 'pending_scheduling';
+
+  const isReady = isEndorsed && hasFullCommittee;
+  const isCommitteeIncomplete = (isEndorsed || isScheduled) && !hasFullCommittee;
+
+  let committeeNote = '';
+  if (!hasAdviser && panelistCount < 3) {
+    committeeNote = `Missing Adviser & ${3 - panelistCount} Panelists`;
+  } else if (!hasAdviser) {
+    committeeNote = 'Missing Adviser';
+  } else if (panelistCount < 3) {
+    committeeNote = `${3 - panelistCount} more panelist${3 - panelistCount > 1 ? 's' : ''} needed`;
+  }
+
+  return {
+    isScheduled,
+    isEndorsed,
+    hasAdviser,
+    panelistCount,
+    hasFullCommittee,
+    isReady,
+    isCommitteeIncomplete,
+    committeeNote,
+  };
+}
+
+/**
  * DefenseSchedulingPage — Dedicated Instructor Defense Scheduling Command Center.
  *
  * Centralized dashboard for Course Instructors to monitor defense readiness across
@@ -396,13 +435,31 @@ export default function DefenseSchedulingPage() {
     const month = popoverMonth.getMonth();
     const firstDayIndex = new Date(year, month, 1).getDay(); // 0=Sun..6=Sat
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
 
     const days = [];
-    for (let i = 0; i < firstDayIndex; i++) {
-      days.push(null);
+    // Trailing days from previous month
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthDays - i),
+        isCurrentMonth: false,
+      });
     }
+    // Days in current month
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
+      days.push({
+        date: new Date(year, month, day),
+        isCurrentMonth: true,
+      });
+    }
+    // Leading days from next month to complete grid (35 or 42 cells)
+    const targetCells = days.length <= 35 ? 35 : 42;
+    const remaining = targetCells - days.length;
+    for (let day = 1; day <= remaining; day++) {
+      days.push({
+        date: new Date(year, month + 1, day),
+        isCurrentMonth: false,
+      });
     }
     return days;
   }, [popoverMonth]);
@@ -1063,35 +1120,38 @@ export default function DefenseSchedulingPage() {
 
                       {/* Days Grid */}
                       <div className="grid grid-cols-7 gap-1 text-center">
-                        {popoverDays.map((dayObj, i) => {
-                          if (!dayObj) {
-                            return <div key={`empty-${i}`} className="h-7 w-7" />;
-                          }
-                          const isSelected = selectedDate.toDateString() === dayObj.toDateString();
-                          const isToday = new Date().toDateString() === dayObj.toDateString();
+                        {popoverDays.map((dayItem, i) => {
+                          const isSelected =
+                            selectedDate.toDateString() === dayItem.date.toDateString();
+                          const isToday = new Date().toDateString() === dayItem.date.toDateString();
                           const isInCurrentWeek = weekDays.some(
-                            (w) => w.toDateString() === dayObj.toDateString(),
+                            (w) => w.toDateString() === dayItem.date.toDateString(),
                           );
 
                           return (
                             <button
-                              key={dayObj.toISOString()}
+                              key={`${dayItem.date.toISOString()}-${i}`}
                               type="button"
                               onClick={() => {
-                                setSelectedDate(dayObj);
+                                setSelectedDate(dayItem.date);
+                                if (!dayItem.isCurrentMonth) {
+                                  setPopoverMonth(dayItem.date);
+                                }
                                 setIsDatePopoverOpen(false);
                               }}
                               className={`h-7 w-7 text-xs rounded-md font-medium transition-colors flex items-center justify-center cursor-pointer ${
                                 isSelected
                                   ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                                   : isInCurrentWeek
-                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
                                     : isToday
                                       ? 'border border-primary text-primary font-bold'
-                                      : 'text-foreground hover:bg-muted'
+                                      : !dayItem.isCurrentMonth
+                                        ? 'text-muted-foreground/40 hover:bg-muted/40'
+                                        : 'text-foreground hover:bg-muted'
                               }`}
                             >
-                              {dayObj.getDate()}
+                              {dayItem.date.getDate()}
                             </button>
                           );
                         })}
@@ -1251,8 +1311,8 @@ export default function DefenseSchedulingPage() {
                       </div>
                     ) : (
                       unscheduledTeams.map((project) => {
-                        const isScheduled = project.defenseSchedule?.status === 'scheduled';
-                        const isEndorsed = project.defenseSchedule?.status === 'pending_scheduling';
+                        const { isScheduled, isReady, isCommitteeIncomplete, committeeNote } =
+                          getDefenseReadiness(project);
                         const leaderName = getTeamLeaderName(project);
 
                         return (
@@ -1280,24 +1340,38 @@ export default function DefenseSchedulingPage() {
                                 </span>
                               </div>
                               <Badge
-                                variant={
-                                  isScheduled ? 'outline' : isEndorsed ? 'default' : 'outline'
-                                }
+                                variant={isScheduled ? 'outline' : isReady ? 'default' : 'outline'}
                                 className={`text-[10px] shrink-0 ${
                                   isScheduled
                                     ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
-                                    : isEndorsed
+                                    : isReady
                                       ? 'bg-emerald-600 text-white font-medium'
-                                      : 'text-muted-foreground'
+                                      : isCommitteeIncomplete
+                                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-medium'
+                                        : 'text-muted-foreground'
                                 }`}
                               >
-                                {isScheduled ? 'Scheduled' : isEndorsed ? 'Ready ✓' : 'In Prep'}
+                                {isScheduled
+                                  ? 'Scheduled'
+                                  : isReady
+                                    ? 'Ready ✓'
+                                    : isCommitteeIncomplete
+                                      ? 'Missing Committee'
+                                      : 'In Prep'}
                               </Badge>
                             </div>
 
                             <p className="text-[11px] text-muted-foreground line-clamp-1 font-medium">
                               {project.title || 'Proposal in preparation'}
                             </p>
+
+                            {/* Committee warning if incomplete */}
+                            {isCommitteeIncomplete && (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20">
+                                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                                <span className="truncate">{committeeNote}</span>
+                              </div>
+                            )}
 
                             {/* Team Leader Indicator */}
                             {leaderName && (
@@ -1319,7 +1393,11 @@ export default function DefenseSchedulingPage() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenScheduleModal(project)}
-                                className="text-primary hover:underline font-semibold text-[11px] cursor-pointer"
+                                className={`${
+                                  isCommitteeIncomplete
+                                    ? 'text-amber-700 dark:text-amber-400 hover:underline'
+                                    : 'text-primary hover:underline'
+                                } font-semibold text-[11px] cursor-pointer`}
                               >
                                 {isScheduled ? 'Reschedule Defense' : 'Schedule Defense'}
                               </button>
@@ -1345,19 +1423,34 @@ export default function DefenseSchedulingPage() {
                     </div>
                     {weekDays.map((day, idx) => {
                       const isToday = new Date().toDateString() === day.toDateString();
+                      const isSelected = selectedDate.toDateString() === day.toDateString();
                       return (
                         <div
                           key={idx}
-                          className={`p-3 text-center border-r border-border/60 last:border-r-0 ${
-                            isToday ? 'bg-primary/10' : ''
+                          onClick={() => setSelectedDate(day)}
+                          className={`p-3 text-center border-r border-border/60 last:border-r-0 cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-primary/20 border-b-2 border-b-primary shadow-xs'
+                              : isToday
+                                ? 'bg-primary/10 hover:bg-primary/15'
+                                : 'hover:bg-muted/40'
                           }`}
                         >
-                          <p className="text-xs font-bold text-foreground">
-                            {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                          </p>
+                          <div className="flex items-center justify-center gap-1">
+                            <p className="text-xs font-bold text-foreground">
+                              {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                            </p>
+                            {isSelected && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-primary text-primary-foreground font-semibold">
+                                Selected
+                              </span>
+                            )}
+                          </div>
                           <p
                             className={`text-[11px] font-mono mt-0.5 ${
-                              isToday ? 'text-primary font-bold' : 'text-muted-foreground'
+                              isSelected || isToday
+                                ? 'text-primary font-bold'
+                                : 'text-muted-foreground'
                             }`}
                           >
                             {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1403,6 +1496,7 @@ export default function DefenseSchedulingPage() {
                       const dateStr = toLocalDateKey(day);
                       const dayScheduledProjects = scheduledByDateMap.get(dateStr) || [];
                       const isOverThisDay = dragOverState?.dateStr === dateStr;
+                      const isSelectedDay = selectedDate.toDateString() === day.toDateString();
 
                       return (
                         <div
@@ -1412,7 +1506,9 @@ export default function DefenseSchedulingPage() {
                           onDragOver={(e) => handleColumnDragOver(dateStr, e)}
                           onDragLeave={handleColumnDragLeave}
                           onDrop={(e) => handleColumnDrop(dateStr, e)}
-                          className="relative border-r border-border/60 last:border-r-0 bg-background/50 transition-colors"
+                          className={`relative border-r border-border/60 last:border-r-0 transition-colors ${
+                            isSelectedDay ? 'bg-primary/[0.04]' : 'bg-background/50'
+                          }`}
                         >
                           {/* Background Hour Guidelines (72px per hour, with 30-min dashed line) */}
                           {HOURS_ARRAY.map((hour, i) => (
@@ -1665,9 +1761,8 @@ export default function DefenseSchedulingPage() {
                     </tr>
                   ) : (
                     filteredProjects.map((project) => {
-                      const defStatus = project.defenseSchedule?.status;
-                      const isReady = defStatus === 'pending_scheduling';
-                      const isScheduled = defStatus === 'scheduled';
+                      const { isReady, isScheduled, isCommitteeIncomplete, committeeNote } =
+                        getDefenseReadiness(project);
                       const leaderName = getTeamLeaderName(project);
                       const teamName = project.teamId?.name
                         ? project.teamId.name.replace(/^Team\s+/i, '').trim()
@@ -1753,6 +1848,19 @@ export default function DefenseSchedulingPage() {
                                 <Calendar className="h-3 w-3" />
                                 Scheduled
                               </Badge>
+                            ) : isCommitteeIncomplete ? (
+                              <div className="space-y-0.5">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1 text-[11px]"
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Committee Incomplete
+                                </Badge>
+                                <p className="text-[10px] text-amber-600/90 dark:text-amber-400/90 font-medium">
+                                  {committeeNote}
+                                </p>
+                              </div>
                             ) : (
                               <Badge
                                 variant="outline"
@@ -1788,6 +1896,10 @@ export default function DefenseSchedulingPage() {
                               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 italic">
                                 Awaiting Instructor Scheduling
                               </span>
+                            ) : isCommitteeIncomplete ? (
+                              <span className="text-[11px] text-amber-600 dark:text-amber-400 italic">
+                                Appoint committee first
+                              </span>
                             ) : (
                               <span className="text-[11px] text-muted-foreground">—</span>
                             )}
@@ -1802,7 +1914,9 @@ export default function DefenseSchedulingPage() {
                                 className={`text-xs gap-1 h-8 ${
                                   isReady
                                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                                    : ''
+                                    : isCommitteeIncomplete
+                                      ? 'border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10'
+                                      : ''
                                 }`}
                                 onClick={() => handleOpenScheduleModal(project)}
                               >
@@ -1841,9 +1955,8 @@ export default function DefenseSchedulingPage() {
               </div>
             ) : (
               filteredProjects.map((project) => {
-                const defStatus = project.defenseSchedule?.status;
-                const isReady = defStatus === 'pending_scheduling';
-                const isScheduled = defStatus === 'scheduled';
+                const { isReady, isScheduled, isCommitteeIncomplete, committeeNote } =
+                  getDefenseReadiness(project);
                 const leaderName = getTeamLeaderName(project);
                 const teamName = project.teamId?.name
                   ? project.teamId.name.replace(/^Team\s+/i, '').trim()
@@ -1885,6 +1998,14 @@ export default function DefenseSchedulingPage() {
                           <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-[10px]">
                             Scheduled
                           </Badge>
+                        ) : isCommitteeIncomplete ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1"
+                          >
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            Incomplete Committee
+                          </Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px] text-muted-foreground">
                             Drafting
@@ -1897,6 +2018,12 @@ export default function DefenseSchedulingPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-3 pt-0 text-xs">
+                      {isCommitteeIncomplete && (
+                        <div className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded-md p-2 border border-amber-500/20">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          <span>{committeeNote}</span>
+                        </div>
+                      )}
                       <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 space-y-1.5">
                         {leaderName && (
                           <div className="flex items-center justify-between text-[11px]">
