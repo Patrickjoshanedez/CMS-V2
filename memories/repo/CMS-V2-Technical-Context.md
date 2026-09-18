@@ -1,6 +1,7 @@
 # CMS-V2 Technical Context
 
-## Prevention Rules
+### Prevention Rules
+- Proposal Defense Pitch Deck Title Cover Slide Content Isolation: Slide 01 (`Title Pitch & Proponents`) must never render Proposed Solution or technical framework paragraphs. Subtitle on Slide 01 defaults to empty string or user-edited subtitle; `pitch.proposedSolution` belongs strictly and exclusively to Slide 03 (`Proposed Solution & Technical Framework`). `ProposalSlideCanvas` defensively suppresses subtitle if it matches or contains `proposedSolution`.
 - For orchestration initialization-only changes, require an evidence triad before completion: (1) targeted verification report, (2) explicit mutation evidence convention with numeric score, (3) reviewer verdict.
 - Any submissions read endpoint must enforce scoped authorization through `getSubmissionViewContext` or `_assertCanViewSubmission` against project membership/assignment, not role-only shortcuts.
 - When a service method signature is hardened with requester context, add or update route-level integration coverage for that endpoint to catch stale call sites.

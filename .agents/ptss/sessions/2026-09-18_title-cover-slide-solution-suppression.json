@@ -1,0 +1,14 @@
+{
+  "session_id": "2026-09-18_title-cover-slide-solution-suppression",
+  "date": "2026-09-18T05:35:00.000Z",
+  "task_summary": "Removed Proposed Solution & Technical Framework text from Title Pitch & Proponents cover screen (Slide 01) across TitleApprovalPage, CreateProjectPage, and ProposalSlideCanvas, keeping Slide 01 pristine with golden amber title and BukSU footer banner while reserving technical framework text exclusively for Slide 03.",
+  "task_category": "ui_ux_slide_presentation_and_cover_isolation",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "evidence": {
+    "unit_tests_passed": 30,
+    "playwright_visual_screenshots": 12,
+    "endpoint_parity": "UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed"
+  }
+}

@@ -98,6 +98,49 @@ describe('ProposalSlideCanvas & exportPptx A4 Standard', () => {
     container.remove();
   });
 
+  it('suppresses Proposed Solution & Technical Framework text on the title screen cover slide', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const proposedSolutionText =
+      'A hybrid hardware-software ecosystem. The hardware layer consists of ESP32-based IoT sensor nodes deployed in fields.';
+
+    const coverSlideWithLeak = {
+      id: 1,
+      numberStr: '01',
+      category: 'Title Pitch & Proponents',
+      title: 'AgriNode: IoT-Driven Microclimate Telemetry',
+      subtitle: proposedSolutionText,
+      proposedSolution: proposedSolutionText,
+      type: 'cover',
+    };
+
+    await act(async () => {
+      root.render(
+        <ProposalSlideCanvas
+          slide={coverSlideWithLeak}
+          teamName="Solo Leveling"
+          proponents="Megumi Josh Fushiguro"
+        />,
+      );
+    });
+
+    const h1 = container.querySelector('h1');
+    expect(h1).toBeTruthy();
+    expect(h1.textContent).toContain('AgriNode');
+
+    // Subtitle paragraph containing proposed solution should NOT be rendered
+    const pTags = Array.from(container.querySelectorAll('p'));
+    const leakedP = pTags.find((p) => p.textContent.includes('ESP32-based IoT sensor nodes'));
+    expect(leakedP).toBeUndefined();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   it('exports proposal deck as A4 PPTX file with 8 populated slides', async () => {
     const writeSpy = vi.fn().mockResolvedValue(undefined);
     const defineLayoutSpy = vi.fn();

@@ -177,6 +177,21 @@ export default function ProposalSlideCanvas({
      COVER SLIDE (BLUE THEME)
   ───────────────────────────────────────────────────────────── */
   if (isCover) {
+    // Defensively ensure Proposed Solution & Technical Framework never leaks onto Title Screen
+    const isProposedSolutionLeak =
+      slide.subtitle &&
+      (slide.subtitle === slide.proposedSolution ||
+        slide.subtitle === slide.content ||
+        (slide.proposedSolution &&
+          typeof slide.proposedSolution === 'string' &&
+          slide.proposedSolution.length > 20 &&
+          slide.subtitle.includes(slide.proposedSolution.slice(0, 40))) ||
+        (slide.content &&
+          typeof slide.content === 'string' &&
+          slide.content.length > 20 &&
+          slide.subtitle.includes(slide.content.slice(0, 40))));
+    const effectiveSubtitle = isProposedSolutionLeak ? '' : slide.subtitle;
+
     return (
       <div
         data-slide-canvas="cover"
@@ -222,7 +237,7 @@ export default function ProposalSlideCanvas({
             {slideTitle}
           </h1>
 
-          {slide.subtitle && (
+          {effectiveSubtitle && (
             <p
               style={{
                 fontSize: `calc(clamp(0.85rem, 1.6vw, 1.25rem) * ${fontScale})`,
@@ -246,7 +261,7 @@ export default function ProposalSlideCanvas({
               )}
               title={isEditMode ? 'Click to edit subtitle' : undefined}
             >
-              {slide.subtitle}
+              {effectiveSubtitle}
             </p>
           )}
         </div>

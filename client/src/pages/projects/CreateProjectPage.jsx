@@ -875,10 +875,7 @@ export default function CreateProjectPage() {
         category: 'Title Pitch & Proponents',
         tag: 'BukSU Proposal Defense',
         title: title,
-        subtitle:
-          pitch.proposedSolution ||
-          currentProposal.description ||
-          'A centralized multi-tenant capstone management system featuring automated committee notifications, a real-time Action Done Matrix, and an integrated dual-engine similarity analyzer.',
+        subtitle: pitch.subtitle || '',
         type: 'cover',
       },
       {

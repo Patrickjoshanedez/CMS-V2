@@ -289,10 +289,7 @@ export default function TitleApprovalPage() {
         category: 'Title Pitch & Proponents',
         tag: 'BukSU Proposal Defense',
         title: proposalItem.title,
-        subtitle:
-          pitch.proposedSolution ||
-          proposalItem.description ||
-          'Capstone research project proposal prepared for institutional defense and review.',
+        subtitle: pitch.subtitle || '',
         type: 'cover',
       },
       {
