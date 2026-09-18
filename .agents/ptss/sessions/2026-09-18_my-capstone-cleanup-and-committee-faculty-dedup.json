@@ -1,0 +1,24 @@
+{
+  "session_id": "2026-09-18_my-capstone-cleanup-and-committee-faculty-dedup",
+  "date": "2026-09-18T06:25:00.000Z",
+  "task_summary": "Removed misplaced Capstone2ManuscriptHub and ChapterProgressWithRounds draft upload cards from My Capstone (MyProjectPage.jsx) Capstone 1 tab, reserving manuscript templates and chapter drafts for the dedicated Submissions workspace. Enforced strict mutual exclusion and non-duplicate faculty assignments across all roles (Capstone Adviser, Committee Secretary, REC / Chair, Panel Member 1, Panel Member 2) in AssignCommitteeDialog.jsx and TeamsPage.jsx using getId normalization, conflict map key standardization, guarded selection handlers with instant toast rejection, and submit-time validation. Passed 18/18 client unit tests, 204/182 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, 0 governance errors, pristine workspace guardrails, and full Playwright visual audit across desktop (1440x900) and mobile (390x844) viewports in both light and dark themes.",
+  "task_category": "ui_ux_cleanup_and_committee_role_governance",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop"],
+  "evidence": {
+    "endpoints_parity": "SERVER_ENDPOINT_COUNT=204, CLIENT_ENDPOINT_COUNT=182, UNMATCHED_COUNT=0",
+    "agentic_validation": "60/60 passed, 0 failed",
+    "governance_pipeline": "All 4 stages valid, 0 errors, 0 warnings",
+    "unit_tests": "18/18 passed in 17.85s (AssignCommitteeDialog.test.jsx 15/15, MyProjectPage.test.jsx 3/3)",
+    "visual_audit_screenshots": [
+      "audit_my_capstone_cleaned_desktop_light.png",
+      "audit_my_capstone_cleaned_desktop_dark.png",
+      "audit_my_capstone_cleaned_mobile_light.png",
+      "audit_my_capstone_cleaned_mobile_dark.png",
+      "audit_committee_dedup_desktop_light.png",
+      "audit_committee_dedup_desktop_dark.png",
+      "audit_committee_dedup_mobile_light.png",
+      "audit_committee_dedup_mobile_dark.png"
+    ]
+  }
+}

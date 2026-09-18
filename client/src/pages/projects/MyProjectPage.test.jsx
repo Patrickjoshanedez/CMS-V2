@@ -69,10 +69,6 @@ vi.mock('@/components/projects/ProposalTab', () => ({
   default: () => <div data-testid="proposal-tab" />,
 }));
 
-vi.mock('@/components/projects/Capstone2ManuscriptHub', () => ({
-  default: () => <div data-testid="capstone-2-hub" />,
-}));
-
 vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
 }));

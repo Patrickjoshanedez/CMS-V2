@@ -1990,18 +1990,38 @@ function FacultyTeamDetail({ team, canAssignCommittee, onInspectRoster }) {
   const panelistOptions = useMemo(() => panelistData?.users || [], [panelistData?.users]);
 
   const adviserSuggestions = useMemo(
-    () => adviserOptions.map(formatCommitteeOption),
-    [adviserOptions],
+    () =>
+      adviserOptions
+        .filter((adviser) => {
+          const advId = String(adviser._id);
+          const secretaryId = String(assignment.secretary?._id || '');
+          if (advId === secretaryId) return false;
+          if (panelists.some((p) => String(p?._id || p) === advId)) return false;
+          return true;
+        })
+        .map(formatCommitteeOption),
+    [adviserOptions, assignment.secretary, panelists],
   );
 
   const panelistSuggestions = useMemo(
     () =>
       panelistOptions
-        .filter(
-          (panelist) => !panelists.some((currentPanelist) => currentPanelist?._id === panelist._id),
-        )
+        .filter((panelist) => {
+          const panId = String(panelist._id);
+          const adviserId = String(assignment.adviser?._id || '');
+          const secretaryId = String(assignment.secretary?._id || '');
+          if (panId === adviserId) return false;
+          if (panId === secretaryId) return false;
+          if (
+            panelists.some(
+              (currentPanelist) => String(currentPanelist?._id || currentPanelist) === panId,
+            )
+          )
+            return false;
+          return true;
+        })
         .map(formatCommitteeOption),
-    [panelistOptions, panelists],
+    [panelistOptions, panelists, assignment.adviser, assignment.secretary],
   );
 
   const assignAdviser = useAssignAdviser({
@@ -2048,8 +2068,19 @@ function FacultyTeamDetail({ team, canAssignCommittee, onInspectRoster }) {
       return;
     }
 
-    if (assignment.adviser?._id === selectedAdviser._id) {
+    const adviserCandidateId = String(selectedAdviser._id);
+    if (String(assignment.adviser?._id || '') === adviserCandidateId) {
       toast.error('This adviser is already assigned.');
+      return;
+    }
+
+    if (String(assignment.secretary?._id || '') === adviserCandidateId) {
+      toast.error('A committee secretary cannot serve as adviser on the same team.');
+      return;
+    }
+
+    if (panelists.some((p) => String(p?._id || p) === adviserCandidateId)) {
+      toast.error('A defense panelist cannot serve as adviser on the same team.');
       return;
     }
 
@@ -2070,7 +2101,18 @@ function FacultyTeamDetail({ team, canAssignCommittee, onInspectRoster }) {
       return;
     }
 
-    if (panelists.some((panelist) => panelist?._id === selectedPanelist._id)) {
+    const panelistCandidateId = String(selectedPanelist._id);
+    if (String(assignment.adviser?._id || '') === panelistCandidateId) {
+      toast.error('A faculty adviser cannot serve as a defense panelist on the same team.');
+      return;
+    }
+
+    if (String(assignment.secretary?._id || '') === panelistCandidateId) {
+      toast.error('A committee secretary cannot serve as a defense panelist on the same team.');
+      return;
+    }
+
+    if (panelists.some((panelist) => String(panelist?._id || panelist) === panelistCandidateId)) {
       toast.error('This panelist is already assigned to the team.');
       return;
     }

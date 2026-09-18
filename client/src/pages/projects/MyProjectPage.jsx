@@ -44,7 +44,6 @@ import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
-import Capstone2ManuscriptHub from '@/components/projects/Capstone2ManuscriptHub';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
 import ChapterProgressWithRounds from '@/components/submissions/ChapterProgressWithRounds';
 import PageSkeleton from '@/components/ui/PageSkeleton';
@@ -428,13 +427,6 @@ export default function MyProjectPage() {
                   <TitleActionsSection project={project} />
                   <TitleFeedbackRemarksCard comments={project.titleProposalComments} />
                   <ProposalTab project={project} onRefresh={() => refetch()} />
-                  <Capstone2ManuscriptHub project={project} />
-                  <ChapterProgressWithRounds
-                    project={project}
-                    submissions={submissions}
-                    chapters={[1, 2, 3]}
-                    showUploadButton={titleApproved}
-                  />
                   <ActionDoneMatrixTab
                     project={project}
                     isStudent

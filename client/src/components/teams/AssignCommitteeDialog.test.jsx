@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AssignCommitteeDialog } from './AssignCommitteeDialog';
+import { AssignCommitteeDialog, getId } from './AssignCommitteeDialog';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -351,6 +351,39 @@ describe('AssignCommitteeDialog', () => {
 
     expect(document.body.textContent).toContain('Committee Slots: 5 of 5 Filled');
     expect(document.body.textContent).toContain('Complete');
+
+    unmount();
+  });
+
+  describe('getId utility', () => {
+    it('extracts string IDs from string, object with _id, object with id, and returns empty on null/undefined', () => {
+      expect(getId(null)).toBe('');
+      expect(getId(undefined)).toBe('');
+      expect(getId('')).toBe('');
+      expect(getId('user-123')).toBe('user-123');
+      expect(getId({ _id: 'user-456' })).toBe('user-456');
+      expect(getId({ id: 'user-789' })).toBe('user-789');
+      expect(getId(12345)).toBe('12345');
+    });
+  });
+
+  it('correctly detects conflict and disables selection when panelist 1 is already chosen as REC / Chair', () => {
+    const { unmount } = renderDialog({
+      initialPanelistIds: ['f-2'], // Prof. John Smith is Panelist 1 (REC / Chair)
+    });
+
+    const panelist2Trigger = document.getElementById('panelist-2-select');
+    expect(panelist2Trigger).toBeTruthy();
+
+    act(() => {
+      panelist2Trigger.click();
+    });
+
+    const optionButtons = Array.from(document.querySelectorAll('button[role="option"]'));
+    const johnOption = optionButtons.find((btn) => btn.textContent.includes('Prof. John Smith'));
+    expect(johnOption).toBeTruthy();
+    expect(johnOption.getAttribute('aria-disabled')).toBe('true');
+    expect(johnOption.textContent).toContain('Already REC / Chair');
 
     unmount();
   });

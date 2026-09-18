@@ -25,6 +25,17 @@ export function getDisplayRole(role) {
 }
 
 /**
+ * Safely extracts a string ID from a string, ObjectId, or populated user object.
+ */
+export function getId(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (val._id) return String(val._id);
+  if (val.id) return String(val.id);
+  return String(val);
+}
+
+/**
  * Format a user option for select displays.
  */
 export function formatUserOption(user) {
@@ -56,7 +67,7 @@ export function FacultySearchCombobox({
   const searchInputRef = useRef(null);
 
   const selectedFaculty = useMemo(
-    () => facultyList.find((f) => String(f._id) === String(value)),
+    () => facultyList.find((f) => getId(f._id) === getId(value)),
     [facultyList, value],
   );
 
@@ -255,8 +266,9 @@ export function FacultySearchCombobox({
             </button>
 
             {filteredFaculty.map((fac) => {
-              const isSelected = String(fac._id) === String(value);
-              const conflictRole = conflictMap?.[fac._id];
+              const facId = getId(fac._id);
+              const isSelected = facId === getId(value);
+              const conflictRole = conflictMap?.[facId] || conflictMap?.[String(fac._id)];
               const isConflicted = Boolean(conflictRole);
               const displayRole = getDisplayRole(fac.role);
               const fullName = [fac.firstName, fac.middleName, fac.lastName]
@@ -271,6 +283,11 @@ export function FacultySearchCombobox({
                   aria-selected={isSelected}
                   aria-disabled={isConflicted}
                   disabled={isConflicted}
+                  title={
+                    isConflicted
+                      ? `${fullName} is already assigned as ${conflictRole} on this team.`
+                      : undefined
+                  }
                   onClick={() => {
                     if (isConflicted) {
                       toast.error(
@@ -278,7 +295,7 @@ export function FacultySearchCombobox({
                       );
                       return;
                     }
-                    onChange(fac._id);
+                    onChange(facId);
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
@@ -359,11 +376,11 @@ export function AssignCommitteeDialog({
   initialPanelistIds = DEFAULT_PANELIST_IDS,
   onSuccess,
 }) {
-  const [adviserId, setAdviserId] = useState(initialAdviserId || '');
-  const [secretaryId, setSecretaryId] = useState(initialSecretaryId || '');
-  const [panelist1Id, setPanelist1Id] = useState(initialPanelistIds[0] || '');
-  const [panelist2Id, setPanelist2Id] = useState(initialPanelistIds[1] || '');
-  const [panelist3Id, setPanelist3Id] = useState(initialPanelistIds[2] || '');
+  const [adviserId, setAdviserId] = useState(getId(initialAdviserId));
+  const [secretaryId, setSecretaryId] = useState(getId(initialSecretaryId));
+  const [panelist1Id, setPanelist1Id] = useState(getId(initialPanelistIds[0]));
+  const [panelist2Id, setPanelist2Id] = useState(getId(initialPanelistIds[1]));
+  const [panelist3Id, setPanelist3Id] = useState(getId(initialPanelistIds[2]));
 
   const { data: teamData } = useTeamById(teamId, {
     enabled: Boolean(open && teamId),
@@ -375,80 +392,146 @@ export function AssignCommitteeDialog({
     if (!open) return;
     if (teamData) {
       const existingAdviser =
-        teamData.adviserId?._id ||
-        teamData.adviserId ||
-        teamData.assignment?.adviser?._id ||
-        teamData.assignment?.adviser ||
-        '';
+        getId(teamData.adviserId) || getId(teamData.assignment?.adviser) || getId(initialAdviserId);
       const existingSecretary =
-        teamData.secretaryId?._id ||
-        teamData.secretaryId ||
-        teamData.assignment?.secretary?._id ||
-        teamData.assignment?.secretary ||
-        '';
-      const existingPanelists = (
-        teamData.panelistIds?.length ? teamData.panelistIds : teamData.assignment?.panelists || []
-      ).map((p) => p?._id || p);
+        getId(teamData.secretaryId) ||
+        getId(teamData.assignment?.secretary) ||
+        getId(initialSecretaryId);
+      const rawPanelists = teamData.panelistIds?.length
+        ? teamData.panelistIds
+        : teamData.assignment?.panelists || [];
+      const existingPanelists = rawPanelists.map(getId);
 
-      setAdviserId(String(existingAdviser || initialAdviserId || ''));
-      setSecretaryId(String(existingSecretary || initialSecretaryId || ''));
-      setPanelist1Id(String(existingPanelists[0] || initialPanelistIds[0] || ''));
-      setPanelist2Id(String(existingPanelists[1] || initialPanelistIds[1] || ''));
-      setPanelist3Id(String(existingPanelists[2] || initialPanelistIds[2] || ''));
+      setAdviserId(existingAdviser);
+      setSecretaryId(existingSecretary);
+      setPanelist1Id(existingPanelists[0] || getId(initialPanelistIds[0]));
+      setPanelist2Id(existingPanelists[1] || getId(initialPanelistIds[1]));
+      setPanelist3Id(existingPanelists[2] || getId(initialPanelistIds[2]));
     } else {
-      setAdviserId(initialAdviserId || '');
-      setSecretaryId(initialSecretaryId || '');
-      setPanelist1Id(initialPanelistIds[0] || '');
-      setPanelist2Id(initialPanelistIds[1] || '');
-      setPanelist3Id(initialPanelistIds[2] || '');
+      setAdviserId(getId(initialAdviserId));
+      setSecretaryId(getId(initialSecretaryId));
+      setPanelist1Id(getId(initialPanelistIds[0]));
+      setPanelist2Id(getId(initialPanelistIds[1]));
+      setPanelist3Id(getId(initialPanelistIds[2]));
     }
   }, [open, teamData, initialAdviserId, initialSecretaryId, serializedPanelists]);
 
   // Conflict maps: prevent selecting the same faculty member across roles on the same team
   const adviserConflictMap = useMemo(() => {
     const map = {};
-    if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
-    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
+    if (secretaryId) map[getId(secretaryId)] = 'Committee Secretary';
+    if (panelist1Id) map[getId(panelist1Id)] = 'REC / Chair';
+    if (panelist2Id) map[getId(panelist2Id)] = 'Panel Member 1';
+    if (panelist3Id) map[getId(panelist3Id)] = 'Panel Member 2';
     return map;
   }, [secretaryId, panelist1Id, panelist2Id, panelist3Id]);
 
   const secretaryConflictMap = useMemo(() => {
     const map = {};
-    if (adviserId) map[adviserId] = 'Capstone Adviser';
-    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
-    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
+    if (adviserId) map[getId(adviserId)] = 'Capstone Adviser';
+    if (panelist1Id) map[getId(panelist1Id)] = 'REC / Chair';
+    if (panelist2Id) map[getId(panelist2Id)] = 'Panel Member 1';
+    if (panelist3Id) map[getId(panelist3Id)] = 'Panel Member 2';
     return map;
   }, [adviserId, panelist1Id, panelist2Id, panelist3Id]);
 
   const panelist1ConflictMap = useMemo(() => {
     const map = {};
-    if (adviserId) map[adviserId] = 'Capstone Adviser';
-    if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
+    if (adviserId) map[getId(adviserId)] = 'Capstone Adviser';
+    if (secretaryId) map[getId(secretaryId)] = 'Committee Secretary';
+    if (panelist2Id) map[getId(panelist2Id)] = 'Panel Member 1';
+    if (panelist3Id) map[getId(panelist3Id)] = 'Panel Member 2';
     return map;
   }, [adviserId, secretaryId, panelist2Id, panelist3Id]);
 
   const panelist2ConflictMap = useMemo(() => {
     const map = {};
-    if (adviserId) map[adviserId] = 'Capstone Adviser';
-    if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
-    if (panelist3Id) map[panelist3Id] = 'Panel Member 2';
+    if (adviserId) map[getId(adviserId)] = 'Capstone Adviser';
+    if (secretaryId) map[getId(secretaryId)] = 'Committee Secretary';
+    if (panelist1Id) map[getId(panelist1Id)] = 'REC / Chair';
+    if (panelist3Id) map[getId(panelist3Id)] = 'Panel Member 2';
     return map;
   }, [adviserId, secretaryId, panelist1Id, panelist3Id]);
 
   const panelist3ConflictMap = useMemo(() => {
     const map = {};
-    if (adviserId) map[adviserId] = 'Capstone Adviser';
-    if (secretaryId) map[secretaryId] = 'Committee Secretary';
-    if (panelist1Id) map[panelist1Id] = 'REC / Chair';
-    if (panelist2Id) map[panelist2Id] = 'Panel Member 1';
+    if (adviserId) map[getId(adviserId)] = 'Capstone Adviser';
+    if (secretaryId) map[getId(secretaryId)] = 'Committee Secretary';
+    if (panelist1Id) map[getId(panelist1Id)] = 'REC / Chair';
+    if (panelist2Id) map[getId(panelist2Id)] = 'Panel Member 1';
     return map;
   }, [adviserId, secretaryId, panelist1Id, panelist2Id]);
+
+  // Guarded selection handlers that strictly prevent duplicate faculty selection across roles
+  const handleSelectAdviser = (val) => {
+    const id = getId(val);
+    if (!id) {
+      setAdviserId('');
+      return;
+    }
+    const conflict = adviserConflictMap[id];
+    if (conflict) {
+      toast.error(`This faculty member is already assigned as ${conflict} on this team.`);
+      return;
+    }
+    setAdviserId(id);
+  };
+
+  const handleSelectSecretary = (val) => {
+    const id = getId(val);
+    if (!id) {
+      setSecretaryId('');
+      return;
+    }
+    const conflict = secretaryConflictMap[id];
+    if (conflict) {
+      toast.error(`This faculty member is already assigned as ${conflict} on this team.`);
+      return;
+    }
+    setSecretaryId(id);
+  };
+
+  const handleSelectPanelist1 = (val) => {
+    const id = getId(val);
+    if (!id) {
+      setPanelist1Id('');
+      return;
+    }
+    const conflict = panelist1ConflictMap[id];
+    if (conflict) {
+      toast.error(`This faculty member is already assigned as ${conflict} on this team.`);
+      return;
+    }
+    setPanelist1Id(id);
+  };
+
+  const handleSelectPanelist2 = (val) => {
+    const id = getId(val);
+    if (!id) {
+      setPanelist2Id('');
+      return;
+    }
+    const conflict = panelist2ConflictMap[id];
+    if (conflict) {
+      toast.error(`This faculty member is already assigned as ${conflict} on this team.`);
+      return;
+    }
+    setPanelist2Id(id);
+  };
+
+  const handleSelectPanelist3 = (val) => {
+    const id = getId(val);
+    if (!id) {
+      setPanelist3Id('');
+      return;
+    }
+    const conflict = panelist3ConflictMap[id];
+    if (conflict) {
+      toast.error(`This faculty member is already assigned as ${conflict} on this team.`);
+      return;
+    }
+    setPanelist3Id(id);
+  };
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -539,11 +622,11 @@ export function AssignCommitteeDialog({
 
     // Validate mutual exclusion between roles on this team
     const assignments = [
-      { role: 'Capstone Adviser', id: adviserId },
-      { role: 'Committee Secretary', id: secretaryId },
-      { role: 'Panelist 1 (Lead / Chair)', id: panelist1Id },
-      { role: 'Panelist 2 (Member)', id: panelist2Id },
-      { role: 'Panel Member 3', id: panelist3Id },
+      { role: 'Capstone Adviser', id: getId(adviserId) },
+      { role: 'Committee Secretary', id: getId(secretaryId) },
+      { role: 'Panelist 1 (Lead / Chair)', id: getId(panelist1Id) },
+      { role: 'Panelist 2 (Member)', id: getId(panelist2Id) },
+      { role: 'Panel Member 3', id: getId(panelist3Id) },
     ].filter((item) => Boolean(item.id));
 
     const seenIds = new Map();
@@ -615,7 +698,7 @@ export function AssignCommitteeDialog({
           </div>
 
           {/* Body Content - Scrollable when vertical viewport is constrained */}
-          <CardContent className="flex-1 overflow-y-auto space-y-3.5 p-5 pb-6">
+          <CardContent className="flex-1 overflow-y-auto space-y-3.5 p-5 pb-36">
             {/* Committee Assignment Progress Meter */}
             <div
               className={cn(
@@ -687,7 +770,7 @@ export function AssignCommitteeDialog({
               <FacultySearchCombobox
                 id="adviser-select"
                 value={adviserId}
-                onChange={setAdviserId}
+                onChange={handleSelectAdviser}
                 facultyList={allFaculty}
                 conflictMap={adviserConflictMap}
                 placeholder="-- Select faculty adviser --"
@@ -710,7 +793,7 @@ export function AssignCommitteeDialog({
               <FacultySearchCombobox
                 id="secretary-select"
                 value={secretaryId}
-                onChange={setSecretaryId}
+                onChange={handleSelectSecretary}
                 facultyList={allFaculty}
                 conflictMap={secretaryConflictMap}
                 placeholder="-- Assign committee secretary --"
@@ -734,7 +817,7 @@ export function AssignCommitteeDialog({
                   <FacultySearchCombobox
                     id="panelist-1-select"
                     value={panelist1Id}
-                    onChange={setPanelist1Id}
+                    onChange={handleSelectPanelist1}
                     facultyList={allFaculty}
                     conflictMap={panelist1ConflictMap}
                     placeholder="-- Select REC / Chair --"
@@ -750,7 +833,7 @@ export function AssignCommitteeDialog({
                   <FacultySearchCombobox
                     id="panelist-2-select"
                     value={panelist2Id}
-                    onChange={setPanelist2Id}
+                    onChange={handleSelectPanelist2}
                     facultyList={allFaculty}
                     conflictMap={panelist2ConflictMap}
                     placeholder="-- Select Panel Member 1 --"
@@ -767,7 +850,7 @@ export function AssignCommitteeDialog({
                 <FacultySearchCombobox
                   id="panelist-3-select"
                   value={panelist3Id}
-                  onChange={setPanelist3Id}
+                  onChange={handleSelectPanelist3}
                   facultyList={allFaculty}
                   conflictMap={panelist3ConflictMap}
                   placeholder="-- Select Panel Member 2 --"

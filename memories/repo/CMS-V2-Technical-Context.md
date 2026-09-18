@@ -2884,3 +2884,35 @@
      - Workspace cleanliness: Pristine workspace, 0 clutter (`scripts/workspace_guardrail.py`).
      - Playwright visual audit: 12 visual captures generated and verified in brain artifacts (`audit_defense_schedule_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_defense_modal_compact_desktop_light.png`, `dark`; `audit_reports_dashboard_desktop_light.png`, `dark`, `mobile_light`, `dark`; `audit_reports_filter_drawer_desktop_light.png`; `audit_reports_chart_table_view_desktop_light.png`; `audit_project_detail_70_30_desktop_light.png`, `dark`, `mobile_light`, `dark`).
 
+
+118. Committee Faculty Non-Duplicate Mutual Exclusion & Capstone 1 UI Scope Cleanup Governance Rule:
+- Incident & Root Cause Summary:
+  1. Misplaced UI Cards in My Capstone (MyProjectPage.jsx): Capstone 1 tab rendered Capstone2ManuscriptHub (manuscript templates and team Google Docs link) and ChapterProgressWithRounds (draft upload cards), prematurely conflating Phase 1 Title Defense with Phase 2 manuscript drafting.
+  2. Committee Faculty Duplication (AssignCommitteeDialog.jsx & TeamsPage.jsx): Instructors could assign the same faculty member across multiple roles on the same team (e.g. Adviser and Panel Member 1, or Secretary and REC / Chair). Furthermore, because populated MongoDB records retain {_id: '...'} or ObjectId shapes, direct string conversions failed or produced '[object Object]' collision keys.
+- Resolution & Implementation Details:
+  1. My Capstone Workspace Cleanup (MyProjectPage.jsx): Removed Capstone2ManuscriptHub and ChapterProgressWithRounds from TabsContent value='capstone_1', keeping Capstone 1 strictly dedicated to Title Defense and proposal approval while reserving manuscript templates and chapter drafts for the dedicated Submissions workspace (/submissions).
+  2. Universal ID Normalization (getId): Exported canonical helper getId(val) in AssignCommitteeDialog.jsx handling null, undefined, empty strings, string IDs, {_id}, and {id} objects.
+  3. Multi-Tier Mutual Exclusion Defense:
+     - Standardized conflict map keys to getId(id).
+     - Guarded selection handlers (handleSelectAdviser, handleSelectSecretary, handleSelectPanelist1, handleSelectPanelist2, handleSelectPanelist3) that immediately block duplicate selections and trigger instant toast error notifications.
+     - Form submission validation verifying seenIds.has(id) before dispatching API mutations.
+     - Dialog ergonomics: Extended CardContent bottom padding to pb-36 to ensure floating combobox menus are never clipped by fixed modal footers.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Capstone 1 on My Capstone is strictly reserved for candidate title proposals and proposal defense approval; never embed Phase 2 manuscript hub or chapter upload cards into Capstone 1.
+  2. Prevention rule: Always normalize IDs via getId(val) when evaluating mutual exclusion or building conflict maps across committee role appointments.
+  3. Runbook & Checklist:
+     - Checklist: Verify MyProjectPage.jsx Capstone 1 tab contains only proposal defense cards and no manuscript upload cards.
+     - Checklist: Verify AssignCommitteeDialog.jsx disables and rejects duplicate faculty assignments across Adviser, Secretary, REC / Chair, and Panel Members.
+     - Checklist: Run targeted client unit tests: npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx src/components/teams/AssignCommitteeDialog.test.jsx.
+     - Checklist: Verify 0 route mismatches: npm run check:endpoints (204 Server / 182 Client, UNMATCHED_COUNT = 0).
+     - Checklist: Verify 60/60 agentic validation checks: npm run validate:agentic.
+     - Checklist: Verify workspace cleanliness: python scripts/workspace_guardrail.py.
+     - Checklist: Run Playwright visual audit across light and dark desktop (1440x900) and mobile (390x844) viewports.
+  4. Evidence & Verification passed:
+     - Client targeted tests: 18/18 tests passed in 17.85s (AssignCommitteeDialog.test.jsx 15/15, MyProjectPage.test.jsx 3/3).
+     - Route parity check: 204 Server / 182 Client (UNMATCHED_COUNT = 0).
+     - Agentic validation: 60/60 checks passed (npm run validate:agentic).
+     - Governance pipeline: All 4 stages valid, 0 errors, 0 warnings (npm run validate:governance).
+     - Workspace cleanliness: Pristine workspace, 0 clutter (scripts/workspace_guardrail.py).
+     - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (audit_my_capstone_cleaned_desktop_light.png, dark, mobile_light, dark; audit_committee_dedup_desktop_light.png, dark, mobile_light, dark).
+
