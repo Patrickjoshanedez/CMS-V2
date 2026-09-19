@@ -1258,9 +1258,10 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
             >
               {text && pages.length > 0 ? (
                 <article
+                  data-paper-canvas={paperMode === 'paper' ? 'paper' : 'theme'}
                   className={cn(
                     'w-full flex flex-col items-center gap-10 select-text transition-all',
-                    paperMode === 'paper' ? 'bg-white text-slate-900' : 'bg-card text-foreground',
+                    paperMode === 'paper' ? 'bg-white text-[#0f172a]' : 'bg-card text-foreground',
                   )}
                   style={{ background: 'transparent' }}
                 >
@@ -1285,12 +1286,13 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                         key={page.id}
                         id={page.id}
                         data-page-number={page.pageNumber}
+                        data-paper-sheet={paperMode === 'paper' ? 'true' : undefined}
                         role="region"
                         aria-label={`Manuscript Page ${page.pageNumber}`}
                         className={cn(
                           'w-full max-w-[8.5in] min-h-[11in] rounded-sm transition-all duration-200 select-text flex flex-col justify-between shadow-2xl ring-1',
                           paperMode === 'paper'
-                            ? 'bg-white text-slate-900 border border-slate-200/90 ring-black/10'
+                            ? 'bg-white text-[#0f172a] border border-slate-200/90 ring-black/10'
                             : 'bg-card text-foreground border border-border/80 ring-border/20',
                         )}
                         style={{
@@ -1300,6 +1302,7 @@ function PlagiarismReportPage({ reportData = null, originalText = '', onReset = 
                           padding: 'clamp(1.25rem, 4vw, 1in)',
                           boxSizing: 'border-box',
                           position: 'relative',
+                          color: paperMode === 'paper' ? '#0f172a' : undefined,
                         }}
                       >
                         {isCover ? (

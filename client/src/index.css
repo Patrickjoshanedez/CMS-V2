@@ -430,6 +430,34 @@ html.dark[data-high-contrast='true'] {
     color: #000000 !important;
   }
 
+  /* Inoculate white document reader surfaces (docx-preview, paper sheets, annotated text) from dark mode inversion */
+  .dark .docx-outer-container section.docx,
+  .dark
+    .docx-outer-container
+    section.docx
+    *:not([style*='color']):not(.docx-preview-root-comment-popover):not(
+      .docx-preview-root-comment-popover *
+    ),
+  .dark .annotated-text,
+  .dark .annotated-text *:not([class*='archive-mark']),
+  .dark .docx-preview-rendered section,
+  .dark .docx-preview-rendered section *:not([style*='color']),
+  .dark [data-paper-sheet],
+  .dark [data-paper-sheet] *,
+  .dark article[data-paper-canvas='paper'] section,
+  .dark article[data-paper-canvas='paper'] section * {
+    color: #0f172a !important;
+  }
+  .dark [data-paper-sheet] mark,
+  .dark article[data-paper-canvas='paper'] mark {
+    color: #020617 !important;
+  }
+  .dark [data-paper-sheet] sup,
+  .dark article[data-paper-canvas='paper'] sup {
+    color: #0f172a !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+  }
+
   /* Floating label autofill & placeholder-shown bulletproofing */
   .floating-input:focus ~ .floating-label,
   .floating-input:not(:placeholder-shown) ~ .floating-label,
@@ -1875,11 +1903,46 @@ html.dark[data-high-contrast='true'] {
 /* Each "page" — keep authentic white paper appearance with shadow */
 .docx-outer-container .docx-wrapper > section.docx {
   background: #ffffff !important;
+  color: #0f172a !important;
   box-shadow:
     0 4px 24px 0 rgba(0, 0, 0, 0.18),
     0 1px 4px 0 rgba(0, 0, 0, 0.1) !important;
   border-radius: 4px !important;
   margin: 0 !important;
+}
+
+/* Ensure all text inside docx-preview is dark and legible in light and dark modes */
+.docx-outer-container .docx-wrapper > section.docx p,
+.docx-outer-container .docx-wrapper > section.docx span,
+.docx-outer-container .docx-wrapper > section.docx h1,
+.docx-outer-container .docx-wrapper > section.docx h2,
+.docx-outer-container .docx-wrapper > section.docx h3,
+.docx-outer-container .docx-wrapper > section.docx h4,
+.docx-outer-container .docx-wrapper > section.docx h5,
+.docx-outer-container .docx-wrapper > section.docx h6,
+.docx-outer-container .docx-wrapper > section.docx td,
+.docx-outer-container .docx-wrapper > section.docx th,
+.docx-outer-container .docx-wrapper > section.docx li,
+.docx-outer-container
+  .docx-wrapper
+  > section.docx
+  div:not(.docx-preview-root-comment-popover):not(.docx-preview-root-comment-popover *) {
+  color: #0f172a;
+}
+
+/* Ensure annotated text reader in plagiarism checker is high-contrast and wrapped */
+.annotated-text {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+.annotated-text span,
+.annotated-text p {
+  color: #0f172a !important;
+}
+.annotated-text mark.archive-mark {
+  color: #020617 !important;
 }
 
 /* Ensure docx-preview fonts load correctly */

@@ -24,21 +24,39 @@ export async function extractText(buffer, mimeType) {
     throw new Error('Cannot extract text from an empty buffer.');
   }
 
-  const mime = mimeType.toLowerCase().trim();
+  const mime = String(mimeType || '')
+    .toLowerCase()
+    .split(';')[0]
+    .trim();
 
-  switch (mime) {
-    case 'application/pdf':
-      return extractFromPdf(buffer);
+  // Check magic bytes for instant format identification if MIME is ambiguous or generic
+  const isZipHeader =
+    buffer.length >= 4 &&
+    buffer[0] === 0x50 &&
+    buffer[1] === 0x4b &&
+    buffer[2] === 0x03 &&
+    buffer[3] === 0x04;
+  const isPdfHeader = buffer.length >= 5 && buffer.toString('utf-8', 0, 5) === '%PDF-';
 
-    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-      return extractFromDocx(buffer);
-
-    case 'text/plain':
-      return buffer.toString('utf-8');
-
-    default:
-      throw new Error(`Unsupported MIME type for text extraction: ${mimeType}`);
+  if (
+    mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    mime === 'application/docx' ||
+    mime === 'application/msword' ||
+    mime === 'docx' ||
+    (!isPdfHeader && isZipHeader)
+  ) {
+    return extractFromDocx(buffer);
   }
+
+  if (mime === 'application/pdf' || mime === 'pdf' || isPdfHeader) {
+    return extractFromPdf(buffer);
+  }
+
+  if (mime === 'text/plain' || mime === 'txt') {
+    return buffer.toString('utf-8');
+  }
+
+  throw new Error(`Unsupported MIME type for text extraction: ${mimeType}`);
 }
 
 /**

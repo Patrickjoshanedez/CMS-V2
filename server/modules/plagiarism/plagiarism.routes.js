@@ -2,7 +2,7 @@ import { Router } from 'express';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import upload from '../../middleware/upload.js';
-import { validatePdfFile } from '../../middleware/fileValidation.js';
+import { validateDocumentFile } from '../../middleware/fileValidation.js';
 import { uploadLimiter } from '../../middleware/rateLimiter.js';
 import { ROLES } from '@cms/shared';
 import {
@@ -23,7 +23,7 @@ router.post(
   authorize(ROLES.STUDENT, ROLES.ADVISER, ROLES.PANELIST, ROLES.INSTRUCTOR),
   uploadLimiter,
   upload.single('file'),
-  validatePdfFile,
+  validateDocumentFile,
   scanArchivedPdfPlagiarism,
 );
 

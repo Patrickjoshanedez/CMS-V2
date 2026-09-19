@@ -590,13 +590,13 @@ const buildCombinedMatches = ({ submittedText, lexicalResult, corpus, semanticBy
 
 export async function runArchivePdfPlagiarismScan({ fileBuffer, fileType, fileName }) {
   if (!fileBuffer || !Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
-    throw new AppError('No PDF file data was received for scanning.', 400, 'NO_FILE');
+    throw new AppError('No document file data was received for scanning.', 400, 'NO_FILE');
   }
 
   const extractedText = normalizeWhitespace(await extractText(fileBuffer, fileType));
   if (!extractedText || extractedText.length < ARCHIVE_SCAN_MIN_TEXT_LENGTH) {
     throw new AppError(
-      `Uploaded PDF does not contain enough extractable text for scanning (minimum ${ARCHIVE_SCAN_MIN_TEXT_LENGTH} characters).`,
+      `Uploaded document does not contain enough extractable text for scanning (minimum ${ARCHIVE_SCAN_MIN_TEXT_LENGTH} characters).`,
       400,
       'INSUFFICIENT_EXTRACTED_TEXT',
     );

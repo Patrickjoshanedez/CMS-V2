@@ -2904,6 +2904,26 @@
      - Checklist: Verify MyProjectPage.jsx Capstone 1 tab contains only proposal defense cards and no manuscript upload cards.
      - Checklist: Verify AssignCommitteeDialog.jsx disables and rejects duplicate faculty assignments across Adviser, Secretary, REC / Chair, and Panel Members.
      - Checklist: Run targeted client unit tests: npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx src/components/teams/AssignCommitteeDialog.test.jsx.
+
+118. Committee Faculty Non-Duplicate Mutual Exclusion & Capstone 1 UI Scope Cleanup Governance Rule:
+- Incident & Root Cause Summary:
+  1. Misplaced UI Cards in My Capstone (MyProjectPage.jsx): Capstone 1 tab rendered Capstone2ManuscriptHub (manuscript templates and team Google Docs link) and ChapterProgressWithRounds (draft upload cards), prematurely conflating Phase 1 Title Defense with Phase 2 manuscript drafting.
+  2. Committee Faculty Duplication (AssignCommitteeDialog.jsx & TeamsPage.jsx): Instructors could assign the same faculty member across multiple roles on the same team (e.g. Adviser and Panel Member 1, or Secretary and REC / Chair). Furthermore, because populated MongoDB records retain {_id: '...'} or ObjectId shapes, direct string conversions failed or produced '[object Object]' collision keys.
+- Resolution & Implementation Details:
+  1. My Capstone Workspace Cleanup (MyProjectPage.jsx): Removed Capstone2ManuscriptHub and ChapterProgressWithRounds from TabsContent value='capstone_1', keeping Capstone 1 strictly dedicated to Title Defense and proposal approval while reserving manuscript templates and chapter drafts for the dedicated Submissions workspace (/submissions).
+  2. Universal ID Normalization (getId): Exported canonical helper getId(val) in AssignCommitteeDialog.jsx handling null, undefined, empty strings, string IDs, {_id}, and {id} objects.
+  3. Multi-Tier Mutual Exclusion Defense:
+     - Standardized conflict map keys to getId(id).
+     - Guarded selection handlers (handleSelectAdviser, handleSelectSecretary, handleSelectPanelist1, handleSelectPanelist2, handleSelectPanelist3) that immediately block duplicate selections and trigger instant toast error notifications.
+     - Form submission validation verifying seenIds.has(id) before dispatching API mutations.
+     - Dialog ergonomics: Extended CardContent bottom padding to pb-36 to ensure floating combobox menus are never clipped by fixed modal footers.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Capstone 1 on My Capstone is strictly reserved for candidate title proposals and proposal defense approval; never embed Phase 2 manuscript hub or chapter upload cards into Capstone 1.
+  2. Prevention rule: Always normalize IDs via getId(val) when evaluating mutual exclusion or building conflict maps across committee role appointments.
+  3. Runbook & Checklist:
+     - Checklist: Verify MyProjectPage.jsx Capstone 1 tab contains only proposal defense cards and no manuscript upload cards.
+     - Checklist: Verify AssignCommitteeDialog.jsx disables and rejects duplicate faculty assignments across Adviser, Secretary, REC / Chair, and Panel Members.
+     - Checklist: Run targeted client unit tests: npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx src/components/teams/AssignCommitteeDialog.test.jsx.
      - Checklist: Verify 0 route mismatches: npm run check:endpoints (204 Server / 182 Client, UNMATCHED_COUNT = 0).
      - Checklist: Verify 60/60 agentic validation checks: npm run validate:agentic.
      - Checklist: Verify workspace cleanliness: python scripts/workspace_guardrail.py.
@@ -2916,3 +2936,38 @@
      - Workspace cleanliness: Pristine workspace, 0 clutter (scripts/workspace_guardrail.py).
      - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (audit_my_capstone_cleaned_desktop_light.png, dark, mobile_light, dark; audit_committee_dedup_desktop_light.png, dark, mobile_light, dark).
 
+119. Word (.docx) Plagiarism Upload Support & Document Viewer Text Inversion Inoculation Rule:
+- Incident & Root Cause Summary:
+  1. Upload Barrier for Word (.docx) Documents: The plagiarism scan endpoint (`POST /api/submissions/plagiarism/checker/scan`) was constrained by `validatePdfFile` middleware rejecting non-PDFs with 400 `INVALID_FILE_TYPE`. The client dropzone (`DropZone.jsx`) and scan page (`ArchivePlagiarismCheckerPage.jsx`) explicitly restricted input to `application/pdf`, rejecting `.docx` files on drag-and-drop.
+  2. Unrendered / Invisible Text in Document Viewers: In dark mode, `client/src/index.css` defines `.dark [class*='text-slate-'] { color: #ffffff; }`. When document viewers (`docx-preview`, `AnnotatedText`, and Turnitin-style `PlagiarismReportPage` paper sheets) render documents on authentic white paper (`bg-white` / `#ffffff`), the text inherited white color, producing white text on white paper (completely invisible). Furthermore, `AnnotatedText` lacked `whitespace-pre-wrap`, which prevented multi-line document text from preserving structural line breaks.
+- Resolution & Implementation Details:
+  1. Universal Document Upload Validation (`server/middleware/fileValidation.js`):
+     - Engineered `validateDocumentFile` middleware inspecting binary magic bytes via `fileTypeFromBuffer`. For `application/zip` container formats (Office Open XML), remapped to `application/vnd.openxmlformats-officedocument.wordprocessingml.document` using the declared `.docx` file extension.
+     - Updated `plagiarism.routes.js` to use `validateDocumentFile` on `POST /checker/scan`.
+     - Hardened `server/utils/extractText.js` to handle DOCX ZIP magic bytes (`PK\x03\x04`), MIME parameters, and mammoth XML extraction.
+  2. Client Dropzone & Scan Page Modernization:
+     - Updated `DropZone.jsx` accept attribute to `.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document`.
+     - Added dynamic format badges (`DOCX` / `PDF`) and updated copy to "PDF or DOCX, max 25 MB".
+     - Enhanced `ArchivePlagiarismCheckerPage.jsx` with `isAcceptedDocument` helper accepting PDF and Word documents.
+  3. Document Viewer Text Inoculation & Contrast Protection:
+     - In `client/src/index.css`, inoculated `.docx-outer-container section.docx`, `.annotated-text`, `[data-paper-sheet]`, and `article[data-paper-canvas='paper'] section` from dark mode white text inversion, forcing crisp dark charcoal (`#0f172a !important`).
+     - In `PlagiarismReportPage.jsx`, tagged `<article>` with `data-paper-canvas` and paper `<section>` with `data-paper-sheet="true"`, switching to `text-[#0f172a]` on paper sheets.
+     - In `AnnotatedText.jsx`, added `text-[#0f172a] whitespace-pre-wrap select-text font-mono` to ensure legible, properly wrapped text rendering.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Any component rendering on a physical white paper sheet canvas (`bg-white`) must be tagged with `data-paper-sheet="true"` and inoculated in `index.css` to prevent dark mode text inversion (`.dark [class*='text-slate-'] { color: #ffffff }`) from producing invisible white text on white paper.
+  2. Prevention rule: Document upload endpoints supporting student manuscripts must use `validateDocumentFile` rather than `validatePdfFile` to support both PDF and Word (`.docx`) submissions without breaking binary magic-byte security.
+  3. Runbook & Checklist:
+     - Checklist: Verify `POST /api/submissions/plagiarism/checker/scan` accepts both PDF and DOCX up to 25 MB with `validateDocumentFile`.
+     - Checklist: Run targeted server unit tests: `npm test --workspace=server -- tests/unit/validateDocumentFile.test.js`.
+     - Checklist: Run targeted client unit tests: `npm test --workspace=client -- src/pages/submissions/PlagiarismReportPage.test.jsx src/components/documents/SophisticatedDocumentViewer.test.jsx`.
+     - Checklist: Run server integration tests: `npm test --workspace=server -- tests/integration/plagiarism.test.js`.
+     - Checklist: Verify route parity: `npm run check:endpoints` (UNMATCHED_COUNT = 0).
+     - Checklist: Verify agentic governance: `npm run validate:agentic` (60/60 passed).
+     - Checklist: Execute Playwright visual audit: `node scratch/visual_audit_docx_and_viewer_contrast.mjs` verifying text contrast (`rgb(15, 23, 42)`) across light and dark themes on desktop and mobile.
+  4. Evidence & Verification passed:
+     - Server unit tests: 5/5 tests passed in 8.07s (`tests/unit/validateDocumentFile.test.js`).
+     - Client unit tests: 16/16 tests passed in 17.55s (`PlagiarismReportPage.test.jsx` 7/7, `SophisticatedDocumentViewer.test.jsx` 9/9).
+     - Server integration tests: 45/45 tests passed in 76.94s (`tests/integration/plagiarism.test.js`).
+     - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
+     - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (`plagiarism_checker_upload_desktop_light.png`, `dark`, `mobile_light`, `dark`; `plagiarism_report_viewer_desktop_light.png`, `dark`, `mobile_light`, `dark`). Verified computed text color is dark charcoal `rgb(15, 23, 42)` in dark mode.

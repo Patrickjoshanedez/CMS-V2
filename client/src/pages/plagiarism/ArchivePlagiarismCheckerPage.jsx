@@ -16,6 +16,21 @@ function buildValidationError(message) {
   return { type: 'validation', message };
 }
 
+const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc'];
+function isAcceptedDocument(file) {
+  if (!file) return false;
+  const name = (file.name || '').toLowerCase();
+  const type = (file.type || '').toLowerCase();
+  const hasExt = ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  const hasMime =
+    type === 'application/pdf' ||
+    type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    type === 'application/msword' ||
+    type === 'application/x-zip-compressed' ||
+    type === 'application/zip';
+  return hasExt || hasMime;
+}
+
 function getInlineErrorMessage(error) {
   const status = Number(error?.response?.status);
   const message = String(error?.message || '').toLowerCase();
@@ -83,9 +98,9 @@ export default function ArchivePlagiarismCheckerPage() {
       setScanError(buildValidationError('File exceeds 25 MB limit.'));
       return;
     }
-    if (nextFile.type !== 'application/pdf') {
+    if (!isAcceptedDocument(nextFile)) {
       setFile(null);
-      setScanError(buildValidationError('Only PDF files are accepted.'));
+      setScanError(buildValidationError('Only PDF and Word (.docx) files are accepted.'));
       return;
     }
     setFile(nextFile);
@@ -94,15 +109,15 @@ export default function ArchivePlagiarismCheckerPage() {
 
   const handleScan = async () => {
     if (!file) {
-      setScanError(buildValidationError('Please select a PDF file.'));
+      setScanError(buildValidationError('Please select a PDF or DOCX file.'));
       return;
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setScanError(buildValidationError('File exceeds 25 MB limit.'));
       return;
     }
-    if (file.type !== 'application/pdf') {
-      setScanError(buildValidationError('Only PDF files are accepted.'));
+    if (!isAcceptedDocument(file)) {
+      setScanError(buildValidationError('Only PDF and Word (.docx) files are accepted.'));
       return;
     }
 
@@ -161,8 +176,8 @@ export default function ArchivePlagiarismCheckerPage() {
                 {[
                   {
                     step: '01',
-                    title: 'Upload PDF',
-                    desc: 'Drop or select your capstone document (max 25 MB).',
+                    title: 'Upload Document',
+                    desc: 'Drop or select your capstone PDF or DOCX file (max 25 MB).',
                   },
                   {
                     step: '02',
@@ -194,7 +209,7 @@ export default function ArchivePlagiarismCheckerPage() {
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
               <p className="mb-5 text-xs text-muted-foreground">
-                PDF only · max {MAX_FILE_SIZE_MB} MB
+                PDF or Word (.docx) · max {MAX_FILE_SIZE_MB} MB
               </p>
 
               <div className="space-y-4">

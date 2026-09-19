@@ -152,15 +152,21 @@ export default function SophisticatedDocumentViewer({
   }, [open, embedded, initialViewMode]);
 
   const fileName = submission?.fileName || 'Manuscript Document';
+  const effectiveSubmissionId = submission?._id || submission?.id || '';
   const isDocx = Boolean(
-    fileName.toLowerCase().endsWith('.docx') || submission?.fileType?.includes('wordprocessingml'),
+    fileName.toLowerCase().endsWith('.docx') ||
+    fileName.toLowerCase().endsWith('.doc') ||
+    submission?.fileType?.includes('wordprocessingml') ||
+    submission?.fileType?.includes('msword') ||
+    submission?.fileType?.includes('docx'),
   );
   const isPdf = Boolean(
     fileName.toLowerCase().endsWith('.pdf') || submission?.fileType?.includes('pdf'),
   );
 
   const streamFileUrl =
-    fallbackFileUrl || (submission?._id ? `/api/submissions/${submission._id}/file` : null);
+    fallbackFileUrl ||
+    (effectiveSubmissionId ? `/api/submissions/${effectiveSubmissionId}/file` : null);
   const rawChapter = submission?.chapter ?? submission?.chapterNumber ?? 1;
   const parsedNum =
     typeof rawChapter === 'string' ? parseInt(rawChapter.replace(/\D/g, ''), 10) : rawChapter;
@@ -189,7 +195,7 @@ export default function SophisticatedDocumentViewer({
     let active = true;
     let objectUrl = null;
 
-    if (isPdf && submission?._id && (open || embedded)) {
+    if (isPdf && (effectiveSubmissionId || streamFileUrl) && (open || embedded)) {
       setIframeLoading(true);
       setPdfError(null);
 
@@ -202,8 +208,22 @@ export default function SophisticatedDocumentViewer({
         return;
       }
 
+      const pdfEndpoint = streamFileUrl?.startsWith('/api/')
+        ? streamFileUrl.replace(/^\/api/, '')
+        : streamFileUrl?.startsWith('/')
+          ? streamFileUrl
+          : effectiveSubmissionId
+            ? `/submissions/${effectiveSubmissionId}/file`
+            : null;
+
+      if (!pdfEndpoint) {
+        setPdfError('No PDF endpoint available.');
+        setIframeLoading(false);
+        return;
+      }
+
       api
-        .get(`/submissions/${submission._id}/file`, { responseType: 'blob' })
+        .get(pdfEndpoint, { responseType: 'blob' })
         .then((res) => {
           if (!active) return;
           objectUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
@@ -503,7 +523,7 @@ export default function SophisticatedDocumentViewer({
           ) : isDocx ? (
             /* ── DOCX: docx-preview OOXML renderer ── */
             <DocxPreviewRenderer
-              submissionId={submission._id}
+              submissionId={effectiveSubmissionId}
               streamFileUrl={streamFileUrl}
               zoom={zoom}
               chapterTitle={chapterTitle}
@@ -762,7 +782,7 @@ export function DocxPreviewRenderer({
   const abortRef = useRef(null);
 
   const renderDocx = useCallback(async () => {
-    if (!containerRef.current || !submissionId) return;
+    if (!containerRef.current || (!submissionId && !streamFileUrl)) return;
 
     // Abort any in-flight render
     if (abortRef.current) {
@@ -802,7 +822,19 @@ export function DocxPreviewRenderer({
 
       // 2. Fetch via Axios api client with automatic 401 token refresh interceptor
       if (!arrayBuffer) {
-        const response = await api.get(`/submissions/${submissionId}/file`, {
+        const fetchEndpoint = streamFileUrl?.startsWith('/api/')
+          ? streamFileUrl.replace(/^\/api/, '')
+          : streamFileUrl?.startsWith('/')
+            ? streamFileUrl
+            : submissionId
+              ? `/submissions/${submissionId}/file`
+              : null;
+
+        if (!fetchEndpoint) {
+          throw new Error('No submission ID or file stream URL provided.');
+        }
+
+        const response = await api.get(fetchEndpoint, {
           responseType: 'arraybuffer',
           signal: controller.signal,
         });
@@ -908,7 +940,7 @@ export function DocxPreviewRenderer({
           }}
         >
           {/* docx-preview injects .docx-wrapper > .docx > pages here */}
-          <div ref={containerRef} className="docx-outer-container" />
+          <div ref={containerRef} className="docx-outer-container text-slate-900" />
         </div>
       </div>
     </div>
@@ -916,8 +948,8 @@ export function DocxPreviewRenderer({
 }
 
 DocxPreviewRenderer.propTypes = {
-  submissionId: PropTypes.string.isRequired,
-  streamFileUrl: PropTypes.string.isRequired,
+  submissionId: PropTypes.string,
+  streamFileUrl: PropTypes.string,
   zoom: PropTypes.number.isRequired,
   chapterTitle: PropTypes.string.isRequired,
   versionBadge: PropTypes.string.isRequired,

@@ -231,7 +231,7 @@ export default function AnnotatedText({
   return (
     <div
       ref={containerRef}
-      className="annotated-text h-full overflow-auto rounded-lg border border-[var(--color-border)] bg-white p-4 text-sm leading-7 text-[var(--color-text-primary)] [font-family:var(--font-mono)]"
+      className="annotated-text h-full overflow-auto rounded-lg border border-border/80 bg-white p-5 text-sm leading-relaxed text-[#0f172a] whitespace-pre-wrap select-text font-mono"
     >
       {segments.map((segment, index) => {
         if (!segment.highlighted) {

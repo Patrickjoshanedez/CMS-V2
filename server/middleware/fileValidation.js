@@ -207,6 +207,49 @@ export const validatePdfFile = async (req, _res, next) => {
   }
 };
 
+/**
+ * Validate an uploaded document as PDF or Word (.docx).
+ * Used by plagiarism scan and document inspection routes.
+ */
+export const validateDocumentFile = async (req, _res, next) => {
+  try {
+    if (!req.file) {
+      return next(new AppError('No file uploaded.', 400, 'NO_FILE'));
+    }
+
+    const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    if (req.file.size > maxBytes) {
+      return next(
+        new AppError(
+          `File exceeds maximum size (${env.MAX_UPLOAD_SIZE_MB}MB)`,
+          413,
+          'FILE_TOO_LARGE',
+        ),
+      );
+    }
+
+    const detectedMime = await detectDocumentMime(req.file.buffer, req.file.originalname);
+    const isPdf = detectedMime === 'application/pdf';
+    const isDocx =
+      detectedMime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    if (!isPdf && !isDocx) {
+      return next(
+        new AppError(
+          'Invalid file type. Only PDF and Word (.docx) documents are allowed.',
+          400,
+          'INVALID_FILE_TYPE',
+        ),
+      );
+    }
+
+    req.file.validatedMime = detectedMime;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export { ALLOWED_MIME_TYPES, EXTENSION_FALLBACK_TYPES, validateDualArchiveFiles };
 export default validateFile;
 

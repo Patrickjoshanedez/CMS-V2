@@ -69,7 +69,7 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
           disabled={scanning}
           className="hidden"
           onChange={handleInputChange}
@@ -83,7 +83,14 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">{file.name}</p>
-              <p className="text-xs text-muted-foreground">{formatFileSize(file.size)} · PDF</p>
+              <p className="text-xs text-muted-foreground">
+                {formatFileSize(file.size)} ·{' '}
+                {file.name?.toLowerCase().endsWith('.docx') ||
+                file.name?.toLowerCase().endsWith('.doc') ||
+                file.type?.includes('word')
+                  ? 'DOCX'
+                  : 'PDF'}
+              </p>
             </div>
             {!scanning && (
               <button
@@ -117,11 +124,11 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">
-                {isDragging ? 'Drop your PDF here' : 'Drag & drop your PDF'}
+                {isDragging ? 'Drop your document here' : 'Drag & drop your document'}
               </p>
               <p className="text-xs text-muted-foreground">
-                or <span className="text-primary font-medium">click to browse</span> · PDF only, max
-                25 MB
+                or <span className="text-primary font-medium">click to browse</span> · PDF or DOCX,
+                max 25 MB
               </p>
             </div>
           </div>
