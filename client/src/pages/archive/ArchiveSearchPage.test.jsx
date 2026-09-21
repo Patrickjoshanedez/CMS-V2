@@ -109,6 +109,14 @@ vi.mock('@/hooks/useAcademics', () => ({
   }),
 }));
 
+let mockCurrentUser = null;
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector) => {
+    const state = { user: mockCurrentUser };
+    return selector ? selector(state) : state;
+  },
+}));
+
 describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
   let container;
   let root;
@@ -123,6 +131,7 @@ describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
     };
     mockIsLoading = false;
     mockError = null;
+    mockCurrentUser = null;
     window.localStorage.clear();
 
     container = document.createElement('div');
@@ -281,5 +290,52 @@ describe('ArchiveSearchPage (Google Scholar Style Academic UI)', () => {
 
     // Check that searchParams was updated with program=BSCS
     expect(mockSetSearchParams).toHaveBeenCalled();
+  });
+
+  it('renders "Archive Documents (OCR)" for instructors and navigates to upload page', () => {
+    mockCurrentUser = { role: 'instructor' };
+
+    act(() => {
+      root.render(<ArchiveSearchPage />);
+    });
+
+    const ocrBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Archive Documents (OCR)'),
+    );
+    expect(ocrBtn).toBeTruthy();
+
+    act(() => {
+      ocrBtn.click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/archive/upload/capstone', {
+      state: { fromArchive: true },
+    });
+  });
+
+  it('renders call-to-action button in empty state for instructors', () => {
+    mockCurrentUser = { role: 'instructor' };
+    mockSearchData = {
+      projects: [],
+      pagination: { page: 1, limit: 10, total: 0, pages: 0 },
+      searchLatencyMs: 12,
+    };
+
+    act(() => {
+      root.render(<ArchiveSearchPage />);
+    });
+
+    const uploadCtaBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Archive New Capstone Documents (Paper & Journal)'),
+    );
+    expect(uploadCtaBtn).toBeTruthy();
+
+    act(() => {
+      uploadCtaBtn.click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/archive/upload/capstone', {
+      state: { fromArchive: true },
+    });
   });
 });

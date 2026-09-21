@@ -1,0 +1,44 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-21_clear-databases-and-register-instructor",
+  "timestamp": "2026-09-21T14:59:00.000Z",
+  "task_summary": "Executed 100% database purge across all 24 MongoDB collections, flushed Redis, wiped MinIO storage, and registered 1 active, verified Instructor account (instructor@buksu.edu.ph) with academic foundation (2025-2026, BSIT, BSIT-4A) and singleton SystemSettings. Verified live authentication returning 200 OK with valid JWT.",
+  "task_category": "database_purge_and_instructor_registration",
+  "skills_written": [],
+  "skills_patched": ["senior-backend", "verification-loop"],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "database_collections_purged": 24,
+    "total_documents_deleted": 405,
+    "redis_flushed": true,
+    "minio_storage_cleared": true,
+    "endpoint_parity": {
+      "server_endpoints": 204,
+      "client_endpoints": 182,
+      "unmatched_count": 0,
+      "passed": true
+    },
+    "agentic_governance": {
+      "checks_total": 60,
+      "checks_passed": 60,
+      "checks_failed": 0,
+      "passed": true
+    },
+    "workspace_guardrail": {
+      "pristine": true,
+      "passed": true
+    },
+    "live_login_probe": {
+      "email": "instructor@buksu.edu.ph",
+      "http_status": 200,
+      "role": "instructor",
+      "token_present": true,
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: Mongoose pre('save') hook in user.model.js automatically generates salt and hashes plaintext password; passing an already-hashed password to User.create triggers the hook again, causing double-hashing and subsequent 401 INVALID_CREDENTIALS failures on login.",
+    "Prevention: When creating users through Mongoose models (User.create), pass the plaintext password directly so the model pre-save hook executes exactly once. If using pre-hashed strings, use raw collection insert (db.collection('users').insertOne).",
+    "Runbook / Checklist for Clean Database Reset: 1. Disconnect or flush active Redis keys to clear queued BullMQ jobs. 2. Delete all documents in all non-system MongoDB collections. 3. Re-initialize singleton SystemSettings (key: 'global') and baseline academic entities (AcademicYear, Course, Section) with createdBy set to the initial admin/instructor ID to prevent client UI null-reference crashes. 4. Probe POST /api/auth/login to verify authentication evidence before releasing."
+  ]
+}

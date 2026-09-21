@@ -1,6 +1,24 @@
 # CMS-V2 Technical Context
 
 ### Prevention Rules
+- Database Purge & User Model Password Hashing Prevention Rule:
+  1. Lesson learned: Mongoose document pre('save') hook in `user.model.js` automatically computes salt and hashes any modified `password` field; passing an already-computed bcrypt hash to `User.create({ ..., password: passwordHash })` results in double-hashing, producing silent 401 `INVALID_CREDENTIALS` lockouts on authentication.
+  2. Prevention: When seeding or creating user documents via Mongoose `User.create()`, pass the plaintext password directly so the pre-save hook handles hashing once. When injecting pre-computed hashes, bypass hooks using `db.collection('users').insertOne()`.
+  3. Runbook & Checklist for Clean Database Reset:
+     - Step 1 (Checklist): Flush Redis cache and queues (`FLUSHALL`) so background BullMQ workers do not process stale job references.
+     - Step 2 (Checklist): Clear all documents across non-system MongoDB collections using `.deleteMany({})`.
+     - Step 3 (Checklist): Re-initialize singleton `SystemSettings` (key: 'global') and minimal academic foundation (`AcademicYear`, `Course`, `Section`) with `createdBy` bound to the initial instructor to prevent frontend null-pointer crashes.
+     - Step 4 (Evidence): Verify user count equals exactly 1 and probe `POST /api/auth/login` to confirm HTTP 200 OK evidence passed.
+
+- Official Capstone Roster Registration & Entity Re-binding Prevention Rule:
+  1. Lesson learned: Student accounts in CMS-V2 must be bound to their active academic `sectionId` and course instructor `instructorId` upon registration so their student dashboards load cohort metrics without falling back to unassigned states.
+  2. Prevention: When transitioning from bootstrap/placeholder accounts to official department personnel, clean up temporary placeholders (such as `instructor@buksu.edu.ph`) and update `createdBy` references on `AcademicYear`, `Course`, and `Section` to the official course instructor to maintain unbroken entity ownership.
+  3. Runbook & Checklist for Roster Verification:
+     - Step 1 (Checklist): Register Instructor with `role: 'instructor'` and update academic catalog records.
+     - Step 2 (Checklist): Register Students with `role: 'student'`, `sectionId`, and `instructorId`.
+     - Step 3 (Checklist): Register Faculty under unified `role: 'faculty'` with proper `facultyRole` (`adviser` or `panelist`).
+     - Step 4 (Evidence): Probe `POST /api/auth/login` across all 3 primary role groups to confirm HTTP 200 OK evidence passed.
+
 - Proposal Defense Pitch Deck Title Cover Slide Content Isolation: Slide 01 (`Title Pitch & Proponents`) must never render Proposed Solution or technical framework paragraphs. Subtitle on Slide 01 defaults to empty string or user-edited subtitle; `pitch.proposedSolution` belongs strictly and exclusively to Slide 03 (`Proposed Solution & Technical Framework`). `ProposalSlideCanvas` defensively suppresses subtitle if it matches or contains `proposedSolution`.
 - For orchestration initialization-only changes, require an evidence triad before completion: (1) targeted verification report, (2) explicit mutation evidence convention with numeric score, (3) reviewer verdict.
 - Any submissions read endpoint must enforce scoped authorization through `getSubmissionViewContext` or `_assertCanViewSubmission` against project membership/assignment, not role-only shortcuts.
@@ -439,6 +457,32 @@
   5. Checklist: Verify that `CanonicalDocumentViewer` renders the 5 consolidated actions with zero revision diff or comment drafting controls.
   6. Checklist: Verify that `OriginalityShieldBadge` audit drawer formats floating percentages with `toFixed(1)`.
   7. Evidence & Verification passed: All 24 archive tests in `CanonicalDocumentViewer.test.jsx`, `archiveComponents.test.jsx`, and `ArchiveSearchPage.test.jsx` passed in 9.25s; full client test suite (145/145 passed in 43s); 204/182 API route parity (`UNMATCHED_COUNT = 0`); 60/60 agentic validation checks passed; and full 7-way Playwright visual feedback loop verified across light and dark desktop (1440x900) and mobile (390x844).
+
+66. Instructor Document Archival & OCR Model Auto-Extraction Workflow:
+- Architectural Root Cause & Mechanics:
+  1. Instructor Document Archival Access Disconnect: In previous iterations, the institutional Research Archive (`/archive`) lacked prominent entry points for instructors to upload historical academic papers and journals, leaving instructors without a direct path to the OCR-assisted bundle upload pipeline.
+  2. Rigid Multi-File Upload Constraints: The server upload middleware `validateDualArchiveFiles` and service layer strictly mandated the presence of both an Academic Paper and an Academic Journal. In practice, instructors often archive historical capstones where only the condensed academic journal exists (or only the full manuscript paper).
+  3. Single-Document OCR Lock-in: In `ExistingCapstoneUploadPage.jsx`, client-side extraction and per-field rescan buttons (`Rescan Title Only`, `Rescan Abstract Only`, etc.) were hard-coded to check `!files.academicPaperFile`, rendering the OCR engine unusable when an instructor uploaded only an Academic Journal.
+- Resolution & Implementation Details:
+  1. Bidirectional Archive Navigation:
+     - Updated `ArchiveSearchPage.jsx` to render a primary "Archive Documents (OCR)" header button and an empty-search call-to-action button for authenticated instructors (`isInstructor = user?.role === ROLES.INSTRUCTOR`), linking to `/archive/upload/capstone` with `state: { fromArchive: true }`.
+     - In `ExistingCapstoneUploadPage.jsx`, added "← Back to Archive" and "Browse Archive" navigation headers.
+  2. Flexible Server-Side Document Ingestion:
+     - Modified `server/middleware/fileValidation.js` (`validateDualArchiveFiles`) to require at least one document (`academicPaperFile` OR `academicJournalFile` OR both) with strict MIME type and file size limits.
+     - Updated `server/modules/projects/project.service.js` (`bulkUploadArchive`) to accept single-document submissions (`final_academic` or `final_journal`), gracefully extracting metadata from whichever document buffer is provided and indexing submissions in MongoDB and MinIO.
+  3. Universal Client-Side OCR Auto-Extraction:
+     - In `ExistingCapstoneUploadPage.jsx`, added dedicated "Select & Auto-Extract" and "Rescan" actions to both the Academic Paper and Academic Journal cards.
+     - Displayed an "Active OCR Source" badge indicating which file populated the metadata.
+     - Updated all per-field rescan actions (`title`, `abstract`, `authors`, `year`, `doi`, `venue`, `keywords`) to check `hasDocumentForRescan = Boolean(files.academicPaperFile || files.academicJournalFile)`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Academic and institutional archiving pipelines must support single-document uploads (journal-only or manuscript-only) as well as dual-document bundles without failing OCR extraction or database ingestion.
+  2. Prevention rule: When supporting multiple source documents for automated metadata extraction, field-level rescan triggers must check for the presence of any valid source document (`hasDocumentForRescan`) rather than anchoring to a single designated input slot.
+  3. Prevention rule: Navigation between catalog/search pages (`/archive`) and specialized operational studios (`/archive/upload/capstone`) must provide persistent bidirectional links with history preservation.
+  4. Checklist: Verify that uploading an Academic Journal without an Academic Paper auto-extracts title, abstract, authors, and keywords.
+  5. Checklist: Verify that uploading an Academic Paper without an Academic Journal auto-extracts metadata successfully.
+  6. Checklist: Verify that an instructor can submit a project with either or both documents attached.
+  7. Checklist: Verify that non-instructors do not see administrative archive upload actions on `/archive`.
+  8. Evidence & Verification passed: 15/15 client archive unit tests passed (`ArchiveSearchPage.test.jsx`, `ExistingCapstoneUploadPage.test.jsx`), 8/8 server integration tests passed (`POST /archive/bulk`), 204/182 endpoint parity (`UNMATCHED_COUNT = 0`), 60/60 agentic validation checks passed, and Playwright visual audit across light/dark modes on desktop (1440x900) and mobile (390x844).
 
 43. ADMPhaseSelector Layout Stability & Full-Width Workspace Reorganization:
 - Incident & Root Cause:

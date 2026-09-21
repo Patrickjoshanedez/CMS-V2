@@ -129,7 +129,7 @@ const instructorNavItems = [
       { id: 'browse-archive', label: 'Browse Archive', icon: Search, path: '/archive' },
       {
         id: 'upload-archive',
-        label: 'Upload Archive',
+        label: 'Upload Archive (OCR)',
         icon: Upload,
         path: '/archive/upload/capstone',
       },

@@ -143,12 +143,22 @@ const validateDualArchiveFiles = async (req, _res, next) => {
     const academicPaperFiles = req.files?.academicPaperFile || [];
     const academicJournalFiles = req.files?.academicJournalFile || [];
 
-    if (academicPaperFiles.length !== 1 || academicJournalFiles.length > 1) {
+    if (academicPaperFiles.length === 0 && academicJournalFiles.length === 0) {
       return next(
         new AppError(
-          'Exactly one Academic Paper file is required. Academic Journal is optional (max one).',
+          'At least one document (Academic Paper or Academic Journal) is required.',
           400,
-          'ACADEMIC_PAPER_REQUIRED',
+          'ARCHIVE_DOCUMENT_REQUIRED',
+        ),
+      );
+    }
+
+    if (academicPaperFiles.length > 1 || academicJournalFiles.length > 1) {
+      return next(
+        new AppError(
+          'Maximum one Academic Paper and one Academic Journal allowed per bundle.',
+          400,
+          'TOO_MANY_FILES',
         ),
       );
     }
@@ -156,10 +166,12 @@ const validateDualArchiveFiles = async (req, _res, next) => {
     const academicPaperFile = academicPaperFiles[0];
     const academicJournalFile = academicJournalFiles[0];
 
-    academicPaperFile.validatedMime = await assertValidDocumentFile(
-      academicPaperFile,
-      'Academic Paper',
-    );
+    if (academicPaperFile) {
+      academicPaperFile.validatedMime = await assertValidDocumentFile(
+        academicPaperFile,
+        'Academic Paper',
+      );
+    }
 
     if (academicJournalFile) {
       academicJournalFile.validatedMime = await assertValidDocumentFile(

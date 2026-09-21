@@ -3250,11 +3250,11 @@ class ProjectService {
     const academicPaperFile = files?.academicPaperFile;
     const academicJournalFile = files?.academicJournalFile;
 
-    if (!academicPaperFile) {
+    if (!academicPaperFile && !academicJournalFile) {
       throw new AppError(
-        'Academic Paper file is required. Academic Journal is optional.',
+        'At least one document (Academic Paper or Academic Journal) is required.',
         400,
-        'ACADEMIC_PAPER_REQUIRED',
+        'ARCHIVE_DOCUMENT_REQUIRED',
       );
     }
 
@@ -3304,16 +3304,17 @@ class ProjectService {
     try {
       const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
 
+      const primaryExtractionBuffer = academicPaperFile?.buffer || academicJournalFile?.buffer;
       if (
         (!normalizedTitle ||
           !normalizedAbstract ||
           resolvedAuthors.length === 0 ||
           !resolvedPublicationYear ||
           resolvedKeywords.length === 0) &&
-        academicPaperFile?.buffer
+        primaryExtractionBuffer
       ) {
         try {
-          const extracted = await extractPdfMetadata(academicPaperFile.buffer);
+          const extracted = await extractPdfMetadata(primaryExtractionBuffer);
           if (!normalizedTitle && extracted?.title?.trim()) {
             normalizedTitle = extracted.title.trim();
           }
@@ -3423,31 +3424,45 @@ class ProjectService {
         completionNotes: 'Bulk-uploaded archived capstone bundle.',
       });
 
-      const finalAcademicStorageKey = storageService.buildFinalAcademicKey(
-        project._id,
-        1,
-        academicPaperFile.originalname,
-      );
+      const finalAcademicStorageKey = academicPaperFile
+        ? storageService.buildFinalAcademicKey(project._id, 1, academicPaperFile.originalname)
+        : null;
       const finalJournalStorageKey = academicJournalFile
         ? storageService.buildFinalJournalKey(project._id, 1, academicJournalFile.originalname)
         : null;
 
-      const extractionTasks = [this._extractArchiveSubmissionText(academicPaperFile)];
+      const extractionTasks = [];
+      if (academicPaperFile) {
+        extractionTasks.push(
+          this._extractArchiveSubmissionText(academicPaperFile).then((text) => ({
+            type: 'final_academic',
+            text,
+          })),
+        );
+      }
       if (academicJournalFile) {
-        extractionTasks.push(this._extractArchiveSubmissionText(academicJournalFile));
+        extractionTasks.push(
+          this._extractArchiveSubmissionText(academicJournalFile).then((text) => ({
+            type: 'final_journal',
+            text,
+          })),
+        );
       }
 
-      const [finalAcademicExtractedText, maybeFinalJournalExtractedText] =
-        await Promise.all(extractionTasks);
-      const finalJournalExtractedText = academicJournalFile ? maybeFinalJournalExtractedText : null;
+      const extractedResults = await Promise.all(extractionTasks);
+      const textByType = Object.fromEntries(extractedResults.map((item) => [item.type, item.text]));
+      const finalAcademicExtractedText = textByType.final_academic || null;
+      const finalJournalExtractedText = textByType.final_journal || null;
 
       try {
-        await storageService.uploadFile(
-          academicPaperFile.buffer,
-          finalAcademicStorageKey,
-          academicPaperFile.validatedMime || academicPaperFile.mimetype,
-        );
-        uploadedKeys.push(finalAcademicStorageKey);
+        if (academicPaperFile && finalAcademicStorageKey) {
+          await storageService.uploadFile(
+            academicPaperFile.buffer,
+            finalAcademicStorageKey,
+            academicPaperFile.validatedMime || academicPaperFile.mimetype,
+          );
+          uploadedKeys.push(finalAcademicStorageKey);
+        }
 
         if (academicJournalFile && finalJournalStorageKey) {
           await storageService.uploadFile(
@@ -3460,6 +3475,9 @@ class ProjectService {
       } catch (error) {
         // Clean up the project record if upload failed
         await Project.findByIdAndDelete(project._id);
+        if (archiveTeam?._id) {
+          await Team.findByIdAndDelete(archiveTeam._id).catch(() => {});
+        }
         if (error.isOperational) {
           console.error('[ProjectService] Bulk archive upload failed:', error.code, error.message);
           throw error;
@@ -3472,8 +3490,9 @@ class ProjectService {
         );
       }
 
-      const submissionsToCreate = [
-        {
+      const submissionsToCreate = [];
+      if (academicPaperFile && finalAcademicStorageKey) {
+        submissionsToCreate.push({
           projectId: project._id,
           submittedBy: instructorObjectId,
           type: 'final_academic',
@@ -3485,8 +3504,8 @@ class ProjectService {
           storageKey: finalAcademicStorageKey,
           extractedText: finalAcademicExtractedText,
           status: 'approved',
-        },
-      ];
+        });
+      }
 
       if (academicJournalFile && finalJournalStorageKey) {
         submissionsToCreate.push({

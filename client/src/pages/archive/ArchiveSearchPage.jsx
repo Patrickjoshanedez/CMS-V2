@@ -11,12 +11,15 @@ import {
   ExternalLink,
   SlidersHorizontal,
   BookOpen,
+  Upload,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
+import { ROLES } from '@cms/shared';
 
 import { useArchiveSearch } from '@/hooks/useProjects';
 import { useArchiveSearchState } from '@/hooks/useArchiveSearchState';
@@ -117,6 +120,8 @@ export default function ArchiveSearchPage() {
 
   // Dynamic courses catalog from Student Management Hierarchy
   const { data: courses = [] } = useCourses();
+  const { user } = useAuthStore();
+  const isInstructor = user?.role === ROLES.INSTRUCTOR;
 
   const { data, isLoading, error } = useArchiveSearch(searchParamsPayload);
 
@@ -172,15 +177,31 @@ export default function ArchiveSearchPage() {
       <div className="space-y-6">
         {/* Top Minimalist Academic Header & Centered Search Bar */}
         <div className="pt-2 pb-4 space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center justify-center gap-2">
-              <BookOpen className="w-6 h-6 text-primary shrink-0" />
-              BukSU Research Archive
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
-              Institutional academic repository for capstone manuscripts, title proposals, and
-              research gap discovery.
-            </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left space-y-1">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center justify-center sm:justify-start gap-2">
+                <BookOpen className="w-6 h-6 text-primary shrink-0" />
+                BukSU Research Archive
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-xl">
+                Institutional academic repository for capstone manuscripts, title proposals, and
+                research gap discovery.
+              </p>
+            </div>
+
+            {isInstructor && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  onClick={() =>
+                    navigate('/archive/upload/capstone', { state: { fromArchive: true } })
+                  }
+                  className="gap-2 shadow-xs"
+                >
+                  <Upload className="w-4 h-4" />
+                  Archive Documents (OCR)
+                </Button>
+              </div>
+            )}
           </div>
 
           <GoogleScholarSearchBar
@@ -279,6 +300,22 @@ export default function ArchiveSearchPage() {
                     overly restrictive.
                   </li>
                 </div>
+
+                {isInstructor && (
+                  <div className="pt-2 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate('/archive/upload/capstone', { state: { fromArchive: true } })
+                      }
+                      className="gap-2 text-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Archive New Capstone Documents (Paper & Journal)
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

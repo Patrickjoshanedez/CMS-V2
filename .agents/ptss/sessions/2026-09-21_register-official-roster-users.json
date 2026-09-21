@@ -1,0 +1,45 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-21_register-official-roster-users",
+  "timestamp": "2026-09-21T15:27:00.000Z",
+  "task_summary": "Registered complete official capstone roster: 1 Instructor (Rozanne Tuesday Flores), 4 Students (Patrick Josh Añedez [lead], Throylan Antipuesto, Steven Joe Bautista, Chijay Canoy), and 5 Faculty Committee Members (Glaiza Mae Libe [adviser], Louie Labastida [panel chair], Raul Lecaros [panel 2], Joseph Abella [panel 3], Joan Marie Panes [secretary]). Bound academic foundation to new instructor and verified authentication across all roles.",
+  "task_category": "user_registration_and_roster_orchestration",
+  "skills_written": [],
+  "skills_patched": ["senior-backend", "verification-loop"],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "total_users_registered": 10,
+    "instructors_count": 1,
+    "students_count": 4,
+    "faculty_count": 5,
+    "endpoint_parity": {
+      "server_endpoints": 204,
+      "client_endpoints": 182,
+      "unmatched_count": 0,
+      "passed": true
+    },
+    "agentic_governance": {
+      "checks_total": 60,
+      "checks_passed": 60,
+      "checks_failed": 0,
+      "passed": true
+    },
+    "workspace_guardrail": {
+      "pristine": true,
+      "passed": true
+    },
+    "live_login_tests": {
+      "instructor_rozanne": true,
+      "student_lead_patrick": true,
+      "faculty_adviser_glaiza": true,
+      "panel_chair_louie": true,
+      "secretary_joan": true,
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: Student accounts should be bound to their active academic Section (sectionId) and course instructor (instructorId) upon registration so student dashboards automatically load cohort metadata and institutional templates.",
+    "Prevention: When migrating from placeholder credentials to official rosters, clean up temporary seed accounts (such as generic instructor@buksu.edu.ph) and reassign createdBy references on AcademicYear, Course, and Section to the official Instructor to avoid orphaned permissions.",
+    "Runbook / Checklist for Roster Seeding: 1. Confirm primary user role mapping (Student, Instructor, Faculty). 2. For faculty appointments (Adviser, Panelist, Secretary, Chair), tag under facultyRole or panelist assignments. 3. Validate live authentication probes with bcrypt-hashed passwords across all persona groups to ensure zero login lockouts."
+  ]
+}

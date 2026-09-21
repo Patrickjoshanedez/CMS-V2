@@ -1,0 +1,27 @@
+{
+  "session_id": "2026-09-22_instructor-archive-ocr-workflow",
+  "task": "Restore Instructor ability to archive documents (Academic Paper, Academic Journal) and scan via OCR model to automatically fill metadata fields linked to /archive",
+  "timestamp": "2026-09-22T00:39:00.000Z",
+  "status": "completed",
+  "evidence": {
+    "server_unit_tests": "passed",
+    "client_unit_tests": "passed",
+    "endpoint_parity": "passed (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "passed (60/60 checks)",
+    "governance_pipeline": "passed (all stages valid, 0 errors, 0 warnings)",
+    "playwright_visual_audit": "passed (8 screenshots captured in scratch/screenshots/instructor_archive_ocr/)"
+  },
+  "changes": {
+    "server/middleware/fileValidation.js": "Updated validateDualArchiveFiles to require at least one document (academicPaperFile OR academicJournalFile OR both) with strict MIME and size checks.",
+    "server/modules/projects/project.service.js": "Updated bulkUploadArchive to allow either file or both, extracting metadata from the available file buffer and saving submissions accordingly.",
+    "server/tests/integration/projects.test.js": "Added test cases for single academic paper, single academic journal, both files, and neither file.",
+    "client/src/pages/archive/ArchiveSearchPage.jsx": "Added 'Archive Documents (OCR)' header button and empty-state call-to-action button for instructors linking to /archive/upload/capstone.",
+    "client/src/pages/archive/ArchiveSearchPage.test.jsx": "Added unit tests verifying instructor OCR button visibility and navigation.",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.jsx": "Added Back to Archive navigation, dedicated auto-extract and rescan buttons on both Academic Paper and Academic Journal cards, and updated per-field rescan to work with either file.",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.test.jsx": "Added 5 comprehensive unit tests for OCR extraction on journal, paper, and bundle upload."
+  },
+  "runbook": {
+    "lesson": "Instructors often archive legacy manuscripts where only an academic journal or condensed paper is available without the 5-chapter thesis, or vice-versa. The system must flexibly support paper-only, journal-only, or dual-file bundles without dropping OCR metadata extraction.",
+    "prevention": "Ensure server upload middleware and client file pickers validate at least one valid PDF is present rather than enforcing all document slots, and ensure per-field rescan buttons check hasDocumentForRescan (either file) rather than hardcoded to paper only."
+  }
+}

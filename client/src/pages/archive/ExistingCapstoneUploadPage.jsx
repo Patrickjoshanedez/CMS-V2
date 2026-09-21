@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Loader2,
   CheckCircle2,
@@ -10,6 +11,8 @@ import {
   Sparkles,
   Files,
   Info,
+  ArrowLeft,
+  Archive,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -463,6 +466,7 @@ const enrichMetadataFromKeywords = ({ metadata = {}, confidence = {}, fileName =
 };
 
 export default function ExistingCapstoneUploadPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { mutateAsync: bulkUploadArchive, isPending } = useBulkUploadArchive();
   const { data: academicYears = [], isLoading: yearsLoading } = useAcademicYears();
@@ -471,6 +475,7 @@ export default function ExistingCapstoneUploadPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [confidenceScores, setConfidenceScores] = useState({});
   const [extractionStatus, setExtractionStatus] = useState('idle'); // idle | extracting | success | error
+  const [extractionSource, setExtractionSource] = useState(''); // 'Academic Paper' | 'Academic Journal'
   const [activeRescanField, setActiveRescanField] = useState('');
   const [feedbackBusyByField, setFeedbackBusyByField] = useState({});
 
@@ -479,6 +484,7 @@ export default function ExistingCapstoneUploadPage() {
 
   const currentYear = new Date().getFullYear();
   const defaultAcademicYear = useMemo(() => `${currentYear}-${currentYear + 1}`, [currentYear]);
+  const hasDocumentForRescan = Boolean(files.academicPaperFile || files.academicJournalFile);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -570,9 +576,12 @@ export default function ExistingCapstoneUploadPage() {
         ? options.targetFields
         : null;
     const targetFieldName = targetFields?.[0] || '';
+    const sourceLabel =
+      options.sourceLabel ||
+      (pdfFile === files.academicJournalFile ? 'Academic Journal' : 'Academic Paper');
 
     if (!pdfFile) {
-      toast.error('Select an academic paper PDF first.');
+      toast.error('Select an academic paper or journal PDF first.');
       return;
     }
 
@@ -604,11 +613,12 @@ export default function ExistingCapstoneUploadPage() {
       }
 
       applyExtractedMetadata(enriched.metadata, enriched.confidence, targetFields);
+      setExtractionSource(sourceLabel);
 
       if (targetFieldName) {
         const refreshedValue = String(enriched.metadata?.[targetFieldName] || '').trim();
         if (refreshedValue) {
-          toast.success(`${METADATA_FIELD_LABELS[targetFieldName]} rescanned.`);
+          toast.success(`${METADATA_FIELD_LABELS[targetFieldName]} rescanned from ${sourceLabel}.`);
         } else {
           toast.warning(`No new ${METADATA_FIELD_LABELS[targetFieldName]} value was detected.`);
         }
@@ -619,9 +629,11 @@ export default function ExistingCapstoneUploadPage() {
 
       if (enriched.inferredFields.length > 0) {
         const sampleFields = enriched.inferredFields.slice(0, 4).join(', ');
-        toast.success(`Metadata auto-filled. Inferred fields: ${sampleFields}.`);
+        toast.success(
+          `Metadata auto-filled from ${sourceLabel}. Inferred fields: ${sampleFields}.`,
+        );
       } else {
-        toast.success('Metadata extracted from academic paper.');
+        toast.success(`Metadata extracted from ${sourceLabel} via OCR.`);
       }
 
       setExtractionStatus('success');
@@ -644,11 +656,12 @@ export default function ExistingCapstoneUploadPage() {
       });
 
       applyExtractedMetadata(localFallback.metadata, localFallback.confidence);
+      setExtractionSource(sourceLabel);
       setExtractionStatus('success');
 
       toast.warning(
         `${asUploadErrorMessage(error, 'Extraction API is unavailable.')}` +
-          ' Applied keyword-based local autofill. Please review before upload.',
+          ` Applied keyword-based local autofill from ${sourceLabel}. Please review before upload.`,
       );
     } finally {
       setActiveRescanField('');
@@ -656,7 +669,14 @@ export default function ExistingCapstoneUploadPage() {
   };
 
   const handleRescanField = async (fieldName) => {
-    await runExtractionPipeline(files.academicPaperFile, { targetFields: [fieldName] });
+    const primaryFile = files.academicPaperFile || files.academicJournalFile;
+    if (!primaryFile) {
+      toast.error('Upload an academic paper or journal PDF first to rescan.');
+      return;
+    }
+    const sourceLabel =
+      primaryFile === files.academicJournalFile ? 'Academic Journal' : 'Academic Paper';
+    await runExtractionPipeline(primaryFile, { targetFields: [fieldName], sourceLabel });
   };
 
   const handleFeedbackForField = async (fieldName) => {
@@ -678,13 +698,15 @@ export default function ExistingCapstoneUploadPage() {
 
     setFeedbackBusyByField((prev) => ({ ...prev, [fieldName]: true }));
 
+    const sourceFileName = files.academicPaperFile?.name || files.academicJournalFile?.name || '';
+
     try {
       await metadataService.submitMetadataFeedback({
         fieldName,
         extractedValue,
         correctedValue: normalizedCorrection,
         confidence: confidenceScores[fieldName],
-        sourceFileName: files.academicPaperFile?.name || '',
+        sourceFileName,
         context: 'archive/capstone-upload',
       });
 
@@ -704,15 +726,23 @@ export default function ExistingCapstoneUploadPage() {
     setFiles((prev) => ({ ...prev, academicPaperFile: selectedFile }));
 
     if (selectedFile) {
-      await runExtractionPipeline(selectedFile);
-    } else {
+      await runExtractionPipeline(selectedFile, { sourceLabel: 'Academic Paper' });
+    } else if (!files.academicJournalFile) {
       setExtractionStatus('idle');
+      setExtractionSource('');
     }
   };
 
-  const handleAcademicJournalSelect = (event) => {
+  const handleAcademicJournalSelect = async (event) => {
     const selectedFile = event.target.files?.[0] || null;
     setFiles((prev) => ({ ...prev, academicJournalFile: selectedFile }));
+
+    if (selectedFile) {
+      await runExtractionPipeline(selectedFile, { sourceLabel: 'Academic Journal' });
+    } else if (!files.academicPaperFile) {
+      setExtractionStatus('idle');
+      setExtractionSource('');
+    }
   };
 
   const resetPageState = () => {
@@ -720,6 +750,7 @@ export default function ExistingCapstoneUploadPage() {
     setFiles(INITIAL_FILES);
     setConfidenceScores({});
     setExtractionStatus('idle');
+    setExtractionSource('');
     setActiveRescanField('');
     setFeedbackBusyByField({});
 
@@ -730,8 +761,8 @@ export default function ExistingCapstoneUploadPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!files.academicPaperFile) {
-      toast.error('Academic Paper PDF is required.');
+    if (!files.academicPaperFile && !files.academicJournalFile) {
+      toast.error('Please upload at least one document (Academic Paper or Academic Journal).');
       return;
     }
 
@@ -763,7 +794,12 @@ export default function ExistingCapstoneUploadPage() {
 
     try {
       await bulkUploadArchive(payload);
-      toast.success('Archived capstone bundle uploaded successfully.');
+      toast.success('Archived capstone bundle uploaded successfully.', {
+        action: {
+          label: 'View in Archive',
+          onClick: () => navigate('/archive'),
+        },
+      });
       resetPageState();
     } catch (error) {
       toast.error(asUploadErrorMessage(error, 'Failed to upload archived capstone bundle.'));
@@ -785,13 +821,37 @@ export default function ExistingCapstoneUploadPage() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Upload Archived Capstone
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Upload archived capstones and auto-fill metadata from the academic paper.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/archive')}
+                className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground h-8 px-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Archive
+              </Button>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Archive Capstone Documents
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Upload the Academic Paper, Academic Journal, or both. Auto-fill metadata using the OCR
+              extraction model.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/archive')}
+            className="gap-2 shrink-0 self-start sm:self-auto"
+          >
+            <Archive className="h-4 w-4" />
+            Browse Archive
+          </Button>
         </div>
 
         <Card className="shadow-lg">
@@ -800,8 +860,9 @@ export default function ExistingCapstoneUploadPage() {
               <Sparkles className="h-6 w-6 text-primary" /> OCR Auto-Fill Capstone Upload
             </CardTitle>
             <CardDescription className="mt-2 text-base">
-              Academic Paper is required. Academic Journal is optional and can be added for
-              plagiarism cross-checking against new submissions.
+              Upload the <strong>Academic Paper</strong> (full manuscript),{' '}
+              <strong>Academic Journal</strong> (condensed publication version), or both. Select
+              either document to run OCR model extraction and auto-fill metadata fields.
             </CardDescription>
           </CardHeader>
 
@@ -809,8 +870,8 @@ export default function ExistingCapstoneUploadPage() {
             <Alert variant="info">
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Select the Academic Paper first to run OCR extraction. Academic Journal is optional
-                and can be added for plagiarism cross-checking.
+                Select either the Academic Paper or Academic Journal to trigger OCR extraction. Both
+                documents can be attached and archived together.
               </AlertDescription>
             </Alert>
 
@@ -821,11 +882,21 @@ export default function ExistingCapstoneUploadPage() {
                 <div className="rounded-xl border-2 border-dashed border-border bg-muted/40 p-6 transition-colors hover:border-primary/40 hover:bg-muted/60">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        Academic Paper (PDF) *
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          Academic Paper (PDF)
+                        </p>
+                        {extractionSource === 'Academic Paper' && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/30 text-[10px]"
+                          >
+                            Active OCR Source
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Used for OCR metadata extraction and stored in the archived capstone bundle.
+                        Full manuscript used for OCR metadata extraction and archived bundle index.
                       </p>
                     </div>
 
@@ -844,26 +915,33 @@ export default function ExistingCapstoneUploadPage() {
                         onClick={() => academicPaperInputRef.current?.click()}
                         disabled={extractionStatus === 'extracting'}
                       >
-                        {extractionStatus === 'extracting' ? (
+                        {extractionStatus === 'extracting' &&
+                        extractionSource === 'Academic Paper' ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Upload className="h-4 w-4" />
                         )}
-                        Select Academic Paper & Auto-Extract
+                        Select Paper & Auto-Extract
                       </Button>
 
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => runExtractionPipeline(files.academicPaperFile)}
+                        onClick={() =>
+                          runExtractionPipeline(files.academicPaperFile, {
+                            sourceLabel: 'Academic Paper',
+                          })
+                        }
                         disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
                       >
-                        {activeRescanField === 'all' && extractionStatus === 'extracting' ? (
+                        {activeRescanField === 'all' &&
+                        extractionStatus === 'extracting' &&
+                        extractionSource === 'Academic Paper' ? (
                           <>
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Rescanning All...
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Rescanning...
                           </>
                         ) : (
-                          'Rescan All'
+                          'Rescan Paper'
                         )}
                       </Button>
                     </div>
@@ -872,8 +950,11 @@ export default function ExistingCapstoneUploadPage() {
                   <div className="mt-4 rounded-md border border-border bg-background/80 p-3 text-sm">
                     {files.academicPaperFile ? (
                       <div className="flex items-center gap-2 text-foreground">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span>{files.academicPaperFile.name}</span>
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium">{files.academicPaperFile.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(files.academicPaperFile.size / 1024).toFixed(1)} KB)
+                        </span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground">No academic paper selected yet.</span>
@@ -881,14 +962,25 @@ export default function ExistingCapstoneUploadPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border bg-card/50 p-6">
+                <div className="rounded-xl border-2 border-dashed border-border bg-muted/40 p-6 transition-colors hover:border-primary/40 hover:bg-muted/60">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        Academic Journal (PDF) (Optional)
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          Academic Journal (PDF)
+                        </p>
+                        {extractionSource === 'Academic Journal' && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/30 text-[10px]"
+                          >
+                            Active OCR Source
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Optional source used by plagiarism checker cross-checking.
+                        Condensed publication paper / journal used for OCR extraction and plagiarism
+                        cross-checking.
                       </p>
                     </div>
 
@@ -900,22 +992,54 @@ export default function ExistingCapstoneUploadPage() {
                       onChange={handleAcademicJournalSelect}
                     />
 
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="gap-2"
-                      onClick={() => academicJournalInputRef.current?.click()}
-                    >
-                      <Files className="h-4 w-4" />
-                      Select Academic Journal (Optional)
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={() => academicJournalInputRef.current?.click()}
+                        disabled={extractionStatus === 'extracting'}
+                      >
+                        {extractionStatus === 'extracting' &&
+                        extractionSource === 'Academic Journal' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Files className="h-4 w-4" />
+                        )}
+                        Select Journal & Auto-Extract
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          runExtractionPipeline(files.academicJournalFile, {
+                            sourceLabel: 'Academic Journal',
+                          })
+                        }
+                        disabled={!files.academicJournalFile || extractionStatus === 'extracting'}
+                      >
+                        {activeRescanField === 'all' &&
+                        extractionStatus === 'extracting' &&
+                        extractionSource === 'Academic Journal' ? (
+                          <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Rescanning...
+                          </>
+                        ) : (
+                          'Rescan Journal'
+                        )}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="mt-4 rounded-md border border-border bg-background/80 p-3 text-sm">
                     {files.academicJournalFile ? (
                       <div className="flex items-center gap-2 text-foreground">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span>{files.academicJournalFile.name}</span>
+                        <FileText className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <span className="font-medium">{files.academicJournalFile.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(files.academicJournalFile.size / 1024).toFixed(1)} KB)
+                        </span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground">
@@ -932,7 +1056,8 @@ export default function ExistingCapstoneUploadPage() {
                   <div>
                     <AlertTitle className="font-semibold text-blue-500">Please wait</AlertTitle>
                     <AlertDescription className="text-blue-500/90">
-                      Extracting metadata from academic paper via OCR pipeline...
+                      Extracting metadata from {extractionSource || 'uploaded document'} via OCR
+                      pipeline...
                     </AlertDescription>
                   </div>
                 </Alert>
@@ -947,11 +1072,25 @@ export default function ExistingCapstoneUploadPage() {
                         Extraction Complete
                       </AlertTitle>
                       <AlertDescription className="text-green-500/90">
-                        Metadata extracted successfully. Review and edit the fields below before
-                        upload.
+                        Metadata extracted successfully
+                        {extractionSource ? ` from ${extractionSource}` : ''}. Review and edit the
+                        fields below before uploading.
                       </AlertDescription>
                     </div>
                   </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-green-600 hover:text-green-700 dark:text-green-400"
+                    onClick={() => {
+                      const primaryFile = files.academicPaperFile || files.academicJournalFile;
+                      if (primaryFile) runExtractionPipeline(primaryFile);
+                    }}
+                  >
+                    Rescan
+                  </Button>
                 </Alert>
               )}
 
@@ -987,7 +1126,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('title')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'title' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1031,7 +1170,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('abstract')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'abstract' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1074,7 +1213,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('authors')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'authors' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1117,7 +1256,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('year')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'year' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1186,7 +1325,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('doi')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'doi' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1229,7 +1368,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('venue')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'venue' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1272,7 +1411,7 @@ export default function ExistingCapstoneUploadPage() {
                         size="sm"
                         className="justify-start gap-2"
                         onClick={() => handleRescanField('keywords')}
-                        disabled={!files.academicPaperFile || extractionStatus === 'extracting'}
+                        disabled={!hasDocumentForRescan || extractionStatus === 'extracting'}
                       >
                         {activeRescanField === 'keywords' && extractionStatus === 'extracting' ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />

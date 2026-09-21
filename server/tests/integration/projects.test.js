@@ -1114,7 +1114,9 @@ describe('Projects API — /api/projects', () => {
       ).toBe(true);
     });
 
-    it('should reject the request when academic paper file is missing', async () => {
+    it('should allow the request when academic paper file is missing but academic journal is provided', async () => {
+      storageService.uploadFile.mockClear();
+
       const res = await instructorAgent
         .post(endpoint)
         .field('title', basePayload.title)
@@ -1123,8 +1125,29 @@ describe('Projects API — /api/projects', () => {
         .field('academicYear', basePayload.academicYear)
         .attach('academicJournalFile', createPdfBuffer(), 'academic-journal.pdf');
 
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.project.isArchived).toBe(true);
+      expect(res.body.data.submissions.finalAcademic).toBeNull();
+      expect(res.body.data.submissions.finalJournal.type).toBe('final_journal');
+
+      const projectId = res.body.data.project._id;
+      const linkedSubmissions = await Submission.find({ projectId }).sort({ type: 1 });
+
+      expect(linkedSubmissions).toHaveLength(1);
+      expect(linkedSubmissions[0].type).toBe('final_journal');
+    });
+
+    it('should reject the request when both academic paper and journal files are missing', async () => {
+      const res = await instructorAgent
+        .post(endpoint)
+        .field('title', basePayload.title)
+        .field('abstract', basePayload.abstract)
+        .field('keywords', basePayload.keywords)
+        .field('academicYear', basePayload.academicYear);
+
       expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('ACADEMIC_PAPER_REQUIRED');
+      expect(res.body.error.code).toBe('ARCHIVE_DOCUMENT_REQUIRED');
     });
 
     it('should allow the request when academic journal file is missing', async () => {
