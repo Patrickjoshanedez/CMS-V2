@@ -60,19 +60,6 @@ const parseUnitInterval = (value, defaultValue) => {
   return parsed;
 };
 
-const parseFloatInRange = (value, defaultValue, min, max) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return defaultValue;
-  }
-
-  if (parsed < min || parsed > max) {
-    return defaultValue;
-  }
-
-  return parsed;
-};
-
 const parseCookieSameSite = (value, defaultValue = 'strict') => {
   if (typeof value !== 'string') {
     return defaultValue;

@@ -1,17 +1,14 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   FileText,
   CheckSquare,
-  Layers,
   ShieldAlert,
   MessageSquare,
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   RotateCcw,
-  Sparkles,
-  ChevronRight,
   SlidersHorizontal,
   Printer,
   X,
@@ -25,7 +22,7 @@ import PdfViewerWorkspace from './PdfViewerWorkspace';
  * StickyDefenseVerdictBar — Pinned bottom verdict action toolbar
  */
 export function StickyVerdictBar({
-  submissionId,
+  _submissionId,
   canSubmitVerdict = true,
   onVerdict,
   isSubmitting = false,
