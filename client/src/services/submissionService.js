@@ -294,6 +294,48 @@ export const submissionService = {
         onUploadProgress,
       },
     ),
+
+  /* ────── Faculty / Committee: PDF Workspace Inline Comments ────── */
+
+  /**
+   * Get all inline comments / annotations for a submission.
+   * @param {string} submissionId
+   */
+  getSubmissionComments: (submissionId) => api.get(`/submissions/${submissionId}/comments`),
+
+  /**
+   * Create an inline highlight annotation/comment with position.
+   * @param {string} submissionId
+   * @param {Object} data - { content, position, selectedText, authorRole, status }
+   */
+  createSubmissionComment: (submissionId, data) =>
+    api.post(`/submissions/${submissionId}/comments`, data),
+
+  /**
+   * Delete an inline comment.
+   * @param {string} submissionId
+   * @param {string} commentId
+   */
+  deleteSubmissionComment: (submissionId, commentId) =>
+    api.delete(`/submissions/${submissionId}/comments/${commentId}`),
+
+  /**
+   * Add a threaded reply to an existing comment.
+   * @param {string} submissionId
+   * @param {string} commentId
+   * @param {{ content: string, authorRole?: string }} data
+   */
+  addSubmissionCommentReply: (submissionId, commentId, data) =>
+    api.post(`/submissions/${submissionId}/comments/${commentId}/replies`, data),
+
+  /**
+   * Update status of an inline comment (open / resolved).
+   * @param {string} submissionId
+   * @param {string} commentId
+   * @param {{ status: 'open' | 'resolved' }} data
+   */
+  updateSubmissionCommentStatus: (submissionId, commentId, data) =>
+    api.patch(`/submissions/${submissionId}/comments/${commentId}/status`, data),
 };
 
 export default submissionService;

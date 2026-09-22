@@ -1,292 +1,199 @@
-# PDF OCR Auto-Fill Integration
+# PDF OCR Auto-Fill & Asynchronous Ingestion Integration
 
 ## Overview
 
-The CMS-V2 now features a complete end-to-end OCR (Optical Character Recognition) pipeline that automatically extracts metadata from uploaded PDF files and auto-fills form fields. This document describes the architecture, implementation, and testing procedures.
+The BukSU Capstone Management System (CMS-V2) features a production-grade, asynchronous document ingestion and Optical Character Recognition (OCR) pipeline. The system extracts structured academic metadata (title, abstract, authors, publication year, DOI, publication venue, keywords) from uploaded PDF files (both full manuscripts and condensed journals) and auto-fills archival forms.
 
-## Architecture
+The architecture is powered by a dedicated **`PaddleOCR-VL (0.9B)`** microservice container with graceful in-process fallback (`pdf-parse`), **BullMQ** asynchronous job queuing with Redis caching, and real-time **Socket.IO** progress notifications.
 
-### Components
+---
 
-1. **Backend PDF Extractor** (`server/utils/pdfMetadataExtractor.js`)
-   - Extracts text from PDFs using `pdf-parse`
-   - Applies heuristic patterns to identify metadata fields
-   - Falls back to GLM-OCR for improved accuracy on scanned/complex PDFs
-   - Caches results for performance
+## High-Level Architecture
 
-2. **Document Controller** (`server/modules/documents/document.controller.js`)
-   - Exposes `/documents/extract-pdf-metadata` endpoint
-   - Handles multipart file uploads
-   - Returns extraction results with confidence scores
+```text
+[Browser / Client]
+       │
+       ├─ (1) POST /api/documents/extract-pdf-metadata (multipart/form-data)
+       ▼
+[Express Server Controller] (document.controller.js)
+       │
+       ├─ (2) Writes temp PDF to storageService ('temp-extractions/<jobId>.pdf')
+       ├─ (3) Enqueues job in BullMQ 'document-extraction' queue
+       ▼
+[Client Response] ─── HTTP 202 Accepted { status: 'queued', jobId: '<jobId>' }
+       │
+       ├─ Client listens to Socket.IO ('ocr:progress', 'ocr:complete', 'ocr:error')
+       └─ Client polls fallback GET /api/documents/extraction-status/<jobId>
+       │
+       ▼
+[BullMQ Worker] (documentExtraction.job.js)
+       │
+       ├─ Emits Socket.IO 'ocr:progress' (10% - Staged)
+       ├─ Reads PDF stream from storageService
+       ├─ Invokes metadataExtractionService
+       │     │
+       │     ├─ Sends PDF buffer to PaddleOCR-VL (http://cms-ocr-engine:8000/extract)
+       │     └─ Fallback: In-process pdf-parse heuristic extraction (ocrStatus: 'degraded')
+       │
+       ├─ Normalizes confidence scores and derives keywords/academic year
+       ├─ Caches result in Redis ('extraction:job:<jobId>', TTL: 1 hour)
+       ├─ Emits Socket.IO 'ocr:complete' (100%)
+       └─ Cleans up temp PDF from storageService
+```
 
-3. **Frontend Integration** (`client/src/pages/archive/ExistingCapstoneUploadPage.jsx`)
-   - Automatically triggers extraction when PDF is selected
-   - Auto-fills form fields with extracted data
-   - Provides visual feedback during extraction
-   - Shows extraction success indicator with confidence scores
-   - Allows manual rescanning if needed
+---
 
-## Extracted Metadata
+## Core Components
 
-The system extracts the following fields with confidence scores:
+### 1. Dedicated Metadata Extraction Service (`server/services/metadataExtraction.service.js`)
+- Isolates metadata extraction logic completely from manuscript CRUD (`document.service.js`).
+- Dispatches extraction requests to `ocrExtractionService` (`PaddleOCR-VL 0.9B`) and in-process heuristic parsing (`server/utils/pdfMetadataExtractor.js`).
+- Standardizes confidence scores across fields and performs intelligent fallback enrichment.
+
+### 2. OCR Engine Microservice (`PaddleOCR-VL 0.9B`)
+- Dedicated container running on `http://cms-ocr-engine:8000`.
+- Fast, high-accuracy vision-language model for academic PDF document layout analysis and OCR.
+- Vector and semantic search core backed by `BAAI/bge-m3` (1024-dimensional dense + sparse embeddings).
+
+### 3. BullMQ Asynchronous Ingestion Queue (`server/jobs/queue.js`, `server/jobs/documentExtraction.job.js`)
+- Queue: `document-extraction` registered in Bull Board.
+- Supports concurrent workers with multi-stage progress reporting (10% staging, 40% OCR parsing, 80% field alignment, 100% complete).
+- Emits real-time Socket.IO events (`ocr:progress`, `ocr:complete`, `ocr:error`).
+- Stores results in Redis (`extraction:job:<jobId>`) with a 1-hour expiration.
+- Auto-deletes temporary upload artifacts (`temp-extractions/<jobId>.pdf`) upon job completion or failure.
+
+### 4. Client Integration (`client/src/services/metadataService.js` & `ExistingCapstoneUploadPage.jsx`)
+- Seamlessly handles both HTTP 202 async jobs and HTTP 200 synchronous responses.
+- Real-time animated progress bar showing OCR extraction stages and percentage.
+- Socket.IO listeners coupled with polling fallback (`GET /api/documents/extraction-status/:jobId`).
+- Per-field rescan, confidence badges (0–100%), and active OCR source indicator.
+
+---
+
+## Extracted Metadata & Confidence Scoring
+
+The system extracts the following structured fields:
 
 | Field | Extraction Method | Confidence Range | Notes |
-|-------|-------------------|------------------|-------|
-| Title | Pattern matching + Title case detection | 0-1 | 30-300 chars, capitalized words |
-| Abstract | Section detection + text extraction | 0-1 | 50-3000 chars, ends at Introduction/Keywords |
-| Authors | PDF metadata + line analysis | 0-1 | Validates author name format |
-| Publication Year | PDF info + regex patterns | 0-1 | 1900-current+1, preferred from headers |
-| DOI | DOI pattern matching | 0-1 | Multiple pattern support (doi:, https://doi.org/) |
-| Publication Venue | Journal/Conference name detection | 0-1 | IEEE, ACM, Springer, generic patterns |
-| Keywords | Keywords section extraction | 0-1 | Split by commas/semicolons, max 12 |
+|---|---|---|---|
+| **Title** | PaddleOCR-VL layout header detection / Case heuristics | 0–100% | 30–300 chars, capitalized academic title |
+| **Abstract** | Vision-language block detection / Boundary regex | 0–100% | 50–3000 chars, boundary bounded by Introduction/Keywords |
+| **Authors** | Line analysis + entity detection | 0–100% | Sanitizes academic prefixes (Dr., Engr., Prof.) |
+| **Publication Year** | PDF metadata + publication date regex | 0–100% | 1900–(Current+1), automatically computes Academic Year |
+| **DOI** | International standard DOI pattern | 0–100% | `10.xxxx/...` or `https://doi.org/...` |
+| **Publication Venue** | Journal/Conference name recognition | 0–100% | IEEE, ACM, Springer, Institutional Capstone Journal |
+| **Keywords** | Section extraction & TF-IDF keyword derivation | 0–100% | Deduplicated and formatted into canonical acronyms |
 
-## Accuracy Features
+---
 
-### 1. Heuristic-Based Extraction
-- **Title Detection**: Identifies capitalized, title-case lines avoiding headers/footers
-- **Abstract Extraction**: Finds "Abstract" marker and extracts until "Introduction" or "Keywords"
-- **Author Parsing**: Sanitizes names, filters common titles (Dr., Prof., etc.)
-- **Year Extraction**: Prefers publication date patterns over generic years
-- **Keyword Extraction**: Parses dedicated keywords section with multiple delimiters
+## API Endpoints
 
-### 2. GLM-OCR Fallback
-When heuristic extraction confidence is low:
-- Sends text to GLM-OCR model for re-extraction
-- Only triggered when:
-  - Title < 30 chars AND confidence < 0.75
-  - Abstract < 220 chars AND confidence < 0.8
-  - No authors detected
-- Returns more accurate results for complex/scanned PDFs
+### 1. Ingest PDF Document
+`POST /api/documents/extract-pdf-metadata`
 
-### 3. Intelligent Merging
-- Uses GLM results only when they exceed heuristic confidence
-- Preserves high-confidence heuristic results (e.g., publication year)
-- Provides extraction provider info in response
-
-### 4. Result Caching
-- Caches extraction results using buffer SHA256 hash
-- TTL: 10 minutes (configurable via `PDF_METADATA_CACHE_TTL_MS`)
-- Max 100 entries per session
-- Dramatically improves performance for duplicate uploads
-
-## API Endpoint
-
-### POST `/documents/extract-pdf-metadata`
-
-**Request:**
-```
-Content-Type: multipart/form-data
-file: <PDF file>
-```
-
-**Response:**
+- **Headers:** `Content-Type: multipart/form-data`, `Cookie: <auth-token>`
+- **Body:** `file: <PDF Binary>`
+- **Query Params:** `async=true` (default in production with Redis) or `sync=true`
+- **Response (HTTP 202 Accepted):**
 ```json
 {
   "success": true,
+  "message": "Document metadata extraction job queued.",
   "data": {
-    "title": "Machine Learning Applications in IoT Systems",
-    "abstract": "This paper explores the application of modern machine learning techniques...",
-    "authors": ["John Smith", "Jane Doe"],
-    "publicationYear": 2024,
-    "doi": "10.1000/xyz123",
-    "publicationVenue": "IEEE Transactions on IoT",
-    "keywords": ["Machine Learning", "IoT", "Edge Computing"],
-    "confidence": {
-      "title": 0.95,
-      "abstract": 0.88,
-      "authors": 0.75,
-      "publicationYear": 0.9,
-      "doi": 0.95,
-      "publicationVenue": 0.65,
-      "keywords": 0.8
-    },
-    "extractionProvider": "heuristic"
+    "jobId": "extract-1727000000000-a1b2c3d4",
+    "status": "queued",
+    "statusUrl": "/api/documents/extraction-status/extract-1727000000000-a1b2c3d4"
   }
 }
 ```
 
-## Frontend User Experience
+### 2. Poll Extraction Job Status
+`GET /api/documents/extraction-status/:jobId`
 
-### Automatic Extraction Flow
-1. User selects Academic Paper PDF
-2. System shows "Extracting metadata..." indicator with pulsing icon
-3. Extraction completes in 2-5 seconds (or uses cache)
-4. Fields auto-populate with extracted data
-5. Green success box appears showing what was extracted + confidence scores
-6. User can review/edit extracted data
-7. User can click "Rescan" button to re-extract if needed
-
-### Visual Indicators
-- **Extracting**: Sparkles icon with pulse animation
-- **Success**: Green box with checkmarks for each extracted field
-- **Errors**: Toast notifications with helpful error messages
-- **Confidence**: Percentage shown next to each extracted field
-
-### Error Handling
-- **Timeout**: "PDF extraction timed out. Click Rescan or try a smaller PDF."
-- **Network Error**: "Could not reach extraction endpoint. Check backend/proxy, then click Rescan."
-- **No Data**: "Could not extract metadata from this PDF format." (User can fill manually)
-
-## Testing the Integration
-
-### Prerequisites
-1. Ensure server is running: `npm run dev` (from server directory)
-2. Ensure client is running: `npm run dev` (from client directory)
-3. Navigate to: `http://localhost:43211/archive/upload/capstone`
-
-### Test Scenarios
-
-#### Test 1: Standard Academic Paper (PDF with embedded text)
-**File**: Any standard IEEE/ACM paper in PDF format
-**Expected Results**:
-- Title: ✓ Extracted (>80% confidence)
-- Abstract: ✓ Extracted (>85% confidence)
-- Authors: ✓ Extracted (>70% confidence)
-- Publication Year: ✓ Extracted (>80% confidence)
-- DOI: ✓ Extracted if present (>90% confidence)
-- Keywords: ✓ Extracted if section present (>80% confidence)
-
-#### Test 2: Scanned PDF (image-based PDF without OCR)
-**File**: Scanned paper image as PDF
-**Expected Results**:
-- System detects no text
-- Toast: "Could not extract metadata from this PDF format"
-- User can fill fields manually
-- GLM-OCR would need to be enabled for scanned PDFs (requires image-based OCR)
-
-#### Test 3: Complex Layout PDF
-**File**: PDF with multi-column layout, images, complex headers
-**Expected Results**:
-- Some fields may extract with lower confidence
-- GLM-OCR fallback may be triggered
-- Users can review and edit auto-filled fields
-- Rescan button available for retry
-
-#### Test 4: DOI Extraction
-**File**: PDF containing DOI (e.g., "https://doi.org/10.1000/xyz123")
-**Expected Results**:
-- DOI field populated with high confidence (>90%)
-- Supports multiple DOI formats:
-  - `DOI: 10.1234/example`
-  - `https://doi.org/10.1234/example`
-  - `dx.doi.org/10.1234/example`
-
-#### Test 5: Edge Cases
-- **Tiny PDF** (<100 bytes): Empty extraction
-- **Very long PDF** (>100MB): May timeout, user can click Rescan
-- **Corrupted PDF**: Error message displayed
-- **Duplicate upload**: Uses cache (instant response)
-
-### Manual Testing Steps
-
-1. **Upload Test PDF**
-   ```
-   Visit: http://localhost:43211/archive/upload/capstone
-   Click: "Choose File" button
-   Select: test.pdf
-   ```
-
-2. **Monitor Extraction**
-   - Watch for "Extracting metadata..." indicator
-   - Check browser console for any errors
-   - Observe success box appearance with confidence scores
-
-3. **Verify Auto-Fill**
-   - Title field should be populated
-   - Abstract field should be populated
-   - Authors field should show comma-separated names
-   - DOI field should show DOI if present
-   - Publication Venue should show venue if detected
-   - Keywords should appear in the tag input
-
-4. **Test Rescan**
-   - Click "Rescan" button
-   - System should re-extract and update fields
-   - Same indicators should appear
-
-5. **Manual Editing**
-   - Edit auto-filled fields
-   - Fields should accept manual input
-   - Submit should work with manually edited values
-
-## Performance Metrics
-
-- **Extraction Time**: 2-5 seconds for standard PDFs
-- **Cached Result Time**: <100ms
-- **Cache Hit Rate**: 70-80% on typical workflows
-- **Memory**: ~50MB per 100 cached extractions
-- **Accuracy**: 85-95% for standard academic PDFs
-
-## Configuration
-
-### Environment Variables
-
-```env
-# PDF Extraction
-PDF_METADATA_GLM_STRATEGY=fallback    # Strategy: 'fallback', 'always'
-PDF_METADATA_GLM_MODEL=glm-ocr:latest # GLM model to use
-PDF_METADATA_CACHE_TTL_MS=600000      # Cache TTL in milliseconds
-PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS=true # Preprocess text for plagiarism engine
-
-# Plagiarism Engine (optional preprocessing)
-PLAGIARISM_ENGINE_URL=http://localhost:8001 # For text preprocessing
+- **Headers:** `Cookie: <auth-token>`
+- **Response (HTTP 200 OK - Active):**
+```json
+{
+  "success": true,
+  "jobId": "extract-1727000000000-a1b2c3d4",
+  "status": "active",
+  "progress": 40,
+  "stage": "Extracting metadata via PaddleOCR-VL..."
+}
+```
+- **Response (HTTP 200 OK - Completed):**
+```json
+{
+  "success": true,
+  "jobId": "extract-1727000000000-a1b2c3d4",
+  "status": "completed",
+  "progress": 100,
+  "data": {
+    "metadata": {
+      "title": "Automated Archival and Plagiarism Detection in Capstone Systems",
+      "abstract": "This study presents the architecture and empirical evaluation...",
+      "authors": "Añedez, P. J., Antipuesto, T.",
+      "year": "2026",
+      "doi": "10.1234/buksu.2026.01",
+      "venue": "BukSU Information Technology Research Journal",
+      "keywords": "OCR, Deep Learning, BullMQ, Archival"
+    },
+    "confidence": {
+      "title": 95,
+      "abstract": 92,
+      "authors": 88,
+      "year": 99,
+      "doi": 95,
+      "venue": 85,
+      "keywords": 90
+    },
+    "provider": "paddleocr-vl",
+    "ocrStatus": "ok"
+  }
+}
 ```
 
-## Troubleshooting
+### 3. Record Field Correction Feedback
+`POST /api/documents/metadata-feedback`
 
-### Issue: Extraction Returns Empty
-**Solution**: 
-- Check PDF contains extractable text (not scanned image)
-- Check server logs for errors
-- Try smaller PDF file
-- Use "Rescan" button to retry
+- **Headers:** `Content-Type: application/json`, `Cookie: <auth-token>`
+- **Body:**
+```json
+{
+  "fieldName": "title",
+  "extractedValue": "Automated Archival",
+  "correctedValue": "Automated Archival and Plagiarism Detection in Capstone Systems",
+  "confidence": 60,
+  "sourceFileName": "manuscript.pdf"
+}
+```
 
-### Issue: Fields Auto-Fill with Garbage Text
-**Solution**:
-- This is normal for complex layouts
-- User should manually review and edit
-- Click "Rescan" to retry extraction
-- Consider enabling GLM-OCR for better accuracy
+---
 
-### Issue: Timeout Error
-**Solution**:
-- PDF may be too large
-- Server may be slow
-- Check server logs for performance issues
-- Reduce PDF file size
-- Click "Rescan" to retry
+## Configuration & Environment Variables
 
-### Issue: DOI Not Extracting
-**Solution**:
-- DOI may not be in standard format
-- Check PDF contains DOI in text (not image)
-- Manual entry may be needed
-- Try different DOI format patterns
+```env
+# Dedicated OCR Microservice (PaddleOCR-VL 0.9B)
+OCR_ENGINE_URL=http://cms-ocr-engine:8000
 
-## Future Enhancements
+# Extraction Cache TTL (in milliseconds, default 10 minutes)
+PDF_METADATA_CACHE_TTL_MS=600000
 
-1. **Image-Based OCR**: Add Tesseract/EasyOCR for scanned PDFs
-2. **ML Model Training**: Train custom model on academic papers
-3. **Multi-Language Support**: Handle papers in multiple languages
-4. **Table Extraction**: Extract data from PDF tables
-5. **Citation Parsing**: Extract citations and references
-6. **Confidence Thresholds**: User-configurable accuracy targets
-7. **Batch Processing**: Extract from multiple PDFs simultaneously
-8. **Extraction History**: Track extraction accuracy per source
+# Redis Connection (Required for BullMQ Asynchronous Queuing)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+```
 
-## Related Files
+---
 
-- Backend: `server/utils/pdfMetadataExtractor.js`
-- Controller: `server/modules/documents/document.controller.js`
-- Frontend: `client/src/pages/archive/ExistingCapstoneUploadPage.jsx`
-- Service: `client/src/services/authService.js`
-- Routes: `server/modules/documents/document.routes.js`
+## Testing & Quality Assurance
 
-## Support
-
-For issues or questions:
-1. Check browser console for client-side errors
-2. Check server logs for extraction errors
-3. Review extraction metadata confidence scores
-4. Try with different PDF files
-5. Contact development team with error details
+- **Unit Tests**:
+  - `server/tests/unit/pdfMetadataExtractor.test.js` — Heuristic parser, boundary isolation, cache hashing.
+  - `server/tests/unit/pdfMetadataExtractor.ai.test.js` — PaddleOCR-VL extraction dispatch & fallback handling.
+- **Integration Tests**:
+  - `server/tests/integration/documentExtraction.async.test.js` — BullMQ async job creation, polling status, active progress, Redis caching, and error handling.
+  - `server/tests/integration/documents.test.js` — Synchronous fallback endpoint behavior.
+- **Frontend Tests**:
+  - `client/src/pages/archive/ExistingCapstoneUploadPage.test.jsx` — Document selection, asynchronous polling, Socket.IO updates, and form autofill.

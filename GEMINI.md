@@ -9,7 +9,8 @@
 
 * **Server API Backend (`server/`)**: Express.js 5 + Mongoose 9 ODM + Redis + BullMQ Asynchronous Task Queues.
 * **Client Frontend SPA (`client/`)**: React 18 + Vite + Tailwind CSS + Zustand Store + TanStack React Query.
-* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`all-MiniLM-L6-v2`) + Winnowing Fingerprinting.
+* **Plagiarism & Similarity Engine (`plagiarism_engine/`)**: FastAPI + Celery + ChromaDB (HNSW Vector Index) + PyTorch Sentence-Transformers (`BAAI/bge-m3` 1024-dim dense + sparse vector core) + Winnowing Fingerprinting.
+* **OCR & Ingestion Microservice (`cms-ocr-engine`)**: Python FastAPI + PaddleOCR-VL (0.9B) vision-language model (`cms-ocr-engine:8000`) for automated PDF layout analysis and metadata extraction, integrated with BullMQ asynchronous queueing (`document-extraction`).
 * **Shared Workspace (`shared/`)**: Canonical JSON schemas, role constants, and cross-platform validation utilities.
 * **Tooling & Environment**: Node.js via `npm` workspaces; Python runtime via root `.venv/` virtual environment.
 

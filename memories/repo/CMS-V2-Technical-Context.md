@@ -1,6 +1,46 @@
 # CMS-V2 Technical Context
 
-### Prevention Rules
+#### Prevention Rules
+- Defense Evaluation Suite High-Impact Enhancements Prevention Rule (One-Click ADM + Resilient Hyphenation + Layer Opacity + Print Appendix):
+  1. Lesson learned: In React 18 functional components, default parameter values instantiated as arrays (e.g. `admItems = []`) generate a brand-new array memory reference on every render. If passed into a `useEffect` dependency array, updating state within that effect triggers an infinite component re-render cycle. Always freeze empty collections outside the component (`const EMPTY_ARRAY = Object.freeze([])`) and track true reference changes with `useRef(admItems)`.
+  2. Lesson learned: Academic capstone papers formatted in dual-column layouts frequently split technical terms across line breaks with hard hyphens or unicode soft hyphens (`\u00ad`) and zero-width characters (`\u200b`, `\ufeff`). Text normalization must strip soft hyphens, zero-width spaces, collapse line-end hyphens (`/(\w+)-\s*\r?\n\s*(\w+)/g -> "$1$2"`), and unfold typographic ligatures (`\uFB00`–`\uFB04`, `\u00E6`, `\u0153`) before computing PDF text layer coordinates (`getTextPosition`).
+  3. Lesson learned: Interactive layer opacity adjustments should never trigger full highlight recalculations or React state re-renders across hundreds of canvas bounding boxes. By binding opacity sliders directly to container CSS custom properties (`--comments-opacity`, `--plagiarism-opacity`) applied to highlight layers via Tailwind variables, layer transparency is adjusted non-destructively at 60fps.
+  4. Prevention: When authoring PostCSS or Tailwind utility rules (e.g., `.archive-mark-overlap`), always verify that all CSS math functions (such as `rgba(..., calc(...))`) have properly balanced, closed parentheses before bundle building. An unclosed bracket halts Vite compilation with an internal HTTP 500 error.
+  5. Prevention: For Mongoose 9 models requiring dual-write synchronization between legacy and modernized field representations (such as `position.boundingRect` and `coordinates` in `comment.model.js`), register hooks across both validation and persistence lifecycles: `schema.pre(['validate', 'save'], async function() { ... })`. This ensures coordinate translations run deterministically during unit tests that validate without saving to MongoDB.
+  6. Runbook & Checklist for Defense Manuscript Evaluation & Action Done Matrix (ADM) Workflow:
+     - Step 1 (Checklist): Verify "+ Add to ADM Directive" button is rendered in the dual highlight popover for exact plagiarism matches (>=75%) and panel comments.
+     - Step 2 (Checklist): Verify clicking "+ Add to ADM Directive" automatically populates page number, quote snippet, and standard remediation directive ("Properly cite original work or rephrase.") into the Action Done Matrix tab.
+     - Step 3 (Checklist): Verify layer opacity sliders dynamically update `--comments-opacity` and `--plagiarism-opacity` between 15% and 100%.
+     - Step 4 (Checklist): Verify `@media print` produces an un-truncated institutional Defense Manuscript Evaluation & Action Done Matrix (ADM) Appendix complete with Committee Sign-off blocks while hiding interactive navigation (`print:hidden`).
+     - Step 5 (Evidence): Run targeted client tests `plagiarismHighlightAdapter.test.js`, `EvaluationWorkspace.test.jsx`, and `SophisticatedDocumentViewer.test.jsx` (30/30 passed).
+     - Step 6 (Evidence): Run server unit tests `comment.model.test.js` (3/3 passed).
+     - Step 7 (Evidence): Confirm API route parity (`UNMATCHED_COUNT = 0`, 207 server / 188 client) and agentic governance (60/60 passed).
+     - Step 8 (Evidence): Execute Playwright visual audit across light and dark modes in desktop (1440x900) and mobile (390x844) viewports with all 11 screenshot artifacts passed.
+
+- Unified PDF Highlighter & Multi-Layer Annotation Workspace Prevention Rule (react-pdf-highlighter-plus):
+  1. Lesson learned: The `PdfLoader` component in `react-pdf-highlighter-plus` exposes a `workerSrc` prop that defaults to a relative ESM dist path (`new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`). In Vite dev servers and containerized deployments, resolving this relative path produces a 404 (`Failed to fetch dynamically imported module`). Furthermore, `PdfLoader` accepts `document` (not `url`). Always pass `document={pdfUrl}` and explicitly supply `workerSrc="/pdf.worker.min.mjs"` pointing to the statically served worker in `client/public/`.
+  2. Lesson learned: Viewport-independent coordinate normalization (`ScaledPosition`: `{ boundingRect: { x1, y1, x2, y2, width, height, pageNumber }, rects }`) must seamlessly bridge MongoDB `comment.model.js` normalized bounding boxes (`{ x, y, width, height, pageNumber }`). Storing relative percentages in MongoDB while translating to `ScaledPosition` for canvas rendering prevents highlight drift during window resizing or zooming.
+  3. Lesson learned: Plagiarism overlays do not require static coordinate storage in the database. Utilizing `getTextPosition(pdfDocument, suspectText)` dynamically scans the PDF.js text layer across pages, generating real-time bounding rects grounded in the actual rendered manuscript typography with automatic diagonal-striped cross-layer overlap styling (`.archive-mark-overlap`).
+  4. Prevention: When building split-screen evaluation workspaces (such as `EvaluationWorkspace.jsx`), never use hardcoded slate background/border classes (`bg-slate-950`, `border-slate-800`). All functional layout surfaces must use Tailwind semantic design tokens (`bg-background`, `text-foreground`, `border-border`, `bg-card`, `bg-muted`) to guarantee WCAG AAA contrast in both Light and Dark modes.
+  5. Runbook & Checklist for PDF Highlighter & Workspace Integration:
+     - Step 1 (Checklist): Ensure `pdf.worker.min.mjs` is present in `client/public/` and matches the installed `pdfjs-dist` version.
+     - Step 2 (Checklist): Ensure `PdfViewerWorkspace` passes `document={pdfUrl}` and `workerSrc="/pdf.worker.min.mjs"` to `PdfLoader`.
+     - Step 3 (Checklist): In `EvaluationWorkspace`, ensure 55/45 split ratio with mobile tab switching, sticky defense verdict bar, and layer toggles ([All], [Comments], [Plagiarism]).
+     - Step 4 (Evidence): Verify targeted client unit tests pass: `EvaluationWorkspace.test.jsx`, `SophisticatedDocumentViewer.test.jsx`, `SubmissionReviewPage.test.jsx`, `CertificatePage.test.jsx` (21/21 passed).
+     - Step 5 (Evidence): Verify endpoint parity (`UNMATCHED_COUNT = 0`, 207 server / 188 client) and agentic governance (60/60 passed).
+     - Step 6 (Evidence): Run Playwright visual audit across desktop (1440x900) and mobile (390x844) viewports in both light and dark themes with zero 404 worker errors.
+
+- Ingestion & Plagiarism Engine Modernization Prevention Rule (PaddleOCR-VL + BGE-M3 + HST):
+  1. Lesson learned: Upgrading vector embedding dimensionality (384-dim -> 1024-dim) is a breaking change for existing vector stores. Re-indexing ChromaDB requires a blue/green collection pattern (`cms_documents_v2`) with cosine distance metric (`hnsw:space = cosine`) so ongoing submissions can continue uninterrupted while a migration backfill script re-embeds archived records.
+  2. Lesson learned: Full-corpus exact Winnowing n-gram matching scales quadratically with corpus size. The two-stage HybridSourceTracker (HST) solves this by using BGE-M3 1024-dim dense ANN retrieval for coarse candidate generation ($K=50$ at $O(\log N)$), then executing fine-grained exact Winnowing overlap and sparse lexical term-salience re-ranking exclusively on the candidate set.
+  3. Prevention: In multi-microservice containerized architectures, the Node.js API server (`server/services/ocrExtraction.service.js`) and background workers (`server/jobs/plagiarism.job.js`) must never fail hard if the Python OCR or Plagiarism microservices are unavailable or cold-starting. They must catch HTTP timeouts and errors and fall back gracefully to in-process extraction (`ocrStatus: 'degraded'`) or in-process syntactic Winnowing (`scanType: 'syntactic_fallback'`).
+  4. Runbook & Checklist for Plagiarism & Ingestion Modernization:
+     - Step 1 (Checklist): Verify BGE-M3 embeddings generate 1024-dim vectors and handle up to 8,192 tokens without truncation.
+     - Step 2 (Checklist): Verify calibrated composite formula: $S_{\text{comp}} = (0.50 \times S_{\text{winnowing}}) + (0.30 \times S_{\text{dense}}) + (0.20 \times S_{\text{sparse}})$.
+     - Step 3 (Checklist): Enforce automatic review threshold at $S_{\text{comp}} \ge 0.75$ and critical warning flag at $S_{\text{winnowing}} \ge 0.85$.
+     - Step 4 (Checklist): Deploy PaddleOCR-VL (0.9B) FastAPI microservice on internal port 8000 with PyMuPDF fast-path (<3 GB RAM envelope).
+     - Step 5 (Evidence): Run `scratch/verify_plagiarism_modernization.py` and confirm 7/7 tests passed. Run `ocrExtraction.service.test.js` and confirm 4/4 server tests passed. Verify endpoint parity (UNMATCHED_COUNT = 0) passed.
+
 - Database Purge & User Model Password Hashing Prevention Rule:
   1. Lesson learned: Mongoose document pre('save') hook in `user.model.js` automatically computes salt and hashes any modified `password` field; passing an already-computed bcrypt hash to `User.create({ ..., password: passwordHash })` results in double-hashing, producing silent 401 `INVALID_CREDENTIALS` lockouts on authentication.
   2. Prevention: When seeding or creating user documents via Mongoose `User.create()`, pass the plaintext password directly so the pre-save hook handles hashing once. When injecting pre-computed hashes, bypass hooks using `db.collection('users').insertOne()`.
@@ -3015,3 +3055,44 @@
      - Route parity check: 204 Server / 182 Client (`UNMATCHED_COUNT = 0`).
      - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
      - Playwright visual audit: 8 visual captures generated and verified in brain artifacts (`plagiarism_checker_upload_desktop_light.png`, `dark`, `mobile_light`, `dark`; `plagiarism_report_viewer_desktop_light.png`, `dark`, `mobile_light`, `dark`). Verified computed text color is dark charcoal `rgb(15, 23, 42)` in dark mode.
+
+120. OCR Modernization, BullMQ Asynchronous Ingestion & Document Service Disambiguation:
+- Incident & Root Cause Summary:
+  1. Dormant GLM/Ollama Extraction Debt: The backend PDF metadata extraction utility (`pdfMetadataExtractor.js`) and environment configuration (`env.js`) retained obsolete GLM-OCR and Ollama integration code, prompts, and health checks that conflicted with the modernized `PaddleOCR-VL (0.9B)` microservice.
+  2. Namespace Collision on `documentService`: The monolithic name `documentService` was ambiguously declared across manuscript CRUD operations and PDF layout extraction utilities, risking split-brain import collisions.
+  3. Synchronous Archival Ingestion Bottlenecks: `POST /api/documents/extract-pdf-metadata` blocked HTTP connection threads for 10-30s while performing layout analysis on multi-page PDFs, lacking asynchronous job queueing, real-time stage progress reporting, and resilient background worker orchestration.
+- Resolution & Implementation Details:
+  1. Dormant Code Pruning & Microservice Alignment:
+     - Stripped deprecated `GLM_METADATA_PROMPT`, `extractWithGlmOcr`, `buildGlmInputText`, and `PDF_METADATA_GLM_*` from `env.js` and `pdfMetadataExtractor.js`.
+     - Standardized primary extraction dispatch to `ocrExtractionService` (`PaddleOCR-VL 0.9B` on `cms-ocr-engine:8000`) with safe in-process fallback to `pdf-parse` (`ocrStatus: 'degraded'`).
+  2. Namespace & Service Disambiguation:
+     - Established dedicated `server/services/metadataExtraction.service.js` encapsulating PDF buffer/storageKey extraction, title inference, and confidence normalization, keeping `document.service.js` strictly focused on manuscript CRUD.
+  3. BullMQ Asynchronous Ingestion Pipeline:
+     - Added `DOCUMENT_EXTRACTION: 'document-extraction'` queue in `server/jobs/queue.js` and worker in `server/jobs/documentExtraction.job.js`.
+     - Staged temporary upload artifacts in `storageService` with key `temp-extractions/${jobId}.pdf` (auto-cleaned on completion/failure).
+     - Emitted real-time Socket.IO events (`ocr:progress` with 10% staging, 40% OCR, 80% alignment, 100% complete, plus `ocr:complete` and `ocr:error`).
+     - Added `GET /api/documents/extraction-status/:jobId` polling endpoint with Redis caching (`extraction:job:${jobId}`, TTL: 1 hour) and HTTP 202 async response with automatic fallback to synchronous 200 when Redis is offline.
+  4. Frontend Real-Time Feedback & Form Autofill:
+     - Added `getExtractionStatus` in `client/src/services/metadataService.js`.
+     - Enhanced `ExistingCapstoneUploadPage.jsx` with real-time animated progress bar (0-100%), stage descriptions, Socket.IO listener, and polling fallback.
+  5. Master Architectural Documentation:
+     - Synchronized `docs/OCR_AUTOFILL_INTEGRATION.md`, `README.md`, `GEMINI.md`, and `AGENTS.md` documenting `PaddleOCR-VL (0.9B)`, `BAAI/bge-m3` (1024-dim vector core), and BullMQ `document-extraction` async queuing.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Long-running PDF processing, layout analysis, and OCR jobs exceeding 3 seconds must be enqueued via BullMQ asynchronous workers returning HTTP 202 with `jobId`, emitting real-time progress via WebSockets and providing a cached status polling endpoint with auto-cleaned temporary files.
+  2. Prevention rule: Domain services must maintain strict namespace isolation; extraction/heuristic utilities must never collide with core document/manuscript CRUD service boundaries.
+  3. Lesson learned: In Vitest unit testing of `pdf-parse` in Node.js ESM environments, `import('pdf-parse')` resolves to a `PDFParse` class constructor where `typeof PDFParse === 'function'`, while `default` is undefined. Unit test mocks must provide both `PDFParse` and `default`.
+  4. Runbook & Checklist:
+     - Checklist: Verify `pdfMetadataExtractor.test.js` and `pdfMetadataExtractor.ai.test.js` pass with 4/4 tests green.
+     - Checklist: Verify `documentExtraction.async.test.js` passes with 5/5 tests green.
+     - Checklist: Verify `ExistingCapstoneUploadPage.test.jsx` passes with 6/6 tests green.
+     - Checklist: Verify route parity via `npm run check:endpoints` (UNMATCHED_COUNT = 0).
+     - Checklist: Verify agentic governance via `npm run validate:agentic` (60/60 checks passed).
+     - Checklist: Verify agent communication pipeline via `npm run validate:governance` (valid DAG, 0 errors, 0 warnings).
+  5. Evidence & Verification passed:
+     - Server unit & AI tests: 4/4 tests passed in `pdfMetadataExtractor.test.js` and `pdfMetadataExtractor.ai.test.js`.
+     - Sanitization tests: 8/8 tests passed in `test-ocr-sanitization.js`.
+     - Server integration tests: 5/5 tests passed in `documentExtraction.async.test.js` (HTTP 202, polling, active progress, Redis cache, 404 handling).
+     - Client unit tests: 6/6 tests passed in `ExistingCapstoneUploadPage.test.jsx` (autofill, async BullMQ polling, upload submit).
+     - Endpoint parity check: 205 Server / 183 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
+     - Governance pipeline: All 4 stages valid, 0 errors, 0 warnings (`npm run validate:governance`).

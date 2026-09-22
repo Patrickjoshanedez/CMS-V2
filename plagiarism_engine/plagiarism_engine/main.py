@@ -195,6 +195,28 @@ async def submit_check(body: CheckRequest) -> CheckResponse:
     )
 
 
+@app.post(
+    "/check-sync",
+    response_model=PlagiarismReport,
+    summary="Run an immediate synchronous plagiarism check (HST)",
+    tags=["Plagiarism Check"],
+)
+async def check_document_sync(body: CheckRequest) -> PlagiarismReport:
+    """Execute the two-stage HybridSourceTracker pipeline synchronously."""
+    if not body.text or not body.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Field 'text' is required and must not be empty.",
+        )
+    engine = PlagiarismEngine()
+    meta_dict = body.metadata if isinstance(body.metadata, dict) else (body.metadata.model_dump() if body.metadata else {})
+    return engine.check_document(
+        document_id=body.document_id,
+        text=body.text,
+        metadata=meta_dict,
+    )
+
+
 @app.get(
     "/result/{task_id}",
     response_model=ResultResponse,

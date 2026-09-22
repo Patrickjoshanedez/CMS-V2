@@ -1,0 +1,287 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BukSU Capstone Management System V2 — Modernized Ecosystem (v2)
+# Orchestrates:
+#   - Node.js Express 5 API Server (server)
+#   - Vite + React 18 Frontend Client (client)
+#   - PaddleOCR-VL (0.9B) Microservice (cms-ocr-engine)
+#   - HybridSourceTracker BGE-M3 (1024-dim) Plagiarism API & Worker (plagiarism_api, plagiarism_worker)
+#   - ChromaDB Persistent Store, Redis, MongoDB 7, MinIO S3 Storage
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ── Document Parsing Microservice (PaddleOCR-VL 0.9B) ──────────────────────
+  cms-ocr-engine:
+    build:
+      context: ./ocr_engine
+      dockerfile: Dockerfile
+    container_name: cms-ocr-engine
+    restart: unless-stopped
+    init: true
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+        reservations:
+          memory: 1G
+    environment:
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
+      TORCH_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  # ── Modernized Plagiarism Detection API (BGE-M3 1024-dim & HST) ────────────
+  plagiarism_api:
+    build:
+      context: ./plagiarism_engine
+      dockerfile: Dockerfile
+    container_name: cms-plagiarism-api-v2
+    restart: unless-stopped
+    init: true
+    command: >
+      uvicorn plagiarism_engine.main:app --host 0.0.0.0 --port 8001 --workers 1 --limit-concurrency 32 --log-level info
+    ports:
+      - "8001:8001"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2G
+        reservations:
+          memory: 800M
+    volumes:
+      - plagiarism_chroma:/app/chroma_store
+      - plagiarism_models:/root/.cache/torch/sentence_transformers
+    environment:
+      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
+      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
+      CHROMA_PERSIST_DIR: /app/chroma_store
+      CHROMA_COLLECTION_NAME: cms_documents_v2
+      EMBEDDING_MODEL: BAAI/bge-m3
+      BGE_M3_MAX_LENGTH: "8192"
+      HST_COARSE_TOP_K: "50"
+      HST_WEIGHT_WINNOWING: "0.50"
+      HST_WEIGHT_DENSE: "0.30"
+      HST_WEIGHT_SPARSE: "0.20"
+      HST_COMPOSITE_FLAG_THRESHOLD: "0.75"
+      HST_WINNOWING_CRITICAL_THRESHOLD: "0.85"
+      EMBEDDING_DEVICE: ${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      TORCH_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      API_HOST: 0.0.0.0
+      API_PORT: "8001"
+      LOG_LEVEL: INFO
+    depends_on:
+      plagiarism_redis:
+        condition: service_healthy
+      plagiarism_worker:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 8s
+      timeout: 4s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  # ── Celery Plagiarism Task Worker ──────────────────────────────────────────
+  plagiarism_worker:
+    build:
+      context: ./plagiarism_engine
+      dockerfile: Dockerfile
+    container_name: cms-plagiarism-worker-v2
+    restart: unless-stopped
+    init: true
+    command: >
+      celery -A plagiarism_engine.tasks worker --loglevel=info --concurrency=1 -Q plagiarism
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2G
+    volumes:
+      - plagiarism_chroma:/app/chroma_store
+      - plagiarism_models:/root/.cache/torch/sentence_transformers
+    environment:
+      CELERY_BROKER_URL: redis://plagiarism_redis:6379/0
+      CELERY_RESULT_BACKEND: redis://plagiarism_redis:6379/1
+      CHROMA_PERSIST_DIR: /app/chroma_store
+      CHROMA_COLLECTION_NAME: cms_documents_v2
+      EMBEDDING_MODEL: BAAI/bge-m3
+      BGE_M3_MAX_LENGTH: "8192"
+      EMBEDDING_DEVICE: ${PLAGIARISM_EMBEDDING_DEVICE:-auto}
+      TORCH_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    depends_on:
+      plagiarism_redis:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  # ── Plagiarism Engine Isolated Redis Cache ─────────────────────────────────
+  plagiarism_redis:
+    image: redis:7-alpine
+    container_name: cms-plagiarism-redis
+    restart: unless-stopped
+    init: true
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  # ── Core Primary Services ──────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: cms-mongodb
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${MONGODB_PORT:-27018}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet" ]
+      interval: 4s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: cms-redis
+    restart: unless-stopped
+    init: true
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: cms-minio
+    restart: unless-stopped
+    init: true
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server.prod
+    container_name: cms-server
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 20s
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      MONGODB_URI: mongodb://mongodb:27017/cms_v2
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      OCR_ENGINE_URL: http://cms-ocr-engine:8000
+      PLAGIARISM_ENGINE_URL: http://plagiarism_api:8001
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-cms-submissions}
+      S3_FORCE_PATH_STYLE: "true"
+      CLIENT_URL: http://localhost:5173
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      cms-ocr-engine:
+        condition: service_healthy
+      plagiarism_api:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    networks:
+      - cms_network
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client.prod
+    container_name: cms-client
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+    logging: *default-logging
+    networks:
+      - cms_network
+
+networks:
+  cms_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
+  minio_data:
+  plagiarism_chroma:
+  plagiarism_models:

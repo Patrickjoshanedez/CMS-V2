@@ -42,10 +42,12 @@ vi.mock('@/stores/authStore', () => ({
 
 const mockExtractPdfMetadata = vi.fn();
 const mockSubmitMetadataFeedback = vi.fn();
+const mockGetExtractionStatus = vi.fn();
 vi.mock('@/services/metadataService', () => ({
   metadataService: {
     extractPdfMetadata: (...args) => mockExtractPdfMetadata(...args),
     submitMetadataFeedback: (...args) => mockSubmitMetadataFeedback(...args),
+    getExtractionStatus: (...args) => mockGetExtractionStatus(...args),
   },
 }));
 
@@ -236,5 +238,65 @@ describe('ExistingCapstoneUploadPage', () => {
     expect(submittedPayload.academicJournalFile).toBe(journalFile);
     expect(submittedPayload.academicPaperFile).toBeNull();
     expect(submittedPayload.title).toBe('Extracted Machine Learning Capstone');
+  });
+
+  it('handles asynchronous BullMQ extraction response and polls status to completion', async () => {
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const paperFile = new File(['%PDF-async-test'], 'async-paper.pdf', {
+      type: 'application/pdf',
+    });
+
+    mockExtractPdfMetadata.mockResolvedValueOnce({
+      status: 202,
+      data: {
+        status: 'queued',
+        jobId: 'async-job-abc-123',
+      },
+    });
+
+    mockGetExtractionStatus.mockResolvedValueOnce({
+      data: {
+        status: 'completed',
+        data: {
+          metadata: {
+            title: 'Async BullMQ Extracted Title',
+            abstract: 'Async extracted abstract with sufficient length for validation.',
+            authors: 'Test Author',
+            year: '2026',
+            doi: '',
+            venue: 'BukSU Capstone',
+            keywords: 'Async, BullMQ',
+          },
+          confidence: {
+            title: 92,
+            abstract: 88,
+          },
+        },
+      },
+    });
+
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [paperFile],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(mockExtractPdfMetadata).toHaveBeenCalledTimes(1);
+
+    // Wait for polling interval and state update
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+    });
+
+    expect(mockGetExtractionStatus).toHaveBeenCalledWith('async-job-abc-123');
+    const titleInput = container.querySelector('input[name="title"]');
+    expect(titleInput.value).toBe('Async BullMQ Extracted Title');
   });
 });

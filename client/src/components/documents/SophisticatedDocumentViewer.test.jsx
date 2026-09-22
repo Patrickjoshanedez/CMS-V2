@@ -21,6 +21,14 @@ vi.mock('@/hooks/useSubmissions', () => ({
   }),
 }));
 
+vi.mock('@/components/submissions/PdfViewerWorkspace', () => ({
+  default: ({ pdfUrl, highlights }) => (
+    <div data-testid="mock-pdf-viewer-workspace" data-pdf-url={pdfUrl}>
+      Mock PDF Viewer Workspace ({highlights?.length || 0} highlights)
+    </div>
+  ),
+}));
+
 import api from '@/services/api';
 import { submissionService } from '@/services/submissionService';
 
@@ -191,7 +199,7 @@ describe('SophisticatedDocumentViewer', () => {
     );
   });
 
-  it('renders a PDF iframe for PDF submissions without zoom controls', async () => {
+  it('renders PdfViewerWorkspace for PDF submissions without zoom controls', async () => {
     if (!globalThis.URL.createObjectURL) {
       globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-pdf-url');
     }
@@ -199,11 +207,23 @@ describe('SophisticatedDocumentViewer', () => {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
-    // Should render an iframe for PDF
-    const iframe = el.querySelector('iframe');
-    expect(iframe).not.toBeNull();
+    // Should render PdfViewerWorkspace for PDF
+    const workspace = el.querySelector('[data-testid="mock-pdf-viewer-workspace"]');
+    expect(workspace).not.toBeNull();
     // No zoom controls for PDF
     expect(el.querySelector('button[aria-label="Zoom in"]')).toBeNull();
+  });
+
+  it('renders a PDF iframe for PDF submissions when useLegacyIframe is true', async () => {
+    if (!globalThis.URL.createObjectURL) {
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-pdf-url');
+    }
+    const el = await renderViewer({ submission: mockPdfSubmission, useLegacyIframe: true });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    const iframe = el.querySelector('iframe');
+    expect(iframe).not.toBeNull();
   });
 
   it('shows metadata drawer when Details button is clicked', async () => {

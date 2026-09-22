@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# BukSU CMS-V2: PaddleOCR-VL (0.9B) Microservice Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+fastapi==0.111.1
+uvicorn[standard]==0.30.1
+pydantic==2.8.2
+python-multipart==0.0.9
+
+# ── PyMuPDF Fast-Path Document Processing ────────────────────────────────────
+pymupdf>=1.24.0
+
+# ── Deep Learning & Vision-Language Engine ───────────────────────────────────
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.3.1
+transformers>=4.43.0
+pillow>=10.3.0
+numpy>=1.26.4

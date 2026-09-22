@@ -13,6 +13,7 @@ import {
   uploadManuscriptSchema,
   listProjectManuscriptsQuerySchema,
   submitMetadataFeedbackSchema,
+  extractionJobIdParamSchema,
 } from './document.validation.js';
 
 const router = Router();
@@ -22,6 +23,8 @@ router.use(authenticate);
 /**
  * Extract title and abstract metadata from a PDF file.
  * Accepts multipart/form-data with a single 'file' field.
+ * Returns HTTP 202 with jobId when BullMQ async worker is active,
+ * or HTTP 200 directly when fallback or synchronous mode is engaged.
  */
 router.post(
   '/extract-pdf-metadata',
@@ -30,6 +33,16 @@ router.post(
   pdfMetadataUpload.single('file'),
   validateFile,
   documentController.extractPdfMetadataHandler,
+);
+
+/**
+ * Poll extraction job status and retrieve cached metadata.
+ */
+router.get(
+  '/extraction-status/:jobId',
+  authorize(ROLES.INSTRUCTOR, ROLES.STUDENT, ROLES.ADVISER),
+  validate(extractionJobIdParamSchema, 'params'),
+  documentController.getExtractionStatusHandler,
 );
 
 router.post(

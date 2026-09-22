@@ -29,6 +29,7 @@ import {
   getPlagiarismQueue,
   getEmailQueue,
   getPlagiarismDlqQueue,
+  getDocumentExtractionQueue,
 } from '../../jobs/queue.js';
 import { isRedisAvailable } from '../../config/redis.js';
 
@@ -59,7 +60,12 @@ let boardInitialized = false;
 function ensureBoardInitialized() {
   if (boardInitialized) return;
 
-  const queues = [getPlagiarismQueue(), getPlagiarismDlqQueue(), getEmailQueue()].filter(Boolean);
+  const queues = [
+    getPlagiarismQueue(),
+    getPlagiarismDlqQueue(),
+    getEmailQueue(),
+    getDocumentExtractionQueue(),
+  ].filter(Boolean);
   if (queues.length === 0) return;
 
   createBullBoard({

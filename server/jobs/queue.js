@@ -18,10 +18,14 @@ let plagiarismQueue = null;
 /** @type {Queue|null} */
 let emailQueue = null;
 
+/** @type {Queue|null} */
+let documentExtractionQueue = null;
+
 /* ─────────────── Queue Names (exported for workers) ─────────────── */
 export const QUEUE_NAMES = Object.freeze({
   PLAGIARISM: 'plagiarism-check',
   EMAIL: 'email-dispatch',
+  DOCUMENT_EXTRACTION: 'document-extraction',
 });
 
 /* ─────────────── Default Job Options ─────────────── */
@@ -38,6 +42,13 @@ export const emailJobDefaults = {
   backoff: { type: 'exponential', delay: 3000 },
   removeOnComplete: { age: 1800, count: 25 }, // Keep max 25 jobs or 30 min
   removeOnFail: { age: 43200, count: 50 }, // Keep max 50 failed jobs for 12 hours
+};
+
+export const documentExtractionJobDefaults = {
+  attempts: 2,
+  backoff: { type: 'exponential', delay: 3000 },
+  removeOnComplete: { age: 3600, count: 50 }, // Keep max 50 jobs or 1 hour
+  removeOnFail: { age: 86400, count: 50 }, // Keep max 50 failed jobs for 24 hours
 };
 
 /* ─────────────── Lazy Initializers ─────────────── */
@@ -74,6 +85,23 @@ export function getEmailQueue() {
     });
   }
   return emailQueue;
+}
+
+/**
+ * Get or create the document extraction queue.
+ * Returns null if Redis is not available.
+ * @returns {Queue|null}
+ */
+export function getDocumentExtractionQueue() {
+  if (!isRedisAvailable()) return null;
+
+  if (!documentExtractionQueue) {
+    documentExtractionQueue = new Queue(QUEUE_NAMES.DOCUMENT_EXTRACTION, {
+      connection: getRedisConnectionOpts(),
+      defaultJobOptions: documentExtractionJobDefaults,
+    });
+  }
+  return documentExtractionQueue;
 }
 
 /* ─────────────── Enqueue Helpers ─────────────── */
@@ -118,6 +146,26 @@ export async function enqueueEmailJob(payload) {
   return job.id;
 }
 
+/**
+ * Enqueue an asynchronous document metadata extraction job.
+ *
+ * @param {Object} payload
+ * @param {string} payload.storageKey   - Temporary storage key for the PDF
+ * @param {string} payload.originalName - Uploaded document file name
+ * @param {string} payload.userId       - User initiating extraction
+ * @param {string} [customJobId]        - Explicit job ID
+ * @returns {Promise<string|null>} The BullMQ job ID, or null if queue unavailable
+ */
+export async function enqueueDocumentExtractionJob(payload, customJobId = null) {
+  const queue = getDocumentExtractionQueue();
+  if (!queue) return null;
+
+  const job = await queue.add('extract', payload, {
+    jobId: customJobId || undefined,
+  });
+  return job.id;
+}
+
 /* ─────────────── Graceful Shutdown ─────────────── */
 
 /**
@@ -127,16 +175,20 @@ export async function closeQueues() {
   const promises = [];
   if (plagiarismQueue) promises.push(plagiarismQueue.close());
   if (emailQueue) promises.push(emailQueue.close());
+  if (documentExtractionQueue) promises.push(documentExtractionQueue.close());
   await Promise.all(promises);
   plagiarismQueue = null;
   emailQueue = null;
+  documentExtractionQueue = null;
 }
 
 export default {
   QUEUE_NAMES,
   getPlagiarismQueue,
   getEmailQueue,
+  getDocumentExtractionQueue,
   enqueuePlagiarismJob,
   enqueueEmailJob,
+  enqueueDocumentExtractionJob,
   closeQueues,
 };

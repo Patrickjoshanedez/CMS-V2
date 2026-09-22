@@ -18,6 +18,9 @@ import {
   Loader2,
   ShieldCheck,
   GitCommit,
+  Sliders,
+  MessageSquare,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -26,6 +29,7 @@ import { format } from 'date-fns';
 // docx-preview: browser-side OOXML renderer — preserves all Word formatting
 import { renderAsync } from 'docx-preview';
 import RevisionDiffViewer from './RevisionDiffViewer';
+import PdfViewerWorkspace from '@/components/submissions/PdfViewerWorkspace';
 import { useSubmissionRevisionDiff } from '@/hooks/useSubmissions';
 import api from '@/services/api';
 import { submissionService } from '@/services/submissionService';
@@ -76,6 +80,21 @@ export default function SophisticatedDocumentViewer({
   initialViewMode = 'manuscript',
   embedded = false,
   className = '',
+  highlights = [],
+  plagiarismMatches = [],
+  activeHighlightId = null,
+  onSelectionFinished,
+  onHighlightClick,
+  onAddReply,
+  onResolveComment,
+  onAddToAdm,
+  layerFilter: initialLayerFilter = 'all',
+  commentsOpacity: initialCommentsOpacity = 80,
+  plagiarismOpacity: initialPlagiarismOpacity = 80,
+  userRole = 'adviser',
+  canComment = true,
+  pdfUtilsRef,
+  useLegacyIframe = false,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(100);
@@ -88,6 +107,10 @@ export default function SophisticatedDocumentViewer({
   const [pdfReloadTrigger, setPdfReloadTrigger] = useState(0);
   const [viewMode, setViewMode] = useState(initialViewMode); // 'manuscript' | 'diff'
   const [compareWithId, setCompareWithId] = useState(null);
+  const [layerFilter, setLayerFilter] = useState(initialLayerFilter);
+  const [commentsOpacity, setCommentsOpacity] = useState(initialCommentsOpacity);
+  const [plagiarismOpacity, setPlagiarismOpacity] = useState(initialPlagiarismOpacity);
+  const [showOpacityControls, setShowOpacityControls] = useState(false);
 
   const {
     data: diffData,
@@ -448,6 +471,129 @@ export default function SophisticatedDocumentViewer({
               </button>
             </div>
           )}
+
+          {/* PDF Multi-Layer Annotation Controls */}
+          {isPdf && viewMode === 'manuscript' && !useLegacyIframe && (
+            <div className="hidden md:flex items-center gap-2">
+              {/* Layer Filter Buttons */}
+              <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setLayerFilter('all')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                    layerFilter === 'all'
+                      ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Show both Comments and Plagiarism overlays"
+                >
+                  All Layers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayerFilter('comments')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                    layerFilter === 'comments'
+                      ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Show faculty comment annotations only"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Comments
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayerFilter('plagiarism')}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                    layerFilter === 'plagiarism'
+                      ? 'bg-rose-600 text-white font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Show plagiarism matches only"
+                >
+                  <ShieldAlert className="h-3 w-3" />
+                  Plagiarism
+                </button>
+              </div>
+
+              {/* Opacity Controls Popover */}
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOpacityControls((prev) => !prev)}
+                  className={`h-7 px-2 text-[11px] gap-1 border-border/60 ${
+                    showOpacityControls
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Adjust overlay layer opacities"
+                >
+                  <Sliders className="h-3 w-3 text-primary" />
+                  <span>Opacity</span>
+                </Button>
+
+                {showOpacityControls && (
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between border-b border-border pb-1.5">
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Sliders className="h-3.5 w-3.5 text-primary" />
+                        Layer Opacity
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommentsOpacity(80);
+                          setPlagiarismOpacity(80);
+                        }}
+                        className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                          Comments
+                        </span>
+                        <span className="font-mono text-muted-foreground">{commentsOpacity}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="15"
+                        max="100"
+                        value={commentsOpacity}
+                        onChange={(e) => setCommentsOpacity(Number(e.target.value))}
+                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-rose-600 dark:text-rose-400 font-medium">
+                          Plagiarism
+                        </span>
+                        <span className="font-mono text-muted-foreground">
+                          {plagiarismOpacity}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="15"
+                        max="100"
+                        value={plagiarismOpacity}
+                        onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
+                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-600"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Actions */}
@@ -532,22 +678,11 @@ export default function SophisticatedDocumentViewer({
               onDownload={handleDownload}
             />
           ) : isPdf ? (
-            /* ── PDF: Native browser iframe renderer with scroll isolation ── */
+            /* ── PDF: Unified PdfViewerWorkspace (react-pdf-highlighter-plus) or legacy iframe fallback ── */
             <div
               className="relative flex-1 flex flex-col overflow-hidden overscroll-contain"
               onWheel={(e) => e.stopPropagation()}
             >
-              {iframeLoading && !pdfError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-10 gap-3 text-muted-foreground">
-                  <Loader2 className="h-7 w-7 animate-spin text-primary" />
-                  <p className="text-sm font-medium text-foreground">
-                    Loading manuscript stream...
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Retrieving PDF from institutional archive.
-                  </p>
-                </div>
-              )}
               {pdfError ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/95 z-10 gap-4 p-6">
                   <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-destructive/10 border border-destructive/20">
@@ -573,12 +708,44 @@ export default function SophisticatedDocumentViewer({
                     </Button>
                   </div>
                 </div>
+              ) : useLegacyIframe ? (
+                <>
+                  {iframeLoading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 z-10 gap-3 text-muted-foreground">
+                      <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                      <p className="text-sm font-medium text-foreground">
+                        Loading manuscript stream...
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Retrieving PDF from institutional archive.
+                      </p>
+                    </div>
+                  )}
+                  <iframe
+                    src={`${pdfBlobUrl || streamFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                    title="Manuscript PDF Viewer"
+                    className="flex-1 w-full border-0 min-h-0"
+                    onLoad={() => setIframeLoading(false)}
+                  />
+                </>
               ) : (
-                <iframe
-                  src={`${pdfBlobUrl || streamFileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-                  title="Manuscript PDF Viewer"
-                  className="flex-1 w-full border-0 min-h-0"
-                  onLoad={() => setIframeLoading(false)}
+                <PdfViewerWorkspace
+                  pdfUrl={pdfBlobUrl || streamFileUrl}
+                  highlights={highlights}
+                  plagiarismMatches={plagiarismMatches}
+                  activeHighlightId={activeHighlightId}
+                  onSelectionFinished={onSelectionFinished}
+                  onHighlightClick={onHighlightClick}
+                  onAddReply={onAddReply}
+                  onResolveComment={onResolveComment}
+                  onAddToAdm={onAddToAdm}
+                  layerFilter={layerFilter}
+                  commentsOpacity={commentsOpacity}
+                  plagiarismOpacity={plagiarismOpacity}
+                  userRole={userRole}
+                  canComment={canComment}
+                  className="flex-1 w-full min-h-0"
+                  utilsRef={pdfUtilsRef}
                 />
               )}
             </div>
@@ -966,4 +1133,19 @@ SophisticatedDocumentViewer.propTypes = {
   initialViewMode: PropTypes.string,
   embedded: PropTypes.bool,
   className: PropTypes.string,
+  highlights: PropTypes.array,
+  plagiarismMatches: PropTypes.array,
+  activeHighlightId: PropTypes.string,
+  onSelectionFinished: PropTypes.func,
+  onHighlightClick: PropTypes.func,
+  onAddReply: PropTypes.func,
+  onResolveComment: PropTypes.func,
+  onAddToAdm: PropTypes.func,
+  layerFilter: PropTypes.string,
+  commentsOpacity: PropTypes.number,
+  plagiarismOpacity: PropTypes.number,
+  userRole: PropTypes.string,
+  canComment: PropTypes.bool,
+  pdfUtilsRef: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  useLegacyIframe: PropTypes.bool,
 };

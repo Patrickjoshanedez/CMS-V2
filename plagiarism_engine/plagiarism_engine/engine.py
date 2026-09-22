@@ -53,6 +53,7 @@ import numpy as np
 from .config import get_settings
 from .database import ChromaStore
 from .embeddings import EmbeddingModel, get_embedding_model, get_loaded_embedding_model
+from .hst_pipeline import HybridSourceTracker
 from .models import (
     IndexRequest,
     IndexResponse,
@@ -150,20 +151,24 @@ class PlagiarismEngine:
         text: str,
         metadata: dict[str, Any] | None = None,
     ) -> PlagiarismReport:
-        """Run a full plagiarism check against the indexed corpus.
+        """Run a full plagiarism check against the indexed corpus using HybridSourceTracker."""
+        tracker = HybridSourceTracker(
+            embedding_model=self._model,
+            chroma_store=self._store,
+            settings=self._cfg,
+        )
+        return tracker.check_document(
+            text=text,
+            document_id=document_id,
+            metadata=metadata,
+        )
 
-        Args:
-            document_id: Unique identifier for the submitted document.
-            text:        Raw extracted text (will be cleaned internally).
-            metadata:    Optional dict of extra metadata fields stored in the
-                         report (e.g. ``{"chapter": 1, "project_id": "…"}``).
-
-        Returns:
-            :class:`PlagiarismReport` with all detected matches and scores.
-
-        The returned report is suitable for serialising to JSON and caching
-        in the Node.js Submission document as ``plagiarismResult``.
-        """
+    def _legacy_check_document(
+        self,
+        document_id: str,
+        text: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> PlagiarismReport:
         t_start = time.perf_counter()
         metadata = metadata or {}
 

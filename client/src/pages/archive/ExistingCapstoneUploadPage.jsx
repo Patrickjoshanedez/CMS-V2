@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import { metadataService } from '@/services/metadataService';
+import { getSocket } from '@/services/socket';
 import { useBulkUploadArchive } from '@/hooks/useProjects';
 import { useAcademicYears } from '@/hooks/useAcademics';
 import { useAuthStore } from '@/stores/authStore';
@@ -475,6 +476,8 @@ export default function ExistingCapstoneUploadPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [confidenceScores, setConfidenceScores] = useState({});
   const [extractionStatus, setExtractionStatus] = useState('idle'); // idle | extracting | success | error
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionStage, setExtractionStage] = useState('');
   const [extractionSource, setExtractionSource] = useState(''); // 'Academic Paper' | 'Academic Journal'
   const [activeRescanField, setActiveRescanField] = useState('');
   const [feedbackBusyByField, setFeedbackBusyByField] = useState({});
@@ -596,10 +599,102 @@ export default function ExistingCapstoneUploadPage() {
 
     setActiveRescanField(targetFieldName || 'all');
     setExtractionStatus('extracting');
+    setExtractionProgress(10);
+    setExtractionStage('Initiating extraction...');
 
     try {
       const response = await metadataService.extractPdfMetadata(pdfFile);
-      const { metadata = {}, confidence = {} } = normalizeExtractionPayload(response);
+
+      let finalEnvelope = response;
+
+      // Handle Asynchronous BullMQ extraction (HTTP 202 or status 'queued')
+      if (response?.status === 202 || response?.data?.status === 'queued') {
+        const jobId = response.data?.jobId;
+        setExtractionStage('Queued for OCR extraction...');
+        setExtractionProgress(15);
+
+        finalEnvelope = await new Promise((resolve, reject) => {
+          let isResolved = false;
+          let pollingInterval = null;
+          let timeoutHandle = null;
+          const socket = getSocket();
+
+          const onProgress = (data) => {
+            if (data?.jobId === jobId) {
+              if (data.progress !== undefined) setExtractionProgress(data.progress);
+              if (data.stage) setExtractionStage(data.stage);
+            }
+          };
+
+          const cleanup = () => {
+            if (socket) {
+              socket.off('ocr:progress', onProgress);
+              socket.off('ocr:complete', onComplete);
+              socket.off('ocr:error', onError);
+            }
+            if (pollingInterval) clearInterval(pollingInterval);
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+          };
+
+          const onComplete = (data) => {
+            if (data?.jobId === jobId && !isResolved) {
+              isResolved = true;
+              cleanup();
+              setExtractionProgress(100);
+              resolve({ data: data.data });
+            }
+          };
+
+          const onError = (data) => {
+            if (data?.jobId === jobId && !isResolved) {
+              isResolved = true;
+              cleanup();
+              reject(new Error(data.error || 'Document extraction failed.'));
+            }
+          };
+
+          if (socket) {
+            socket.on('ocr:progress', onProgress);
+            socket.on('ocr:complete', onComplete);
+            socket.on('ocr:error', onError);
+          }
+
+          // Polling fallback every 1500ms
+          pollingInterval = setInterval(async () => {
+            try {
+              const statusRes = await metadataService.getExtractionStatus(jobId);
+              const jobData = statusRes?.data;
+              if (jobData?.status === 'active' && jobData?.progress !== undefined) {
+                setExtractionProgress(jobData.progress);
+                if (jobData.stage) setExtractionStage(jobData.stage);
+              }
+              if (jobData?.status === 'completed' && !isResolved) {
+                isResolved = true;
+                cleanup();
+                setExtractionProgress(100);
+                resolve({ data: jobData.data });
+              } else if (jobData?.status === 'failed' && !isResolved) {
+                isResolved = true;
+                cleanup();
+                reject(new Error(jobData.error || 'Document extraction failed.'));
+              }
+            } catch (pollErr) {
+              // Ignore transient polling error
+            }
+          }, 1500);
+
+          // Hard timeout safety net: 120s
+          timeoutHandle = setTimeout(() => {
+            if (!isResolved) {
+              isResolved = true;
+              cleanup();
+              reject(new Error('Extraction timed out after 120 seconds.'));
+            }
+          }, 120000);
+        });
+      }
+
+      const { metadata = {}, confidence = {} } = normalizeExtractionPayload(finalEnvelope);
       const enriched = enrichMetadataFromKeywords({
         metadata,
         confidence,
@@ -750,6 +845,8 @@ export default function ExistingCapstoneUploadPage() {
     setFiles(INITIAL_FILES);
     setConfidenceScores({});
     setExtractionStatus('idle');
+    setExtractionProgress(0);
+    setExtractionStage('');
     setExtractionSource('');
     setActiveRescanField('');
     setFeedbackBusyByField({});
@@ -1051,14 +1148,29 @@ export default function ExistingCapstoneUploadPage() {
               </div>
 
               {extractionStatus === 'extracting' && (
-                <Alert className="flex items-start gap-3 border-blue-500/30 bg-blue-500/10">
-                  <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-blue-500" />
-                  <div>
-                    <AlertTitle className="font-semibold text-blue-500">Please wait</AlertTitle>
-                    <AlertDescription className="text-blue-500/90">
-                      Extracting metadata from {extractionSource || 'uploaded document'} via OCR
-                      pipeline...
-                    </AlertDescription>
+                <Alert className="flex flex-col gap-3 border-primary/30 bg-primary/10">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary shrink-0" />
+                      <div>
+                        <AlertTitle className="font-semibold text-primary">
+                          Extracting Metadata
+                        </AlertTitle>
+                        <AlertDescription className="text-primary/90 text-sm">
+                          {extractionStage ||
+                            `Extracting metadata from ${extractionSource || 'uploaded document'} via OCR pipeline...`}
+                        </AlertDescription>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-primary">
+                      {extractionProgress}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-primary/20 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.max(5, extractionProgress)}%` }}
+                    />
                   </div>
                 </Alert>
               )}

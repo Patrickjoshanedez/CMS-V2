@@ -12,14 +12,7 @@ import env from '../config/env.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-// GLM prompt — minimal and direct to prevent hallucination in small models
-const GLM_METADATA_PROMPT = [
-  'You are a metadata extractor. Given academic paper text, output JSON only.',
-  'JSON format: {"title":"","authors":[],"abstract":"","keywords":[],"doi":"","venue":"","publicationYear":null}',
-  'title = paper title only, no authors or addresses.',
-  'authors = human names only, no institutions.',
-  'Paper text:',
-].join('\n');
+// In-memory extraction caches
 
 const extractionCache = new Map();
 const doiMetadataCache = new Map();
@@ -28,7 +21,7 @@ const EXTRACTION_CACHE_TTL_MS = Number.isFinite(env.PDF_METADATA_CACHE_TTL_MS)
   : 10 * 60 * 1000;
 const EXTRACTION_CACHE_MAX_ENTRIES = 100;
 const DOI_CACHE_TTL_MS = 60 * 60 * 1000;
-const GLM_PROMPT_MAX_CHARS = Math.min(12000, Math.max(2000, env.PDF_METADATA_GLM_PROMPT_MAX_CHARS));
+
 const MIN_TITLE_CONFIDENCE = env.PDF_METADATA_MIN_TITLE_CONFIDENCE;
 const MIN_ABSTRACT_CONFIDENCE = env.PDF_METADATA_MIN_ABSTRACT_CONFIDENCE;
 const MIN_AUTHORS_CONFIDENCE = env.PDF_METADATA_MIN_AUTHORS_CONFIDENCE;
@@ -47,12 +40,7 @@ function computeBufferHash(buffer) {
 }
 
 function buildExtractionCacheKey(bufferHash) {
-  const strategy = String(env.PDF_METADATA_GLM_STRATEGY || 'fallback').toLowerCase();
-  const model = String(env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest').toLowerCase();
-  const preprocess = String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true')
-    .trim()
-    .toLowerCase();
-  return `v2:${bufferHash}:${strategy}:${model}:${preprocess}`;
+  return `v2:${bufferHash}:paddleocr-vl`;
 }
 
 function getCachedExtraction(cacheKey) {
@@ -102,103 +90,36 @@ function setCachedDoiMetadata(doi, value) {
   });
 }
 
-function shouldUseGlmFallback(baseResult) {
-  const strategy = String(env.PDF_METADATA_GLM_STRATEGY || 'fallback').toLowerCase();
-  if (strategy === 'always') return true;
-
-  const hasStrongTitle =
-    baseResult.title &&
-    baseResult.title.length >= 30 &&
-    Number(baseResult.confidence?.title || 0) >= MIN_TITLE_CONFIDENCE;
-
-  const hasStrongAbstract =
-    baseResult.abstract &&
-    baseResult.abstract.length >= 220 &&
-    Number(baseResult.confidence?.abstract || 0) >= MIN_ABSTRACT_CONFIDENCE;
-
-  const hasAuthors =
-    Array.isArray(baseResult.authors) &&
-    baseResult.authors.length > 0 &&
-    Number(baseResult.confidence?.authors || 0) >= MIN_AUTHORS_CONFIDENCE;
-
-  return !(hasStrongTitle && hasStrongAbstract && hasAuthors);
-}
-
-async function buildGlmInputText(pdfText) {
-  // Keep prompt bounded to prevent model instability on very long contexts.
-  const fallback = cleanText(String(pdfText || '')).slice(0, GLM_PROMPT_MAX_CHARS);
-  if (!fallback) return '';
-
-  const shouldUsePlagiarismPreprocess =
-    String(process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS || 'true')
-      .trim()
-      .toLowerCase() === 'true';
-
-  if (!shouldUsePlagiarismPreprocess) {
-    return fallback;
-  }
-
-  const engineBaseUrl = (process.env.PLAGIARISM_ENGINE_URL || 'http://localhost:8001').replace(
-    /\/+$/,
-    '',
-  );
-  const maxChars = Math.min(
-    20000,
-    Math.max(
-      2000,
-      Number.parseInt(process.env.PDF_METADATA_PREPROCESS_MAX_CHARS || '9000', 10) || 9000,
-    ),
-  );
-  const timeoutMs = Math.min(
-    10000,
-    Math.max(
-      1000,
-      Number.parseInt(process.env.PDF_METADATA_PREPROCESS_TIMEOUT_MS || '4000', 10) || 4000,
-    ),
-  );
-
-  const controller = new AbortController();
-  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(`${engineBaseUrl}/preprocess`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: pdfText,
-        max_chars: maxChars,
-        max_segments: 12,
-        min_words: 10,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return fallback;
-    }
-
-    const payload = await response.json();
-    const compressedText = cleanText(String(payload?.compressed_text || '')).slice(
-      0,
-      GLM_PROMPT_MAX_CHARS,
-    );
-    if (!compressedText) {
-      return fallback;
-    }
-
-    return compressedText;
-  } catch (error) {
-    logger.debug(
-      { err: error?.message },
-      'Plagiarism preprocess unavailable; using local normalized text',
-    );
-    return fallback;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
 async function parsePdf(pdfBuffer) {
+  try {
+    const { ocrExtractionService } = await import('../services/ocrExtraction.service.js');
+    const parsed = await ocrExtractionService.parseDocument(pdfBuffer, 'application/pdf');
+    if (
+      parsed &&
+      parsed.ocrStatus !== 'degraded' &&
+      parsed?.fullText &&
+      parsed.fullText.trim().length > 0
+    ) {
+      return {
+        text: parsed.fullText,
+        numpages: parsed.metadata?.page_count || 1,
+        ocrStatus: parsed.ocrStatus || 'complete',
+        info: {
+          Title: parsed.metadata?.title || null,
+          Author: Array.isArray(parsed.metadata?.authors)
+            ? parsed.metadata.authors.join(', ')
+            : null,
+          Abstract: parsed.metadata?.abstract || null,
+          Year: parsed.metadata?.year || null,
+          tables: parsed.tables || [],
+          formulas: parsed.formulas || [],
+        },
+      };
+    }
+  } catch (err) {
+    logger.debug({ err: err?.message }, 'OCR extraction service bypass; using local PDF parser.');
+  }
+
   const pdfModule = await import('pdf-parse');
 
   if (typeof pdfModule.default === 'function') {
@@ -511,13 +432,13 @@ function sanitizeOcrResult(ocrOutput) {
   if (hallucPatterns.some((p) => p.test(title))) {
     logger.warn(
       { title: title.slice(0, 80) },
-      'GLM title contains hallucinated prompt text; discarding',
+      'OCR title contains hallucinated prompt text; discarding',
     );
     title = '';
   }
 
   if (hallucPatterns.some((p) => p.test(abstract))) {
-    logger.warn('GLM abstract contains hallucinated prompt text; discarding');
+    logger.warn('OCR abstract contains hallucinated prompt text; discarding');
     abstract = '';
   }
 
@@ -530,7 +451,7 @@ function sanitizeOcrResult(ocrOutput) {
   ) {
     logger.warn(
       { titleLen: title.length },
-      'GLM title too long or contains institutional data; discarding',
+      'OCR title too long or contains institutional data; discarding',
     );
     title = '';
   }
@@ -577,76 +498,6 @@ function sanitizeOcrResult(ocrOutput) {
       authors: authors.length > 0 ? authorConfidence : 0,
     },
   };
-}
-
-async function extractWithGlmOcr(pdfText) {
-  if (!env.PDF_METADATA_ENABLE_GLM_OCR) {
-    return null;
-  }
-
-  try {
-    const ollamaModule = await import('ollama');
-
-    const OllamaClient = ollamaModule?.Ollama || ollamaModule?.default?.Ollama;
-
-    if (typeof OllamaClient !== 'function') {
-      logger.warn(
-        'GLM dependency loaded but Ollama client constructor is unavailable; skipping model extraction',
-      );
-      return null;
-    }
-
-    const ollamaClient = new OllamaClient({
-      host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
-    });
-
-    if (typeof ollamaClient?.generate !== 'function') {
-      logger.warn(
-        'GLM dependency loaded but generate API is unavailable; skipping model extraction',
-      );
-      return null;
-    }
-
-    const normalizedText = await buildGlmInputText(pdfText);
-    if (!normalizedText) {
-      return null;
-    }
-
-    const timeoutMs = Math.min(60000, Math.max(5000, env.PDF_METADATA_GLM_TIMEOUT_MS));
-    const response = await Promise.race([
-      ollamaClient.generate({
-        model: env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest',
-        prompt: `${GLM_METADATA_PROMPT}\n${normalizedText}`,
-        format: 'json',
-        stream: false,
-        options: {
-          temperature: env.PDF_METADATA_GLM_TEMPERATURE,
-          top_p: env.PDF_METADATA_GLM_TOP_P,
-          repeat_penalty: env.PDF_METADATA_GLM_REPEAT_PENALTY,
-        },
-      }),
-      new Promise((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`GLM OCR request timed out after ${timeoutMs}ms`)),
-          timeoutMs,
-        );
-      }),
-    ]);
-
-    const parsed = safeParseJson(response?.response || '');
-
-    // Apply enhanced sanitization layer for OCR output
-    const sanitized = sanitizeOcrResult(parsed);
-    if (!sanitized) return null;
-
-    return {
-      ...sanitized,
-      provider: 'glm-ocr',
-    };
-  } catch (error) {
-    logger.warn({ err: error?.message }, 'GLM extraction failed; falling back to heuristic parser');
-    return null;
-  }
 }
 
 /**
@@ -708,7 +559,7 @@ export async function extractPdfMetadata(pdfBuffer) {
   logger.info({ textLength: text.length, pages: data.numpages }, 'Extracting metadata from PDF');
 
   const title = extractTitle(text, data.info);
-  const abstract = extractAbstract(text);
+  const abstract = extractAbstract(text, data.info);
   const publicationYear = extractPublicationYear(text, data.info);
   const authors = extractAuthors(text, data.info);
   const keywords = extractKeywords(text);
@@ -743,87 +594,16 @@ export async function extractPdfMetadata(pdfBuffer) {
     },
   };
 
-  if (!shouldUseGlmFallback(baseResult)) {
-    const doiEnriched = await enrichWithDoiMetadata(baseResult, text);
-    const finalized = withReviewGate(doiEnriched);
-    setCachedExtraction(cacheKey, finalized);
-    return finalized;
+  const isOcrComplete = data.ocrStatus === 'complete';
+  if (isOcrComplete) {
+    baseResult.extractionProvider = 'paddleocr-vl';
+    if (data.info?.Title) baseResult.fieldSources.title = 'paddleocr-vl';
+    if (data.info?.Abstract) baseResult.fieldSources.abstract = 'paddleocr-vl';
+    if (data.info?.Year) baseResult.fieldSources.publicationYear = 'paddleocr-vl';
+    if (data.info?.Author) baseResult.fieldSources.authors = 'paddleocr-vl';
   }
 
-  const ocrMetadata = await extractWithGlmOcr(text);
-  if (!ocrMetadata) {
-    const doiEnriched = await enrichWithDoiMetadata(baseResult, text);
-    const finalized = withReviewGate(doiEnriched);
-    setCachedExtraction(cacheKey, finalized);
-    return finalized;
-  }
-
-  // Smart merge: pick best field from each source using quality heuristics
-  const pickBestTitle = () => {
-    const ocrTitle = ocrMetadata.title || '';
-    const heurTitle = baseResult.title || '';
-    // If GLM returned empty or garbage, use heuristic
-    if (!ocrTitle)
-      return { value: heurTitle, conf: baseResult.confidence.title, provider: 'heuristic' };
-    if (!heurTitle)
-      return { value: ocrTitle, conf: ocrMetadata.confidence.title, provider: 'glm-ocr' };
-    // Prefer shorter clean title if GLM title is bloated (contains addresses, numbers at start)
-    if (ocrTitle.length > heurTitle.length * 2 && heurTitle.length >= 20) {
-      return { value: heurTitle, conf: baseResult.confidence.title, provider: 'heuristic' };
-    }
-    // Prefer GLM if heuristic title is clearly truncated
-    if (heurTitle.length < 25 && ocrTitle.length > 25 && ocrTitle.length < 200) {
-      return { value: ocrTitle, conf: ocrMetadata.confidence.title, provider: 'glm-ocr' };
-    }
-    return { value: ocrTitle, conf: ocrMetadata.confidence.title, provider: 'glm-ocr' };
-  };
-
-  const bestTitle = pickBestTitle();
-
-  const mergedDoi = normalizeDoi(ocrMetadata.doi || baseResult.doi || extractDoi(text));
-  const mergedVenue = normalizeVenue(ocrMetadata.venue || baseResult.publicationVenue);
-  const mergedResult = {
-    title: bestTitle.value,
-    abstract: ocrMetadata.abstract || baseResult.abstract,
-    publicationYear: ocrMetadata.publicationYear || baseResult.publicationYear,
-    authors: ocrMetadata.authors.length > 0 ? ocrMetadata.authors : baseResult.authors,
-    keywords:
-      ocrMetadata.keywords?.length > 0
-        ? normalizeKeywordsArray(ocrMetadata.keywords)
-        : baseResult.keywords,
-    doi: mergedDoi,
-    publicationVenue: mergedVenue,
-    confidence: {
-      title: bestTitle.conf,
-      abstract: ocrMetadata.abstract
-        ? ocrMetadata.confidence.abstract
-        : baseResult.confidence.abstract,
-      publicationYear: ocrMetadata.publicationYear ? 0.88 : baseResult.confidence.publicationYear,
-      authors:
-        ocrMetadata.authors.length > 0
-          ? ocrMetadata.confidence.authors
-          : baseResult.confidence.authors,
-      keywords: ocrMetadata.keywords?.length > 0 ? 0.85 : baseResult.confidence.keywords,
-      doi: mergedDoi ? (ocrMetadata.doi ? 0.9 : baseResult.confidence.doi) : 0,
-      publicationVenue: mergedVenue
-        ? ocrMetadata.venue
-          ? 0.85
-          : baseResult.confidence.publicationVenue
-        : 0,
-    },
-    extractionProvider: bestTitle.provider === 'glm-ocr' ? ocrMetadata.provider : 'heuristic+glm',
-    fieldSources: {
-      title: bestTitle.provider,
-      abstract: ocrMetadata.abstract ? 'glm-ocr' : 'heuristic',
-      publicationYear: ocrMetadata.publicationYear ? 'glm-ocr' : 'heuristic',
-      authors: ocrMetadata.authors.length > 0 ? 'glm-ocr' : 'heuristic',
-      keywords: ocrMetadata.keywords?.length > 0 ? 'glm-ocr' : 'heuristic',
-      doi: ocrMetadata.doi ? 'glm-ocr' : baseResult.doi ? 'heuristic' : 'none',
-      publicationVenue: ocrMetadata.venue ? 'glm-ocr' : 'none',
-    },
-  };
-
-  const doiEnriched = await enrichWithDoiMetadata(mergedResult, text);
+  const doiEnriched = await enrichWithDoiMetadata(baseResult, text);
   const finalized = withReviewGate(doiEnriched);
   setCachedExtraction(cacheKey, finalized);
   return finalized;
@@ -895,9 +675,17 @@ function extractTitle(text, pdfInfo) {
 }
 
 /**
- * Extracts abstract from PDF text.
+ * Extracts abstract from PDF text or OCR metadata.
  */
-function extractAbstract(text) {
+function extractAbstract(text, pdfInfo = null) {
+  if (
+    pdfInfo?.Abstract &&
+    typeof pdfInfo.Abstract === 'string' &&
+    pdfInfo.Abstract.trim().length > 20
+  ) {
+    return { value: cleanText(pdfInfo.Abstract), confidence: 0.88 };
+  }
+
   const lines = text.split('\n').map((l) => l.trim());
 
   // Find "Abstract" section
@@ -978,7 +766,10 @@ function extractAbstract(text) {
 function extractPublicationYear(text, pdfInfo) {
   const currentYear = new Date().getFullYear();
 
-  const fromInfo = findValidYear(pdfInfo?.CreationDate) || findValidYear(pdfInfo?.ModDate);
+  const fromInfo =
+    findValidYear(pdfInfo?.Year) ||
+    findValidYear(pdfInfo?.CreationDate) ||
+    findValidYear(pdfInfo?.ModDate);
   if (fromInfo) {
     return { value: fromInfo, confidence: 0.9 };
   }

@@ -70,8 +70,17 @@ async function extractFromPdf(buffer) {
     throw new Error('Invalid PDF document: magic byte header check failed.');
   }
 
-  // pdf-parse v2 exposes a PDFParse class, not a default function.
-  // Construct a parser per call and destroy it to avoid leaked resources.
+  try {
+    const { ocrExtractionService } = await import('../services/ocrExtraction.service.js');
+    const parsed = await ocrExtractionService.parseDocument(buffer, 'application/pdf');
+    if (parsed?.fullText && parsed.fullText.trim().length > 0) {
+      return parsed.fullText;
+    }
+  } catch (err) {
+    console.warn(`[extractText] OCR extraction service error: ${err.message}. Using local parser.`);
+  }
+
+  // Fallback to local PDFParse
   const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: buffer });
 

@@ -252,6 +252,7 @@ export const submissionKeys = {
   plagiarismReports: () => [...submissionKeys.all, 'plagiarismReport'],
   plagiarismReport: (id) => [...submissionKeys.plagiarismReports(), id],
   reviewWorkspace: (id) => [...submissionKeys.all, 'reviewWorkspace', id],
+  comments: (id) => [...submissionKeys.all, 'comments', id],
   revisionDiff: (id, compareWithId) => [
     ...submissionKeys.all,
     'revisionDiff',
@@ -507,6 +508,55 @@ export function useAddAnnotation(options = {}) {
 export function useRemoveAnnotation(options = {}) {
   return useSubmissionMutation(async ({ submissionId, annotationId }) => {
     const res = await submissionService.removeAnnotation(submissionId, annotationId);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Fetch all inline comments / annotations for a submission (PDF Workspace).
+ */
+export function useSubmissionComments(submissionId, options = {}) {
+  return useQuery({
+    queryKey: submissionKeys.comments(submissionId),
+    queryFn: async () => {
+      const res = await submissionService.getSubmissionComments(submissionId);
+      return res.data?.data?.comments ?? res.data?.data ?? [];
+    },
+    enabled: Boolean(submissionId),
+    ...options,
+  });
+}
+
+/**
+ * Create an inline highlight annotation / comment with ScaledPosition.
+ */
+export function useCreateSubmissionComment(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, ...data }) => {
+    const res = await submissionService.createSubmissionComment(submissionId, data);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Add a reply to an inline comment.
+ */
+export function useAddCommentReply(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, commentId, ...data }) => {
+    const res = await submissionService.addSubmissionCommentReply(submissionId, commentId, data);
+    return res.data;
+  }, options);
+}
+
+/**
+ * Update status of an inline comment (open / resolved).
+ */
+export function useUpdateCommentStatus(options = {}) {
+  return useSubmissionMutation(async ({ submissionId, commentId, ...data }) => {
+    const res = await submissionService.updateSubmissionCommentStatus(
+      submissionId,
+      commentId,
+      data,
+    );
     return res.data;
   }, options);
 }

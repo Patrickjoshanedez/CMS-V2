@@ -566,53 +566,126 @@ async function processJob(job) {
   // Store extracted text for future corpus building
   await Submission.findByIdAndUpdate(submissionId, { extractedText: normalizedExtractedText });
 
-  emitProgress(50, 'Generating winnowing fingerprints & searching corpus...');
+  emitProgress(50, 'Executing HybridSourceTracker (BGE-M3 + Winnowing)...');
 
-  // Step 3: Deterministic database-backed plagiarism check
-  let result = await calculatePlagiarism(normalizedExtractedText, submissionId);
-  let effectiveTextMatches = Array.isArray(result?.textMatches) ? result.textMatches : [];
-  let similarityPercentage = Number.isFinite(result?.overallScore)
-    ? Math.max(0, Math.min(100, Number(result.overallScore)))
-    : 0;
-  let originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
-  let legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
+  let hstReport = null;
+  let isFallback = false;
+  let result = null;
+  let effectiveTextMatches = [];
+  let similarityPercentage = 0;
+  let originalityScore = 100;
+  let legacyMatchedSources = [];
 
-  const shouldUseCorpusFallback =
-    (effectiveTextMatches.length === 0 || similarityPercentage === 0) &&
-    !job.data?.disableLegacyCorpusFallback;
+  // Step 3: Attempt Primary Microservice Delegation (Python HST Engine)
+  const pythonEngineUrl = (
+    process.env.PLAGIARISM_ENGINE_URL || 'http://plagiarism_api:8001'
+  ).replace(/\/+$/, '');
+  const hstController = new AbortController();
+  const hstTimeout = setTimeout(() => hstController.abort(), 15000);
 
-  if (shouldUseCorpusFallback) {
-    const fallbackCorpus = await _buildCorpus(projectId, submissionId);
-    const fallbackResult = compareAgainstCorpus(normalizedExtractedText, fallbackCorpus);
+  try {
+    const hstRes = await fetch(`${pythonEngineUrl}/check-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        document_id: String(submissionId),
+        text: normalizedExtractedText,
+        metadata: { chapter, projectId: String(projectId) },
+      }),
+      signal: hstController.signal,
+    });
 
-    if (
-      Number.isFinite(fallbackResult?.similarityPercentage) &&
-      fallbackResult.similarityPercentage > similarityPercentage &&
-      Array.isArray(fallbackResult?.matchedSources) &&
-      fallbackResult.matchedSources.length > 0
-    ) {
-      similarityPercentage = Math.max(
-        0,
-        Math.min(100, Number(fallbackResult.similarityPercentage)),
+    if (hstRes.ok) {
+      hstReport = await hstRes.json();
+      console.log(
+        `[Plagiarism Worker] Received successful HST report for ${submissionId}: S_comp=${hstReport.composite_score}`,
       );
-      originalityScore = Number.isFinite(fallbackResult?.originalityScore)
-        ? Math.max(0, Math.min(100, Number(fallbackResult.originalityScore)))
-        : Math.max(0, Math.min(100, 100 - similarityPercentage));
+    } else {
+      throw new Error(`HST microservice HTTP ${hstRes.status}`);
+    }
+  } catch (err) {
+    console.warn(
+      `[Plagiarism Worker] Primary HST microservice unavailable (${err.message}). Engaging Node.js in-process fallback.`,
+    );
+    isFallback = true;
+  } finally {
+    clearTimeout(hstTimeout);
+  }
 
-      legacyMatchedSources = fallbackResult.matchedSources;
-      effectiveTextMatches = fallbackMatchedSourcesToTextMatches(
-        fallbackResult.matchedSources,
-        normalizedExtractedText,
-      );
+  if (hstReport) {
+    // Map HST response
+    const compScore = Number.isFinite(hstReport.composite_score)
+      ? hstReport.composite_score
+      : Number(hstReport.plagiarism_score || 0) / 100;
+    similarityPercentage = Math.max(0, Math.min(100, Math.round(compScore * 100)));
+    originalityScore = Number.isFinite(hstReport.originality_score)
+      ? Math.max(0, Math.min(100, Number(hstReport.originality_score)))
+      : Math.max(0, Math.min(100, 100 - similarityPercentage));
 
-      result = {
-        ...result,
-        overallScore: similarityPercentage,
-        textMatches: effectiveTextMatches,
-        totalDocumentWords:
-          result?.totalDocumentWords || normalizedExtractedText.split(/\s+/).filter(Boolean).length,
-        matchedWords: result?.matchedWords || 0,
-      };
+    effectiveTextMatches = (hstReport.matches || []).map((m, idx) => ({
+      sourceId: m?.source_metadata?.document_id || `src-${idx}`,
+      sourceTitle: m?.source_metadata?.title || 'Archived Submission',
+      similarityPercentage: Math.round(Number(m?.similarity_score || 0) * 100),
+      colorCode: idx % 2 === 0 ? '#ef4444' : '#f97316',
+      matchedBlocks: [
+        {
+          studentStart: Number(m.start_index),
+          studentEnd: Number(m.end_index),
+          sourceStart: null,
+          sourceEnd: null,
+          matchedText: String(m.match_text || ''),
+        },
+      ],
+    }));
+    legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
+  } else {
+    // Step 3B: Deterministic database-backed Node.js plagiarism check fallback
+    result = await calculatePlagiarism(normalizedExtractedText, submissionId);
+    effectiveTextMatches = Array.isArray(result?.textMatches) ? result.textMatches : [];
+    similarityPercentage = Number.isFinite(result?.overallScore)
+      ? Math.max(0, Math.min(100, Number(result.overallScore)))
+      : 0;
+    originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
+    legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
+
+    const shouldUseCorpusFallback =
+      (effectiveTextMatches.length === 0 || similarityPercentage === 0) &&
+      !job.data?.disableLegacyCorpusFallback;
+
+    if (shouldUseCorpusFallback) {
+      const fallbackCorpus = await _buildCorpus(projectId, submissionId);
+      const fallbackResult = compareAgainstCorpus(normalizedExtractedText, fallbackCorpus);
+
+      if (
+        Number.isFinite(fallbackResult?.similarityPercentage) &&
+        fallbackResult.similarityPercentage > similarityPercentage &&
+        Array.isArray(fallbackResult?.matchedSources) &&
+        fallbackResult.matchedSources.length > 0
+      ) {
+        similarityPercentage = Math.max(
+          0,
+          Math.min(100, Number(fallbackResult.similarityPercentage)),
+        );
+        originalityScore = Number.isFinite(fallbackResult?.originalityScore)
+          ? Math.max(0, Math.min(100, Number(fallbackResult.originalityScore)))
+          : Math.max(0, Math.min(100, 100 - similarityPercentage));
+
+        legacyMatchedSources = fallbackResult.matchedSources;
+        effectiveTextMatches = fallbackMatchedSourcesToTextMatches(
+          fallbackResult.matchedSources,
+          normalizedExtractedText,
+        );
+
+        result = {
+          ...result,
+          overallScore: similarityPercentage,
+          textMatches: effectiveTextMatches,
+          totalDocumentWords:
+            result?.totalDocumentWords ||
+            normalizedExtractedText.split(/\s+/).filter(Boolean).length,
+          matchedWords: result?.matchedWords || 0,
+        };
+      }
     }
   }
 
@@ -634,14 +707,32 @@ async function processJob(job) {
     };
   });
 
+  const isCriticalWarning = hstReport ? Boolean(hstReport.critical_warning_flag) : false;
+  const isManualReview = hstReport ? Boolean(hstReport.manual_review_required) : false;
+  const finalWarningFlag = isCriticalWarning || isManualReview || similarityPercentage >= 50;
+
   const fullReport = {
     submissionId,
     overallScore: similarityPercentage,
     originalityScore,
-    totalDocumentWords: Number(result?.totalDocumentWords || 0),
+    totalDocumentWords: Number(
+      result?.totalDocumentWords || normalizedExtractedText.split(/\s+/).filter(Boolean).length,
+    ),
     matchedWords: Number(result?.matchedWords || 0),
     textMatches: effectiveTextMatches,
     matches: normalizedMatches,
+    scanType: isFallback ? 'syntactic_fallback' : 'hybrid_source_tracker',
+    semanticPending: isFallback,
+    hstMetrics: hstReport
+      ? {
+          composite_score: hstReport.composite_score,
+          dense_score: hstReport.dense_score,
+          sparse_score: hstReport.sparse_score,
+          winnowing_score: hstReport.winnowing_score,
+          manual_review_required: isManualReview,
+          critical_warning_flag: isCriticalWarning,
+        }
+      : null,
     processing_time_ms: Date.now() - startedAt,
   };
 
@@ -668,7 +759,7 @@ async function processJob(job) {
         textMatches: effectiveTextMatches,
         checkedAt: new Date(),
         completedAt: new Date(),
-        warningFlag: similarityPercentage >= 50,
+        warningFlag: finalWarningFlag,
         rawData: fullReport,
         error: null,
         errorMessage: null,

@@ -22,12 +22,14 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
 }));
 
 vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
-  default: ({ open, embedded, submission, fileUrl }) =>
+  default: ({ open, embedded, submission, fileUrl, highlights, plagiarismMatches }) =>
     open || embedded ? (
       <div
         data-testid="sophisticated-document-viewer"
         data-embedded={String(!!embedded)}
         data-url={fileUrl}
+        data-highlights-count={String(highlights?.length ?? 0)}
+        data-plagiarism-count={String(plagiarismMatches?.length ?? 0)}
       >
         Sophisticated Viewer: {submission?.fileName} (v{submission?.version})
       </div>
@@ -148,6 +150,23 @@ vi.mock('@/hooks/useSubmissions', () => ({
   }),
   useScanSubmissionArchive: () => ({
     mutate: mockScanArchiveMutate,
+    isPending: false,
+  }),
+  useSubmissionComments: () => ({
+    data: [],
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+  useCreateSubmissionComment: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+  useAddCommentReply: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateCommentStatus: () => ({
+    mutate: vi.fn(),
     isPending: false,
   }),
 }));
@@ -286,5 +305,17 @@ describe('SubmissionReviewPage', () => {
     expect(approveBtn.disabled).toBe(true);
     expect(reviseBtn.disabled).toBe(true);
     expect(acceptBtn).toBeUndefined();
+  });
+
+  it('renders embedded SophisticatedDocumentViewer with multi-layer annotation props', () => {
+    act(() => {
+      root.render(<SubmissionReviewPage />);
+    });
+
+    const viewer = container.querySelector('[data-testid="sophisticated-document-viewer"]');
+    expect(viewer).not.toBeNull();
+    expect(viewer.getAttribute('data-embedded')).toBe('true');
+    expect(viewer.getAttribute('data-highlights-count')).toBe('0');
+    expect(viewer.getAttribute('data-plagiarism-count')).toBe('0');
   });
 });

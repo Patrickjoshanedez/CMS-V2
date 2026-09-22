@@ -201,6 +201,38 @@ class PlagiarismReport(BaseModel):
         default_factory=dict,
         description="Optional extra metadata (chapter, project_id, etc.) supplied at check time.",
     )
+    composite_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Calibrated HST composite similarity score (0.0 - 1.0).",
+    )
+    dense_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="BGE-M3 dense cosine similarity of top candidate.",
+    )
+    sparse_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="BGE-M3 sparse lexical term-salience similarity score.",
+    )
+    winnowing_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Winnowing exact n-gram Jaccard overlap score.",
+    )
+    manual_review_required: bool = Field(
+        default=False,
+        description="True if composite score >= 0.75 requiring coordinator review.",
+    )
+    critical_warning_flag: bool = Field(
+        default=False,
+        description="True if localized Winnowing overlap > 0.85.",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

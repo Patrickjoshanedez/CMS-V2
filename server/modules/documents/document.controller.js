@@ -1,7 +1,10 @@
 import documentService from './document.service.js';
 import catchAsync from '../../utils/catchAsync.js';
 import { HTTP_STATUS } from '@cms/shared';
-import { extractPdfMetadata as extractMetadataFromPdf } from '../../utils/pdfMetadataExtractor.js';
+import metadataExtractionService from '../../services/metadataExtraction.service.js';
+import storageService from '../../services/storage.index.js';
+import { enqueueDocumentExtractionJob, getDocumentExtractionQueue } from '../../jobs/queue.js';
+import { getRedisClient, isRedisAvailable } from '../../config/redis.js';
 import AppError from '../../utils/AppError.js';
 import crypto from 'crypto';
 import { MetadataExtractionFeedback } from './document.model.js';
@@ -175,46 +178,48 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
     return res.status(HTTP_STATUS.OK).json(cached);
   }
 
+  const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  const preferAsync =
+    req.query.async === 'true' ||
+    req.headers['x-prefer-async'] === 'true' ||
+    req.body?.async === 'true';
+  const shouldRunAsync =
+    isRedisAvailable() && (preferAsync || (!isTest && req.query.sync !== 'true'));
+
+  if (shouldRunAsync) {
+    const jobId = `extract-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const tempKey = `temp-extractions/${jobId}.pdf`;
+
+    try {
+      await storageService.uploadFile(req.file.buffer, tempKey, effectiveMime);
+
+      await enqueueDocumentExtractionJob(
+        {
+          storageKey: tempKey,
+          originalName: req.file.originalname,
+          userId: req.user?._id ? req.user._id.toString() : null,
+        },
+        jobId,
+      );
+
+      return res.status(HTTP_STATUS.ACCEPTED || 202).json({
+        success: true,
+        status: 'queued',
+        jobId,
+        message: 'Document metadata extraction job enqueued successfully.',
+      });
+    } catch (enqueueError) {
+      console.warn(
+        `[extractPdfMetadata] Async enqueue failed (${enqueueError.message}); falling back to synchronous extraction.`,
+      );
+    }
+  }
+
   try {
-    const extractionResult = await extractMetadataFromPdf(req.file.buffer);
-
-    const inferredTitleFromFilename = inferTitleFromFilename(req.file.originalname);
-    const effectiveTitle = extractionResult?.title || inferredTitleFromFilename;
-
-    const authors = Array.isArray(extractionResult?.authors)
-      ? extractionResult.authors.join(', ')
-      : extractionResult?.authors || '';
-
-    const keywords = Array.isArray(extractionResult?.keywords)
-      ? extractionResult.keywords.join(', ')
-      : extractionResult?.keywords || '';
-
-    const rawConfidence = extractionResult?.confidence || {};
-
-    const payload = {
-      metadata: {
-        title: effectiveTitle || '',
-        abstract: extractionResult?.abstract || '',
-        authors,
-        year: extractionResult?.publicationYear ? String(extractionResult.publicationYear) : '',
-        doi: extractionResult?.doi || '',
-        venue: extractionResult?.publicationVenue || '',
-        keywords,
-      },
-      confidence: {
-        title: effectiveTitle
-          ? extractionResult?.title
-            ? normalizeConfidencePercent(rawConfidence.title)
-            : 35
-          : 0,
-        abstract: normalizeConfidencePercent(rawConfidence.abstract),
-        authors: normalizeConfidencePercent(rawConfidence.authors),
-        year: normalizeConfidencePercent(rawConfidence.publicationYear),
-        doi: normalizeConfidencePercent(rawConfidence.doi),
-        venue: normalizeConfidencePercent(rawConfidence.publicationVenue),
-        keywords: normalizeConfidencePercent(rawConfidence.keywords),
-      },
-    };
+    const payload = await metadataExtractionService.extractFromBuffer(
+      req.file.buffer,
+      req.file.originalname,
+    );
 
     setCachedOcrResult(cacheKey, payload);
     return res.status(HTTP_STATUS.OK).json(payload);
@@ -225,6 +230,62 @@ export const extractPdfMetadata = catchAsync(async (req, res) => {
       'PDF_METADATA_EXTRACTION_FAILED',
     );
   }
+});
+
+/**
+ * GET /api/documents/extraction-status/:jobId
+ * Poll status of an asynchronous BullMQ document extraction job.
+ */
+export const getExtractionStatus = catchAsync(async (req, res) => {
+  const { jobId } = req.params;
+  const redis = getRedisClient();
+
+  if (redis) {
+    try {
+      const cached = await redis.get(`extraction:job:${jobId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return res.status(HTTP_STATUS.OK).json(parsed);
+      }
+    } catch (err) {
+      console.warn(`[getExtractionStatus] Redis lookup warning: ${err.message}`);
+    }
+  }
+
+  const queue = getDocumentExtractionQueue();
+  if (queue) {
+    const job = await queue.getJob(jobId);
+    if (job) {
+      const state = await job.getState();
+      const progress = job.progress || 0;
+
+      if (state === 'completed') {
+        return res.status(HTTP_STATUS.OK).json({
+          status: 'completed',
+          progress: 100,
+          data: job.returnvalue,
+          jobId,
+        });
+      }
+
+      if (state === 'failed') {
+        return res.status(HTTP_STATUS.OK).json({
+          status: 'failed',
+          progress: 0,
+          error: job.failedReason || 'Extraction job failed',
+          jobId,
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        status: state === 'active' ? 'processing' : 'queued',
+        progress: typeof progress === 'number' ? progress : 10,
+        jobId,
+      });
+    }
+  }
+
+  throw new AppError('Extraction job not found or expired.', 404, 'EXTRACTION_JOB_NOT_FOUND');
 });
 
 /**
@@ -257,3 +318,4 @@ export const submitMetadataFeedback = catchAsync(async (req, res) => {
 });
 
 export const extractPdfMetadataHandler = extractPdfMetadata;
+export const getExtractionStatusHandler = getExtractionStatus;

@@ -48,13 +48,13 @@ class Settings(BaseSettings):
         description="Merge adjacent matched spans if gap between them is <= this value.",
     )
 
-    # ─── Semantic Search ───────────────────────────────────────────────────────
+    # ─── Semantic Search & BGE-M3 ──────────────────────────────────────────────
     EMBEDDING_MODEL: str = Field(
-        default="all-MiniLM-L6-v2",
-        description="Sentence-Transformers model name to use for vector embeddings.",
+        default="BAAI/bge-m3",
+        description="Model name to use for dense/sparse vector embeddings (BAAI/bge-m3).",
     )
     EMBEDDING_BATCH_SIZE: int = Field(
-        default=32,
+        default=16,
         ge=1,
         description="Number of text segments to encode in a single batch.",
     )
@@ -65,10 +65,16 @@ class Settings(BaseSettings):
             "auto selects the fastest available backend."
         ),
     )
+    BGE_M3_MAX_LENGTH: int = Field(
+        default=8192,
+        ge=256,
+        le=8192,
+        description="Maximum token sequence length for BGE-M3 without truncation.",
+    )
     TOP_K_CANDIDATES: int = Field(
-        default=5,
+        default=50,
         ge=1,
-        le=20,
+        le=200,
         description="Maximum number of candidate documents to retrieve from ChromaDB.",
     )
     SEMANTIC_SIMILARITY_THRESHOLD: float = Field(
@@ -86,6 +92,44 @@ class Settings(BaseSettings):
         description="Minimum word count for a paragraph segment to be embedded.",
     )
 
+    # ─── HybridSourceTracker (HST) Two-Stage Calibration ───────────────────────
+    HST_COARSE_TOP_K: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Number of coarse candidate documents fetched from ChromaDB HNSW.",
+    )
+    HST_WEIGHT_WINNOWING: float = Field(
+        default=0.50,
+        ge=0.0,
+        le=1.0,
+        description="Weight for exact syntactic Winnowing match score in composite calculation.",
+    )
+    HST_WEIGHT_DENSE: float = Field(
+        default=0.30,
+        ge=0.0,
+        le=1.0,
+        description="Weight for BGE-M3 dense semantic cosine similarity.",
+    )
+    HST_WEIGHT_SPARSE: float = Field(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        description="Weight for BGE-M3 sparse lexical term-salience dot product.",
+    )
+    HST_COMPOSITE_FLAG_THRESHOLD: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Composite score threshold triggering manual coordinator review.",
+    )
+    HST_WINNOWING_CRITICAL_THRESHOLD: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="Winnowing overlap threshold triggering an immediate critical warning flag.",
+    )
+
     # ─── ChromaDB ─────────────────────────────────────────────────────────────
     CHROMA_HOST: str | None = Field(default=None, description="Hostname for ChromaDB HTTP client.")
     CHROMA_PORT: int = Field(default=8000, description="Port for ChromaDB HTTP client.")
@@ -94,7 +138,7 @@ class Settings(BaseSettings):
         description="Directory where ChromaDB persists its indexes.",
     )
     CHROMA_COLLECTION_NAME: str = Field(
-        default="cms_documents",
+        default="cms_documents_v2",
         description="Name of the ChromaDB collection.",
     )
     # HNSW index parameters (larger M / ef_construction = more accurate but slower build)

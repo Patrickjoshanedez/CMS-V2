@@ -3,6 +3,10 @@ import mongoose from 'mongoose';
 import { Worker } from 'bullmq';
 import { getRedisConnectionOpts } from './config/redis.js';
 import { processPdfJob } from './jobs/pdfProcessor.js';
+import {
+  startDocumentExtractionWorker,
+  stopDocumentExtractionWorker,
+} from './jobs/documentExtraction.job.js';
 
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '16';
 
@@ -11,6 +15,7 @@ import './modules/projects/project.model.js';
 import './modules/users/user.model.js';
 
 let pdfWorker = null;
+let extractionWorker = null;
 
 async function bootstrap() {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/cms';
@@ -34,12 +39,15 @@ async function bootstrap() {
     }
   });
 
-  console.warn('[Worker] PDF Processing Worker initialized and listening.');
+  extractionWorker = startDocumentExtractionWorker();
+
+  console.warn('[Worker] Workers initialized and listening.');
 }
 
 async function shutdown() {
-  console.warn('[Worker] Shutting down worker...');
+  console.warn('[Worker] Shutting down workers...');
   if (pdfWorker) await pdfWorker.close();
+  if (extractionWorker) await stopDocumentExtractionWorker();
   await mongoose.connection.close(false);
   process.exit(0);
 }

@@ -8,6 +8,10 @@ import { initRedis, closeRedis } from './config/redis.js';
 import { closeQueues } from './jobs/queue.js';
 import { startPlagiarismWorker, stopPlagiarismWorker } from './jobs/plagiarism.job.js';
 import { startEmailWorker, stopEmailWorker } from './jobs/email.job.js';
+import {
+  startDocumentExtractionWorker,
+  stopDocumentExtractionWorker,
+} from './jobs/documentExtraction.job.js';
 import { initializeSocket } from './services/socket.service.js';
 import { verifyEmailTransport } from './modules/notifications/email.service.js';
 import mongoose from 'mongoose';
@@ -35,6 +39,7 @@ const startServer = async () => {
     // Start BullMQ workers (only if Redis is available)
     startPlagiarismWorker();
     startEmailWorker();
+    startDocumentExtractionWorker();
 
     const smtpHealth = await verifyEmailTransport();
     if (smtpHealth.status === 'healthy') {
@@ -103,6 +108,7 @@ const gracefulShutdown = async (signal) => {
     // 2. Stop background workers
     await stopPlagiarismWorker();
     await stopEmailWorker();
+    await stopDocumentExtractionWorker();
 
     // 3. Close job queues
     await closeQueues();

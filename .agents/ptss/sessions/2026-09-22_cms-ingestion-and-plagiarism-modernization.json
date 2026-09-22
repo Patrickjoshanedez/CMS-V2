@@ -1,0 +1,30 @@
+{
+  "session_id": "2026-09-22_cms-ingestion-and-plagiarism-modernization",
+  "task": "Comprehensive modernization of CMS-V2 ingestion & integrity validation pipelines: PaddleOCR-VL (0.9B) parsing microservice, BAAI/bge-m3 1024-dim representations, and two-stage HybridSourceTracker (HST) with Winnowing re-ranking",
+  "timestamp": "2026-09-22T01:45:00.000Z",
+  "status": "completed",
+  "evidence": {
+    "modernization_verification_suite": "passed (7/7 tests: BGE-M3 1024-dim, 8192 context, sparse lexical weights, HST formula, gating, end-to-end pipeline, OCR heuristics)",
+    "server_unit_tests": "passed (4/4 ocrExtraction.service tests, 6/6 submission.review-flow tests)",
+    "endpoint_parity": "passed (204 Server / 182 Client, UNMATCHED_COUNT = 0)",
+    "agentic_governance": "passed (60/60 checks)",
+    "governance_pipeline": "passed (all stages valid, 0 errors, 0 warnings)"
+  },
+  "changes": {
+    "plagiarism_engine/plagiarism_engine/config.py": "Configured BAAI/bge-m3, 1024-dim embedding schema, cms_documents_v2 collection, 8192-token context length, HST coarse top-K=50, calibrated weights (0.50/0.30/0.20), and 0.75/0.85 threshold bounds.",
+    "plagiarism_engine/plagiarism_engine/embeddings.py": "Upgraded EmbeddingModel to BAAI/bge-m3 with dual-backend support (FlagEmbedding + SentenceTransformers fallback), 1024-dim dense normalization, sparse lexical salience weights, and compute_sparse_similarity.",
+    "plagiarism_engine/plagiarism_engine/database.py": "Updated collection name to cms_documents_v2 and implemented query_candidates_with_scores for coarse ANN retrieval.",
+    "plagiarism_engine/plagiarism_engine/hst_pipeline.py": "Implemented two-stage HybridSourceTracker: Stage 1 coarse ANN candidate retrieval (top-50) + Stage 2 fine-grained Winnowing n-gram and sparse lexical re-ranking with calibrated composite scoring.",
+    "plagiarism_engine/plagiarism_engine/main.py": "Exposed POST /check-sync endpoint for real-time Node.js worker integration.",
+    "ocr_engine/": "Implemented standalone PaddleOCR-VL (0.9B) FastAPI microservice with PyMuPDF fast-path (<3 GB RAM envelope, 5-page GC batches, /health and POST /api/v1/parse-document).",
+    "scripts/migrate_vectors_bge_m3.py": "Created idempotent blue/green MongoDB + ChromaDB vector re-embedding backfill script.",
+    "server/config/env.js": "Added OCR_ENGINE_URL, OCR_ENGINE_TIMEOUT_MS, and PLAGIARISM_ENGINE_URL environment configurations.",
+    "server/services/ocrExtraction.service.js": "Implemented centralized Node.js OCR extraction gateway calling microservice with local fallback returning ocrStatus: degraded.",
+    "server/jobs/plagiarism.job.js": "Refactored worker to delegate primarily to Python HST /check-sync endpoint with in-process Node.js Winnowing fallback.",
+    "docker-compose-v2.yml": "Added modernized containerized stack preserving existing compose specs."
+  },
+  "runbook": {
+    "lesson": "Upgrading vector dimensionality (384 -> 1,024) requires blue/green collection isolation (cms_documents_v2) so existing workloads remain operational during backfill, and two-stage candidate retrieval (top-50 ANN + exact Winnowing) reduces n-gram comparison complexity from O(N) to O(K) while catching localized edits.",
+    "prevention": "Ensure all document reading and extraction modules implement graceful local fallbacks (degraded mode) when remote container microservices are cold-starting or unreachable."
+  }
+}

@@ -726,30 +726,10 @@ const env = Object.freeze({
   ),
 
   // PDF metadata extraction and similarity audit
-  PDF_METADATA_ENABLE_GLM_OCR: parseBoolean(process.env.PDF_METADATA_ENABLE_GLM_OCR, true),
-  PDF_METADATA_GLM_MODEL: process.env.PDF_METADATA_GLM_MODEL || 'glm-ocr:latest',
-  PDF_METADATA_GLM_STRATEGY: (process.env.PDF_METADATA_GLM_STRATEGY || 'fallback')
-    .toLowerCase()
-    .trim(),
   PDF_METADATA_CACHE_TTL_MS: parseInt(process.env.PDF_METADATA_CACHE_TTL_MS, 10) || 600000,
-  PDF_METADATA_GLM_TEMPERATURE: parseFloatInRange(
-    process.env.PDF_METADATA_GLM_TEMPERATURE,
-    0.0,
-    0,
-    2,
-  ),
-  PDF_METADATA_GLM_TOP_P: parseFloatInRange(process.env.PDF_METADATA_GLM_TOP_P, 0.2, 0, 1),
-  PDF_METADATA_GLM_REPEAT_PENALTY: parseFloatInRange(
-    process.env.PDF_METADATA_GLM_REPEAT_PENALTY,
-    1.12,
-    0.5,
-    2.5,
-  ),
-  PDF_METADATA_GLM_PROMPT_MAX_CHARS: parsePositiveInteger(
-    process.env.PDF_METADATA_GLM_PROMPT_MAX_CHARS,
-    8000,
-  ),
-  PDF_METADATA_GLM_TIMEOUT_MS: parsePositiveInteger(process.env.PDF_METADATA_GLM_TIMEOUT_MS, 20000),
+  OCR_ENGINE_URL: process.env.OCR_ENGINE_URL || 'http://cms-ocr-engine:8000',
+  OCR_ENGINE_TIMEOUT_MS: parsePositiveInteger(process.env.OCR_ENGINE_TIMEOUT_MS, 15000),
+  PLAGIARISM_ENGINE_URL: process.env.PLAGIARISM_ENGINE_URL || 'http://plagiarism_api:8001',
   PDF_METADATA_ENABLE_DOI_ENRICHMENT: parseBoolean(
     process.env.PDF_METADATA_ENABLE_DOI_ENRICHMENT,
     true,

@@ -1,0 +1,59 @@
+{
+  "session_id": "2026-09-23_unified-pdf-highlighter-and-evaluation-workspace",
+  "date": "2026-09-23T00:30:00.000Z",
+  "task_summary": "Elevated BukSU CMS-V2 manuscript evaluation pipeline into institutional-grade defense evaluation suite: 1) Embedded one-click '+ Add to ADM Directive' button in dual highlight popovers for exact plagiarism matches (>75%) and panel comments, auto-populating page numbers and remediation directives in the Action Done Matrix. 2) Built resilient multi-span and hyphenation normalizer in plagiarismHighlightAdapter.js stripping soft hyphens (\\u00ad), zero-width spaces, collapsing line-end hyphens, and normalizing ligatures. 3) Added non-destructive layer opacity controls (15%-100%) via CSS custom properties (--comments-opacity, --plagiarism-opacity). 4) Created gutter margin split-pills with smooth-scroll anchors and focus rings. 5) Fixed React 18 infinite re-render loop on default array props in EvaluationWorkspace.jsx using EMPTY_ARRAY and prevAdmItemsRef. 6) Hardened comment.model.js Mongoose pre-hook across ['validate', 'save']. 7) Engineered @media print defense evaluation summary appendix with panel signature lines. Passed 30/30 client unit tests, 3/3 server model tests, 207/188 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, pristine workspace guardrails, and 11-point Playwright visual audit across desktop and mobile in light and dark themes.",
+  "task_category": "pdf_evaluation_suite_high_impact_enhancements",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop", "continual-learning"],
+  "verification": {
+    "unit_tests_passed": 33,
+    "unit_test_suites": [
+      "plagiarismHighlightAdapter.test.js",
+      "EvaluationWorkspace.test.jsx",
+      "SophisticatedDocumentViewer.test.jsx",
+      "comment.model.test.js"
+    ],
+    "endpoint_parity": {
+      "server_endpoints": 207,
+      "client_endpoints": 188,
+      "unmatched_count": 0
+    },
+    "agentic_governance": {
+      "total_checks": 60,
+      "passed_checks": 60,
+      "failed_checks": 0
+    },
+    "workspace_guardrail": "pristine",
+    "playwright_visual_audit": {
+      "desktop_dark": "passed",
+      "desktop_light": "passed",
+      "comments_layer_desktop": "passed",
+      "plagiarism_layer_desktop": "passed",
+      "adm_tab_desktop": "passed",
+      "sources_tab_desktop": "passed",
+      "mobile_dark": "passed",
+      "mobile_light": "passed",
+      "mobile_panel_tab": "passed",
+      "opacity_sliders": "passed",
+      "print_appendix": "passed"
+    }
+  },
+  "lessons_learned": [
+    {
+      "keyword": "lesson",
+      "context": "React 18 renders re-evaluate default array parameters (e.g. admItems = []) as new object references on every render pass. When bound to useEffect dependencies, this triggers an infinite state update loop. Declare Object.freeze([]) as an immutable module constant and track genuine reference changes with useRef."
+    },
+    {
+      "keyword": "lesson",
+      "context": "Academic manuscripts frequently break terms across dual-column line wraps with hard hyphens or unicode soft hyphens (\\u00ad). Normalizing typography (collapsing /(\\w+)-\\s*\\r?\\n\\s*(\\w+)/g to $1$2 and unfolding ligatures) before computing getTextPosition is required for reliable PDF text layer coordinate resolution."
+    },
+    {
+      "keyword": "prevention",
+      "context": "Non-destructive layer opacity adjustments must drive CSS custom properties on container wrappers (--comments-opacity, --plagiarism-opacity) rather than modifying highlight objects or React state per highlight, preventing expensive re-renders and canvas redraws."
+    },
+    {
+      "keyword": "runbook",
+      "context": "For institutional print defense compliance, hide interactive UI bars with print:hidden and render an un-truncated Action Done Matrix table and Committee Sign-off blocks using hidden print:block."
+    }
+  ]
+}

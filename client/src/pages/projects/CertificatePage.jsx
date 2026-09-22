@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Download, FileText, Loader2 } from 'lucide-react';
+import { Upload, Download, FileText, Loader2, Eye } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUploadCertificate, useCertificateUrl } from '@/hooks/useProjects';
 import { ROLES } from '@cms/shared';
@@ -10,12 +10,14 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
+import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
 
 export default function CertificatePage() {
   const { projectId } = useParams();
   const { user } = useAuthStore();
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { data: certData, isLoading, isError, error, refetch } = useCertificateUrl(projectId);
   const uploadMutation = useUploadCertificate();
@@ -104,12 +106,23 @@ export default function CertificatePage() {
                     </Badge>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={certificateUrl} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </a>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={certificateUrl} target="_blank" rel="noopener noreferrer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </a>
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -165,6 +178,20 @@ export default function CertificatePage() {
           </CardContent>
         </Card>
       </div>
+
+      {previewOpen && certificateUrl && (
+        <SophisticatedDocumentViewer
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          fileUrl={certificateUrl}
+          submission={{
+            title: 'Completion Certificate',
+            fileName: 'Completion_Certificate.pdf',
+            fileType: 'application/pdf',
+            chapter: 'Certificate',
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

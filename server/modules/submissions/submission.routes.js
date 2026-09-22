@@ -39,6 +39,9 @@ import {
   updateJustificationSchema,
   batchUploadChapterSchema,
   revisionDiffQuerySchema,
+  createSubmissionCommentSchema,
+  addCommentReplySchema,
+  updateCommentStatusSchema,
 } from './submission.validation.js';
 
 const router = Router();
@@ -509,6 +512,7 @@ router.post(
   '/:submissionId/comments',
   authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
   validate(submissionIdParamSchema, 'params'),
+  validate(createSubmissionCommentSchema),
   submissionController.createSubmissionComment,
 );
 
@@ -532,6 +536,30 @@ router.delete(
   authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
   validate(submissionCommentParamSchema, 'params'),
   submissionController.deleteSubmissionComment,
+);
+
+/**
+ * POST /:submissionId/comments/:commentId/replies
+ * Add a reply to an existing comment.
+ */
+router.post(
+  '/:submissionId/comments/:commentId/replies',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionCommentParamSchema, 'params'),
+  validate(addCommentReplySchema),
+  submissionController.addSubmissionCommentReply,
+);
+
+/**
+ * PATCH /:submissionId/comments/:commentId/status
+ * Update status of an inline comment (open/resolved).
+ */
+router.patch(
+  '/:submissionId/comments/:commentId/status',
+  authorize(ROLES.INSTRUCTOR, ROLES.PANELIST, ROLES.ADVISER, ROLES.STUDENT),
+  validate(submissionCommentParamSchema, 'params'),
+  validate(updateCommentStatusSchema),
+  submissionController.updateSubmissionCommentStatus,
 );
 
 export default router;

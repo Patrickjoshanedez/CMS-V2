@@ -1,0 +1,53 @@
+{
+  "session_id": "2026-09-22_unified-pdf-highlighter-and-annotation-workspace",
+  "date": "2026-09-22T15:50:00.000Z",
+  "task_summary": "Unified react-pdf-highlighter-plus PDF annotation workspace replacing legacy viewer with multi-layer annotation adapter: 1) Viewport-independent ScaledPosition adapter bridging MongoDB comment.model.js ({x,y,width,height,pageNumber}) and plagiarism report spans. 2) Core PdfViewerWorkspace with custom highlight renderer, popup popover, threaded replies, and Flag to ADM integration. 3) Dual-pipeline plagiarism overlay using PDF.js text layer scan (getTextPosition) and diagonal striped cross-layer overlap detection (.archive-mark-overlap). 4) Split-screen EvaluationWorkspace (55% PDF / 45% tabbed drawer for Rubrics, ADM, and Sources) with sticky defense verdict bar, layer filtering ([All], [Comments], [Plagiarism]), and 100% semantic design tokens (bg-background, text-foreground, border-border, bg-card, bg-muted). 5) Embedded in canonical SophisticatedDocumentViewer with useLegacyIframe fallback. Passed 21/21 client unit tests across 4 test suites, 207/188 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, pristine workspace guardrails, and 9-point Playwright visual audit across desktop and mobile viewports in light and dark themes.",
+  "task_category": "pdf_highlighter_and_annotation_workspace_integration",
+  "skills_written": [],
+  "skills_patched": ["frontend-patterns", "verification-loop", "continual-learning"],
+  "verification": {
+    "unit_tests_passed": 21,
+    "unit_test_suites": [
+      "EvaluationWorkspace.test.jsx",
+      "SophisticatedDocumentViewer.test.jsx",
+      "SubmissionReviewPage.test.jsx",
+      "CertificatePage.test.jsx"
+    ],
+    "endpoint_parity": {
+      "server_endpoints": 207,
+      "client_endpoints": 188,
+      "unmatched_count": 0
+    },
+    "agentic_governance": {
+      "total_checks": 60,
+      "passed_checks": 60,
+      "failed_checks": 0
+    },
+    "workspace_guardrail": "pristine",
+    "playwright_visual_audit": {
+      "desktop_dark": "passed",
+      "desktop_light": "passed",
+      "comments_layer": "passed",
+      "plagiarism_layer": "passed",
+      "adm_tab": "passed",
+      "sources_tab": "passed",
+      "mobile_dark": "passed",
+      "mobile_light": "passed",
+      "mobile_panel_tab": "passed"
+    }
+  },
+  "lessons_learned": [
+    {
+      "keyword": "lesson",
+      "context": "react-pdf-highlighter-plus PdfLoader workerSrc defaults to relative URL against ESM dist package which returns 404 in Vite development servers. Always explicitly provide document={pdfUrl} and workerSrc='/pdf.worker.min.mjs' props."
+    },
+    {
+      "keyword": "prevention",
+      "context": "Ensure public/pdf.worker.min.mjs is maintained in client/public and synchronized with pdfjs-dist version in client/package.json."
+    },
+    {
+      "keyword": "runbook",
+      "context": "When adding or refactoring evaluation workspaces, use CSS semantic design system tokens (bg-background, text-foreground, bg-card, bg-muted, border-border) instead of literal slate classes to preserve WCAG AAA contrast in both Light and Dark modes."
+    }
+  ]
+}

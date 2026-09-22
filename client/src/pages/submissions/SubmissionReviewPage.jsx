@@ -19,8 +19,6 @@ import {
   User2,
   ExternalLink,
   BookOpen,
-  Maximize2,
-  Sparkles,
   RefreshCcw,
 } from 'lucide-react';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
@@ -36,8 +34,11 @@ import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadg
 import {
   useAddAnnotation,
   useAddAnnotationReply,
+  useSubmissionComments,
+  useCreateSubmissionComment,
+  useAddCommentReply,
+  useUpdateCommentStatus,
   useGoogleDocComments,
-  useMarkSubmissionAccepted,
   usePlagiarismReport,
   useRequestRevisionRound,
   useReviewSubmission,
@@ -501,6 +502,76 @@ export default function SubmissionReviewPage() {
     },
   });
 
+  const submissionCommentsQuery = useSubmissionComments(activeSubmissionId, {
+    enabled: !!activeSubmissionId,
+  });
+
+  const createSubmissionComment = useCreateSubmissionComment({
+    onSuccess: () => {
+      toast.success('Comment saved.');
+      submissionCommentsQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to save comment.');
+    },
+  });
+
+  const addCommentReplyMutation = useAddCommentReply({
+    onSuccess: () => {
+      toast.success('Reply posted.');
+      submissionCommentsQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to add reply.');
+    },
+  });
+
+  const updateCommentStatusMutation = useUpdateCommentStatus({
+    onSuccess: () => {
+      toast.success('Comment status updated.');
+      submissionCommentsQuery.refetch();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.error?.message || 'Failed to update comment status.');
+    },
+  });
+
+  const unifiedHighlights = useMemo(() => {
+    const rawComments = submissionCommentsQuery.data || [];
+    return rawComments.map((c, idx) => ({
+      id: c._id || `comment-${idx}`,
+      type: 'faculty_comment',
+      position: c.position || {
+        pageNumber: c.pageNumber || 1,
+        boundingRect: {
+          x1: c.x ?? 0,
+          y1: c.y ?? 0,
+          x2: (c.x ?? 0) + (c.width ?? 100),
+          y2: (c.y ?? 0) + (c.height ?? 20),
+          width: c.width ?? 100,
+          height: c.height ?? 20,
+        },
+        rects: c.position?.rects || [],
+      },
+      content: { text: c.selectedText || c.content || '' },
+      meta: {
+        commentId: c._id,
+        authorName: c.authorId
+          ? `${c.authorId.firstName || ''} ${c.authorId.lastName || ''}`.trim()
+          : 'Faculty',
+        authorRole: c.authorRole || 'adviser',
+        repliesCount: c.replies?.length || 0,
+        status: c.status || 'open',
+        replies: c.replies || [],
+      },
+    }));
+  }, [submissionCommentsQuery.data]);
+
+  const rawPlagiarismMatches = useMemo(() => {
+    const rep = plagiarismQuery.data?.data || plagiarismQuery.data;
+    return rep?.matches || rep?.sources || [];
+  }, [plagiarismQuery.data]);
+
   const addAnnotation = useAddAnnotation({
     onSuccess: () => toast.success('Comment saved.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to add comment.'),
@@ -519,11 +590,6 @@ export default function SubmissionReviewPage() {
   const approveAndClose = useReviewSubmission({
     onSuccess: () => toast.success('Round approved and closed.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to approve.'),
-  });
-
-  const markAccepted = useMarkSubmissionAccepted({
-    onSuccess: () => toast.success('Submission accepted. Review thread is now locked.'),
-    onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to accept.'),
   });
 
   /* ────── Loading ────── */
@@ -556,7 +622,6 @@ export default function SubmissionReviewPage() {
   const currentDocUrl = viewUrlQuery.data?.url || null;
   const viewUrlErrorCode = viewUrlQuery.error?.response?.data?.error?.code || null;
   const isSubmissionFileUnavailable = viewUrlErrorCode === 'SUBMISSION_FILE_UNAVAILABLE';
-  const extractedText = plagiarismQuery.data?.extractedText || '';
   const originalityScore =
     activeRound?.originalityScore ?? plagiarismQuery.data?.originalityScore ?? null;
 
@@ -893,6 +958,35 @@ export default function SubmissionReviewPage() {
                         currentDocUrl ||
                         (activeSubmissionId ? `/api/submissions/${activeSubmissionId}/file` : null)
                       }
+                      highlights={unifiedHighlights}
+                      plagiarismMatches={rawPlagiarismMatches}
+                      onSelectionFinished={(selection) => {
+                        if (!selection || !activeSubmissionId) return;
+                        setSelectionDraft({
+                          selectedText: selection.selectedText || '',
+                          position: selection.position,
+                          pageNumber: selection.pageNumber || selection.position?.pageNumber || 1,
+                          content: '',
+                          x: window.innerWidth / 2 - 160,
+                          y: 150,
+                        });
+                      }}
+                      onAddReply={(commentId, text) => {
+                        addCommentReplyMutation.mutate({
+                          submissionId: activeSubmissionId,
+                          commentId,
+                          content: text,
+                        });
+                      }}
+                      onResolveComment={(commentId, nextStatus) => {
+                        updateCommentStatusMutation.mutate({
+                          submissionId: activeSubmissionId,
+                          commentId,
+                          status: nextStatus,
+                        });
+                      }}
+                      canComment={canModerate}
+                      userRole={reviewerRole ? reviewerRole.toLowerCase() : 'adviser'}
                     />
                   </div>
                 )}
@@ -1065,20 +1159,35 @@ export default function SubmissionReviewPage() {
                 className="gap-1.5"
                 disabled={
                   addAnnotation.isPending ||
+                  createSubmissionComment.isPending ||
                   !selectionDraft.content.trim() ||
                   !activeSubmissionId ||
                   !canModerate
                 }
                 onClick={() => {
-                  addAnnotation.mutate(
-                    {
-                      submissionId: activeSubmissionId,
-                      content: selectionDraft.content.trim(),
-                      selectedText: selectionDraft.selectedText,
-                      highlightCoords: { mode: 'text-selection' },
-                    },
-                    { onSuccess: () => setSelectionDraft(null) },
-                  );
+                  if (selectionDraft.position) {
+                    createSubmissionComment.mutate(
+                      {
+                        submissionId: activeSubmissionId,
+                        content: selectionDraft.content.trim(),
+                        selectedText: selectionDraft.selectedText,
+                        pageNumber: selectionDraft.pageNumber || 1,
+                        position: selectionDraft.position,
+                        authorRole: reviewerRole ? reviewerRole.toLowerCase() : 'adviser',
+                      },
+                      { onSuccess: () => setSelectionDraft(null) },
+                    );
+                  } else {
+                    addAnnotation.mutate(
+                      {
+                        submissionId: activeSubmissionId,
+                        content: selectionDraft.content.trim(),
+                        selectedText: selectionDraft.selectedText,
+                        highlightCoords: { mode: 'text-selection' },
+                      },
+                      { onSuccess: () => setSelectionDraft(null) },
+                    );
+                  }
                 }}
               >
                 <MessageSquare className="h-3.5 w-3.5" />
@@ -1099,6 +1208,35 @@ export default function SubmissionReviewPage() {
             currentDocUrl ||
             (activeSubmissionId ? `/api/submissions/${activeSubmissionId}/file` : null)
           }
+          highlights={unifiedHighlights}
+          plagiarismMatches={rawPlagiarismMatches}
+          onSelectionFinished={(selection) => {
+            if (!selection || !activeSubmissionId) return;
+            setSelectionDraft({
+              selectedText: selection.selectedText || '',
+              position: selection.position,
+              pageNumber: selection.pageNumber || selection.position?.pageNumber || 1,
+              content: '',
+              x: window.innerWidth / 2 - 160,
+              y: 150,
+            });
+          }}
+          onAddReply={(commentId, text) => {
+            addCommentReplyMutation.mutate({
+              submissionId: activeSubmissionId,
+              commentId,
+              content: text,
+            });
+          }}
+          onResolveComment={(commentId, nextStatus) => {
+            updateCommentStatusMutation.mutate({
+              submissionId: activeSubmissionId,
+              commentId,
+              status: nextStatus,
+            });
+          }}
+          canComment={canModerate}
+          userRole={reviewerRole ? reviewerRole.toLowerCase() : 'adviser'}
         />
       )}
     </DashboardLayout>

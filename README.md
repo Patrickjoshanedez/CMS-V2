@@ -29,6 +29,18 @@ This architecture avoids full corpus scans for each request and does not require
 
 ---
 
+## Document Ingestion & OCR Auto-Fill Pipeline
+
+The archival document ingestion pipeline automates metadata extraction and field pre-population for uploaded capstone manuscripts and journal papers:
+
+- **OCR Engine Microservice**: `PaddleOCR-VL (0.9B)` vision-language model (`cms-ocr-engine:8000`) for high-accuracy document layout analysis and text recognition.
+- **Vector Core**: `BAAI/bge-m3` (1024-dim dense + sparse representation) for semantic title search and cross-corpus vector alignment.
+- **Asynchronous Queue & Worker**: `server/jobs/documentExtraction.job.js` (`document-extraction` queue via BullMQ + Redis) returning HTTP 202 with job tracking, Redis result caching (`1h` TTL), and real-time Socket.IO stage progress (10%–100%).
+- **Metadata Extraction Service**: `server/services/metadataExtraction.service.js` isolates OCR orchestration from manuscript CRUD (`document.service.js`).
+- **Resilient Fallback**: Automatic in-process `pdf-parse` heuristic extraction when the OCR container is unreachable (`ocrStatus: 'degraded'`).
+
+---
+
 ## Project Structure
 
 ```text

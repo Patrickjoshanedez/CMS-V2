@@ -2,8 +2,36 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 const parsePdfMock = vi.fn();
 
+vi.mock('../../services/ocrExtraction.service.js', () => ({
+  ocrExtractionService: {
+    parseDocument: vi.fn().mockResolvedValue({
+      fullText: '',
+      tables: [],
+      formulas: [],
+      metadata: { title: null, abstract: null, authors: [], year: null, page_count: 0 },
+      ocrStatus: 'degraded',
+    }),
+  },
+  default: {
+    parseDocument: vi.fn().mockResolvedValue({
+      fullText: '',
+      tables: [],
+      formulas: [],
+      metadata: { title: null, abstract: null, authors: [], year: null, page_count: 0 },
+      ocrStatus: 'degraded',
+    }),
+  },
+}));
+
 vi.mock('pdf-parse', () => ({
   default: parsePdfMock,
+  PDFParse: class {
+    constructor() {}
+    async getText() {
+      return parsePdfMock();
+    }
+    async destroy() {}
+  },
 }));
 
 describe('pdfMetadataExtractor', () => {
@@ -12,9 +40,6 @@ describe('pdfMetadataExtractor', () => {
   beforeEach(() => {
     vi.resetModules();
     parsePdfMock.mockReset();
-    process.env.PDF_METADATA_ENABLE_GLM_OCR = 'false';
-    process.env.PDF_METADATA_GLM_STRATEGY = 'fallback';
-    process.env.PDF_METADATA_ENABLE_PLAGIARISM_PREPROCESS = 'false';
   });
 
   afterAll(() => {

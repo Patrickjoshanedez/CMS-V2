@@ -53,6 +53,7 @@ const ArchivePlagiarismCheckerPage = lazy(
 );
 const SecretaryReviewPage = lazy(() => import('./pages/projects/SecretaryReviewPage'));
 const DefenseSchedulingPage = lazy(() => import('./pages/instructor/DefenseSchedulingPage'));
+const PdfWorkspaceTestPage = lazy(() => import('./pages/dev/PdfWorkspaceTestPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -181,6 +182,7 @@ const PROTECTED_ROUTES = [
   { path: '/archive/upload/academic-paper', Component: AcademicPaperArchiveUploadPage },
   { path: '/archive/upload/academic-journal', Component: AcademicJournalArchiveUploadPage },
   { path: '/projects/:projectId/certificate', Component: CertificatePage },
+  { path: '/dev/pdf-workspace-test', Component: PdfWorkspaceTestPage },
   { path: '/reports', Component: ReportsPage },
   { path: '/reports/bulk-upload', Component: ExistingCapstoneUploadPage },
   // Admin

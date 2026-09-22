@@ -21,6 +21,16 @@ export const metadataService = {
   },
 
   /**
+   * Check status or retrieve result of an asynchronous BullMQ document extraction job.
+   *
+   * @param {string} jobId - BullMQ job ID
+   * @returns {Promise<any>}
+   */
+  getExtractionStatus: (jobId) => {
+    return api.get(`/documents/extraction-status/${encodeURIComponent(jobId)}`);
+  },
+
+  /**
    * Store OCR field correction feedback for future extraction improvements.
    *
    * @param {object} payload - Feedback data containing corrected fields

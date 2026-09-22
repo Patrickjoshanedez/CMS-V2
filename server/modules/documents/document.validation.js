@@ -49,3 +49,7 @@ export const submitMetadataFeedbackSchema = z.object({
   feedbackNotes: z.string().trim().max(1000).optional(),
   context: z.string().trim().max(120).optional(),
 });
+
+export const extractionJobIdParamSchema = z.object({
+  jobId: z.string().trim().min(1, 'jobId is required').max(128),
+});

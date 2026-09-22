@@ -232,3 +232,51 @@ export const listSubmissionsQuerySchema = z.object({
 export const revisionDiffQuerySchema = z.object({
   compareWithId: objectIdField.optional(),
 });
+
+/* ═══════════════════ Inline Comments & PDF Highlights ═══════════════════ */
+
+const rectCoordinateSchema = z.object({
+  x1: z.number(),
+  y1: z.number(),
+  x2: z.number(),
+  y2: z.number(),
+  width: z.number(),
+  height: z.number(),
+  pageNumber: z.number().optional(),
+});
+
+export const createSubmissionCommentSchema = z.object({
+  pageNumber: z.coerce.number().int().min(1, 'Page number must be at least 1'),
+  position: z
+    .object({
+      boundingRect: rectCoordinateSchema,
+      rects: z.array(rectCoordinateSchema).optional(),
+    })
+    .optional(),
+  coordinates: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number(),
+      height: z.number(),
+    })
+    .optional(),
+  highlightText: z.string().trim().max(5000).optional().default(''),
+  highlightedText: z.string().trim().max(5000).optional().default(''),
+  commentText: z.string().trim().max(5000).optional().default(''),
+  text: z.string().trim().max(5000).optional().default(''),
+  authorRole: z.string().trim().optional(),
+  status: z.enum(['open', 'resolved']).optional().default('open'),
+});
+
+export const addCommentReplySchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(1, 'Reply text is required')
+    .max(2000, 'Reply text must not exceed 2000 characters'),
+});
+
+export const updateCommentStatusSchema = z.object({
+  status: z.enum(['open', 'resolved']),
+});

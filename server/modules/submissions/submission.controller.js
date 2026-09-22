@@ -478,7 +478,16 @@ export const getSubmissionVersions = catchAsync(async (req, res) => {
 /** POST /api/submissions/:submissionId/comments — Create inline highlight comment */
 export const createSubmissionComment = catchAsync(async (req, res) => {
   const { submissionId } = req.params;
-  const { pageNumber, coordinates, highlightText, commentText } = req.body;
+  const {
+    pageNumber,
+    coordinates,
+    position,
+    highlightText,
+    highlightedText,
+    commentText,
+    text,
+    authorRole,
+  } = req.body;
 
   const authorName =
     [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
@@ -487,15 +496,103 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
     submissionId,
     authorId: req.user._id,
     authorName,
+    authorRole: authorRole || (req.user.role === ROLES.STUDENT ? 'student' : 'adviser'),
     pageNumber: Number(pageNumber) || 1,
-    coordinates: coordinates || { x: 0, y: 0, width: 0, height: 0 },
-    highlightText: highlightText || '',
-    commentText,
+    position,
+    coordinates:
+      coordinates ||
+      (position?.boundingRect
+        ? {
+            x: position.boundingRect.x1,
+            y: position.boundingRect.y1,
+            width: position.boundingRect.width,
+            height: position.boundingRect.height,
+          }
+        : { x: 0, y: 0, width: 0, height: 0 }),
+    highlightText: highlightText || highlightedText || '',
+    highlightedText: highlightedText || highlightText || '',
+    commentText: commentText || text || '',
+    text: text || commentText || '',
+    status: 'open',
   });
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
     message: 'Inline comment created.',
+    data: { comment },
+  });
+});
+
+/** POST /api/submissions/:submissionId/comments/:commentId/replies — Add reply to inline comment */
+export const addSubmissionCommentReply = catchAsync(async (req, res) => {
+  const { commentId } = req.params;
+  const { text } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: 'Reply text is required.',
+    });
+  }
+
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment not found.',
+    });
+  }
+
+  const authorName =
+    [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
+
+  const reply = {
+    userId: req.user._id,
+    authorName,
+    authorRole: req.user.role === ROLES.STUDENT ? 'student' : 'adviser',
+    text: text.trim(),
+    createdAt: new Date(),
+  };
+
+  if (!Array.isArray(comment.replies)) {
+    comment.replies = [];
+  }
+  comment.replies.push(reply);
+  await comment.save();
+
+  res.status(HTTP_STATUS.CREATED).json({
+    success: true,
+    message: 'Reply added.',
+    data: { comment },
+  });
+});
+
+/** PATCH /api/submissions/:submissionId/comments/:commentId/status — Update comment status (open/resolved) */
+export const updateSubmissionCommentStatus = catchAsync(async (req, res) => {
+  const { commentId } = req.params;
+  const { status } = req.body;
+
+  if (!['open', 'resolved'].includes(status)) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message: 'Status must be open or resolved.',
+    });
+  }
+
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      success: false,
+      message: 'Comment not found.',
+    });
+  }
+
+  comment.status = status;
+  await comment.save();
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: `Comment status updated to ${status}.`,
     data: { comment },
   });
 });

@@ -2084,3 +2084,135 @@ html.dark[data-high-contrast='true'] {
 ::highlight(docx-comment) {
   background-color: hsl(45 100% 88% / 0.6);
 }
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* Unified PDF Annotation & Multi-Layer Overlays (react-pdf-highlighter-plus) */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --comments-opacity: 0.8;
+  --plagiarism-opacity: 0.8;
+}
+
+/* Plagiarism base overlay (rose-500 with dynamic opacity) */
+.highlight-plagiarism {
+  background-color: rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.22)) !important;
+  border-bottom: 2px solid rgba(244, 63, 94, var(--plagiarism-opacity, 0.8)) !important;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+.highlight-plagiarism:hover {
+  background-color: rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.38)) !important;
+}
+
+/* Faculty comment base overlay (indigo-500 with dynamic opacity) */
+.highlight-faculty {
+  background-color: rgba(99, 102, 241, calc(var(--comments-opacity, 0.8) * 0.25)) !important;
+  border-bottom: 2px solid rgba(99, 102, 241, var(--comments-opacity, 0.8)) !important;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+.highlight-faculty:hover {
+  background-color: rgba(99, 102, 241, calc(var(--comments-opacity, 0.8) * 0.4)) !important;
+}
+
+/* Composite Overlap: High-contrast diagonal hash fill */
+.archive-mark-overlap {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.28)),
+    rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.28)) 6px,
+    rgba(99, 102, 241, calc(var(--comments-opacity, 0.8) * 0.28)) 6px,
+    rgba(99, 102, 241, calc(var(--comments-opacity, 0.8) * 0.28)) 12px
+  ) !important;
+  border-bottom: 2px dashed rgb(244, 63, 94) !important;
+  outline: 1px solid rgba(99, 102, 241, 0.7) !important;
+  cursor: pointer;
+}
+.archive-mark-overlap:hover {
+  filter: brightness(1.15);
+}
+
+/* Focused active highlight ring */
+.archive-mark-active {
+  box-shadow:
+    0 0 0 2px #38bdf8,
+    0 0 12px rgba(56, 189, 248, 0.6) !important;
+  z-index: 40 !important;
+}
+
+/* Gutter Margin Split-Pills with Quick Anchors */
+.gutter-split-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+  overflow: hidden;
+  user-select: none;
+}
+.gutter-split-pill:hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.gutter-split-pill .pill-comment {
+  background-color: #4f46e5;
+  color: #ffffff;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.gutter-split-pill .pill-comment:hover {
+  background-color: #4338ca;
+}
+.gutter-split-pill .pill-plagiarism {
+  background-color: #e11d48;
+  color: #ffffff;
+  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.gutter-split-pill .pill-plagiarism:hover {
+  background-color: #be123c;
+}
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* Print Stylesheet for Defense Binders & Physical Evaluation (@media print) */
+/* ══════════════════════════════════════════════════════════════════════ */
+@media print {
+  .highlight-faculty {
+    background-color: transparent !important;
+    border-bottom: 2px solid #4f46e5 !important;
+  }
+  .highlight-plagiarism {
+    background-color: transparent !important;
+    border-bottom: 2px dashed #e11d48 !important;
+  }
+  .archive-mark-overlap {
+    background-color: transparent !important;
+    border-bottom: 3px double #7c3aed !important;
+    outline: none !important;
+  }
+  .gutter-split-pill {
+    display: none !important;
+  }
+  .no-print,
+  [data-no-print='true'] {
+    display: none !important;
+  }
+  .print-only,
+  [data-print-only='true'] {
+    display: block !important;
+  }
+}

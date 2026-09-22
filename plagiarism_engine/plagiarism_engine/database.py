@@ -82,7 +82,7 @@ class ChromaStore:
     def __init__(
         self,
         persist_dir: Path,
-        collection_name: str = "cms_documents",
+        collection_name: str = "cms_documents_v2",
         hnsw_space: str = "cosine",
         hnsw_m: int = 16,
         hnsw_ef_construction: int = 200,
@@ -285,6 +285,61 @@ class ChromaStore:
         # Sort by best similarity descending, take top_k
         ranked = sorted(best_score.items(), key=lambda x: x[1], reverse=True)
         return [doc_id for doc_id, _ in ranked[:top_k]]
+
+    def query_candidates_with_scores(
+        self,
+        query_embeddings: np.ndarray,
+        top_k: int = 50,
+        similarity_threshold: float = 0.0,
+        exclude_document_ids: list[str] | None = None,
+    ) -> list[tuple[str, float]]:
+        """Find the top-K most similar documents with their best cosine similarity scores.
+
+        Args:
+            query_embeddings: 2-D float32 array of shape (n_queries, dim).
+            top_k: Max candidate documents to return.
+            similarity_threshold: Minimum similarity threshold.
+            exclude_document_ids: Document IDs to ignore.
+
+        Returns:
+            List of (document_id, cosine_similarity) tuples sorted descending.
+        """
+        if self.count == 0:
+            return []
+
+        if query_embeddings.ndim == 1:
+            query_embeddings = query_embeddings.reshape(1, -1)
+
+        n_queries = query_embeddings.shape[0]
+        n_results = min(top_k * 3, self.count)
+
+        results = self._collection.query(
+            query_embeddings=query_embeddings.tolist(),
+            n_results=n_results,
+            include=["metadatas", "distances"],
+        )
+
+        best_score: dict[str, float] = {}
+        exclude_set = set(exclude_document_ids or [])
+
+        for q_idx in range(n_queries):
+            metadatas_row = results["metadatas"][q_idx]
+            distances_row = results["distances"][q_idx]
+
+            for meta, dist in zip(metadatas_row, distances_row):
+                doc_id = meta.get("document_id", "")
+                if not doc_id or doc_id in exclude_set:
+                    continue
+
+                similarity = float(max(0.0, min(1.0, 1.0 - dist)))
+                if similarity < similarity_threshold:
+                    continue
+
+                if doc_id not in best_score or similarity > best_score[doc_id]:
+                    best_score[doc_id] = similarity
+
+        ranked = sorted(best_score.items(), key=lambda x: x[1], reverse=True)
+        return [(doc_id, float(score)) for doc_id, score in ranked[:top_k]]
 
     # ─── Text retrieval ───────────────────────────────────────────────────────
 

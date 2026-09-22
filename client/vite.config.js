@@ -156,7 +156,11 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    optimizeDeps: {
+      include: ['react-pdf-highlighter-plus', 'pdfjs-dist'],
+    },
     build: {
+      target: 'esnext',
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -182,7 +186,10 @@ export default defineConfig(({ mode }) => {
               if (normalizedId.includes('/docx-preview/') || normalizedId.includes('/jszip/')) {
                 return 'engine-docx';
               }
-              if (normalizedId.includes('/pdfjs-dist/')) {
+              if (
+                normalizedId.includes('/pdfjs-dist/') ||
+                normalizedId.includes('/react-pdf-highlighter-plus/')
+              ) {
                 return 'engine-pdf';
               }
               if (
