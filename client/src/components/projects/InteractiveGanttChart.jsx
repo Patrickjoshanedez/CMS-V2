@@ -248,7 +248,7 @@ export default function InteractiveGanttChart({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="interactive-gantt-chart-root">
       {/* View Switcher Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border border-border/70 p-3 rounded-xl shadow-xs">
         <div>

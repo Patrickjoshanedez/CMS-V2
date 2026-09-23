@@ -1,6 +1,61 @@
 # CMS-V2 Technical Context
 
 #### Prevention Rules
+- Grade Sign-Off Collapsible Integration & Sidebar Reuse Prevention Rule (Defense Evaluation Collapsible + ProjectInformationSidebar):
+  1. Lesson learned: Housing the "Grades Pending Panel Sign-Off" evaluation status as a separate, full-height card to the side of collapsible workflow cards takes up excessive lateral screen real estate, leaving the page visually unbalanced and forcing artificial grid constraints. Integrating Defense Evaluation & Grade Sign-Off directly inside Section 4 of Capstone1CollapsibleSections (collapsed by default, matching Proposal Stage, Chapters 1-3, and ADM) creates a clean, uniform, and space-efficient layout where all defense components remain easily expandable on demand.
+  2. Lesson learned: The top tab navigation bar in MyProjectPage should focus purely on the primary capstone phases (Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, and Consultations). Exposing "Action Done Matrix" as an independent top-level tab created unnecessary navigational redundancy when ADM is already housed as Section 3 within Capstone 1. Removing ADM from the tab bar streamlines navigation to 5 primary tabs while preserving full ADM functionality in Section 3.
+  3. Lesson learned: Duplicating sidebar widget assemblies between student views (MyProjectPage) and faculty/instructor views (ProjectDetailPage) created information divergence. Extracting the canonical right-hand sidebar into a reusable ProjectInformationSidebar component containing the complete suite of institutional elements (3-column KPI card [Avg Score, Panelists, Total Evals], Evaluation Summary, Faculty Committee & Proponent Roster FRAD2, Plagiarism Threshold, Project Context, and Academic Reports FRINS6) establishes 100% information and visual parity across all institutional roles.
+  4. Prevention: Never hardcode duplicate sidebar widget compositions between student and faculty project views; maintain a single canonical ProjectInformationSidebar component accepting capability flags (canManage, canManageArchive). Always default all Capstone 1 accordion sections (including Section 4 Defense Evaluation & Grade Sign-Off) to collapsed on initial page load to guarantee a compact, zero-clutter first impression.
+  5. Runbook & Checklist for Defense Evaluation Collapsible & Sidebar Reuse:
+     - Step 1 (Checklist): Verify Capstone1CollapsibleSections has 4 sections: Proposal Stage, Chapters 1-3 & Compiled Manuscript, Action Done Matrix (ADM v1), and Defense Evaluation & Grade Sign-Off.
+     - Step 2 (Checklist): Verify all 4 sections in Capstone1CollapsibleSections are collapsed by default on page load (expandedSection is null or controlled via defaultExpanded).
+     - Step 3 (Checklist): Verify MyProjectPage has exactly 5 tabs in TabsList (Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, Consultations) with ADM removed from tabs.
+     - Step 4 (Checklist): Verify ProjectInformationSidebar renders KPI metrics, Evaluation Summary, Faculty Committee & Proponent Roster, Plagiarism Threshold, Project Context, and Academic Reports.
+     - Step 5 (Checklist): Verify ProjectDetailPage reuses Capstone1CollapsibleSections and ProjectInformationSidebar, providing complete feature parity with faculty-specific capabilities (e.g. inline ChapterReviewPanel when !isStudent).
+     - Step 6 (Evidence): Run targeted tests: npm test --workspace=client -- src/components/projects/Capstone1CollapsibleSections.test.jsx src/components/projects/ProjectInformationSidebar.test.jsx src/pages/projects/MyProjectPage.test.jsx (34/34 passed).
+     - Step 7 (Evidence): Verify API route parity (UNMATCHED_COUNT = 0, 208 server / 189 client), agentic governance (60/60 checks passed), and governance pipeline passed.
+     - Step 8 (Evidence): Execute Playwright visual audit across Desktop Light (1440x900), Desktop Dark (1440x900), Mobile Light (390x844), and Mobile Dark (390x844) with zero errors and all screenshot artifacts passed.
+
+- Genuine Submitted Document Formatting & Unified Document Viewer Prevention Rule (OOXML docx-preview + PDF.js vector canvas vs raw plaintext dumps):
+  1. Lesson learned: Rendering submitted documents as unformatted monospace text strings (e.g. via legacy <AnnotatedText> or raw <pre> blocks) strips away all institutional formatting—including centered title headers, bylines, author rosters, collegiate affiliations, degree fulfillment statements, and page margins. Users expect to see the authentic document format as submitted, matching Reference Image 2.
+  2. Lesson learned: In ArchivePlagiarismCheckerPage.jsx, using an ad-hoc local component (components/plagiarism/PlagiarismReportPage.jsx) bypassed the canonical pages/submissions/PlagiarismReportPage.jsx and the Mandatory Unified Sophisticated Document Reader Contract, leaving users stuck with a raw monospace dump. Furthermore, defaulting canvasMode to 'extracted' whenever scan reportData was returned forcibly hid the true document viewer even when a binary DOCX or PDF file was present in memory.
+  3. Lesson learned: In embedded container layouts (~800px wide), responsive classes like 'hidden xl:inline-flex' evaluate against the viewport width (1440px), not the container width. Badges in the reader header (Word Document, PDF Manuscript, Originality score) and zoom preset pills ([150%, 200%, 250%, 300%]) can crowd the toolbar, causing visual overlap. Hiding secondary badges when embedded (!embedded || isFullscreen) and keeping zoom presets behind 2xl ensures the toolbar is 100% immune to crowding while preserving all essential controls (- 100% + Reset, Manuscript / Revision Diff, Details, Download, Maximize).
+  4. Prevention: All capstone submissions, archive uploads, and plagiarism checks must default canvasMode to 'document' when a binary file or submission is available. The canonical SophisticatedDocumentViewer must support direct File/Blob objects in browser memory via arrayBuffer() and URL.createObjectURL(file) without requiring saved database records.
+  5. Runbook & Checklist for Genuine Document Rendering:
+     - Step 1 (Checklist): Verify ArchivePlagiarismCheckerPage.jsx imports PlagiarismReportPage from '@/pages/submissions/PlagiarismReportPage' and passes file={file}, reportData={reportData}, and initialCanvasMode="document".
+     - Step 2 (Checklist): Verify components/plagiarism/PlagiarismReportPage.jsx forwards to pages/submissions/PlagiarismReportPage without any legacy raw text dumps.
+     - Step 3 (Checklist): Verify SophisticatedDocumentViewer renders direct File objects via docx-preview (renderAsync) and PDF.js without 401 or null crashes.
+     - Step 4 (Checklist): Verify canvasMode defaults to 'document' whenever hasBinaryDocument is true.
+     - Step 5 (Evidence): Run targeted tests: PlagiarismReportPage.test.jsx (10/10 passed), SophisticatedDocumentViewer.test.jsx (10/10 passed), and all document tests (20/20 passed).
+     - Step 6 (Evidence): Verify API route parity (UNMATCHED_COUNT = 0, 208 server / 189 client), agentic governance (60/60 checks passed), and governance pipeline passed.
+     - Step 7 (Evidence): Execute Playwright visual audit across Desktop Light (1440x900), Desktop Dark (1440x900), Mobile Light (390x844), and Mobile Dark (390x844) confirming 1:1 match with Reference Image 2 (centered title, byline, authors, and margins).
+
+- Unified Capstone Progress Tracker & Pending Proposal Integration Prevention Rule:
+  1. Lesson learned: Displaying separate prerequisite step banners (Submit Title -> Get Approved) alongside a 4-phase macro stepper creates confusing duplicate progress bars and clutters the page with stacked cards (WorkflowPrerequisiteBanner, TitlePendingCard, PanelistsPendingCard). Consolidating the Title Proposal as an explicit 1st-class milestone in a unified 5-stage pipeline (Phase 0 Team Formation, Proposal Title Proposal, Phase 1 Capstone 1, Phase 2 Capstone 2, Phase 3 Capstone 3) provides a single source of truth for students.
+  2. Lesson learned: The pending proposal state, committee deliberation notices, locked chapter submissions alert, candidate proposal chips, and the "Open Title Approval Studio" action belong directly inside the authoritative milestone stepper component rather than as standalone cards floating between trackers.
+  3. Prevention: Never render multiple progress bars or fragmented prerequisite banners above capstone workspaces. Use resolveCurrentStep(project) to distinguish between pending proposals (Step 1) and approved Capstone 1 (Step 2), and connect each milestone node directly to its matching workspace tab (1 -> proposal, 2 -> capstone_1, 3 -> capstone_2, 4 -> capstone_3).
+  4. Runbook & Checklist for Unified Capstone Progress Tracker:
+     - Step 1 (Checklist): Verify WorkflowPrerequisiteBanner, TitlePendingCard, and PanelistsPendingCard are completely removed from MyProjectPage.jsx.
+     - Step 2 (Checklist): Verify CAPSTONE_STEPS has 5 stages and resolveCurrentStep returns Step 1 when !titleApproved.
+     - Step 3 (Checklist): Verify CapstoneWorkflowStepper.jsx renders the embedded proposal deliberation strip with candidate proposal chips, lock alert, and "Open Title Approval Studio" action.
+     - Step 4 (Checklist): Verify node clicks map 1:1 to tabs: Step 1 opens proposal, Step 2 opens capstone_1, Step 3 opens capstone_2, Step 4 opens capstone_3.
+     - Step 5 (Evidence): Run targeted client tests CapstoneWorkflowStepper.test.jsx (5/5 passed), MyProjectPage.test.jsx (6/6 passed), and all project component tests (97/97 passed).
+     - Step 6 (Evidence): Verify API route parity (UNMATCHED_COUNT = 0, 208 server / 189 client), agentic governance (60/60 checks passed), and governance pipeline passed.
+     - Step 7 (Evidence): Execute Playwright visual feedback loop across Desktop Light (1440x900), Desktop Dark (1440x900), Mobile Light (390x844), and Mobile Dark (390x844) with zero errors and all screenshot artifacts passed.
+
+- My Capstone Tabbed Restructuring & Submissions Separation Prevention Rule (/project vs /project/submissions):
+  1. Lesson learned: Mixing document submission dropzones (ChapterProgressWithRounds, FinalPaperUpload) inside the student's executive capstone workspace (MyProjectPage.jsx) produces a chaotic, 5,000px vertical waterfall and redundant data fetching (useProjectSubmissions). All document uploads, manuscript revisions, and Turnitin-style plagiarism screening belong strictly and exclusively to the dedicated Submissions Page (/project/submissions).
+  2. Lesson learned: Deconstructing My Capstone into 6 focused, ergonomic tabs (proposal, capstone_1, capstone_2, capstone_3, adm, consultation) adhering to /i-arrange, /i-clarify, and /i-critique creates clear cognitive hierarchy, allowing students to draft proposals, track sprint deliverables via the Interactive Gantt Chart, review committee evaluation rubrics, and view Action Done Matrix digital signatures without vertical competition.
+  3. Prevention: Never embed upload dropzones directly on /project. Instead, provide contextual Submissions Link Banners within Capstone 2 & 3 tabs that clearly direct students to /project/submissions.
+  4. Runbook & Checklist for My Capstone Tabbed Architecture:
+     - Step 1 (Checklist): Verify ChapterProgressWithRounds and FinalPaperUpload are completely removed from MyProjectPage.jsx.
+     - Step 2 (Checklist): Verify useProjectSubmissions query is eliminated from MyProjectPage.jsx.
+     - Step 3 (Checklist): Verify ActionDoneMatrixTab is mounted as a full-width first-class tab (TabsContent value="adm").
+     - Step 4 (Checklist): Verify myProjectTabs.js resolves all aliases (draft | proposals -> proposal, matrix | action_done_matrix -> adm, capstone_4 -> capstone_3) and falls back safely to proposal.
+     - Step 5 (Evidence): Run targeted client tests MyProjectPage.test.jsx and myProjectTabs.test.js (12/12 passed).
+     - Step 6 (Evidence): Confirm API route parity (UNMATCHED_COUNT = 0, 208 server / 189 client), agentic governance (60/60 checks), and governance pipeline.
+     - Step 7 (Evidence): Execute Playwright visual feedback loop across Desktop Light (1440x900), Desktop Dark (1440x900), Mobile Light (390x844), and Mobile Dark (390x844) with zero layout shifts or regressions.
+
 - True Document Rendering & DOCX-to-PDF Conversion Pipeline Prevention Rule (Gotenberg + BullMQ + PDF.js + docx-preview):
   1. Lesson learned: Displaying raw parsed text strings inside generic `<pre>` or `<div>` elements strips away all vector coordinates, margins, font sizes, tables, headers, and layouts. Real document fidelity requires rendering the actual binary document stream via a multi-layer vector canvas (`PdfViewerWorkspace` with `react-pdf-highlighter-plus` and PDF.js) alongside client-side OOXML rendering (`docx-preview`).
   2. Lesson learned: Attempting to overlay canvas annotations over client-rendered DOCX HTML breaks coordinate consistency when viewport widths or fonts vary. By converting `.docx` files into standardized `.pdf` files on the server (via `gotenberg/gotenberg:8` in Docker), both formats share an identical scale-independent coordinate system (`[x1, y1, x2, y2] \in [0, 1]`) across all devices.
@@ -3112,3 +3167,116 @@
      - Endpoint parity check: 205 Server / 183 Client (`UNMATCHED_COUNT = 0`).
      - Agentic validation: 60/60 checks passed (`npm run validate:agentic`).
      - Governance pipeline: All 4 stages valid, 0 errors, 0 warnings (`npm run validate:governance`).
+
+52. BukSU Capstone Team Multi-Member Bulk Invitation & UI/UX Modernization Engine:
+- Architectural Purpose & Capstone Phase 0 Rules:
+  1. BukSU Capstone Phase 0 teams enforce an immutable team capacity rule: exactly 2–4 members (1 leader + up to 3 members).
+  2. Single-member invitation workflows create significant friction for team formation. The system requires both interactive member search and multi-email paste staging for bulk invitation.
+  3. Dynamic capacity tracking must calculate remaining available slots against active roster members plus unexpired pending invites (`MAX_TEAM_MEMBERS - currentMembers.length - pendingInvites.length`).
+- Resolution & Implementation Details:
+  1. Backend Bulk Invitation Endpoint & Service Architecture:
+     - Added `bulkInviteMembersSchema` in `server/modules/teams/team.validation.js` validating `emails: z.array(z.string().email()).min(1).max(3)`.
+     - Created `bulkInviteMembers(teamId, leaderId, data)` in `server/modules/teams/team.service.js` with transactional team lock verification, capacity checks, student eligibility validation, 6-digit invite code generation, and structured batch results (`succeeded`, `failed`, `results`).
+     - Added controller `bulkInviteMembers` in `server/modules/teams/team.controller.js` and route `POST /api/teams/:id/bulk-invite` in `server/modules/teams/team.routes.js`.
+  2. Client Modernization & BulkInviteModal Component:
+     - Built `BulkInviteModal.jsx` adhering to `/i-arrange` (rhythmic spacing, visual hierarchy) and `/i-bolder` (distinctive typography, high-contrast semantic tokens).
+     - Segmented interaction: "Search Classmates" tab with debounced section queries and warning tags; "Paste Multiple Emails" tab with regex parser (`/[,;\s\n]+/`) and duplicate filtering.
+     - Dynamic capacity gauge and staged candidates tray with dismissible chips and real-time eligibility tags.
+     - Post-dispatch results screen showing 6-digit codes with one-click "Copy All Codes".
+  3. TeamsPage Modernization:
+     - Upgraded `CreateTeamForm`: Allows staging up to 3 teammates with chip management and auto-dispatches bulk invites on team creation.
+     - Upgraded `StudentTeamDetail`: Added header "Invite Teammates" hero button, modernized roster invite banner with slot counter ("X slots open") and "Bulk Invite Teammates" trigger, and upgraded Active Invite Codes card with "Copy All Codes" and "Invite More" buttons.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When implementing bulk invite endpoints, always calculate remaining capacity dynamically against both active members and active pending invites to prevent race conditions or over-invitation beyond institutional caps.
+  2. Prevention rule: In React forms with batch inputs, always sanitize user pasted strings with regex (`/[,;\s\n]+/`), deduplicate against staged candidates, and assert RFC 5322 format before dispatching network requests.
+  3. Lesson learned: In Playwright visual audits involving mock API routes, ensure response envelope nesting (`{ success: true, data: { team: mockTeam } }`) matches the client React Query hook expectations (`data.data.team`) to avoid false-negative empty states.
+  4. Runbook & Checklist:
+     - Checklist: Run targeted client tests: `npm test --workspace=client -- src/components/teams/BulkInviteModal.test.jsx src/pages/teams/TeamsPage.test.jsx` (9/9 passed).
+     - Checklist: Run targeted server tests: `npm test --workspace=server -- tests/integration/teams.test.js` (27/27 passed).
+     - Checklist: Verify route parity via `npm run check:endpoints` (SERVER=208, CLIENT=189, UNMATCHED_COUNT=0).
+     - Checklist: Verify agentic governance via `npm run validate:agentic` (60/60 passed).
+     - Checklist: Verify governance pipeline via `npm run validate:governance` (0 errors, 0 warnings).
+     - Checklist: Run workspace guardrail via `python scripts/workspace_guardrail.py` (pristine workspace).
+     - Checklist: Execute multi-viewport Playwright visual audit across desktop (1440x900) and mobile (390x844) in both light and dark modes.
+  5. Evidence & Verification passed:
+     - Client unit tests: 9/9 passed across `BulkInviteModal.test.jsx` and `TeamsPage.test.jsx`.
+     - Server integration tests: 27/27 passed in `teams.test.js` including multi-invite validation and capacity limit rejection.
+     - Route parity: 208 Server / 189 Client endpoints, UNMATCHED_COUNT = 0.
+     - Agentic governance: 60/60 checks passed.
+     - Governance pipeline: Valid DAG, 0 errors, 0 warnings.
+     - Playwright visual audit: 10 screenshots captured and verified across desktop and mobile in light and dark modes.
+
+72. Capstone Milestone Progression Card Merge & Candidate Proposal Horizontal Pill Tabs:
+- Architectural Root Cause & Mechanics:
+  1. Cluttered Proposal Dashboard: Previously, MyProjectPage.jsx and ProjectDetailPage.jsx rendered <ProjectTitleCard> as an isolated card stacked directly above <WorkflowPhaseTracker>. This duplicated card containers and created visual fragmentation.
+  2. Proposal Draft Studio Ergonomics: Candidate proposals were rendered as a vertical accordion stack in ProposalTab.jsx and as a vertical clock-bullet list in TitleWorkflowCards.jsx (SubmittedCard), forcing users to scroll excessively to compare proposals or jump between candidate drafts.
+  3. Interactive Candidate Deliberation Link: The candidate proposal chips in the deliberation strip of the milestone tracker were static badges without interactive selection capabilities.
+- Resolution & Implementation Details:
+  1. Executive Header Merge in CapstoneWorkflowStepper.jsx:
+     - Seamlessly integrated the top executive header card directly into the top of the milestone progression card container: top accent gradient, phase badge with sparkles, title status badge, project status badge, defense schedule badge, "Proposals & Rehearsal" button, h2 proposal title, and academic metadata (team name, AY, section, adviser).
+     - Removed standalone <ProjectTitleCard> from both MyProjectPage.jsx and ProjectDetailPage.jsx, eliminating container duplication.
+     - Upgraded candidate proposal chips in the deliberation strip into interactive buttons that call onSelectProposal(idx).
+  2. Candidate Proposal Horizontal Tabs:
+     - In ProposalTab.jsx, implemented the horizontal pill-tab bar matching Reference Image 1 (CANDIDATE PROPOSALS UNDER REVIEW) with circular numbered badges, active outline ring/elevation, and status badges.
+     - Replaced vertical accordion stack with a focused single active pitch deck view for the selected candidate proposal.
+     - In TitleWorkflowCards.jsx (SubmittedCard), replaced the vertical clock list with horizontal pill buttons wired to onSelectProposal.
+  3. Unified State Synchronization:
+     - In MyProjectPage.jsx, added selectedProposalIndex state and handleSelectProposal handler shared across WorkflowPhaseTracker, TitleActionsSection, and ProposalTab.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When presenting sequential or candidate entities (such as candidate capstone proposals), prefer horizontal tabbed pill selectors with distinct numbered badges over vertical accordion stacks to minimize scroll height and cognitive overload (per /i-arrange and /i-typeset).
+  2. Prevention rule: Consolidate related executive metadata (e.g. project title, phase status, team metadata) directly into primary workflow steppers rather than stacking separate cards with duplicate borders and background paddings.
+  3. Runbook & Checklist:
+     - Checklist: Run targeted client tests: npm test --workspace=client -- src/components/projects/ (18/18 test suites, 99/99 passed).
+     - Checklist: Run page integration tests: npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx (6/6 passed).
+     - Checklist: Verify route parity via npm run check:endpoints (SERVER=208, CLIENT=189, UNMATCHED_COUNT=0).
+     - Checklist: Verify agentic governance via npm run validate:agentic (60/60 passed).
+     - Checklist: Verify governance pipeline via npm run validate:governance (0 errors, 0 warnings).
+     - Checklist: Run Playwright visual audit across desktop (1440x900) and mobile (390x844) in both light and dark modes.
+  4. Evidence & Verification passed:
+     - All 18 project component test suites (99/99 passed).
+     - Page tests: MyProjectPage.test.jsx passed (6/6 passed).
+     - Route parity: 208 Server / 189 Client endpoints (UNMATCHED_COUNT=0).
+     - Agentic governance: 60/60 checks passed.
+     - Governance pipeline: Valid DAG, 0 errors, 0 warnings.
+     - Playwright visual audit: 7 high-fidelity screenshots captured and inspected in light/dark desktop and mobile viewports matching Reference Images 1 and 2.
+
+73. Capstone 1 Minimalist Collapsible Architecture, Evaluation Panel Lateral Repositioning, and Capstone 2 Gantt Isolation Engine:
+- Architectural Root Cause & Mechanics:
+  1. Excessive Vertical Scrolling on Capstone 1: Previously, Capstone 1 rendered multiple dense cards (Title Proposal Drafting, Manuscript Status, Action Done Matrix, Evaluation Summary) stacked vertically, creating visual clutter and excessive scrolling. Institutional guidelines called for a minimalist, compact, and scannable interface.
+  2. Evaluation Summary Placement: Positioning the Evaluation Summary card below the workflow forced users to scroll past the entire lifecycle to inspect defense metrics. Relocating it laterally to the right column maintains visibility alongside active sections.
+  3. Capstone 2 Scope Isolation: Capstone 2 tab contained external link placeholders and fragmented prototype links rather than focusing strictly on the Interactive Gantt Chart.
+  4. Redundant Milestone ADM Tabs & Banner Segregation: Action Done Matrix contained legacy milestone tabs (Image 4) that duplicated main navigation tabs, and a separate synchronization banner (Image 5) placed outside the document canvas.
+- Resolution & Implementation Details:
+  1. Capstone 1 Minimalist Collapsible Sections (`Capstone1CollapsibleSections.jsx`):
+     - Engineered 3 collapsible sections, collapsed by default for compact (<200px) initial render:
+       a) Proposal Stage: 5-point blueprint (Problem Statement, Proposed Solution, Unique Innovation, Target Beneficiaries, Expected Impact / Value), "Rehearse Pitch Deck", and "Drafting Studio" triggers.
+       b) Chapters 1–3 & Compiled Manuscript: Submission cards with version badges, originality indicators, and "View in Reader" (`SophisticatedDocumentViewer`) triggers.
+       c) ADM Section: Action Done Matrix scoped strictly to `CAPSTONE_1`.
+  2. Lateral 2-Column Grid Layout (`MyProjectPage.jsx`):
+     - Capstone 1 now renders a responsive grid (`grid-cols-1 lg:grid-cols-12 gap-6`): Left column (`lg:col-span-8 xl:col-span-9`) hosts the collapsible sections; Right column (`lg:col-span-4 xl:col-span-3`) hosts `EvaluationPanel`, stacking cleanly on mobile.
+  3. Capstone 2 Interactive Gantt Chart Isolation:
+     - `capstone_2` tab now renders strictly `<InteractiveGanttChart project={project} isReadOnly={false} />`.
+     - Removed external Gantt placeholder card from `DevelopmentAssetsForm.jsx`.
+     - Enhanced `AcademicExcelGanttChart.jsx` with Escape key listener and overflow-isolated fullscreen styling.
+  4. Prototype Showcase & Demo Video Consolidation:
+     - Built `PrototypeShowcaseAndDemo.jsx` merging media showcase gallery and demo video player into a single cohesive interface.
+     - Student teams manage prototype media and demo URLs directly on the Submissions page (`ProjectSubmissionsPage.jsx`) under Phase 3.
+  5. Action Done Matrix Streamlining:
+     - Removed `ADMPhaseSelector` (Image 4) from `ActionDoneMatrixTab.jsx`.
+     - Merged Image 5 real-time defense synchronization banner directly into the top of the ADM document sheet container, polished per `/i-clarify`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When presenting multi-stage capstone lifecycles with dense documents, default all sub-sections to collapsed (`isExpanded = false`) to guarantee initial visual scannability and keep KPI/evaluation metrics visible above the fold on desktop viewports.
+  2. Prevention rule: Phase-specific tabs (e.g. Capstone 2) must remain strictly focused on their canonical purpose (e.g. Gantt scheduling) rather than accumulating ancillary links or duplicate forms.
+  3. Lesson learned: In Headless Playwright visual audits, theme state must be initialized in `localStorage` (`cms-accessibility-settings`) alongside `.dark` DOM class toggling to ensure bulletproof theme rendering across all component boundaries.
+  4. Runbook & Checklist:
+     - Checklist: Run targeted client tests: `npm test --workspace=client -- src/components/projects/ src/pages/projects/` (20/20 test suites, 106/106 passed).
+     - Checklist: Verify route parity via `npm run check:endpoints` (208 Server / 189 Client, `UNMATCHED_COUNT = 0`).
+     - Checklist: Verify agentic governance via `npm run validate:agentic` (60/60 checks passed).
+     - Checklist: Verify governance pipeline via `npm run validate:governance` (0 errors, 0 warnings).
+     - Checklist: Execute Playwright visual audits across desktop (1440x900) and mobile (390x844) in both light and dark themes.
+  5. Evidence & Verification passed:
+     - All 20 project component test suites (106/106 passed).
+     - Route parity: 208 Server / 189 Client endpoints (`UNMATCHED_COUNT = 0`).
+     - Agentic governance: 60/60 checks passed.
+     - Governance pipeline: Valid DAG, 0 errors, 0 warnings.
+     - Playwright visual audit: 12 high-fidelity screenshots captured across light and dark modes in desktop and mobile viewports.

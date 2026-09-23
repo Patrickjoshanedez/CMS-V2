@@ -50,12 +50,14 @@ import AssignCommitteeDialog from '@/components/teams/AssignCommitteeDialog';
 import { ManuscriptTemplateWidget } from '@/components/teams/ManuscriptTemplateWidget';
 import { InstructorTemplateConfigModal } from '@/components/teams/InstructorTemplateConfigModal';
 import { InspectRosterDialog } from '@/components/teams/InspectRosterDialog';
+import BulkInviteModal from '@/components/teams/BulkInviteModal';
 import {
   useMyTeam,
   useTeams,
   useTeamById,
   useCreateTeam,
   useInviteMember,
+  useBulkInviteMembers,
   useCreateTeamInviteCandidates,
   useInviteCandidates,
   useAcceptInvite,
@@ -145,6 +147,7 @@ function CreateTeamForm({ onCancel }) {
   const [debouncedInviteQuery, setDebouncedInviteQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [stagedCandidates, setStagedCandidates] = useState([]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -174,18 +177,44 @@ function CreateTeamForm({ onCancel }) {
     },
   });
 
+  const bulkInviteMembers = useBulkInviteMembers({
+    onSuccess: (result) => {
+      const summary = result?.data?.summary;
+      if (summary) {
+        toast.success(`Team created and ${summary.succeeded} invite(s) sent.`);
+      }
+    },
+    onError: (err) => {
+      toast.error(
+        err?.response?.data?.error?.message ||
+          'Team was created, but sending invitation(s) failed. You can invite from My Team.',
+      );
+    },
+  });
+
   const createTeam = useCreateTeam({
     onSuccess: (result) => {
       const teamId = result?.data?.team?._id;
-      const shouldInvite = Boolean(
-        teamId &&
+      const candidateEmails = stagedCandidates
+        .filter((c) => c?.canInvite !== false && c?.email)
+        .map((c) => c.email);
+
+      // Legacy fallback if single candidate was typed directly:
+      if (
+        candidateEmails.length === 0 &&
         selectedCandidate?.canInvite !== false &&
         selectedCandidate?.email &&
-        selectedCandidate.email.toLowerCase() === inviteQuery.trim().toLowerCase(),
-      );
+        selectedCandidate.email.toLowerCase() === inviteQuery.trim().toLowerCase()
+      ) {
+        candidateEmails.push(selectedCandidate.email);
+      }
 
-      if (shouldInvite) {
-        inviteMember.mutate({ teamId, email: selectedCandidate.email });
+      if (teamId && candidateEmails.length > 0) {
+        if (candidateEmails.length === 1) {
+          inviteMember.mutate({ teamId, email: candidateEmails[0] });
+        } else {
+          bulkInviteMembers.mutate({ teamId, emails: candidateEmails });
+        }
       } else {
         toast.success('Team created successfully!');
       }
@@ -195,6 +224,7 @@ function CreateTeamForm({ onCancel }) {
       setDebouncedInviteQuery('');
       setShowSuggestions(false);
       setSelectedCandidate(null);
+      setStagedCandidates([]);
     },
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to create team.'),
   });
@@ -209,7 +239,7 @@ function CreateTeamForm({ onCancel }) {
       <CardHeader>
         <CardTitle className="text-base">Create a New Team</CardTitle>
         <CardDescription>
-          You will be the team leader. Invite members after creating.
+          You will be the team leader. Invite members now or after creating.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -237,13 +267,50 @@ function CreateTeamForm({ onCancel }) {
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="createTeamInvite">Invite a Teammate</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="createTeamInvite">
+                Invite Teammates {stagedCandidates.length > 0 && `(${stagedCandidates.length}/3)`}
+              </Label>
+              <span className="text-[11px] text-muted-foreground">Max 3 teammates</span>
+            </div>
+
+            {/* Staged candidates pill tray */}
+            {stagedCandidates.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pb-1">
+                {stagedCandidates.map((c) => (
+                  <span
+                    key={c.email}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs text-foreground font-medium shadow-2xs"
+                  >
+                    <span className="truncate max-w-[150px]">{c.fullName || c.email}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStagedCandidates((prev) =>
+                          prev.filter((item) => item.email.toLowerCase() !== c.email.toLowerCase()),
+                        )
+                      }
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${c.fullName || c.email}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="relative">
               <Input
                 id="createTeamInvite"
-                placeholder="Type a name (e.g. Leon) or email"
+                placeholder={
+                  stagedCandidates.length >= 3
+                    ? 'Maximum of 3 teammates staged'
+                    : 'Search student by name or email...'
+                }
                 type="text"
                 value={inviteQuery}
+                disabled={createTeam.isPending || stagedCandidates.length >= 3}
                 onChange={(event) => {
                   const value = event.target.value;
                   setInviteQuery(value);
@@ -260,7 +327,6 @@ function CreateTeamForm({ onCancel }) {
                 onBlur={() => {
                   window.setTimeout(() => setShowSuggestions(false), 120);
                 }}
-                disabled={createTeam.isPending}
                 autoComplete="off"
               />
 
@@ -274,35 +340,56 @@ function CreateTeamForm({ onCancel }) {
                       </div>
                     ) : candidates.length > 0 ? (
                       <ul className="max-h-56 overflow-auto py-1">
-                        {candidates.map((candidate) => (
-                          <li key={candidate._id}>
-                            <button
-                              type="button"
-                              className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent"
-                              onMouseDown={(event) => {
-                                event.preventDefault();
-                                setInviteQuery(candidate.email);
-                                setDebouncedInviteQuery(candidate.email);
-                                setShowSuggestions(false);
-                                setSelectedCandidate(candidate);
-                              }}
-                            >
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium">
-                                  {candidate.fullName}
-                                </span>
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {candidate.email}
-                                </span>
-                                {candidate.canInvite === false && (
-                                  <span className="mt-0.5 block text-[11px] font-medium text-destructive">
-                                    Cannot invite yet
-                                  </span>
+                        {candidates.map((candidate) => {
+                          const isAlreadyStaged = stagedCandidates.some(
+                            (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
+                          );
+
+                          return (
+                            <li key={candidate._id}>
+                              <button
+                                type="button"
+                                className={cn(
+                                  'flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-accent',
+                                  isAlreadyStaged && 'bg-primary/5',
                                 )}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  setInviteQuery(candidate.email);
+                                  setDebouncedInviteQuery(candidate.email);
+                                  setShowSuggestions(false);
+                                  setSelectedCandidate(candidate);
+                                  if (!isAlreadyStaged) {
+                                    if (stagedCandidates.length >= 3) {
+                                      toast.warning('Maximum of 3 teammates can be invited.');
+                                      return;
+                                    }
+                                    setStagedCandidates((prev) => [...prev, candidate]);
+                                  }
+                                }}
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-medium">
+                                    {candidate.fullName}
+                                  </span>
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {candidate.email}
+                                  </span>
+                                  {candidate.canInvite === false && (
+                                    <span className="mt-0.5 block text-[11px] font-medium text-destructive">
+                                      Cannot invite yet
+                                    </span>
+                                  )}
+                                </span>
+                                {isAlreadyStaged && (
+                                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                                    Staged
+                                  </Badge>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <div className="px-3 py-2 text-xs text-muted-foreground">
@@ -313,8 +400,8 @@ function CreateTeamForm({ onCancel }) {
                 )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Academic year is auto-assigned from your section. Select one student and the system
-              will send an invite after team creation.
+              Select up to 3 classmates from your section. Invitations will be sent automatically
+              once your team is created.
             </p>
             {selectedCandidate?.canInvite === false && (
               <p className="text-xs text-destructive">
@@ -896,6 +983,7 @@ function getRoleMetadata(roleName) {
 function StudentTeamDetail({ team, userId }) {
   const [now] = useState(() => Date.now());
   const [showRolesGuide, setShowRolesGuide] = useState(false);
+  const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
   const isLeader = team.leaderId?._id === userId || team.leaderId === userId;
   const assignment = team.assignment || {};
   const panelists = assignment.panelists || [];
@@ -1012,6 +1100,17 @@ function StudentTeamDetail({ team, userId }) {
         <div className="flex items-center gap-2">
           {!team.isLocked && (
             <>
+              {isLeader && memberCount < 4 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 gap-1.5 text-xs sm:text-sm font-medium"
+                  onClick={() => setShowBulkInviteModal(true)}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Invite Teammates
+                </Button>
+              )}
               <Button
                 variant="outline"
                 className="text-destructive hover:bg-destructive/10 border-destructive/30 text-xs sm:text-sm"
@@ -1243,11 +1342,39 @@ function StudentTeamDetail({ team, userId }) {
                 );
               })}
 
-              {/* Quick Invite Box inside Card */}
+              {/* Modernized Invite Teammates Action Section */}
               {isLeader && !team.isLocked && memberCount < 4 && (
-                <div className="pt-2 border-t border-border/40">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Invite Teammate</p>
-                  <InviteMemberForm teamId={team._id} />
+                <div className="pt-3 border-t border-border/60 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 transition-all hover:border-primary/30">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <UserPlus className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-semibold text-foreground">Invite Teammates</h4>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-primary/30 text-primary font-medium"
+                        >
+                          {4 - memberCount} slot{4 - memberCount === 1 ? '' : 's'} available
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Search classmates from your section or paste multiple emails for bulk
+                        invitation with auto-generated 6-digit codes.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowBulkInviteModal(true)}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shrink-0 text-xs font-medium h-8 shadow-xs"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Bulk Invite Teammates
+                    </Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Quick Single Invite</p>
+                    <InviteMemberForm teamId={team._id} />
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1678,9 +1805,43 @@ function StudentTeamDetail({ team, userId }) {
           {/* Active Invite Codes (if leader and pending invites exist) */}
           {isLeader && team.pendingInvites?.length > 0 && (
             <Card className="border-border/60 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold">Active Invite Codes</CardTitle>
-                <CardDescription>Share these 6-digit codes with invitees</CardDescription>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold">Active Invite Codes</CardTitle>
+                  <CardDescription>Share these 6-digit codes with invitees</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {team.pendingInvites.length > 1 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={async () => {
+                        const allCodes = team.pendingInvites
+                          .map((inv) => `${inv.email}: ${inv.inviteCode}`)
+                          .join('\n');
+                        await navigator.clipboard.writeText(allCodes);
+                        toast.success('All active invite codes copied to clipboard.');
+                      }}
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy All Codes
+                    </Button>
+                  )}
+                  {memberCount < 4 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                      onClick={() => setShowBulkInviteModal(true)}
+                    >
+                      <UserPlus className="h-3 w-3" />
+                      Invite More
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-2.5">
                 {team.pendingInvites.map((invite) => {
@@ -1766,6 +1927,16 @@ function StudentTeamDetail({ team, userId }) {
           </Card>
         </div>
       </div>
+
+      {/* Bulk Invite Modal */}
+      <BulkInviteModal
+        open={showBulkInviteModal}
+        onOpenChange={setShowBulkInviteModal}
+        teamId={team._id}
+        teamName={team.name}
+        currentMembersCount={memberCount}
+        pendingInvites={team.pendingInvites || []}
+      />
     </div>
   );
 }

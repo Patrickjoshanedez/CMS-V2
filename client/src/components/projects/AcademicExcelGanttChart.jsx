@@ -1170,6 +1170,17 @@ export default function AcademicExcelGanttChart({
   // ── Fullscreen ────────────────────────────────────────────────────────────
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
   // ── Filtered tasks ────────────────────────────────────────────────────────
   const filteredTasks = useMemo(() => {
     if (selectedOwner === 'ALL') return tasks;
@@ -1489,7 +1500,8 @@ export default function AcademicExcelGanttChart({
     <div
       className={cn(
         'w-full flex flex-col space-y-4 font-sans text-xs select-text',
-        isFullscreen && 'fixed inset-0 z-50 bg-background p-6 overflow-y-auto max-h-screen',
+        isFullscreen &&
+          'fixed inset-0 z-50 bg-background p-4 sm:p-6 overflow-y-auto max-h-screen w-screen h-screen shadow-2xl',
       )}
     >
       {/* Top Toolbar */}

@@ -7,6 +7,7 @@ import { ROLES } from '@cms/shared';
 import {
   createTeamSchema,
   inviteMemberSchema,
+  bulkInviteMembersSchema,
   inviteCandidatesQuerySchema,
   listTeamsQuerySchema,
   assignMemberRoleSchema,
@@ -34,6 +35,13 @@ router.post(
   authorize(ROLES.STUDENT),
   validate(inviteMemberSchema),
   teamController.inviteMember,
+);
+
+router.post(
+  '/:id/bulk-invite',
+  authorize(ROLES.STUDENT),
+  validate(bulkInviteMembersSchema),
+  teamController.bulkInviteMembers,
 );
 
 router.get(

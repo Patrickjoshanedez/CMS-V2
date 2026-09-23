@@ -1,17 +1,29 @@
-export const WORKFLOW_TABS = ['capstone_1', 'capstone_2', 'capstone_3', 'consultation', 'audit'];
+export const WORKFLOW_TABS = [
+  'proposal',
+  'capstone_1',
+  'capstone_2',
+  'capstone_3',
+  'adm',
+  'consultation',
+  'audit',
+];
 
 export function resolveActiveWorkflowTab({
   requestedTab,
   unlockedTabs,
   workflowTabs = WORKFLOW_TABS,
-  defaultTab = 'capstone_1',
+  defaultTab = 'proposal',
 }) {
   let requested =
     typeof requestedTab === 'string' && requestedTab.trim().length > 0 ? requestedTab.trim() : null;
 
-  // Backward compatibility alias: route any legacy 'capstone_4' links directly to 'capstone_3'
+  // Backward compatibility aliases
   if (requested === 'capstone_4') {
     requested = 'capstone_3';
+  } else if (requested === 'proposals' || requested === 'draft') {
+    requested = 'proposal';
+  } else if (requested === 'matrix' || requested === 'action_done_matrix') {
+    requested = 'adm';
   }
 
   const normalizedUnlockedTabs = Array.isArray(unlockedTabs) ? unlockedTabs : ['capstone_1'];

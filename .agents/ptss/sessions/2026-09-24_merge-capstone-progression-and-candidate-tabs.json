@@ -1,0 +1,65 @@
+{
+  "id": "2026-09-24_merge-capstone-progression-and-candidate-tabs",
+  "task": "Merge Executive Project Title Card into Capstone Milestone Progression & Implement Candidate Proposal Horizontal Tabs",
+  "started_at": "2026-09-24T03:31:00.000Z",
+  "completed_at": "2026-09-24T03:52:00.000Z",
+  "status": "completed",
+  "root_cause_analysis": {
+    "issue": "The proposal workflow previously presented redundant nested cards (ProjectTitleCard stacked above WorkflowPhaseTracker) and an inefficient vertical clock list / accordion stack for candidate title proposals. Users requested merging the executive title card into the milestone progression stepper and replacing the candidate proposal list with interactive horizontal pill tabs matching reference image 1.",
+    "culprits": [
+      "ProjectTitleCard was rendered as an isolated standalone card right above the milestone tracker in both MyProjectPage and ProjectDetailPage, creating visual clutter.",
+      "ProposalTab previously used a vertical accordion layout where all proposals were stacked vertically.",
+      "TitleWorkflowCards (SubmittedCard) rendered a vertical list with clock icons instead of matching the horizontal pill-tab pattern.",
+      "Selecting a candidate proposal from the deliberation strip in the milestone tracker did not smoothly switch the active proposal pitch deck studio."
+    ]
+  },
+  "modifications": [
+    {
+      "file": "client/src/components/projects/CapstoneWorkflowStepper.jsx",
+      "summary": "Merged executive header card (phase badge, title status, project status, defense schedule, Proposals & Rehearsal button, h2 title, team name, AY, section, adviser) directly into the top of the milestone progression card. Transformed candidate proposal chips in the deliberation strip into interactive buttons connected to onSelectProposal."
+    },
+    {
+      "file": "client/src/components/projects/WorkflowPhaseTracker.jsx",
+      "summary": "Forwarded onSelectProposal callback prop to CapstoneWorkflowStepper."
+    },
+    {
+      "file": "client/src/components/projects/ProposalTab.jsx",
+      "summary": "Implemented horizontal candidate proposals tab bar matching Reference Image 1 with circular numbered badges, active pill outline ring, and status badges. Streamlined pitch deck editor to display the selected active proposal."
+    },
+    {
+      "file": "client/src/components/projects/TitleWorkflowCards.jsx",
+      "summary": "Updated SubmittedCard to render candidate proposals as horizontal pill buttons matching Reference Image 1 and wired onSelectProposal."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.jsx",
+      "summary": "Removed redundant ProjectTitleCard, managed selectedProposalIndex state, and wired handleSelectProposal to WorkflowPhaseTracker, TitleActionsSection, and ProposalTab."
+    },
+    {
+      "file": "client/src/pages/projects/ProjectDetailPage.jsx",
+      "summary": "Removed redundant ProjectTitleCard to prevent duplicate title display."
+    }
+  ],
+  "verification_evidence": {
+    "playwright_visual_audit": {
+      "desktop_light": "01_desktop_light_unified_milestone.png",
+      "desktop_light_deck": "02_desktop_light_proposal_tabs_and_deck.png",
+      "desktop_light_tab2": "03_desktop_light_tab2_selected.png",
+      "desktop_dark_deck": "04_desktop_dark_proposal_tabs_and_deck.png",
+      "desktop_dark": "05_desktop_dark_unified_milestone.png",
+      "mobile_light": "06_mobile_light_milestone_and_tabs.png",
+      "mobile_dark": "07_mobile_dark_milestone_and_tabs.png",
+      "visual_check": "100% matched Reference Image 1 (candidate proposals horizontal pill tabs) and Reference Image 2 (executive title card merged seamlessly into capstone milestone progression)."
+    },
+    "unit_tests": [
+      "src/components/projects/CapstoneWorkflowStepper.test.jsx (7/7 passed)",
+      "src/components/projects/ProposalTab.test.jsx (7/7 passed)",
+      "src/pages/projects/MyProjectPage.test.jsx (6/6 passed)",
+      "all 18 project component suites (99/99 passed)"
+    ],
+    "quality_gates": {
+      "check_endpoints": "208 Server / 189 Client (UNMATCHED_COUNT=0)",
+      "validate_agentic": "60/60 checks passed",
+      "validate_governance": "passed with zero errors"
+    }
+  }
+}

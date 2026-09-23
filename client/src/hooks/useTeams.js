@@ -164,6 +164,17 @@ export function useInviteMember(options = {}) {
 }
 
 /**
+ * Bulk invite members to a team by email.
+ * @param {Object} params — { teamId: string, emails: string[] }
+ */
+export function useBulkInviteMembers(options = {}) {
+  return useTeamMutation(async ({ teamId, emails }) => {
+    const res = await teamService.bulkInviteMembers(teamId, { emails });
+    return res.data;
+  }, options);
+}
+
+/**
  * Accept a team invitation.
  * @param {string} token — The invite token from the email link.
  */

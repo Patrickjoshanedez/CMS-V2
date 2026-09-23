@@ -1,0 +1,55 @@
+{
+  "id": "2026-09-24_render-original-document-formatting-docx-pdf",
+  "task": "Render Submitted Capstone Documents with Genuine Document Format (.docx OOXML and .pdf Vector Canvas) across Plagiarism Checker and Submissions",
+  "started_at": "2026-09-24T02:08:33.000Z",
+  "completed_at": "2026-09-24T03:06:00.000Z",
+  "status": "completed",
+  "root_cause_analysis": {
+    "issue": "When users submitted documents on /plagiarism-checker, the report dumped an unformatted monospace string without margins, page boundaries, or centered headings. This violated institutional presentation expectations and the Mandatory Unified Sophisticated Document Reader Contract.",
+    "culprits": [
+      "ArchivePlagiarismCheckerPage.jsx previously imported components/plagiarism/PlagiarismReportPage.jsx which rendered an obsolete <AnnotatedText> dumping raw text without Word/PDF format.",
+      "SophisticatedDocumentViewer did not support direct File/Blob objects uploaded in the browser without database submission records.",
+      "PlagiarismReportPage defaulted canvasMode to 'extracted' whenever reportData was present, preventing the genuine document view from loading by default.",
+      "components/plagiarism/PlagiarismReportPage.jsx was a 501-line legacy duplicate component with hardcoded monospace text rendering."
+    ]
+  },
+  "modifications": [
+    {
+      "file": "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+      "summary": "Added direct file/blob support to DocxPreviewRenderer and PDF viewer, relaxed submission guard, and polished responsive header toolbar to avoid badge crowding."
+    },
+    {
+      "file": "client/src/pages/submissions/PlagiarismReportPage.jsx",
+      "summary": "Wired effectiveFile and fileName props, defaulted canvasMode to 'document' when binary document or file is available, and connected file={effectiveFile} to SophisticatedDocumentViewer."
+    },
+    {
+      "file": "client/src/pages/plagiarism/ArchivePlagiarismCheckerPage.jsx",
+      "summary": "Replaced legacy component import with canonical pages/submissions/PlagiarismReportPage, passing file={file}, reportData={reportData}, and initialCanvasMode='document'."
+    },
+    {
+      "file": "client/src/components/plagiarism/PlagiarismReportPage.jsx",
+      "summary": "Refactored to forwarding facade delegating directly to canonical pages/submissions/PlagiarismReportPage, removing the legacy unformatted text renderer."
+    }
+  ],
+  "verification_evidence": {
+    "playwright_visual_audit": {
+      "desktop_light": "01_plagiarism_document_format_desktop_light.png",
+      "desktop_dark": "02_plagiarism_document_format_desktop_dark.png",
+      "mobile_light": "03_plagiarism_document_format_mobile_light.png",
+      "mobile_dark": "04_plagiarism_document_format_mobile_dark.png",
+      "extracted_text_toggle": "05_plagiarism_extracted_text_toggle.png",
+      "visual_check": "Verified 1:1 match with Reference Image 2: centered bold title, byline, authors, authentic page boundaries, margins, and typography."
+    },
+    "unit_tests": [
+      "PlagiarismReportPage.test.jsx (10/10 passed)",
+      "SophisticatedDocumentViewer.test.jsx (10/10 passed)",
+      "RevisionDiffViewer.test.jsx (7/7 passed)",
+      "PaginatedDocumentViewer.test.jsx (3/3 passed)"
+    ],
+    "quality_gates": {
+      "check_endpoints": "208 Server / 189 Client (UNMATCHED_COUNT=0)",
+      "validate_agentic": "60/60 checks passed",
+      "validate_governance": "passed with zero errors"
+    }
+  }
+}

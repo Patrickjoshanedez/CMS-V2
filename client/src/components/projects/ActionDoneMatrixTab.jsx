@@ -9,7 +9,6 @@ import { projectService, userService } from '@/services/authService';
 import { useAuthStore } from '@/stores/authStore';
 import { ROLES, PANEL_ROLES } from '@cms/shared';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
-import ADMPhaseSelector from '@/components/projects/ADMPhaseSelector';
 import buksuLogo from '@/assets/buksu-logo.png';
 import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
 import SignaturePad from '@/components/ui/SignaturePad';
@@ -703,28 +702,23 @@ export default function ActionDoneMatrixTab({
         </div>
       </div>
 
-      {/* Milestone Revision Scope Selector */}
-      <div className="max-w-5xl mx-auto print:hidden space-y-3">
-        <ADMPhaseSelector
-          selectedPhase={selectedMilestone}
-          onPhaseChange={setSelectedMilestone}
-          academicYear={project?.academicYear || '2025–2026'}
-        />
-
+      {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
+      <div className="max-w-5xl mx-auto bg-card text-foreground print:bg-white print:text-black border border-border/80 print:border-none shadow-md print:shadow-none p-6 sm:p-12 rounded-xl print:rounded-none font-serif leading-normal transition-all">
         {/* Real-time Defense Synchronization & Post-Defense Instructions Banner */}
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+        <div className="print:hidden mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans">
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Real-Time Defense Synchronization & Action Done Matrix
+              Real-Time Defense Synchronization &amp; Action Done Matrix
             </h4>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              During defense hearings, Panelist recommendations and Client feedback are recorded
-              live in the official Secretary Minutes (BukSU Form OVPAA-F-INS-032) and synchronized
-              into this matrix. Post-defense, proponents document their{' '}
-              <strong className="text-foreground">Action Taken</strong>, cite exact{' '}
-              <strong className="text-foreground">Page Number/s</strong>, and upload their revised
-              Chapters 1–3 manuscript for committee verification.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              During defense hearings, panelist feedback is recorded live in official Secretary
+              Minutes (BukSU Form OVPAA-F-INS-032) and synchronized into this matrix. Post-defense,
+              proponents must document the{' '}
+              <strong className="text-foreground font-semibold">Action Taken</strong> for each
+              revision, cite exact{' '}
+              <strong className="text-foreground font-semibold">Page Number(s)</strong> in the
+              revised manuscript, and submit for committee verification.
             </p>
           </div>
           {canManageLiveMinutes && (
@@ -732,17 +726,14 @@ export default function ActionDoneMatrixTab({
               variant="outline"
               size="sm"
               onClick={() => setIsLiveMinutesModalOpen(true)}
-              className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 font-medium shadow-xs"
+              className="text-xs h-8 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 font-medium shadow-xs"
             >
               <FileText className="h-3.5 w-3.5" />
               Live Minutes (OVPAA-F-INS-032)
             </Button>
           )}
         </div>
-      </div>
 
-      {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
-      <div className="max-w-5xl mx-auto bg-card text-foreground print:bg-white print:text-black border border-border/80 print:border-none shadow-md print:shadow-none p-6 sm:p-12 rounded-xl print:rounded-none font-serif leading-normal transition-all">
         {/* ============================================================ */}
         {/* 1. INSTITUTIONAL HEADER & CLASSIFICATION */}
         {/* ============================================================ */}

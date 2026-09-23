@@ -63,6 +63,29 @@ export const inviteMember = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/teams/:id/bulk-invite — Bulk invite students to the team (Leader only) */
+export const bulkInviteMembers = catchAsync(async (req, res) => {
+  const { results, summary } = await teamService.bulkInviteMembers(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  const statusCode = summary.succeeded > 0 ? HTTP_STATUS.CREATED : HTTP_STATUS.BAD_REQUEST;
+  const message =
+    summary.failed === 0
+      ? `Successfully sent ${summary.succeeded} invitation${summary.succeeded === 1 ? '' : 's'}.`
+      : summary.succeeded === 0
+        ? `Failed to send invitations. None of the ${summary.failed} invited student(s) could be invited.`
+        : `Sent ${summary.succeeded} invitation${summary.succeeded === 1 ? '' : 's'}, but ${summary.failed} could not be completed.`;
+
+  res.status(statusCode).json({
+    success: summary.succeeded > 0,
+    message,
+    data: { results, summary },
+  });
+});
+
 /** GET /api/teams/:id/invite-candidates — Search invite candidate students (Leader only) */
 export const listInviteCandidates = catchAsync(async (req, res) => {
   const { candidates } = await teamService.listInviteCandidates(

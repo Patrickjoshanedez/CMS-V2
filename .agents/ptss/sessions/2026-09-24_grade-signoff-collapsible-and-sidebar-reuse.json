@@ -1,0 +1,52 @@
+{
+  "session_id": "2026-09-24_grade-signoff-collapsible-and-sidebar-reuse",
+  "timestamp": "2026-09-24T05:43:00.000Z",
+  "task": "Integrate grade sign-off / evaluation status into Capstone 1 collapsible accordion as Section 4 (Defense Evaluation & Grade Sign-Off) collapsed by default, remove Action Done Matrix from tabs list (5 tabs total), and reuse Capstone 1 collapsible workspace and unified ProjectInformationSidebar across both MyProjectPage (student) and ProjectDetailPage (faculty/instructor) per /anti-slop, /i-normalize, /i-critique, and /i-optimize.",
+  "status": "completed",
+  "quality_gate_battery": {
+    "endpoints_parity": "208 server / 189 client (UNMATCHED_COUNT = 0) PASSED",
+    "agentic_governance": "60/60 checks PASSED",
+    "targeted_unit_tests": "34/34 passed across Capstone1CollapsibleSections, ProjectInformationSidebar, MyProjectPage, and ProjectDetailPage suites",
+    "playwright_visual_audit": "7 screenshots captured across Light/Dark modes, Desktop (1440x900) & Mobile (390x844)"
+  },
+  "files_created": [
+    "client/src/components/projects/ProjectInformationSidebar.jsx",
+    "client/src/components/projects/ProjectInformationSidebar.test.jsx",
+    "scratch/visual_audit_collapsible_and_sidebar.mjs"
+  ],
+  "files_modified": [
+    "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone1CollapsibleSections.test.jsx",
+    "client/src/pages/projects/MyProjectPage.jsx",
+    "client/src/pages/projects/MyProjectPage.test.jsx",
+    "client/src/pages/projects/ProjectDetailPage.jsx",
+    "client/src/pages/projects/ProjectDetailPage.tab-sync.test.jsx"
+  ],
+  "visual_artifacts": [
+    "01_my_capstone_collapsed_desktop_light.png",
+    "02_my_capstone_eval_expanded_desktop_light.png",
+    "03_my_capstone_desktop_dark.png",
+    "04_project_detail_reused_collapsibles_and_sidebar_desktop_light.png",
+    "05_project_detail_reused_collapsibles_and_sidebar_desktop_dark.png",
+    "06_mobile_light_my_capstone.png",
+    "07_mobile_dark_my_capstone.png"
+  ],
+  "lessons_learned": {
+    "lesson": "Standalone evaluation lock cards occupying dedicated lateral grid space cause severe page imbalance and visual fragmentation. Housing Defense Evaluation & Grade Sign-Off inside Section 4 of Capstone1CollapsibleSections (default collapsed) eliminates clutter while preserving full access to rubric scores, criteria breakdowns, and panel sign-off locks. Extracting the canonical right sidebar into ProjectInformationSidebar guarantees 100% information parity between student and faculty/instructor views.",
+    "prevention": "Never hardcode duplicate sidebar widget compositions between student and faculty project views; maintain a single canonical ProjectInformationSidebar component accepting capability flags (canManage, canManageArchive).",
+    "runbook": "Run targeted tests: npm test --workspace=client -- src/components/projects/Capstone1CollapsibleSections.test.jsx src/components/projects/ProjectInformationSidebar.test.jsx src/pages/projects/MyProjectPage.test.jsx; Visual audit: node scratch/visual_audit_collapsible_and_sidebar.mjs",
+    "checklist": [
+      "Added Section 4: Defense Evaluation & Grade Sign-Off to Capstone1CollapsibleSections (collapsed by default)",
+      "Removed Action Done Matrix trigger from MyProjectPage tabs list (5 tabs: Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, Consultations)",
+      "Created unified, reusable ProjectInformationSidebar.jsx with KPI cards (Avg Score, Panelists, Total Evals), Evaluation Summary, Faculty Committee & Proponent Roster FRAD2, Plagiarism Threshold, Project Context, and Academic Reports",
+      "Integrated ProjectInformationSidebar in both MyProjectPage and ProjectDetailPage",
+      "Replaced uncollapsed legacy Capstone 1 content in ProjectDetailPage with Capstone1CollapsibleSections",
+      "Reused isolated InteractiveGanttChart in Capstone 2 tab of ProjectDetailPage",
+      "Updated unit test suites (14/14 client unit tests passed, 20/20 detail page tests passed)",
+      "Executed Playwright visual feedback loop capturing 7 screenshots across light, dark, desktop, and mobile viewports",
+      "Verified UNMATCHED_COUNT = 0 on endpoints and 60/60 agentic governance checks"
+    ],
+    "evidence": "34/34 targeted unit tests passed; UNMATCHED_COUNT = 0; 60/60 agentic governance checks passed; 7 Playwright screenshots captured and verified.",
+    "passed": true
+  }
+}

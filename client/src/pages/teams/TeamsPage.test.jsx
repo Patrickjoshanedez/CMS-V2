@@ -54,6 +54,7 @@ vi.mock('@/hooks/useTeams', () => ({
   useTeams: (...args) => mockUseTeams(...args),
   useCreateTeam: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useInviteMember: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  useBulkInviteMembers: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useInviteCandidates: () => ({ data: [], isLoading: false }),
   useAcceptInvite: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   useAssignMemberRole: () => ({ mutate: vi.fn(), isPending: false }),
@@ -341,6 +342,55 @@ describe('TeamsPage', () => {
     expect(modal).toBeTruthy();
     expect(modal.textContent).toContain('Team One');
     expect(modal.textContent).toContain('Phase 0 Active');
+
+    view.unmount();
+  });
+
+  it('renders Bulk Invite Teammates button and opens modal for student team leader', () => {
+    mockUseAuthStore.mockReturnValue({
+      user: {
+        _id: 'student-lead',
+        role: ROLES.STUDENT,
+        sectionId: 'sec-1',
+        instructorId: 'inst-1',
+      },
+      isAuthenticated: true,
+    });
+    mockUseMyTeam.mockReturnValue({
+      data: {
+        _id: 'team-student-1',
+        name: 'Capstone Titans',
+        academicYear: '2025-2026',
+        isLocked: false,
+        leaderId: 'student-lead',
+        members: [{ _id: 'student-lead', fullName: 'Leader Student', email: 'lead@buksu.edu.ph' }],
+        pendingInvites: [],
+        assignment: {},
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const view = renderTeamsPage();
+
+    expect(view.container.textContent).toContain('Capstone Titans');
+    expect(view.container.textContent).toContain('Invite Teammates');
+    expect(view.container.textContent).toContain('Bulk Invite Teammates');
+
+    const bulkInviteBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Bulk Invite Teammates'),
+    );
+    expect(bulkInviteBtn).toBeTruthy();
+
+    act(() => {
+      bulkInviteBtn.click();
+    });
+
+    const modal = document.body.querySelector('[role="dialog"]');
+    expect(modal).toBeTruthy();
+    expect(modal.textContent).toContain('Bulk Invite Teammates');
+    expect(modal.textContent).toContain('Capstone Titans');
 
     view.unmount();
   });

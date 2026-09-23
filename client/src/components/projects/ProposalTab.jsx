@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
   FileDown,
   Loader2,
   Lock,
@@ -20,6 +19,7 @@ import ProjectStatusBadge from './ProjectStatusBadge';
 import TitleStatusBadge from './TitleStatusBadge';
 import { projectService } from '@/services/authService';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { cn } from '@/lib/utils';
 import { CAPSTONE_PHASES, TITLE_STATUSES } from '@cms/shared';
 import {
   PITCH_DECK_FIELDS,
@@ -106,13 +106,25 @@ function getDraftForProposal(projectId, proposalId, pitchDeck) {
   return base;
 }
 
-export default function ProposalTab({ project, onRefresh }) {
+export default function ProposalTab({ project, selectedProposalIndex, onRefresh }) {
   const proposalItems = useMemo(() => normalizeProposalItems(project), [project]);
-  const [selectedAccordionId, setSelectedAccordionId] = useState(null);
+  const approvedItem = proposalItems.find((p) => p.isApproved);
+  const defaultProposalId =
+    typeof selectedProposalIndex === 'number' && proposalItems[selectedProposalIndex]
+      ? proposalItems[selectedProposalIndex].id
+      : approvedItem?.id || proposalItems[0]?.id || null;
+
+  const [selectedProposalId, setSelectedProposalId] = useState(defaultProposalId);
   const [formOverrides, setFormOverrides] = useState({});
   const [loadingProposalId, setLoadingProposalId] = useState(null);
   const [isEditingApproved, setIsEditingApproved] = useState(false);
   const [isSubmittingRevision, setIsSubmittingRevision] = useState(false);
+
+  useEffect(() => {
+    if (typeof selectedProposalIndex === 'number' && proposalItems[selectedProposalIndex]) {
+      setSelectedProposalId(proposalItems[selectedProposalIndex].id);
+    }
+  }, [selectedProposalIndex, proposalItems]);
 
   const titleApproved = project?.titleStatus === TITLE_STATUSES.APPROVED;
   const isRevisionRequired = project?.titleStatus === TITLE_STATUSES.REVISION_REQUIRED;
@@ -127,15 +139,12 @@ export default function ProposalTab({ project, onRefresh }) {
     fetchSettings();
   }, [fetchSettings]);
 
-  const approvedItem = proposalItems.find((p) => p.isApproved);
-  const defaultAccordionId = approvedItem?.id || proposalItems[0]?.id || null;
+  const activeProposalId =
+    selectedProposalId && proposalItems.some((p) => p.id === selectedProposalId)
+      ? selectedProposalId
+      : defaultProposalId;
 
-  const activeAccordionId =
-    selectedAccordionId !== null
-      ? proposalItems.some((p) => p.id === selectedAccordionId)
-        ? selectedAccordionId
-        : null
-      : defaultAccordionId;
+  const activeProposal = proposalItems.find((p) => p.id === activeProposalId) || proposalItems[0];
 
   const getFormData = (proposal) => {
     return (
@@ -202,13 +211,6 @@ export default function ProposalTab({ project, onRefresh }) {
     } finally {
       setIsSubmittingRevision(false);
     }
-  };
-
-  const toggleAccordion = (proposalId) => {
-    setSelectedAccordionId((current) => {
-      const active = current !== null ? current : proposalItems[0]?.id || null;
-      return active === proposalId ? '' : proposalId;
-    });
   };
 
   const generateDeck = async (proposal) => {
@@ -346,196 +348,244 @@ export default function ProposalTab({ project, onRefresh }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {proposalItems.map((proposal, index) => {
-          const expanded = activeAccordionId === proposal.id;
-          const formData = getFormData(proposal);
-          const isGenerating = loadingProposalId === proposal.id;
+      <CardContent className="space-y-5">
+        {/* Candidate Proposals Tab Bar (Image 1) */}
+        <div className="space-y-2.5 rounded-xl border border-border/60 bg-muted/20 p-3.5 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Candidate Proposals Under Review ({proposalItems.length})
+            </p>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              Select a proposal to view and edit pitch deck details
+            </span>
+          </div>
 
-          return (
-            <div
-              key={proposal.id}
-              className={`overflow-hidden rounded-xl border transition-colors ${
-                proposal.isApproved
-                  ? 'border-emerald-500/40 bg-emerald-500/[0.02]'
-                  : 'border-border/60'
-              }`}
-            >
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-muted/40 transition-colors"
-                onClick={() => toggleAccordion(proposal.id)}
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Proposal {index + 1}
-                    </p>
-                    {proposal.isApproved && (
-                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] h-4 gap-1">
-                        <CheckCircle2 className="h-2.5 w-2.5" />
-                        Approved Title
-                      </Badge>
+          <div className="flex flex-wrap gap-2.5">
+            {proposalItems.map((proposal, index) => {
+              const isSelected = proposal.id === activeProposal.id;
+              return (
+                <button
+                  key={proposal.id}
+                  type="button"
+                  onClick={() => setSelectedProposalId(proposal.id)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs transition-all border text-left cursor-pointer select-none font-medium shadow-2xs',
+                    isSelected
+                      ? 'bg-primary/10 border-primary text-primary font-bold shadow-xs ring-1 ring-primary/25'
+                      : 'bg-card hover:bg-muted/60 border-border/80 text-foreground hover:border-border',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold shrink-0 transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-primary/10 text-primary',
                     )}
-                    {isRevisionRequired && (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-500/40 text-[10px] h-4"
-                      >
-                        Revision Required
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">{proposal.title}</p>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
-                    expanded ? 'rotate-180' : 'rotate-0'
-                  }`}
-                />
-              </button>
-
-              {expanded && (
-                <div className="border-t border-border/60 bg-background/50 px-4 py-4 space-y-4">
-                  {/* Approved Title Lock / Unlock Guard */}
-                  {titleApproved && (
-                    <div
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg p-3 text-xs border ${
-                        isLocked
-                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-                          : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300'
-                      }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className="font-semibold truncate max-w-[180px] sm:max-w-[260px]"
+                    title={proposal.title}
+                  >
+                    {proposal.title}
+                  </span>
+                  {proposal.isApproved && (
+                    <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[9px] px-1.5 py-0 h-4 gap-0.5 ml-0.5">
+                      <CheckCircle2 className="h-2.5 w-2.5" />
+                      Approved
+                    </Badge>
+                  )}
+                  {isRevisionRequired && (
+                    <Badge
+                      variant="outline"
+                      className="text-amber-600 border-amber-500/40 text-[9px] px-1.5 py-0 h-4 ml-0.5"
                     >
-                      <div className="flex items-center gap-2">
-                        {isLocked ? (
-                          <>
-                            <Lock className="h-4 w-4 shrink-0" />
-                            <span>
-                              Approved Title &amp; Scope locked. Inputs are read-only to preserve
-                              the formal defense baseline.
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span>
-                              Editing Approved Scope: Modifications are active. Save your draft and
-                              notify your committee if structural changes occur.
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {isLocked ? (
-                        <Button
-                          type="button"
-                          size="sm"
+                      Revision
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Proposal Studio Content */}
+        {activeProposal &&
+          (() => {
+            const formData = getFormData(activeProposal);
+            const isGenerating = loadingProposalId === activeProposal.id;
+
+            return (
+              <div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5 space-y-5 shadow-xs">
+                {/* Active Proposal Header / Status Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-border/50">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Proposal {activeProposal.index + 1} of {proposalItems.length}
+                      </span>
+                      {activeProposal.isApproved && (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] h-4 gap-1">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
+                          Approved Title
+                        </Badge>
+                      )}
+                      {isRevisionRequired && (
+                        <Badge
                           variant="outline"
-                          onClick={handleUnlockApproved}
-                          className="h-7 text-xs gap-1.5 border-emerald-400 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 shrink-0 self-start sm:self-auto"
+                          className="text-amber-600 border-amber-500/40 text-[10px] h-4"
                         >
-                          <Unlock className="h-3 w-3" />
-                          Unlock to Edit Scope
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setIsEditingApproved(false)}
-                          className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0 self-start sm:self-auto"
-                        >
-                          <Lock className="h-3 w-3 mr-1" />
-                          Lock Scope
-                        </Button>
+                          Revision Required
+                        </Badge>
                       )}
                     </div>
-                  )}
+                    <h4 className="text-base sm:text-lg font-bold text-foreground">
+                      {activeProposal.title}
+                    </h4>
+                  </div>
 
-                  <div className="space-y-4">
-                    {PITCH_DECK_FIELDS.map((field) => (
-                      <div key={field.key} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor={`${proposal.id}-${field.key}`}
-                            className="text-xs font-semibold"
-                          >
-                            {field.label}
-                          </Label>
-                          <span className="text-[10px] uppercase font-mono text-muted-foreground">
-                            {field.tag}
-                          </span>
-                        </div>
-                        <Textarea
-                          id={`${proposal.id}-${field.key}`}
-                          value={formData[field.key] || ''}
-                          disabled={isLocked}
-                          onChange={(event) =>
-                            handleFieldChange(proposal.id, field.key, event.target.value)
-                          }
-                          placeholder={field.placeholder}
-                          className={`min-h-24 text-sm ${
-                            isLocked ? 'bg-muted/40 cursor-not-allowed opacity-90' : 'bg-background'
-                          }`}
-                        />
-                      </div>
-                    ))}
-
-                    <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between border-t border-border/40">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        {isRevisionRequired && (
-                          <Button
-                            type="button"
-                            onClick={() => handleConfirmRevision(proposal)}
-                            disabled={isSubmittingRevision}
-                            className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm text-xs font-semibold"
-                          >
-                            {isSubmittingRevision ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                            Confirm Revision &amp; Resubmit for Committee Review
-                          </Button>
-                        )}
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleSaveDraft(proposal)}
-                          disabled={isLocked}
-                          className="w-full sm:w-auto text-xs gap-1.5"
-                        >
-                          <Save className="h-3.5 w-3.5" />
-                          Save Draft
-                        </Button>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => generateDeck(proposal)}
-                        disabled={isGenerating}
-                        className="w-full sm:w-auto text-xs gap-1.5"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Generating Deck...
-                          </>
-                        ) : (
-                          <>
-                            <FileDown className="h-3.5 w-3.5" />
-                            Generate Presentation Deck (PDF)
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSaveDraft(activeProposal)}
+                      disabled={isLocked}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Save Draft
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => generateDeck(activeProposal)}
+                      disabled={isGenerating}
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Generating Deck...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="h-3.5 w-3.5" />
+                          Generate Presentation Deck (PDF)
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
+
+                {/* Approved Title Lock / Unlock Guard */}
+                {titleApproved && (
+                  <div
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg p-3 text-xs border ${
+                      isLocked
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+                        : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isLocked ? (
+                        <>
+                          <Lock className="h-4 w-4 shrink-0" />
+                          <span>
+                            Approved Title &amp; Scope locked. Inputs are read-only to preserve the
+                            formal defense baseline.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span>
+                            Editing Approved Scope: Modifications are active. Save your draft and
+                            notify your committee if structural changes occur.
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {isLocked ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleUnlockApproved}
+                        className="h-7 text-xs gap-1.5 border-emerald-400 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 shrink-0 self-start sm:self-auto"
+                      >
+                        <Unlock className="h-3 w-3" />
+                        Unlock to Edit Scope
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsEditingApproved(false)}
+                        className="h-7 text-xs text-muted-foreground hover:text-foreground shrink-0 self-start sm:self-auto"
+                      >
+                        <Lock className="h-3 w-3 mr-1" />
+                        Lock Scope
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* 5 Pitch Deck Fields */}
+                <div className="space-y-4">
+                  {PITCH_DECK_FIELDS.map((field) => (
+                    <div key={field.key} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label
+                          htmlFor={`${activeProposal.id}-${field.key}`}
+                          className="text-xs font-semibold"
+                        >
+                          {field.label}
+                        </Label>
+                        <span className="text-[10px] uppercase font-mono text-muted-foreground">
+                          {field.tag}
+                        </span>
+                      </div>
+                      <Textarea
+                        id={`${activeProposal.id}-${field.key}`}
+                        value={formData[field.key] || ''}
+                        disabled={isLocked}
+                        onChange={(event) =>
+                          handleFieldChange(activeProposal.id, field.key, event.target.value)
+                        }
+                        placeholder={field.placeholder}
+                        className={`min-h-24 text-sm ${
+                          isLocked ? 'bg-muted/40 cursor-not-allowed opacity-90' : 'bg-background'
+                        }`}
+                      />
+                    </div>
+                  ))}
+
+                  {isRevisionRequired && (
+                    <div className="pt-2 border-t border-border/40">
+                      <Button
+                        type="button"
+                        onClick={() => handleConfirmRevision(activeProposal)}
+                        disabled={isSubmittingRevision}
+                        className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm text-xs font-semibold"
+                      >
+                        {isSubmittingRevision ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Confirm Revision &amp; Resubmit for Committee Review
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
       </CardContent>
     </Card>
   );

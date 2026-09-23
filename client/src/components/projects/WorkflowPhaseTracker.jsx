@@ -53,12 +53,19 @@ export function getActivePhaseIndex(project) {
  * WorkflowPhaseTracker — Responsive 5-stage milestone card stepper for the Capstone workflow.
  * Renders modern milestone cards with live status badges, progress bars, and institutional phase tags.
  */
-export default function WorkflowPhaseTracker({ project, currentStep, onStepClick, className }) {
+export default function WorkflowPhaseTracker({
+  project,
+  currentStep,
+  onStepClick,
+  onSelectProposal,
+  className,
+}) {
   return (
     <CapstoneWorkflowStepper
       project={project}
       currentStep={currentStep}
       onStepClick={onStepClick}
+      onSelectProposal={onSelectProposal}
       className={className}
     />
   );
@@ -68,5 +75,6 @@ WorkflowPhaseTracker.propTypes = {
   project: PropTypes.object,
   currentStep: PropTypes.number,
   onStepClick: PropTypes.func,
+  onSelectProposal: PropTypes.func,
   className: PropTypes.string,
 };

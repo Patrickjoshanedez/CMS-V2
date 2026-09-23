@@ -12,7 +12,7 @@ import SubmissionStatusBadge from '@/components/submissions/SubmissionStatusBadg
 import ChapterCard from '@/components/submissions/ChapterCard';
 import UploadChapterModal from '@/components/submissions/UploadChapterModal';
 import FinalPaperUpload from '@/components/submissions/FinalPaperUpload';
-import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
+import PrototypeShowcaseAndDemo from '@/components/projects/PrototypeShowcaseAndDemo';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
@@ -802,10 +802,11 @@ export default function ProjectSubmissionsPage() {
             </Alert>
           )}
 
-          <DevelopmentAssetsForm
+          <PrototypeShowcaseAndDemo
             project={activeProject}
             isReadOnly={!canEditDevelopmentAssets}
-            onViewAcademicGantt={() => setShowGanttModal(true)}
+            canAdd={canEditDevelopmentAssets}
+            canDelete={canEditDevelopmentAssets}
           />
 
           <div>

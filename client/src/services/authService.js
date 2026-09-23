@@ -50,6 +50,7 @@ export const teamService = {
   listInviteCandidates: (teamId, params) =>
     api.get(`/teams/${teamId}/invite-candidates`, { params }),
   inviteMember: (teamId, data) => api.post(`/teams/${teamId}/invite`, data),
+  bulkInviteMembers: (teamId, data) => api.post(`/teams/${teamId}/bulk-invite`, data),
   acceptInvite: (token) => api.post(`/teams/invites/${token}/accept`),
   declineInvite: (token) => api.post(`/teams/invites/${token}/decline`),
   assignMemberRole: (teamId, memberId, data) =>

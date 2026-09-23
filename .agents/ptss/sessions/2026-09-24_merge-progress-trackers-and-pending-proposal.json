@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-09-24_merge-progress-trackers-and-pending-proposal",
+  "timestamp": "2026-09-24T02:05:00.000Z",
+  "task": "Merge dual progress trackers (prerequisite banner and macro phase stepper) and integrate the pending proposal deliberation state, locked chapters notification, and Approval Studio action directly into a single unified CapstoneWorkflowStepper component.",
+  "status": "completed",
+  "quality_gate_battery": {
+    "endpoints_parity": "208 server / 189 client (UNMATCHED_COUNT = 0) PASSED",
+    "agentic_governance": "60/60 checks PASSED",
+    "governance_pipeline": "All 4 stages valid PASSED",
+    "targeted_unit_tests": "11/11 passed (CapstoneWorkflowStepper.test.jsx & MyProjectPage.test.jsx) and 97/97 component tests passed",
+    "playwright_visual_audit": "5 screenshots captured across Light/Dark modes, Desktop (1440x900) & Mobile (390x844)"
+  },
+  "files_modified": [
+    "client/src/components/projects/CapstoneWorkflowStepper.jsx",
+    "client/src/components/projects/CapstoneWorkflowStepper.test.jsx",
+    "client/src/pages/projects/MyProjectPage.jsx",
+    "client/src/pages/projects/MyProjectPage.test.jsx",
+    "client/src/pages/projects/ProjectDetailPage.jsx"
+  ],
+  "visual_artifacts": [
+    "01_unified_tracker_pending_proposal_desktop_light.png",
+    "02_unified_tracker_pending_proposal_desktop_dark.png",
+    "03_unified_tracker_pending_proposal_mobile_light.png",
+    "04_unified_tracker_pending_proposal_mobile_dark.png",
+    "05_unified_tracker_approved_capstone1_desktop_light.png"
+  ],
+  "lessons_learned": {
+    "lesson": "Rendering separate prerequisite step banners (e.g., Submit Title -> Get Approved) alongside macro capstone milestone progress steppers creates confusing duplicate progress bars and fragments the page with multiple stacked cards. Consolidating the title proposal as an explicit 1st-class milestone in the macro workflow creates a cohesive 5-stage pipeline with 1-click tab switching.",
+    "prevention": "Never stack multiple progress trackers or standalone alert cards above a workflow page. Embed contextual deliberation banners, gating notices, and candidate preview trays directly within the authoritative stepper component.",
+    "runbook": "Run targeted tests: npm test --workspace=client -- src/components/projects/CapstoneWorkflowStepper.test.jsx src/pages/projects/MyProjectPage.test.jsx; Visual audit: node scratch/audit_unified_progress_tracker.mjs",
+    "checklist": [
+      "Expanded CAPSTONE_STEPS to 5 stages: Phase 0 Team Formation, Proposal Title Proposal, Phase 1 Capstone 1, Phase 2 Capstone 2, Phase 3 Capstone 3",
+      "Updated resolveCurrentStep to accurately distinguish between pending Title Proposal (Step 1) and approved Capstone 1 (Step 2)",
+      "Embedded pending proposal deliberation banner, candidate proposal chips, lock notification, and Open Title Approval Studio action into CapstoneWorkflowStepper",
+      "Removed redundant WorkflowPrerequisiteBanner, TitlePendingCard, and PanelistsPendingCard from MyProjectPage.jsx",
+      "Mapped node clicks 1:1 to tabs: 1 -> proposal, 2 -> capstone_1, 3 -> capstone_2, 4 -> capstone_3",
+      "Aligned ProjectDetailPage.jsx mapStepToWorkflowTab for faculty views"
+    ]
+  }
+}

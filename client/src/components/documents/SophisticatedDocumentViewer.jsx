@@ -75,7 +75,11 @@ export default function SophisticatedDocumentViewer({
   open = true,
   onOpenChange,
   submission,
+  file,
+  fileBlob,
   fileUrl: fallbackFileUrl,
+  fileName: propFileName,
+  chapterTitle: propChapterTitle,
   portalTarget,
   initialViewMode = 'manuscript',
   embedded = false,
@@ -176,17 +180,27 @@ export default function SophisticatedDocumentViewer({
     }
   }, [open, embedded, initialViewMode]);
 
-  const fileName = submission?.fileName || 'Manuscript Document';
+  const effectiveFile = file || fileBlob || submission?.file || null;
+  const fileName =
+    propFileName ||
+    submission?.fileName ||
+    submission?.filename ||
+    effectiveFile?.name ||
+    'Manuscript Document';
   const effectiveSubmissionId = submission?._id || submission?.id || '';
   const isDocx = Boolean(
     fileName.toLowerCase().endsWith('.docx') ||
     fileName.toLowerCase().endsWith('.doc') ||
+    effectiveFile?.type?.includes('wordprocessingml') ||
+    effectiveFile?.type?.includes('msword') ||
     submission?.fileType?.includes('wordprocessingml') ||
     submission?.fileType?.includes('msword') ||
     submission?.fileType?.includes('docx'),
   );
   const isPdf = Boolean(
-    fileName.toLowerCase().endsWith('.pdf') || submission?.fileType?.includes('pdf'),
+    fileName.toLowerCase().endsWith('.pdf') ||
+    effectiveFile?.type?.includes('pdf') ||
+    submission?.fileType?.includes('pdf'),
   );
 
   const streamFileUrl =
@@ -196,13 +210,14 @@ export default function SophisticatedDocumentViewer({
   const parsedNum =
     typeof rawChapter === 'string' ? parseInt(rawChapter.replace(/\D/g, ''), 10) : rawChapter;
   const chapterTitle =
+    propChapterTitle ||
     CHAPTER_LABELS[rawChapter] ||
     CHAPTER_LABELS[parsedNum] ||
     (typeof rawChapter === 'string' && rawChapter.trim() && !/^\d+$/.test(rawChapter)
       ? rawChapter.replace(/^(Chapter\s*)+/i, 'Chapter ').trim()
       : `Chapter ${parsedNum || 1} Manuscript`);
   const versionBadge = submission?.version ? `v${submission.version}` : 'v1';
-  const fileSizeLabel = formatFileSize(submission?.fileSize);
+  const fileSizeLabel = formatFileSize(submission?.fileSize || effectiveFile?.size);
 
   const originalityScore =
     submission?.originalityScore !== null && submission?.originalityScore !== undefined
@@ -224,6 +239,31 @@ export default function SophisticatedDocumentViewer({
       (isPdf || isDocx || Boolean(submission?.convertedPdfKey)) &&
       (effectiveSubmissionId || streamFileUrl) &&
       (open || embedded);
+
+    // Direct client-side File/Blob for PDF: convert to object URL directly
+    if (isPdf && effectiveFile) {
+      objectUrl = URL.createObjectURL(effectiveFile);
+      setPdfBlobUrl(objectUrl);
+      setIsConvertedPdf(false);
+      setPdfError(null);
+      setIframeLoading(false);
+      return () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      };
+    }
+
+    // Direct blob: URL or data: URL provided
+    if (
+      isPdf &&
+      streamFileUrl &&
+      (streamFileUrl.startsWith('blob:') || streamFileUrl.startsWith('data:'))
+    ) {
+      setPdfBlobUrl(streamFileUrl);
+      setIsConvertedPdf(false);
+      setPdfError(null);
+      setIframeLoading(false);
+      return undefined;
+    }
 
     if (shouldFetch) {
       setIframeLoading(true);
@@ -250,6 +290,10 @@ export default function SophisticatedDocumentViewer({
             : null;
 
       if (!fetchEndpoint) {
+        if (isDocx && effectiveFile) {
+          setIframeLoading(false);
+          return;
+        }
         setPdfError('No document endpoint available.');
         setIframeLoading(false);
         return;
@@ -296,6 +340,7 @@ export default function SophisticatedDocumentViewer({
   }, [
     isPdf,
     isDocx,
+    effectiveFile,
     submission?._id,
     submission?.convertedPdfKey,
     open,
@@ -304,7 +349,7 @@ export default function SophisticatedDocumentViewer({
     pdfReloadTrigger,
   ]);
 
-  if ((!embedded && !open) || !submission) return null;
+  if ((!embedded && !open) || (!submission && !effectiveFile && !streamFileUrl)) return null;
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 15, 300));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 15, 50));
@@ -312,7 +357,14 @@ export default function SophisticatedDocumentViewer({
 
   const handleDownload = async () => {
     try {
-      if (submission?._id) {
+      if (effectiveFile) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(effectiveFile);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (submission?._id) {
         await submissionService.downloadFile(submission._id, fileName);
       } else if (streamFileUrl) {
         const link = document.createElement('a');
@@ -350,11 +402,11 @@ export default function SophisticatedDocumentViewer({
               <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[160px] xs:max-w-[200px] sm:max-w-xs lg:max-w-sm shrink">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <h3
                 id="document-viewer-title"
-                className="text-xs sm:text-base font-bold text-foreground truncate max-w-[140px] xs:max-w-[180px] sm:max-w-none"
+                className="text-xs sm:text-base font-bold text-foreground truncate"
               >
                 {chapterTitle}
               </h3>
@@ -364,26 +416,26 @@ export default function SophisticatedDocumentViewer({
               >
                 {versionBadge}
               </Badge>
-              {isDocx && (
+              {(!embedded || isFullscreen) && isDocx && (
                 <Badge
                   variant="secondary"
-                  className="hidden sm:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                  className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
                 >
                   Word Document
                 </Badge>
               )}
-              {isPdf && (
+              {(!embedded || isFullscreen) && isPdf && (
                 <Badge
                   variant="secondary"
-                  className="hidden sm:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                  className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
                 >
                   PDF Manuscript
                 </Badge>
               )}
-              {originalityScore !== null && (
+              {(!embedded || isFullscreen) && originalityScore !== null && (
                 <Badge
                   variant="outline"
-                  className={`hidden sm:inline-flex text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
+                  className={`hidden 2xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
                     originalityScore >= 75
                       ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                       : 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
@@ -416,7 +468,7 @@ export default function SophisticatedDocumentViewer({
               aria-label="View Formatted Manuscript"
             >
               {isPdf ? <BookOpen className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
-              <span className="hidden xs:inline">Manuscript</span>
+              <span className="hidden sm:inline">Manuscript</span>
             </button>
             <button
               type="button"
@@ -472,7 +524,11 @@ export default function SophisticatedDocumentViewer({
                 <ZoomIn className="h-3.5 w-3.5" />
               </button>
               <div className="h-3.5 w-px bg-border/60 mx-0.5" />
-              <div className="flex items-center gap-0.5" role="group" aria-label="Zoom presets">
+              <div
+                className="hidden 2xl:flex items-center gap-0.5"
+                role="group"
+                aria-label="Zoom presets"
+              >
                 {[150, 200, 250, 300].map((level) => (
                   <button
                     key={level}
@@ -774,6 +830,7 @@ export default function SophisticatedDocumentViewer({
             <DocxPreviewRenderer
               submissionId={effectiveSubmissionId}
               streamFileUrl={streamFileUrl}
+              file={effectiveFile}
               zoom={zoom}
               chapterTitle={chapterTitle}
               versionBadge={versionBadge}
@@ -968,6 +1025,7 @@ export default function SophisticatedDocumentViewer({
 export function DocxPreviewRenderer({
   submissionId,
   streamFileUrl,
+  file,
   zoom,
   chapterTitle,
   versionBadge,
@@ -980,7 +1038,7 @@ export function DocxPreviewRenderer({
   const abortRef = useRef(null);
 
   const renderDocx = useCallback(async () => {
-    if (!containerRef.current || (!submissionId && !streamFileUrl)) return;
+    if (!containerRef.current || (!file && !submissionId && !streamFileUrl)) return;
 
     // Abort any in-flight render
     if (abortRef.current) {
@@ -995,8 +1053,22 @@ export function DocxPreviewRenderer({
     try {
       let arrayBuffer;
 
-      // 1. If streamFileUrl is an external pre-signed URL (e.g. S3 / MinIO signed link), try fetching it
+      // 1. Direct in-memory File or Blob object
+      if (file && typeof file.arrayBuffer === 'function') {
+        arrayBuffer = await file.arrayBuffer();
+      } else if (file && file instanceof Blob) {
+        arrayBuffer = await new Response(file).arrayBuffer();
+      }
+
+      // 2. Local blob: URL provided as streamFileUrl
+      if (!arrayBuffer && streamFileUrl && streamFileUrl.startsWith('blob:')) {
+        const response = await fetch(streamFileUrl, { signal: controller.signal });
+        arrayBuffer = await response.arrayBuffer();
+      }
+
+      // 3. If streamFileUrl is an external pre-signed URL (e.g. S3 / MinIO signed link), try fetching it
       if (
+        !arrayBuffer &&
         streamFileUrl &&
         (streamFileUrl.startsWith('http://') || streamFileUrl.startsWith('https://'))
       ) {
@@ -1018,7 +1090,7 @@ export function DocxPreviewRenderer({
         }
       }
 
-      // 2. Fetch via Axios api client with automatic 401 token refresh interceptor
+      // 4. Fetch via Axios api client with automatic 401 token refresh interceptor
       if (!arrayBuffer) {
         const fetchEndpoint = streamFileUrl?.startsWith('/api/')
           ? streamFileUrl.replace(/^\/api/, '')
@@ -1076,7 +1148,7 @@ export function DocxPreviewRenderer({
       setError(errorMsg);
       setLoading(false);
     }
-  }, [submissionId, streamFileUrl]);
+  }, [submissionId, streamFileUrl, file]);
 
   useEffect(() => {
     renderDocx();
@@ -1148,6 +1220,7 @@ export function DocxPreviewRenderer({
 DocxPreviewRenderer.propTypes = {
   submissionId: PropTypes.string,
   streamFileUrl: PropTypes.string,
+  file: PropTypes.any,
   zoom: PropTypes.number.isRequired,
   chapterTitle: PropTypes.string.isRequired,
   versionBadge: PropTypes.string.isRequired,
@@ -1159,7 +1232,11 @@ SophisticatedDocumentViewer.propTypes = {
   open: PropTypes.bool,
   onOpenChange: PropTypes.func,
   submission: PropTypes.object,
+  file: PropTypes.any,
+  fileBlob: PropTypes.any,
   fileUrl: PropTypes.string,
+  fileName: PropTypes.string,
+  chapterTitle: PropTypes.string,
   portalTarget: PropTypes.any,
   initialViewMode: PropTypes.string,
   embedded: PropTypes.bool,

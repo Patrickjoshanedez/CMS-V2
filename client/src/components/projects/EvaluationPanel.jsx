@@ -568,27 +568,29 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
           )}
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-md border p-4 text-center">
-              <p className="text-2xl font-bold">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {allPanelistsSubmitted &&
                 summary.averageScore !== null &&
                 summary.averageScore !== undefined
                   ? summary.averageScore.toFixed(1)
                   : 'Pending Details'}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Average Score
                 {averageMaxScore && allPanelistsSubmitted ? ` / ${averageMaxScore}` : ''}
               </p>
             </div>
-            <div className="rounded-md border p-4 text-center">
-              <p className="text-2xl font-bold">{panelistCount}</p>
-              <p className="text-xs text-muted-foreground">Panelists</p>
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{panelistCount}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Panelists</p>
             </div>
-            <div className="rounded-md border p-4 text-center">
-              <p className="text-2xl font-bold">{visibleEvaluations.length}</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs">
+              <p className="text-xl sm:text-2xl font-bold text-foreground">
+                {visibleEvaluations.length}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {isStudent ? 'Released' : 'Total'} Evaluations
               </p>
             </div>

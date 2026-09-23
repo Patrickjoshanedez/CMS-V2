@@ -1,0 +1,47 @@
+{
+  "session_id": "2026-09-24_my-capstone-tabs-and-submissions-separation",
+  "timestamp": "2026-09-24T01:38:00.000Z",
+  "task": "Restructure My Capstone page (/project) by separating document submissions to the dedicated Submissions page (/project/submissions), eliminating the 5,000px vertical scroll into 6 responsive, ergonomic tabs (Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, Action Done Matrix, and Consultations) per /i-arrange, /i-clarify, and /i-critique.",
+  "status": "completed",
+  "quality_gate_battery": {
+    "endpoints_parity": "208 server / 189 client (UNMATCHED_COUNT = 0) PASSED",
+    "agentic_governance": "60/60 checks PASSED",
+    "governance_pipeline": "All 4 stages valid PASSED",
+    "targeted_unit_tests": "12/12 passed (myProjectTabs.test.js & MyProjectPage.test.jsx)",
+    "playwright_visual_audit": "9 screenshots captured across Light/Dark modes, Desktop (1440x900) & Mobile (390x844)"
+  },
+  "files_modified": [
+    "client/src/pages/projects/MyProjectPage.jsx",
+    "client/src/pages/projects/MyProjectPage.test.jsx",
+    "client/src/pages/projects/myProjectTabs.js",
+    "client/src/pages/projects/myProjectTabs.test.js"
+  ],
+  "visual_artifacts": [
+    "01_my_capstone_proposal_drafting_desktop_light.png",
+    "02_my_capstone_proposal_drafting_desktop_dark.png",
+    "03_my_capstone_capstone1_desktop_light.png",
+    "04_my_capstone_capstone2_gantt_desktop_light.png",
+    "05_my_capstone_capstone3_desktop_light.png",
+    "06_my_capstone_adm_desktop_light.png",
+    "07_my_capstone_adm_desktop_dark.png",
+    "08_my_capstone_mobile_proposal_light.png",
+    "09_my_capstone_mobile_adm_dark.png"
+  ],
+  "lessons_learned": {
+    "lesson": "Mixing document submission dropzones with capstone milestone tracking creates severe UI bloat, duplicate network requests (useProjectSubmissions), and cognitive fatigue. Submissions belong exclusively in the dedicated Submissions hub (/project/submissions), while My Capstone acts as the executive control tower for proposal drafting, Gantt milestones, and ADM verification.",
+    "prevention": "Ensure presenter components provide clear directional link banners pointing to the authoritative workflow page rather than duplicating upload controls and state-heavy dropzones across multiple views.",
+    "runbook": "Run targeted test: npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx src/pages/projects/myProjectTabs.test.js; Visual audit: node scratch/audit_restructured_my_capstone_tabs.mjs",
+    "checklist": [
+      "Removed ChapterProgressWithRounds and FinalPaperUpload from MyProjectPage.jsx",
+      "Removed unused useProjectSubmissions hook call from MyProjectPage.jsx",
+      "Added dedicated ActionDoneMatrixTab as first-class full-width tab",
+      "Configured 6 tabs: proposal, capstone_1, capstone_2, capstone_3, adm, consultation",
+      "Added contextual Submissions navigation banners in Capstone 2 and 3 tabs",
+      "Updated tab resolver myProjectTabs.js with aliases and tested all permutations",
+      "Visual audit executed with 9 screenshots across light, dark, desktop, and mobile viewports",
+      "Verified all 60/60 agentic governance checks and endpoint parity (0 unmatched)"
+    ],
+    "evidence": "12/12 unit tests passed; UNMATCHED_COUNT = 0; 9 visual audit screenshots produced in light/dark and mobile/desktop.",
+    "passed": true
+  }
+}

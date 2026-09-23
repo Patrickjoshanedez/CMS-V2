@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DropZone from '@/components/plagiarism/DropZone';
-import PlagiarismReportPage from '@/components/plagiarism/PlagiarismReportPage';
+import PlagiarismReportPage from '@/pages/submissions/PlagiarismReportPage';
 import ScanButton from '@/components/plagiarism/ScanButton';
 import ScanHero from '@/components/plagiarism/ScanHero';
 import { plagiarismService } from '@/services/plagiarismService';
@@ -151,9 +151,12 @@ export default function ArchivePlagiarismCheckerPage() {
   if (reportData) {
     return (
       <PlagiarismReportPage
+        file={file}
         reportData={reportData}
         fileName={file?.name || 'Submitted Document'}
+        initialCanvasMode="document"
         onBack={handleBackToUpload}
+        onReset={handleBackToUpload}
       />
     );
   }

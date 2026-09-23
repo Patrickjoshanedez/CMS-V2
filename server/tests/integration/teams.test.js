@@ -242,6 +242,77 @@ describe('Teams API — /api/teams', () => {
     });
   });
 
+  // ----- BULK INVITE MEMBERS -----
+
+  describe('POST /api/teams/:id/bulk-invite', () => {
+    it('should allow team leader to bulk invite multiple eligible students', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'bulk-lead@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Bulk Alpha Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      await createAuthenticatedUserWithRole('student', { email: 'bulk-s1@example.com' });
+      await createAuthenticatedUserWithRole('student', { email: 'bulk-s2@example.com' });
+
+      const res = await leaderAgent.post(`/api/teams/${teamId}/bulk-invite`).send({
+        emails: ['bulk-s1@example.com', 'bulk-s2@example.com'],
+      });
+
+      expect([200, 201]).toContain(res.status);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.summary.succeeded).toBe(2);
+      expect(res.body.data.summary.failed).toBe(0);
+      expect(res.body.data.results).toHaveLength(2);
+      expect(res.body.data.results[0].invite.inviteCode).toHaveLength(6);
+      expect(res.body.data.results[1].invite.inviteCode).toHaveLength(6);
+    });
+
+    it('should reject bulk invite when exceeding available capacity (max 3 emails per request)', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'bulk-cap-lead@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Bulk Capacity Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      const res = await leaderAgent.post(`/api/teams/${teamId}/bulk-invite`).send({
+        emails: ['c1@example.com', 'c2@example.com', 'c3@example.com', 'c4@example.com'],
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject bulk invite from non-leader', async () => {
+      const { agent: outsiderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'outsider-bulk@example.com',
+      });
+
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'real-leader-bulk@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Real Leader Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      const res = await outsiderAgent.post(`/api/teams/${teamId}/bulk-invite`).send({
+        emails: ['someone@example.com'],
+      });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
   // ----- INVITE ACCEPT / DECLINE -----
 
   describe('POST /api/teams/invites/:token/(accept|decline)', () => {

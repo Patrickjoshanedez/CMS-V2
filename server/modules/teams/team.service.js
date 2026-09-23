@@ -775,6 +775,90 @@ class TeamService {
   }
 
   /**
+   * Bulk invite multiple students to the team (leader only).
+   * @param {string} teamId - Team ID
+   * @param {string} leaderId - Current user ID (must be leader)
+   * @param {Object} data - { emails: string[] }
+   * @returns {Object} { results, summary }
+   */
+  async bulkInviteMembers(teamId, leaderId, data) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'NOT_FOUND');
+    }
+
+    if (team.leaderId.toString() !== leaderId.toString()) {
+      throw new AppError('Only the team leader can invite members.', 403, 'FORBIDDEN');
+    }
+
+    if (team.isLocked) {
+      throw new AppError(
+        'This team is already finalized and can no longer add members.',
+        409,
+        'TEAM_ALREADY_LOCKED',
+      );
+    }
+
+    const uniqueEmails = [...new Set((data.emails || []).map((e) => e.trim().toLowerCase()))];
+    if (uniqueEmails.length === 0) {
+      throw new AppError('At least one email is required for invitation.', 400, 'INVALID_INPUT');
+    }
+
+    const availableSlots = MAX_TEAM_MEMBERS - team.members.length;
+    if (availableSlots <= 0) {
+      throw new AppError(
+        `Team is already at maximum capacity (${MAX_TEAM_MEMBERS} members).`,
+        400,
+        'TEAM_FULL',
+      );
+    }
+
+    if (uniqueEmails.length > availableSlots) {
+      throw new AppError(
+        `Cannot invite ${uniqueEmails.length} students. Only ${availableSlots} open slot(s) remaining.`,
+        400,
+        'EXCEEDS_CAPACITY',
+      );
+    }
+
+    const results = [];
+    for (const email of uniqueEmails) {
+      try {
+        const inviteResult = await this.inviteMember(teamId, leaderId, { email });
+        results.push({
+          email,
+          success: true,
+          invite: inviteResult.invite,
+          invitedUser: inviteResult.invitedUser,
+          reusedInvite: inviteResult.reusedInvite,
+          emailSent: inviteResult.emailSent,
+        });
+      } catch (err) {
+        results.push({
+          email,
+          success: false,
+          error: {
+            code: err.code || 'INVITE_FAILED',
+            message: err.message || 'Failed to send invitation.',
+          },
+        });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    return {
+      results,
+      summary: {
+        total: uniqueEmails.length,
+        succeeded,
+        failed,
+      },
+    };
+  }
+
+  /**
    * Search student invite candidates for a team (leader-only).
    * Excludes current team members and inactive users.
    * @param {string} teamId

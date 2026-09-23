@@ -25,6 +25,19 @@ export const inviteMemberSchema = z.object({
     .toLowerCase(),
 });
 
+export const bulkInviteMembersSchema = z.object({
+  emails: z
+    .array(
+      z
+        .string({ required_error: 'Email is required' })
+        .trim()
+        .email('Please provide a valid email address')
+        .toLowerCase(),
+    )
+    .min(1, 'At least one email is required')
+    .max(3, 'Cannot invite more than 3 members at once'),
+});
+
 export const inviteCandidatesQuerySchema = z.object({
   search: z.string().trim().max(100).optional().default(''),
   limit: z.coerce.number().int().positive().max(20).default(8),

@@ -1,0 +1,85 @@
+{
+  "id": "2026-09-24_capstone1-minimalist-and-capstone2-gantt-isolation",
+  "task": "Capstone 1 Minimalist Collapsible Workspace, Capstone 2 Gantt Isolation & Prototype Submissions Reorganization",
+  "started_at": "2026-09-24T04:12:00.000Z",
+  "completed_at": "2026-09-24T04:55:00.000Z",
+  "status": "completed",
+  "root_cause_analysis": {
+    "issue": "Capstone 1 required a minimalist collapsible layout with all sections collapsed by default (Proposal Stage, Chapters 1-3 & Compiled Manuscript, ADM section) and moving the evaluation summary to the right side. Capstone 2 needed to be isolated strictly to the interactive Gantt chart maker, removing the placeholder link card and focusing fullscreen mode. Prototype showcase and demo video needed to be merged and placed on the student submissions page. ADM milestone selector (Image 4) needed removal as capstone tabs are separate, and the real-time defense synchronization banner (Image 5) needed to be merged directly into the ADM container.",
+    "culprits": [
+      "Capstone 1 previously displayed an un-collapsible, vertical stack with EvaluationSummary placed at the bottom rather than in a side-by-side desktop layout.",
+      "Capstone 2 previously rendered external placeholder link cards (Image 3) instead of focusing exclusively on the Interactive Academic Gantt Chart maker.",
+      "Demo Video and Prototype Showcase were fragmented into two separate sections.",
+      "Students could not upload prototype media or input demo video links from the Submissions page.",
+      "ActionDoneMatrixTab contained a redundant ADMPhaseSelector (Image 4) and an isolated banner (Image 5) outside the document sheet."
+    ]
+  },
+  "modifications": [
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+      "summary": "Implemented 3 minimalist sections (Proposal Stage with 5-point blueprint matching Image 1, Chapters 1-3 & Compiled Manuscript with SophisticatedDocumentViewer triggers, and ADM Section scoped to CAPSTONE_1), all collapsed by default on initial render."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.jsx",
+      "summary": "Refactored capstone_1 tab into a responsive 2-column layout (left: 3 collapsible sections, right: EvaluationPanel). Isolated capstone_2 tab to strictly render InteractiveGanttChart."
+    },
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.jsx",
+      "summary": "Removed Image 4 ADMPhaseSelector milestone scope tabs. Merged Image 5 Real-Time Defense Synchronization banner directly into the top of the ADM document sheet container with polished copy per /i-clarify."
+    },
+    {
+      "file": "client/src/components/projects/AcademicExcelGanttChart.jsx",
+      "summary": "Added Escape key event listener and enhanced fullscreen container styling for focused, distraction-free Gantt chart interaction."
+    },
+    {
+      "file": "client/src/components/projects/DevelopmentAssetsForm.jsx",
+      "summary": "Removed the external Gantt chart placeholder card (Image 3)."
+    },
+    {
+      "file": "client/src/components/projects/PrototypeShowcaseAndDemo.jsx",
+      "summary": "Merged Demo Video URL management (with video embed preview) and Prototype Showcase media gallery into a single cohesive component."
+    },
+    {
+      "file": "client/src/pages/submissions/ProjectSubmissionsPage.jsx",
+      "summary": "Integrated PrototypeShowcaseAndDemo under Phase 3: System Development & Progress Defense, allowing proponent teams to upload mockups, prototypes, and video links."
+    },
+    {
+      "file": "client/src/components/projects/EvaluationPanel.jsx",
+      "summary": "Updated EvaluationSummary grid to lg:grid-cols-1 xl:grid-cols-3 with rounded-xl border-border/70 cards for seamless sidebar column presentation without text wrapping."
+    }
+  ],
+  "verification_evidence": {
+    "playwright_visual_audit": {
+      "desktop_light_collapsed": "focused_capstone1_collapsed_desktop_light.png",
+      "desktop_dark_collapsed": "focused_capstone1_collapsed_desktop_dark.png",
+      "desktop_light_expanded": "03_capstone1_expanded_desktop_light.png",
+      "desktop_light_adm": "05_capstone1_adm_expanded_desktop_light.png",
+      "desktop_light_gantt": "06_capstone2_gantt_isolated_desktop_light.png",
+      "desktop_dark_gantt": "07_capstone2_gantt_isolated_desktop_dark.png",
+      "desktop_light_submissions": "08_submissions_prototype_showcase_desktop_light.png",
+      "desktop_dark_submissions": "09_submissions_prototype_showcase_desktop_dark.png",
+      "mobile_light_stacked": "focused_capstone1_mobile_stacked_light.png",
+      "mobile_dark_stacked": "focused_capstone1_mobile_stacked_dark.png",
+      "mobile_light_gantt": "12_capstone2_mobile_light.png",
+      "visual_check": "100% compliant with user specification. Capstone 1 sections default to collapsed with evaluation summary on the right; Capstone 2 strictly isolated to Gantt chart maker; Prototype showcase and demo video merged on Submissions page; Image 4 removed and Image 5 merged into ADM."
+    },
+    "unit_tests": [
+      "src/components/projects/Capstone1CollapsibleSections.test.jsx (4/4 passed)",
+      "src/components/projects/PrototypeShowcaseAndDemo.test.jsx (3/3 passed)",
+      "src/components/projects/ActionDoneMatrixTab.test.jsx (8/8 passed)",
+      "src/pages/projects/MyProjectPage.test.jsx (6/6 passed)",
+      "src/pages/submissions/ProjectSubmissionsPage.test.jsx (7/7 passed)",
+      "all 20 project component suites (106/106 passed)"
+    ],
+    "quality_gates": {
+      "check_endpoints": "208 Server / 189 Client (UNMATCHED_COUNT=0)",
+      "validate_agentic": "60/60 checks passed",
+      "validate_governance": "Valid DAG, 0 errors, 0 warnings"
+    }
+  },
+  "lessons_learned": [
+    "Default-collapsed collapsible sections provide a clean, high-density minimalist entry point (<200px tall) that lets proponents quickly scan capstone progression and evaluation metrics.",
+    "Removing redundant phase-selectors from sub-tab views prevents cognitive fragmentation when top-level tabs already provide clear milestone boundaries.",
+    "Centralizing prototype media and demo video management within the Submissions page streamlines proponent workflows without cluttering the primary project overview."
+  ]
+}

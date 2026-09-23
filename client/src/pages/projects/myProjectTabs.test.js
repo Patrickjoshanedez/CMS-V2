@@ -39,10 +39,38 @@ describe('resolveActiveWorkflowTab', () => {
     const result = resolveActiveWorkflowTab({
       requestedTab: null,
       unlockedTabs: ['proposal', 'capstone_1'],
-      defaultTab: 'capstone_1',
+      defaultTab: 'proposal',
     });
 
-    expect(result.activeTab).toBe('capstone_1');
+    expect(result.activeTab).toBe('proposal');
     expect(result.shouldNormalizeRequestedTab).toBe(false);
+  });
+
+  it('resolves proposal tab and aliases', () => {
+    const directResult = resolveActiveWorkflowTab({
+      requestedTab: 'proposal',
+      unlockedTabs: ['proposal', 'capstone_1'],
+    });
+    expect(directResult.activeTab).toBe('proposal');
+
+    const aliasResult = resolveActiveWorkflowTab({
+      requestedTab: 'draft',
+      unlockedTabs: ['proposal', 'capstone_1'],
+    });
+    expect(aliasResult.activeTab).toBe('proposal');
+  });
+
+  it('resolves adm tab and aliases', () => {
+    const directResult = resolveActiveWorkflowTab({
+      requestedTab: 'adm',
+      unlockedTabs: ['proposal', 'capstone_1', 'adm'],
+    });
+    expect(directResult.activeTab).toBe('adm');
+
+    const aliasResult = resolveActiveWorkflowTab({
+      requestedTab: 'matrix',
+      unlockedTabs: ['proposal', 'capstone_1', 'adm'],
+    });
+    expect(aliasResult.activeTab).toBe('adm');
   });
 });

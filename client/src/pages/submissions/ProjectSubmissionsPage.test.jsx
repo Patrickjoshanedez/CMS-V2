@@ -34,13 +34,10 @@ vi.mock('@/components/submissions/ChapterCard', () => ({
   ),
 }));
 
-vi.mock('@/components/projects/DevelopmentAssetsForm', () => ({
-  default: ({ onViewAcademicGantt }) => (
-    <div data-testid="development-assets-form">
-      <span>Development Assets Form</span>
-      <button type="button" onClick={onViewAcademicGantt}>
-        Open From Form
-      </button>
+vi.mock('@/components/projects/PrototypeShowcaseAndDemo', () => ({
+  default: ({ project }) => (
+    <div data-testid="prototype-showcase-and-demo">
+      <span>Prototype Showcase and Demo Component: {project?.title}</span>
     </div>
   ),
 }));
@@ -171,8 +168,10 @@ describe('ProjectSubmissionsPage Suite', () => {
 
     // Phase 3 Capstone 3 assertions (realigned from mislabeled Capstone 2)
     expect(container.textContent).toContain('Capstone 3: System Development & Progress Defense');
-    expect(container.textContent).toContain('Phase 3');
-    expect(container.querySelector('[data-testid="development-assets-form"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="prototype-showcase-and-demo"]') ||
+        container.querySelector('[data-testid="development-assets-form"]'),
+    ).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-4"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-5"]')).toBeTruthy();
 

@@ -647,9 +647,12 @@ function SourceRow({ source, isActive, onSelect }) {
    Main component
    ────────────────────────────────────────────────────────────── */
 function PlagiarismReportPage({
+  file = null,
+  fileName: propFileName = '',
   reportData = null,
   originalText = '',
   onReset = null,
+  onBack = null,
   initialCanvasMode,
 }) {
   const { submissionId } = useParams();
@@ -662,9 +665,6 @@ function PlagiarismReportPage({
   const [showHighlights, setShowHighlights] = useState(true);
   const [paperMode, setPaperMode] = useState('paper');
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [canvasMode, setCanvasMode] = useState(
-    initialCanvasMode || (reportData || originalText ? 'extracted' : 'document'),
-  );
 
   const { data, isLoading, isError, error } = usePlagiarismReport(submissionId, {
     enabled: !reportData,
@@ -676,13 +676,55 @@ function PlagiarismReportPage({
 
   const payload = reportData || data || null;
 
-  const submissionFileName = submission?.fileName || payload?.submissionFileName || '';
+  const effectiveFile = file || submission?.file || null;
+  const submissionFileName =
+    propFileName ||
+    effectiveFile?.name ||
+    submission?.fileName ||
+    payload?.submissionFileName ||
+    payload?.fileName ||
+    'Submitted Document';
+
   const isDocx =
     submissionFileName.toLowerCase().endsWith('.docx') ||
+    submissionFileName.toLowerCase().endsWith('.doc') ||
+    Boolean(effectiveFile?.type?.includes('wordprocessingml')) ||
     Boolean(submission?.fileType?.includes('wordprocessingml'));
   const isPdf =
     submissionFileName.toLowerCase().endsWith('.pdf') ||
+    Boolean(effectiveFile?.type?.includes('pdf')) ||
     Boolean(submission?.fileType?.includes('pdf'));
+
+  const viewerSubmission = useMemo(() => {
+    if (submission) return submission;
+    if (effectiveFile || payload) {
+      return {
+        _id: payload?._id || payload?.id || 'archive-document',
+        fileName: submissionFileName,
+        fileSize: effectiveFile?.size || payload?.fileSize || 0,
+        fileType:
+          effectiveFile?.type ||
+          (isDocx
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'application/pdf'),
+        originalityScore:
+          payload?.originalityScore !== undefined && payload?.originalityScore !== null
+            ? payload.originalityScore
+            : payload?.overallScore !== undefined
+              ? 100 - payload.overallScore
+              : null,
+        chapter: payload?.chapter || 1,
+        version: payload?.version || 1,
+        status: 'reviewed',
+      };
+    }
+    return null;
+  }, [submission, effectiveFile, payload, submissionFileName, isDocx]);
+
+  const hasBinaryDocument = Boolean(effectiveFile || (submissionId && !originalText));
+  const [canvasMode, setCanvasMode] = useState(
+    initialCanvasMode || (hasBinaryDocument ? 'document' : 'extracted'),
+  );
 
   const scanMutation = useScanSubmissionArchive();
 
@@ -957,7 +999,16 @@ function PlagiarismReportPage({
         {/* ── Top Header Toolbar ── */}
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (typeof onBack === 'function') onBack();
+                else if (typeof onReset === 'function') onReset();
+                else navigate(-1);
+              }}
+              className="gap-1.5"
+            >
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
@@ -975,8 +1026,7 @@ function PlagiarismReportPage({
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {submission?.fileName || payload?.fileName || 'Academic Manuscript'} · Phase{' '}
-                {submission?.capstonePhase ?? '1–4'}
+                {submissionFileName} · Phase {submission?.capstonePhase ?? '1–4'}
               </p>
             </div>
           </div>
@@ -994,7 +1044,7 @@ function PlagiarismReportPage({
               {scanMutation.isPending ? 'Scanning...' : 'Re-scan Archive'}
             </Button>
 
-            {submission && (
+            {(submission || viewerSubmission) && (
               <Button
                 variant="default"
                 size="sm"
@@ -1293,8 +1343,10 @@ function PlagiarismReportPage({
               <div className="flex-1 w-full min-h-[75vh] flex flex-col overflow-hidden bg-background">
                 <SophisticatedDocumentViewer
                   embedded={true}
-                  submission={submission}
+                  submission={viewerSubmission}
+                  file={effectiveFile}
                   fileUrl={submissionId ? `/api/submissions/${submissionId}/file` : null}
+                  fileName={submissionFileName}
                   initialViewMode="manuscript"
                   plagiarismMatches={payload?.matches || payload?.fullReport?.matches || []}
                   activeHighlightId={activeHighlightKey}
@@ -1722,12 +1774,14 @@ function PlagiarismReportPage({
         </div>
 
         {/* ── Sophisticated Document Viewer Integration ── */}
-        {submission && (
+        {(submission || viewerSubmission) && (
           <SophisticatedDocumentViewer
             open={viewerOpen}
             onOpenChange={setViewerOpen}
-            submission={submission}
-            fileUrl={`/api/submissions/${submission._id}/file`}
+            submission={viewerSubmission}
+            file={effectiveFile}
+            fileUrl={submission?._id ? `/api/submissions/${submission._id}/file` : null}
+            fileName={submissionFileName}
             initialViewMode="manuscript"
           />
         )}

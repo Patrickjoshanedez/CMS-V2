@@ -1,8 +1,58 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Users, Search, FileText, Code2, Award, CheckCircle2, Clock, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Users,
+  Search,
+  FileText,
+  Code2,
+  Award,
+  CheckCircle2,
+  Clock,
+  Lock,
+  Eye,
+  ArrowRight,
+  AlertTriangle,
+  FileEdit,
+  Sparkles,
+  Calendar,
+  GraduationCap,
+  UserCheck,
+} from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import TitleStatusBadge from './TitleStatusBadge';
+import ProjectStatusBadge from './ProjectStatusBadge';
+import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import { cn } from '@/lib/utils';
-import { CAPSTONE_PHASES, PROJECT_STATUSES } from '@cms/shared';
+import { CAPSTONE_PHASES, PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
+
+/**
+ * Normalizes entity prefixes defensively to prevent bugs like "Team Team Gamma".
+ */
+function cleanTeamName(name) {
+  if (!name) return 'Team';
+  const stripped = String(name)
+    .replace(/^Team\s+/i, '')
+    .trim();
+  return stripped ? `Team ${stripped}` : 'Team';
+}
+
+function getPhaseLabel(phase, project) {
+  const isADMApproved =
+    project?.admStatus === 'approved' ||
+    (Boolean(project?.admSignatures?.secretary?.endorsed) &&
+      Boolean(project?.admSignatures?.adviser?.signed) &&
+      Boolean(project?.admSignatures?.chair?.signed));
+
+  const num = Number(phase ?? 0);
+  if (num >= CAPSTONE_PHASES.PHASE_3) {
+    return isADMApproved ? 'Phase 3: Final Manuscript & Archival' : 'Phase 2: System Dev & ADM';
+  }
+  if (num >= CAPSTONE_PHASES.PHASE_2) return 'Phase 2: System Development & Prototype';
+  if (num >= CAPSTONE_PHASES.PHASE_1) return 'Phase 1: Title Proposal & Ch 1–3';
+  return 'Phase 0: Team Formation';
+}
 
 export const CAPSTONE_STEPS = [
   {
@@ -15,6 +65,14 @@ export const CAPSTONE_STEPS = [
   },
   {
     id: 1,
+    label: 'Title Proposal',
+    sublabel: 'Drafting & Review',
+    tag: 'Proposal',
+    icon: FileText,
+    hasADM: false,
+  },
+  {
+    id: 2,
     label: 'Capstone 1',
     sublabel: 'Proposal & Ch. 1–3 (ADM v1)',
     tag: 'Phase 1',
@@ -22,7 +80,7 @@ export const CAPSTONE_STEPS = [
     hasADM: true,
   },
   {
-    id: 2,
+    id: 3,
     label: 'Capstone 2',
     sublabel: 'System Dev & Demo (ADM v2)',
     tag: 'Phase 2',
@@ -30,7 +88,7 @@ export const CAPSTONE_STEPS = [
     hasADM: true,
   },
   {
-    id: 3,
+    id: 4,
     label: 'Capstone 3',
     sublabel: 'Final Defense & Archival',
     tag: 'Phase 3',
@@ -53,17 +111,30 @@ export function resolveCurrentStep(project) {
 
   const status = project.projectStatus || project.status;
   if (status === PROJECT_STATUSES.DEFENDED || status === 'archived' || project.isArchived) {
-    return 3;
+    return 4;
   }
 
   const phase = Number(project.capstonePhase ?? project.phase ?? 0);
   if (phase >= 3 || phase >= CAPSTONE_PHASES.PHASE_3) {
-    return 3;
+    return 4;
   }
-  if (phase >= CAPSTONE_PHASES.PHASE_2) return 2;
-  if (phase >= CAPSTONE_PHASES.PHASE_1) return 1;
+  if (phase >= CAPSTONE_PHASES.PHASE_2) return 3;
 
-  if (project.titleStatus === 'approved' || project.titleStatus === 'title_approved') {
+  const titleApproved =
+    project.titleStatus === TITLE_STATUSES.APPROVED ||
+    project.titleStatus === 'approved' ||
+    project.titleStatus === 'title_approved';
+
+  if (phase >= CAPSTONE_PHASES.PHASE_1 && titleApproved) {
+    return 2;
+  }
+
+  if (titleApproved) {
+    return 2;
+  }
+
+  // If project exists with team or proposals but title is not approved yet
+  if (project.titleStatus || project.titleProposals?.length || project._id) {
     return 1;
   }
 
@@ -71,14 +142,72 @@ export function resolveCurrentStep(project) {
 }
 
 /**
- * CapstoneWorkflowStepper — Modern milestone progress pipeline for the 3-semester capstone lifecycle.
- * Features a continuous connected progress track, animated completion line, distinct milestone nodes,
- * and interactive tab switching.
+ * CapstoneWorkflowStepper — Unified milestone progression pipeline for the BukSU Capstone Lifecycle.
+ * Consolidates executive project title, lifecycle status badges, team metadata, and macro milestone stages
+ * into a single unified interactive component.
  */
-export default function CapstoneWorkflowStepper({ currentStep, project, onStepClick, className }) {
+export default function CapstoneWorkflowStepper({
+  currentStep,
+  project,
+  onStepClick,
+  onSelectProposal,
+  className,
+}) {
+  let navigate = () => {};
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    navigate = useNavigate();
+  } catch {
+    // Fallback for isolated test environments without Router context
+  }
+
   const activeStep = typeof currentStep === 'number' ? currentStep : resolveCurrentStep(project);
   const isArchived =
-    project?.projectStatus === 'archived' || project?.isArchived || activeStep >= 3;
+    project?.projectStatus === 'archived' || project?.isArchived || activeStep >= 4;
+
+  const titleStatus = project?.titleStatus;
+  const titleApproved =
+    titleStatus === TITLE_STATUSES.APPROVED ||
+    titleStatus === 'approved' ||
+    titleStatus === 'title_approved';
+
+  const hasPanelists =
+    (project?.panelistIds?.length || 0) > 0 || (project?.committee?.panelists?.length || 0) > 0;
+
+  const proposalTitles = Array.isArray(project?.titleProposals)
+    ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
+    : project?.title
+      ? [project.title]
+      : [];
+
+  const teamDisplayName = cleanTeamName(project?.teamId?.name || project?.team?.name);
+  const displayTitle = !titleApproved
+    ? `${teamDisplayName} Capstone Proposal`
+    : project?.title || 'Pending Title Approval';
+
+  const adviserName =
+    project?.adviserId?.fullName ||
+    (project?.adviserId?.firstName
+      ? `${project.adviserId.firstName} ${project.adviserId.lastName || ''}`.trim()
+      : null);
+
+  const phaseLabel = getPhaseLabel(project?.capstonePhase ?? project?.phase, project);
+
+  let step1Sublabel = 'Drafting & Review';
+  if (titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted') {
+    step1Sublabel = 'Pending Review';
+  } else if (
+    titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+    titleStatus === 'revision_required' ||
+    titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
+  ) {
+    step1Sublabel = 'Revision Req.';
+  } else if (titleApproved) {
+    step1Sublabel = 'Approved';
+  } else if (titleStatus === TITLE_STATUSES.DRAFT || titleStatus === 'draft') {
+    step1Sublabel = 'In Draft';
+  }
+
   const currentStepObj =
     CAPSTONE_STEPS[Math.min(activeStep, CAPSTONE_STEPS.length - 1)] || CAPSTONE_STEPS[0];
   const progressPercent = Math.min(
@@ -89,12 +218,91 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
   return (
     <div
       className={cn(
-        'w-full rounded-2xl border border-border/70 bg-card p-5 sm:p-6 shadow-xs min-w-0 transition-all',
+        'w-full rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20 p-5 sm:p-7 shadow-xs min-w-0 transition-all relative overflow-hidden',
         className,
       )}
     >
+      {/* Subtle top accent border */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-accent" />
+
+      {/* Merged Executive Title Header (Image 2) */}
+      {project && (
+        <div className="space-y-4 pb-6 border-b border-border/50">
+          {/* Top Badges & Context Row */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="bg-primary/5 text-primary border-primary/20 text-xs font-semibold gap-1.5 px-2.5 py-0.5"
+              >
+                <Sparkles className="h-3 w-3" />
+                {phaseLabel}
+              </Badge>
+              {project.titleStatus && <TitleStatusBadge status={project.titleStatus} />}
+              {project.projectStatus && <ProjectStatusBadge status={project.projectStatus} />}
+              {project.defenseSchedule?.status && project.defenseSchedule.status !== 'none' && (
+                <DefenseScheduleBadge defenseSchedule={project.defenseSchedule} showTime />
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/project/approval')}
+              className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
+            >
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              <span>Proposals &amp; Rehearsal</span>
+            </Button>
+          </div>
+
+          {/* Executive Title */}
+          <div>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
+              {displayTitle}
+            </h2>
+          </div>
+
+          {/* Bottom Metadata Pills */}
+          <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-secondary">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary/80" />
+              <span className="font-semibold text-foreground">{teamDisplayName}</span>
+            </div>
+
+            {project.academicYear && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-secondary" />
+                <span>AY {project.academicYear}</span>
+              </div>
+            )}
+
+            {project.teamId?.section && (
+              <div className="flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5 text-secondary" />
+                <span>Section {project.teamId.section}</span>
+              </div>
+            )}
+
+            {adviserName && (
+              <div className="flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  Adviser: <strong className="font-medium text-foreground">{adviserName}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header Bar: Section Title & Global Lifecycle Metrics */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
+      <div
+        className={cn(
+          'flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50',
+          project && 'pt-5',
+        )}
+      >
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -103,14 +311,27 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
             </h3>
           </div>
           <p className="text-xs text-muted-foreground">
-            BukSU Institutional 3-Phase Capstone Lifecycle & Deliverable Milestones
+            BukSU Institutional Capstone Lifecycle &amp; Deliverable Milestones
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            Current: {currentStepObj.tag} ({currentStepObj.label})
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
+              !titleApproved && activeStep === 1
+                ? 'bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400'
+                : 'bg-primary/10 border-primary/20 text-primary',
+            )}
+          >
+            <span
+              className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                !titleApproved && activeStep === 1 ? 'bg-amber-500 animate-ping' : 'bg-primary',
+              )}
+            />
+            Current: {currentStepObj.tag} (
+            {currentStepObj.id === 1 ? step1Sublabel : currentStepObj.label})
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
             {isArchived ? '100% Completed' : `${Math.round(progressPercent)}% Completed`}
@@ -120,7 +341,7 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
 
       {/* Connected Milestone Pipeline Track */}
       <div className="mt-6 overflow-x-auto pb-2 pt-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20">
-        <div className="relative min-w-[580px] px-5 sm:px-8 py-2">
+        <div className="relative min-w-[620px] px-5 sm:px-8 py-2">
           {/* Background Track Line */}
           <div className="absolute top-[28px] left-[40px] right-[40px] sm:left-[52px] sm:right-[52px] h-1.5 -translate-y-1/2 rounded-full bg-muted/70 z-0" />
 
@@ -139,6 +360,7 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
               const isCompleted = step.id < activeStep;
               const isCurrent = step.id === activeStep;
               const isUpcoming = step.id > activeStep;
+              const sublabel = step.id === 1 ? step1Sublabel : step.sublabel;
 
               return (
                 <div
@@ -174,7 +396,9 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
                       isCompleted &&
                         'bg-emerald-600 text-white shadow-xs ring-4 ring-background dark:bg-emerald-500 hover:bg-emerald-700',
                       isCurrent &&
-                        'bg-primary text-primary-foreground shadow-md ring-4 ring-primary/25 ring-offset-2 ring-offset-background scale-110',
+                        (!titleApproved && step.id === 1
+                          ? 'bg-amber-600 text-white shadow-md ring-4 ring-amber-500/25 ring-offset-2 ring-offset-background scale-110 dark:bg-amber-500'
+                          : 'bg-primary text-primary-foreground shadow-md ring-4 ring-primary/25 ring-offset-2 ring-offset-background scale-110'),
                       isUpcoming &&
                         'bg-muted text-muted-foreground ring-4 ring-background border border-border/80 hover:bg-muted/80',
                     )}
@@ -193,7 +417,10 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
                     <span
                       className={cn(
                         'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
-                        isCurrent && 'bg-primary/10 text-primary font-extrabold',
+                        isCurrent &&
+                          (!titleApproved && step.id === 1
+                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 font-extrabold'
+                            : 'bg-primary/10 text-primary font-extrabold'),
                         isCompleted && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
                         isUpcoming && 'text-muted-foreground/70 bg-muted/40',
                       )}
@@ -204,7 +431,10 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
                     <p
                       className={cn(
                         'text-xs font-semibold leading-tight pt-1 break-words line-clamp-1 w-full',
-                        isCurrent && 'text-primary font-bold',
+                        isCurrent &&
+                          (!titleApproved && step.id === 1
+                            ? 'text-amber-700 dark:text-amber-400 font-bold'
+                            : 'text-primary font-bold'),
                         isCompleted && 'text-foreground',
                         isUpcoming && 'text-muted-foreground/80',
                       )}
@@ -215,9 +445,9 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
 
                     <p
                       className="text-[10px] text-muted-foreground leading-tight line-clamp-1 w-full hidden sm:block"
-                      title={step.sublabel}
+                      title={sublabel}
                     >
-                      {step.sublabel}
+                      {sublabel}
                     </p>
 
                     {/* Status Pill Indicator */}
@@ -229,8 +459,20 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
                         </span>
                       )}
                       {isCurrent && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary">
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 text-[10px] font-bold',
+                            !titleApproved && step.id === 1
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-primary',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'h-1.5 w-1.5 rounded-full animate-ping',
+                              !titleApproved && step.id === 1 ? 'bg-amber-500' : 'bg-primary',
+                            )}
+                          />
                           Active
                         </span>
                       )}
@@ -247,6 +489,135 @@ export default function CapstoneWorkflowStepper({ currentStep, project, onStepCl
           </div>
         </div>
       </div>
+
+      {/* Integrated Proposal Deliberation & Status Strip */}
+      {!titleApproved && project && (
+        <div
+          className={cn(
+            'mt-5 rounded-xl border p-4 transition-all space-y-3',
+            (titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted') &&
+              'border-amber-500/30 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-950/20',
+            (titleStatus === TITLE_STATUSES.DRAFT || titleStatus === 'draft') &&
+              'border-blue-500/30 bg-blue-500/10 dark:border-blue-800/40 dark:bg-blue-950/20',
+            (titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+              titleStatus === 'revision_required' ||
+              titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION) &&
+              'border-orange-500/30 bg-orange-500/10 dark:border-orange-800/40 dark:bg-orange-950/20',
+            (!titleStatus ||
+              (titleStatus !== 'submitted' &&
+                titleStatus !== 'draft' &&
+                titleStatus !== 'revision_required' &&
+                titleStatus !== TITLE_STATUSES.APPROVED_WITH_REVISION)) &&
+              'border-amber-500/30 bg-amber-500/10 dark:border-amber-800/40 dark:bg-amber-950/20',
+          )}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted' ? (
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              ) : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+                titleStatus === 'revision_required' ||
+                titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION ? (
+                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+              ) : (
+                <FileEdit className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-1 min-w-0">
+                <h4 className="text-sm font-bold text-foreground">
+                  {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted'
+                    ? 'Pending Proposal Deliberation'
+                    : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+                        titleStatus === 'revision_required' ||
+                        titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
+                      ? 'Title Proposal Revision Required'
+                      : 'Draft Title Proposal'}
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted'
+                    ? 'Your team has a pending proposal. Waiting for defense committee feedback, rubric scoring, and instructor ratification.'
+                    : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+                        titleStatus === 'revision_required' ||
+                        titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
+                      ? 'The instructor or defense committee requested revisions to your proposed title. Address remarks and resubmit.'
+                      : 'Your project title is currently in draft. Draft candidate proposals and submit them for committee review.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/project/approval')}
+                className="gap-1.5 text-xs h-8 border-border/80 bg-background/80 hover:bg-background text-foreground shrink-0 font-medium shadow-xs"
+              >
+                <Eye className="h-3.5 w-3.5 text-primary" />
+                Open Title Approval Studio
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Lock Notice */}
+          <div className="flex items-center gap-2 rounded-lg bg-background/60 dark:bg-background/40 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <span>
+              Chapter submissions and Capstone 1 milestones unlock once your proposal title is
+              approved.
+            </span>
+          </div>
+
+          {/* Candidate Proposals Under Review */}
+          {proposalTitles.length > 0 && (
+            <div className="pt-2 border-t border-border/40 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Candidate Proposals Under Review ({proposalTitles.length})
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {proposalTitles.map((t, idx) => (
+                  <button
+                    key={`prop-chip-${idx}`}
+                    type="button"
+                    onClick={() => {
+                      if (onSelectProposal) {
+                        onSelectProposal(idx);
+                      } else if (onStepClick) {
+                        onStepClick(1);
+                      }
+                    }}
+                    className="flex items-center gap-2 text-xs rounded-lg bg-background/80 dark:bg-background/60 border border-border/60 p-2 text-foreground font-medium text-left transition-all hover:border-primary/50 hover:bg-muted/50 cursor-pointer group"
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      {idx + 1}
+                    </span>
+                    <span className="truncate" title={t}>
+                      {t}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* If title is approved but waiting for committee panelists */}
+      {titleApproved && !hasPanelists && project && (
+        <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 transition-all">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-foreground">
+                Title Approved — Committee Assignment Pending
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your capstone title has been formally ratified. Waiting for the course instructor to
+                assign defense panelists before Capstone 1 defense hearings begin.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -255,5 +626,6 @@ CapstoneWorkflowStepper.propTypes = {
   currentStep: PropTypes.number,
   project: PropTypes.object,
   onStepClick: PropTypes.func,
+  onSelectProposal: PropTypes.func,
   className: PropTypes.string,
 };

@@ -67,20 +67,17 @@ describe('ProjectDetailPage Tab Synchronization Suite', () => {
   });
 
   describe('mapStepToWorkflowTab', () => {
-    it('maps stepper indices 0 and 1 to capstone_1', () => {
+    it('maps stepper indices 0, 1, and 2 to capstone_1', () => {
       expect(mapStepToWorkflowTab(0)).toBe('capstone_1');
       expect(mapStepToWorkflowTab(1)).toBe('capstone_1');
+      expect(mapStepToWorkflowTab(2)).toBe('capstone_1');
     });
 
-    it('maps stepper index 2 to capstone_2', () => {
-      expect(mapStepToWorkflowTab(2)).toBe('capstone_2');
+    it('maps stepper index 3 to capstone_2', () => {
+      expect(mapStepToWorkflowTab(3)).toBe('capstone_2');
     });
 
-    it('maps stepper index 3 to capstone_3', () => {
-      expect(mapStepToWorkflowTab(3)).toBe('capstone_3');
-    });
-
-    it('maps stepper index 4 to capstone_3 (legacy step fallback)', () => {
+    it('maps stepper index 4 to capstone_3', () => {
       expect(mapStepToWorkflowTab(4)).toBe('capstone_3');
     });
 

@@ -40,6 +40,8 @@ vi.mock('@/hooks/useProjects', () => ({
   useSubmitTitle: () => ({ mutate: vi.fn(), isPending: false }),
   useReviseAndResubmit: () => ({ mutate: vi.fn(), isPending: false }),
   useRequestTitleModification: () => ({ mutate: vi.fn(), isPending: false }),
+  useAssignAdviser: () => ({ mutate: vi.fn(), isPending: false }),
+  useAssignPanelists: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/useTeams', () => ({
@@ -73,15 +75,31 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
 }));
 
-vi.mock('sonner', () => ({
-  toast: {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-  },
+vi.mock('@/components/projects/ActionDoneMatrixTab', () => ({
+  default: () => <div data-testid="action-done-matrix-tab" />,
 }));
 
-describe('MyProjectPage Navigation and Redirect Guard', () => {
+vi.mock('@/components/projects/InteractiveGanttChart', () => ({
+  default: () => <div data-testid="interactive-gantt-chart" />,
+}));
+
+vi.mock('@/components/projects/DevelopmentAssetsForm', () => ({
+  default: () => <div data-testid="development-assets-form" />,
+}));
+
+vi.mock('@/components/projects/PrototypeGallery', () => ({
+  default: () => <div data-testid="prototype-gallery" />,
+}));
+
+vi.mock('@/components/projects/ConsultationLogWidget', () => ({
+  default: () => <div data-testid="consultation-log-widget" />,
+}));
+
+vi.mock('@/components/projects/ProjectInformationSidebar', () => ({
+  default: () => <div data-testid="project-information-sidebar" />,
+}));
+
+describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {
   let container;
   let root;
 
@@ -159,5 +177,64 @@ describe('MyProjectPage Navigation and Redirect Guard', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('/project/approval');
+  });
+
+  it('renders the 5 dedicated workflow tabs: Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, Consultations', async () => {
+    mockSearchParams = new URLSearchParams('tab=proposal');
+    mockProjectData.titleStatus = 'approved';
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    const tablist = container.querySelector('[role="tablist"]');
+    expect(tablist).toBeTruthy();
+    const text = tablist.textContent;
+    expect(text).toContain('Proposal Drafting');
+    expect(text).toContain('Capstone 1');
+    expect(text).toContain('Capstone 2');
+    expect(text).toContain('Capstone 3');
+    expect(text).not.toContain('Action Done Matrix');
+    expect(text).toContain('Consultations');
+  });
+
+  it('ensures document submission upload dropzones are NOT present on My Capstone page', async () => {
+    mockSearchParams = new URLSearchParams('tab=capstone_3');
+    mockProjectData.titleStatus = 'approved';
+    mockProjectData.capstonePhase = 3;
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    // Submissions are isolated to /project/submissions page, not on My Capstone
+    expect(container.querySelector('[data-testid="final-paper-upload"]')).toBeNull();
+    expect(container.querySelector('[data-testid="chapter-progress-with-rounds"]')).toBeNull();
+    // Contextual callout guiding users to Submissions page should be present
+    expect(container.textContent).toContain('Chapters 4–5 & Final Manuscript Submissions');
+    expect(container.textContent).toContain('Go to Submissions');
+  });
+
+  it('renders dedicated Action Done Matrix in adm tab', async () => {
+    mockSearchParams = new URLSearchParams('tab=adm');
+    mockProjectData.titleStatus = 'approved';
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="action-done-matrix-tab"]')).toBeTruthy();
   });
 });

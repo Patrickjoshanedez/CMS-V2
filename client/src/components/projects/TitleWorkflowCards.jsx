@@ -372,7 +372,7 @@ function PendingModificationCard({ project }) {
 }
 
 /* ── SubmittedCard ── */
-function SubmittedCard({ project }) {
+function SubmittedCard({ project, onSelectProposal }) {
   const navigate = useNavigate();
   const proposalTitles = Array.isArray(project?.titleProposals)
     ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
@@ -405,19 +405,30 @@ function SubmittedCard({ project }) {
       </CardHeader>
       {proposalTitles.length > 0 && (
         <CardContent className="pt-0">
-          <div className="rounded-xl border border-emerald-500/20 bg-background/60 dark:bg-background/40 p-3.5 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+          <div className="rounded-xl border border-emerald-500/20 bg-background/60 dark:bg-background/40 p-3.5 space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               Candidate Proposals Under Review ({proposalTitles.length})
             </p>
-            {proposalTitles.map((title, idx) => (
-              <div
-                key={`submitted-${idx}`}
-                className="flex items-center gap-2 text-sm text-foreground"
-              >
-                <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                <span className="font-medium truncate">{title}</span>
-              </div>
-            ))}
+            <div className="flex flex-wrap gap-2">
+              {proposalTitles.map((title, idx) => (
+                <button
+                  key={`submitted-${idx}`}
+                  type="button"
+                  onClick={() => onSelectProposal?.(idx)}
+                  className="flex items-center gap-2 rounded-xl bg-card hover:bg-muted/80 border border-emerald-500/30 px-3.5 py-2 text-xs font-medium text-foreground transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span
+                    className="font-semibold truncate max-w-[200px] sm:max-w-[280px]"
+                    title={title}
+                  >
+                    {title}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       )}
@@ -608,12 +619,12 @@ export function WorkflowPrerequisiteBanner({ titleStatus }) {
 }
 
 /* ── TitleActionsSection (router) ── */
-export default function TitleActionsSection({ project }) {
+export default function TitleActionsSection({ project, onSelectProposal }) {
   switch (project.titleStatus) {
     case TITLE_STATUSES.DRAFT:
       return <EditTitleForm project={project} />;
     case TITLE_STATUSES.SUBMITTED:
-      return <SubmittedCard project={project} />;
+      return <SubmittedCard project={project} onSelectProposal={onSelectProposal} />;
     case TITLE_STATUSES.APPROVED:
       return <ApprovedTitleCard project={project} />;
     case TITLE_STATUSES.APPROVED_WITH_REVISION:

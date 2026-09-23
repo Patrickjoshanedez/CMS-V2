@@ -270,4 +270,61 @@ describe('PlagiarismReportPage', () => {
     expect(container.textContent).toContain('<Name 2>');
     expect(container.textContent).toContain('Bukidnon State University');
   });
+
+  it('renders embedded SophisticatedDocumentViewer in Original Document mode when a direct file object is uploaded', () => {
+    const dummyFile = new File(['fake docx content'], 'Project_Workspace_CMS.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    act(() => {
+      root.render(
+        <PlagiarismReportPage
+          file={dummyFile}
+          reportData={{
+            overallScore: 5,
+            originalityScore: 95,
+            extractedText: 'Extracted sample text',
+            textMatches: [],
+          }}
+        />,
+      );
+    });
+
+    // When a direct file object is present, it MUST render the embedded document viewer
+    expect(
+      container.querySelector('[data-testid="sophisticated-document-viewer-embedded"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain('Project_Workspace_CMS.docx');
+  });
+
+  it('invokes onBack callback when clicking Back button in standalone upload mode', () => {
+    const onBackMock = vi.fn();
+    const dummyFile = new File(['content'], 'Test.docx', { type: 'application/docx' });
+
+    act(() => {
+      root.render(
+        <PlagiarismReportPage
+          file={dummyFile}
+          onBack={onBackMock}
+          reportData={{
+            overallScore: 0,
+            originalityScore: 100,
+            extractedText: 'sample',
+            textMatches: [],
+          }}
+        />,
+      );
+    });
+
+    const backBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Back'),
+    );
+    expect(backBtn).toBeDefined();
+
+    act(() => {
+      backBtn.click();
+    });
+
+    expect(onBackMock).toHaveBeenCalledTimes(1);
+  });
 });
