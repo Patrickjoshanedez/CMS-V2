@@ -1143,6 +1143,28 @@ export default function SubmissionReviewPage() {
             <p className="mt-1 max-h-20 overflow-auto rounded border-l-2 border-primary/40 bg-primary/5 pl-2 py-1 text-xs italic text-muted-foreground">
               {selectionDraft.selectedText}
             </p>
+            <div className="mt-2 flex items-center gap-2">
+              <label
+                htmlFor="comment-category-select"
+                className="text-[11px] font-medium text-muted-foreground"
+              >
+                Category:
+              </label>
+              <select
+                id="comment-category-select"
+                aria-label="Comment Category"
+                value={selectionDraft.category || 'Correction'}
+                onChange={(e) =>
+                  setSelectionDraft((prev) => ({ ...prev, category: e.target.value }))
+                }
+                className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="Correction">Correction</option>
+                <option value="Literature">Literature</option>
+                <option value="Methodology">Methodology</option>
+                <option value="General">General</option>
+              </select>
+            </div>
             <Textarea
               className="mt-2 text-sm"
               rows={3}
@@ -1171,6 +1193,7 @@ export default function SubmissionReviewPage() {
                         submissionId: activeSubmissionId,
                         content: selectionDraft.content.trim(),
                         selectedText: selectionDraft.selectedText,
+                        category: selectionDraft.category || 'Correction',
                         pageNumber: selectionDraft.pageNumber || 1,
                         position: selectionDraft.position,
                         authorRole: reviewerRole ? reviewerRole.toLowerCase() : 'adviser',

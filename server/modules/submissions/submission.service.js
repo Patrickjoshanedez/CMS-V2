@@ -29,7 +29,12 @@ import auditService from '../audit/audit.service.js';
 import agentRuntimeConfigService from '../../services/agentRuntimeConfig.service.js';
 import settingsService from '../settings/settings.service.js';
 import env from '../../config/env.js';
-import { enqueuePlagiarismJob, enqueueEmailJob } from '../../jobs/queue.js';
+import {
+  enqueuePlagiarismJob,
+  enqueueEmailJob,
+  enqueueDocxConversionJob,
+} from '../../jobs/queue.js';
+import documentConversionService from '../../services/documentConversion.service.js';
 import { runPlagiarismCheckSync } from '../../jobs/plagiarism.job.js';
 import { emitToUser } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
@@ -494,6 +499,44 @@ class SubmissionService {
       await Submission.findByIdAndUpdate(submission._id, {
         'plagiarismResult.jobId': jobId,
       });
+    }
+  }
+
+  /**
+   * Enqueue asynchronous DOCX to PDF conversion if the submission is a Word document.
+   *
+   * @param {Object} submission
+   */
+  async _enqueueDocxConversion(submission) {
+    if (!submission) return;
+    const fileName = submission.fileName || '';
+    const fileType = submission.fileType || '';
+    const isDocx = Boolean(
+      fileName.toLowerCase().endsWith('.docx') ||
+      fileName.toLowerCase().endsWith('.doc') ||
+      fileType.includes('wordprocessingml') ||
+      fileType.includes('msword'),
+    );
+
+    if (!isDocx || submission.convertedPdfKey) return;
+
+    try {
+      const jobId = await enqueueDocxConversionJob({
+        submissionId: submission._id.toString(),
+        storageKey: submission.storageKey,
+        fileName: submission.fileName,
+      });
+
+      if (jobId) {
+        await Submission.findByIdAndUpdate(submission._id, {
+          $set: { conversionStatus: 'PENDING' },
+        });
+      }
+    } catch (err) {
+      logger.warn(
+        { submissionId: submission._id, err: err.message },
+        '[SubmissionService] Could not enqueue DOCX conversion',
+      );
     }
   }
 
@@ -1184,6 +1227,8 @@ class SubmissionService {
       chapter,
     });
 
+    await this._enqueueDocxConversion(submission);
+
     await this._notifyAdviser({
       project,
       submission,
@@ -1378,6 +1423,8 @@ class SubmissionService {
       type: 'proposal',
     });
 
+    await this._enqueueDocxConversion(submission);
+
     // --- Transition project status to PENDING_IN_REVIEW ---
     project.projectStatus = PROJECT_STATUSES.PENDING_IN_REVIEW;
     await project.save();
@@ -1542,6 +1589,8 @@ class SubmissionService {
       projectId,
       type,
     });
+
+    await this._enqueueDocxConversion(submission);
 
     await this._notifyAdviser({
       project,
@@ -1781,6 +1830,8 @@ class SubmissionService {
       projectId,
       type,
     });
+
+    await this._enqueueDocxConversion(submission);
 
     await this._notifyAdviser({
       project,
@@ -2120,11 +2171,16 @@ class SubmissionService {
 
   /**
    * Download the submission document buffer directly from storage.
+   * If requesting for in-browser reading (!isDownload) and the file is a DOCX,
+   * serves the converted PDF (from cache or on-demand Gotenberg conversion).
+   *
    * @param {string} submissionId
    * @param {string} requesterId
-   * @returns {Promise<{ buffer: Buffer, fileName: string, fileType: string, fileSize: number }>}
+   * @param {Object} [options]
+   * @param {boolean} [options.isDownload=false]
+   * @returns {Promise<{ buffer: Buffer, fileName: string, fileType: string, fileSize: number, isConverted?: boolean }>}
    */
-  async getSubmissionFileBuffer(submissionId, requesterId) {
+  async getSubmissionFileBuffer(submissionId, requesterId, { isDownload = false } = {}) {
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new AppError('Submission not found.', 404, 'SUBMISSION_NOT_FOUND');
@@ -2144,12 +2200,81 @@ class SubmissionService {
       throw new AppError('Submission file is unavailable.', 404, 'SUBMISSION_FILE_UNAVAILABLE');
     }
 
+    const isDocx = Boolean(
+      submission.fileName?.toLowerCase().endsWith('.docx') ||
+      submission.fileName?.toLowerCase().endsWith('.doc') ||
+      submission.fileType?.includes('wordprocessingml') ||
+      submission.fileType?.includes('msword'),
+    );
+
+    // If requesting for in-browser reading and file is DOCX, serve high-fidelity PDF
+    if (!isDownload && isDocx) {
+      // 1. If converted PDF is already cached in S3/storage, serve it
+      if (submission.convertedPdfKey) {
+        try {
+          const pdfBuffer = await storageService.downloadFile(submission.convertedPdfKey);
+          return {
+            buffer: pdfBuffer,
+            fileName: submission.fileName.replace(/\.docx?$/i, '.pdf'),
+            fileType: 'application/pdf',
+            fileSize: pdfBuffer.length,
+            isConverted: true,
+          };
+        } catch (fetchErr) {
+          logger.warn(
+            { submissionId, err: fetchErr.message },
+            '[SubmissionService] Could not fetch cached converted PDF, trying on-demand conversion',
+          );
+        }
+      }
+
+      // 2. On-demand conversion via Gotenberg if reachable
+      try {
+        const isReady = await documentConversionService.isAvailable();
+        if (isReady) {
+          const rawDocx = await storageService.downloadFile(submission.storageKey);
+          const convertedBuffer = await documentConversionService.convertDocxToPdf(
+            rawDocx,
+            submission.fileName,
+          );
+          const convertedPdfKey = `${submission.storageKey.replace(/\.[^.]+$/, '')}-converted.pdf`;
+
+          await storageService.uploadFile(convertedBuffer, convertedPdfKey, 'application/pdf', {
+            type: 'converted-pdf',
+            sourceKey: submission.storageKey,
+          });
+
+          await Submission.findByIdAndUpdate(submission._id, {
+            $set: {
+              convertedPdfKey,
+              conversionStatus: 'COMPLETED',
+            },
+          });
+
+          return {
+            buffer: convertedBuffer,
+            fileName: submission.fileName.replace(/\.docx?$/i, '.pdf'),
+            fileType: 'application/pdf',
+            fileSize: convertedBuffer.length,
+            isConverted: true,
+          };
+        }
+      } catch (convErr) {
+        logger.warn(
+          { submissionId, err: convErr.message },
+          '[SubmissionService] On-demand conversion unavailable, serving original DOCX',
+        );
+      }
+    }
+
+    // Default / Download / Fallback: serve original uploaded file
     const buffer = await storageService.downloadFile(submission.storageKey);
     return {
       buffer,
       fileName: submission.fileName || 'document.pdf',
       fileType: submission.fileType || 'application/pdf',
       fileSize: submission.fileSize,
+      isConverted: false,
     };
   }
 

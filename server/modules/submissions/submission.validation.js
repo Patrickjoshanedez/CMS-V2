@@ -138,6 +138,11 @@ export const addAnnotationSchema = z
       .optional()
       .default(''),
     highlightCoords: z.any().optional().default(null),
+    category: z
+      .enum(['Correction', 'Literature', 'Methodology', 'General'])
+      .optional()
+      .default('General'),
+    rects: z.any().optional().default([]),
   })
   .refine(
     (data) => {
@@ -263,8 +268,14 @@ export const createSubmissionCommentSchema = z.object({
     .optional(),
   highlightText: z.string().trim().max(5000).optional().default(''),
   highlightedText: z.string().trim().max(5000).optional().default(''),
+  selectedText: z.string().trim().max(5000).optional().default(''),
   commentText: z.string().trim().max(5000).optional().default(''),
   text: z.string().trim().max(5000).optional().default(''),
+  content: z.string().trim().max(5000).optional().default(''),
+  category: z
+    .enum(['Correction', 'Literature', 'Methodology', 'General'])
+    .optional()
+    .default('General'),
   authorRole: z.string().trim().optional(),
   status: z.enum(['open', 'resolved']).optional().default('open'),
 });

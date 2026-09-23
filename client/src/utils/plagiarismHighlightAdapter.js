@@ -37,6 +37,8 @@ export function normalizeText(str) {
   );
 }
 
+const documentHighlightCache = new WeakMap();
+
 /**
  * Maps raw backend plagiarism report matches to viewport-independent highlight overlays.
  *
@@ -47,6 +49,11 @@ export function normalizeText(str) {
 export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches = []) {
   if (!pdfDocument || !Array.isArray(plagiarismMatches) || plagiarismMatches.length === 0) {
     return [];
+  }
+
+  const cached = documentHighlightCache.get(pdfDocument);
+  if (cached && cached.matchesCount === plagiarismMatches.length) {
+    return cached.highlights;
   }
 
   const highlights = [];
@@ -104,6 +111,11 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
       console.warn('[resolvePlagiarismHighlights] Failed to ground match in PDF text layer:', err);
     }
   }
+
+  documentHighlightCache.set(pdfDocument, {
+    matchesCount: plagiarismMatches.length,
+    highlights,
+  });
 
   return highlights;
 }

@@ -122,6 +122,15 @@ function HighlightPopupContent({
             </Badge>
           )}
 
+          {highlight.meta?.category && (
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary border-primary/30 font-medium"
+            >
+              {highlight.meta.category}
+            </Badge>
+          )}
+
           <span className="text-[10px] text-muted-foreground font-mono">
             Page {highlight.position?.pageNumber || 1}
           </span>

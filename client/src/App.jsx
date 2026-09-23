@@ -224,6 +224,8 @@ const PROTECTED_ROUTES = [
   // Submissions aliases for frictionless navigation
   { path: '/submissions/:submissionId', Component: SubmissionDetailPage },
   { path: '/submissions/:submissionId/review', Component: SubmissionReviewPage },
+  { path: '/submissions/:submissionId/plagiarism-report', Component: PlagiarismReportPage },
+  { path: '/submissions/:submissionId/plagiarism', Component: PlagiarismReportPage },
 ];
 
 export default function App() {

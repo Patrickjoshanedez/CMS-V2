@@ -20,12 +20,14 @@ let emailQueue = null;
 
 /** @type {Queue|null} */
 let documentExtractionQueue = null;
+let docxConversionQueue = null;
 
 /* ─────────────── Queue Names (exported for workers) ─────────────── */
 export const QUEUE_NAMES = Object.freeze({
   PLAGIARISM: 'plagiarism-check',
   EMAIL: 'email-dispatch',
   DOCUMENT_EXTRACTION: 'document-extraction',
+  DOCX_CONVERSION: 'docx-conversion',
 });
 
 /* ─────────────── Default Job Options ─────────────── */
@@ -49,6 +51,13 @@ export const documentExtractionJobDefaults = {
   backoff: { type: 'exponential', delay: 3000 },
   removeOnComplete: { age: 3600, count: 50 }, // Keep max 50 jobs or 1 hour
   removeOnFail: { age: 86400, count: 50 }, // Keep max 50 failed jobs for 24 hours
+};
+
+export const docxConversionJobDefaults = {
+  attempts: 2,
+  backoff: { type: 'exponential', delay: 3000 },
+  removeOnComplete: { age: 3600, count: 50 },
+  removeOnFail: { age: 86400, count: 50 },
 };
 
 /* ─────────────── Lazy Initializers ─────────────── */
@@ -166,6 +175,25 @@ export async function enqueueDocumentExtractionJob(payload, customJobId = null) 
   return job.id;
 }
 
+export function getDocxConversionQueue() {
+  if (docxConversionQueue) return docxConversionQueue;
+  if (!isRedisAvailable()) return null;
+  docxConversionQueue = new Queue(QUEUE_NAMES.DOCX_CONVERSION, {
+    connection: getRedisConnectionOpts(),
+    defaultJobOptions: docxConversionJobDefaults,
+  });
+  return docxConversionQueue;
+}
+
+export async function enqueueDocxConversionJob(payload, customJobId = null) {
+  const queue = getDocxConversionQueue();
+  if (!queue) return null;
+  const job = await queue.add('convert', payload, {
+    jobId: customJobId || undefined,
+  });
+  return job.id;
+}
+
 /* ─────────────── Graceful Shutdown ─────────────── */
 
 /**
@@ -176,10 +204,12 @@ export async function closeQueues() {
   if (plagiarismQueue) promises.push(plagiarismQueue.close());
   if (emailQueue) promises.push(emailQueue.close());
   if (documentExtractionQueue) promises.push(documentExtractionQueue.close());
+  if (docxConversionQueue) promises.push(docxConversionQueue.close());
   await Promise.all(promises);
   plagiarismQueue = null;
   emailQueue = null;
   documentExtractionQueue = null;
+  docxConversionQueue = null;
 }
 
 export default {
@@ -187,8 +217,10 @@ export default {
   getPlagiarismQueue,
   getEmailQueue,
   getDocumentExtractionQueue,
+  getDocxConversionQueue,
   enqueuePlagiarismJob,
   enqueueEmailJob,
   enqueueDocumentExtractionJob,
+  enqueueDocxConversionJob,
   closeQueues,
 };

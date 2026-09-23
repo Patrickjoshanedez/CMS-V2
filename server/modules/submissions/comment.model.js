@@ -62,6 +62,11 @@ const commentSchema = new Schema(
     highlightedText: { type: String, default: '' },
     commentText: { type: String, default: '' },
     text: { type: String, default: '' },
+    category: {
+      type: String,
+      enum: ['Correction', 'Literature', 'Methodology', 'General'],
+      default: 'General',
+    },
     status: { type: String, enum: ['open', 'resolved'], default: 'open' },
     replies: [replySchema],
     createdAt: { type: Date, default: Date.now },

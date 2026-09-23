@@ -32,6 +32,7 @@
     "seed:canonical": "npm run seed:canonical --workspace=server",
     "seed:archive:pdfs": "npm run seed:archive:pdfs --workspace=server",
     "seed:orphans": "npm run seed:orphans --workspace=server",
+    "convert:docx-to-pdf": "node scripts/convert-legacy-docx.js",
     "check:endpoints": "node scripts/check-endpoint-mappings.js",
     "validate:agentic": "node scripts/validate-agentic-system.js",
     "validate:governance": "node scripts/validate-agentic-system.js && python .github/hooks/scripts/agent_prefetch.py && python .github/hooks/scripts/agent_sync_verify.py && python .github/hooks/scripts/decision_coherence.py",

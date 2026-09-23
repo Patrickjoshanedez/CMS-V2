@@ -1,11 +1,11 @@
 import { GlobalWorkerOptions } from 'pdfjs-dist';
-// Vite ?url import resolves the worker to a locally bundled, hashed URL
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // Register the worker once before any PDF rendering begins
+const workerUrl = '/pdf.worker.min.mjs';
+
 if (typeof window !== 'undefined' && GlobalWorkerOptions) {
-  GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  window.pdfjsWorkerSrc = '/pdf.worker.min.mjs';
+  GlobalWorkerOptions.workerSrc = workerUrl;
+  window.pdfjsWorkerSrc = workerUrl;
 }
 
-export default '/pdf.worker.min.mjs';
+export default workerUrl;

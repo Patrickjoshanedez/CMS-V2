@@ -234,6 +234,15 @@ const annotationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    category: {
+      type: String,
+      enum: ['Correction', 'Literature', 'Methodology', 'General'],
+      default: 'General',
+    },
+    rects: {
+      type: mongoose.Schema.Types.Mixed,
+      default: [],
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -341,6 +350,16 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Storage key is required'],
       trim: true,
+    },
+    convertedPdfKey: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    conversionStatus: {
+      type: String,
+      enum: ['NONE', 'PENDING', 'COMPLETED', 'FAILED'],
+      default: 'NONE',
     },
 
     // --- Optional Google Drive mirror metadata (used for final submissions) ---

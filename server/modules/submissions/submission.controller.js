@@ -185,12 +185,13 @@ export const getViewUrl = catchAsync(async (req, res) => {
 
 /** GET /api/submissions/:submissionId/file — Stream submission file directly with HTTP 206 Range support */
 export const getSubmissionFile = catchAsync(async (req, res) => {
+  const isDownload = req.query?.download === 'true' || req.query?.download === '1';
   const { buffer, fileName, fileType } = await submissionService.getSubmissionFileBuffer(
     req.params.submissionId,
     req.user._id,
+    { isDownload },
   );
 
-  const isDownload = req.query?.download === 'true' || req.query?.download === '1';
   const disposition = isDownload ? 'attachment' : 'inline';
   const totalSize = buffer.length;
 
@@ -484,9 +485,12 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
     position,
     highlightText,
     highlightedText,
+    selectedText,
     commentText,
     text,
+    content,
     authorRole,
+    category,
   } = req.body;
 
   const authorName =
@@ -497,6 +501,7 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
     authorId: req.user._id,
     authorName,
     authorRole: authorRole || (req.user.role === ROLES.STUDENT ? 'student' : 'adviser'),
+    category: category || 'General',
     pageNumber: Number(pageNumber) || 1,
     position,
     coordinates:
@@ -509,10 +514,10 @@ export const createSubmissionComment = catchAsync(async (req, res) => {
             height: position.boundingRect.height,
           }
         : { x: 0, y: 0, width: 0, height: 0 }),
-    highlightText: highlightText || highlightedText || '',
-    highlightedText: highlightedText || highlightText || '',
-    commentText: commentText || text || '',
-    text: text || commentText || '',
+    highlightText: highlightText || highlightedText || selectedText || '',
+    highlightedText: highlightedText || highlightText || selectedText || '',
+    commentText: commentText || text || content || '',
+    text: text || commentText || content || '',
     status: 'open',
   });
 

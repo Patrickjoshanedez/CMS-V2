@@ -103,6 +103,7 @@ export default function SophisticatedDocumentViewer({
   const [docxError, setDocxError] = useState(null);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [isConvertedPdf, setIsConvertedPdf] = useState(false);
   const [pdfError, setPdfError] = useState(null);
   const [pdfReloadTrigger, setPdfReloadTrigger] = useState(0);
   const [viewMode, setViewMode] = useState(initialViewMode); // 'manuscript' | 'diff'
@@ -168,6 +169,7 @@ export default function SophisticatedDocumentViewer({
       setIframeLoading(true);
       setPdfError(null);
       setPdfBlobUrl(null);
+      setIsConvertedPdf(false);
       setZoom(100);
       setViewMode(initialViewMode || 'manuscript');
       setCompareWithId(null);
@@ -213,12 +215,17 @@ export default function SophisticatedDocumentViewer({
   const statusInfo = STATUS_CONFIG[submission?.status] || STATUS_CONFIG.pending;
   const StatusIcon = statusInfo.icon;
 
-  // Load PDF as blob via authenticated api service to support automatic token refresh
+  // Load document stream via authenticated API service
   useEffect(() => {
     let active = true;
     let objectUrl = null;
 
-    if (isPdf && (effectiveSubmissionId || streamFileUrl) && (open || embedded)) {
+    const shouldFetch =
+      (isPdf || isDocx || Boolean(submission?.convertedPdfKey)) &&
+      (effectiveSubmissionId || streamFileUrl) &&
+      (open || embedded);
+
+    if (shouldFetch) {
       setIframeLoading(true);
       setPdfError(null);
 
@@ -227,11 +234,14 @@ export default function SophisticatedDocumentViewer({
         streamFileUrl &&
         (streamFileUrl.startsWith('http://') || streamFileUrl.startsWith('https://'))
       ) {
-        setPdfBlobUrl(streamFileUrl);
+        if (streamFileUrl.includes('.pdf')) {
+          setPdfBlobUrl(streamFileUrl);
+          setIsConvertedPdf(Boolean(isDocx || submission?.convertedPdfKey));
+        }
         return;
       }
 
-      const pdfEndpoint = streamFileUrl?.startsWith('/api/')
+      const fetchEndpoint = streamFileUrl?.startsWith('/api/')
         ? streamFileUrl.replace(/^\/api/, '')
         : streamFileUrl?.startsWith('/')
           ? streamFileUrl
@@ -239,27 +249,39 @@ export default function SophisticatedDocumentViewer({
             ? `/submissions/${effectiveSubmissionId}/file`
             : null;
 
-      if (!pdfEndpoint) {
-        setPdfError('No PDF endpoint available.');
+      if (!fetchEndpoint) {
+        setPdfError('No document endpoint available.');
         setIframeLoading(false);
         return;
       }
 
       api
-        .get(pdfEndpoint, { responseType: 'blob' })
-        .then((res) => {
+        .get(fetchEndpoint, { responseType: 'blob' })
+        .then(async (res) => {
           if (!active) return;
-          objectUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-          setPdfBlobUrl(objectUrl);
-          setPdfError(null);
+          const mimeType = res.data?.type || res.headers?.['content-type'] || '';
+          const isPdfStream =
+            mimeType.includes('pdf') || isPdf || Boolean(submission?.convertedPdfKey);
+
+          if (isPdfStream) {
+            objectUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            setPdfBlobUrl(objectUrl);
+            setIsConvertedPdf(Boolean(isDocx || submission?.convertedPdfKey));
+            setPdfError(null);
+          } else {
+            // Raw DOCX returned from server (conversion pending or fallback)
+            setIsConvertedPdf(false);
+            setPdfBlobUrl(null);
+          }
+          setIframeLoading(false);
         })
         .catch((err) => {
           if (!active) return;
-          console.error('[SophisticatedDocumentViewer] PDF fetch failed:', err);
+          console.error('[SophisticatedDocumentViewer] Document fetch failed:', err);
           const errorMsg =
             err.response?.status === 401
               ? 'Server returned 401: Unauthorized'
-              : err.message || 'Failed to retrieve PDF manuscript.';
+              : err.message || 'Failed to retrieve manuscript.';
           setPdfError(errorMsg);
           setIframeLoading(false);
         });
@@ -271,7 +293,16 @@ export default function SophisticatedDocumentViewer({
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [isPdf, submission?._id, open, embedded, streamFileUrl, pdfReloadTrigger]);
+  }, [
+    isPdf,
+    isDocx,
+    submission?._id,
+    submission?.convertedPdfKey,
+    open,
+    embedded,
+    streamFileUrl,
+    pdfReloadTrigger,
+  ]);
 
   if ((!embedded && !open) || !submission) return null;
 
@@ -666,18 +697,7 @@ export default function SophisticatedDocumentViewer({
               onSelectCompareVersion={setCompareWithId}
               onRefresh={refetchDiff}
             />
-          ) : isDocx ? (
-            /* ── DOCX: docx-preview OOXML renderer ── */
-            <DocxPreviewRenderer
-              submissionId={effectiveSubmissionId}
-              streamFileUrl={streamFileUrl}
-              zoom={zoom}
-              chapterTitle={chapterTitle}
-              versionBadge={versionBadge}
-              fileName={fileName}
-              onDownload={handleDownload}
-            />
-          ) : isPdf ? (
+          ) : pdfBlobUrl || isPdf ? (
             /* ── PDF: Unified PdfViewerWorkspace (react-pdf-highlighter-plus) or legacy iframe fallback ── */
             <div
               className="relative flex-1 flex flex-col overflow-hidden overscroll-contain"
@@ -749,6 +769,17 @@ export default function SophisticatedDocumentViewer({
                 />
               )}
             </div>
+          ) : isDocx ? (
+            /* ── DOCX: docx-preview OOXML renderer fallback when unconverted ── */
+            <DocxPreviewRenderer
+              submissionId={effectiveSubmissionId}
+              streamFileUrl={streamFileUrl}
+              zoom={zoom}
+              chapterTitle={chapterTitle}
+              versionBadge={versionBadge}
+              fileName={fileName}
+              onDownload={handleDownload}
+            />
           ) : (
             /* ── Fallback: Download prompt ── */
             <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto p-6 rounded-2xl border border-dashed border-border/80 bg-card/60 m-8">

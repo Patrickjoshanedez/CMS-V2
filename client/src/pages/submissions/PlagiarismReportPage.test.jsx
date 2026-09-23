@@ -21,8 +21,16 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
 }));
 
 vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
-  default: ({ open, onOpenChange }) =>
-    open ? <div data-testid="sophisticated-document-viewer">Document Viewer Modal</div> : null,
+  default: ({ open, embedded }) => {
+    if (embedded) {
+      return (
+        <div data-testid="sophisticated-document-viewer-embedded">Embedded Document Viewer</div>
+      );
+    }
+    return open ? (
+      <div data-testid="sophisticated-document-viewer">Document Viewer Modal</div>
+    ) : null;
+  },
   DocxPreviewRenderer: () => <div data-testid="docx-preview-renderer">Docx Embedded Preview</div>,
 }));
 
@@ -102,9 +110,33 @@ describe('PlagiarismReportPage', () => {
     expect(container.textContent).toContain('BukSU Precision Agriculture Study 2025');
   });
 
-  it('renders extracted document text with Turnitin-style highlighted marks', () => {
+  it('renders embedded SophisticatedDocumentViewer in Original Document mode and allows toggling to Extracted Text', () => {
     act(() => {
       root.render(<PlagiarismReportPage />);
+    });
+
+    // Default mode is Original Document (embedded SophisticatedDocumentViewer)
+    expect(
+      container.querySelector('[data-testid="sophisticated-document-viewer-embedded"]'),
+    ).not.toBeNull();
+
+    // Toggle to Extracted Text mode
+    const extractedBtn = container.querySelector('[data-testid="canvasmode-extracted-btn"]');
+    expect(extractedBtn).not.toBeNull();
+    act(() => {
+      extractedBtn.click();
+    });
+
+    // Now extracted text article is mounted and embedded document viewer is unmounted
+    expect(container.querySelector('article')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="sophisticated-document-viewer-embedded"]'),
+    ).toBeNull();
+  });
+
+  it('renders extracted document text with Turnitin-style highlighted marks', () => {
+    act(() => {
+      root.render(<PlagiarismReportPage initialCanvasMode="extracted" />);
     });
 
     const mark = container.querySelector('mark');
@@ -150,7 +182,7 @@ describe('PlagiarismReportPage', () => {
 
   it('allows toggling originality highlights on and off in formatted manuscript view', () => {
     act(() => {
-      root.render(<PlagiarismReportPage />);
+      root.render(<PlagiarismReportPage initialCanvasMode="extracted" />);
     });
 
     const toggleBtn = container.querySelector('[data-testid="toggle-highlights-btn"]');
@@ -172,7 +204,7 @@ describe('PlagiarismReportPage', () => {
 
   it('allows toggling between Paper Sheet and Theme styles', () => {
     act(() => {
-      root.render(<PlagiarismReportPage />);
+      root.render(<PlagiarismReportPage initialCanvasMode="extracted" />);
     });
 
     const article = container.querySelector('article');
