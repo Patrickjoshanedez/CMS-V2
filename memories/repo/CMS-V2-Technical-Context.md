@@ -1,6 +1,37 @@
 # CMS-V2 Technical Context
 
 #### Prevention Rules
+- Academic PDF Metadata Extraction Accuracy & Reliability Prevention Rule (Front-to-Back Payload Contract + Multi-Page Timeout + Front-Matter Sidebar Heuristics):
+  1. Lesson learned: In `documentExtraction.job.js`, emitting `ocr:complete` with `{ jobId, payload: extractionPayload }` caused a front-to-back data severance because `ExistingCapstoneUploadPage.jsx` listened for `data.data` and `normalizeExtractionPayload` only inspected `envelope?.data`. Even when extraction succeeded on the backend, the client resolved `undefined`, wiped all fields, and fell back to extracting title and keywords from the filename (`remotesensing 17 02529 (1)`). Emitting both `data` and `payload` on the backend, and defensively resolving `data.data || data.payload || data` on the client eliminates data drops.
+  2. Lesson learned: Clamping the PaddleOCR-VL microservice timeout to 2.5s via `Math.min(2500, this.timeoutMs)` in `ocrExtraction.service.js` guaranteed that real-world multi-page academic papers (e.g. 18-page MDPI Remote Sensing paper) always timed out, tripping the 60-second offline cooldown and permanently forcing local text fallback. Setting `effectiveTimeout` to `Math.max(10000, Number(this.timeoutMs) || 15000)` ensures the OCR engine has sufficient execution time without premature aborts.
+  3. Lesson learned: In `pdfMetadataExtractor.js`, slicing candidate title lines to `Math.min(abstractIndex, 10)` blinded the extractor to real-world journal papers (MDPI, IEEE, Springer, ACM, Nature) where editorial sidebars take lines 0–20 and the actual manuscript title appears at lines 20–25. Slicing up to `Math.min(abstractIndex, 60)` lines and adding Pass 0 article-type anchoring (`/^(?:article|research\s+article|original\s+paper)$/i`) reliably locates the true manuscript title.
+  4. Lesson learned: In `isLikelyAuthorName`, rejecting any string containing digits (`/\d/.test(name)`) caused 100% of authors with affiliation superscripts (e.g. `Zihao Sun 1, Peng Guo 2, Xinbo Liu 3,*`) to be rejected. Stripping footnote superscripts, digits, and affiliation markers in `sanitizeAuthorName` (`clean.replace(/\s+\d+(?:[,\s-]+\d+)*(?:\*|†|‡|§)?/g, '')`) ensures legitimate academic author rosters are extracted cleanly.
+  5. Lesson learned: In `findTitleFromLines`, continuation joining logic joined lines under 40 characters if capitalized, which sucked single-author or short author lines (`Jane Doe, John Smith and Maria Cruz`) into the title string and emptied the author field. Stopping title continuation when the next line contains commas or author conjunctions preserves strict separation between title and author list.
+  6. Lesson learned: Academic papers published in journals feature standard date formats like `Published: 21 July 2025` or `© 2025` rather than simple `published: 2025`. Supporting date and month tokens in `extractPublicationYear`, adding `extractPublicationVenue` with canonical journal mapping (`Remote Sens.` -> `Remote Sensing`), and allowing multiline keyword blocks guarantees comprehensive 7-field extraction.
+  7. Prevention: Never assume PDF front matter is linear; always account for editorial sidebars, licensing notices, affiliation footnote superscripts, and multiline wrapping. Always ensure WebSocket/Socket.IO event payloads use dual-key emission (`data` and `payload`) and that frontend normalizers check all envelope layers.
+  8. Runbook & Checklist for Academic PDF Metadata Extraction:
+     - Step 1 (Checklist): Verify `documentExtraction.job.js` emits `{ jobId, data: extractionPayload, payload: extractionPayload }` on `ocr:complete`.
+     - Step 2 (Checklist): Verify `ExistingCapstoneUploadPage.jsx` normalizes `response?.data ?? response?.payload ?? response`, resolving `data.data || data.payload || data` in `onComplete` and polling fallbacks.
+     - Step 3 (Checklist): Verify `ocrExtraction.service.js` uses `Math.max(10000, Number(this.timeoutMs) || 15000)` without premature 2.5s timeout aborts.
+     - Step 4 (Checklist): Verify `pdfMetadataExtractor.js` searches up to 60 candidate lines before abstract, anchors on article type headers, skips editorial lines (Academic Editor, Licensee, Copyright, Citation), strips footnote digits in `sanitizeAuthorName`, stops title continuation on commas/authors, and extracts publication venue from known mappings.
+     - Step 5 (Evidence): Run targeted server tests: `npm test --workspace=server -- tests/unit/pdfMetadataExtractor.test.js` (4/4 passed).
+     - Step 6 (Evidence): Run targeted client archive tests: `npm test --workspace=client -- src/pages/archive/` (18/18 passed including real-time Socket.IO payload delivery).
+     - Step 7 (Evidence): Verify API route parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0, 209 server / 190 client), agentic governance (`npm run validate:agentic`: 60/60 checks passed), and governance pipeline.
+
+- Archive Dual Upload & Manuscript/Journal Viewer Toggle Prevention Rule (Simultaneous Upload + Explicit Scan Targets + Separated Action Card):
+  1. Lesson learned: In `CanonicalDocumentViewer.jsx`, prepending `/api` to endpoints when Axios `baseURL` already contains `/api` caused Axios to request `/api/api/projects/:id/manuscript`, throwing 404 Not Found on PDF retrieval. Sanitizing URLs (`manuscriptUrl.startsWith('/api/') ? manuscriptUrl.slice(4) : manuscriptUrl`) guarantees correct path resolution across all environments.
+  2. Lesson learned: In `ExistingCapstoneUploadPage.jsx`, running immediate blocking auto-scans upon selecting a file blocked instructors from uploading both papers or choosing which document to scan. Implementing non-blocking state, dual upload dropzones (Academic Paper & Academic Journal), explicit target selectors (`metadataTarget`, `plagiarismTarget`), and an on-demand trigger mechanism gives instructors total flexibility to upload either document alone or both simultaneously.
+  3. Lesson learned: Placing upload confirmation actions inline with file dropzones caused user disorientation and accidental submissions before configuring metadata or scan targets. Isolating the primary upload action into a dedicated bottom card (`4. Confirm & Upload Archive Bundle`) with bundle status summary badges (Paper attached, Journal attached, OCR extraction source, Plagiarism check status) establishes clean spatial ergonomics and clear visual hierarchy.
+  4. Lesson learned: When submitting multipart `FormData`, appending `null` converts to the string `"null"`, which confuses backend file parsers. Only append files when they exist (`if (payload.academicPaperFile)`).
+  5. Prevention: Never restrict archive uploads to a strict requirement of both files; support paper-only, journal-only, or simultaneous dual upload. Always provide a top-bar viewer toggle in `CanonicalDocumentViewer` (`[ 📄 Academic Paper ]` / `[ 📑 Academic Journal ]`) when viewing archived projects with attached submissions.
+  6. Runbook & Checklist for Archive Dual Upload & Viewer Toggle:
+     - Step 1 (Checklist): Verify `project.validation.js` validates optional `metadataTarget`, `plagiarismTarget`, and `originalityScore`.
+     - Step 2 (Checklist): Verify `project.service.js` attaches `hasAcademicPaper` and `hasJournalPaper` to project records, and `getProjectManuscript` dynamically filters by requested `type` (`final_academic` vs `final_journal`).
+     - Step 3 (Checklist): Verify `CanonicalDocumentViewer.jsx` strips duplicate `/api` prefix and displays document switcher pills with active document state and fallback switch actions.
+     - Step 4 (Checklist): Verify `ExistingCapstoneUploadPage.jsx` has 4 clean sections: (1) Dual Upload Bundle Files, (2) Processing & Scan Target Configuration, (3) Verify Metadata, and (4) Separated Confirm & Upload Archive Bundle.
+     - Step 5 (Evidence): Run targeted tests: `npm test --workspace=server -- tests/unit/project.manuscript.test.js` (5/5 passed), `npm test --workspace=client -- src/components/archive/CanonicalDocumentViewer.test.jsx` (7/7 passed), `npm test --workspace=client -- src/pages/archive/ExistingCapstoneUploadPage.test.jsx` (8/8 passed).
+     - Step 6 (Evidence): Verify API route parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0), agentic governance (`npm run validate:agentic`: 60/60 checks), and governance pipeline (`npm run validate:governance`).
+     - Step 7 (Evidence): Execute Playwright visual audit across Desktop Light (1440x900), Desktop Dark (1440x900), Mobile Light (390x844), and Mobile Dark (390x844).
 - Grade Sign-Off Collapsible Integration & Sidebar Reuse Prevention Rule (Defense Evaluation Collapsible + ProjectInformationSidebar):
   1. Lesson learned: Housing the "Grades Pending Panel Sign-Off" evaluation status as a separate, full-height card to the side of collapsible workflow cards takes up excessive lateral screen real estate, leaving the page visually unbalanced and forcing artificial grid constraints. Integrating Defense Evaluation & Grade Sign-Off directly inside Section 4 of Capstone1CollapsibleSections (collapsed by default, matching Proposal Stage, Chapters 1-3, and ADM) creates a clean, uniform, and space-efficient layout where all defense components remain easily expandable on demand.
   2. Lesson learned: The top tab navigation bar in MyProjectPage should focus purely on the primary capstone phases (Proposal Drafting, Capstone 1, Capstone 2, Capstone 3, and Consultations). Exposing "Action Done Matrix" as an independent top-level tab created unnecessary navigational redundancy when ADM is already housed as Section 3 within Capstone 1. Removing ADM from the tab bar streamlines navigation to 5 primary tabs while preserving full ADM functionality in Section 3.
@@ -129,6 +160,16 @@
      - Step 2 (Checklist): Register Students with `role: 'student'`, `sectionId`, and `instructorId`.
      - Step 3 (Checklist): Register Faculty under unified `role: 'faculty'` with proper `facultyRole` (`adviser` or `panelist`).
      - Step 4 (Evidence): Probe `POST /api/auth/login` across all 3 primary role groups to confirm HTTP 200 OK evidence passed.
+
+- Publication Venue Domain Precision & Publisher Disambiguation Prevention Rule:
+  1. Lesson learned: In academic publishing, a publication venue is strictly the specific outlet (peer-reviewed journal, conference proceedings, workshop, edited volume, or preprint server), NEVER the publisher (e.g. Elsevier, Springer, IEEE, ACM, MDPI) and NEVER the physical host city/country (e.g. 'Honolulu, Hawaii, USA', 'Basel, Switzerland') or date. Rigid length thresholds (`length < 6`) erroneously rejected top 3-5 character academic venue acronyms (`Cell`, `ICML`, `CVPR`, `ACL`, `AAAI`, `ICLR`, `VLDB`, `CHI`, `arXiv`). In CrossRef CSL metadata, conference papers frequently omit `container-title` while providing `event.name`, `event.title`, or `collection-title`.
+  2. Prevention: In `pdfMetadataExtractor.js`, maintain `normalizeVenue` with `BARE_PUBLISHERS` filter set, physical location regex filter, date filter, single-line isolation (rejecting cross-line bleed from title/authors), and threshold $\ge 3$. In `fetchMetadataByDoi`, use `extractCslVenue` inspecting `container-title`, `short-container-title`, `event.name`, `event.title`, and `collection-title`. In `extractPublicationVenue`, maintain `KNOWN_VENUES` covering premier conferences, journals, and preprint servers (`arXiv`, `bioRxiv`, `medRxiv`, `SSRN`).
+  3. Runbook & Checklist for Venue Extraction Verification:
+     - Step 1 (Checklist): Assert short venue acronyms (`ICML`, `CVPR`, `NeurIPS`, `ACL`, `Cell`, `CHI`, `arXiv`) are preserved with confidence $\ge 0.70$.
+     - Step 2 (Checklist): Assert bare publishers (`IEEE`, `ACM`, `Springer`, `Elsevier`, `MDPI`) are strictly rejected from becoming the publication venue.
+     - Step 3 (Checklist): Assert physical conference cities and pure dates are strictly rejected.
+     - Step 4 (Checklist): Assert CrossRef CSL event.name / event.title resolves when container-title is null.
+     - Step 5 (Evidence): Run `npm test --workspace=server -- tests/unit/pdfMetadataExtractor.test.js` and confirm 8/8 tests passed evidence. Run `npm test --workspace=client -- src/pages/archive/ExistingCapstoneUploadPage.test.jsx` and confirm 9/9 tests passed evidence.
 
 - Proposal Defense Pitch Deck Title Cover Slide Content Isolation: Slide 01 (`Title Pitch & Proponents`) must never render Proposed Solution or technical framework paragraphs. Subtitle on Slide 01 defaults to empty string or user-edited subtitle; `pitch.proposedSolution` belongs strictly and exclusively to Slide 03 (`Proposed Solution & Technical Framework`). `ProposalSlideCanvas` defensively suppresses subtitle if it matches or contains `proposedSolution`.
 - For orchestration initialization-only changes, require an evidence triad before completion: (1) targeted verification report, (2) explicit mutation evidence convention with numeric score, (3) reviewer verdict.
@@ -3397,5 +3438,76 @@
      - Checklist: Route parity verified: 209 Server / 190 Client (`UNMATCHED_COUNT = 0`).
      - Checklist: Agentic system governance verified: 60/60 checks passed.
      - Checklist: Pristine workspace guardrail verified.
+
+122. Faculty Panelist Assignment Role Normalization & Unified Milestone Progression Cockpit Consolidation:
+- Architectural Root Cause & Mechanics:
+  1. Panelist Role Validation Rejection: In BukSU, accounts for teachers/evaluators are registered under the primary umbrella role `'faculty'`. In `server/modules/projects/project.service.js`, `assignPanelist` and `selectAsPanelist` previously validated panelists with strict identity comparison (`panelist.role !== ROLES.PANELIST` or `'panelist'`), immediately throwing `AppError('The specified user is not a valid panelist.', 400, 'INVALID_PANELIST')` when attempting to appoint faculty members like Louie Labastida.
+  2. Workspace Squeeze from Redundant Right Sidebar: On `MyProjectPage.jsx` and `ProjectDetailPage.jsx`, a persistent 4-column right sidebar (`xl:col-span-4`) duplicated project context, evaluation summaries, and plagiarism cards that were already represented in the workflow, squeezing the document viewer, Gantt chart, and ADM tables into a cramped 8-column layout (`xl:col-span-8`).
+  3. Space-Efficient Committee & Reports Access: The Faculty Committee and Academic Reports cards required seamless on-demand access without consuming permanent vertical or lateral screen space, requiring accessible modal dialog consolidation with escape-key and backdrop dismissal following Shneiderman's 8 Golden Rules and Nielsen's 10 Usability Heuristics.
+- Resolution & Implementation Details:
+  1. Backend Role Guard Normalization & Mutual Exclusion in `project.service.js`:
+     - Expanded allowed panelist roles to include all verified faculty roles (`ROLES.FACULTY`, `ROLES.PANELIST`, `ROLES.ADVISER`, `'faculty'`, `'adviser'`, `'panelist'`) while strictly excluding `ROLES.INSTRUCTOR` and `ROLES.STUDENT`.
+     - Enforced mutual exclusion / conflict-of-interest check: an adviser cannot serve as a panelist on the same project (`ROLE_CONFLICT`), and a panelist cannot be assigned as adviser (`ROLE_CONFLICT`).
+     - Added auto-synchronization for `project.panelists` (`[{ userId, role: 'chair' | 'member' }]`) alongside `project.panelistIds`.
+     - Added automatic `.populate()` for `adviserId`, `panelistIds`, and `panelists.userId` before returning `{ project }` for instant client cache synchronization.
+     - In `project.routes.js`, aligned `/:id/panelists/select` authorization to `authorize(ROLES.PANELIST, ROLES.FACULTY)`.
+  2. Milestone Progression Cockpit Consolidation in `CapstoneWorkflowStepper.jsx`:
+     - Integrated Space-Saving Faculty Committee Button (`data-testid="milestone-committee-button"`) in the top toolbar with status count badge (`${panelCount}/3 Panelists`, emerald if complete, amber if pending), opening an accessible modal dialog via `createPortal`.
+     - Integrated Space-Saving Academic Reports Button (`data-testid="milestone-reports-button"`) opening an accessible modal dialog for FRINS6 reports.
+     - Integrated Project Context Metadata Strip displaying Team, AY, Department BSIT, Section, Adviser, and GitHub Repository link.
+     - Integrated 4-Card Executive KPI Strip (`data-testid="milestone-kpi-grid"`): Avg Score, Defense Panel (interactive card that opens the Faculty Committee dialog), Total Evals, and Plagiarism Threshold (with compliance progress bar).
+  3. Redundant Sidebar Removal in `MyProjectPage.jsx` and `ProjectDetailPage.jsx`:
+     - Removed the `xl:col-span-8` / `xl:col-span-4` split and discarded the redundant `<ProjectInformationSidebar ... />`.
+     - Provided a clean, full-width `space-y-6 max-w-[1600px] mx-auto` workspace across all views.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When checking roles for committee appointments, recognize that faculty accounts possess primary role `'faculty'`. Always validate against the verified faculty role set (`['faculty', 'adviser', 'panelist']`) rather than a single committee title.
+  2. Prevention rule: Always defensively assert mutual exclusion between capstone advisers and panel members on the same project to prevent institutional conflicts of interest.
+  3. Prevention rule: Do not maintain duplicate KPI and metadata cards in both page sidebars and workflow headers. Consolidate metadata into a single unified cockpit to maximize viewport real estate for complex task workspaces.
+  4. Checklist & Evidence:
+     - Server tests: `tests/unit/project.assign-panelist.test.js` (6/6 passed).
+     - Client tests: `src/components/projects/CapstoneWorkflowStepper.test.jsx` (10/10 passed).
+     - Endpoint parity: `npm run check:endpoints` (SERVER=209, CLIENT=190, UNMATCHED_COUNT=0).
+     - Agentic governance: `npm run validate:agentic` (60/60 checks passed).
+     - Playwright visual audit: 7/7 screenshots passed across desktop (1440x900) and mobile (390x844) in light and dark modes.
+
+123. Turnitin-Style Match Overview, Contextual Similarity Signals & Score-Gradient PDF Integrity Highlighting in the Archive Document Viewer:
+- Architectural Root Cause & Mechanics:
+  1. Archive Viewer Originality Drawer Disconnect: While `PlagiarismReportPage.jsx` received a full Turnitin-style upgrade (score-gradient highlighting, contextual signals `VERBATIM` / `PARAPHRASE` / `MIXED`, scrollable Match Overview sidebar with dual Exact/Semantic bars, and active source detail panel), the canonical public Archive Document Viewer (`CanonicalDocumentViewer.jsx` at `/archive/document/:projectId`) still had a basic summary card that lacked source-level breakdown, context diagnosis, and interactive PDF overlays.
+  2. Missing Plagiarism Results on Archived Submissions: In `server/modules/projects/project.service.js:getProject`, the projection for `archivedSubmissions` omitted `plagiarismResult`, preventing archived projects from delivering their underlying matched source metadata to the client reader.
+  3. Visual Overlap between Clean Reading and Forensic Integrity Inspection: Users viewing archived manuscripts need a clean reading experience by default (`[ 📄 Clean Manuscript ]`), but require on-demand switching to interactive score-gradient overlays (`[ 🛡️ Integrity Highlights ]`) powered by `PdfViewerWorkspace` with Turnitin-style intensity modulation.
+- Resolution & Implementation Details:
+  1. Backend Archived Submissions Query Select in `project.service.js`:
+     - Updated `.select('_id type fileName fileType fileSize version status createdAt plagiarismResult')` to deliver verified plagiarism match data with archived projects.
+  2. Turnitin-Style Match Overview & Context Signals in `CanonicalDocumentViewer.jsx`:
+     - Added 6-tier Legend Strip (`LegendStrip`): Low (<50%), Medium (50–69%), High (70–89%), Critical (≥90%), Paraphrase (violet dashed border), and Verbatim (double red border).
+     - Added `deriveContextSignal`: computes `verbatim` (winnow ≥ 0.80), `paraphrase` (semantic ≥ 0.70 & winnow < 0.30), or `mixed` (lexical & semantic combination).
+     - Added `ArchiveSourceRow`: rendered with numbered badge, palette styling, source title, context signal badge (`VERBATIM` / `PARAPHRASE` / `MIXED`), blended score bar, and dual mini-bars (Exact Overlap in amber + Semantic Match in blue).
+     - Added Active Source Detail Panel: featuring a 3-bar score breakdown (Blended Overlap, Exact Overlap via Winnowing, Semantic Overlap via Cosine), contextual explanation prose, manuscript excerpt comparison against archive reference snippet, and an "Inspect on Manuscript Canvas" quick-action button.
+     - Added source search filter to easily search matched institutional references when multiple sources exist.
+     - Added scrollable container with `min-h-0 overflow-y-auto` to eliminate flex layout clipping.
+     - Preserved all 5 consolidated top bar actions (`Search Results`, `Download PDF`, `Cite`, `98% Original`, `Copy DOI`) and document switcher (`Academic Paper` / `Academic Journal`) without regression.
+  3. Interactive Canvas View Mode Switcher:
+     - Embedded a sleek canvas mode pill bar (`[ 📄 Clean Manuscript ]` / `[ 🛡️ Integrity Highlights ]`).
+     - In Clean Manuscript mode, renders high-fidelity native document viewing.
+     - In Integrity Highlights mode, renders `PdfViewerWorkspace` with `plagiarismMatches={plagiarismMatches}` and score-gradient CSS tiers (`highlight-plagiarism--low/medium/high/critical`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When adding forensic or analytical tools (plagiarism highlights, revision diffs, audit markers) to public archive viewers, always isolate them behind an explicit mode toggle (e.g. `Clean Manuscript` vs `Integrity Highlights`) so standard academic readership is never obstructed by analytical overlays.
+  2. Prevention rule: When retrieving nested schema records in Mongoose services (such as `archivedSubmissions.submissions`), ensure the projection `.select()` explicitly includes analytical child properties (`plagiarismResult`) required by downstream viewers.
+  3. Lesson learned: In Playwright visual feedback loops running on headless Chromium, font loading for embedded PDF canvases can hang `page.screenshot()`. Mocking `document.fonts.ready` in page init scripts ensures zero-timeout, deterministic visual captures.
+  4. Runbook & Checklist:
+     - Checklist: Open `/archive/document/:id` and verify 5 consolidated actions render cleanly without drafting controls.
+     - Checklist: Click the Originality badge to toggle the slide-out drawer with `Originality & Match Overview`.
+     - Checklist: Verify 6-tier Legend Strip renders (Low, Med, High, Critical, Paraphrase, Verbatim).
+     - Checklist: Verify `ArchiveSourceRow` renders signal badges (`VERBATIM` / `PARAPHRASE` / `MIXED`) with dual Exact and Semantic mini-bars.
+     - Checklist: Click a source row to open the Active Source Detail panel with 3-bar score breakdown and contextual diagnosis prose.
+     - Checklist: Switch canvas mode to `Integrity Highlights` and verify `PdfViewerWorkspace` renders with score-gradient highlighting.
+  5. Evidence & Verification passed:
+     - 10/10 targeted tests passed in `CanonicalDocumentViewer.test.jsx`.
+     - 10/10 targeted tests passed in `PlagiarismReportPage.test.jsx`.
+     - Route parity verified: 209 Server / 190 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic governance validated: 60/60 checks passed.
+     - Governance pipeline validated: 0 errors, 0 warnings.
+     - Playwright visual audit verified across 5 screenshots in `scratch/screenshots/archive_match_overview_audit/` (Desktop Light, Desktop Dark, Integrity Highlights mode, Mobile Light, and Mobile Dark).
+
 
 

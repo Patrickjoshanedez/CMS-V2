@@ -33,7 +33,6 @@ import {
   advancePhaseSchema,
   addPrototypeLinkSchema,
   addPrototypeMediaSchema,
-  removePrototypeSchema,
   archiveProjectSchema,
   searchArchiveQuerySchema,
   reportQuerySchema,
@@ -392,7 +391,7 @@ router.get('/:id/certificate', projectController.getCertificateUrl);
 // Panelist self-selects into a project
 router.post(
   '/:id/panelists/select',
-  authorize(ROLES.PANELIST),
+  authorize(ROLES.PANELIST, ROLES.FACULTY),
   auditLog('project.panelist_self_selected', 'Project', {
     getDescription: (req) => `Panelist self-selected into project ${req.params.id}`,
   }),

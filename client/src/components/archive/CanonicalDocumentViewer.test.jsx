@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import CanonicalDocumentViewer from './CanonicalDocumentViewer';
+import api from '@/services/api';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,12 +22,32 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
+vi.mock('@/components/submissions/PdfViewerWorkspace', () => ({
+  default: ({ children, plagiarismMatches }) => (
+    <div data-testid="pdf-viewer-workspace" data-matches={plagiarismMatches?.length || 0}>
+      {children}
+    </div>
+  ),
+  PdfViewerWorkspace: ({ children, plagiarismMatches }) => (
+    <div data-testid="pdf-viewer-workspace" data-matches={plagiarismMatches?.length || 0}>
+      {children}
+    </div>
+  ),
+}));
+
 describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
   let container;
   let root;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    if (!globalThis.URL.createObjectURL) {
+      globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/mock.pdf');
+      globalThis.URL.revokeObjectURL = vi.fn();
+    } else {
+      vi.spyOn(globalThis.URL, 'createObjectURL').mockReturnValue('blob:http://localhost/mock.pdf');
+      vi.spyOn(globalThis.URL, 'revokeObjectURL').mockImplementation(() => {});
+    }
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -110,6 +131,29 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(drawer.textContent).toContain('Audit Verification');
       expect(drawer.textContent).toContain('Winnowing + SentenceTransformers');
       expect(drawer.textContent).toContain('Unique Content: 97.5%');
+    });
+
+    it('allows toggling between Academic Paper and Academic Journal view modes', async () => {
+      await renderViewer(mockProject);
+
+      const paperTab = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Academic Paper'),
+      );
+      const journalTab = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Academic Journal'),
+      );
+
+      expect(paperTab).toBeTruthy();
+      expect(journalTab).toBeTruthy();
+      expect(paperTab.getAttribute('aria-selected')).toBe('true');
+      expect(journalTab.getAttribute('aria-selected')).toBe('false');
+
+      await act(async () => {
+        journalTab.click();
+      });
+
+      expect(paperTab.getAttribute('aria-selected')).toBe('false');
+      expect(journalTab.getAttribute('aria-selected')).toBe('true');
     });
 
     it('handles copy DOI / share link action', async () => {
@@ -200,6 +244,109 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       });
 
       expect(container.textContent).toContain('Archive Default Fallback');
+    });
+
+    it('renders Turnitin-style Match Overview with signal badges and dual exact/semantic bars in drawer', async () => {
+      await renderViewer(mockProject);
+
+      const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('98% Original'),
+      );
+      await act(async () => {
+        badgeBtn.click();
+      });
+
+      const drawer = container.querySelector('aside[aria-label="Originality Report Details"]');
+      expect(drawer).toBeTruthy();
+
+      // Legend Strip checks
+      expect(drawer.textContent).toContain('Visual Tiers & Context Signals');
+      expect(drawer.textContent).toContain('Paraphrase');
+      expect(drawer.textContent).toContain('Verbatim');
+
+      // Match Overview & Sources check
+      expect(drawer.textContent).toContain('Match Overview');
+      expect(drawer.textContent).toContain('BukSU Capstone & Research Repository');
+
+      // Check context signal badge (VERBATIM / PARAPHRASE / MIXED)
+      const hasSignalBadge =
+        drawer.textContent.includes('PARAPHRASE') ||
+        drawer.textContent.includes('VERBATIM') ||
+        drawer.textContent.includes('MIXED');
+      expect(hasSignalBadge).toBe(true);
+
+      // Check dual bars
+      expect(drawer.textContent).toContain('Exact Overlap (Winnowing)');
+      expect(drawer.textContent).toContain('Semantic Overlap (Embedding Cosine)');
+    });
+
+    it('allows selecting a source to inspect active source detail with 3-bar breakdown and diagnosis', async () => {
+      await renderViewer(mockProject);
+
+      const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('98% Original'),
+      );
+      await act(async () => {
+        badgeBtn.click();
+      });
+
+      const drawer = container.querySelector('aside[aria-label="Originality Report Details"]');
+      expect(drawer).toBeTruthy();
+
+      // Find and click the first source row
+      const sourceRow = drawer.querySelector('button.w-full.rounded-lg');
+      expect(sourceRow).toBeTruthy();
+
+      await act(async () => {
+        sourceRow.click();
+      });
+
+      // Active detail panel opens
+      expect(drawer.textContent).toContain('Blended Overlap');
+      expect(drawer.textContent).toContain('Manuscript Excerpt');
+      expect(drawer.textContent).toContain('Archive Source Match');
+      expect(drawer.textContent).toContain('Inspect on Manuscript Canvas');
+
+      // Close back to source list
+      const backBtn = drawer.querySelector('button[aria-label="Back to all sources"]');
+      expect(backBtn).toBeTruthy();
+      await act(async () => {
+        backBtn.click();
+      });
+
+      expect(drawer.textContent).toContain('Match Overview');
+    });
+
+    it('toggles canvas view mode between Clean Manuscript and Integrity Highlights', async () => {
+      api.get.mockResolvedValueOnce({
+        data: new Blob(['%PDF-1.4 mock content'], { type: 'application/pdf' }),
+      });
+
+      await renderViewer({
+        ...mockProject,
+        manuscriptUrl: '/projects/archived-doc-101/manuscript',
+      });
+
+      // Clean mode by default - renders iframe
+      const cleanBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Clean Manuscript'),
+      );
+      const integrityBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Integrity Highlights'),
+      );
+
+      expect(cleanBtn).toBeTruthy();
+      expect(integrityBtn).toBeTruthy();
+      expect(container.querySelector('iframe')).toBeTruthy();
+      expect(container.querySelector('[data-testid="pdf-viewer-workspace"]')).toBeFalsy();
+
+      // Switch to Integrity Highlights mode
+      await act(async () => {
+        integrityBtn.click();
+      });
+
+      // Now renders PdfViewerWorkspace
+      expect(container.querySelector('[data-testid="pdf-viewer-workspace"]')).toBeTruthy();
     });
   });
 });

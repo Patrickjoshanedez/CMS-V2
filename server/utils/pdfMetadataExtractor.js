@@ -111,6 +111,11 @@ async function parsePdf(pdfBuffer) {
             : null,
           Abstract: parsed.metadata?.abstract || null,
           Year: parsed.metadata?.year || null,
+          Journal:
+            parsed.metadata?.journal ||
+            parsed.metadata?.venue ||
+            parsed.metadata?.publication_venue ||
+            null,
           tables: parsed.tables || [],
           formulas: parsed.formulas || [],
         },
@@ -186,10 +191,151 @@ function normalizeKeywordsArray(values) {
   ).slice(0, 12);
 }
 
+// Bare publishers that are NOT publication venues (institutional disambiguation)
+const BARE_PUBLISHERS = new Set([
+  'ieee',
+  'acm',
+  'mdpi',
+  'springer',
+  'elsevier',
+  'wiley',
+  'taylor & francis',
+  'taylor and francis',
+  'sage',
+  'sage publications',
+  'nature publishing group',
+  'oxford university press',
+  'cambridge university press',
+  'frontiers',
+  'frontiers media sa',
+  'plos',
+  'iop publishing',
+  'hindawi',
+  'springer nature',
+  'springer-verlag',
+  'elsevier bv',
+  'elsevier b.v.',
+  'elsevier science',
+  'john wiley & sons',
+  'john wiley and sons',
+  'biomed central',
+  'bmc',
+  'wolters kluwer',
+  'de gruyter',
+  'brill',
+  'emerald',
+  'ios press',
+  'world scientific',
+  'aip publishing',
+  'aps',
+  'american chemical society',
+  'acs',
+  'royal society of chemistry',
+  'rsc',
+]);
+
+const VENUE_NAME_EXPANSIONS = [
+  { pattern: /^remote sens(?:ing)?\.?$/i, canonical: 'Remote Sensing' },
+  { pattern: /^appl(?:ied)?\.?\s*sci(?:ences)?\.?$/i, canonical: 'Applied Sciences' },
+  {
+    pattern: /^proc(?:eedings)?\.?\s*(?:of\s+the\s+)?ieee$/i,
+    canonical: 'Proceedings of the IEEE',
+  },
+  { pattern: /^proc(?:eedings)?\.?\s*acm$/i, canonical: 'Proceedings of the ACM' },
+  {
+    pattern: /^pami|ieee\s+trans\.?\s+pami$/i,
+    canonical: 'IEEE Transactions on Pattern Analysis and Machine Intelligence',
+  },
+  { pattern: /^jmlr$/i, canonical: 'Journal of Machine Learning Research' },
+  { pattern: /^tmlr$/i, canonical: 'Transactions on Machine Learning Research' },
+  { pattern: /^pnas$/i, canonical: 'Proceedings of the National Academy of Sciences' },
+  { pattern: /^arxiv(?:\s*preprint)?$/i, canonical: 'arXiv' },
+  { pattern: /^biorxiv(?:\s*preprint)?$/i, canonical: 'bioRxiv' },
+  { pattern: /^medrxiv(?:\s*preprint)?$/i, canonical: 'medRxiv' },
+  { pattern: /^ssrn(?:\s*electronic\s*journal)?$/i, canonical: 'SSRN Electronic Journal' },
+];
+
 function normalizeVenue(rawVenue) {
-  const value = cleanText(String(rawVenue || '')).slice(0, 300);
+  const firstLine = String(rawVenue || '').split(/[\r\n]+/)[0];
+  let value = cleanText(firstLine).slice(0, 300);
   if (!value) return '';
-  if (value.length < 6) return '';
+
+  // Strip URLs and DOIs
+  value = value.replace(/https?:\/\/\S+/gi, '').replace(/(?:doi\.org|doi:)\s*10\.\S+/gi, '');
+
+  // Strip leading citation or section prefixes (preserve "Proceedings of ...")
+  value = value.replace(
+    /^(?:in|published in|appeared in|to appear in|presented at|citation:?|journal:?|venue:?)\s*[:\-–—]?\s*/i,
+    '',
+  );
+
+  // Strip trailing volume, issue, page, year, or citation suffixes
+  // e.g. "Remote Sens. 2025, 17, 2529" -> "Remote Sens."
+  // e.g. "Journal of ML, vol. 12, pp. 1-20, 2024" -> "Journal of ML"
+  value = value.replace(
+    /,\s*(?:vol(?:ume)?\.?\s*\d+|no\.?\s*\d+|issue\s*\d+|pp?\.?\s*\d+|\d+\s*,\s*\d+)[\s\S]*$/i,
+    '',
+  );
+  value = value.replace(/\s+(?:19\d{2}|20\d{2})[,\s]+\d+[\s\S]*$/, '');
+  value = value.replace(/\s*\(\s*(?:19\d{2}|20\d{2})\s*\)[\s\S]*$/, '');
+  value = value.replace(/\s*(?:©|copyright|licensee|all rights reserved)[\s\S]*$/i, '');
+  value = value.replace(/\s*(?:e-?issn|issn|isbn)[:\s]+[\d\-xX]+[\s\S]*$/i, '');
+
+  // Strip leading/trailing punctuation and whitespace
+  value = value.replace(/^[.,\-–—:;\s]+|[.,\-–—:;\s]+$/g, '').trim();
+
+  // Length guard: allows premier 3-5 character acronyms (ACL, CHI, Cell, ICML, CVPR, AAAI, ICLR, VLDB, arXiv)
+  if (value.length < 3 || value.length > 250) return '';
+
+  // Disambiguate venue from bare publishers:
+  // A venue is the specific outlet (journal, conference proceedings, preprint server).
+  // Publishers (Elsevier, Springer, IEEE, ACM, MDPI) are NOT venues.
+  const lowerClean = value.toLowerCase().replace(/[.,]/g, '').trim();
+  if (BARE_PUBLISHERS.has(lowerClean)) {
+    return '';
+  }
+
+  // Reject strings ending in generic publisher terms without academic venue keywords
+  // e.g. "Elsevier Science Publishers", "MDPI Publishing", "Springer International Publishing"
+  if (
+    /\b(publishers?|publishing|press|media\s*sa|group)\b/i.test(value) &&
+    !/\b(transactions|journal|proceedings|conference|symposium|letters|advances|series|annals|bulletin|review)\b/i.test(
+      value,
+    )
+  ) {
+    return '';
+  }
+
+  // Reject physical conference location strings:
+  // e.g. "Honolulu, Hawaii, USA", "Basel, Switzerland", "New Orleans, LA"
+  const isCityLocation =
+    /^[A-Z][a-zA-Z\s.-]+,\s*(?:[A-Z]{2}|[A-Z][a-zA-Z\s.-]+)(?:,\s*[A-Z][a-zA-Z\s.-]+)?$/.test(
+      value,
+    ) &&
+    !/\b(journal|conference|proceedings|symposium|workshop|review|letters|transactions|annals|bulletin|advances|sensing|sensors|applied|ieee|acm|nature|science|cell|lancet|arxiv|springer|elsevier|repository|capstone)\b/i.test(
+      value,
+    );
+  if (isCityLocation) {
+    return '';
+  }
+
+  // Reject pure date/time strings
+  if (
+    /^(?:january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2})[\s\d,\-–—]+(?:19\d{2}|20\d{2})?$/i.test(
+      value,
+    ) &&
+    !/\b(conference|proceedings|journal|symposium|meeting)\b/i.test(value)
+  ) {
+    return '';
+  }
+
+  // Canonical venue expansion
+  for (const item of VENUE_NAME_EXPANSIONS) {
+    if (item.pattern.test(value)) {
+      return item.canonical;
+    }
+  }
+
   return value;
 }
 
@@ -223,6 +369,36 @@ function stripHtmlTags(value) {
   return cleanText(String(value || '').replace(/<[^>]+>/g, ' '));
 }
 
+function extractCslVenue(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const candidates = [
+    Array.isArray(payload['container-title'])
+      ? payload['container-title'][0]
+      : payload['container-title'],
+    Array.isArray(payload['short-container-title'])
+      ? payload['short-container-title'][0]
+      : payload['short-container-title'],
+    Array.isArray(payload['container-title-short'])
+      ? payload['container-title-short'][0]
+      : payload['container-title-short'],
+    payload.event?.name,
+    payload.event?.title,
+    Array.isArray(payload['collection-title'])
+      ? payload['collection-title'][0]
+      : payload['collection-title'],
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate) {
+      const normalized = normalizeVenue(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+  return '';
+}
+
 async function fetchMetadataByDoi(doi) {
   if (!env.PDF_METADATA_ENABLE_DOI_ENRICHMENT) return null;
   const normalizedDoi = normalizeDoi(doi);
@@ -250,11 +426,7 @@ async function fetchMetadataByDoi(doi) {
         ? payload.author.map(parseCslAuthor).filter(Boolean)
         : [],
       publicationYear: parseCslYear(payload?.issued),
-      publicationVenue: normalizeVenue(
-        Array.isArray(payload?.['container-title'])
-          ? payload['container-title'][0]
-          : payload?.['container-title'] || '',
-      ),
+      publicationVenue: extractCslVenue(payload),
       keywords: parseCslKeywords(payload?.keyword),
       abstract: stripHtmlTags(payload?.abstract),
     };
@@ -561,8 +733,9 @@ export async function extractPdfMetadata(pdfBuffer) {
   const title = extractTitle(text, data.info);
   const abstract = extractAbstract(text, data.info);
   const publicationYear = extractPublicationYear(text, data.info);
-  const authors = extractAuthors(text, data.info);
+  const authors = extractAuthors(text, data.info, title.value);
   const keywords = extractKeywords(text);
+  const publicationVenue = extractPublicationVenue(text, data.info);
   const heuristicDoi = normalizeDoi(extractDoi(text));
 
   const baseResult = {
@@ -572,15 +745,15 @@ export async function extractPdfMetadata(pdfBuffer) {
     authors: authors.value,
     keywords: keywords.value,
     doi: heuristicDoi,
-    publicationVenue: '',
+    publicationVenue: publicationVenue.value,
     confidence: {
       title: title.confidence,
       abstract: abstract.confidence,
       publicationYear: publicationYear.confidence,
       authors: authors.confidence,
       keywords: keywords.confidence,
-      doi: heuristicDoi ? 0.8 : 0,
-      publicationVenue: 0,
+      doi: heuristicDoi ? 0.85 : 0,
+      publicationVenue: publicationVenue.confidence,
     },
     extractionProvider: 'heuristic',
     fieldSources: {
@@ -590,7 +763,7 @@ export async function extractPdfMetadata(pdfBuffer) {
       authors: 'heuristic',
       keywords: 'heuristic',
       doi: heuristicDoi ? 'heuristic' : 'none',
-      publicationVenue: 'none',
+      publicationVenue: publicationVenue.value ? 'heuristic' : 'none',
     },
   };
 
@@ -610,12 +783,379 @@ export async function extractPdfMetadata(pdfBuffer) {
 }
 
 /**
+ * Known journal and conference venue patterns for heuristic extraction.
+ */
+/**
+ * Known journal, conference proceedings, and preprint venue patterns for heuristic extraction.
+ * Distinguishes academic venues from publishers (IEEE, ACM, Elsevier, Springer, MDPI) and locations.
+ */
+const KNOWN_VENUES = [
+  // --- Preprint Servers ---
+  { pattern: /\b(arxiv:\d{4}\.\d{4,5}(?:v\d+)?|arxiv\s+preprint|\barxiv\b)/i, name: 'arXiv' },
+  { pattern: /\b(biorxiv\s+preprint|\bbiorxiv\b)/i, name: 'bioRxiv' },
+  { pattern: /\b(medrxiv\s+preprint|\bmedrxiv\b)/i, name: 'medRxiv' },
+  { pattern: /\b(ssrn\s+electronic\s+journal|\bssrn\b)/i, name: 'SSRN Electronic Journal' },
+
+  // --- Dynamic Conference Proceedings ---
+  {
+    pattern:
+      /\b(?:in\s+)?(proceedings\s+of\s+(?:the\s+)?(?:\d+(?:st|nd|rd|th)\s+)?(?:annual\s+|international\s+|ieee(?:\/cvf)?\s+|acm\s+)?(?:conference|symposium|workshop|congress|meeting|colloquium|vldb)[^.,\n\r]{0,90})/i,
+    transform: (m) => m[1].trim(),
+  },
+  {
+    pattern: /\b(advances\s+in\s+neural\s+information\s+processing\s+systems(?:\s+\d+)?)\b/i,
+    name: 'Advances in Neural Information Processing Systems',
+  },
+  {
+    pattern: /\b(lecture\s+notes\s+in\s+computer\s+science(?:\s*\(lncs\))?)\b/i,
+    name: 'Lecture Notes in Computer Science',
+  },
+  {
+    pattern: /\b(communications\s+in\s+computer\s+and\s+information\s+science(?:\s*\(ccis\))?)\b/i,
+    name: 'Communications in Computer and Information Science',
+  },
+  {
+    pattern: /\b(acm\s+international\s+conference\s+proceeding\s+series(?:\s*\(icps\))?)\b/i,
+    name: 'ACM International Conference Proceeding Series',
+  },
+
+  // --- Premier AI / ML / CV / NLP / Systems Conferences ---
+  {
+    pattern: /\b(neurips\s*(?:19\d{2}|20\d{2})?|neural\s+information\s+processing\s+systems)\b/i,
+    name: 'NeurIPS',
+  },
+  {
+    pattern:
+      /\b(icml\s*(?:19\d{2}|20\d{2})?|international\s+conference\s+on\s+machine\s+learning)\b/i,
+    name: 'ICML',
+  },
+  {
+    pattern:
+      /\b(iclr\s*(?:19\d{2}|20\d{2})?|international\s+conference\s+on\s+learning\s+representations)\b/i,
+    name: 'ICLR',
+  },
+  {
+    pattern:
+      /\b(cvpr\s*(?:19\d{2}|20\d{2})?|conference\s+on\s+computer\s+vision\s+and\s+pattern\s+recognition)\b/i,
+    name: 'CVPR',
+  },
+  {
+    pattern:
+      /\b(iccv\s*(?:19\d{2}|20\d{2})?|international\s+conference\s+on\s+computer\s+vision)\b/i,
+    name: 'ICCV',
+  },
+  {
+    pattern: /\b(eccv\s*(?:19\d{2}|20\d{2})?|european\s+conference\s+on\s+computer\s+vision)\b/i,
+    name: 'ECCV',
+  },
+  { pattern: /\b(wacv\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'WACV' },
+  { pattern: /\b(bmvc\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'BMVC' },
+  {
+    pattern: /\b(acl\s*(?:19\d{2}|20\d{2})?|association\s+for\s+computational\s+linguistics)\b/i,
+    name: 'ACL',
+  },
+  {
+    pattern:
+      /\b(emnlp\s*(?:19\d{2}|20\d{2})?|empirical\s+methods\s+in\s+natural\s+language\s+processing)\b/i,
+    name: 'EMNLP',
+  },
+  { pattern: /\b(naacl\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'NAACL' },
+  { pattern: /\b(coling\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'COLING' },
+  { pattern: /\b(sigkdd|kdd\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'KDD' },
+  {
+    pattern: /\b(acm\s+chi\s*(?:19\d{2}|20\d{2})?|chi\s+conference\s+on\s+human\s+factors)\b/i,
+    name: 'ACM CHI',
+  },
+  {
+    pattern:
+      /\b(aaai\s*(?:19\d{2}|20\d{2})?|aaai\s+conference\s+on\s+artificial\s+intelligence)\b/i,
+    name: 'AAAI',
+  },
+  {
+    pattern:
+      /\b(ijcai\s*(?:19\d{2}|20\d{2})?|international\s+joint\s+conference\s+on\s+artificial\s+intelligence)\b/i,
+    name: 'IJCAI',
+  },
+  {
+    pattern: /\b(vldb\s*(?:19\d{2}|20\d{2})?|proceedings\s+of\s+the\s+vldb\s+endowment|pvldb)\b/i,
+    name: 'Proceedings of the VLDB Endowment',
+  },
+  {
+    pattern:
+      /\b(icde\s*(?:19\d{2}|20\d{2})?|international\s+conference\s+on\s+data\s+engineering)\b/i,
+    name: 'ICDE',
+  },
+  { pattern: /\b(sigmod\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM SIGMOD' },
+  { pattern: /\b(sigir\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM SIGIR' },
+  {
+    pattern: /\b(the\s+web\s+conference\s*(?:19\d{2}|20\d{2})?|www\s*(?:19\d{2}|20\d{2}))\b/i,
+    name: 'The Web Conference',
+  },
+  { pattern: /\b(wsdm\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'WSDM' },
+  { pattern: /\b(recsys\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM RecSys' },
+  { pattern: /\b(sigcomm\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM SIGCOMM' },
+  { pattern: /\b(usenix\s+security\s*(?:symposium)?)\b/i, name: 'USENIX Security' },
+  { pattern: /\b(usenix\s+atc|usenix\s+annual\s+technical\s+conference)\b/i, name: 'USENIX ATC' },
+  { pattern: /\b(osdi\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'OSDI' },
+  { pattern: /\b(sosp\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'SOSP' },
+  {
+    pattern: /\b(acm\s+ccs\s*(?:19\d{2}|20\d{2})?|computer\s+and\s+communications\s+security)\b/i,
+    name: 'ACM CCS',
+  },
+  {
+    pattern: /\b(ieee\s+s&p\s*(?:19\d{2}|20\d{2})?|symposium\s+on\s+security\s+and\s+privacy)\b/i,
+    name: 'IEEE Symposium on Security and Privacy',
+  },
+  { pattern: /\b(ndss\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'NDSS' },
+  {
+    pattern:
+      /\b(icse\s*(?:19\d{2}|20\d{2})?|international\s+conference\s+on\s+software\s+engineering)\b/i,
+    name: 'ICSE',
+  },
+  { pattern: /\b(esec\/fse|fse\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM ESEC/FSE' },
+  {
+    pattern: /\b(ase\s*(?:19\d{2}|20\d{2})?|automated\s+software\s+engineering)\b/i,
+    name: 'IEEE/ACM ASE',
+  },
+  { pattern: /\b(issta\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'ACM ISSTA' },
+  {
+    pattern: /\b(iros\s*(?:19\d{2}|20\d{2})?|intelligent\s+robots\s+and\s+systems)\b/i,
+    name: 'IEEE/RSJ IROS',
+  },
+  { pattern: /\b(icra\s*(?:19\d{2}|20\d{2})?|robotics\s+and\s+automation)\b/i, name: 'IEEE ICRA' },
+  {
+    pattern: /\b(icassp\s*(?:19\d{2}|20\d{2})?|acoustics,\s+speech\s+and\s+signal\s+processing)\b/i,
+    name: 'IEEE ICASSP',
+  },
+  { pattern: /\b(interspeech\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'INTERSPEECH' },
+  {
+    pattern: /\b(corl\s*(?:19\d{2}|20\d{2})?|conference\s+on\s+robot\s+learning)\b/i,
+    name: 'CoRL',
+  },
+  { pattern: /\b(aistats\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'AISTATS' },
+  { pattern: /\b(uai\s*(?:19\d{2}|20\d{2})?)\b/i, name: 'UAI' },
+
+  // --- Dynamic IEEE / ACM Transactions and Journals ---
+  {
+    pattern:
+      /\b(ieee\/acm\s+transactions\s+on\s+[^\n\r.,:;()]+|ieee\/acm\s+trans\.\s+[^\n\r.,:;()]+)/i,
+    transform: (m) => m[0].trim(),
+  },
+  {
+    pattern: /\b(ieee\s+transactions\s+on\s+[^\n\r.,:;()]+|ieee\s+trans\.\s+[^\n\r.,:;()]+)/i,
+    transform: (m) => m[0].trim(),
+  },
+  {
+    pattern: /\b(acm\s+transactions\s+on\s+[^\n\r.,:;()]+|acm\s+trans\.\s+[^\n\r.,:;()]+)/i,
+    transform: (m) => m[0].trim(),
+  },
+  { pattern: /\b(proceedings\s+of\s+the\s+ieee)\b/i, name: 'Proceedings of the IEEE' },
+  { pattern: /\b(proceedings\s+of\s+the\s+acm)\b/i, name: 'Proceedings of the ACM' },
+  { pattern: /\b(ieee\s+access)\b/i, name: 'IEEE Access' },
+  {
+    pattern: /\b(ieee\s+internet\s+of\s+things\s+journal)\b/i,
+    name: 'IEEE Internet of Things Journal',
+  },
+  { pattern: /\b(ieee\s+computer)\b/i, name: 'IEEE Computer' },
+  { pattern: /\b(ieee\s+security\s*&\s*privacy)\b/i, name: 'IEEE Security & Privacy' },
+  { pattern: /\b(communications\s+of\s+the\s+acm)\b/i, name: 'Communications of the ACM' },
+  { pattern: /\b(acm\s+computing\s+surveys)\b/i, name: 'ACM Computing Surveys' },
+  { pattern: /\b(journal\s+of\s+the\s+acm)\b/i, name: 'Journal of the ACM' },
+
+  // --- Multidisciplinary & Nature / Science / Cell / Lancet ---
+  { pattern: /\b(nature\s+machine\s+intelligence)\b/i, name: 'Nature Machine Intelligence' },
+  { pattern: /\b(nature\s+communications)\b/i, name: 'Nature Communications' },
+  { pattern: /\b(nature\s+biotechnology)\b/i, name: 'Nature Biotechnology' },
+  { pattern: /\b(nature\s+methods)\b/i, name: 'Nature Methods' },
+  { pattern: /\b(nature\s+medicine)\b/i, name: 'Nature Medicine' },
+  { pattern: /\b(nature\s+electronics)\b/i, name: 'Nature Electronics' },
+  { pattern: /\b(nature\s+neuroscience)\b/i, name: 'Nature Neuroscience' },
+  { pattern: /\b(scientific\s+reports)\b/i, name: 'Scientific Reports' },
+  { pattern: /\b(nature)\b/i, name: 'Nature' },
+  { pattern: /\b(science\s+advances)\b/i, name: 'Science Advances' },
+  { pattern: /\b(science\s+robotics)\b/i, name: 'Science Robotics' },
+  { pattern: /\b(science\s+translational\s+medicine)\b/i, name: 'Science Translational Medicine' },
+  { pattern: /\b(science)\b/i, name: 'Science' },
+  { pattern: /\b(cell\s+reports)\b/i, name: 'Cell Reports' },
+  { pattern: /\b(cell)\b/i, name: 'Cell' },
+  { pattern: /\b(the\s+lancet\s+digital\s+health)\b/i, name: 'The Lancet Digital Health' },
+  { pattern: /\b(the\s+lancet)\b/i, name: 'The Lancet' },
+  {
+    pattern: /\b(proceedings\s+of\s+the\s+national\s+academy\s+of\s+sciences|pnas)\b/i,
+    name: 'Proceedings of the National Academy of Sciences',
+  },
+  {
+    pattern: /\b(journal\s+of\s+machine\s+learning\s+research|jmlr)\b/i,
+    name: 'Journal of Machine Learning Research',
+  },
+  {
+    pattern: /\b(transactions\s+on\s+machine\s+learning\s+research|tmlr)\b/i,
+    name: 'Transactions on Machine Learning Research',
+  },
+  { pattern: /\b(plos\s+computational\s+biology)\b/i, name: 'PLOS Computational Biology' },
+  { pattern: /\b(plos\s+one)\b/i, name: 'PLOS ONE' },
+  { pattern: /\b(bioinformatics)\b/i, name: 'Bioinformatics' },
+  { pattern: /\b(briefings\s+in\s+bioinformatics)\b/i, name: 'Briefings in Bioinformatics' },
+  { pattern: /\b(nucleic\s+acids\s+research)\b/i, name: 'Nucleic Acids Research' },
+  { pattern: /\b(elife)\b/i, name: 'eLife' },
+
+  // --- MDPI Peer-Reviewed Journals ---
+  { pattern: /\b(remote sens(?:ing)?\.?)\b/i, name: 'Remote Sensing' },
+  { pattern: /\b(sensors\.?)\b/i, name: 'Sensors' },
+  { pattern: /\b(applied sciences|appl\. sci\.)\b/i, name: 'Applied Sciences' },
+  { pattern: /\b(sustainability)\b/i, name: 'Sustainability' },
+  { pattern: /\b(electronics)\b/i, name: 'Electronics' },
+  { pattern: /\b(energies)\b/i, name: 'Energies' },
+  { pattern: /\b(materials)\b/i, name: 'Materials' },
+  { pattern: /\b(atmosphere)\b/i, name: 'Atmosphere' },
+  { pattern: /\b(water)\b/i, name: 'Water' },
+  { pattern: /\b(forests)\b/i, name: 'Forests' },
+  { pattern: /\b(agronomy)\b/i, name: 'Agronomy' },
+  { pattern: /\b(information)\b/i, name: 'Information' },
+  { pattern: /\b(future\s+internet)\b/i, name: 'Future Internet' },
+  { pattern: /\b(algorithms)\b/i, name: 'Algorithms' },
+  { pattern: /\b(computers)\b/i, name: 'Computers' },
+  { pattern: /\b(drones)\b/i, name: 'Drones' },
+  {
+    pattern: /\b(isprs\s+int(?:ernational)?\.\s*j\.\s*geo-inf(?:ormation)?\.?)\b/i,
+    name: 'ISPRS International Journal of Geo-Information',
+  },
+  { pattern: /\b(healthcare)\b/i, name: 'Healthcare' },
+  { pattern: /\b(genes)\b/i, name: 'Genes' },
+  { pattern: /\b(viruses)\b/i, name: 'Viruses' },
+  { pattern: /\b(nutrients)\b/i, name: 'Nutrients' },
+  { pattern: /\b(molecules)\b/i, name: 'Molecules' },
+  { pattern: /\b(cancers)\b/i, name: 'Cancers' },
+  { pattern: /\b(diagnostics)\b/i, name: 'Diagnostics' },
+  { pattern: /\b(axioms)\b/i, name: 'Axioms' },
+  { pattern: /\b(smart\s+cities)\b/i, name: 'Smart Cities' },
+
+  // --- Elsevier / Springer / Wiley Computer Science Journals ---
+  { pattern: /\b(pattern\s+recognition)\b/i, name: 'Pattern Recognition' },
+  { pattern: /\b(information\s+sciences)\b/i, name: 'Information Sciences' },
+  { pattern: /\b(neurocomputing)\b/i, name: 'Neurocomputing' },
+  { pattern: /\b(artificial\s+intelligence)\b/i, name: 'Artificial Intelligence' },
+  {
+    pattern: /\b(computer\s+vision\s+and\s+image\s+understanding)\b/i,
+    name: 'Computer Vision and Image Understanding',
+  },
+  {
+    pattern: /\b(expert\s+systems\s+with\s+applications)\b/i,
+    name: 'Expert Systems with Applications',
+  },
+  { pattern: /\b(knowledge-based\s+systems)\b/i, name: 'Knowledge-Based Systems' },
+  { pattern: /\b(computers\s*&\s*security)\b/i, name: 'Computers & Security' },
+  { pattern: /\b(signal\s+processing)\b/i, name: 'Signal Processing' },
+  {
+    pattern: /\b(journal\s+of\s+systems\s+and\s+software)\b/i,
+    name: 'Journal of Systems and Software',
+  },
+  {
+    pattern: /\b(information\s+and\s+software\s+technology)\b/i,
+    name: 'Information and Software Technology',
+  },
+  { pattern: /\b(machine\s+learning)\b/i, name: 'Machine Learning' },
+  {
+    pattern: /\b(international\s+journal\s+of\s+computer\s+vision|ijcv)\b/i,
+    name: 'International Journal of Computer Vision',
+  },
+  {
+    pattern: /\b(neural\s+computing\s+and\s+applications)\b/i,
+    name: 'Neural Computing and Applications',
+  },
+  { pattern: /\b(autonomous\s+robots)\b/i, name: 'Autonomous Robots' },
+  {
+    pattern: /\b(data\s+mining\s+and\s+knowledge\s+discovery)\b/i,
+    name: 'Data Mining and Knowledge Discovery',
+  },
+  { pattern: /\b(world\s+wide\s+web)\b/i, name: 'World Wide Web' },
+  {
+    pattern: /\b(multimedia\s+tools\s+and\s+applications)\b/i,
+    name: 'Multimedia Tools and Applications',
+  },
+
+  // --- Institutional Capstone Repository ---
+  {
+    pattern: /\b(buksu\s+capstone\s+repository|buksu\s+capstone\s+proceedings)\b/i,
+    name: 'BukSU Capstone Proceedings',
+  },
+  { pattern: /\b(bukidnon\s+state\s+university)\b/i, name: 'Bukidnon State University' },
+
+  // --- General Journal Of Pattern ---
+  {
+    pattern: /\b(journal\s+of\s+[^\n\r.,:;()]+)/i,
+    transform: (m) => m[0].split(/\s+(?:vol|volume|\d{4})/i)[0].trim(),
+  },
+];
+
+function extractPublicationVenue(text, pdfInfo) {
+  // Check embedded PDF catalog metadata
+  const catalogCandidate =
+    pdfInfo?.Journal || pdfInfo?.journal || pdfInfo?.Venue || pdfInfo?.venue || pdfInfo?.booktitle;
+  if (catalogCandidate) {
+    const normalized = normalizeVenue(catalogCandidate);
+    if (normalized) {
+      return { value: normalized, confidence: 0.9 };
+    }
+  }
+
+  // Look in the first 4500 characters
+  const headerText = text.slice(0, 4500);
+
+  // Check known venue definitions (journals, proceedings, preprints)
+  for (const item of KNOWN_VENUES) {
+    const match = headerText.match(item.pattern);
+    if (match) {
+      const rawName =
+        item.name || (typeof item.transform === 'function' ? item.transform(match) : match[0]);
+      const normalized = normalizeVenue(rawName);
+      if (normalized) {
+        return { value: normalized, confidence: 0.88 };
+      }
+    }
+  }
+
+  // Match formal citation line venue: e.g., "Citation: Sun, Z. et al. Remote Sens. 2025, 17, 2529."
+  const formalCitationMatch = headerText.match(
+    /(?:citation\s*:\s*[^\n]+?\.\s*)([A-Z][a-zA-Z.\s]{2,50}?)\s+(?:19\d{2}|20\d{2})\s*,\s*\d+/i,
+  );
+  if (formalCitationMatch && formalCitationMatch[1]) {
+    const raw = cleanText(formalCitationMatch[1]);
+    const normalized = normalizeVenue(raw);
+    if (normalized) {
+      return { value: normalized, confidence: 0.85 };
+    }
+  }
+
+  // General citation line venue: e.g., "Remote Sens. 2025, 17, 2529" or "Sensors 2024, 24, 1234"
+  const citationVenueMatch = headerText.match(
+    /\.\s*([A-Z][a-zA-Z.\s]{2,40}?)\s+(19\d{2}|20\d{2})\s*,\s*\d+/,
+  );
+  if (citationVenueMatch && citationVenueMatch[1]) {
+    const raw = cleanText(citationVenueMatch[1]);
+    const normalized = normalizeVenue(raw);
+    if (normalized) {
+      return { value: normalized, confidence: 0.78 };
+    }
+  }
+
+  return { value: '', confidence: 0 };
+}
+
+/**
  * Extracts DOI from text.
  */
 function extractDoi(text) {
+  // First check header area (first 4000 characters) to avoid matching reference citations
+  const headerChunk = text.slice(0, 4000);
+  const headerMatch = headerChunk.match(/\b(10\.\d{4,}(?:\.\d+)*\/[^\s,;]+)/i);
+  if (headerMatch && headerMatch[1]) {
+    return headerMatch[1].replace(/[.)>]+$/, '');
+  }
+
+  // Fallback: full document
   const match = text.match(/\b(10\.\d{4,}(?:\.\d+)*\/[^\s,;]+)/i);
   if (match && match[1]) {
-    // Clean trailing punctuation
     return match[1].replace(/[.)>]+$/, '');
   }
   return '';
@@ -639,11 +1179,10 @@ function extractTitle(text, pdfInfo) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // Strategy 1: Look for title before "Abstract" section
+  // Strategy 1: Look for title before "Abstract" section (scanning up to 60 lines before abstract)
   const abstractIndex = findSectionIndex(lines, ['abstract', 'ABSTRACT']);
   if (abstractIndex > 0) {
-    // Title is typically in the first few lines before abstract
-    const candidateLines = lines.slice(0, Math.min(abstractIndex, 10));
+    const candidateLines = lines.slice(0, Math.min(abstractIndex, 60));
     const title = findTitleFromLines(candidateLines);
     if (title) {
       logger.debug({ source: 'before-abstract', title }, 'Title before abstract');
@@ -652,7 +1191,7 @@ function extractTitle(text, pdfInfo) {
   }
 
   // Strategy 2: First substantial line that looks like a title
-  for (let i = 0; i < Math.min(15, lines.length); i++) {
+  for (let i = 0; i < Math.min(40, lines.length); i++) {
     const line = lines[i];
     if (isTitleCandidate(line)) {
       logger.debug(
@@ -664,7 +1203,7 @@ function extractTitle(text, pdfInfo) {
   }
 
   // Strategy 3: Concatenate first few lines if they seem like a multi-line title
-  const firstLines = lines.slice(0, 5);
+  const firstLines = lines.slice(0, 10);
   const multiLineTitle = findMultiLineTitle(firstLines);
   if (multiLineTitle) {
     logger.debug({ source: 'multi-line', title: multiLineTitle }, 'Multi-line title');
@@ -776,16 +1315,21 @@ function extractPublicationYear(text, pdfInfo) {
 
   const firstChunk = text.slice(0, 6000);
   const preferredPatterns = [
-    /\b(?:published|publication|accepted|copyright|©|journal)\s*(?:in|:)??\s*(19\d{2}|20\d{2})\b/gi,
+    /\b(?:published|publication|accepted|copyright|©|received|revised|citation)[\s\S]{0,40}?\b(19\d{2}|20\d{2})\b/gi,
+    /\b\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+(19\d{2}|20\d{2})\b/gi,
+    /\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+(19\d{2}|20\d{2})\b/gi,
     /\b(19\d{2}|20\d{2})\b(?=\s*(?:ieee|acm|springer|elsevier|wiley|journal|conference))/gi,
+    /\b(?:remote sens\.|sensors|ieee|mdpi|springer|nature|acm)[^\n\d]{0,20}\b(19\d{2}|20\d{2})\b/gi,
+    /\.\s*[A-Z][a-zA-Z.\s]{2,40}?\s+(19\d{2}|20\d{2})\s*,\s*\d+/g,
   ];
 
   for (const pattern of preferredPatterns) {
-    const match = pattern.exec(firstChunk);
-    if (!match) continue;
-    const candidate = Number(match[1]);
-    if (candidate >= 1900 && candidate <= currentYear + 1) {
-      return { value: candidate, confidence: 0.8 };
+    let match;
+    while ((match = pattern.exec(firstChunk)) !== null) {
+      const candidate = Number(match[1]);
+      if (candidate >= 1900 && candidate <= currentYear + 1) {
+        return { value: candidate, confidence: 0.85 };
+      }
     }
   }
 
@@ -803,7 +1347,7 @@ function extractPublicationYear(text, pdfInfo) {
       if (b[1] !== a[1]) return b[1] - a[1];
       return a[0] - b[0];
     });
-    return { value: sortedCandidates[0][0], confidence: 0.62 };
+    return { value: sortedCandidates[0][0], confidence: 0.65 };
   }
 
   return { value: null, confidence: 0 };
@@ -812,7 +1356,7 @@ function extractPublicationYear(text, pdfInfo) {
 /**
  * Extracts author names from PDF metadata and title-page lines.
  */
-function extractAuthors(text, pdfInfo) {
+function extractAuthors(text, pdfInfo, detectedTitle = '') {
   const fromInfo = normalizeAuthors(pdfInfo?.Author);
   if (fromInfo.length > 0) {
     return { value: fromInfo, confidence: 0.9 };
@@ -822,20 +1366,39 @@ function extractAuthors(text, pdfInfo) {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
-    .slice(0, 60);
+    .slice(0, 80);
 
   const abstractIdx = lines.findIndex((line) => /^abstract\b/i.test(line));
-  const maxIndex = abstractIdx > 0 ? abstractIdx : Math.min(lines.length, 25);
+  const maxIndex = abstractIdx > 0 ? abstractIdx : Math.min(lines.length, 35);
   const candidateWindow = lines.slice(0, maxIndex);
 
   const candidates = [];
   for (const line of candidateWindow) {
-    if (line.length < 5 || line.length > 200) continue;
+    if (line.length < 5 || line.length > 300) continue;
+
+    // Skip title line if known
+    if (detectedTitle && (line.includes(detectedTitle) || detectedTitle.includes(line))) {
+      continue;
+    }
+
+    // Skip citation block lines, lines with semicolons, or lines that overlap with title fragments
     if (
-      /\b(university|college|department|faculty|school|journal|conference|doi|abstract)\b/i.test(
+      line.includes(';') ||
+      /^[A-Z]\.;/i.test(line) ||
+      /^citation[:\s]/i.test(line) ||
+      /\b(university|college|department|faculty|school|journal|conference|doi|abstract|institute|ministry|center|centre|laboratory|licensee|mdpi|copyright|editor|citation|correspondence)\b/i.test(
         line,
       )
     ) {
+      continue;
+    }
+
+    if (detectedTitle && detectedTitle.toLowerCase().includes(line.toLowerCase())) {
+      continue;
+    }
+
+    if (/^\d+\s+[A-Za-z]/.test(line)) {
+      // Affiliation line like "1 Institute of ..."
       continue;
     }
 
@@ -851,9 +1414,9 @@ function extractAuthors(text, pdfInfo) {
     if (candidates.length >= 6) break;
   }
 
-  const deduped = Array.from(new Set(candidates)).slice(0, 6);
+  const deduped = Array.from(new Set(candidates)).slice(0, 8);
   if (deduped.length > 0) {
-    return { value: deduped, confidence: 0.65 };
+    return { value: deduped, confidence: 0.85 };
   }
 
   return { value: [], confidence: 0 };
@@ -863,12 +1426,17 @@ function extractAuthors(text, pdfInfo) {
  * Extracts keywords from a dedicated keywords section.
  */
 function extractKeywords(text) {
-  const match = text.match(/(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([^\n]{3,400})/i);
+  const match =
+    text.match(
+      /(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([\s\S]{3,600}?)(?=\n\s*(?:1\.|1\s|i\.|introduction|background|\n\s*\n))/i,
+    ) || text.match(/(?:^|\n)\s*(?:keywords?|index\s*terms?)\s*[:-]?\s*([^\n]{3,400})/i);
+
   if (!match || !match[1]) {
     return { value: [], confidence: 0 };
   }
 
-  const parsed = match[1]
+  const rawKeywords = match[1].replace(/[\r\n]+/g, ' ');
+  const parsed = rawKeywords
     .split(/,|;|\u2022|\|/)
     .map((v) => v.trim())
     .map((v) => v.replace(/^[-:\s]+/, '').replace(/[.;\s]+$/, ''))
@@ -944,11 +1512,16 @@ function sanitizeAuthorName(name) {
     '',
   );
 
+  // Strip footnote superscripts / affiliation numbers / markers (e.g., " 1", " 2", " 3,*", " 1,2", " *", " †", etc.)
+  clean = clean.replace(/\s+\d+(?:[,\s-]+\d+)*(?:\*|†|‡|§)?/g, '');
+  clean = clean.replace(/[*†‡§#]+/g, '');
+  clean = clean.replace(/[\s\d,*†‡§#]+$/g, '');
+
   // Normalize whitespace
   clean = clean.replace(/\s+/g, ' ').trim();
 
   // Strip leading/trailing dots and spaces
-  clean = clean.replace(/^[.\s]+|[.\s]+$/g, '');
+  clean = clean.replace(/^[.,\s-]+|[.,\s-]+$/g, '');
   return clean;
 }
 
@@ -962,9 +1535,9 @@ function isLikelyAuthorName(name) {
 
   const lowerName = name.toLowerCase();
 
-  // Check for institutional keywords using word boundaries to avoid false positives
+  // Check for institutional / publishing keywords using word boundaries to avoid false positives
   if (
-    /\b(university|college|department|faculty|school|institute|lab|laboratory|division|center|centre|academy|corporation|company|journal|conference|research|press|publisher|media|foundation|society|association|ltd|inc|corp|llc|gmbh|sarl|pty|pvt|kingdom|france|germany|united|states|america|canada|country|state|province|city|town|district|article|original|paper|review|volume|issue|published|accepted|submitted|copyright)\b/i.test(
+    /\b(university|college|department|faculty|school|institute|lab|laboratory|division|center|centre|academy|corporation|company|journal|conference|research|press|publisher|media|foundation|society|association|ltd|inc|corp|llc|gmbh|sarl|pty|pvt|kingdom|france|germany|united|states|america|canada|country|state|province|city|town|district|article|original|paper|review|volume|issue|published|accepted|submitted|copyright|licensee|mdpi|basel|switzerland|remote|sens|sensing|springer|nature|elsevier|ieee|acm|creative|commons|open|access|all\s+rights|reserved|editor|academic|editorial|board|citation|correspondence)\b/i.test(
       lowerName,
     )
   ) {
@@ -996,7 +1569,7 @@ function isLikelyAuthorName(name) {
 }
 
 function findTitleFromLines(lines) {
-  // Skip common header elements
+  // Skip common header elements and editorial noise
   const skipPatterns = [
     /^\d+$/, // Just numbers (page numbers)
     /^page\s*\d+$/i,
@@ -1022,16 +1595,73 @@ function findTitleFromLines(lines) {
     /^open\s+access/i,
     /^available\s+online/i,
     /licensee\s+mdpi/i,
-    /^received:/i,
-    /^accepted:/i,
-    /^published/i,
+    /^received[:\s]/i,
+    /^revised[:\s]/i,
+    /^accepted[:\s]/i,
+    /^published[:\s]/i,
     /\.\s*c©/, // copyright markers in venue lines
     /association\s+for\s+computational/i,
     /^[A-Z][a-z]+,\s*[A-Z][a-z]+,\s/, // City, State/Country patterns (venue lines)
     /^\w+\s+\d{1,2}[-–]\d{1,2},\s*\d{4}/, // Date ranges like "June 4-5, 2015"
     /\(\d{4}\)\s*\d+:\d+[-–]?\d*/, // Journal headers like "(2025) 16:310–325" or "59:257"
     /^[A-Za-z\s.,]+(?:University|Department|Institute|Faculty|School)\b/i, // Affiliation lines
+    /^academic\s+editor/i,
+    /^editor[s]?[:\s]/i,
+    /^citation[:\s]/i,
+    /^how\s+to\s+cite/i,
+    /^cite\s+as/i,
+    /^licensee\s+/i,
+    /^this\s+article\s+is/i,
+    /^distributed\s+under/i,
+    /^conditions\s+of\s+the/i,
+    /^attribution\s+/i,
+    /^creative\s+commons/i,
+    /^article$/i,
+    /^brief\s+report$/i,
+    /^communication$/i,
+    /^correspondence[:\s]/i,
+    /^\d+\s+(institute|department|school|college|university|center|centre|ministry|co\.,?\s*ltd|laboratory)/i,
+    /^https?:\/\//i,
+    /^e-?mail[:\s]/i,
+    /^orcid/i,
+    /^conflict\s+of\s+interest/i,
+    /^disclaimer/i,
+    /^publisher['’]?s\s+note/i,
+    /^[A-Z]\.;/i, // Citation author abbreviation line fragments
   ];
+
+  // Pass 0: Anchor on article type markers (e.g. "Article", "Research Article", "Original Paper")
+  // Often appearing immediately preceding the actual manuscript title
+  for (let i = 0; i < lines.length - 1; i++) {
+    const line = lines[i];
+    if (
+      /^(?:article|research\s+article|review|review\s+article|original\s+article|original\s+paper|full\s+length\s+article|regular\s+paper)$/i.test(
+        line.trim(),
+      )
+    ) {
+      const nextLine = lines[i + 1]?.trim();
+      if (nextLine && nextLine.length >= 10 && !skipPatterns.some((p) => p.test(nextLine))) {
+        let candidate = nextLine;
+        for (let j = i + 2; j < Math.min(i + 4, lines.length); j++) {
+          const contLine = lines[j]?.trim();
+          if (!contLine || contLine.length < 3) break;
+          if (skipPatterns.some((p) => p.test(contLine))) break;
+          if (/^(?:by|abstract|introduction|keywords)/i.test(contLine)) break;
+          // Stop if next line has author indicators
+          if ((contLine.match(/,/g) || []).length >= 2 || /\b(and|&)\b/i.test(contLine)) break;
+          if (contLine.length <= 120 && !contLine.endsWith('.')) {
+            candidate = `${candidate} ${contLine}`;
+          } else {
+            break;
+          }
+        }
+        const cleaned = cleanText(candidate);
+        if (cleaned.length >= 10 && cleaned.length <= 300) {
+          return cleaned;
+        }
+      }
+    }
+  }
 
   // First pass: find the first title candidate line
   let titleStartIdx = -1;
@@ -1060,7 +1690,6 @@ function findTitleFromLines(lines) {
   if (titleStartIdx === -1) return null;
 
   // Second pass: check if the next line is a continuation of the title
-  // (multi-line titles like "Document Overlap Detection System for Distributed\nDigital Libraries")
   let title = cleanText(lines[titleStartIdx]);
   for (let j = titleStartIdx + 1; j < Math.min(titleStartIdx + 3, lines.length); j++) {
     const nextLine = lines[j];
@@ -1077,15 +1706,26 @@ function findTitleFromLines(lines) {
     if (skipPatterns.some((p) => p.test(nextLine))) break;
     // Reject if it's clearly an author list with special markers
     if (/[\u00B7\u2022\u25E6\u2043\u2219]|\b([A-Za-z]+)[1-9]\b/.test(nextLine)) break;
-    // Stop if the next line contains commas (likely author list)
-    if ((nextLine.match(/,/g) || []).length >= 2) break;
-    // Stop if next line looks like a list of names (capitalized words, maybe with particles like van/der/de)
+    // Stop if the next line contains any comma (authors or affiliations)
+    if (nextLine.includes(',')) break;
+    // Stop if next line has "and" / "&" without core title domain keywords (likely author list)
+    if (
+      /\b(and|&)\b/i.test(nextLine) &&
+      !/\b(system|library|network|model|data|analysis|detection|method|approach|segmentation|adaptation|framework|deep|learning|theory|applications|design|study)\b/i.test(
+        nextLine,
+      )
+    )
+      break;
+
+    // Stop if next line looks like a list of names
     const isNameList =
       /^([A-Z][a-z]+|van|der|de|la|von|da)(\s+([A-Z][a-z]+|van|der|de|la|von|da)){0,5}\s*$/i.test(
         nextLine,
       );
     const hasTitleWords =
-      /\b(system|library|network|model|data|analysis|detection|method|approach)\b/i.test(nextLine);
+      /\b(system|library|network|model|data|analysis|detection|method|approach|segmentation|adaptation|framework|deep|learning)\b/i.test(
+        nextLine,
+      );
     if (isNameList && !/\b(for|and|the|in|of|on|a|an|with|by)\b/i.test(nextLine) && !hasTitleWords)
       break;
 
@@ -1094,13 +1734,8 @@ function findTitleFromLines(lines) {
       title = cleanText(title + ' ' + nextLine);
       continue;
     }
-    // Also join if next line is short, capitalized, and clearly a fragment
-    if (nextLine.length < 40 && /^[A-Z]/.test(nextLine) && !nextLine.endsWith('.')) {
-      title = cleanText(title + ' ' + nextLine);
-      continue;
-    }
-    // Join if next line is lowercase continuation
-    if (nextLine.length < 50 && /^[a-z]/.test(nextLine) && !title.endsWith('.')) {
+    // Join if next line is lowercase continuation (e.g. "of Aerial Images")
+    if (nextLine.length < 60 && /^[a-z]/.test(nextLine) && !title.endsWith('.')) {
       title = cleanText(title + ' ' + nextLine);
       continue;
     }

@@ -1,0 +1,27 @@
+{
+  "session_id": "2026-09-25_archive-viewer-contextual-similarity-and-integrity-highlights",
+  "date": "2026-09-25T05:27:00.000Z",
+  "task_summary": "Integrated Turnitin-style contextual similarity and score-gradient PDF integrity highlighting into the Archive Document Viewer (CanonicalDocumentViewer.jsx). Added: (1) Match Overview drawer with 6-tier Legend Strip, dual macro Exact/Semantic breakdown bars, and search filter. (2) ArchiveSourceRow with numbered palette badge, signal badges (VERBATIM / PARAPHRASE / MIXED), blended score bar, and dual Exact/Semantic mini-bars. (3) Active Source Detail Panel with 3-bar breakdown, contextual diagnosis prose, manuscript excerpt comparison, and quick-toggle to canvas. (4) Canvas mode switcher between Clean Manuscript and Integrity Highlights (PdfViewerWorkspace). (5) Backend project service archivedSubmissions query select updated to include plagiarismResult. 10/10 tests passed.",
+  "task_category": "archive_document_viewer_contextual_similarity",
+  "files_modified": [
+    "server/modules/projects/project.service.js",
+    "client/src/components/archive/CanonicalDocumentViewer.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.test.jsx"
+  ],
+  "verification": {
+    "targeted_unit_tests": "10/10 passed (CanonicalDocumentViewer.test.jsx)",
+    "plagiarism_unit_tests": "10/10 passed (PlagiarismReportPage.test.jsx)",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=209, CLIENT_ENDPOINT_COUNT=190, UNMATCHED_COUNT=0",
+    "agentic_validation": "60/60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "playwright_visual_audit": "5 screenshots captured across light/dark desktop & mobile (01-05 in scratch/screenshots/archive_match_overview_audit/)"
+  },
+  "skills_patched": [
+    "frontend-patterns",
+    "i-colorize",
+    "i-arrange",
+    "i-polish",
+    "verification-loop",
+    "continual-learning"
+  ]
+}

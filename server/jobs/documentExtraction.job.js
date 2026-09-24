@@ -112,6 +112,7 @@ export async function processDocumentExtractionJob(job) {
     if (userId) {
       emitToUser(userId, 'ocr:complete', {
         jobId: job.id,
+        data: extractionPayload,
         payload: extractionPayload,
       });
     }

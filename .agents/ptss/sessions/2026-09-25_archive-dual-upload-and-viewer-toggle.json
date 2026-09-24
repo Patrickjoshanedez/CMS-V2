@@ -1,0 +1,25 @@
+{
+  "session_id": "2026-09-25_archive-dual-upload-and-viewer-toggle",
+  "date": "2026-09-25T04:59:00.000Z",
+  "task_summary": "Implemented simultaneous Academic Paper and Academic Journal archival upload with configurable OCR metadata extraction and plagiarism scan targets, separate submission section, zero minimum upload requirement, and interactive paper/journal viewing toggle in the archive viewer: 1) Fixed Axios baseURL /api duplication in CanonicalDocumentViewer, added activeDocType state with institutional toggle buttons ('Academic Paper' vs 'Academic Journal'), dynamic URL streaming (/projects/:id/manuscript?type=...), and dynamic download filenames. 2) Extended project.service.js getProject and searchArchive to return hasAcademicPaper and hasJournalPaper, and getProjectManuscript to stream requested document types without cross-type bleed. 3) Updated ExistingCapstoneUploadPage to allow simultaneous multi-file selection, individual document removal, dedicated OCR Metadata Target selector with manual re-extraction trigger, Plagiarism Target selector with integrated plagiarism scan trigger and score display, and a cleanly separated Section 4 Confirm & Upload Archive Bundle card. 4) Added bulkUploadSchema validation and projectService.bulkUploadArchive persistence for metadataTarget, plagiarismTarget, and originalityScore. Passed 8/8 upload page tests, 7/7 document viewer tests, 5/5 server manuscript tests, 209/190 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, clean governance pipeline, and 11-point Playwright visual audit across light and dark desktop (1440x900) and mobile (390x844).",
+  "task_category": "archive_dual_upload_and_viewer_toggle",
+  "skills_written": [],
+  "skills_patched": [
+    "frontend-patterns",
+    "senior-backend",
+    "i-arrange",
+    "i-polish",
+    "verification-loop",
+    "continual-learning"
+  ],
+  "verification": {
+    "unit_tests": {
+      "client_upload_page": "8/8 passed",
+      "client_viewer": "7/7 passed",
+      "server_manuscript": "5/5 passed"
+    },
+    "endpoint_parity": "209 Server / 190 Client (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "60/60 checks passed",
+    "playwright_visual_audit": "11 screenshots verified across desktop light/dark and mobile"
+  }
+}

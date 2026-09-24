@@ -1,0 +1,30 @@
+{
+  "session_id": "2026-09-25_plagiarism-contextual-similarity-pdf-highlighting",
+  "date": "2026-09-25T04:25:00.000Z",
+  "task_summary": "Upgraded the BukSU CMS-V2 plagiarism report viewer with 3 major capabilities across 4 files: (1) Score-gradient PDF highlighting — added 4 CSS intensity tiers (low/medium/high/critical) plus .paraphrase (violet dashed) and .verbatim (deep red double border) variants to index.css; plagiarismHighlightAdapter.js now computes scoreTierClass and contextSignal (paraphrase/verbatim/mixed) per match and passes them through meta; PdfViewerWorkspace.jsx CustomHighlightRenderer applies the compound tier+signal class. (2) Contextual similarity in PlagiarismReportPage.jsx — added hexToRgba, getScoreHighlightStyle, and deriveContextSignal helpers; normalizeTextMatches threads winnow_score/semantic_score/contextSignal per source; flattenHighlights propagates all 3 to each block; renderLineFragments uses opacity-modulated scoreStyle per block. (3) Organized scrollable Match Overview sidebar — SourceRow upgraded with VERBATIM/PARAPHRASE/MIXED signal badge and dual Exact (amber) / Semantic (blue) mini-bars; sidebar aside fixed with overflow-hidden + min-h-0 on source list for independent scroll; active detail panel rebuilt with 3-bar score breakdown (Blended/Exact/Semantic), contextual explanation prose, and side-by-side text comparison; Similarity Legend strip (6 color swatches) added above canvas in extracted mode. All 10 targeted unit tests passed (10/10).",
+  "task_category": "plagiarism_ui_contextual_similarity_pdf_highlighting",
+  "files_modified": [
+    "client/src/index.css",
+    "client/src/utils/plagiarismHighlightAdapter.js",
+    "client/src/components/submissions/PdfViewerWorkspace.jsx",
+    "client/src/pages/submissions/PlagiarismReportPage.jsx"
+  ],
+  "skills_written": [],
+  "skills_patched": [
+    "frontend-patterns",
+    "i-colorize",
+    "i-arrange",
+    "i-polish",
+    "verification-loop",
+    "continual-learning"
+  ],
+  "lessons_learned": [
+    "lesson: PDF plagiarism highlights use react-pdf-highlighter-plus TextHighlight with CSS class strings. Score-tier classes must be pure CSS (no Tailwind) because they target the library's rendered DOM nodes, not React JSX class props.",
+    "learned: plagiarismHighlightAdapter.js caches resolved highlights in a WeakMap keyed by pdfDocument. Any meta field added to the push() call is automatically cached and reused — no need to invalidate.",
+    "prevention: winnow_score and semantic_score exist only at the source/match level, not at the individual matchedBlock level. Propagate them from source to blocks in flattenHighlights to enable per-fragment contextual display.",
+    "runbook: For contextual similarity display (paraphrase vs verbatim), use: paraphrase = semantic_score >= 0.70 AND winnow_score < 0.30; verbatim = winnow_score >= 0.80; mixed = everything else.",
+    "checklist: Sidebar scrollability requires BOTH overflow-hidden on the parent <aside> (to constrain height) AND min-h-0 + overflow-y-auto on the flex-1 child (to enable inner scroll). Missing min-h-0 causes flex children to overflow their container regardless of overflow-auto."
+  ],
+  "tests_passed": "10/10 targeted (PlagiarismReportPage.test.jsx)",
+  "playwright_audit": "scratch/plagiarism_score_gradient_audit.mjs (run when Docker stack is live)"
+}

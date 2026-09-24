@@ -89,21 +89,41 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
       });
 
       if (textPosition && textPosition.position) {
+        const rawScore = Number(match.similarityScore || match.score || 0);
+        const score = rawScore > 1 ? rawScore / 100 : rawScore;
+        const winnow = Number(match.winnowScore || match.winnow_score || 0);
+        const semantic = Number(match.semanticScore || match.semantic_score || 0);
+
+        // Determine score-tier CSS class
+        let scoreTierClass;
+        if (score >= 0.9) scoreTierClass = 'highlight-plagiarism--critical';
+        else if (score >= 0.7) scoreTierClass = 'highlight-plagiarism--high';
+        else if (score >= 0.5) scoreTierClass = 'highlight-plagiarism--medium';
+        else scoreTierClass = 'highlight-plagiarism--low';
+
+        // Contextual signal: paraphrase (high semantic, low verbatim) vs verbatim
+        const contextSignal =
+          semantic >= 0.7 && winnow < 0.3 ? 'paraphrase' : winnow >= 0.8 ? 'verbatim' : 'mixed';
+
         highlights.push({
           id: `plag-${match.sourceId || 'match'}-${index}-${match.offset || Math.random().toString(36).substring(7)}`,
           type: match.isExact ? 'plagiarism_exact' : 'plagiarism_semantic',
-          position: textPosition.position, // ScaledPosition with boundingRect & rects
+          position: textPosition.position,
           content: {
             text: textPosition.matchedText || suspectText,
           },
           meta: {
-            similarityScore: match.similarityScore || match.score || 0,
+            similarityScore: Math.round(score * 100),
             matchedSourceId: match.sourceId || match.matchedProjectId || null,
             sourceTitle:
               match.sourceTitle || match.projectTitle || 'Archived Institutional Manuscript',
             sourceAuthors: match.sourceAuthors || match.authors || [],
             isExact: Boolean(match.isExact),
             pageNumber: textPosition.position.pageNumber,
+            winnowScore: Math.round(winnow * 100),
+            semanticScore: Math.round(semantic * 100),
+            contextSignal,
+            scoreTierClass,
           },
         });
       }

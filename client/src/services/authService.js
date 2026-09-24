@@ -159,10 +159,24 @@ export const projectService = {
       }
       if (payload.doi) formData.append('doi', payload.doi);
       if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
-      formData.append('academicYear', payload.academicYear);
-      formData.append('academicPaperFile', payload.academicPaperFile);
+      if (payload.academicPaperFile) {
+        formData.append('academicPaperFile', payload.academicPaperFile);
+      }
       if (payload.academicJournalFile) {
         formData.append('academicJournalFile', payload.academicJournalFile);
+      }
+      if (payload.metadataTarget) {
+        formData.append('metadataTarget', payload.metadataTarget);
+      }
+      if (payload.plagiarismTarget) {
+        formData.append('plagiarismTarget', payload.plagiarismTarget);
+      }
+      if (
+        payload.originalityScore !== null &&
+        payload.originalityScore !== undefined &&
+        !Number.isNaN(Number(payload.originalityScore))
+      ) {
+        formData.append('originalityScore', String(payload.originalityScore));
       }
     }
 

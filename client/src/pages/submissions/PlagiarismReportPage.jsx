@@ -136,6 +136,47 @@ const SOURCE_PALETTE = [
   },
 ];
 
+/* ── Score-gradient highlight system ──────────────────────────────────
+   Modulates highlight intensity based on individual block similarity score.
+   Keeps source hue (from palette.dot) but varies opacity by score severity.
+   ──────────────────────────────────────────────────────────────────── */
+function hexToRgba(hex, alpha) {
+  const clean = (hex || '#888888').replace('#', '');
+  const full =
+    clean.length === 3
+      ? clean
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : clean;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha)).toFixed(3)})`;
+}
+
+function getScoreHighlightStyle(paletteDot, similarityPercent) {
+  // Map 0–100% similarity to opacity band: 0.10 (low) → 0.60 (critical)
+  const score = Math.max(0, Math.min(100, similarityPercent)) / 100;
+  const bgAlpha = 0.1 + score * 0.5; // 0.10 at 0%, 0.60 at 100%
+  const borderAlpha = 0.3 + score * 0.55; // 0.30 → 0.85
+  const borderWidth = score >= 0.9 ? '3px' : score >= 0.7 ? '2px' : '1px';
+  return {
+    background: hexToRgba(paletteDot, bgAlpha),
+    outline: `1px solid ${hexToRgba(paletteDot, borderAlpha * 0.5)}`,
+    borderBottom: `${borderWidth} solid ${hexToRgba(paletteDot, borderAlpha)}`,
+  };
+}
+
+/* Derive paraphrase/verbatim/mixed signal from winnow + semantic scores */
+function deriveContextSignal(winnowScore, semanticScore) {
+  const w = Number(winnowScore ?? 0);
+  const s = Number(semanticScore ?? 0);
+  if (s >= 0.7 && w < 0.3) return 'paraphrase';
+  if (w >= 0.8) return 'verbatim';
+  return 'mixed';
+}
+
 /* ── Helpers ──────────────────────────────────────────────── */
 
 const clampPercent = (value) => {
@@ -282,10 +323,26 @@ const normalizeTextMatches = (payload, text) => {
           block.studentEnd > block.studentStart,
       );
 
+      const winnowScore =
+        typeof match?.winnow_score === 'number'
+          ? match.winnow_score
+          : typeof match?.winnowScore === 'number'
+            ? match.winnowScore
+            : null;
+      const semanticScore =
+        typeof match?.semantic_score === 'number'
+          ? match.semantic_score
+          : typeof match?.semanticScore === 'number'
+            ? match.semanticScore
+            : null;
+
       return {
         sourceId: toSourceId(match, index),
         sourceTitle: toSourceTitle(match),
         similarityPercentage: similarityPercentage ?? 0,
+        winnowScore,
+        semanticScore,
+        contextSignal: deriveContextSignal(winnowScore, semanticScore),
         matchedBlocks: blocks,
       };
     })
@@ -342,6 +399,9 @@ const flattenHighlights = (matches) =>
       sourceTitle: match.sourceTitle,
       sourceNumber: match.sourceNumber,
       similarityPercentage: match.similarityPercentage,
+      winnowScore: match.winnowScore,
+      semanticScore: match.semanticScore,
+      contextSignal: match.contextSignal,
       studentStart: block.studentStart,
       studentEnd: block.studentEnd,
       matchedText: block.matchedText,
@@ -590,12 +650,34 @@ function getSimilarityStatus(percent) {
   };
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   Signal badge config
+   ────────────────────────────────────────────────────────────────────── */
+const SIGNAL_CONFIG = {
+  verbatim: {
+    label: 'VERBATIM',
+    className: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+  },
+  paraphrase: {
+    label: 'PARAPHRASE',
+    className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30',
+  },
+  mixed: {
+    label: 'MIXED',
+    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  },
+};
+
 /* ──────────────────────────────────────────────────────────────
    SourceRow sub-component
    ────────────────────────────────────────────────────────────── */
 function SourceRow({ source, isActive, onSelect }) {
   const percentage = Math.round(source.similarityPercentage);
   const status = getSimilarityStatus(percentage);
+  const signal = SIGNAL_CONFIG[source.contextSignal] || SIGNAL_CONFIG.mixed;
+  const hasScoreBreakdown = source.winnowScore !== null || source.semanticScore !== null;
+  const winnowPct = source.winnowScore !== null ? Math.round(source.winnowScore * 100) : null;
+  const semanticPct = source.semanticScore !== null ? Math.round(source.semanticScore * 100) : null;
 
   return (
     <button
@@ -618,11 +700,22 @@ function SourceRow({ source, isActive, onSelect }) {
         </span>
 
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
-            {source.sourceTitle}
-          </p>
+          <div className="flex items-start justify-between gap-1.5">
+            <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground flex-1">
+              {source.sourceTitle}
+            </p>
+            {/* Context signal badge */}
+            <span
+              className={cn(
+                'shrink-0 inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
+                signal.className,
+              )}
+            >
+              {signal.label}
+            </span>
+          </div>
 
-          {/* Similarity bar */}
+          {/* Blended similarity bar */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">
@@ -630,13 +723,50 @@ function SourceRow({ source, isActive, onSelect }) {
               </span>
               <span className={cn('font-semibold', status.textClass)}>{percentage}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-muted"
+              title={`Blended score: ${percentage}%`}
+            >
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{ width: `${percentage}%`, backgroundColor: status.color }}
               />
             </div>
           </div>
+
+          {/* Dual signal bars: Exact Overlap + Semantic Match */}
+          {hasScoreBreakdown && (
+            <div className="space-y-0.5 pt-0.5">
+              {winnowPct !== null && (
+                <div className="flex items-center gap-2">
+                  <span className="w-14 shrink-0 text-[9px] text-muted-foreground">Exact</span>
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                      style={{ width: `${winnowPct}%` }}
+                    />
+                  </div>
+                  <span className="w-6 shrink-0 text-right text-[9px] font-mono text-muted-foreground">
+                    {winnowPct}%
+                  </span>
+                </div>
+              )}
+              {semanticPct !== null && (
+                <div className="flex items-center gap-2">
+                  <span className="w-14 shrink-0 text-[9px] text-muted-foreground">Semantic</span>
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                      style={{ width: `${semanticPct}%` }}
+                    />
+                  </div>
+                  <span className="w-6 shrink-0 text-right text-[9px] font-mono text-muted-foreground">
+                    {semanticPct}%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -856,7 +986,10 @@ function PlagiarismReportPage({
       }
 
       const isActive = activeHighlight?.key === frag.highlight.key;
-      const { mark } = frag.highlight.palette;
+      const scoreStyle = getScoreHighlightStyle(
+        frag.highlight.palette.dot,
+        frag.highlight.similarityPercentage,
+      );
 
       return (
         <mark
@@ -882,7 +1015,7 @@ function PlagiarismReportPage({
               ? 'ring-2 ring-primary ring-offset-2 shadow-sm font-medium'
               : 'hover:opacity-80',
           )}
-          style={mark}
+          style={scoreStyle}
           onClick={() => handleHighlightClick(frag.highlight)}
           title={`[${frag.highlight.sourceNumber}] ${frag.highlight.sourceTitle} — ${Math.round(frag.highlight.similarityPercentage)}%`}
         >
@@ -1338,6 +1471,74 @@ function PlagiarismReportPage({
               )}
             </div>
 
+            {/* Similarity Legend strip — extracted mode only */}
+            {canvasMode === 'extracted' && showHighlights && (
+              <div className="flex flex-wrap items-center gap-3 border-b border-border/40 bg-muted/20 px-4 py-1.5 text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground">Highlight intensity:</span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(234,179,8,0.25)',
+                      border: '1px solid rgba(234,179,8,0.5)',
+                    }}
+                  />
+                  Low (≤50%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(249,115,22,0.35)',
+                      border: '1px solid rgba(249,115,22,0.7)',
+                    }}
+                  />
+                  Medium (50–70%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(244,63,94,0.42)',
+                      border: '2px solid rgba(244,63,94,0.8)',
+                    }}
+                  />
+                  High (70–90%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(185,28,28,0.50)',
+                      border: '3px solid rgba(185,28,28,0.9)',
+                    }}
+                  />
+                  Critical (≥90%)
+                </span>
+                <span className="mx-1 h-3 w-px bg-border/60" />
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(124,58,237,0.20)',
+                      borderBottom: '2px dashed rgba(124,58,237,0.8)',
+                    }}
+                  />
+                  Paraphrase
+                </span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2.5 w-5 rounded-sm"
+                    style={{
+                      background: 'rgba(220,38,38,0.28)',
+                      borderBottom: '3px double rgba(220,38,38,0.8)',
+                    }}
+                  />
+                  Verbatim
+                </span>
+              </div>
+            )}
+
             {/* Canvas Body */}
             {canvasMode === 'document' ? (
               <div className="flex-1 w-full min-h-[75vh] flex flex-col overflow-hidden bg-background">
@@ -1650,8 +1851,8 @@ function PlagiarismReportPage({
 
           {/* Sources sidebar */}
           <aside
-            className="flex flex-col border-l border-border/60 bg-card"
-            style={{ maxHeight: '78vh' }}
+            className="flex flex-col border-l border-border/60 bg-card overflow-hidden"
+            style={{ maxHeight: '78vh', minHeight: '300px' }}
           >
             {/* Sidebar header */}
             <div className="flex flex-col gap-2.5 border-b border-border/60 p-4">
@@ -1680,66 +1881,157 @@ function PlagiarismReportPage({
               )}
             </div>
 
-            {/* Active source detail popover */}
-            {activeSource && activeHighlight && (
-              <div className="space-y-2.5 border-b border-border/60 bg-muted/30 p-3.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full border text-[10px] font-bold"
-                        style={activeSource.palette.badgeStyle}
+            {/* Active source detail panel with contextual score breakdown */}
+            {activeSource &&
+              activeHighlight &&
+              (() => {
+                const signal = SIGNAL_CONFIG[activeSource.contextSignal] || SIGNAL_CONFIG.mixed;
+                const winnowPct =
+                  activeSource.winnowScore !== null
+                    ? Math.round(activeSource.winnowScore * 100)
+                    : null;
+                const semanticPct =
+                  activeSource.semanticScore !== null
+                    ? Math.round(activeSource.semanticScore * 100)
+                    : null;
+                const blendedPct = Math.round(activeSource.similarityPercentage);
+                const detailStatus = getSimilarityStatus(blendedPct);
+
+                return (
+                  <div className="border-b border-border/60 bg-muted/30">
+                    {/* Panel header */}
+                    <div className="flex items-start justify-between gap-2 p-3.5 pb-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full border text-[10px] font-bold"
+                            style={activeSource.palette.badgeStyle}
+                          >
+                            {activeSource.sourceNumber}
+                          </span>
+                          <p className="line-clamp-1 text-sm font-semibold text-foreground">
+                            {activeSource.sourceTitle}
+                          </p>
+                        </div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
+                              signal.className,
+                            )}
+                          >
+                            {signal.label}
+                          </span>
+                          <span className={cn('text-[11px] font-semibold', detailStatus.textClass)}>
+                            {blendedPct}% blended
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveHighlightKey(null)}
+                        className="h-6 w-6 shrink-0 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
+                        aria-label="Close detail"
                       >
-                        {activeSource.sourceNumber}
-                      </span>
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {activeSource.sourceTitle}
-                      </p>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {Math.round(activeSource.similarityPercentage)}% similarity match
-                    </p>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveHighlightKey(null)}
-                    className="h-6 w-6 shrink-0 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
-                    aria-label="Close detail"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* Side-by-side comparison */}
-                <div className="space-y-2">
-                  <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Your Manuscript Excerpt
-                    </p>
-                    <p className="text-xs leading-relaxed text-foreground font-serif">
-                      {activeHighlight.matchedText || 'Text unavailable.'}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Archive Source Match
-                    </p>
-                    <p className="text-xs leading-relaxed text-foreground font-serif">
-                      {activeHighlight.sourceText || (
-                        <span className="flex items-center gap-1.5 italic text-muted-foreground">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                          Source excerpt not available for this match.
+                    {/* Score breakdown bars */}
+                    <div className="px-3.5 pb-2.5 space-y-1.5">
+                      {/* Blended */}
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <span className="w-16 shrink-0 text-muted-foreground">Blended</span>
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${blendedPct}%`, backgroundColor: detailStatus.color }}
+                          />
+                        </div>
+                        <span
+                          className={cn(
+                            'w-7 shrink-0 text-right font-mono font-semibold',
+                            detailStatus.textClass,
+                          )}
+                        >
+                          {blendedPct}%
                         </span>
+                      </div>
+                      {/* Exact Overlap */}
+                      {winnowPct !== null && (
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="w-16 shrink-0 text-muted-foreground">Exact</span>
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-amber-500 transition-all"
+                              style={{ width: `${winnowPct}%` }}
+                            />
+                          </div>
+                          <span className="w-7 shrink-0 text-right font-mono text-muted-foreground">
+                            {winnowPct}%
+                          </span>
+                        </div>
                       )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+                      {/* Semantic */}
+                      {semanticPct !== null && (
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="w-16 shrink-0 text-muted-foreground">Semantic</span>
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-blue-500 transition-all"
+                              style={{ width: `${semanticPct}%` }}
+                            />
+                          </div>
+                          <span className="w-7 shrink-0 text-right font-mono text-muted-foreground">
+                            {semanticPct}%
+                          </span>
+                        </div>
+                      )}
 
-            {/* Source list */}
-            <div className="flex-1 space-y-2 overflow-auto p-3">
+                      {/* Contextual explanation */}
+                      {activeSource.contextSignal === 'paraphrase' && (
+                        <p className="text-[9px] leading-snug text-violet-600 dark:text-violet-400 italic mt-0.5">
+                          High semantic overlap detected with low verbatim copying — possible
+                          paraphrase.
+                        </p>
+                      )}
+                      {activeSource.contextSignal === 'verbatim' && (
+                        <p className="text-[9px] leading-snug text-rose-600 dark:text-rose-400 italic mt-0.5">
+                          Exact literal copying detected via n-gram fingerprinting.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Side-by-side text comparison */}
+                    <div className="space-y-2 px-3.5 pb-3.5">
+                      <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Your Manuscript Excerpt
+                        </p>
+                        <p className="text-xs leading-relaxed text-foreground font-serif">
+                          {activeHighlight.matchedText || 'Text unavailable.'}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Archive Source Match
+                        </p>
+                        <p className="text-xs leading-relaxed text-foreground font-serif">
+                          {activeHighlight.sourceText || (
+                            <span className="flex items-center gap-1.5 italic text-muted-foreground">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              Source excerpt not available for this match.
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            {/* Source list — scrollable flex-1 region */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
               {filteredSources.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <CheckCircle2 className="mb-3 h-10 w-10 text-emerald-500/60" />

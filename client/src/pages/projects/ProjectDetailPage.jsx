@@ -30,7 +30,6 @@ import ModificationReviewCard from '@/components/projects/ModificationReviewCard
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
-import ProjectInformationSidebar from '@/components/projects/ProjectInformationSidebar';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
@@ -280,265 +279,249 @@ export default function ProjectDetailPage() {
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-background text-foreground">
-        <div className="p-6 max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-          {/* Main Workspace (Left - 70%) */}
-          <div className="xl:col-span-8 space-y-6">
-            <div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(backDestination)}
-                className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                {backLabel}
-              </Button>
-            </div>
-            <WorkflowPhaseTracker
-              project={project}
-              onStepClick={handleStepClick}
-              isStudent={isStudent}
-              onScheduleDefense={isInstructor ? () => setIsScheduleDefenseOpen(true) : undefined}
-              className="mb-6"
-            />
+        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+          <div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(backDestination)}
+              className="gap-2 -ml-2 text-muted-foreground hover:text-foreground mb-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {backLabel}
+            </Button>
+          </div>
+          <WorkflowPhaseTracker
+            project={project}
+            onStepClick={handleStepClick}
+            isStudent={isStudent}
+            onScheduleDefense={isInstructor ? () => setIsScheduleDefenseOpen(true) : undefined}
+            canManageCommittee={isInstructor}
+            canManageArchive={isInstructor && !isArchived}
+            onRefresh={() => refetch()}
+            className="mb-6"
+          />
 
-            {isArchived && (
-              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
-                    <BookOpen className="h-5 w-5" />
+          {isArchived && (
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-card-foreground">
+                    Archived Capstone Record — Read-Only Mode
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    This project has been archived. Metadata adjustments are restricted; directly
+                    viewing final manuscript papers and evaluation reports.
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className="border-primary/40 text-primary uppercase font-bold text-[10px] px-2.5 py-1"
+              >
+                Archived Paper
+              </Badge>
+            </div>
+          )}
+
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
+              <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {(isArchived ? ARCHIVED_DETAIL_TABS : STANDARD_DETAIL_TABS).map((tab) => (
+                  <WorkflowTabTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    icon={tab.icon}
+                    label={tab.label}
+                  />
+                ))}
+              </TabsList>
+            </div>
+
+            <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none space-y-6">
+              {/* Show modification review card when a student has submitted a revised title */}
+              {canReviewTitle && project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
+                <div className="mb-6">
+                  <ModificationReviewCard project={project} />
+                </div>
+              )}
+
+              <Capstone1CollapsibleSections
+                project={project}
+                isStudent={isStudent}
+                isFaculty={isFaculty}
+                user={user}
+                onTabChange={handleTabChange}
+                onRefresh={() => refetch()}
+              />
+            </TabsContent>
+
+            <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-4">
+              <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
+            </TabsContent>
+
+            <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
+              {/* Celebratory Capstone 2 Clearance & Progression Banner */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-background to-primary/10 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                    <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-card-foreground">
-                      Archived Capstone Record — Read-Only Mode
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      This project has been archived. Metadata adjustments are restricted; directly
-                      viewing final manuscript papers and evaluation reports.
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="border-primary/40 text-primary uppercase font-bold text-[10px] px-2.5 py-1"
-                >
-                  Archived Paper
-                </Badge>
-              </div>
-            )}
-
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
-                <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {(isArchived ? ARCHIVED_DETAIL_TABS : STANDARD_DETAIL_TABS).map((tab) => (
-                    <WorkflowTabTrigger
-                      key={tab.value}
-                      value={tab.value}
-                      icon={tab.icon}
-                      label={tab.label}
-                    />
-                  ))}
-                </TabsList>
-              </div>
-
-              <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none space-y-6">
-                {/* Show modification review card when a student has submitted a revised title */}
-                {canReviewTitle && project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
-                  <div className="mb-6">
-                    <ModificationReviewCard project={project} />
-                  </div>
-                )}
-
-                <Capstone1CollapsibleSections
-                  project={project}
-                  isStudent={isStudent}
-                  isFaculty={isFaculty}
-                  user={user}
-                  onTabChange={handleTabChange}
-                  onRefresh={() => refetch()}
-                />
-              </TabsContent>
-
-              <TabsContent value="capstone_2" className="mt-0 focus-visible:outline-none space-y-4">
-                <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
-              </TabsContent>
-
-              <TabsContent value="capstone_3" className="mt-0 focus-visible:outline-none space-y-6">
-                {/* Celebratory Capstone 2 Clearance & Progression Banner */}
-                <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-background to-primary/10 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
-                      <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-foreground">
-                          Capstone 2 Progress Defense Cleared!
-                        </h3>
-                        <Badge
-                          variant="secondary"
-                          className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 text-[10px] uppercase tracking-wider font-semibold"
-                        >
-                          Phase 3 Active
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        System prototype progress cleared and ADM v2 ratified. Chapters 4–5
-                        submissions, academic journal manuscript, final oral defense, and
-                        institutional archival are unlocked.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant="outline"
-                      className="font-mono text-xs border-primary/30 text-primary px-3 py-1"
-                    >
-                      Capstone 3 · Final & Archival
-                    </Badge>
-                  </div>
-                </div>
-
-                <ChapterReviewPanel
-                  submissions={submissionsData}
-                  chapters={[4, 5]}
-                  title="Capstone 3 — Chapter Submissions"
-                  description="Approve or request revisions for Chapters 4 and 5. Approving locks the chapter and progresses the student toward the final manuscript."
-                  showReviewActions={isInstructor || isAssignedAdviser}
-                />
-
-                {/* Full Manuscript Paper Reader & Archival Document Package */}
-                <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <BookMarked className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-bold text-foreground">
-                          Official Full Manuscript Paper
-                        </h3>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Conferred Capstone Study — Bukidnon State University Institutional
-                        Repository
-                      </p>
-                    </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="gap-2 font-semibold shadow-sm"
-                        asChild
+                      <h3 className="text-base font-bold text-foreground">
+                        Capstone 2 Progress Defense Cleared!
+                      </h3>
+                      <Badge
+                        variant="secondary"
+                        className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 text-[10px] uppercase tracking-wider font-semibold"
                       >
-                        <a
-                          href={`/api/archive/${project._id}/view`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Read Full Paper (PDF)
-                        </a>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(`/projects/${project._id}/certificate`)}
-                        className="gap-2 text-xs"
-                      >
-                        <Award className="h-4 w-4 text-emerald-500" />
-                        View Certificate
-                      </Button>
+                        Phase 3 Active
+                      </Badge>
                     </div>
-                  </div>
-
-                  {/* Abstract Reader */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Executive Abstract
-                    </h4>
-                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
-                      {project.abstract ||
-                        project.approvedProposal?.abstract ||
-                        'No abstract text recorded for this manuscript.'}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      System prototype progress cleared and ADM v2 ratified. Chapters 4–5
+                      submissions, academic journal manuscript, final oral defense, and
+                      institutional archival are unlocked.
                     </p>
                   </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-xs border-primary/30 text-primary px-3 py-1"
+                  >
+                    Capstone 3 · Final & Archival
+                  </Badge>
+                </div>
+              </div>
 
-                  {/* Citation Generator */}
-                  <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Academic Citation Formats
-                    </h4>
-                    <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
-                      <p className="text-muted-foreground">
-                        <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
-                        {apaCitation}
-                      </p>
-                      <p className="text-muted-foreground pt-1 border-t border-border/40">
-                        <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
-                        {ieeeCitation}
-                      </p>
+              <ChapterReviewPanel
+                submissions={submissionsData}
+                chapters={[4, 5]}
+                title="Capstone 3 — Chapter Submissions"
+                description="Approve or request revisions for Chapters 4 and 5. Approving locks the chapter and progresses the student toward the final manuscript."
+                showReviewActions={isInstructor || isAssignedAdviser}
+              />
+
+              {/* Full Manuscript Paper Reader & Archival Document Package */}
+              <div className="rounded-2xl border border-border bg-card shadow-lg p-6 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <BookMarked className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-bold text-foreground">
+                        Official Full Manuscript Paper
+                      </h3>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Conferred Capstone Study — Bukidnon State University Institutional Repository
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="gap-2 font-semibold shadow-sm"
+                      asChild
+                    >
+                      <a href={`/api/archive/${project._id}/view`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Read Full Paper (PDF)
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/projects/${project._id}/certificate`)}
+                      className="gap-2 text-xs"
+                    >
+                      <Award className="h-4 w-4 text-emerald-500" />
+                      View Certificate
+                    </Button>
                   </div>
                 </div>
 
-                {/* Capstone 3 Action Done Matrix & Secretary Endorsement Gate */}
-                <ActionDoneMatrixTab
-                  project={project}
-                  isFaculty={isFaculty}
-                  user={user}
-                  onRefresh={() => refetch()}
-                  initialMilestone="CAPSTONE_3"
-                />
-
-                {/* Final Defense Evaluation Rubric Panel */}
-                <EvaluationPanel projectId={project._id} defenseType="final" />
-              </TabsContent>
-
-              <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
-                <ActionDoneMatrixTab
-                  project={project}
-                  isFaculty={isFaculty}
-                  user={user}
-                  onRefresh={() => refetch()}
-                />
-              </TabsContent>
-
-              <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
-                <EvaluationPanel projectId={project._id} defenseType="final" />
-              </TabsContent>
-
-              <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
-                <ConsultationLogWidget
-                  project={project}
-                  isAdviser={isAssignedAdviser}
-                  isStudent={!isFaculty}
-                />
-              </TabsContent>
-
-              <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
-                <div className="rounded-2xl border border-border bg-card shadow-lg p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <History className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="text-base font-semibold text-foreground">Audit Trail</h3>
-                    <span className="text-xs text-muted-foreground ml-1">
-                      — full activity history for this project
-                    </span>
-                  </div>
-                  <ProjectAuditTrail projectId={project._id} />
+                {/* Abstract Reader */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Executive Abstract
+                  </h4>
+                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap rounded-xl bg-muted/20 p-4 border border-border/60">
+                    {project.abstract ||
+                      project.approvedProposal?.abstract ||
+                      'No abstract text recorded for this manuscript.'}
+                  </p>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </div>
 
-          {/* Sticky Sidebar (Right - 30%) */}
-          <div className="xl:col-span-4 sticky top-24">
-            <ProjectInformationSidebar
-              project={project}
-              canManage={isInstructor}
-              canManageArchive={isInstructor && !isArchived}
-              isArchived={isArchived}
-              onRefresh={() => refetch()}
-            />
-          </div>
+                {/* Citation Generator */}
+                <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Academic Citation Formats
+                  </h4>
+                  <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
+                    <p className="text-muted-foreground">
+                      <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
+                      {apaCitation}
+                    </p>
+                    <p className="text-muted-foreground pt-1 border-t border-border/40">
+                      <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
+                      {ieeeCitation}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Capstone 3 Action Done Matrix & Secretary Endorsement Gate */}
+              <ActionDoneMatrixTab
+                project={project}
+                isFaculty={isFaculty}
+                user={user}
+                onRefresh={() => refetch()}
+                initialMilestone="CAPSTONE_3"
+              />
+
+              {/* Final Defense Evaluation Rubric Panel */}
+              <EvaluationPanel projectId={project._id} defenseType="final" />
+            </TabsContent>
+
+            <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
+              <ActionDoneMatrixTab
+                project={project}
+                isFaculty={isFaculty}
+                user={user}
+                onRefresh={() => refetch()}
+              />
+            </TabsContent>
+
+            <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
+              <EvaluationPanel projectId={project._id} defenseType="final" />
+            </TabsContent>
+
+            <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+              <ConsultationLogWidget
+                project={project}
+                isAdviser={isAssignedAdviser}
+                isStudent={!isFaculty}
+              />
+            </TabsContent>
+
+            <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
+              <div className="rounded-2xl border border-border bg-card shadow-lg p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <History className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-base font-semibold text-foreground">Audit Trail</h3>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    — full activity history for this project
+                  </span>
+                </div>
+                <ProjectAuditTrail projectId={project._id} />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

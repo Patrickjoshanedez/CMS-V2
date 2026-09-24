@@ -377,7 +377,16 @@ function CustomHighlightRenderer({
   if (isCrossLayerOverlap || isOverlap) {
     highlightClass = 'archive-mark-overlap';
   } else if (isPlagiarism) {
-    highlightClass = `highlight-plagiarism ${highlight.meta?.isExact ? 'exact' : 'semantic'}`;
+    const tierClass = highlight.meta?.scoreTierClass || 'highlight-plagiarism--medium';
+    const signalClass =
+      highlight.meta?.contextSignal === 'paraphrase'
+        ? 'paraphrase'
+        : highlight.meta?.contextSignal === 'verbatim'
+          ? 'verbatim'
+          : highlight.meta?.isExact
+            ? 'exact'
+            : 'semantic';
+    highlightClass = `highlight-plagiarism ${tierClass} ${signalClass}`;
   } else if (isComment) {
     highlightClass = 'highlight-faculty';
   }
@@ -430,7 +439,14 @@ function CustomHighlightRenderer({
             }}
           >
             <ShieldAlert className="h-2.5 w-2.5" />
-            <span>{highlight.meta?.similarityScore || 0}%</span>
+            <span>
+              {highlight.meta?.contextSignal === 'paraphrase'
+                ? '~'
+                : highlight.meta?.contextSignal === 'verbatim'
+                  ? '!!'
+                  : ''}
+              {highlight.meta?.similarityScore || 0}%
+            </span>
           </span>
         )}
       </div>

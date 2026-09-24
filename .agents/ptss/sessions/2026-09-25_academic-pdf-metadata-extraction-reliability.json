@@ -1,0 +1,30 @@
+{
+  "session_id": "2026-09-25_academic-pdf-metadata-extraction-reliability",
+  "timestamp": "2026-09-25T06:15:00+08:00",
+  "task": "Academic PDF Metadata Extraction Reliability and Accuracy Enhancement",
+  "user_intent": "Ensure accurate, reliable metadata extraction from real-world academic papers (e.g. MDPI, IEEE, Springer) uploaded to CMS-V2 archive.",
+  "root_causes_identified": [
+    "Socket.IO payload contract mismatch: BullMQ extraction worker emitted { jobId, payload: extractionPayload } while ExistingCapstoneUploadPage.jsx listened for data.data and normalizeExtractionPayload checked envelope.data, resolving undefined and causing UI to drop all extracted metadata and fall back to filename keyword scraping.",
+    "PaddleOCR-VL microservice artificial 2.5s timeout clamp: Math.min(2500, this.timeoutMs) caused multi-page PDFs to always abort and enter a 60s cooldown.",
+    "Heuristic title truncation: findTitleFromLines candidateLines was sliced to Math.min(abstractIndex, 10), cutting off papers with editorial sidebars where the title is at lines 15-25.",
+    "Editorial line leakage into title: Lines like 'Academic Editor: ...' were selected as title because skipPatterns lacked academic editor / licensee / copyright / citation patterns.",
+    "Author digit rejection: isLikelyAuthorName rejected any string with digits, causing all authors with affiliation superscripts (e.g. 'Zihao Sun 1, Peng Guo 2') to be rejected because sanitizeAuthorName did not strip trailing numbers.",
+    "Title joining bug: Continuation logic joined lines < 40 chars blindly, merging the author line into the title, corrupting both title and author detection.",
+    "Publication Year date regex flaw: extractPublicationYear failed on 'Published: 21 July 2025' or '© 2025' due to rigid keywords-to-year patterns.",
+    "Missing heuristic publication venue: publicationVenue was unextracted in heuristics and 100% dependent on external CrossRef DOI network requests.",
+    "Single-line keyword truncation: extractKeywords [^\n]{3,400} dropped keywords that wrapped across lines."
+  ],
+  "solutions_implemented": [
+    "server/jobs/documentExtraction.job.js: Emitted both data: extractionPayload and payload: extractionPayload on ocr:complete.",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.jsx: Made normalizeExtractionPayload and onComplete defensively resolve data from payload or data or envelope root.",
+    "server/services/ocrExtraction.service.js: Set effectiveTimeout to Math.max(10000, Number(this.timeoutMs) || 15000), eliminating artificial 2.5s aborts.",
+    "server/utils/pdfMetadataExtractor.js: Expanded candidateLines to Math.min(abstractIndex, 60), added Pass 0 article-anchor ('Article', 'Research Article'), added comprehensive skipPatterns, updated sanitizeAuthorName to strip footnote digits/symbols, updated isLikelyAuthorName with publishing noise filters, added extractPublicationVenue with known venue mappings and citation patterns, updated extractPublicationYear with date/month regexes, and made extractKeywords multiline-aware."
+  ],
+  "verification": {
+    "server_unit_tests": "npm test --workspace=server -- tests/unit/pdfMetadataExtractor.test.js (4/4 passed)",
+    "client_archive_tests": "npm test --workspace=client -- src/pages/archive/ (18/18 passed including Socket.IO real-time delivery)",
+    "route_parity": "npm run check:endpoints (209 server, 190 client, 0 unmatched)",
+    "agentic_governance": "npm run validate:agentic (60/60 checks passed)"
+  },
+  "status": "completed"
+}

@@ -38,7 +38,6 @@ import Capstone1CollapsibleSections from '@/components/projects/Capstone1Collaps
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
-import ProjectInformationSidebar from '@/components/projects/ProjectInformationSidebar';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
@@ -425,213 +424,195 @@ export default function MyProjectPage() {
           !error &&
           project.projectStatus !== PROJECT_STATUSES.REJECTED &&
           !isArchivedProject && (
-            <div className="max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start mt-2">
-              {/* Main Workspace (Left - xl:col-span-8) */}
-              <div className="xl:col-span-8 space-y-6">
-                {/* Status & Deadline Alerts */}
-                {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+            <div className="max-w-[1600px] mx-auto space-y-6 mt-2">
+              {/* Status & Deadline Alerts */}
+              {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
 
-                {/* Unified Capstone Milestone Progression & Executive Project Card */}
-                <WorkflowPhaseTracker
-                  project={project}
-                  onStepClick={handleStepClick}
-                  onSelectProposal={handleSelectProposal}
-                  isStudent={true}
-                  className="mb-2"
-                />
+              {/* Unified Capstone Milestone Progression & Executive Cockpit */}
+              <WorkflowPhaseTracker
+                project={project}
+                onStepClick={handleStepClick}
+                onSelectProposal={handleSelectProposal}
+                isStudent={true}
+                canManageCommittee={user?.role === ROLES.INSTRUCTOR}
+                canManageArchive={false}
+                onRefresh={() => refetch()}
+                className="mb-2"
+              />
 
-                {/* Tabbed workflow */}
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                  <div className="w-full mb-6 p-0.5">
-                    <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
-                      {STUDENT_WORKFLOW_TABS.map((tab) => {
-                        const isLocked = !unlockedTabs.includes(tab.value);
-                        return (
-                          <WorkflowTabTrigger
-                            key={tab.value}
-                            value={tab.value}
-                            icon={tab.icon}
-                            label={tab.label}
-                            locked={isLocked}
-                            lockedReason={isLocked ? getLockedReason(tab.value) : undefined}
-                            onLockedClick={
-                              isLocked ? () => handleLockedTabClick(tab.value) : undefined
-                            }
-                          />
-                        );
-                      })}
-                    </TabsList>
+              {/* Tabbed workflow */}
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                <div className="w-full mb-6 p-0.5">
+                  <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
+                    {STUDENT_WORKFLOW_TABS.map((tab) => {
+                      const isLocked = !unlockedTabs.includes(tab.value);
+                      return (
+                        <WorkflowTabTrigger
+                          key={tab.value}
+                          value={tab.value}
+                          icon={tab.icon}
+                          label={tab.label}
+                          locked={isLocked}
+                          lockedReason={isLocked ? getLockedReason(tab.value) : undefined}
+                          onLockedClick={
+                            isLocked ? () => handleLockedTabClick(tab.value) : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </TabsList>
+                </div>
+
+                {/* Tab 1: Proposal Drafting Studio */}
+                <TabsContent value="proposal" className="mt-0 focus-visible:outline-none space-y-6">
+                  <TitleActionsSection project={project} onSelectProposal={handleSelectProposal} />
+                  <TitleFeedbackRemarksCard comments={project.titleProposalComments} />
+                  <ProposalTab
+                    project={project}
+                    selectedProposalIndex={selectedProposalIndex}
+                    onRefresh={() => refetch()}
+                  />
+                </TabsContent>
+
+                {/* Tab 2: Capstone 1 — Minimalist Collapsible Workspace */}
+                <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none">
+                  <Capstone1CollapsibleSections
+                    project={project}
+                    isStudent
+                    user={user}
+                    onTabChange={handleTabChange}
+                    onRefresh={() => refetch()}
+                  />
+                </TabsContent>
+
+                {/* Tab 3: Capstone 2 — Interactive Gantt Chart Maker */}
+                <TabsContent
+                  value="capstone_2"
+                  className="mt-0 focus-visible:outline-none space-y-4"
+                >
+                  <InteractiveGanttChart project={project} isReadOnly={false} />
+                </TabsContent>
+
+                {/* Tab 4: Capstone 3 — Results, Final Defense & Archival */}
+                <TabsContent
+                  value="capstone_3"
+                  className="mt-0 focus-visible:outline-none space-y-6"
+                >
+                  {/* Contextual Submissions Link Callout */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500 shrink-0">
+                        <Send className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Chapters 4–5 &amp; Final Manuscript Submissions
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Submit Chapters 4 &amp; 5, compile your complete 5-chapter manuscript, and
+                          upload publishable journal articles on the dedicated Submissions Page.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate('/project/submissions')}
+                      className="gap-1.5 text-xs shrink-0 border-violet-500/40 hover:bg-violet-500/10 font-medium"
+                    >
+                      <span>Go to Submissions</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
 
-                  {/* Tab 1: Proposal Drafting Studio */}
-                  <TabsContent
-                    value="proposal"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    <TitleActionsSection
-                      project={project}
-                      onSelectProposal={handleSelectProposal}
-                    />
-                    <TitleFeedbackRemarksCard comments={project.titleProposalComments} />
-                    <ProposalTab
-                      project={project}
-                      selectedProposalIndex={selectedProposalIndex}
-                      onRefresh={() => refetch()}
-                    />
-                  </TabsContent>
-
-                  {/* Tab 2: Capstone 1 — Minimalist Collapsible Workspace */}
-                  <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none">
-                    <Capstone1CollapsibleSections
-                      project={project}
-                      isStudent
-                      user={user}
-                      onTabChange={handleTabChange}
-                      onRefresh={() => refetch()}
-                    />
-                  </TabsContent>
-
-                  {/* Tab 3: Capstone 2 — Interactive Gantt Chart Maker */}
-                  <TabsContent
-                    value="capstone_2"
-                    className="mt-0 focus-visible:outline-none space-y-4"
-                  >
-                    <InteractiveGanttChart project={project} isReadOnly={false} />
-                  </TabsContent>
-
-                  {/* Tab 4: Capstone 3 — Results, Final Defense & Archival */}
-                  <TabsContent
-                    value="capstone_3"
-                    className="mt-0 focus-visible:outline-none space-y-6"
-                  >
-                    {/* Contextual Submissions Link Callout */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 dark:bg-violet-500/10">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500 shrink-0">
-                          <Send className="h-4.5 w-4.5" />
-                        </div>
+                  <Card className="rounded-2xl border border-border/80 bg-card shadow-xs">
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
                         <div>
-                          <p className="text-sm font-semibold text-foreground">
-                            Chapters 4–5 &amp; Final Manuscript Submissions
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Submit Chapters 4 &amp; 5, compile your complete 5-chapter manuscript,
-                            and upload publishable journal articles on the dedicated Submissions
-                            Page.
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
+                            >
+                              Phase 3
+                            </Badge>
+                            <h3 className="text-lg font-bold tracking-tight text-foreground">
+                              Capstone 3: System Results, Final Defense &amp; Archival
+                            </h3>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Complete system prototype demonstration, full manuscript evaluation,
+                            final defense verdict, and institutional archival.
                           </p>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate('/project/submissions')}
-                        className="gap-1.5 text-xs shrink-0 border-violet-500/40 hover:bg-violet-500/10 font-medium"
-                      >
-                        <span>Go to Submissions</span>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
 
-                    <Card className="rounded-2xl border border-border/80 bg-card shadow-xs">
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className="border-violet-500/40 bg-violet-500/10 text-violet-400 font-mono text-[10px] uppercase font-semibold"
-                              >
-                                Phase 3
-                              </Badge>
-                              <h3 className="text-lg font-bold tracking-tight text-foreground">
-                                Capstone 3: System Results, Final Defense &amp; Archival
-                              </h3>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Complete system prototype demonstration, full manuscript evaluation,
-                              final defense verdict, and institutional archival.
-                            </p>
-                          </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Results &amp; Findings
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            Chapter 4 implementation results &amp; system testing analysis.
+                          </p>
                         </div>
-
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Results &amp; Findings
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              Chapter 4 implementation results &amp; system testing analysis.
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Conclusions &amp; Recommendations
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              Chapter 5 conclusion, future work, and policy contributions.
-                            </p>
-                          </div>
-                          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Oral Defense Hearing
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              Final defense oral presentation and rubric scoring evaluation.
-                            </p>
-                          </div>
+                        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Conclusions &amp; Recommendations
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            Chapter 5 conclusion, future work, and policy contributions.
+                          </p>
                         </div>
-
-                        {/* ADM Revisions Callout */}
-                        <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
-                            <p className="text-xs text-muted-foreground">
-                              Final defense revisions, panel compliance endorsements, and dean
-                              sign-offs are managed in the Action Done Matrix.
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleTabChange('adm')}
-                            className="text-xs font-medium text-primary hover:underline h-7 px-2"
-                          >
-                            View ADM Revisions &rarr;
-                          </Button>
+                        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Oral Defense Hearing
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            Final defense oral presentation and rubric scoring evaluation.
+                          </p>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
 
-                    <EvaluationPanel projectId={project._id} defenseType="final" />
-                  </TabsContent>
+                      {/* ADM Revisions Callout */}
+                      <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <FileSpreadsheet className="h-4 w-4 text-primary shrink-0" />
+                          <p className="text-xs text-muted-foreground">
+                            Final defense revisions, panel compliance endorsements, and dean
+                            sign-offs are managed in the Action Done Matrix.
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleTabChange('adm')}
+                          className="text-xs font-medium text-primary hover:underline h-7 px-2"
+                        >
+                          View ADM Revisions &rarr;
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                  {/* Tab 5: Dedicated Full-Width Action Done Matrix (ADM) */}
-                  <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
-                    <ActionDoneMatrixTab
-                      project={project}
-                      isStudent
-                      user={user}
-                      onRefresh={() => refetch()}
-                    />
-                  </TabsContent>
+                  <EvaluationPanel projectId={project._id} defenseType="final" />
+                </TabsContent>
 
-                  {/* Tab 5: Consultations */}
-                  <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
-                    <ConsultationLogWidget project={project} isStudent user={user} />
-                  </TabsContent>
-                </Tabs>
-              </div>
+                {/* Tab 5: Dedicated Full-Width Action Done Matrix (ADM) */}
+                <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
+                  <ActionDoneMatrixTab
+                    project={project}
+                    isStudent
+                    user={user}
+                    onRefresh={() => refetch()}
+                  />
+                </TabsContent>
 
-              {/* Sticky Sidebar (Right - 30% / xl:col-span-4) */}
-              <div className="xl:col-span-4 space-y-6 sticky top-24">
-                <ProjectInformationSidebar
-                  project={project}
-                  canManage={false}
-                  canManageArchive={false}
-                  isArchived={isArchivedProject}
-                  onRefresh={() => refetch()}
-                />
-              </div>
+                {/* Tab 5: Consultations */}
+                <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
+                  <ConsultationLogWidget project={project} isStudent user={user} />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 

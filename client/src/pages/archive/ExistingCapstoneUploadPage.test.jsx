@@ -51,6 +51,30 @@ vi.mock('@/services/metadataService', () => ({
   },
 }));
 
+const mockScanArchive = vi.fn();
+const mockScanArchivedPdf = vi.fn();
+vi.mock('@/services/plagiarismService', () => ({
+  plagiarismService: {
+    scanArchive: (...args) => mockScanArchive(...args),
+    scanArchivedPdf: (...args) => mockScanArchivedPdf(...args),
+  },
+  scanArchive: (...args) => mockScanArchive(...args),
+  scanArchivedPdf: (...args) => mockScanArchivedPdf(...args),
+}));
+
+const mockSocketHandlers = {};
+const mockSocket = {
+  on: vi.fn((event, handler) => {
+    mockSocketHandlers[event] = handler;
+  }),
+  off: vi.fn((event) => {
+    delete mockSocketHandlers[event];
+  }),
+};
+vi.mock('@/services/socket', () => ({
+  getSocket: () => mockSocket,
+}));
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -85,6 +109,23 @@ describe('ExistingCapstoneUploadPage', () => {
         doi: 92,
         venue: 85,
         keywords: 89,
+      },
+    });
+
+    mockScanArchive.mockResolvedValue({
+      data: {
+        originalityScore: 94.2,
+        overallScore: 5.8,
+        matchedSources: [],
+        warningFlag: false,
+      },
+    });
+    mockScanArchivedPdf.mockResolvedValue({
+      data: {
+        originalityScore: 94.2,
+        overallScore: 5.8,
+        matchedSources: [],
+        warningFlag: false,
       },
     });
 
@@ -298,5 +339,197 @@ describe('ExistingCapstoneUploadPage', () => {
     expect(mockGetExtractionStatus).toHaveBeenCalledWith('async-job-abc-123');
     const titleInput = container.querySelector('input[name="title"]');
     expect(titleInput.value).toBe('Async BullMQ Extracted Title');
+  });
+
+  it('reliably extracts metadata when Socket.IO delivers ocr:complete with payload envelope', async () => {
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const paperFile = new File(['%PDF-remote-sensing'], 'remotesensing 17 02529 (1).pdf', {
+      type: 'application/pdf',
+    });
+
+    mockExtractPdfMetadata.mockResolvedValueOnce({
+      status: 202,
+      data: {
+        jobId: 'socket-job-mdpi-123',
+        status: 'queued',
+      },
+    });
+
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [paperFile],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(mockExtractPdfMetadata).toHaveBeenCalledTimes(1);
+
+    // Trigger the real-time Socket.IO ocr:complete event with payload envelope
+    const ocrCompleteHandler = mockSocketHandlers['ocr:complete'];
+    expect(ocrCompleteHandler).toBeTruthy();
+
+    await act(async () => {
+      ocrCompleteHandler({
+        jobId: 'socket-job-mdpi-123',
+        payload: {
+          metadata: {
+            title: 'Elevation-Aware Domain Adaptation for Sematic Segmentation of Aerial Images',
+            abstract:
+              'Recent advancements in Earth observation technologies have accelerated remote sensing...',
+            authors: 'Zihao Sun, Peng Guo, Zehui Li, Xiuwan Chen, Xinbo Liu',
+            year: '2025',
+            doi: '10.3390/rs17142529',
+            venue: 'Remote Sensing',
+            keywords: 'unsupervised domain adaptation, semantic segmentation, remote sensing',
+          },
+          confidence: {
+            title: 98,
+            abstract: 85,
+            authors: 98,
+            year: 98,
+            doi: 99,
+            venue: 96,
+            keywords: 80,
+          },
+        },
+      });
+    });
+
+    const titleInput = container.querySelector('input[name="title"]');
+    expect(titleInput.value).toBe(
+      'Elevation-Aware Domain Adaptation for Sematic Segmentation of Aerial Images',
+    );
+
+    const abstractTextarea = container.querySelector('textarea[name="abstract"]');
+    expect(abstractTextarea.value).toContain(
+      'Recent advancements in Earth observation technologies',
+    );
+
+    const authorsInput = container.querySelector('input[name="authors"]');
+    expect(authorsInput.value).toContain('Zihao Sun');
+
+    const yearInput = container.querySelector('input[name="year"]');
+    expect(yearInput.value).toBe('2025');
+
+    const doiInput = container.querySelector('input[name="doi"]');
+    expect(doiInput.value).toBe('10.3390/rs17142529');
+
+    const venueInput = container.querySelector('input[name="venue"]');
+    expect(venueInput.value).toBe('Remote Sensing');
+  });
+
+  it('allows uploading both Academic Paper and Academic Journal simultaneously with target selection and plagiarism scan', async () => {
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const paperFile = new File(['%PDF-paper'], 'thesis-manuscript.pdf', {
+      type: 'application/pdf',
+    });
+    const journalFile = new File(['%PDF-journal'], 'ieee-article.pdf', {
+      type: 'application/pdf',
+    });
+
+    // 1. Upload Academic Paper
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [paperFile],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // 2. Upload Academic Journal simultaneously
+    await act(async () => {
+      const journalInput = fileInputs[1];
+      Object.defineProperty(journalInput, 'files', {
+        value: [journalFile],
+        configurable: true,
+      });
+      journalInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('thesis-manuscript.pdf');
+    expect(container.textContent).toContain('ieee-article.pdf');
+    expect(container.textContent).toContain('Dual Bundle (Paper + Journal)');
+
+    // 3. Run plagiarism scan
+    const scanPlagiarismBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Scan Paper for Plagiarism'),
+    );
+    expect(scanPlagiarismBtn).toBeTruthy();
+
+    await act(async () => {
+      scanPlagiarismBtn.click();
+    });
+
+    expect(mockScanArchive).toHaveBeenCalledWith(paperFile);
+    expect(container.textContent).toContain('94.2% Original');
+    expect(container.textContent).toContain('5.8% Similarity');
+
+    // 4. Submit the dual bundle
+    mockBulkUploadArchive.mockResolvedValueOnce({
+      project: { _id: 'dual-proj-123' },
+      message: 'Archived capstone bundle uploaded successfully.',
+    });
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Upload Archived Capstone Bundle'),
+    );
+    expect(submitBtn).toBeTruthy();
+
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockBulkUploadArchive).toHaveBeenCalledTimes(1);
+    const submittedPayload = mockBulkUploadArchive.mock.calls[0][0];
+    expect(submittedPayload.academicPaperFile).toBe(paperFile);
+    expect(submittedPayload.academicJournalFile).toBe(journalFile);
+    expect(submittedPayload.metadataTarget).toBe('academic_journal');
+    expect(submittedPayload.plagiarismTarget).toBe('academic_paper');
+    expect(submittedPayload.originalityScore).toBe(94.2);
+  });
+
+  it('allows removing an attached file cleanly', async () => {
+    act(() => {
+      root.render(<ExistingCapstoneUploadPage />);
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const paperFile = new File(['%PDF-paper'], 'removable-paper.pdf', {
+      type: 'application/pdf',
+    });
+
+    await act(async () => {
+      const paperInput = fileInputs[0];
+      Object.defineProperty(paperInput, 'files', {
+        value: [paperFile],
+        configurable: true,
+      });
+      paperInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('removable-paper.pdf');
+
+    const removeBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) =>
+        b.textContent.includes('Remove') && b.getAttribute('title')?.includes('Academic Paper'),
+    );
+    expect(removeBtn).toBeTruthy();
+
+    await act(async () => {
+      removeBtn.click();
+    });
+
+    expect(container.textContent).toContain('No academic paper selected yet.');
   });
 });

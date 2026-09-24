@@ -417,6 +417,19 @@ export const bulkUploadSchema = z.object({
   doi: z.string().trim().max(255).optional().default(''),
   publicationVenue: z.string().trim().max(255).optional().default(''),
   academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
+  metadataTarget: z
+    .enum(['academic_journal', 'academic_paper'])
+    .optional()
+    .default('academic_journal'),
+  plagiarismTarget: z
+    .enum(['academic_paper', 'academic_journal', 'both', 'none'])
+    .optional()
+    .default('academic_paper'),
+  originalityScore: z.preprocess((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const parsed = Number(val);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, z.number().min(0).max(100).optional()),
 });
 
 /* ───── Update Asset URLs (student action) ───── */

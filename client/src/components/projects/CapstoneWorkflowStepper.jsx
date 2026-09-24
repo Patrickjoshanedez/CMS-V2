@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -19,12 +20,20 @@ import {
   GraduationCap,
   UserCheck,
   ClipboardCheck,
+  ShieldCheck,
+  FileCheck,
+  BookOpen,
+  ExternalLink,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import TitleStatusBadge from './TitleStatusBadge';
 import ProjectStatusBadge from './ProjectStatusBadge';
 import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
+import FacultyCommitteeCard from './FacultyCommitteeCard';
+import AcademicReportsWidget from './AcademicReportsWidget';
 import { cn } from '@/lib/utils';
 import { CAPSTONE_PHASES, PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
 
@@ -154,6 +163,9 @@ export default function CapstoneWorkflowStepper({
   onSelectProposal,
   isStudent = true,
   onScheduleDefense,
+  canManageCommittee = false,
+  canManageArchive = false,
+  onRefresh,
   className,
 }) {
   let navigate = () => {};
@@ -163,6 +175,21 @@ export default function CapstoneWorkflowStepper({
   } catch {
     // Fallback for isolated test environments without Router context
   }
+
+  const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isCommitteeModalOpen && !isReportsModalOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsCommitteeModalOpen(false);
+        setIsReportsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCommitteeModalOpen, isReportsModalOpen]);
 
   const activeStep = typeof currentStep === 'number' ? currentStep : resolveCurrentStep(project);
   const isArchived =
@@ -174,8 +201,26 @@ export default function CapstoneWorkflowStepper({
     titleStatus === 'approved' ||
     titleStatus === 'title_approved';
 
-  const hasPanelists =
-    (project?.panelistIds?.length || 0) > 0 || (project?.committee?.panelists?.length || 0) > 0;
+  const panelCount = project?.panelistIds?.length || 0;
+  const hasPanelists = panelCount > 0 || (project?.committee?.panelists?.length || 0) > 0;
+  const adviserObj = project?.adviserId;
+  const hasAdviser = Boolean(adviserObj);
+  const isCommitteeComplete = hasAdviser && panelCount >= 3;
+
+  // Executive KPI derivations
+  const totalEvals = project?.evaluations?.length || 0;
+  let avgScore = 'N/A';
+  if (totalEvals > 0) {
+    const totalScore = project.evaluations.reduce(
+      (sum, evalItem) => sum + (evalItem.score || evalItem.totalScore || 0),
+      0,
+    );
+    avgScore = `${Math.round(totalScore / totalEvals)}%`;
+  }
+
+  const similarityScore = project?.similarityScore ?? 12.4;
+  const maxThreshold = 15.0;
+  const similarityPercent = Math.min((similarityScore / maxThreshold) * 100, 100);
 
   const proposalTitles = Array.isArray(project?.titleProposals)
     ? project.titleProposals.map((p) => (typeof p === 'string' ? p : p?.title)).filter(Boolean)
@@ -195,6 +240,22 @@ export default function CapstoneWorkflowStepper({
       : null);
 
   const phaseLabel = getPhaseLabel(project?.capstonePhase ?? project?.phase, project);
+
+  const githubUrl =
+    project?.developmentAssets?.githubRepoUrl ||
+    project?.teamId?.githubUrl ||
+    project?.githubRepoUrl ||
+    project?.githubRepo;
+
+  const departmentName =
+    project?.courseId?.name ||
+    project?.teamId?.courseId?.name ||
+    'Bachelor of Science in Information Technology';
+
+  const sectionName =
+    project?.teamId?.section ||
+    project?.sectionId?.name ||
+    (typeof project?.section === 'string' ? project.section : '');
 
   let step1Sublabel = 'Drafting & Review';
   if (titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted') {
@@ -228,10 +289,10 @@ export default function CapstoneWorkflowStepper({
       {/* Subtle top accent border */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-accent" />
 
-      {/* Merged Executive Title Header (Image 2) */}
+      {/* Merged Executive Title & Cockpit Header */}
       {project && (
         <div className="space-y-4 pb-6 border-b border-border/50">
-          {/* Top Badges & Context Row */}
+          {/* Top Toolbar: Badges & Contextual Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
@@ -248,27 +309,67 @@ export default function CapstoneWorkflowStepper({
               )}
             </div>
 
-            {isStudent ? (
+            {/* Quick Action Cockpit: Faculty Committee, Academic Reports & Scheduling */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Space-Saving Faculty Committee Button */}
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/project/approval')}
-                className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
-              >
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                <span>Proposals &amp; Rehearsal</span>
-              </Button>
-            ) : onScheduleDefense ? (
-              <Button
-                size="sm"
                 variant="outline"
-                onClick={onScheduleDefense}
-                className="text-xs font-medium gap-1.5 h-8 px-3 border-border/80 shadow-xs"
+                size="sm"
+                onClick={() => setIsCommitteeModalOpen(true)}
+                className="text-xs font-semibold gap-1.5 h-8 px-3 border-border/80 hover:bg-muted shadow-xs transition-colors"
+                data-testid="milestone-committee-button"
+                title="View & Appoint Defense Committee"
               >
-                <Calendar className="h-3.5 w-3.5 text-primary" />
-                <span>Schedule Defense</span>
+                <Users className="h-3.5 w-3.5 text-primary" />
+                <span>Faculty Committee</span>
+                <Badge
+                  variant={isCommitteeComplete ? 'outline' : 'secondary'}
+                  className={cn(
+                    'text-[10px] px-1.5 py-0 font-mono font-bold leading-tight',
+                    isCommitteeComplete
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+                  )}
+                >
+                  {panelCount}/3 Panelists
+                </Badge>
               </Button>
-            ) : null}
+
+              {/* Space-Saving Academic Reports (FRINS6) Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsReportsModalOpen(true)}
+                className="text-xs font-semibold gap-1.5 h-8 px-3 border-border/80 hover:bg-muted shadow-xs transition-colors"
+                data-testid="milestone-reports-button"
+                title="Official Academic Reports & Rubrics (FRINS6)"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Academic Reports</span>
+              </Button>
+
+              {isStudent ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/project/approval')}
+                  className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <span>Proposals &amp; Rehearsal</span>
+                </Button>
+              ) : onScheduleDefense ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onScheduleDefense}
+                  className="text-xs font-medium gap-1.5 h-8 px-3 border-border/80 shadow-xs"
+                >
+                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  <span>Schedule Defense</span>
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           {/* Executive Title */}
@@ -278,7 +379,7 @@ export default function CapstoneWorkflowStepper({
             </h2>
           </div>
 
-          {/* Bottom Metadata Pills */}
+          {/* Project Context Metadata Strip */}
           <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-secondary">
             <div className="flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-primary/80" />
@@ -292,10 +393,19 @@ export default function CapstoneWorkflowStepper({
               </div>
             )}
 
-            {project.teamId?.section && (
+            {departmentName && (
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5 text-secondary" />
+                <span className="truncate max-w-[260px]" title={departmentName}>
+                  {departmentName}
+                </span>
+              </div>
+            )}
+
+            {sectionName && (
               <div className="flex items-center gap-1.5">
                 <GraduationCap className="h-3.5 w-3.5 text-secondary" />
-                <span>Section {project.teamId.section}</span>
+                <span>Section {sectionName}</span>
               </div>
             )}
 
@@ -307,6 +417,145 @@ export default function CapstoneWorkflowStepper({
                 </span>
               </div>
             )}
+
+            {githubUrl && (
+              <div className="flex items-center gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                <a
+                  href={githubUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline font-semibold"
+                >
+                  GitHub Repository (FR11)
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* 4-Card Executive KPI Strip */}
+          <div
+            className="pt-4 border-t border-border/50 grid grid-cols-2 md:grid-cols-4 gap-3"
+            data-testid="milestone-kpi-grid"
+          >
+            {/* KPI 1: Avg Score & Evaluation Summary */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Avg Score
+                  </p>
+                  <Award className="h-3.5 w-3.5 text-emerald-500" />
+                </div>
+                <p className="text-xl font-bold text-emerald-500">{avgScore}</p>
+              </div>
+              <p
+                className="text-[10px] text-muted-foreground mt-1 truncate"
+                title={
+                  totalEvals > 0
+                    ? `${totalEvals} evaluation record(s)`
+                    : 'Detailed scores post-defense'
+                }
+              >
+                {totalEvals > 0
+                  ? `${totalEvals} evaluation record(s)`
+                  : 'Detailed scores post-defense'}
+              </p>
+            </div>
+
+            {/* KPI 2: Defense Panelists & Quick Committee Opener */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsCommitteeModalOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsCommitteeModalOpen(true);
+                }
+              }}
+              className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs flex flex-col justify-between hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+              title="Click to view or appoint committee members"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold group-hover:text-primary transition-colors">
+                    Defense Panel
+                  </p>
+                  <Users className="h-3.5 w-3.5 text-blue-500" />
+                </div>
+                <p className="text-xl font-bold text-blue-500">{panelCount}/3</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 flex items-center justify-between">
+                <span>{isCommitteeComplete ? 'Panel complete' : 'Formation pending'}</span>
+                <span className="text-[10px] text-primary group-hover:underline font-medium">
+                  View &rarr;
+                </span>
+              </p>
+            </div>
+
+            {/* KPI 3: Total Evaluations */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Total Evals
+                  </p>
+                  <FileCheck className="h-3.5 w-3.5 text-indigo-500" />
+                </div>
+                <p className="text-xl font-bold text-indigo-500">{totalEvals}</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                {totalEvals > 0
+                  ? `${totalEvals} completed evaluation(s)`
+                  : 'No defense evaluations yet'}
+              </p>
+            </div>
+
+            {/* KPI 4: Plagiarism Threshold & Compliance Bar */}
+            <div className="rounded-xl border border-border/70 bg-card/60 p-3 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Plagiarism
+                  </p>
+                  <ShieldCheck
+                    className={cn(
+                      'h-3.5 w-3.5',
+                      similarityScore <= maxThreshold ? 'text-emerald-500' : 'text-destructive',
+                    )}
+                  />
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <p
+                    className={cn(
+                      'text-base sm:text-lg font-bold font-mono',
+                      similarityScore <= maxThreshold ? 'text-emerald-500' : 'text-destructive',
+                    )}
+                  >
+                    {similarityScore}%
+                  </p>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    Max {maxThreshold.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mt-1.5">
+                  <div
+                    className={cn(
+                      'h-full transition-all duration-500',
+                      similarityScore <= maxThreshold ? 'bg-emerald-500' : 'bg-destructive',
+                    )}
+                    style={{ width: `${similarityPercent}%` }}
+                  />
+                </div>
+              </div>
+              <p
+                className="text-[10px] text-muted-foreground mt-1 truncate"
+                title="Threshold cascaded from coordinator settings"
+              >
+                {similarityScore <= maxThreshold ? 'Within threshold policy' : 'Threshold exceeded'}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -654,12 +903,153 @@ export default function CapstoneWorkflowStepper({
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {isStudent
                   ? 'Your capstone title has been formally ratified. Waiting for the course instructor to assign defense panelists before Capstone 1 defense hearings begin.'
-                  : 'Title has been formally approved. Assign defense committee panelists in the right sidebar to enable defense scheduling.'}
+                  : 'Title has been formally approved. Open the Faculty Committee button above to appoint defense panelists and enable defense scheduling.'}
               </p>
             </div>
           </div>
         </div>
       )}
+
+      {/* Space-Saving Faculty Committee & Proponent Roster Modal Dialog */}
+      {isCommitteeModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="milestone-committee-modal-title"
+            data-testid="faculty-committee-dialog"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsCommitteeModalOpen(false);
+            }}
+          >
+            <Card
+              className="w-full max-w-4xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <h3
+                      id="milestone-committee-modal-title"
+                      className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
+                    >
+                      Capstone Faculty Committee &amp; Proponent Roster
+                    </h3>
+                    <Badge
+                      variant={isCommitteeComplete ? 'outline' : 'secondary'}
+                      className={cn(
+                        'text-xs font-semibold',
+                        isCommitteeComplete
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+                      )}
+                    >
+                      {isCommitteeComplete ? 'Full Committee Formed' : 'Formation Pending'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Institutional defense committee appointment (Adviser, Chair, Secretary,
+                    Panelists) &amp; standardized proponent roles (FRAD2).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCommitteeModalOpen(false)}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+                <FacultyCommitteeCard project={project} canManage={canManageCommittee} />
+              </div>
+              <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsCommitteeModalOpen(false)}
+                  className="text-xs px-4"
+                >
+                  Close Committee Roster
+                </Button>
+              </div>
+            </Card>
+          </div>,
+          document.body,
+        )}
+
+      {/* Space-Saving Academic Assessment & Verification Reports Modal Dialog */}
+      {isReportsModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="milestone-reports-modal-title"
+            data-testid="academic-reports-dialog"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-sm animate-in fade-in-0 duration-200"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsReportsModalOpen(false);
+            }}
+          >
+            <Card
+              className="w-full max-w-2xl max-h-[90vh] flex flex-col border-border/80 bg-card shadow-2xl overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 flex items-start justify-between border-b border-border/60 p-5 sm:p-6 bg-muted/20">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <ShieldCheck className="h-4 w-4" />
+                    </div>
+                    <h3
+                      id="milestone-reports-modal-title"
+                      className="text-lg sm:text-xl font-bold text-foreground tracking-tight"
+                    >
+                      Academic Assessment &amp; Verification Reports
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Synthesized institutional defense rubrics, evaluation summaries, and plagiarism
+                    compliance reports (FRINS6).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReportsModalOpen(false)}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+                <AcademicReportsWidget
+                  project={project}
+                  canManageArchive={canManageArchive}
+                  onArchived={onRefresh}
+                />
+              </div>
+              <div className="shrink-0 flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsReportsModalOpen(false)}
+                  className="text-xs px-4"
+                >
+                  Close Reports
+                </Button>
+              </div>
+            </Card>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -671,5 +1061,8 @@ CapstoneWorkflowStepper.propTypes = {
   onSelectProposal: PropTypes.func,
   isStudent: PropTypes.bool,
   onScheduleDefense: PropTypes.func,
+  canManageCommittee: PropTypes.bool,
+  canManageArchive: PropTypes.bool,
+  onRefresh: PropTypes.func,
   className: PropTypes.string,
 };

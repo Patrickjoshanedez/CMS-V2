@@ -52,8 +52,8 @@ class OcrExtractionService {
       };
     }
 
-    // Direct network dispatch to cms-ocr-engine with fast probe timeout
-    const effectiveTimeout = Math.min(2500, this.timeoutMs);
+    // Direct network dispatch to cms-ocr-engine with production timeout
+    const effectiveTimeout = Math.max(10000, Number(this.timeoutMs) || 15000);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 

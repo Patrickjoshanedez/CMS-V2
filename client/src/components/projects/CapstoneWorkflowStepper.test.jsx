@@ -1,10 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import CapstoneWorkflowStepper, {
-  resolveCurrentStep,
-  CAPSTONE_STEPS,
-} from './CapstoneWorkflowStepper';
+import CapstoneWorkflowStepper, { resolveCurrentStep } from './CapstoneWorkflowStepper';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,6 +13,18 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => mockNavigate,
   };
 });
+
+vi.mock('./FacultyCommitteeCard', () => ({
+  default: ({ canManage }) => (
+    <div data-testid="mock-faculty-committee-card">
+      Faculty Committee Card Mock (canManage: {String(canManage)})
+    </div>
+  ),
+}));
+
+vi.mock('./AcademicReportsWidget', () => ({
+  default: () => <div data-testid="mock-academic-reports-widget">Academic Reports Widget Mock</div>,
+}));
 
 describe('CapstoneWorkflowStepper Component', () => {
   let container;
@@ -189,5 +198,122 @@ describe('CapstoneWorkflowStepper Component', () => {
     });
 
     expect(onSelectProposal).toHaveBeenCalledWith(1);
+  });
+
+  it('renders executive KPI strip with Avg Score, Defense Panel, Total Evals, and Plagiarism bar', async () => {
+    const mockProject = {
+      _id: 'proj-kpi-1',
+      title: 'Disaster Risk Reduction and Evacuation Hub',
+      titleStatus: 'approved',
+      similarityScore: 11.5,
+      panelistIds: ['p1', 'p2'],
+      evaluations: [
+        { _id: 'e1', score: 88 },
+        { _id: 'e2', score: 92 },
+      ],
+      academicYear: '2025-2026',
+      courseId: { name: 'Bachelor of Science in Information Technology' },
+      teamId: {
+        name: 'Team Sentinel',
+        section: '4B',
+        githubUrl: 'https://github.com/buksu/sentinel',
+      },
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} />);
+    });
+
+    const kpiGrid = container.querySelector('[data-testid="milestone-kpi-grid"]');
+    expect(kpiGrid).toBeTruthy();
+    expect(kpiGrid.textContent).toContain('Avg Score');
+    expect(kpiGrid.textContent).toContain('90%');
+    expect(kpiGrid.textContent).toContain('Defense Panel');
+    expect(kpiGrid.textContent).toContain('2/3');
+    expect(kpiGrid.textContent).toContain('Total Evals');
+    expect(kpiGrid.textContent).toContain('2');
+    expect(kpiGrid.textContent).toContain('Plagiarism');
+    expect(kpiGrid.textContent).toContain('11.5%');
+
+    // Context items
+    expect(container.textContent).toContain('AY 2025-2026');
+    expect(container.textContent).toContain('Bachelor of Science in Information Technology');
+    expect(container.textContent).toContain('Section 4B');
+    expect(container.textContent).toContain('GitHub Repository (FR11)');
+  });
+
+  it('renders space-saving Faculty Committee button and opens modal on click', async () => {
+    const mockProject = {
+      _id: 'proj-com-1',
+      title: 'Agricultural IoT Monitoring',
+      titleStatus: 'approved',
+      panelistIds: ['p1', 'p2', 'p3'],
+      adviserId: { _id: 'adv-1', fullName: 'Dr. Santos' },
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} canManageCommittee={true} />);
+    });
+
+    const committeeBtn = container.querySelector('[data-testid="milestone-committee-button"]');
+    expect(committeeBtn).toBeTruthy();
+    expect(committeeBtn.textContent).toContain('Faculty Committee');
+    expect(committeeBtn.textContent).toContain('3/3 Panelists');
+
+    // Committee modal is closed initially
+    expect(document.querySelector('[data-testid="mock-faculty-committee-card"]')).toBeNull();
+
+    // Click committee button to open modal
+    await act(async () => {
+      committeeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Modal dialog is open in DOM via portal
+    const modalContent = document.querySelector('[data-testid="mock-faculty-committee-card"]');
+    expect(modalContent).toBeTruthy();
+    expect(modalContent.textContent).toContain('canManage: true');
+
+    // Close button dismisses modal
+    const closeBtn = document.querySelector('button[aria-label="Close dialog"]');
+    expect(closeBtn).toBeTruthy();
+    await act(async () => {
+      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="mock-faculty-committee-card"]')).toBeNull();
+  });
+
+  it('renders space-saving Academic Reports button and opens reports modal on click', async () => {
+    const mockProject = {
+      _id: 'proj-rep-1',
+      title: 'Smart Health Monitoring',
+      titleStatus: 'approved',
+    };
+
+    await act(async () => {
+      root.render(<CapstoneWorkflowStepper project={mockProject} canManageArchive={true} />);
+    });
+
+    const reportsBtn = container.querySelector('[data-testid="milestone-reports-button"]');
+    expect(reportsBtn).toBeTruthy();
+    expect(reportsBtn.textContent).toContain('Academic Reports');
+
+    // Reports modal is closed initially
+    expect(document.querySelector('[data-testid="mock-academic-reports-widget"]')).toBeNull();
+
+    // Click reports button to open modal
+    await act(async () => {
+      reportsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Modal dialog is open in DOM via portal
+    expect(document.querySelector('[data-testid="mock-academic-reports-widget"]')).toBeTruthy();
+
+    // Close button dismisses modal
+    const closeBtn = document.querySelector('button[aria-label="Close dialog"]');
+    expect(closeBtn).toBeTruthy();
+    await act(async () => {
+      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="mock-academic-reports-widget"]')).toBeNull();
   });
 });

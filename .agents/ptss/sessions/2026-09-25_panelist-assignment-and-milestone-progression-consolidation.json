@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-09-25_panelist-assignment-and-milestone-progression-consolidation",
+  "date": "2026-09-25T03:10:00.000Z",
+  "task_summary": "Resolved panelist assignment failure by expanding backend role check to include all verified faculty roles ('faculty', 'adviser', 'panelist') with mutual exclusion conflict-of-interest guards; relocated Project Context, Academic Reports, Evaluation Summary, and executive KPIs directly into the Capstone Milestone Progression stepper; consolidated Faculty Committee into a space-saving button opening an accessible modal dialog; eliminated redundant UI by discarding the 4-column right sidebar on MyProjectPage and ProjectDetailPage; adhered strictly to Shneiderman's 8 Golden Rules and Nielsen's 10 Usability Heuristics; and verified with 16 targeted client/server unit tests, 209/190 endpoint parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, and full Playwright visual audit across desktop and mobile viewports in light and dark modes.",
+  "task_category": "panelist_assignment_and_milestone_progression_consolidation",
+  "skills_written": [],
+  "skills_patched": [
+    "anti-slop",
+    "frontend-patterns",
+    "senior-backend",
+    "i-clarify",
+    "i-arrange",
+    "i-audit",
+    "i-normalize",
+    "i-typeset",
+    "i-polish",
+    "verification-loop",
+    "continual-learning"
+  ],
+  "lessons_learned": [
+    "Institutional Faculty Role Normalization: BukSU accounts created for faculty have primary role 'faculty'. The backend panelist assignment logic previously compared user.role !== 'panelist', blocking faculty members like Louie Labastida from being appointed. Expanding the allowed set to ['faculty', 'panelist', 'adviser'] (while excluding 'instructor' and 'student') resolves assignment while preserving committee role integrity.",
+    "Mutual Exclusion / Conflict of Interest: Faculty members appointed as advisers cannot be assigned as panelists on the same project, and panelists cannot be appointed as advisers. This must be validated defensively on backend service layers.",
+    "Full-Width Cockpit vs Sidebar Clutter: Replacing a persistent 4-column right sidebar with inline KPI cards, project context metadata strips, and modal dialog buttons within CapstoneWorkflowStepper frees 33% of horizontal screen width, giving users an expansive, distraction-free workspace for document review, Gantt scheduling, and Action Done Matrix auditing."
+  ],
+  "evidence": {
+    "server_tests": "tests/unit/project.assign-panelist.test.js (6/6 passed)",
+    "client_tests": "src/components/projects/CapstoneWorkflowStepper.test.jsx (10/10 passed)",
+    "endpoint_parity": "SERVER=209, CLIENT=190, UNMATCHED_COUNT=0",
+    "agentic_governance": "60/60 checks passed",
+    "visual_screenshots": [
+      "01_desktop_light_milestone_progression_cockpit.png",
+      "02_desktop_light_faculty_committee_modal.png",
+      "03_desktop_light_academic_reports_modal.png",
+      "04_desktop_dark_milestone_progression_cockpit.png",
+      "05_desktop_dark_faculty_committee_modal.png",
+      "06_mobile_light_milestone_progression.png",
+      "07_mobile_dark_milestone_progression.png"
+    ]
+  }
+}

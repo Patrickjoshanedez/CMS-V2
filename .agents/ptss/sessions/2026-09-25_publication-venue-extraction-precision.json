@@ -1,0 +1,28 @@
+{
+  "session_id": "2026-09-25_publication-venue-extraction-precision",
+  "timestamp": "2026-09-25T06:35:00+08:00",
+  "task": "Publication Venue Precision, Taxonomy Expansion, and Publisher Disambiguation",
+  "user_intent": "Ensure accurate, domain-compliant extraction of publication venues (journals, conference proceedings, workshops, preprint servers) while strictly preventing publisher (Elsevier, Springer, IEEE, ACM, MDPI) and conference physical location/date leakage.",
+  "root_causes_identified": [
+    "Arbitrary venue length threshold in normalizeVenue: 'if (value.length < 6) return ''' blocked premier 3-5 character venue acronyms and journals (Cell, ICML, CVPR, ICLR, ACL, AAAI, VLDB, CHI, KDD, EMNLP, NAACL, PNAS, JAMA, BMJ, arXiv, S&P, CCS, NDSS).",
+    "Publisher vs. Venue confusion: Bare publisher names (IEEE, ACM, MDPI, Springer, Elsevier, Wiley, etc.) or strings ending in generic publisher terms were not filtered out when extracted from headers, footers, or citations.",
+    "Conference location and date leakage: Physical conference host cities (e.g. 'Honolulu, Hawaii, USA', 'Basel, Switzerland') or date strings were susceptible to being captured as venues instead of actual proceedings or journal titles.",
+    "Narrow CrossRef CSL metadata resolution: fetchMetadataByDoi only inspected container-title. For conference papers, CrossRef often populates event.name, event.title, collection-title, or short-container-title, leaving venue empty if container-title is null.",
+    "Regex multiline overreach: Patterns using [a-zA-Z\\s]+ in KNOWN_VENUES matched across newlines, concatenating paper titles or author lines into the venue field.",
+    "Limited venue taxonomy: KNOWN_VENUES previously lacked major computer science, AI, and IT conference proceedings (NeurIPS, ICML, CVPR, ICCV, ECCV, ACL, EMNLP, SIGMOD, SIGIR, USENIX, ICSE, etc.) and preprint servers (arXiv, bioRxiv, medRxiv, SSRN)."
+  ],
+  "solutions_implemented": [
+    "server/utils/pdfMetadataExtractor.js (normalizeVenue): Lowered minimum length from 6 to 3 to support premier venue acronyms; added BARE_PUBLISHERS filter set (IEEE, ACM, MDPI, Springer, Elsevier, Wiley, Sage, Nature Publishing Group, etc.); added generic publisher suffix rejection; added physical city/state/country location pattern filter; added pure date string rejection; added canonical expansions (e.g. Remote Sens. -> Remote Sensing, PAMI -> IEEE Transactions on Pattern Analysis and Machine Intelligence, JMLR, PNAS, arXiv); and isolated the first line before cleanText to prevent multiline contamination.",
+    "server/utils/pdfMetadataExtractor.js (extractCslVenue & fetchMetadataByDoi): Created extractCslVenue checking container-title, short-container-title, event.name, event.title, and collection-title in priority order, resolving conference proceedings when container-title is omitted.",
+    "server/utils/pdfMetadataExtractor.js (KNOWN_VENUES & extractPublicationVenue): Added preprint server patterns (arXiv, bioRxiv, medRxiv, SSRN); added dynamic proceedings pattern 'Proceedings of the ...'; added 45+ premier AI/CS conferences; added top multidisciplinary/domain journals; constrained transaction and journal regexes with [^\\n\\r.,:;()]+ to prevent cross-line bleed; added formal 'Citation: ...' and standard citation line matching; and passed Journal from OCR metadata in parsePdf info.",
+    "client/src/pages/archive/ExistingCapstoneUploadPage.jsx: Updated Publication Venue input placeholder to 'e.g. Remote Sensing, NeurIPS, IEEE Trans. PAMI, arXiv' and added clear institutional helper copy explaining it is the specific journal, proceedings, or preprint repository, not the publisher or city.",
+    "server/tests/unit/pdfMetadataExtractor.test.js: Added comprehensive test battery asserting conference proceedings extraction, short acronym support, preprint server identification, bare publisher disambiguation, physical location rejection, and CrossRef event metadata resolution."
+  ],
+  "verification": {
+    "server_unit_tests": "npm test --workspace=server -- tests/unit/pdfMetadataExtractor.test.js (8/8 passed in 5.39s)",
+    "client_unit_tests": "npm test --workspace=client -- src/pages/archive/ExistingCapstoneUploadPage.test.jsx (9/9 passed in 4.13s)",
+    "route_parity": "npm run check:endpoints (209 server, 190 client, UNMATCHED_COUNT=0)",
+    "agentic_governance": "npm run validate:agentic (60/60 checks passed)"
+  },
+  "status": "completed"
+}

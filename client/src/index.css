@@ -2107,6 +2107,53 @@ html.dark[data-high-contrast='true'] {
   background-color: rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.38)) !important;
 }
 
+/* Score-gradient plagiarism tiers */
+.highlight-plagiarism--low {
+  background-color: rgba(234, 179, 8, calc(var(--plagiarism-opacity, 0.8) * 0.18)) !important;
+  border-bottom: 1px solid rgba(234, 179, 8, calc(var(--plagiarism-opacity, 0.8) * 0.7)) !important;
+}
+.highlight-plagiarism--low:hover {
+  background-color: rgba(234, 179, 8, calc(var(--plagiarism-opacity, 0.8) * 0.32)) !important;
+}
+.highlight-plagiarism--medium {
+  background-color: rgba(249, 115, 22, calc(var(--plagiarism-opacity, 0.8) * 0.22)) !important;
+  border-bottom: 2px solid rgba(249, 115, 22, var(--plagiarism-opacity, 0.8)) !important;
+}
+.highlight-plagiarism--medium:hover {
+  background-color: rgba(249, 115, 22, calc(var(--plagiarism-opacity, 0.8) * 0.38)) !important;
+}
+.highlight-plagiarism--high {
+  background-color: rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.28)) !important;
+  border-bottom: 2px solid rgba(244, 63, 94, var(--plagiarism-opacity, 0.8)) !important;
+}
+.highlight-plagiarism--high:hover {
+  background-color: rgba(244, 63, 94, calc(var(--plagiarism-opacity, 0.8) * 0.44)) !important;
+}
+.highlight-plagiarism--critical {
+  background-color: rgba(185, 28, 28, calc(var(--plagiarism-opacity, 0.8) * 0.35)) !important;
+  border-bottom: 3px solid rgba(185, 28, 28, var(--plagiarism-opacity, 0.8)) !important;
+  box-shadow: inset 0 -1px 0 rgba(185, 28, 28, 0.5);
+}
+.highlight-plagiarism--critical:hover {
+  background-color: rgba(185, 28, 28, calc(var(--plagiarism-opacity, 0.8) * 0.52)) !important;
+}
+/* Paraphrase: semantic match, low literal overlap — violet-blue */
+.highlight-plagiarism.paraphrase {
+  background-color: rgba(124, 58, 237, calc(var(--plagiarism-opacity, 0.8) * 0.18)) !important;
+  border-bottom: 2px dashed rgba(124, 58, 237, var(--plagiarism-opacity, 0.8)) !important;
+}
+.highlight-plagiarism.paraphrase:hover {
+  background-color: rgba(124, 58, 237, calc(var(--plagiarism-opacity, 0.8) * 0.32)) !important;
+}
+/* Verbatim: exact literal copy — deep red double border */
+.highlight-plagiarism.verbatim {
+  background-color: rgba(220, 38, 38, calc(var(--plagiarism-opacity, 0.8) * 0.3)) !important;
+  border-bottom: 3px double rgba(220, 38, 38, var(--plagiarism-opacity, 0.8)) !important;
+}
+.highlight-plagiarism.verbatim:hover {
+  background-color: rgba(220, 38, 38, calc(var(--plagiarism-opacity, 0.8) * 0.46)) !important;
+}
+
 /* Faculty comment base overlay (indigo-500 with dynamic opacity) */
 .highlight-faculty {
   background-color: rgba(99, 102, 241, calc(var(--comments-opacity, 0.8) * 0.25)) !important;

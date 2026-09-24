@@ -655,7 +655,33 @@ class ProjectService {
     }
 
     this._normalizeProjectADMPhase(project);
-    return { project };
+
+    // Query archive submissions to determine academic paper and journal availability
+    const archivedSubmissions = await Submission.find({
+      projectId: project._id,
+      storageKey: { $exists: true, $ne: null },
+    })
+      .select('_id type fileName fileType fileSize version status createdAt plagiarismResult')
+      .lean();
+
+    const hasAcademicPaper = archivedSubmissions.some(
+      (s) =>
+        ['final_academic', 'final_paper', 'proposal', 'progress', 'final'].includes(s.type) ||
+        (s.chapter !== null && s.chapter !== undefined),
+    );
+    const hasJournalPaper = archivedSubmissions.some((s) => s.type === 'final_journal');
+
+    const projectPayload = project.toObject ? project.toObject() : { ...project };
+    projectPayload.hasAcademicPaper = hasAcademicPaper;
+    projectPayload.hasJournalPaper = hasJournalPaper;
+    projectPayload.hasManuscript = Boolean(hasAcademicPaper || hasJournalPaper);
+    projectPayload.archivedSubmissions = {
+      hasAcademicPaper,
+      hasJournalPaper,
+      submissions: archivedSubmissions,
+    };
+
+    return { project: projectPayload };
   }
 
   /**
@@ -1634,12 +1660,46 @@ class ProjectService {
     const project = await this._getProjectOrFail(projectId);
 
     const adviser = await User.findById(data.adviserId);
-    if (!adviser || (adviser.role !== ROLES.ADVISER && adviser.role !== ROLES.FACULTY)) {
-      throw new AppError('The specified user is not a valid adviser.', 400, 'INVALID_ADVISER');
+    const isFacultyEligible =
+      adviser &&
+      (adviser.role === ROLES.ADVISER ||
+        adviser.role === ROLES.FACULTY ||
+        adviser.role === ROLES.PANELIST ||
+        ['adviser', 'faculty', 'panelist'].includes(adviser.role));
+
+    if (
+      !adviser ||
+      !isFacultyEligible ||
+      adviser.role === ROLES.INSTRUCTOR ||
+      adviser.role === ROLES.STUDENT
+    ) {
+      throw new AppError(
+        'Course instructors and students cannot serve as capstone adviser. Please appoint a verified faculty member.',
+        400,
+        'INVALID_ADVISER',
+      );
+    }
+
+    if (
+      project.panelistIds &&
+      project.panelistIds.some((id) => id.toString() === data.adviserId.toString())
+    ) {
+      throw new AppError(
+        'A defense panelist cannot serve as the faculty adviser on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
     }
 
     project.adviserId = data.adviserId;
     await project.save();
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
 
     // Notify the adviser
     const adviserNotif = await Notification.create({
@@ -1673,8 +1733,32 @@ class ProjectService {
     const project = await this._getProjectOrFail(projectId);
 
     const panelist = await User.findById(data.panelistId);
-    if (!panelist || panelist.role !== ROLES.PANELIST) {
-      throw new AppError('The specified user is not a valid panelist.', 400, 'INVALID_PANELIST');
+    const isFacultyEligible =
+      panelist &&
+      (panelist.role === ROLES.PANELIST ||
+        panelist.role === ROLES.FACULTY ||
+        panelist.role === ROLES.ADVISER ||
+        ['panelist', 'faculty', 'adviser'].includes(panelist.role));
+
+    if (
+      !panelist ||
+      !isFacultyEligible ||
+      panelist.role === ROLES.INSTRUCTOR ||
+      panelist.role === ROLES.STUDENT
+    ) {
+      throw new AppError(
+        'Course instructors and students cannot serve as defense panelists. Please appoint a verified faculty member.',
+        400,
+        'INVALID_PANELIST',
+      );
+    }
+
+    if (project.adviserId && project.adviserId.toString() === data.panelistId.toString()) {
+      throw new AppError(
+        'A faculty adviser cannot serve as a defense panelist on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
     }
 
     if (project.panelistIds.length >= 3) {
@@ -1690,7 +1774,27 @@ class ProjectService {
     }
 
     project.panelistIds.push(data.panelistId);
+    if (!Array.isArray(project.panelists)) {
+      project.panelists = [];
+    }
+    if (
+      !project.panelists.some(
+        (p) => (p.userId?._id || p.userId)?.toString() === data.panelistId.toString(),
+      )
+    ) {
+      project.panelists.push({
+        userId: data.panelistId,
+        role: project.panelists.length === 0 ? 'chair' : 'member',
+      });
+    }
     await project.save();
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
 
     // Notify the panelist
     const panelistNotif = await Notification.create({
@@ -1734,7 +1838,19 @@ class ProjectService {
     }
 
     project.panelistIds.splice(idx, 1);
+    if (Array.isArray(project.panelists)) {
+      project.panelists = project.panelists.filter(
+        (p) => (p.userId?._id || p.userId)?.toString() !== data.panelistId.toString(),
+      );
+    }
     await project.save();
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
 
     if (panelist) {
       const removedPanelistNotif = await Notification.create({
@@ -1777,13 +1893,57 @@ class ProjectService {
       );
     }
 
+    if (project.adviserId && project.adviserId.toString() === panelistId.toString()) {
+      throw new AppError(
+        'A faculty adviser cannot serve as a defense panelist on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
     const panelist = await User.findById(panelistId);
-    if (!panelist || panelist.role !== ROLES.PANELIST) {
-      throw new AppError('Invalid panelist.', 400, 'INVALID_PANELIST');
+    const isFacultyEligible =
+      panelist &&
+      (panelist.role === ROLES.PANELIST ||
+        panelist.role === ROLES.FACULTY ||
+        panelist.role === ROLES.ADVISER ||
+        ['panelist', 'faculty', 'adviser'].includes(panelist.role));
+
+    if (
+      !panelist ||
+      !isFacultyEligible ||
+      panelist.role === ROLES.INSTRUCTOR ||
+      panelist.role === ROLES.STUDENT
+    ) {
+      throw new AppError(
+        'Course instructors and students cannot serve as defense panelists. Please appoint a verified faculty member.',
+        400,
+        'INVALID_PANELIST',
+      );
     }
 
     project.panelistIds.push(panelistId);
+    if (!Array.isArray(project.panelists)) {
+      project.panelists = [];
+    }
+    if (
+      !project.panelists.some(
+        (p) => (p.userId?._id || p.userId)?.toString() === panelistId.toString(),
+      )
+    ) {
+      project.panelists.push({
+        userId: panelistId,
+        role: project.panelists.length === 0 ? 'chair' : 'member',
+      });
+    }
     await project.save();
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
 
     // Notify team
     await this._notifyTeamMembers(project.teamId, {
@@ -2413,9 +2573,35 @@ class ProjectService {
       Project.countDocuments(filter),
     ]);
 
+    const projectIds = rawProjects.map((p) => p._id);
+    const archiveSubmissions = await Submission.find({
+      projectId: { $in: projectIds },
+      storageKey: { $exists: true, $ne: null },
+    })
+      .select('projectId type')
+      .lean();
+
+    const submissionByProject = new Map();
+    for (const sub of archiveSubmissions) {
+      const pid = String(sub.projectId);
+      if (!submissionByProject.has(pid)) {
+        submissionByProject.set(pid, { hasAcademic: false, hasJournal: false });
+      }
+      const entry = submissionByProject.get(pid);
+      if (sub.type === 'final_journal') {
+        entry.hasJournal = true;
+      } else {
+        entry.hasAcademic = true;
+      }
+    }
+
     // Format & enrich project records for Google Scholar academic layout
     const projects = rawProjects.map((p) => {
       const obj = p.toObject ? p.toObject() : { ...p };
+      const subInfo = submissionByProject.get(String(obj._id)) || {
+        hasAcademic: true,
+        hasJournal: false,
+      };
 
       // Determine scannable proponents line
       let proponents = 'BukSU Research Team';
@@ -2469,6 +2655,8 @@ class ProjectService {
         publisher,
         doi: doiString,
         originalityScore: originality,
+        hasAcademicPaper: subInfo.hasAcademic,
+        hasJournalPaper: subInfo.hasJournal,
       };
     });
 
@@ -3305,7 +3493,11 @@ class ProjectService {
     try {
       const instructorObjectId = new mongoose.Types.ObjectId(instructorId);
 
-      const primaryExtractionBuffer = academicPaperFile?.buffer || academicJournalFile?.buffer;
+      const metadataTarget = data?.metadataTarget || 'academic_journal';
+      const primaryExtractionBuffer =
+        metadataTarget === 'academic_journal'
+          ? academicJournalFile?.buffer || academicPaperFile?.buffer
+          : academicPaperFile?.buffer || academicJournalFile?.buffer;
       if (
         (!normalizedTitle ||
           !normalizedAbstract ||
@@ -3423,6 +3615,10 @@ class ProjectService {
         isArchived: true,
         archivedAt: new Date(),
         completionNotes: 'Bulk-uploaded archived capstone bundle.',
+        originalityScore:
+          data?.originalityScore !== undefined && data?.originalityScore !== null
+            ? Number(data.originalityScore)
+            : undefined,
       });
 
       const finalAcademicStorageKey = academicPaperFile
@@ -4020,7 +4216,44 @@ class ProjectService {
 
     // Determine target submission
     let submission = null;
-    if (type) {
+    if (type === 'final_academic' || type === 'academic' || type === 'paper') {
+      submission = await Submission.findOne({
+        projectId: project._id,
+        type: { $in: ['final_academic', 'final_paper'] },
+        storageKey: { $exists: true, $ne: null },
+      }).sort({ version: -1, createdAt: -1 });
+
+      if (!submission) {
+        // Fallback to chapter/proposal if legacy project
+        submission = await Submission.findOne({
+          projectId: project._id,
+          type: { $nin: ['final_journal'] },
+          storageKey: { $exists: true, $ne: null },
+        }).sort({ chapter: -1, version: -1, createdAt: -1 });
+      }
+
+      if (!submission) {
+        throw new AppError(
+          'Academic paper is not available for this project.',
+          404,
+          'ACADEMIC_PAPER_NOT_FOUND',
+        );
+      }
+    } else if (type === 'final_journal' || type === 'journal') {
+      submission = await Submission.findOne({
+        projectId: project._id,
+        type: 'final_journal',
+        storageKey: { $exists: true, $ne: null },
+      }).sort({ version: -1, createdAt: -1 });
+
+      if (!submission) {
+        throw new AppError(
+          'Academic journal is not available for this project.',
+          404,
+          'ACADEMIC_JOURNAL_NOT_FOUND',
+        );
+      }
+    } else if (type) {
       submission = await Submission.findOne({
         projectId: project._id,
         type,
@@ -4028,21 +4261,21 @@ class ProjectService {
       }).sort({ version: -1, createdAt: -1 });
     }
 
-    if (!submission) {
-      // Prioritize final_academic, then final_journal, then final_paper
+    if (!submission && !type) {
+      // Default: Prioritize final_academic, then final_journal, then final_paper
       submission = await Submission.findOne({
         projectId: project._id,
         type: { $in: ['final_academic', 'final_journal', 'final_paper'] },
         storageKey: { $exists: true, $ne: null },
       }).sort({ version: -1, createdAt: -1 });
-    }
 
-    // Fallback: check any submission with storageKey (e.g. Chapter 5, Chapter 3, etc.)
-    if (!submission) {
-      submission = await Submission.findOne({
-        projectId: project._id,
-        storageKey: { $exists: true, $ne: null },
-      }).sort({ chapter: -1, version: -1, createdAt: -1 });
+      // Fallback: check any submission with storageKey (e.g. Chapter 5, Chapter 3, etc.)
+      if (!submission) {
+        submission = await Submission.findOne({
+          projectId: project._id,
+          storageKey: { $exists: true, $ne: null },
+        }).sort({ chapter: -1, version: -1, createdAt: -1 });
+      }
     }
 
     if (!submission) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Users, FileText, BookOpen, Code2, ShieldCheck } from 'lucide-react';
+import { Users, FileText, Code2, ShieldCheck } from 'lucide-react';
 import { PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
 import CapstoneWorkflowStepper, {
   resolveCurrentStep,
@@ -60,6 +60,9 @@ export default function WorkflowPhaseTracker({
   onSelectProposal,
   isStudent = true,
   onScheduleDefense,
+  canManageCommittee = false,
+  canManageArchive = false,
+  onRefresh,
   className,
 }) {
   return (
@@ -70,6 +73,9 @@ export default function WorkflowPhaseTracker({
       onSelectProposal={onSelectProposal}
       isStudent={isStudent}
       onScheduleDefense={onScheduleDefense}
+      canManageCommittee={canManageCommittee}
+      canManageArchive={canManageArchive}
+      onRefresh={onRefresh}
       className={className}
     />
   );
@@ -82,5 +88,8 @@ WorkflowPhaseTracker.propTypes = {
   onSelectProposal: PropTypes.func,
   isStudent: PropTypes.bool,
   onScheduleDefense: PropTypes.func,
+  canManageCommittee: PropTypes.bool,
+  canManageArchive: PropTypes.bool,
+  onRefresh: PropTypes.func,
   className: PropTypes.string,
 };
