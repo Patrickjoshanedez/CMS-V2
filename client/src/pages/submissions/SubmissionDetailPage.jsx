@@ -1887,8 +1887,40 @@ export default function SubmissionDetailPage() {
           />
         )}
         {/* Faculty: review controls (standard chapters only; proposals use AdviserDefenseReadinessCard) */}
-        {facultyCanReview && !isProposal && (
+        {facultyCanReview && !isProposal && canEndorse && (
           <ReviewPanel submissionId={submission._id} currentStatus={submission.status} />
+        )}
+        {facultyCanReview && !isProposal && !canEndorse && (
+          <Card className="border-blue-500/30 bg-blue-50/20 dark:bg-blue-950/20 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <Eye className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base text-foreground">
+                      Chapter Review — Committee Preview Mode
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 text-[11px]"
+                    >
+                      Preview Mode
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                    Formal chapter approvals and revision requests are conducted exclusively by the
+                    assigned Capstone Adviser.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              As a committee panelist or member, you can inspect the manuscript and add inline
+              annotations in the Annotations panel below.
+            </CardContent>
+          </Card>
         )}
 
         {/* Annotations — faculty always has annotation capabilities */}

@@ -22,9 +22,11 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+let mockUser = { _id: 'student-1', firstName: 'John', lastName: 'Doe', role: 'student' };
+
 vi.mock('@/stores/authStore', () => ({
   useAuthStore: () => ({
-    user: { _id: 'student-1', firstName: 'John', lastName: 'Doe', role: 'student' },
+    user: mockUser,
     fetchUser: vi.fn(),
   }),
 }));
@@ -236,5 +238,19 @@ describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {
     });
 
     expect(container.querySelector('[data-testid="action-done-matrix-tab"]')).toBeTruthy();
+  });
+
+  it('redirects non-students (instructor, faculty) away from My Capstone to /projects', async () => {
+    mockUser = { _id: 'inst-1', firstName: 'Dr. Jane', lastName: 'Smith', role: 'instructor' };
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/projects', { replace: true });
   });
 });

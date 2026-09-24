@@ -11,8 +11,10 @@ export default function ScanHero({ semanticModel }) {
         </span>
         {semanticModel && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-[11px] font-medium text-muted-foreground">
-            <Zap className="h-3 w-3" />
-            {semanticModel}
+            <Zap className="h-3 w-3 text-primary" />
+            {semanticModel.toLowerCase().includes('bge-m3')
+              ? 'BAAI/bge-m3 · 1,024-dim · 8,192 tokens'
+              : semanticModel}
           </span>
         )}
       </div>

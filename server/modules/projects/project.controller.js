@@ -1571,3 +1571,47 @@ export const getDefenseSchedule = catchAsync(async (req, res) => {
     data: result,
   });
 });
+
+/** GET /api/projects/:projectId/manuscript — Stream or download approved project manuscript */
+export const getProjectManuscript = catchAsync(async (req, res) => {
+  const isDownload = req.query?.download === 'true' || req.query?.download === '1';
+  const type = req.query?.type || null;
+  const projectId = req.params.projectId || req.params.id;
+
+  const { buffer, fileName, fileType } = await projectService.getProjectManuscript(
+    projectId,
+    req.user,
+    { isDownload, type },
+  );
+
+  const disposition = isDownload ? 'attachment' : 'inline';
+  const totalSize = buffer.length;
+
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Type', fileType || 'application/octet-stream');
+  res.setHeader(
+    'Content-Disposition',
+    `${disposition}; filename="${encodeURIComponent(fileName)}"`,
+  );
+
+  const range = req.headers.range;
+  if (range && range.startsWith('bytes=')) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+    if (isNaN(start) || isNaN(end) || start >= totalSize || end >= totalSize || start > end) {
+      res.setHeader('Content-Range', `bytes */${totalSize}`);
+      return res.status(416).end();
+    }
+
+    const chunk = buffer.slice(start, end + 1);
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${totalSize}`);
+    res.setHeader('Content-Length', chunk.length);
+    return res.end(chunk);
+  }
+
+  res.setHeader('Content-Length', totalSize);
+  return res.status(200).end(buffer);
+});

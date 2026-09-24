@@ -165,9 +165,16 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       document.body.appendChild(a);
       a.click();
       a.remove();
-      toast.success(`Downloaded ${filename}`);
     } else {
-      window.open(manuscriptUrl, '_blank');
+      const downloadHref = `${manuscriptUrl}${manuscriptUrl.includes('?') ? '&' : '?'}download=true`;
+      const a = document.createElement('a');
+      a.href = downloadHref;
+      a.download = filename;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success(`Downloading ${filename}...`);
     }
   };
 

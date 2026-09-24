@@ -20,6 +20,12 @@ vi.mock('@/hooks/useSubmissions', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useProjects', () => ({
+  useApproveTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRejectTitle: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAddTitleComment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 vi.mock('./ActionDoneMatrixTab', () => ({
   default: ({ initialMilestone }) => (
     <div data-testid="mock-adm-tab" data-milestone={initialMilestone}>
@@ -212,5 +218,45 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     const evalPanel = container.querySelector('[data-testid="mock-evaluation-panel"]');
     expect(evalPanel).toBeTruthy();
     expect(evalPanel.getAttribute('data-defensetype')).toBe('proposal');
+  });
+
+  it('hides student drafting and rehearsal buttons and shows reviewer controls when isStudent is false', async () => {
+    const pendingProject = {
+      ...mockProject,
+      titleStatus: 'pending',
+    };
+
+    await renderComponent({
+      project: pendingProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    expect(proposalBtn.getAttribute('aria-expanded')).toBe('true');
+    // Student authoring buttons must NOT be rendered
+    expect(container.textContent).not.toContain('Rehearse Pitch Deck');
+    expect(container.textContent).not.toContain('Drafting Studio');
+
+    // Reviewer Deliberation Decision Studio should be rendered
+    expect(container.textContent).toContain('Committee Deliberation & Official Decision');
+    expect(container.textContent).toContain('Approve Proposal as Official Title');
+    expect(container.textContent).toContain('Request Revisions from Proponents');
+    expect(container.textContent).toContain('Submit Official Decision');
+  });
+
+  it('shows student drafting and rehearsal buttons when isStudent is true', async () => {
+    await renderComponent({ isStudent: true });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    expect(container.textContent).toContain('Rehearse Pitch Deck');
   });
 });

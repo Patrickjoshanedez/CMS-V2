@@ -1,0 +1,81 @@
+{
+  "id": "2026-09-24_align-instructor-review-workflow",
+  "task": "Align Instructor Review Workflow and Eliminate Student Submission Action Leaks",
+  "started_at": "2026-09-24T09:56:40.000Z",
+  "completed_at": "2026-09-24T10:11:00.000Z",
+  "status": "completed",
+  "root_cause_analysis": {
+    "issue": "When the instructor review view was updated to mirror the minimalist UI of My Capstone, student-specific authoring and submission features leaked into the instructor review interface (e.g., student proposal drafting buttons, links to /project/approval, pitch deck rehearsal, and second-person student copy 'Your team has a pending proposal...'). Instructors must manage, review, deliberate, approve/reject, and schedule defenses, but must never author or submit proposals.",
+    "culprits": [
+      "CapstoneWorkflowStepper previously defaulted to student perspective and unconditionally rendered 'Proposals & Rehearsal' navigating to /project/approval.",
+      "CapstoneWorkflowStepper header banner displayed second-person student prompts ('Your team has a pending proposal...') even when viewed by instructors/evaluators.",
+      "Capstone1CollapsibleSections unconditionally rendered student buttons 'Rehearse Pitch Deck' and 'Drafting Studio' (onTabChange('proposal')).",
+      "Capstone1CollapsibleSections lacked an inline Reviewer Deliberation Decision Studio for instructors to approve, reject, or request revisions with remarks on candidate proposals.",
+      "ProjectDetailPage did not pass isStudent={false} and role-aware deliberation callbacks to WorkflowPhaseTracker and Capstone1CollapsibleSections."
+    ]
+  },
+  "modifications": [
+    {
+      "file": "client/src/components/projects/CapstoneWorkflowStepper.jsx",
+      "summary": "Added isStudent prop (defaulting to true) and onScheduleDefense prop. Gated student buttons ('Proposals & Rehearsal', 'Open Title Approval Studio') behind isStudent. When isStudent is false, rendered reviewer action button ('Schedule Defense' or 'Deliberate Proposal'). Adjusted copy to institutional coordinator perspective ('The proponent team is currently drafting candidate title proposals...')."
+    },
+    {
+      "file": "client/src/components/projects/WorkflowPhaseTracker.jsx",
+      "summary": "Forwarded isStudent and onScheduleDefense props down to CapstoneWorkflowStepper."
+    },
+    {
+      "file": "client/src/pages/projects/ProjectDetailPage.jsx",
+      "summary": "Passed isStudent={false} and onScheduleDefense={isInstructor ? () => setIsScheduleDefenseOpen(true) : undefined} to WorkflowPhaseTracker. Also passed isStudent={false} to Capstone1CollapsibleSections."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.jsx",
+      "summary": "Explicitly passed isStudent={true} to WorkflowPhaseTracker and Capstone1CollapsibleSections."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+      "summary": "Gated 'Drafting Studio' and 'Rehearse Pitch Deck' behind isStudent. Added candidate proposal selector pills when multiple proposals exist. Added inline Reviewer Deliberation Decision Studio (Approve Proposal / Request Revisions with remarks textarea and mutation dispatch) when !isStudent and titleStatus !== 'approved'. Displayed clean compiled proposal reviewer card under ChapterReviewPanel."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.test.jsx",
+      "summary": "Mocked @/hooks/useProjects (useApproveTitle, useRejectTitle, useAddTitleComment) and added test assertions verifying that student drafting/rehearsal buttons are hidden and reviewer deliberation controls render when isStudent is false."
+    }
+  ],
+  "verification_evidence": {
+    "playwright_visual_audit": {
+      "desktop_light": "scratch/screenshots_instructor_workflow/01_instructor_review_desktop_light.png",
+      "desktop_dark": "scratch/screenshots_instructor_workflow/01_instructor_review_desktop_dark.png",
+      "mobile_light": "scratch/screenshots_instructor_workflow/01_instructor_review_mobile_light.png",
+      "mobile_dark": "scratch/screenshots_instructor_workflow/01_instructor_review_mobile_dark.png",
+      "verified_assertions": [
+        "[Instructor Check] 'Rehearse Pitch Deck' rendered: false (Expected: false)",
+        "[Instructor Check] 'Drafting Studio' rendered: false (Expected: false)",
+        "[Instructor Check] 'Open Title Approval Studio' rendered: false (Expected: false)",
+        "[Instructor Check] 'Deliberation Studio' rendered: true (Expected: true)"
+      ]
+    },
+    "targeted_tests": {
+      "CapstoneWorkflowStepper": "7/7 passed (716ms)",
+      "Capstone1CollapsibleSections": "7/7 passed (709ms)",
+      "all_project_components": "21 files passed, 112/112 passed (50.54s)"
+    },
+    "governance_battery": {
+      "endpoints_parity": "SERVER=208, CLIENT=189, UNMATCHED=0",
+      "validate_agentic": "60/60 passed",
+      "validate_governance": "passed, 0 errors, 0 warnings"
+    }
+  },
+  "lessons_learned": {
+    "lesson": "When unifying UI designs across different user roles (e.g. Student 'My Capstone' vs Instructor 'Review'), always parameterize components with explicit role or capability flags (such as `isStudent` or `canSubmit`) rather than assuming the view is exclusively student-facing.",
+    "prevention": "Ensure action buttons like proposal drafting, revision uploads, and rehearsal studios are strictly guarded by `isStudent`, while administrative actions like defense scheduling, rubric evaluation, and deliberation decisions are provided for reviewers.",
+    "runbook": "When inspecting shared workflow components: 1) Audit CTA buttons and links for role-specific routes (e.g., `/project/approval`); 2) Guard authoring actions behind `isStudent`; 3) Provide evaluative/deliberative controls for reviewers; 4) Verify with dual-role Playwright audits.",
+    "checklist": [
+      "No student submission or rehearsal buttons on instructor view",
+      "No broken routes navigating to student-only pages",
+      "Reviewer deliberation controls available for pending proposals",
+      "Targeted component tests pass with 100% success",
+      "Playwright visual captures verified on desktop and mobile in light and dark mode",
+      "Endpoint parity check passes with 0 unmatched endpoints",
+      "Agentic governance passes 60/60 checks"
+    ]
+  }
+}

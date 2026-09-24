@@ -1,0 +1,56 @@
+{
+  "session_id": "2026-09-24_archive-manuscript-viewer-and-download-remediation",
+  "task": "Audit and remediate Archive Module manuscript viewing and downloading failures",
+  "timestamp": "2026-09-24T19:03:00.000Z",
+  "role": "Principal Systems Architect & Full-Stack Specialist (BukSU CMS-V2)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "root_causes_identified": [
+    "Phantom Endpoint Bug: GET /api/projects/:id/manuscript did not exist in server/modules/projects/project.routes.js, returning 404 for viewing and downloads.",
+    "Storage Disconnect: Projects store metadata while manuscripts reside as Submission documents ('final_academic', 'final_journal') in S3/filesystem storage without direct links.",
+    "RBAC 403 Barrier: submission.service.js:_assertCanViewSubmission hardcoded allowArchivedFinalJournalPublicView strictly to 'final_journal', rejecting public access to 'final_academic' manuscripts and rejecting submission listing for non-team members on archived projects.",
+    "Direct download handler in CanonicalDocumentViewer fallback opened manuscriptUrl without appending download=true query parameter."
+  ],
+  "modifications_applied": [
+    {
+      "file": "server/modules/projects/project.routes.js",
+      "action": "Registered GET /:projectId/manuscript accessible to authenticated students, instructors, and faculty."
+    },
+    {
+      "file": "server/modules/projects/project.controller.js",
+      "action": "Added getProjectManuscript controller supporting HTTP 206 range streaming, Accept-Ranges, and Content-Disposition download/inline toggles."
+    },
+    {
+      "file": "server/modules/projects/project.service.js",
+      "action": "Added getProjectManuscript service checking archived public exemption vs in-progress committee authorization, resolving target submission, and streaming through storage pipeline."
+    },
+    {
+      "file": "server/modules/submissions/submission.service.js",
+      "action": "Expanded _assertCanViewSubmission to grant institutional access to approved submissions ('final_academic', 'final_journal', 'final_paper') for archived projects and allow listing submissions."
+    },
+    {
+      "file": "client/src/services/authService.js",
+      "action": "Exposed projectService.getProjectManuscript(id, params) preserving API route parity."
+    },
+    {
+      "file": "client/src/components/archive/CanonicalDocumentViewer.jsx",
+      "action": "Enhanced handleDownloadPdf to append download=true query parameter and trigger direct authenticated streaming."
+    },
+    {
+      "file": "server/tests/unit/project.manuscript.test.js",
+      "action": "Added targeted test suite covering archived access, in-progress access control, type filtering, and 404 handling."
+    }
+  ],
+  "verification_results": {
+    "server_endpoint_parity": "Passed (SERVER_ENDPOINT_COUNT=209, CLIENT_ENDPOINT_COUNT=190, UNMATCHED_COUNT=0)",
+    "targeted_server_unit_tests": "Passed (5/5 tests in project.manuscript.test.js)",
+    "targeted_server_review_tests": "Passed (6/6 tests in submission.review-flow.test.js)",
+    "targeted_client_archive_component_tests": "Passed (19/19 tests in src/components/archive/)",
+    "targeted_client_archive_page_tests": "Passed (16/16 tests in src/pages/archive/)",
+    "agentic_governance": "Passed (60/60 checks)"
+  },
+  "learned_lessons": [
+    "Lesson: Institutional archive reading requires public-within-university visibility across all final submission types (both 'final_academic' and 'final_journal'), not just journal submissions.",
+    "Prevention: When exposing downloadable document endpoints in Express, always pair with HTTP 206 partial content range support and Content-Disposition filename headers for cross-browser stability.",
+    "Runbook: To verify archive document viewing and downloading, check GET /api/projects/:projectId/manuscript and verify submission.service.js:_assertCanViewSubmission allows archived project submissions."
+  ]
+}

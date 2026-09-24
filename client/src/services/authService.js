@@ -198,6 +198,8 @@ export const projectService = {
 
   // Faculty shared routes
   getProject: (id) => api.get(`/projects/${id}`),
+  getProjectManuscript: (id, params) =>
+    api.get(`/projects/${id}/manuscript`, { params, responseType: 'blob' }),
   listProjects: (params) => api.get('/projects', { params }),
 
   // Link-based asset updates

@@ -18,6 +18,7 @@ import {
   Calendar,
   GraduationCap,
   UserCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -151,6 +152,8 @@ export default function CapstoneWorkflowStepper({
   project,
   onStepClick,
   onSelectProposal,
+  isStudent = true,
+  onScheduleDefense,
   className,
 }) {
   let navigate = () => {};
@@ -245,15 +248,27 @@ export default function CapstoneWorkflowStepper({
               )}
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/project/approval')}
-              className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
-            >
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              <span>Proposals &amp; Rehearsal</span>
-            </Button>
+            {isStudent ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/project/approval')}
+                className="text-xs font-medium text-secondary hover:text-foreground gap-1.5 h-8 px-3"
+              >
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>Proposals &amp; Rehearsal</span>
+              </Button>
+            ) : onScheduleDefense ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onScheduleDefense}
+                className="text-xs font-medium gap-1.5 h-8 px-3 border-border/80 shadow-xs"
+              >
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                <span>Schedule Defense</span>
+              </Button>
+            ) : null}
           </div>
 
           {/* Executive Title */}
@@ -525,36 +540,61 @@ export default function CapstoneWorkflowStepper({
               <div className="space-y-1 min-w-0">
                 <h4 className="text-sm font-bold text-foreground">
                   {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted'
-                    ? 'Pending Proposal Deliberation'
+                    ? isStudent
+                      ? 'Pending Proposal Deliberation'
+                      : 'Action Needed: Proposal Awaiting Deliberation'
                     : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
                         titleStatus === 'revision_required' ||
                         titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
-                      ? 'Title Proposal Revision Required'
-                      : 'Draft Title Proposal'}
+                      ? isStudent
+                        ? 'Title Proposal Revision Required'
+                        : 'Proposal Revision Pending Proponents'
+                      : isStudent
+                        ? 'Draft Title Proposal'
+                        : 'Proposal In Draft'}
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {titleStatus === TITLE_STATUSES.SUBMITTED || titleStatus === 'submitted'
-                    ? 'Your team has a pending proposal. Waiting for defense committee feedback, rubric scoring, and instructor ratification.'
+                    ? isStudent
+                      ? 'Your team has a pending proposal. Waiting for defense committee feedback, rubric scoring, and instructor ratification.'
+                      : 'The proponent team has submitted their candidate proposals for defense committee review. Deliberate proposals below to approve or request revision.'
                     : titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
                         titleStatus === 'revision_required' ||
                         titleStatus === TITLE_STATUSES.APPROVED_WITH_REVISION
-                      ? 'The instructor or defense committee requested revisions to your proposed title. Address remarks and resubmit.'
-                      : 'Your project title is currently in draft. Draft candidate proposals and submit them for committee review.'}
+                      ? isStudent
+                        ? 'The instructor or defense committee requested revisions to your proposed title. Address remarks and resubmit.'
+                        : 'Revisions have been requested. Waiting for proponents to address committee feedback and resubmit.'
+                      : isStudent
+                        ? 'Your project title is currently in draft. Draft candidate proposals and submit them for committee review.'
+                        : 'The proponent team is currently drafting candidate title proposals and 5-point pitch deck blueprints.'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate('/project/approval')}
-                className="gap-1.5 text-xs h-8 border-border/80 bg-background/80 hover:bg-background text-foreground shrink-0 font-medium shadow-xs"
-              >
-                <Eye className="h-3.5 w-3.5 text-primary" />
-                Open Title Approval Studio
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
+              {isStudent ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/project/approval')}
+                  className="gap-1.5 text-xs h-8 border-border/80 bg-background/80 hover:bg-background text-foreground shrink-0 font-medium shadow-xs"
+                >
+                  <Eye className="h-3.5 w-3.5 text-primary" />
+                  Open Title Approval Studio
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              ) : onStepClick ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onStepClick(1)}
+                  className="gap-1.5 text-xs h-8 border-border/80 bg-background/80 hover:bg-background text-foreground shrink-0 font-medium shadow-xs"
+                >
+                  <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
+                  Deliberate Proposal
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -562,8 +602,9 @@ export default function CapstoneWorkflowStepper({
           <div className="flex items-center gap-2 rounded-lg bg-background/60 dark:bg-background/40 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
             <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <span>
-              Chapter submissions and Capstone 1 milestones unlock once your proposal title is
-              approved.
+              {isStudent
+                ? 'Chapter submissions and Capstone 1 milestones unlock once your proposal title is approved.'
+                : 'Chapter reviews and milestone progression unlock once the proposal title is approved.'}
             </span>
           </div>
 
@@ -611,8 +652,9 @@ export default function CapstoneWorkflowStepper({
                 Title Approved — Committee Assignment Pending
               </h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your capstone title has been formally ratified. Waiting for the course instructor to
-                assign defense panelists before Capstone 1 defense hearings begin.
+                {isStudent
+                  ? 'Your capstone title has been formally ratified. Waiting for the course instructor to assign defense panelists before Capstone 1 defense hearings begin.'
+                  : 'Title has been formally approved. Assign defense committee panelists in the right sidebar to enable defense scheduling.'}
               </p>
             </div>
           </div>
@@ -627,5 +669,7 @@ CapstoneWorkflowStepper.propTypes = {
   project: PropTypes.object,
   onStepClick: PropTypes.func,
   onSelectProposal: PropTypes.func,
+  isStudent: PropTypes.bool,
+  onScheduleDefense: PropTypes.func,
   className: PropTypes.string,
 };

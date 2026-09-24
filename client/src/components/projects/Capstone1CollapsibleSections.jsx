@@ -16,14 +16,21 @@ import {
   Eye,
   FileCheck,
   Award,
+  Loader2,
+  XCircle,
+  Send,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Textarea } from '@/components/ui/Textarea';
 import { cn } from '@/lib/utils';
 import { TITLE_STATUSES, DOCUMENT_TYPES } from '@cms/shared';
 import { parsePitchDeckFromDescription } from '@/utils/pitchDeckParser';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
+import { useApproveTitle, useRejectTitle, useAddTitleComment } from '@/hooks/useProjects';
+import { toast } from 'sonner';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
 import ProposalRehearsalModal from './ProposalRehearsalModal';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
@@ -102,10 +109,40 @@ export default function Capstone1CollapsibleSections({
     });
   }, [project]);
 
+  // Proposal index selection state
+  const [selectedProposalIndex, setSelectedProposalIndex] = useState(() => {
+    const list = Array.isArray(project?.titleProposals) ? project.titleProposals : [];
+    const meta = Array.isArray(project?.titleProposalMetadata) ? project.titleProposalMetadata : [];
+    const approvedIdx = list.findIndex((item, idx) => {
+      const titleStr = typeof item === 'string' ? item : item?.title;
+      const details = meta.find((m) => m?.title === titleStr) || meta[idx];
+      return details?.status === 'approved' || project?.title === titleStr;
+    });
+    return approvedIdx >= 0 ? approvedIdx : 0;
+  });
+
+  // Deliberation state for reviewers
+  const [deliberationVote, setDeliberationVote] = useState(''); // 'Approve' | 'Revision'
+  const [deliberationRemarks, setDeliberationRemarks] = useState('');
+  const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+
+  const approveTitleMutation = useApproveTitle();
+  const rejectTitleMutation = useRejectTitle();
+  const addCommentMutation = useAddTitleComment();
+
+  const isInstructor = user?.role === 'instructor';
+  const isAdviser =
+    (project?.adviserId?._id || project?.adviserId)?.toString() === user?._id?.toString();
+  const isPanelist = (project?.panelistIds || []).some(
+    (p) => (p?._id || p)?.toString() === user?._id?.toString(),
+  );
+  const canReviewTitle = isInstructor || isAdviser || isPanelist || isFaculty;
+
   // Selected proposal or approved title
   const activeProposal = useMemo(() => {
     if (!titleProposals.length) {
       return {
+        id: 'prop-default',
         index: 1,
         title: project?.title || 'Proposed Capstone Research Title',
         description: project?.abstract || '',
@@ -115,9 +152,53 @@ export default function Capstone1CollapsibleSections({
         isApproved: titleApproved,
       };
     }
-    const approved = titleProposals.find((p) => p.isApproved);
-    return approved || titleProposals[0];
-  }, [titleProposals, project, titleApproved]);
+    const selected = titleProposals[selectedProposalIndex];
+    return selected || titleProposals[0];
+  }, [titleProposals, selectedProposalIndex, project, titleApproved]);
+
+  const handleSubmitDecision = async () => {
+    if (!deliberationVote) {
+      toast.error('Please select a decision: Approve or Request Revision.');
+      return;
+    }
+    if (deliberationVote === 'Revision' && !deliberationRemarks.trim()) {
+      toast.error('Please provide revision remarks for the proponents.');
+      return;
+    }
+
+    setIsSubmittingDecision(true);
+    try {
+      if (deliberationRemarks.trim()) {
+        await addCommentMutation.mutateAsync({
+          projectId: project._id,
+          proposalId: String(activeProposal.index),
+          text: `Deliberation Decision: ${deliberationVote}\nRemarks: ${deliberationRemarks.trim()}`,
+        });
+      }
+
+      if (deliberationVote === 'Approve') {
+        await approveTitleMutation.mutateAsync({
+          projectId: project._id,
+          proposalId: activeProposal.index,
+        });
+        toast.success(`Proposal ${activeProposal.index} officially approved as capstone title!`);
+      } else if (deliberationVote === 'Revision') {
+        await rejectTitleMutation.mutateAsync({
+          projectId: project._id,
+          reason: `Proposal Revision Required: ${deliberationRemarks.trim()}`,
+        });
+        toast.success('Title proposal sent back for revision.');
+      }
+
+      setDeliberationVote('');
+      setDeliberationRemarks('');
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to submit decision.');
+    } finally {
+      setIsSubmittingDecision(false);
+    }
+  };
 
   // Submissions query for Chapters 1-3 and compiled proposal
   const { data: submissions = [] } = useProjectSubmissions(project?._id);
@@ -219,6 +300,37 @@ export default function Capstone1CollapsibleSections({
 
         {openSections.proposal && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-4 animate-in fade-in duration-200">
+            {/* Candidate Proposal Selector Tabs (when multiple proposals exist) */}
+            {titleProposals.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+                  Candidate Proposals ({titleProposals.length}):
+                </span>
+                {titleProposals.map((prop, idx) => {
+                  const isSelected = activeProposal.index === prop.index;
+                  return (
+                    <button
+                      key={prop.id || idx}
+                      type="button"
+                      onClick={() => setSelectedProposalIndex(idx)}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground font-bold shadow-xs ring-2 ring-primary/30'
+                          : 'bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60',
+                      )}
+                    >
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-background/20 text-[10px] font-bold">
+                        {prop.index}
+                      </span>
+                      <span className="max-w-[180px] truncate">{prop.title}</span>
+                      {prop.isApproved && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Proposal Title Header Bar */}
             <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -248,27 +360,30 @@ export default function Capstone1CollapsibleSections({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsRehearsalOpen(true)}
-                  className="gap-1.5 text-xs h-8 font-medium shadow-xs"
-                >
-                  <Presentation className="h-3.5 w-3.5 text-primary" />
-                  <span>Rehearse Pitch Deck</span>
-                </Button>
-                {onTabChange && (
+              {/* Student-only rehearsal and drafting buttons */}
+              {isStudent && (
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                   <Button
                     size="sm"
-                    onClick={() => onTabChange('proposal')}
+                    variant="outline"
+                    onClick={() => setIsRehearsalOpen(true)}
                     className="gap-1.5 text-xs h-8 font-medium shadow-xs"
                   >
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Drafting Studio</span>
+                    <Presentation className="h-3.5 w-3.5 text-primary" />
+                    <span>Rehearse Pitch Deck</span>
                   </Button>
-                )}
-              </div>
+                  {onTabChange && (
+                    <Button
+                      size="sm"
+                      onClick={() => onTabChange('proposal')}
+                      className="gap-1.5 text-xs h-8 font-medium shadow-xs"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Drafting Studio</span>
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 5-Point Blueprint (Image 1 Style) */}
@@ -329,6 +444,89 @@ export default function Capstone1CollapsibleSections({
                 </p>
               </div>
             </div>
+
+            {/* Reviewer Deliberation Decision Studio (Instructor / Faculty Committee) */}
+            {!isStudent && !titleApproved && canReviewTitle && (
+              <div className="rounded-xl border border-amber-500/30 bg-muted/40 p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4 text-primary" />
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      Committee Deliberation &amp; Official Decision
+                    </h5>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="border-amber-500/40 text-amber-600 dark:text-amber-400 text-[10px]"
+                  >
+                    Proposal {activeProposal.index}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeliberationVote('Approve')}
+                    className={cn(
+                      'h-10 text-xs font-semibold gap-2 border-emerald-500/30 justify-start px-3.5 transition-all',
+                      deliberationVote === 'Approve'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 border-emerald-500'
+                        : 'text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600',
+                    )}
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Approve Proposal as Official Title</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeliberationVote('Revision')}
+                    className={cn(
+                      'h-10 text-xs font-semibold gap-2 border-amber-500/30 justify-start px-3.5 transition-all',
+                      deliberationVote === 'Revision'
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500 border-amber-500'
+                        : 'text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600',
+                    )}
+                  >
+                    <XCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span>Request Revisions from Proponents</span>
+                  </Button>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <Textarea
+                    placeholder="Enter committee remarks, deliberation feedback, or revision instructions..."
+                    value={deliberationRemarks}
+                    onChange={(e) => setDeliberationRemarks(e.target.value)}
+                    rows={3}
+                    className="text-xs bg-background resize-none border-border/80"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Remarks are recorded to the project review history and transmitted to the
+                    proponents.
+                  </p>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSubmitDecision}
+                    disabled={isSubmittingDecision || !deliberationVote}
+                    className="gap-2 text-xs font-semibold px-5"
+                  >
+                    {isSubmittingDecision ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                    <span>Submit Official Decision</span>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
@@ -395,14 +593,41 @@ export default function Capstone1CollapsibleSections({
         {openSections.manuscript && (
           <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-4 animate-in fade-in duration-200">
             {!isStudent ? (
-              <div className="pt-2">
+              <div className="pt-2 space-y-4">
                 <ChapterReviewPanel
                   submissions={submissions}
                   chapters={[1, 2, 3]}
                   title="Capstone 1 — Chapter Submissions"
                   description="Approve or request revisions for each chapter. Approving locks the chapter and unlocks the next one for the student."
-                  showReviewActions
+                  showReviewActions={isInstructor || isAdviser}
                 />
+                {compiledProposalSub && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/[0.02] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <FileCheck className="h-5 w-5 text-primary shrink-0" />
+                      <div>
+                        <h5 className="text-xs font-bold text-foreground">
+                          Compiled Chapters 1–3 Manuscript (v{compiledProposalSub.version || 1})
+                        </h5>
+                        <p className="text-[11px] text-muted-foreground">
+                          Official compiled proposal draft for committee evaluation and defense
+                          hearings.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleOpenViewer(compiledProposalSub, 'Compiled Proposal Manuscript')
+                      }
+                      className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 self-start sm:self-auto"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View Full Manuscript
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               /* Chapters 1-3 & Compiled Cards Grid for Students */

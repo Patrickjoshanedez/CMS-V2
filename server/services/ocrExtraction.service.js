@@ -42,9 +42,20 @@ class OcrExtractionService {
       throw new Error('File buffer is empty or missing.');
     }
 
-    // Direct network dispatch to cms-ocr-engine
+    // If OCR microservice failed recently, engage local fallback immediately without waiting
+    if (this._lastFailureTime && Date.now() - this._lastFailureTime < 60000) {
+      const fallbackResult = await this._executeLocalFallback(fileBuffer, mimeType);
+      return {
+        ...fallbackResult,
+        ocrStatus: 'degraded',
+        error: 'OCR engine offline (cooldown active)',
+      };
+    }
+
+    // Direct network dispatch to cms-ocr-engine with fast probe timeout
+    const effectiveTimeout = Math.min(2500, this.timeoutMs);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
     try {
       const formData = new FormData();
@@ -78,8 +89,9 @@ class OcrExtractionService {
     } catch (err) {
       const isTimeout =
         err.name === 'AbortError' || String(err.message).toLowerCase().includes('timeout');
-      const reason = isTimeout ? `Timeout after ${this.timeoutMs}ms` : err.message;
+      const reason = isTimeout ? `Timeout after ${effectiveTimeout}ms` : err.message;
 
+      this._lastFailureTime = Date.now();
       console.warn(
         `[OcrExtractionService] Microservice call failed (${reason}). Engaging graceful local fallback.`,
       );

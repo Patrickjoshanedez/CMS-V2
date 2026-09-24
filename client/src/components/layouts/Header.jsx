@@ -3,7 +3,6 @@ import { Menu, Bell, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import TextScaleDropdown from '@/components/TextScaleDropdown';
-import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { ROLES } from '@cms/shared';
@@ -123,7 +122,7 @@ function getRoleLabel(role) {
  * Using explicit destinations (instead of navigate(-1)) keeps navigation
  * correct for users arriving via direct link (e.g. from an email notification).
  */
-function getBackDestination(pathname) {
+export function getBackDestination(pathname, role) {
   // Student chapter-upload sits inside /project/submissions
   if (/^\/project\/submissions\/upload\/?$/.test(pathname))
     return { to: '/project/submissions', label: 'Back to Submissions' };
@@ -133,9 +132,13 @@ function getBackDestination(pathname) {
   // Submission detail / review / plagiarism-report sit inside /project/submissions
   if (/^\/project\/submissions\/[^/]+/.test(pathname))
     return { to: '/project/submissions', label: 'Back to Submissions' };
-  // Project detail / certificate / document editor sit inside /projects
-  if (pathname.startsWith('/projects/') && pathname !== '/projects')
+  // Project detail / certificate / document editor sit inside /projects (for instructors/faculty) or /project (for students)
+  if (pathname.startsWith('/projects/') && pathname !== '/projects') {
+    if (role === ROLES.STUDENT) {
+      return { to: '/project', label: 'Back to My Capstone' };
+    }
     return { to: '/projects', label: 'Back to Projects' };
+  }
   // Archive detail sits inside /archive
   if (pathname.startsWith('/archive/') && pathname !== '/archive')
     return { to: '/archive', label: 'Back to Archive' };
@@ -157,7 +160,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   const roleLabel = getRoleLabel(user?.role);
   const pageTitle = getPageTitle(pathname, search, user?.role);
 
-  const backDestination = getBackDestination(pathname);
+  const backDestination = getBackDestination(pathname, user?.role);
 
   // Reset broken-avatar state whenever the avatarUrl changes
   useEffect(() => {

@@ -549,4 +549,75 @@ describe('SubmissionDetailPage Revision Suite', () => {
     expect(container.textContent).toContain('Check & Endorse: Ready for Defense');
     expect(container.textContent).toContain('Request Manuscript Revisions');
   });
+
+  it('renders Chapter Review — Committee Preview Mode for defense panelist viewing standard chapter (cannot review/approve)', async () => {
+    mockCurrentUser = {
+      _id: 'panelist-1',
+      role: 'faculty',
+      teamId: null,
+    };
+    mockSubmissionId = 'sub-chapter-panelist';
+    mockSubmissionData = {
+      _id: 'sub-chapter-panelist',
+      type: 'chapter',
+      chapter: 2,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      adviserId: 'adviser-99', // Not panelist-1
+      isAssignedAdviser: false,
+      fileName: 'Chapter-2-Review.docx',
+      fileSize: 245000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    // Panelist sees Committee Preview Mode for chapters
+    expect(container.textContent).toContain('Chapter Review — Committee Preview Mode');
+    expect(container.textContent).toContain('Preview Mode');
+    expect(container.textContent).toContain(
+      'Formal chapter approvals and revision requests are conducted exclusively by the assigned Capstone Adviser.',
+    );
+    // Approve and Request Revisions buttons in ReviewPanel must NOT be present for panelist
+    expect(container.textContent).not.toContain('Review Submission');
+    expect(container.textContent).not.toContain('Approve');
+    expect(container.textContent).not.toContain('Request Revisions');
+  });
+
+  it('renders ReviewPanel with Approve and Request Revisions for assigned Adviser viewing standard chapter', async () => {
+    mockCurrentUser = {
+      _id: 'adviser-1',
+      role: 'faculty',
+      teamId: null,
+    };
+    mockSubmissionId = 'sub-chapter-adviser';
+    mockSubmissionData = {
+      _id: 'sub-chapter-adviser',
+      type: 'chapter',
+      chapter: 2,
+      version: 1,
+      status: 'pending',
+      projectId: 'proj-1',
+      adviserId: 'adviser-1',
+      isAssignedAdviser: true,
+      fileName: 'Chapter-2-Review.docx',
+      fileSize: 245000,
+      isLate: false,
+    };
+
+    await act(async () => {
+      root.render(<SubmissionDetailPage />);
+    });
+
+    // Assigned Adviser sees the interactive ReviewPanel
+    expect(container.textContent).toContain('Review Submission');
+    expect(container.textContent).toContain('Approve or request revisions on this document.');
+    expect(container.textContent).toContain('Approve');
+    expect(container.textContent).toContain('Request Revisions');
+    // Committee Preview Mode banner must NOT be rendered for assigned adviser
+    expect(container.textContent).not.toContain('Chapter Review — Committee Preview Mode');
+  });
 });

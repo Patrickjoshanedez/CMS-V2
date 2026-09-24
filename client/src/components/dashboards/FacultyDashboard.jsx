@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ROLES, TITLE_STATUSES, PROJECT_STATUSES } from '@cms/shared';
@@ -7,6 +7,7 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 import {
   Loader2,
   Plus,
@@ -30,6 +31,12 @@ export const VIEW_MODES = {
   PANELIST: 'panelist',
   SECRETARY: 'secretary',
 };
+
+const FACULTY_VIEW_TABS = [
+  { mode: VIEW_MODES.ADVISER, label: 'Adviser View' },
+  { mode: VIEW_MODES.PANELIST, label: 'Panelist View' },
+  { mode: VIEW_MODES.SECRETARY, label: 'Secretary View' },
+];
 
 function getQueueTime(createdAt) {
   if (!createdAt) return null;
@@ -212,12 +219,19 @@ export default function FacultyDashboard({ user }) {
   const ds = dashboardData || {};
   const counts = ds.counts || {};
 
-  // Filter out archived items
-  const assignedProjects = (ds.assignedProjects || ds.adviserProjects || []).filter(
-    (p) => !isArchivedRecord(p),
+  // Filter out archived items (memoized)
+  const assignedProjects = useMemo(
+    () => (ds.assignedProjects || ds.adviserProjects || []).filter((p) => !isArchivedRecord(p)),
+    [ds.assignedProjects, ds.adviserProjects],
   );
-  const pendingReviews = (ds.pendingReviews || []).filter((r) => !isArchivedRecord(r));
-  const secretaryProjects = (ds.secretaryProjects || []).filter((p) => !isArchivedRecord(p));
+  const pendingReviews = useMemo(
+    () => (ds.pendingReviews || []).filter((r) => !isArchivedRecord(r)),
+    [ds.pendingReviews],
+  );
+  const secretaryProjects = useMemo(
+    () => (ds.secretaryProjects || []).filter((p) => !isArchivedRecord(p)),
+    [ds.secretaryProjects],
+  );
 
   // Specific queries only for specific modes
   useQuery({
@@ -236,15 +250,24 @@ export default function FacultyDashboard({ user }) {
   });
 
   const panelTopicsRaw = panelistData || { assigned: [], available: [] };
-  const panelTopics = {
-    assigned: (panelTopicsRaw.assigned || []).filter((p) => !isArchivedRecord(p)),
-    available: (panelTopicsRaw.available || []).filter((p) => !isArchivedRecord(p)),
-  };
+  const panelTopics = useMemo(() => {
+    const assigned = (panelTopicsRaw.assigned || []).filter((p) => !isArchivedRecord(p));
+    const available = (panelTopicsRaw.available || []).filter((p) => !isArchivedRecord(p));
+    return { assigned, available };
+  }, [panelTopicsRaw.assigned, panelTopicsRaw.available]);
 
   const selectTopicMutation = useMutation({
     mutationFn: (projectId) => dashboardService.selectPanelistTopic(projectId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['panelistTopics'] }),
   });
+
+  // Raul Lecaros Mandate: FR4 Top-Positioned Lock Status (Memoized)
+  const isPeriodLocked = useMemo(() => {
+    return (
+      ds.isSystemLocked ??
+      (assignedProjects.length > 0 && assignedProjects.every((p) => p.isLocked))
+    );
+  }, [ds.isSystemLocked, assignedProjects]);
 
   if (isLoading && !dashboardData) {
     return (
@@ -275,82 +298,65 @@ export default function FacultyDashboard({ user }) {
           </p>
         </div>
         <div className="flex shrink-0 rounded-md border bg-muted/30 p-1">
-          <button
-            onClick={() => setMode(VIEW_MODES.ADVISER)}
-            className={`rounded px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === VIEW_MODES.ADVISER
-                ? 'bg-background shadow-sm text-foreground ring-1 ring-border'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Adviser View
-          </button>
-          <button
-            onClick={() => setMode(VIEW_MODES.PANELIST)}
-            className={`rounded px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === VIEW_MODES.PANELIST
-                ? 'bg-background shadow-sm text-foreground ring-1 ring-border'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Panelist View
-          </button>
-          <button
-            onClick={() => setMode(VIEW_MODES.SECRETARY)}
-            className={`rounded px-3 py-1.5 text-xs font-semibold transition-all ${
-              mode === VIEW_MODES.SECRETARY
-                ? 'bg-background shadow-sm text-foreground ring-1 ring-border'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Secretary View
-          </button>
+          {FACULTY_VIEW_TABS.map((tab) => {
+            const isActive = mode === tab.mode;
+            return (
+              <button
+                key={tab.mode}
+                type="button"
+                onClick={() => setMode(tab.mode)}
+                className={cn(
+                  'rounded px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer',
+                  isActive
+                    ? 'bg-background shadow-xs text-foreground ring-1 ring-border'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Raul Lecaros Mandate: FR4 Top-Positioned Lock Banner (Red/Green) */}
-      {(() => {
-        const isPeriodLocked =
-          ds?.isSystemLocked ??
-          (assignedProjects.length > 0 && assignedProjects.every((p) => p.isLocked));
-        return (
+      <div
+        className={cn(
+          'flex items-center justify-between rounded-lg border px-4 py-2.5 shadow-sm transition-all',
+          isPeriodLocked
+            ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
+            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300',
+        )}
+      >
+        <div className="flex items-center gap-3">
           <div
-            className={`flex items-center justify-between rounded-lg border px-4 py-2.5 shadow-sm transition-all ${
-              isPeriodLocked
-                ? 'border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300'
-                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-            }`}
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white',
+              isPeriodLocked ? 'bg-rose-500' : 'bg-emerald-500',
+            )}
           >
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                  isPeriodLocked ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
-                }`}
-              >
-                {isPeriodLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  {isPeriodLocked
-                    ? 'Team Rosters & Submissions: Locked'
-                    : 'Submission & Group Formation: Active'}
-                </span>
-                <span className="text-[11px] opacity-85">
-                  {isPeriodLocked
-                    ? 'Modifications and team roster changes are restricted by faculty administration.'
-                    : 'Students may form groups (1-4 members) and submit manuscript deliverables for panel evaluation.'}
-                </span>
-              </div>
-            </div>
-            <Badge
-              variant={isPeriodLocked ? 'destructive' : 'success'}
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
-            >
-              {isPeriodLocked ? 'Locked' : 'Open'}
-            </Badge>
+            {isPeriodLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
           </div>
-        );
-      })()}
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {isPeriodLocked
+                ? 'Team Rosters & Submissions: Locked'
+                : 'Submission & Group Formation: Active'}
+            </span>
+            <span className="text-[11px] opacity-85">
+              {isPeriodLocked
+                ? 'Modifications and team roster changes are restricted by faculty administration.'
+                : 'Students may form groups (2-4 members) and submit manuscript deliverables for panel evaluation.'}
+            </span>
+          </div>
+        </div>
+        <Badge
+          variant={isPeriodLocked ? 'destructive' : 'success'}
+          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+        >
+          {isPeriodLocked ? 'Locked' : 'Open'}
+        </Badge>
+      </div>
 
       {mode === VIEW_MODES.ADVISER && (
         <div className="flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">

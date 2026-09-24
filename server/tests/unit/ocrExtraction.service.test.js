@@ -6,10 +6,12 @@ describe('OcrExtractionService', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    ocrExtractionService._lastFailureTime = 0;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    ocrExtractionService._lastFailureTime = 0;
   });
 
   it('parses document successfully when microservice returns 200 OK', async () => {

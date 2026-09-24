@@ -1,12 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Tabs, TabsContent, TabsList } from '@/components/ui/Tabs';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSubmissions } from '@/hooks/useSubmissions';
 import { useEntityAuditHistory } from '@/hooks/useAuditLogs';
@@ -22,46 +22,26 @@ import {
   MessageSquareMore,
   BookMarked,
   Code2,
-  Lock,
-  Calendar,
-  Clock,
-  MapPin,
-  UserCheck,
-  RefreshCw,
-  FileUp,
-  Send,
   Sparkles,
-  CheckCircle2,
-  Loader2,
 } from 'lucide-react';
 
 // Extracted reusable components
-import FacultyWidget from '@/components/projects/FacultyWidget';
-import ProjectContextWidget from '@/components/projects/ProjectContextWidget';
-import AcademicReportsWidget from '@/components/projects/AcademicReportsWidget';
-import ActiveProposalView from '@/components/projects/ActiveProposalView';
 import ModificationReviewCard from '@/components/projects/ModificationReviewCard';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
 import ProjectInformationSidebar from '@/components/projects/ProjectInformationSidebar';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
-import PrototypeGallery from '@/components/projects/PrototypeGallery';
 
 import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
 import EvaluationPanel from '@/components/projects/EvaluationPanel';
 import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
-import DevelopmentAssetsForm from '@/components/projects/DevelopmentAssetsForm';
 import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
 import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
 import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
-import DefenseScheduleBadge from '@/components/defense/DefenseScheduleBadge';
 import CompileProposalModal from '@/components/submissions/CompileProposalModal';
-import submissionService from '@/services/submissionService';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 /* ────────── Helpers ────────── */
 
@@ -159,9 +139,23 @@ export function mapStepToWorkflowTab(stepId, isArchived = false) {
   }
 }
 
-/* ────────── Sub-components ────────── */
+/* ────────── Module Constants ────────── */
 
-/* ────────── ModificationReviewCard ────────── */
+const ARCHIVED_DETAIL_TABS = [
+  { value: 'capstone_3', icon: BookMarked, label: 'Full Manuscript Paper' },
+  { value: 'adm', icon: FileSpreadsheet, label: 'Action Done Matrix' },
+  { value: 'evaluation', icon: Award, label: 'Defense Evaluation' },
+  { value: 'consultation', icon: MessageSquareMore, label: 'Consultation Log' },
+  { value: 'audit', icon: History, label: 'Audit Trail' },
+];
+
+const STANDARD_DETAIL_TABS = [
+  { value: 'capstone_1', icon: FileText, label: 'Capstone 1' },
+  { value: 'capstone_2', icon: Code2, label: 'Capstone 2' },
+  { value: 'capstone_3', icon: Award, label: 'Capstone 3' },
+  { value: 'consultation', icon: MessageSquareMore, label: 'Consultations' },
+  { value: 'audit', icon: History, label: 'Audit Trail' },
+];
 
 /* ────────── Main Page Component ────────── */
 
@@ -183,7 +177,6 @@ export default function ProjectDetailPage() {
   const [isScheduleDefenseOpen, setIsScheduleDefenseOpen] = useState(false);
   const [isLiveMinutesOpen, setIsLiveMinutesOpen] = useState(false);
   const [isCompileProposalOpen, setIsCompileProposalOpen] = useState(false);
-  const [isEndorsingProposal, setIsEndorsingProposal] = useState(false);
 
   const submissionsList = useMemo(() => {
     return Array.isArray(submissionsData)
@@ -198,6 +191,52 @@ export default function ProjectDetailPage() {
   const compiledProposalSub = useMemo(() => {
     return submissionsList.find((s) => s.type === 'proposal') || null;
   }, [submissionsList]);
+
+  const isArchived = useMemo(() => {
+    if (!project) return false;
+    return Boolean(
+      project.isArchived ||
+      project.projectStatus === PROJECT_STATUSES.ARCHIVED ||
+      project.projectStatus === 'archived' ||
+      project.status === 'archived' ||
+      project.status === PROJECT_STATUSES.DEFENDED,
+    );
+  }, [project]);
+
+  const defaultTab = useMemo(() => resolveProjectDefaultTab(project), [project]);
+  const urlTab = searchParams.get('tab');
+  const activeTab = urlTab || defaultTab;
+
+  const handleTabChange = useCallback(
+    (nextTab) => {
+      const params = new URLSearchParams(location.search || '');
+      params.set('tab', nextTab);
+      navigate({ search: `?${params.toString()}` }, { replace: true, state: location.state });
+    },
+    [location.search, location.state, navigate],
+  );
+
+  const handleStepClick = useCallback(
+    (stepId) => {
+      const targetTab = mapStepToWorkflowTab(stepId, isArchived);
+      handleTabChange(targetTab);
+    },
+    [isArchived, handleTabChange],
+  );
+
+  // Memoized citation formatting for archived view
+  const projectAuthors = useMemo(
+    () => (isArchived && project ? getProjectAuthors(project) : []),
+    [isArchived, project],
+  );
+  const apaCitation = useMemo(
+    () => (isArchived && project ? formatCitation(project, 'apa', projectAuthors) : ''),
+    [isArchived, project, projectAuthors],
+  );
+  const ieeeCitation = useMemo(
+    () => (isArchived && project ? formatCitation(project, 'ieee', projectAuthors) : ''),
+    [isArchived, project, projectAuthors],
+  );
 
   if (isLoading) {
     return (
@@ -237,92 +276,6 @@ export default function ProjectDetailPage() {
       (panelist) => (panelist?._id || panelist)?.toString() === user?._id?.toString(),
     );
   const canReviewTitle = isInstructor || isAssignedAdviser || isAssignedPanelist;
-  const proposals = project.titleProposals || [];
-
-  const totalEvals = project.evaluations?.length || 0;
-  const panelCount = project.panelistIds?.length || 0;
-
-  let avgScore = 'N/A';
-  if (totalEvals > 0) {
-    const totalScore = project.evaluations.reduce(
-      (sum, evalItem) => sum + (evalItem.score || 0),
-      0,
-    );
-    avgScore = `${Math.round(totalScore / totalEvals)}%`;
-  }
-
-  const urlTab = searchParams.get('tab');
-  const isArchived = Boolean(
-    project.isArchived ||
-    project.projectStatus === PROJECT_STATUSES.ARCHIVED ||
-    project.projectStatus === 'archived' ||
-    project.status === 'archived' ||
-    project.status === PROJECT_STATUSES.DEFENDED,
-  );
-  const defaultTab = resolveProjectDefaultTab(project);
-  const activeTab = urlTab || defaultTab;
-
-  const handleTabChange = (nextTab) => {
-    const params = new URLSearchParams(location.search || '');
-    params.set('tab', nextTab);
-    navigate({ search: `?${params.toString()}` }, { replace: true, state: location.state });
-  };
-
-  const handleStepClick = (stepId) => {
-    const targetTab = mapStepToWorkflowTab(stepId, isArchived);
-    handleTabChange(targetTab);
-  };
-
-  const numericPhase = Number(project?.capstonePhase ?? project?.phase ?? 0);
-  const chapters123Approved =
-    submissionsList.length > 0 &&
-    [1, 2, 3].every((ch) =>
-      submissionsList.some(
-        (s) =>
-          (s.chapterNumber === ch || s.chapter === ch) &&
-          (s.status === 'approved' || s.status === 'locked'),
-      ),
-    );
-
-  const isCapstone2Done = Boolean(
-    numericPhase >= CAPSTONE_PHASES.PHASE_3 ||
-    project?.capstone2Completed ||
-    (project?.actionDoneMatrix && project.actionDoneMatrix.length > 0) ||
-    chapters123Approved,
-  );
-
-  const defenseSchedule = project?.defenseSchedule || {};
-  const isDefenseScheduled = Boolean(defenseSchedule?.date);
-  const isReadyForScheduling = Boolean(
-    compiledProposalSub?.status === 'approved' ||
-    defenseSchedule?.status === 'pending_scheduling' ||
-    project?.defenseSchedule?.status === 'pending_scheduling',
-  );
-
-  const handleEndorseProposal = async () => {
-    if (!compiledProposalSub?._id) return;
-    setIsEndorsingProposal(true);
-    const isRevision = (compiledProposalSub.version || 1) > 1;
-    try {
-      await submissionService.reviewSubmission(compiledProposalSub._id, {
-        decision: 'approved',
-        status: 'approved',
-        remarks: isRevision
-          ? `Compiled Chapters 1–3 revised manuscript (v${compiledProposalSub.version}) approved. Post-defense revisions satisfied.`
-          : 'Compiled Chapters 1–3 manuscript approved and endorsed for Capstone 1 oral defense hearing.',
-      });
-      toast.success(
-        isRevision
-          ? 'Revised manuscript approved! The team has satisfied post-defense manuscript requirements.'
-          : 'Manuscript endorsed for defense! Course Instructor has been notified to schedule hearing.',
-      );
-      refetch();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to review manuscript.');
-    } finally {
-      setIsEndorsingProposal(false);
-    }
-  };
 
   return (
     <DashboardLayout>
@@ -344,6 +297,8 @@ export default function ProjectDetailPage() {
             <WorkflowPhaseTracker
               project={project}
               onStepClick={handleStepClick}
+              isStudent={isStudent}
+              onScheduleDefense={isInstructor ? () => setIsScheduleDefenseOpen(true) : undefined}
               className="mb-6"
             />
 
@@ -374,43 +329,16 @@ export default function ProjectDetailPage() {
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
-                {isArchived ? (
-                  <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {(isArchived ? ARCHIVED_DETAIL_TABS : STANDARD_DETAIL_TABS).map((tab) => (
                     <WorkflowTabTrigger
-                      value="capstone_3"
-                      icon={BookMarked}
-                      label="Full Manuscript Paper"
+                      key={tab.value}
+                      value={tab.value}
+                      icon={tab.icon}
+                      label={tab.label}
                     />
-                    <WorkflowTabTrigger
-                      value="adm"
-                      icon={FileSpreadsheet}
-                      label="Action Done Matrix"
-                    />
-                    <WorkflowTabTrigger
-                      value="evaluation"
-                      icon={Award}
-                      label="Defense Evaluation"
-                    />
-                    <WorkflowTabTrigger
-                      value="consultation"
-                      icon={MessageSquareMore}
-                      label="Consultation Log"
-                    />
-                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
-                  </TabsList>
-                ) : (
-                  <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                    <WorkflowTabTrigger value="capstone_1" icon={FileText} label="Capstone 1" />
-                    <WorkflowTabTrigger value="capstone_2" icon={Code2} label="Capstone 2" />
-                    <WorkflowTabTrigger value="capstone_3" icon={Award} label="Capstone 3" />
-                    <WorkflowTabTrigger
-                      value="consultation"
-                      icon={MessageSquareMore}
-                      label="Consultations"
-                    />
-                    <WorkflowTabTrigger value="audit" icon={History} label="Audit Trail" />
-                  </TabsList>
-                )}
+                  ))}
+                </TabsList>
               </div>
 
               <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none space-y-6">
@@ -423,8 +351,8 @@ export default function ProjectDetailPage() {
 
                 <Capstone1CollapsibleSections
                   project={project}
-                  isStudent={false}
-                  isFaculty={true}
+                  isStudent={isStudent}
+                  isFaculty={isFaculty}
                   user={user}
                   onTabChange={handleTabChange}
                   onRefresh={() => refetch()}
@@ -476,7 +404,7 @@ export default function ProjectDetailPage() {
                   chapters={[4, 5]}
                   title="Capstone 3 — Chapter Submissions"
                   description="Approve or request revisions for Chapters 4 and 5. Approving locks the chapter and progresses the student toward the final manuscript."
-                  showReviewActions
+                  showReviewActions={isInstructor || isAssignedAdviser}
                 />
 
                 {/* Full Manuscript Paper Reader & Archival Document Package */}
@@ -542,11 +470,11 @@ export default function ProjectDetailPage() {
                     <div className="space-y-2 text-xs font-mono bg-card border rounded-lg p-3">
                       <p className="text-muted-foreground">
                         <span className="font-bold text-primary not-mono">[APA 7th]:</span>{' '}
-                        {formatCitation(project, 'apa', getProjectAuthors(project))}
+                        {apaCitation}
                       </p>
                       <p className="text-muted-foreground pt-1 border-t border-border/40">
                         <span className="font-bold text-primary not-mono">[IEEE]:</span>{' '}
-                        {formatCitation(project, 'ieee', getProjectAuthors(project))}
+                        {ieeeCitation}
                       </p>
                     </div>
                   </div>

@@ -3280,3 +3280,122 @@
      - Agentic governance: 60/60 checks passed.
      - Governance pipeline: Valid DAG, 0 errors, 0 warnings.
      - Playwright visual audit: 12 high-fidelity screenshots captured across light and dark modes in desktop and mobile viewports.
+
+
+74. Faculty Experience, Multi-Hat Committee Switching & Decision Authority Gating:
+- Incident & Root Cause:
+  1. Non-Adviser Chapter Review Panel Leak: In `SubmissionDetailPage.jsx`, `ReviewPanel` was conditionally rendered based on `facultyCanReview = isFaculty && !isArchived` for standard chapters (Chapters 1–5). Consequently, faculty members assigned as defense panelists or secretaries on that team were presented with the formal "Approve" and "Request Revisions" decision panel. Clicking either button triggered a 403 `PANELIST_PROPOSAL_ONLY` exception from Express backend services (`submission.service.js:reviewSubmission`).
+  2. Multi-Hat Dashboard Role Scoping: Under the consolidated role model (`student`, `instructor`, `faculty`), a single faculty user simultaneously serves as Adviser for some teams, Defense Panelist for other teams, and Committee Secretary for others. The dashboard required isolated viewports (`VIEW_MODES.ADVISER`, `VIEW_MODES.PANELIST`, `VIEW_MODES.SECRETARY`) with specialized micro-metrics and workflows.
+  3. Action Done Matrix Secretary Compliance Gate: In Capstone 4, institutional sign-off requires `project.admSignatures.secretary.endorsed === true` as an immutable prerequisite before Tier 1 (Adviser), Tier 2 (Panelists/Chair), and Tier 3 (Dean) digital signature pads unlock.
+- Resolution & Implementation Details:
+  1. Surgical Decision Authority Gating in `SubmissionDetailPage.jsx`:
+     - Updated `ReviewPanel` rendering to check `facultyCanReview && !isProposal && canEndorse`, where `canEndorse = isAssignedAdviser || isInstructor`.
+     - When `facultyCanReview && !isProposal && !canEndorse`, rendered a dedicated "Chapter Review — Committee Preview Mode" banner informing panelists and secretaries that formal approvals are conducted by the assigned Adviser while providing full access to manuscript reading and annotation tools.
+  2. Multi-Hat Faculty Dashboard Architecture (`FacultyDashboard.jsx`):
+     - Maintained high-density 3-way toggle between Adviser, Panelist, and Secretary views with zero page reloads.
+     - Preserved FRAD2 team member roster sidebar with 5-chapter progress bar, Traffic-light queue badges (`getQueueTime`, `getQueueBadgeColor`), and FR4 Period Lock status banner.
+  3. Secretary Review Studio (`SecretaryReviewPage.jsx`):
+     - Integrated defense minutes OCR ingestion, inline Action Done Matrix table management, and digital canvas signature endorsement modal.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In capstone submission review views, decision buttons (`Approve`, `Request Revisions`) must strictly check `canEndorse` (`isAssignedAdviser || isInstructor`). Non-adviser committee members must always receive a non-interactive Committee Preview Mode banner to prevent 403 authorization rejections.
+  2. Prevention rule: In user query expansions, querying `role: 'faculty'` must always expand to `{ $in: ['faculty', 'adviser', 'panelist'] }` via `user.service.js:listUsers` while strictly excluding `role: 'instructor'`.
+  3. Prevention rule: The Action Done Matrix digital signature workflow must remain blocked until `admSignatures.secretary.endorsed === true` is verified.
+  4. Checklist: Verify that `FacultyDashboard` switches cleanly between Adviser, Panelist, and Secretary views.
+  5. Checklist: Verify that a panelist viewing a chapter submission sees "Committee Preview Mode" and cannot trigger a 403 decision submission.
+  6. Checklist: Verify that an assigned Adviser sees the full `ReviewPanel` with Approve and Request Revision actions.
+  7. Checklist: Verify that the Secretary Studio allows uploading defense minutes, editing ADM rows, and granting Secretary Endorsement.
+  8. Evidence & Verification passed: 14/14 client unit tests passed across `FacultyDashboard.test.jsx`, `SecretaryReviewPage.test.jsx`, `SubmissionDetailPage.test.jsx`, and `SubmissionReviewPage.test.jsx`; 9/9 server unit tests passed (`user.service.faculty-query.test.js`, `team.assign-committee.test.js`); API route parity verified (209 Server / 190 Client, `UNMATCHED_COUNT = 0`); and 60/60 agentic validation checks passed.
+
+75. Multi-Role Academic Workflow Synchronization & Institutional Route Hardening:
+- Incident & Root Cause:
+  1. Missing ROLES Import in `MyProjectPage.jsx`: In `MyProjectPage.jsx`, non-student redirection checked `user.role !== ROLES.STUDENT`, but `ROLES` was not imported from `@cms/shared`. This caused a silent runtime `ReferenceError: ROLES is not defined` whenever a faculty or instructor navigated to `/project`, preventing redirection.
+  2. Router-Level vs Component-Level Redirects on Project Hubs: Hardcoding role-guards in `App.jsx` (`allowedRoles: [ROLES.STUDENT]` on `/project` and `allowedRoles: [ROLES.INSTRUCTOR, ...]` on `/projects`) triggered harsh 403 Forbidden redirects if users clicked cross-role links or typed URLs directly. Component-level intelligent redirection (`ProjectsPage` redirects students to `/project`, `MyProjectPage` redirects non-students to `/projects`) ensures graceful navigation.
+  3. Hardcoded Role Props in `ProjectDetailPage.jsx`: `ProjectDetailPage.jsx` hardcoded `isStudent={false}` (line 347) and `isFaculty={true}` (line 428) on child components instead of deriving them dynamically from the current authenticated user's role (`isStudent` / `isFaculty`), causing incorrect UI state.
+  4. Non-Role-Aware Back Navigation in `Header.jsx`: `getBackDestination` hardcoded `/projects` ("Back to Cohort Projects") for all users returning from project sub-views, causing student proponents to land on the instructor project cohort list instead of `/project` ("Back to My Capstone").
+  5. Capstone Phase 0 Team Size Copy Discrepancy: `FacultyDashboard.jsx` displayed team formation policy copy as `(1-4 members)` instead of BukSU canonical Phase 0 rules requiring `(2-4 members)`.
+  6. Course Instructor Committee Exclusion Breach: `App.jsx` allowed `ROLES.INSTRUCTOR` on `/secretary-review`, violating institutional boundaries that strictly bar course instructors from committee appointments (adviser, panelist, secretary).
+- Resolution & Implementation Details:
+  1. `MyProjectPage.jsx` Import and Navigation Harmonization:
+     - Imported `ROLES` from `@cms/shared`.
+     - Integrated `useEffect` hook with `useNavigate()` to execute `navigate('/projects', { replace: true })` when `user.role !== ROLES.STUDENT`. Using `useEffect` and `navigate()` prevents `<Navigate>` router context errors in test runners and headless environments.
+  2. `ProjectsPage.jsx` Canonical 4-Phase Progression & Student Redirection:
+     - Restored canonical 4-Phase progression labels (`capstone_1: Phase 1: Title Defense`, `capstone_2: Phase 2: Manuscripts`, `capstone_3: Phase 3: System Dev`, `capstone_4: Phase 4: Final Defense`).
+     - Aligned KPI status bar to 5 cards (`Needs Action`, `Title Defense`, `Manuscripts`, `System Dev`, `Final Defense`).
+     - Added instant student redirection: `if (isStudent) return <Navigate to="/project" replace />;`.
+  3. Dynamic Role Derivation in `ProjectDetailPage.jsx`:
+     - Replaced hardcoded booleans with `isStudent={isStudent}` and `isFaculty={isFaculty}` derived directly from `useAuthStore`.
+  4. Role-Aware Back Navigation in `Header.jsx`:
+     - Updated `getBackDestination(pathname, role)` to return `/project` with label "Back to My Capstone" for students on project subpages.
+  5. Team Formation Copy Alignment in `FacultyDashboard.jsx`:
+     - Corrected team formation text to `(2-4 members)` complying with BukSU Capstone Phase 0 specifications.
+  6. Route Hardening in `App.jsx`:
+     - Restricted `/secretary-review` and `/secretary/review` strictly to `[ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]`, strictly excluding `ROLES.INSTRUCTOR`.
+     - Confirmed student-only access on `/project/create`, `/project/approval`, `/project/submissions/upload`, and `/project/proposal`.
+     - Confirmed instructor-only access on administrative routes (`/users`, `/admin/users`, `/admin/audit`, `/admin/audit-log`, `/reports`, `/reports/bulk-upload`, `/archive/upload/*`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Always import `ROLES` from `@cms/shared` when performing role checks. Never rely on ambient or global variables.
+  2. Prevention rule: Prefer component-level navigation redirects over rigid router 403 Forbidden exceptions between reciprocal user hubs (`/project` vs `/projects`) to provide seamless UX across roles.
+  3. Prevention rule: In React unit tests rendering components that trigger navigation, use `useEffect(() => { navigate(...) })` with `useNavigate()` to ensure compatibility with mocked navigators that lack an active `<Router>` provider.
+  4. Prevention rule: Course Instructors (`role: 'instructor'`) are strictly prohibited from serving on defense committees and accessing committee review routes (`/secretary-review`).
+  5. Lesson learned: Back-navigation in shared layout components (`Header.jsx`) must be role-aware; student proponents must always navigate back to their personal capstone workspace (`/project`), never the instructor cohort directory (`/projects`).
+  6. Runbook: When auditing multi-role workflows:
+     - Verify student cannot access instructor/faculty views or committee review actions.
+     - Verify faculty/adviser cannot access student submission forms or unassigned committee actions.
+     - Verify instructor cannot be appointed to defense committees or access secretary endorsement workflows.
+     - Verify back buttons and cross-links resolve to the correct role-specific landing page.
+  7. Checklist & Evidence:
+     - Checklist: `npm test --workspace=client -- src/pages/projects/ProjectsPage.test.jsx` (4/4 passed).
+     - Checklist: `npm test --workspace=client -- src/pages/projects/MyProjectPage.test.jsx` (7/7 passed).
+     - Checklist: `npm test --workspace=client -- src/pages/projects/ProjectDetailPage.tab-sync.test.jsx` (5/5 passed).
+     - Checklist: `npm test --workspace=client -- src/pages/projects/ProjectDetailPage.back-nav.test.jsx` (7/7 passed).
+     - Checklist: `npm test --workspace=client -- src/components/layouts/Header.test.jsx` (5/5 passed).
+     - Checklist: `npm test --workspace=client -- src/App.routes.test.jsx` (6/6 passed).
+     - Checklist: Route parity verified: 209 Server / 190 Client (`UNMATCHED_COUNT = 0`).
+     - Checklist: Agentic system governance verified: 60/60 checks passed.
+     - Checklist: Governance pipeline verified: 0 errors, 0 warnings.
+     - Evidence & Verification passed: 12-point Playwright visual audit passed in `scratch/screenshots_workflow_audit/` verifying desktop (1440x900) and mobile (390x844) viewports in both light and dark themes across Instructor Projects, Faculty Advisees, and Student My Capstone pages with zero layout breaks, zero console errors, and zero visual overlaps.
+
+76. Component Decomposition, Anti-Slop Code Reuse, and Performance Optimization (Instructor, Student, Faculty Workflows):
+- Incident & Architectural Gaps Addressed:
+  1. Monolithic Component Slop in `ProjectsPage.jsx`: The cohort projects page contained an inline 150+ line card JSX block repeated per project, mixing card presentation, role badges, defensive team prefix replacements, and navigation callbacks inside an un-memoized iteration.
+  2. Duplicate Metric Strip Markup: 130 lines of duplicate metric card JSX was hardcoded for 5 KPI indicators, with each indicator running an independent `.filter()` on the entire projects array ($O(5N)$ computation).
+  3. Redundant Tab Triggers in `MyProjectPage.jsx` and `ProjectDetailPage.jsx`: Tab triggers were hardcoded with duplicated JSX across active and archived views, and expensive citation formatting functions were executed on every render cycle instead of utilizing memoization.
+  4. Inline JSX IIFEs in `FacultyDashboard.jsx`: The period-locked check was executed inside an inline JSX Immediately Invoked Function Expression (`{(() => { ... })()}`), violating modern React patterns and obscuring component structure.
+- Resolution & Implementation Details:
+  1. Extraction of `ProjectCohortCard.jsx`:
+     - Created pure, memoized `React.memo(ProjectCohortCard)` component with strict PropTypes in `client/src/components/projects/ProjectCohortCard.jsx`.
+     - Encapsulated defensive prefix normalization (`team.name.replace(/^Team\s+/i, '').trim()`), phase status badge styling, and click handling.
+     - Created unit test suite in `client/src/components/projects/ProjectCohortCard.test.jsx` (3/3 tests passed).
+  2. $O(N)$ KPI Reducer and Declarative Metric Strip in `ProjectsPage.jsx`:
+     - Extracted `KPI_METRIC_CONFIG` array map, cutting 130 lines of duplicate JSX by 70%.
+     - Replaced 5 consecutive `.filter()` passes with a single-pass `useMemo` reducer computing all 5 counts simultaneously in $O(N)$ time.
+  3. Declarative Workflow Tabs & Citation Optimization in `MyProjectPage.jsx`:
+     - Declared `STUDENT_WORKFLOW_TABS` at module level, eliminating 30 lines of redundant `<WorkflowTabTrigger>` calls.
+     - Memoized `numericPhase`, `capstone2Unlocked`, `capstone3Unlocked`, and tab unlock lists via `useMemo`.
+     - Pre-computed `apaCitation` and `ieeeCitation` via `useMemo`, eliminating unnecessary string regex formatting on re-renders.
+  4. Faculty Multi-Hat Dashboard Clean-up in `FacultyDashboard.jsx`:
+     - Eliminated inline JSX IIFE by computing `isPeriodLocked` via `useMemo` at component top-level.
+     - Consolidated repetitive view switcher buttons into `FACULTY_VIEW_TABS.map(...)`.
+     - Memoized `assignedProjects`, `pendingReviews`, `secretaryProjects`, and `panelTopics` queries.
+  5. Declarative Detail Tabs & Memoized Citations in `ProjectDetailPage.jsx`:
+     - Extracted `ARCHIVED_DETAIL_TABS` and `STANDARD_DETAIL_TABS` module constants.
+     - Replaced duplicated tab triggers with declarative mapping.
+     - Connected memoized `apaCitation` and `ieeeCitation` into the academic citation generator.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Do not write inline JSX IIFEs (`{(() => { ... })()}`). Derive conditional state via `useMemo` or standard boolean variables in the component body.
+  2. Prevention rule: When displaying aggregate metrics over a collection, compute counts in a single-pass reducer (`Array.prototype.reduce`) rather than chaining multiple independent `.filter()` passes.
+  3. Prevention rule: For repetitive UI items (tabs, metric cards, status badges), declare data arrays (`TABS_CONFIG`, `METRIC_CONFIG`) at module level and map over them with stable keys.
+  4. Prevention rule: Extract monolithic card or row layouts (> 100 lines) into pure `React.memo` sub-components with strict prop validations and dedicated unit tests.
+  5. Checklist & Evidence:
+     - Checklist: `ProjectCohortCard.test.jsx` (3/3 passed).
+     - Checklist: `ProjectsPage.test.jsx` (4/4 passed).
+     - Checklist: `MyProjectPage.test.jsx` (7/7 passed).
+     - Checklist: `FacultyDashboard.test.jsx` (5/5 passed).
+     - Checklist: `ProjectDetailPage.tab-sync.test.jsx` (10/10 passed).
+     - Checklist: `ProjectDetailPage.back-nav.test.jsx` (2/2 passed).
+     - Checklist: Total combined targeted tests: 31/31 passed.
+     - Checklist: Route parity verified: 209 Server / 190 Client (`UNMATCHED_COUNT = 0`).
+     - Checklist: Agentic system governance verified: 60/60 checks passed.
+     - Checklist: Pristine workspace guardrail verified.
+
+

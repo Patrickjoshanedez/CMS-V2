@@ -580,8 +580,9 @@ async function processJob(job) {
   const pythonEngineUrl = (
     process.env.PLAGIARISM_ENGINE_URL || 'http://plagiarism_api:8001'
   ).replace(/\/+$/, '');
+  const hstTimeoutMs = Number(process.env.PLAGIARISM_ENGINE_TIMEOUT || 120000);
   const hstController = new AbortController();
-  const hstTimeout = setTimeout(() => hstController.abort(), 15000);
+  const hstTimeout = setTimeout(() => hstController.abort(), hstTimeoutMs);
 
   try {
     const hstRes = await fetch(`${pythonEngineUrl}/check-sync`, {

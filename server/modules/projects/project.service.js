@@ -6,6 +6,7 @@ import Section from '../academics/section.model.js';
 import Course from '../academics/course.model.js';
 import Notification from '../notifications/notification.model.js';
 import Submission from '../submissions/submission.model.js';
+import submissionService from '../submissions/submission.service.js';
 import Evaluation from '../evaluations/evaluation.model.js';
 import AppError from '../../utils/AppError.js';
 import { findSimilarProjects } from '../../utils/titleSimilarity.js';
@@ -3970,6 +3971,91 @@ class ProjectService {
         panelists: project.panelists,
       },
     };
+  }
+
+  /**
+   * Stream or download the canonical manuscript for a project.
+   * If the project is archived, any authenticated user can access it.
+   * If in-progress, only the team and assigned committee/instructor can access it.
+   *
+   * @param {string} projectId
+   * @param {Object} user
+   * @param {Object} [options]
+   * @param {boolean} [options.isDownload=false]
+   * @param {string} [options.type=null]
+   * @returns {Promise<{ buffer: Buffer, fileName: string, fileType: string, fileSize: number, isConverted?: boolean }>}
+   */
+  async getProjectManuscript(projectId, user, { isDownload = false, type = null } = {}) {
+    const project = await Project.findById(projectId).populate('teamId', 'members leaderId');
+    if (!project) {
+      throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
+    }
+
+    const isArchived = Boolean(
+      project.isArchived || project.projectStatus === PROJECT_STATUSES.ARCHIVED,
+    );
+    const userId = String(user?._id || user);
+
+    if (!isArchived) {
+      const isInstructor = user?.role === ROLES.INSTRUCTOR;
+      const isTeamMember =
+        project.teamId?.members?.some((m) => String(m?._id || m) === userId) ||
+        String(project.teamId?.leaderId?._id || project.teamId?.leaderId) === userId;
+      const isAdviser =
+        project.adviserId && String(project.adviserId?._id || project.adviserId) === userId;
+      const isPanelist =
+        Array.isArray(project.panelistIds) &&
+        project.panelistIds.some((p) => String(p?._id || p) === userId);
+      const isSecretary =
+        project.secretaryId && String(project.secretaryId?._id || project.secretaryId) === userId;
+
+      if (!isInstructor && !isTeamMember && !isAdviser && !isPanelist && !isSecretary) {
+        throw new AppError(
+          'You do not have permission to access this project manuscript.',
+          403,
+          'FORBIDDEN',
+        );
+      }
+    }
+
+    // Determine target submission
+    let submission = null;
+    if (type) {
+      submission = await Submission.findOne({
+        projectId: project._id,
+        type,
+        storageKey: { $exists: true, $ne: null },
+      }).sort({ version: -1, createdAt: -1 });
+    }
+
+    if (!submission) {
+      // Prioritize final_academic, then final_journal, then final_paper
+      submission = await Submission.findOne({
+        projectId: project._id,
+        type: { $in: ['final_academic', 'final_journal', 'final_paper'] },
+        storageKey: { $exists: true, $ne: null },
+      }).sort({ version: -1, createdAt: -1 });
+    }
+
+    // Fallback: check any submission with storageKey (e.g. Chapter 5, Chapter 3, etc.)
+    if (!submission) {
+      submission = await Submission.findOne({
+        projectId: project._id,
+        storageKey: { $exists: true, $ne: null },
+      }).sort({ chapter: -1, version: -1, createdAt: -1 });
+    }
+
+    if (!submission) {
+      throw new AppError(
+        'Manuscript file is not available for this project.',
+        404,
+        'MANUSCRIPT_NOT_FOUND',
+      );
+    }
+
+    return submissionService.getSubmissionFileBuffer(submission._id, user?._id || user, {
+      isDownload,
+    });
   }
 }
 

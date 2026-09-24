@@ -7,7 +7,18 @@ import AppError from '../utils/AppError.js';
 import { compareAgainstCorpus } from './plagiarism.service.js';
 
 const DEFAULT_EMBED_MODEL =
-  process.env.PLAGIARISM_OLLAMA_EMBED_MODEL || 'nomic-embed-text-v2-moe:latest';
+  process.env.PLAGIARISM_EMBEDDING_MODEL ||
+  process.env.PLAGIARISM_OLLAMA_EMBED_MODEL ||
+  'BAAI/bge-m3';
+
+export const BGE_M3_MODEL_SPECS = {
+  model: 'BAAI/bge-m3',
+  batchSize: 16,
+  maxLength: 8192,
+  denseDim: 1024,
+  memoryFootprint: '~1.2 GB',
+  cpuThreadClamp: 2,
+};
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const ARCHIVE_SCAN_MAX_DOCS = Math.max(
   5,
@@ -15,7 +26,7 @@ const ARCHIVE_SCAN_MAX_DOCS = Math.max(
 );
 const ARCHIVE_SCAN_MAX_LAZY_EXTRACTIONS = Math.max(
   0,
-  Number.parseInt(process.env.PLAGIARISM_ARCHIVE_SCAN_MAX_LAZY_EXTRACTIONS || '10', 10) || 10,
+  Number.parseInt(process.env.PLAGIARISM_ARCHIVE_SCAN_MAX_LAZY_EXTRACTIONS || '0', 10) || 0,
 );
 const ARCHIVE_SCAN_MIN_TEXT_LENGTH = Math.max(
   50,
@@ -316,10 +327,7 @@ const fetchArchivedSubmissionCandidates = async () => {
       $match: {
         fileType: 'application/pdf',
         status: { $in: acceptedStatuses },
-        $or: [
-          { extractedText: { $exists: true, $nin: [null, ''] } },
-          { storageKey: { $exists: true, $nin: [null, ''] } },
-        ],
+        extractedText: { $exists: true, $nin: [null, ''] },
       },
     },
     {
@@ -499,6 +507,23 @@ const scoreSemanticCandidates = async ({ submittedText, corpus, embeddingModel }
   return semanticBySource;
 };
 
+const scoreSemanticCandidatesWithTimeout = async (params, timeoutMs = 2500) => {
+  let timerId = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timerId = setTimeout(
+      () => reject(new Error(`Semantic embedding timed out (${timeoutMs}ms limit).`)),
+      timeoutMs,
+    );
+  });
+
+  try {
+    const result = await Promise.race([scoreSemanticCandidates(params), timeoutPromise]);
+    return result;
+  } finally {
+    if (timerId) clearTimeout(timerId);
+  }
+};
+
 const buildCombinedMatches = ({ submittedText, lexicalResult, corpus, semanticBySource }) => {
   const lexicalBySource = new Map();
 
@@ -617,6 +642,7 @@ export async function runArchivePdfPlagiarismScan({ fileBuffer, fileType, fileNa
       fullReport: {
         mode: 'archive_pdf_scan',
         embeddingModel: DEFAULT_EMBED_MODEL,
+        modelSpecs: BGE_M3_MODEL_SPECS,
         semanticEnabled: false,
         archiveCandidates: 0,
         matches: [],
@@ -636,7 +662,7 @@ export async function runArchivePdfPlagiarismScan({ fileBuffer, fileType, fileNa
   let semanticError = null;
 
   try {
-    semanticBySource = await scoreSemanticCandidates({
+    semanticBySource = await scoreSemanticCandidatesWithTimeout({
       submittedText: extractedText,
       corpus,
       embeddingModel: DEFAULT_EMBED_MODEL,
@@ -714,6 +740,7 @@ export async function runArchivePdfPlagiarismScan({ fileBuffer, fileType, fileNa
   const fullReport = {
     mode: 'archive_pdf_scan',
     embeddingModel: DEFAULT_EMBED_MODEL,
+    modelSpecs: BGE_M3_MODEL_SPECS,
     semanticEnabled,
     semanticError,
     archiveCandidates: corpus.length,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import EvaluationWorkspace from '@/components/submissions/EvaluationWorkspace';
 
 export default function PdfWorkspaceTestPage() {
-  const [highlights, setHighlights] = useState([
+  const [highlights] = useState([
     {
       id: 'comment-1',
       type: 'faculty_comment',
@@ -133,19 +133,19 @@ export default function PdfWorkspaceTestPage() {
         admItems={sampleAdmItems}
         plagiarismSources={sampleSources}
         onSelectionFinished={(sel) => {
-          console.log('Selection finished:', sel);
+          console.warn('Selection finished:', sel);
         }}
         onAddReply={(commentId, text) => {
-          console.log('Add reply:', commentId, text);
+          console.warn('Add reply:', commentId, text);
         }}
         onResolveComment={(commentId, status) => {
-          console.log('Resolve comment:', commentId, status);
+          console.warn('Resolve comment:', commentId, status);
         }}
         onAddToAdm={(item) => {
-          console.log('Add to ADM:', item);
+          console.warn('Add to ADM:', item);
         }}
         onVerdict={(verdict) => {
-          console.log('Verdict:', verdict);
+          console.warn('Verdict:', verdict);
         }}
         userRole="adviser"
         canModerate={true}

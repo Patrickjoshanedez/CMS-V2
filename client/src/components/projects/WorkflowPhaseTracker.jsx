@@ -58,6 +58,8 @@ export default function WorkflowPhaseTracker({
   currentStep,
   onStepClick,
   onSelectProposal,
+  isStudent = true,
+  onScheduleDefense,
   className,
 }) {
   return (
@@ -66,6 +68,8 @@ export default function WorkflowPhaseTracker({
       currentStep={currentStep}
       onStepClick={onStepClick}
       onSelectProposal={onSelectProposal}
+      isStudent={isStudent}
+      onScheduleDefense={onScheduleDefense}
       className={className}
     />
   );
@@ -76,5 +80,7 @@ WorkflowPhaseTracker.propTypes = {
   currentStep: PropTypes.number,
   onStepClick: PropTypes.func,
   onSelectProposal: PropTypes.func,
+  isStudent: PropTypes.bool,
+  onScheduleDefense: PropTypes.func,
   className: PropTypes.string,
 };

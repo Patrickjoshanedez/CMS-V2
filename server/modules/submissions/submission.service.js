@@ -861,14 +861,21 @@ class SubmissionService {
     const userId = String(user?._id || user);
     const { allowArchivedFinalJournalPublicView = false } = options;
 
-    // Central archiving exception: any authenticated user can view archived final journals.
-    if (
-      allowArchivedFinalJournalPublicView &&
-      submission &&
-      project.projectStatus === PROJECT_STATUSES.ARCHIVED &&
-      submission.type === 'final_journal'
-    ) {
-      return;
+    // Central archiving exception: any authenticated user can view approved submissions/manuscripts for archived projects
+    const isArchived = Boolean(
+      project.isArchived || project.projectStatus === PROJECT_STATUSES.ARCHIVED,
+    );
+    if (isArchived) {
+      if (!submission) return;
+      if (
+        allowArchivedFinalJournalPublicView ||
+        submission.type === 'final_journal' ||
+        submission.type === 'final_academic' ||
+        submission.type === 'final_paper' ||
+        submission.status === 'approved'
+      ) {
+        return;
+      }
     }
 
     if (user.role === ROLES.INSTRUCTOR) return;

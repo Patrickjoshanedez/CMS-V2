@@ -1,0 +1,99 @@
+{
+  "id": "2026-09-25_instructor-faculty-student-workflow-audit",
+  "task": "Audit Instructor, Faculty, and Student Pages to Ensure Workflow Synchronization with No Overlaps and Errors",
+  "started_at": "2026-09-25T00:58:00.000Z",
+  "completed_at": "2026-09-25T01:38:00.000Z",
+  "status": "completed",
+  "root_cause_analysis": {
+    "issue": "Multi-role navigation, page routing, and capstone progression suffered from phase labeling divergence, unguarded instructor/student routes in App.jsx, hardcoded role prop leaks in ProjectDetailPage, and desynchronized Header back navigation leading students to instructor cohort pages.",
+    "culprits": [
+      "ProjectsPage.jsx had corrupted phase collapse tabs that conflated Phase 1 and 2, omitted Phase 4 (Final Defense), and lacked student auto-redirection.",
+      "MyProjectPage.jsx threw runtime ReferenceError due to unimported ROLES constant from @cms/shared, failing non-student redirection to /projects.",
+      "ProjectDetailPage.jsx had hardcoded role props (isStudent={false} and isFaculty={true}) on WorkflowPhaseTracker and Capstone1CollapsibleSections, bypassing dynamic auth role derivation.",
+      "Header.jsx lacked role awareness in getBackDestination(), sending students viewing project detail pages back to instructor cohort directory (/projects) instead of student capstone portal (/project).",
+      "App.jsx lacked explicit role protection (allowedRoles) across administrative (/users, /admin/audit, /reports, /archive/upload/*), student proposal/submission (/project/create, /project/approval, /project/submissions/upload, /project/proposal), and committee evaluation (/submissions/:id/review, /adviser/team-review) routes.",
+      "Secretary review routes erroneously listed ROLES.INSTRUCTOR in allowedRoles despite institutional rules strictly barring course instructors from capstone defense committees."
+    ]
+  },
+  "modifications": [
+    {
+      "file": "client/src/pages/projects/ProjectsPage.jsx",
+      "summary": "Restored canonical 4-Phase Capstone Progression (Phase 1: Title Defense, Phase 2: Manuscripts, Phase 3: System Dev, Phase 4: Final Defense), aligned KPI metrics/query filters, and added auto-redirect for students landing on /projects to /project."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.jsx",
+      "summary": "Imported ROLES from @cms/shared to resolve ReferenceError and implemented reliable redirection of instructors and faculty from /project to /projects."
+    },
+    {
+      "file": "client/src/pages/projects/ProjectDetailPage.jsx",
+      "summary": "Replaced hardcoded isStudent={false} and isFaculty={true} props on WorkflowPhaseTracker and Capstone1CollapsibleSections with dynamic auth-derived roles (isStudent and isFaculty)."
+    },
+    {
+      "file": "client/src/components/layouts/Header.jsx",
+      "summary": "Updated getBackDestination(pathname, role) to make back-navigation role-aware, routing students on project subpages back to /project ('Back to My Capstone') instead of instructor directory (/projects)."
+    },
+    {
+      "file": "client/src/components/dashboards/FacultyDashboard.jsx",
+      "summary": "Normalized team group formation institutional policy copy from '(1-4 members)' to '(2-4 members)' per BukSU Capstone Phase 0 rules."
+    },
+    {
+      "file": "client/src/App.jsx",
+      "summary": "Hardened PROTECTED_ROUTES with explicit allowedRoles: instructor-only on /users, /admin/audit, /reports, /archive/upload/*; student-only on /project/create, /project/approval, chapter upload, proposal compilation; faculty/committee only on /secretary-review and /adviser/team-review; committee/instructor on submission reviews."
+    },
+    {
+      "file": "client/src/App.routes.test.jsx",
+      "summary": "Expanded role-protection test suite to verify 403 Forbidden gating for students on /users, /reports, /admin/audit, /submissions/:id/review and instructors on committee secretary review."
+    },
+    {
+      "file": "client/src/pages/projects/MyProjectPage.test.jsx",
+      "summary": "Added unit test asserting non-student auto-redirect from /project to /projects."
+    }
+  ],
+  "verification_evidence": {
+    "playwright_visual_audit": {
+      "screenshots_dir": "scratch/screenshots_workflow_audit/",
+      "viewports_tested": ["1440x900 desktop", "390x844 mobile"],
+      "themes_tested": ["light", "dark"],
+      "roles_verified": ["instructor", "faculty", "student"],
+      "files_captured": [
+        "instructor_projects_desktop_light.png",
+        "instructor_projects_desktop_dark.png",
+        "instructor_projects_mobile_light.png",
+        "instructor_projects_mobile_dark.png",
+        "faculty_advisees_desktop_light.png",
+        "faculty_advisees_desktop_dark.png",
+        "faculty_advisees_mobile_light.png",
+        "faculty_advisees_mobile_dark.png",
+        "student_my_capstone_desktop_light.png",
+        "student_my_capstone_desktop_dark.png",
+        "student_my_capstone_mobile_light.png",
+        "student_my_capstone_mobile_dark.png"
+      ]
+    },
+    "fast_path_targeted_tests": {
+      "ProjectsPage.test.jsx": "4/4 passed (100%)",
+      "MyProjectPage.test.jsx": "7/7 passed (100%)",
+      "ProjectDetailPage.tab-sync.test.jsx": "5/5 passed (100%)",
+      "ProjectDetailPage.back-nav.test.jsx": "7/7 passed (100%)",
+      "Header.test.jsx": "5/5 passed (100%)",
+      "ActionDoneMatrixTab.test.jsx": "8/8 passed (100%)",
+      "CreateProjectPage.test.jsx": "19/19 passed (100%)",
+      "SecretaryReviewPage.test.jsx": "3/3 passed (100%)",
+      "TitleApprovalPage.test.jsx": "7/7 passed (100%)",
+      "CertificatePage.test.jsx": "2/2 passed (100%)",
+      "App.routes.test.jsx": "6/6 passed (100%)",
+      "App.session-timeout.test.jsx": "1/1 passed (100%)",
+      "App.error-routes.test.jsx": "2/2 passed (100%)"
+    },
+    "governance_battery": {
+      "check_endpoints": "209 Server / 190 Client, UNMATCHED_COUNT = 0",
+      "validate_agentic": "60/60 checks passed (100%)",
+      "validate_governance": "Prefetch 11 agents, Sync DAG valid, Decision Coherence 0 errors / 0 warnings"
+    }
+  },
+  "lessons_learned": [
+    "Lesson: When adding role-based redirection guards in React components, ensure imported role constants (ROLES) exist in the module import statement; omitting them causes silent runtime ReferenceErrors that halt component execution in production while potentially being bypassed in tests with partial mocks.",
+    "Lesson: Route-level protection (RoleRoute) should only be applied to strictly segregated paths. Mutually reciprocal paths (/project vs /projects) should use component-level redirection so neither students nor faculty encounter harsh 403 Forbidden screens when navigating between single and plural route variants.",
+    "Lesson: Course Instructors must be systematically excluded from committee evaluation routes (/secretary-review, /adviser/team-review) across both client navigation (Sidebar, App.jsx) and backend RBAC authorization middleware to maintain institutional compliance."
+  ]
+}

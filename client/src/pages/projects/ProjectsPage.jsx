@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
-import TitleStatusBadge from '@/components/projects/TitleStatusBadge';
-import ProjectStatusBadge from '@/components/projects/ProjectStatusBadge';
+import ProjectCohortCard from '@/components/projects/ProjectCohortCard';
 import { useProjects } from '@/hooks/useProjects';
 import {
   Search,
@@ -17,23 +16,17 @@ import {
   Loader2,
   FileText,
   AlertTriangle,
-  AlertCircle,
-  CheckCircle2,
   ClipboardCheck,
   Sparkles,
   BookOpen,
   Layers,
   GraduationCap,
-  Users,
-  UserCheck,
-  Calendar,
-  ArrowRight,
   RotateCcw,
   Zap,
   LayoutGrid,
   X,
 } from 'lucide-react';
-import { ROLES, PROJECT_STATUSES } from '@cms/shared';
+import { ROLES, TITLE_STATUSES } from '@cms/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
 
@@ -64,24 +57,100 @@ const TASK_CATEGORIES = [
   },
   {
     id: 'capstone_1',
-    label: 'Phase 1: Title & Ch 1–3',
+    label: 'Phase 1: Title Defense',
     phase: 1,
     icon: Sparkles,
     description: 'Title proposals, SDG mapping & proposal defense hearing',
   },
   {
     id: 'capstone_2',
-    label: 'Phase 2: System Dev',
+    label: 'Phase 2: Manuscripts',
     phase: 2,
+    icon: BookOpen,
+    description: 'Chapters 1–3 manuscripts, midterm defense & ADM v1 sign-off',
+  },
+  {
+    id: 'capstone_3',
+    label: 'Phase 3: System Dev',
+    phase: 3,
     icon: Layers,
     description: 'Prototype implementation, Gantt milestones & progress demo',
   },
   {
-    id: 'capstone_3',
-    label: 'Phase 3: Final & Journal',
-    phase: 3,
+    id: 'capstone_4',
+    label: 'Phase 4: Final Defense',
+    phase: 4,
     icon: GraduationCap,
     description: '5-Chapter manuscript, academic journal, Dean ADM sign-off & archival',
+  },
+];
+
+const KPI_METRIC_CONFIG = [
+  {
+    id: 'action_needed',
+    label: 'Needs Action',
+    countKey: 'actionNeeded',
+    subtitle: 'Awaiting deliberation',
+    icon: Zap,
+    colorClasses: {
+      active: 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30',
+      hover: 'hover:border-amber-500/40',
+      badgeText: 'text-amber-600 dark:text-amber-400',
+      iconBox: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+    },
+    hasPing: true,
+  },
+  {
+    id: 'capstone_1',
+    label: 'Title Defense',
+    countKey: 'phase1',
+    subtitle: 'Capstone 1 proposals',
+    icon: Sparkles,
+    colorClasses: {
+      active: 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30',
+      hover: 'hover:border-amber-500/40',
+      badgeText: 'text-muted-foreground',
+      iconBox: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+    },
+  },
+  {
+    id: 'capstone_2',
+    label: 'Manuscripts',
+    countKey: 'phase2',
+    subtitle: 'Ch 1–3 & ADM v1',
+    icon: BookOpen,
+    colorClasses: {
+      active: 'border-blue-500/60 bg-blue-500/10 ring-2 ring-blue-500/30',
+      hover: 'hover:border-blue-500/40',
+      badgeText: 'text-muted-foreground',
+      iconBox: 'bg-blue-500/10 border-blue-500/20 text-blue-500',
+    },
+  },
+  {
+    id: 'capstone_3',
+    label: 'System Dev',
+    countKey: 'phase3',
+    subtitle: 'Gantt & prototypes',
+    icon: Layers,
+    colorClasses: {
+      active: 'border-indigo-500/60 bg-indigo-500/10 ring-2 ring-indigo-500/30',
+      hover: 'hover:border-indigo-500/40',
+      badgeText: 'text-muted-foreground',
+      iconBox: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500',
+    },
+  },
+  {
+    id: 'capstone_4',
+    label: 'Final Defense',
+    countKey: 'phase4',
+    subtitle: 'Oral defense & archival',
+    icon: GraduationCap,
+    colorClasses: {
+      active: 'border-emerald-500/60 bg-emerald-500/10 ring-2 ring-emerald-500/30',
+      hover: 'hover:border-emerald-500/40',
+      badgeText: 'text-muted-foreground',
+      iconBox: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
+    },
   },
 ];
 
@@ -109,6 +178,13 @@ export default function ProjectsPage() {
 
   const filterParam = searchParams.get('filter');
 
+  // Smoothly redirect students attempting to access cohort review to their own project
+  useEffect(() => {
+    if (user && user.role === ROLES.STUDENT) {
+      navigate('/project', { replace: true });
+    }
+  }, [user, navigate]);
+
   // Compute query payload based on active task category
   const queryFilters = useMemo(() => {
     const base = {
@@ -129,8 +205,10 @@ export default function ProjectsPage() {
       base.capstonePhase = 1;
     } else if (activeCategory === 'capstone_2') {
       base.capstonePhase = 2;
-    } else if (activeCategory === 'capstone_3' || activeCategory === 'capstone_4') {
+    } else if (activeCategory === 'capstone_3') {
       base.capstonePhase = 3;
+    } else if (activeCategory === 'capstone_4') {
+      base.capstonePhase = 4;
     }
 
     return base;
@@ -161,20 +239,23 @@ export default function ProjectsPage() {
   }, [highlightedProjectId, data?.projects]);
 
   // Sync category in URL
-  const handleSelectCategory = (categoryId) => {
-    setActiveCategory(categoryId);
-    setPage(1);
-    const newParams = new URLSearchParams(searchParams);
-    if (categoryId === 'all') {
-      newParams.delete('category');
-    } else {
-      newParams.set('category', categoryId);
-    }
-    setSearchParams(newParams, { replace: true });
-  };
+  const handleSelectCategory = useCallback(
+    (categoryId) => {
+      setActiveCategory(categoryId);
+      setPage(1);
+      const newParams = new URLSearchParams(searchParams);
+      if (categoryId === 'all') {
+        newParams.delete('category');
+      } else {
+        newParams.set('category', categoryId);
+      }
+      setSearchParams(newParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   // Reset all filters
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     setSearch('');
     setTitleStatus('');
     setAcademicYear('');
@@ -183,7 +264,64 @@ export default function ProjectsPage() {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('category');
     setSearchParams(newParams, { replace: true });
-  };
+  }, [searchParams, setSearchParams]);
+
+  const handleNavigateProject = useCallback(
+    (id) => {
+      navigate(`/projects/${id}`);
+    },
+    [navigate],
+  );
+
+  // Filter out any archived items defensively (memoized to prevent re-filter on renders)
+  const projects = useMemo(() => {
+    const raw = data?.projects || [];
+    return raw.filter((project) => {
+      const normalizedStatuses = [project.projectStatus, project.status]
+        .filter((value) => value !== null && value !== undefined)
+        .map((value) => String(value).trim().toLowerCase());
+      return project.isArchived !== true && !normalizedStatuses.includes('archived');
+    });
+  }, [data?.projects]);
+
+  const pagination = data?.pagination || { page: 1, totalPages: 1 };
+
+  // Calculate live cohort counts from allProjectsData in a single O(N) pass
+  const metricCounts = useMemo(() => {
+    const active = (allProjectsData?.projects || []).filter((p) => !p.isArchived);
+    const initial = {
+      total: active.length,
+      actionNeeded: 0,
+      phase1: 0,
+      phase2: 0,
+      phase3: 0,
+      phase4: 0,
+    };
+
+    return active.reduce((acc, p) => {
+      if (
+        p.titleStatus === TITLE_STATUSES.SUBMITTED ||
+        p.titleStatus === TITLE_STATUSES.REVISION_REQUIRED ||
+        p.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION
+      ) {
+        acc.actionNeeded += 1;
+      }
+      const phaseNum = Number(p.capstonePhase ?? 1);
+      if (phaseNum === 1) acc.phase1 += 1;
+      else if (phaseNum === 2) acc.phase2 += 1;
+      else if (phaseNum === 3) acc.phase3 += 1;
+      else if (phaseNum >= 4) acc.phase4 += 1;
+      return acc;
+    }, initial);
+  }, [allProjectsData?.projects]);
+
+  // Available academic years for quick dropdown (memoized)
+  const availableAcademicYears = useMemo(() => {
+    const active = (allProjectsData?.projects || []).filter((p) => !p.isArchived);
+    return Array.from(new Set(active.map((p) => p.academicYear).filter(Boolean)))
+      .sort()
+      .reverse();
+  }, [allProjectsData?.projects]);
 
   if (!user) {
     fetchUser();
@@ -195,36 +333,6 @@ export default function ProjectsPage() {
       </DashboardLayout>
     );
   }
-
-  // Filter out any archived items defensively
-  const rawProjects = data?.projects || [];
-  const projects = rawProjects.filter((project) => {
-    const normalizedStatuses = [project.projectStatus, project.status]
-      .filter((value) => value !== null && value !== undefined)
-      .map((value) => String(value).trim().toLowerCase());
-    return project.isArchived !== true && !normalizedStatuses.includes('archived');
-  });
-
-  const pagination = data?.pagination || { page: 1, totalPages: 1 };
-
-  // Calculate live cohort counts from allProjectsData
-  const allProjects = (allProjectsData?.projects || []).filter((p) => !p.isArchived);
-  const metricCounts = {
-    total: allProjects.length,
-    actionNeeded: allProjects.filter((p) =>
-      ['submitted', 'revision_required', 'pending_modification'].includes(p.titleStatus),
-    ).length,
-    phase1: allProjects.filter((p) => Number(p.capstonePhase ?? 1) === 1).length,
-    phase2: allProjects.filter((p) => Number(p.capstonePhase ?? 1) === 2).length,
-    phase3: allProjects.filter((p) => Number(p.capstonePhase ?? 1) >= 3).length,
-  };
-
-  // Available academic years for quick dropdown
-  const availableAcademicYears = Array.from(
-    new Set(allProjects.map((p) => p.academicYear).filter(Boolean)),
-  )
-    .sort()
-    .reverse();
 
   const isInstructor = user.role === ROLES.INSTRUCTOR;
   const pageTitle =
@@ -292,118 +400,59 @@ export default function ProjectsPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* 2. EXECUTIVE KPI METRIC OVERVIEW STRIP                    */}
+        {/* 2. EXECUTIVE KPI METRIC OVERVIEW STRIP (DECLARATIVE)      */}
         {/* ========================================================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {/* 1. Action Needed */}
-          <Card
-            onClick={() => handleSelectCategory('action_needed')}
-            className={cn(
-              'cursor-pointer transition-all duration-200 hover:shadow-md border',
-              activeCategory === 'action_needed'
-                ? 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30'
-                : 'border-border/70 hover:border-amber-500/40 bg-card',
-            )}
-          >
-            <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                  <span className="relative flex h-2 w-2">
-                    {metricCounts.actionNeeded > 0 && (
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+          {KPI_METRIC_CONFIG.map((kpi) => {
+            const Icon = kpi.icon;
+            const count = metricCounts[kpi.countKey] || 0;
+            const isActive = activeCategory === kpi.id;
+            return (
+              <Card
+                key={kpi.id}
+                onClick={() => handleSelectCategory(kpi.id)}
+                className={cn(
+                  'cursor-pointer transition-all duration-200 hover:shadow-md border bg-card',
+                  isActive
+                    ? kpi.colorClasses.active
+                    : cn('border-border/70', kpi.colorClasses.hover),
+                )}
+              >
+                <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
+                  <div>
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 text-[11px] font-medium',
+                        kpi.colorClasses.badgeText,
+                      )}
+                    >
+                      {kpi.hasPing && (
+                        <span className="relative flex h-2 w-2">
+                          {count > 0 && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                          )}
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                        </span>
+                      )}
+                      <span>{kpi.label}</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
+                      {count}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground truncate">{kpi.subtitle}</p>
+                  </div>
+                  <div
+                    className={cn(
+                      'h-9 w-9 rounded-lg border flex items-center justify-center shrink-0',
+                      kpi.colorClasses.iconBox,
                     )}
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                  </span>
-                  <span>Needs Action</span>
-                </div>
-                <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
-                  {metricCounts.actionNeeded}
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate">Awaiting deliberation</p>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                <Zap className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 2. Phase 1: Title Proposals & Ch 1–3 */}
-          <Card
-            onClick={() => handleSelectCategory('capstone_1')}
-            className={cn(
-              'cursor-pointer transition-all duration-200 hover:shadow-md border',
-              activeCategory === 'capstone_1'
-                ? 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/30'
-                : 'border-border/70 hover:border-amber-500/40 bg-card',
-            )}
-          >
-            <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Title & Ch 1–3
-                </span>
-                <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
-                  {metricCounts.phase1}
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate">Capstone 1 proposals</p>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                <Sparkles className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 3. Phase 2: System Development & Progress */}
-          <Card
-            onClick={() => handleSelectCategory('capstone_2')}
-            className={cn(
-              'cursor-pointer transition-all duration-200 hover:shadow-md border',
-              activeCategory === 'capstone_2'
-                ? 'border-blue-500/60 bg-blue-500/10 ring-2 ring-blue-500/30'
-                : 'border-border/70 hover:border-blue-500/40 bg-card',
-            )}
-          >
-            <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-medium text-muted-foreground">System Dev</span>
-                <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
-                  {metricCounts.phase2}
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate">Gantt & prototypes</p>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
-                <Layers className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 4. Phase 3: Final Defense & Archival */}
-          <Card
-            onClick={() => handleSelectCategory('capstone_3')}
-            className={cn(
-              'cursor-pointer transition-all duration-200 hover:shadow-md border',
-              activeCategory === 'capstone_3'
-                ? 'border-emerald-500/60 bg-emerald-500/10 ring-2 ring-emerald-500/30'
-                : 'border-border/70 hover:border-emerald-500/40 bg-card',
-            )}
-          >
-            <CardContent className="p-3 sm:p-3.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-medium text-muted-foreground">
-                  Final & Journal
-                </span>
-                <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-1">
-                  {metricCounts.phase3}
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  Oral defense & archival
-                </p>
-              </div>
-              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
-                <GraduationCap className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* ========================================================= */}
@@ -432,7 +481,8 @@ export default function ProjectsPage() {
                     cat.id === 'action_needed' && 'text-amber-500',
                     cat.id === 'capstone_1' && 'text-amber-500',
                     cat.id === 'capstone_2' && 'text-blue-500',
-                    cat.id === 'capstone_3' && 'text-emerald-500',
+                    cat.id === 'capstone_3' && 'text-indigo-500',
+                    cat.id === 'capstone_4' && 'text-emerald-500',
                   )}
                 />
                 <span>{cat.label}</span>
@@ -598,256 +648,19 @@ export default function ProjectsPage() {
         )}
 
         {/* ========================================================= */}
-        {/* 5. REDESIGNED INSTITUTIONAL PROJECT CARDS                 */}
+        {/* 5. REDESIGNED INSTITUTIONAL PROJECT CARDS (MEMOIZED)      */}
         {/* ========================================================= */}
         {!isLoading && projects.length > 0 && (
           <div className="space-y-3">
-            {projects.map((project) => {
-              const isArchived =
-                Boolean(project.isArchived) || project.projectStatus === PROJECT_STATUSES.ARCHIVED;
-              const numericPhase = Number(project.capstonePhase ?? 1);
-              const isProposalPhase = !isArchived && project.titleStatus !== 'approved';
-
-              // Defensive Entity Prefix Normalization (AGENTS.md Rule 14)
-              const rawTeamName = project.teamId?.name || 'Team';
-              const cleanTeamName = rawTeamName.replace(/^Team\s+/i, '').trim();
-
-              const proposalCount = Array.isArray(project.titleProposals)
-                ? project.titleProposals.length
-                : 0;
-
-              // Display Title
-              const displayTitle = isArchived
-                ? project.title
-                : isProposalPhase
-                  ? `Team ${cleanTeamName} Title Proposal`
-                  : project.title;
-
-              // Priority / Action Needed Indicator
-              const isActionNeeded =
-                project.titleStatus === 'submitted' ||
-                project.titleStatus === 'revision_required' ||
-                project.titleStatus === 'pending_modification';
-
-              // Phase Styling & Semantic Colors
-              let phaseBadgeConfig = {
-                label: `Capstone ${numericPhase}`,
-                icon: Layers,
-                className:
-                  'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
-              };
-
-              if (numericPhase === 1 || isProposalPhase) {
-                phaseBadgeConfig = {
-                  label: 'Phase 1: Title Defense',
-                  icon: Sparkles,
-                  className:
-                    'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-                };
-              } else if (numericPhase === 2) {
-                phaseBadgeConfig = {
-                  label: 'Phase 2: Manuscripts',
-                  icon: BookOpen,
-                  className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-                };
-              } else if (numericPhase === 3) {
-                phaseBadgeConfig = {
-                  label: 'Phase 3: System Dev',
-                  icon: Layers,
-                  className:
-                    'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
-                };
-              } else if (numericPhase >= 4) {
-                phaseBadgeConfig = {
-                  label: 'Phase 4: Final Defense',
-                  icon: GraduationCap,
-                  className:
-                    'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-                };
-              }
-
-              // Contextual Callout Banner
-              let calloutBanner = null;
-              if (project.titleStatus === 'submitted') {
-                calloutBanner = (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 text-xs">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      <strong>
-                        {proposalCount} candidate proposal{proposalCount !== 1 ? 's' : ''} submitted
-                      </strong>{' '}
-                      — Awaiting instructor deliberation & rubric evaluation.
-                    </span>
-                  </div>
-                );
-              } else if (project.titleStatus === 'revision_required') {
-                calloutBanner = (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25 text-xs">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      <strong>Title Revision Required</strong> — Awaiting updated title submission
-                      from proponents.
-                    </span>
-                  </div>
-                );
-              } else if (project.titleStatus === 'approved') {
-                calloutBanner = (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 text-xs">
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      <strong>Title Approved</strong> — Project unlocked for manuscript, prototype,
-                      and defense workflow.
-                    </span>
-                  </div>
-                );
-              }
-
-              // Proponent & Committee Metadata
-              const members = project.teamId?.members || [];
-              const leader = members.find((m) => m._id === project.teamId?.leaderId) || members[0];
-              const leaderName = leader
-                ? `${leader.firstName || ''} ${leader.lastName || ''}`.trim()
-                : '';
-              const memberCount = members.length;
-
-              const adviser = project.adviserId;
-              const adviserName = adviser
-                ? `${adviser.firstName || ''} ${adviser.lastName || ''}`.trim()
-                : '';
-
-              // Contextual Action Button Label
-              let actionLabel = 'Review Project';
-              if (isProposalPhase || numericPhase === 1) {
-                actionLabel = 'Deliberate Proposals';
-              } else if (numericPhase === 2) {
-                actionLabel = 'Review Manuscript & ADM';
-              } else if (numericPhase === 3) {
-                actionLabel = 'Inspect Prototype & Gantt';
-              } else if (numericPhase >= 4) {
-                actionLabel = 'Review Final Defense';
-              }
-
-              const PhaseIcon = phaseBadgeConfig.icon;
-
-              return (
-                <Card
-                  key={project._id}
-                  ref={project._id === highlightedProjectId ? highlightedProjectRef : undefined}
-                  onClick={() => navigate(`/projects/${project._id}`)}
-                  className={cn(
-                    'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 cursor-pointer',
-                    isActionNeeded && 'border-l-4 border-l-amber-500 dark:border-l-amber-400',
-                    project._id === highlightedProjectId && 'ring-2 ring-primary/40 bg-primary/5',
-                  )}
-                >
-                  <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3">
-                    {/* 1. Top Badges & Metadata Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {/* Phase Pill */}
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shadow-2xs',
-                            phaseBadgeConfig.className,
-                          )}
-                        >
-                          <PhaseIcon className="h-3 w-3 shrink-0" />
-                          <span>{phaseBadgeConfig.label}</span>
-                        </span>
-
-                        {/* Academic Year & Section */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-mono">
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          <span>{project.academicYear || '2024-2025'}</span>
-                          {project.sectionId?.name && <span>• {project.sectionId.name}</span>}
-                        </span>
-
-                        {/* Team Name */}
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted/80 text-muted-foreground border border-border/50 font-medium">
-                          <Users className="h-3 w-3 shrink-0" />
-                          <span>Team {cleanTeamName}</span>
-                        </span>
-                      </div>
-
-                      {/* Right: Status Badges */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {!isArchived && <TitleStatusBadge status={project.titleStatus} />}
-                        <ProjectStatusBadge status={project.projectStatus} />
-                      </div>
-                    </div>
-
-                    {/* 2. Main Title & Review Banner */}
-                    <div className="space-y-2">
-                      <div>
-                        <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                          {displayTitle}
-                        </h3>
-                        {isProposalPhase && project.title && project.title !== displayTitle && (
-                          <p className="text-xs text-muted-foreground italic mt-0.5 truncate">
-                            Candidate Focus: {project.title}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Review Context Callout Banner */}
-                      {calloutBanner}
-                    </div>
-
-                    {/* 3. Bottom Roster, Adviser & Action Trigger Row */}
-                    <div className="pt-2.5 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-muted-foreground">
-                      {/* Roster & Adviser Info */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                        {/* Members */}
-                        <div className="flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-                          <span>
-                            {leaderName ? (
-                              <strong className="text-foreground">{leaderName} (Lead)</strong>
-                            ) : (
-                              'Team'
-                            )}
-                            {memberCount > 1 && (
-                              <span>
-                                {' '}
-                                + {memberCount - 1} member{memberCount > 2 ? 's' : ''}
-                              </span>
-                            )}
-                          </span>
-                        </div>
-
-                        {/* Adviser */}
-                        <div className="flex items-center gap-1.5">
-                          <UserCheck className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0" />
-                          {adviserName ? (
-                            <span>
-                              Adviser: <strong className="text-foreground">{adviserName}</strong>
-                            </span>
-                          ) : (
-                            <span className="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3 shrink-0" /> Adviser Unassigned
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action Trigger Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-3 text-xs font-semibold gap-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0 self-end sm:self-auto cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/projects/${project._id}`);
-                        }}
-                      >
-                        <span>{actionLabel}</span>
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {projects.map((project) => (
+              <ProjectCohortCard
+                key={project._id}
+                project={project}
+                isHighlighted={project._id === highlightedProjectId}
+                highlightedRef={highlightedProjectRef}
+                onNavigate={handleNavigateProject}
+              />
+            ))}
           </div>
         )}
 

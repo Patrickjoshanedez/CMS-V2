@@ -279,6 +279,23 @@ App
 - **OriginalityBadge** — colour-coded badge (green ≥80%, yellow ≥60%, red <60%) with status-aware states (queued, processing, failed)
 - **PlagiarismReport** — full report card with SVG score ring, matched sources table, loading/error/empty states
 
+### Plagiarism & Similarity Detection Engine Architecture
+
+The plagiarism detection subsystem employs a calibrated **Two-Stage HybridSourceTracker (HST)** architecture combining syntactic fingerprinting with neural semantic search:
+
+| Parameter | Specification | Notes |
+| :--- | :--- | :--- |
+| **Embedding Model** | `BAAI/bge-m3` | Unified dense + sparse lexical representations |
+| **Dense Dimensions** | `1,024` | L2-normalized dense latent semantic head |
+| **Context Window** | `8,192 tokens` | Full chapter / long-document input capability |
+| **Batch Size** | `16` | Segment batch encoding forward pass |
+| **Memory Footprint** | `~1.2 GB` | In-memory model residency on host/container |
+| **CPU Thread Clamp** | `2` (`TORCH_NUM_THREADS = 2`) | Prevents CPU core starvation across services |
+| **Lexical Engine** | Winnowing (Mersenne-61 Rabin-Karp) | $k=7$ gram, $w=4$ window span fingerprinting |
+| **Vector Store** | ChromaDB HNSW Index | $O(\log N)$ nearest neighbor candidate filtering |
+| **Composite Score Formula** | $S_{\text{comp}} = 0.50 \cdot S_{\text{winnow}} + 0.30 \cdot S_{\text{dense}} + 0.20 \cdot S_{\text{sparse}}$ | Calibrated multi-source score |
+| **Resilient Fast Fallback** | In-process Node.js Winnowing | Guarantees instant sub-second scan completion |
+
 ### Notification Hooks (`useNotifications.js`)
 
 - `notificationKeys` factory for cache key management

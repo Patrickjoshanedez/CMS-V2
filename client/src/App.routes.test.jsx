@@ -90,10 +90,106 @@ describe('App role-protected routes', () => {
             <Route
               path="/secretary-review"
               element={
+                <RoleRoute allowedRoles={[ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}>
+                  <div>Secretary Review Content</div>
+                </RoleRoute>
+              }
+            />
+            <Route path="/forbidden" element={<div>403 Forbidden</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('403 Forbidden');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('shows 403 forbidden page for instructor navigating to /secretary-review (strictly excluded from committees)', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    mockState.user = { _id: 'inst-1', role: ROLES.INSTRUCTOR };
+
+    act(() => {
+      root.render(
+        <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/secretary-review']}>
+          <Routes>
+            <Route
+              path="/secretary-review"
+              element={
+                <RoleRoute allowedRoles={[ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}>
+                  <div>Secretary Review Content</div>
+                </RoleRoute>
+              }
+            />
+            <Route path="/forbidden" element={<div>403 Forbidden</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('403 Forbidden');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('shows 403 forbidden page for student navigating to /users, /reports, or /admin/audit', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    mockState.user = { _id: 'student-1', role: ROLES.STUDENT };
+
+    act(() => {
+      root.render(
+        <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/users']}>
+          <Routes>
+            <Route
+              path="/users"
+              element={
+                <RoleRoute allowedRoles={[ROLES.INSTRUCTOR]}>
+                  <div>User Management Content</div>
+                </RoleRoute>
+              }
+            />
+            <Route path="/forbidden" element={<div>403 Forbidden</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+
+    expect(container.textContent).toContain('403 Forbidden');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('shows 403 forbidden page for student navigating to /submissions/:submissionId/review', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    mockState.user = { _id: 'student-1', role: ROLES.STUDENT };
+
+    act(() => {
+      root.render(
+        <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={['/submissions/sub-1/review']}>
+          <Routes>
+            <Route
+              path="/submissions/:submissionId/review"
+              element={
                 <RoleRoute
                   allowedRoles={[ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}
                 >
-                  <div>Secretary Review Content</div>
+                  <div>Submission Review Panel</div>
                 </RoleRoute>
               }
             />
@@ -124,9 +220,7 @@ describe('App role-protected routes', () => {
             <Route
               path="/secretary-review"
               element={
-                <RoleRoute
-                  allowedRoles={[ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}
-                >
+                <RoleRoute allowedRoles={[ROLES.FACULTY, ROLES.PANELIST, ROLES.ADVISER]}>
                   <div>Secretary Review Content</div>
                 </RoleRoute>
               }

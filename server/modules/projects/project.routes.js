@@ -481,6 +481,13 @@ router.get(
   projectController.getProject,
 );
 
+// Stream or download approved project manuscript (archived capstones or authorized project viewers)
+router.get(
+  '/:projectId/manuscript',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.STUDENT),
+  projectController.getProjectManuscript,
+);
+
 // List prototypes for a project (any authenticated user)
 router.get('/:id/prototypes', projectController.getPrototypes);
 

@@ -9,8 +9,7 @@ import { plagiarismService } from '@/services/plagiarismService';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const MAX_FILE_SIZE_MB = 25;
-const DEFAULT_SEMANTIC_MODEL =
-  import.meta.env.VITE_ARCHIVE_SEMANTIC_MODEL || 'nomic-embed-text-v2-moe:latest';
+const DEFAULT_SEMANTIC_MODEL = import.meta.env.VITE_ARCHIVE_SEMANTIC_MODEL || 'BAAI/bge-m3';
 
 function buildValidationError(message) {
   return { type: 'validation', message };
@@ -39,7 +38,7 @@ function getInlineErrorMessage(error) {
   if (isClientTimeout) {
     return {
       type: 'server',
-      message: 'Scan timed out. Large documents can take up to 60s. Please try again.',
+      message: 'Scan timed out. Please try again or verify network connectivity.',
     };
   }
   if (status === 429) {

@@ -21,7 +21,7 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
         {scanning ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Analyzing document…
+            Analyzing document with BAAI/bge-m3 & Winnowing…
           </>
         ) : (
           <>
@@ -38,7 +38,7 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
             <div className="cms-fluid-track h-full w-2/5 rounded-full bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple" />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Running scan — large documents may take up to 60s</span>
+            <span>Running dual-engine scan (BAAI/bge-m3 + Winnowing)</span>
             <span className="font-mono font-semibold tabular-nums text-foreground">
               {formatElapsed(elapsedSeconds)}
             </span>
