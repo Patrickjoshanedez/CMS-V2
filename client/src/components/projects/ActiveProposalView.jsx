@@ -59,6 +59,18 @@ export default function ActiveProposalView({ project, proposal, index, canVote }
         });
       }
       if (vote === 'Approve') {
+        const scheduleStatus = project?.defenseSchedule?.status;
+        const hasScheduleDate = Boolean(project?.defenseSchedule?.date);
+        const isScheduledOrDone =
+          (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
+
+        if (!isScheduledOrDone) {
+          toast.error(
+            'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
+          );
+          return;
+        }
+
         if (window.confirm('Set this proposal as the officially approved title?')) {
           await approveMutation.mutateAsync({ projectId: project._id, proposalId: index });
           toast.success('Title has been officially approved!');

@@ -327,6 +327,51 @@ const actionDoneMatrixItemSchema = new mongoose.Schema(
   { _id: true },
 );
 
+const admSignaturesSchema = new mongoose.Schema(
+  {
+    secretary: {
+      endorsed: { type: Boolean, default: false },
+      endorsedAt: { type: Date, default: null },
+      signatoryName: { type: String, default: '' },
+      notes: { type: String, default: '' },
+      signatureDataUrl: { type: String, default: null },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
+    adviser: {
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date, default: null },
+      signatoryName: { type: String, default: '' },
+      signatureDataUrl: { type: String, default: null },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
+    instructor: {
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date, default: null },
+      signatoryName: { type: String, default: '' },
+      signatureDataUrl: { type: String, default: null },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
+    panelists: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        role: { type: String, default: 'Panel Member' },
+        signed: { type: Boolean, default: false },
+        signedAt: { type: Date, default: null },
+        signatoryName: { type: String, default: '' },
+        signatureDataUrl: { type: String, default: null },
+      },
+    ],
+    chair: {
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date, default: null },
+      signatoryName: { type: String, default: '' },
+      signatureDataUrl: { type: String, default: null },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
+  },
+  { _id: false },
+);
+
 const titleProposalMetadataSchema = new mongoose.Schema(
   {
     title: {
@@ -782,49 +827,31 @@ const projectSchema = new mongoose.Schema(
       default: 'internal',
     },
     admSignatures: {
-      secretary: {
-        endorsed: { type: Boolean, default: false },
-        endorsedAt: { type: Date, default: null },
-        signatoryName: { type: String, default: '' },
-        notes: { type: String, default: '' },
-        signatureDataUrl: { type: String, default: null },
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      },
-      adviser: {
-        signed: { type: Boolean, default: false },
-        signedAt: { type: Date, default: null },
-        signatoryName: { type: String, default: '' },
-        signatureDataUrl: { type: String, default: null },
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      },
-      instructor: {
-        signed: { type: Boolean, default: false },
-        signedAt: { type: Date, default: null },
-        signatoryName: { type: String, default: '' },
-        signatureDataUrl: { type: String, default: null },
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      },
-      panelists: [
-        {
-          userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-          role: { type: String, default: 'Panel Member' },
-          signed: { type: Boolean, default: false },
-          signedAt: { type: Date, default: null },
-          signatoryName: { type: String, default: '' },
-          signatureDataUrl: { type: String, default: null },
-        },
-      ],
-      chair: {
-        signed: { type: Boolean, default: false },
-        signedAt: { type: Date, default: null },
-        signatoryName: { type: String, default: '' },
-        signatureDataUrl: { type: String, default: null },
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-      },
+      type: admSignaturesSchema,
+      default: () => ({}),
+    },
+    admSignaturesByMilestone: {
+      CAPSTONE_1: { type: admSignaturesSchema, default: () => ({}) },
+      CAPSTONE_2: { type: admSignaturesSchema, default: () => ({}) },
+      CAPSTONE_3: { type: admSignaturesSchema, default: () => ({}) },
+    },
+    admReviewTypeByMilestone: {
+      CAPSTONE_1: { type: String, enum: ['internal', 'external'], default: 'internal' },
+      CAPSTONE_2: { type: String, enum: ['internal', 'external'], default: 'internal' },
+      CAPSTONE_3: { type: String, enum: ['internal', 'external'], default: 'internal' },
     },
     actionDoneMatrix: {
       type: [actionDoneMatrixItemSchema],
       default: [],
+    },
+    secretaryMinutes: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({}),
+    },
+    secretaryMinutesByMilestone: {
+      CAPSTONE_1: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+      CAPSTONE_2: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+      CAPSTONE_3: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     },
   },
   {
@@ -835,7 +862,7 @@ const projectSchema = new mongoose.Schema(
 );
 
 // Synchronize stage with capstonePhase if not explicitly set
-projectSchema.pre('save', function (next) {
+projectSchema.pre('save', function () {
   if (this.isModified('capstonePhase') && !this.isModified('stage')) {
     if (this.capstonePhase === 1) this.stage = 'capstone_1';
     else if (this.capstonePhase === 2) this.stage = 'capstone_2';
@@ -851,7 +878,6 @@ projectSchema.pre('save', function (next) {
       'adm_v1',
     ];
   }
-  next();
 });
 
 // --- Indexes ---

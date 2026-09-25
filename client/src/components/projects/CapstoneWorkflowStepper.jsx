@@ -205,7 +205,8 @@ export default function CapstoneWorkflowStepper({
   const hasPanelists = panelCount > 0 || (project?.committee?.panelists?.length || 0) > 0;
   const adviserObj = project?.adviserId;
   const hasAdviser = Boolean(adviserObj);
-  const isCommitteeComplete = hasAdviser && panelCount >= 3;
+  const hasSecretary = Boolean(project?.secretaryId);
+  const isCommitteeComplete = hasAdviser && hasSecretary && panelCount >= 3;
 
   // Executive KPI derivations
   const totalEvals = project?.evaluations?.length || 0;

@@ -235,6 +235,12 @@ export const removePanelistSchema = z.object({
   panelistId: objectId,
 });
 
+/* ───── Assign secretary (instructor action) ───── */
+
+export const assignSecretarySchema = z.object({
+  secretaryId: objectId,
+});
+
 /* ───── Set deadlines (instructor/adviser action) ───── */
 
 export const setDeadlinesSchema = z.object({

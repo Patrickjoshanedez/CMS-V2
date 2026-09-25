@@ -217,7 +217,7 @@ describe('DefenseSchedulingPage', () => {
       renderComponent();
     });
 
-    expect(container.textContent).toContain('Defense Scheduling Center');
+    expect(container.textContent).toContain('Scheduling Center');
     expect(container.textContent).toContain('Instructor Command');
 
     // KPI cards

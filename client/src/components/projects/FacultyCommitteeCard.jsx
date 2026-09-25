@@ -1,13 +1,19 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useQuery } from '@tanstack/react-query';
 import { userService } from '@/services/authService';
-import { useAssignAdviser, useAssignPanelist, useRemovePanelist } from '@/hooks/useProjects';
+import {
+  useAssignAdviser,
+  useAssignSecretary,
+  useRemoveSecretary,
+  useAssignPanelist,
+  useRemovePanelist,
+} from '@/hooks/useProjects';
 import { getFullName, getProjectAuthors } from '@/pages/projects/projectDetailUtils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import FacultySearchCombobox from '@/components/teams/FacultySearchCombobox';
 import {
   Users,
   Search,
@@ -22,6 +28,7 @@ import {
   CheckCircle2,
   Briefcase,
   UserCheck,
+  FileSignature,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -74,18 +81,7 @@ export function getWorkloadStatus(advisedCount = 2) {
  * - Proponent Team Roster (FRAD2) with 5 standardized technical roles
  */
 export default function FacultyCommitteeCard({ project = {}, canManage = false }) {
-  const [adviserQuery, setAdviserQuery] = useState('');
-  const [showAdviserResults, setShowAdviserResults] = useState(false);
-  const [panelistQuery, setPanelistQuery] = useState('');
-  const [debouncedPanelistQuery, setDebouncedPanelistQuery] = useState('');
-  const [showPanelistResults, setShowPanelistResults] = useState(false);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedPanelistQuery(panelistQuery.trim()), 250);
-    return () => window.clearTimeout(t);
-  }, [panelistQuery]);
-
-  // Query eligible faculty members for adviser and committee appointments
+  // Query eligible faculty members for adviser, secretary, and committee appointments
   const { data: eligibleFaculty = [] } = useQuery({
     queryKey: ['users', 'faculty-committee-eligible'],
     queryFn: async () => {
@@ -100,19 +96,28 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
   const assignAdviser = useAssignAdviser({
     onSuccess: () => {
       toast.success('Faculty Adviser appointed successfully!');
-      setAdviserQuery('');
-      setShowAdviserResults(false);
     },
     onError: (err) =>
       toast.error(err.response?.data?.error?.message || 'Failed to appoint faculty adviser.'),
   });
 
+  const assignSecretary = useAssignSecretary({
+    onSuccess: () => {
+      toast.success('Committee Secretary appointed successfully!');
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to appoint committee secretary.'),
+  });
+
+  const removeSecretary = useRemoveSecretary({
+    onSuccess: () => toast.success('Committee secretary removed.'),
+    onError: (err) =>
+      toast.error(err.response?.data?.error?.message || 'Failed to remove committee secretary.'),
+  });
+
   const assignPanelist = useAssignPanelist({
     onSuccess: () => {
       toast.success('Defense Panelist appointed successfully!');
-      setPanelistQuery('');
-      setDebouncedPanelistQuery('');
-      setShowPanelistResults(false);
     },
     onError: (err) =>
       toast.error(err.response?.data?.error?.message || 'Failed to appoint defense panelist.'),
@@ -130,36 +135,45 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
   const adviserName = hasAdviser ? getFullName(adviserObj) : 'Unassigned';
   const adviserEmail = adviserObj?.email || '';
 
+  const secretaryObj = project.secretaryId;
+  const hasSecretary = Boolean(secretaryObj);
+  const secretaryName = hasSecretary ? getFullName(secretaryObj) : 'Unassigned';
+  const secretaryEmail = secretaryObj?.email || '';
+
   const currentPanelists = project.panelistIds || [];
   const panelistCount = currentPanelists.length;
-  const assignedIds = new Set(currentPanelists.map((p) => (p._id || p).toString()));
-  if (adviserObj?._id) assignedIds.add(adviserObj._id.toString());
 
-  const hasSecretary = Boolean(project.secretaryId);
-  const secretaryObj = project.secretaryId;
+  // Institutional Rule 3: Defense committee consists of 1 Adviser, 1 Secretary, and 3 Panelists
+  const isCommitteeComplete = hasAdviser && hasSecretary && panelistCount >= 3;
 
-  // Full Committee requires 1 Adviser and at least 3 appointed Panelists
-  const isCommitteeComplete = hasAdviser && panelistCount >= 3;
-
-  // Filter eligible faculty excluding already assigned
-  const availablePanelists = useMemo(() => {
-    return eligibleFaculty.filter((u) => {
-      if (assignedIds.has(u._id)) return false;
-      if (!debouncedPanelistQuery) return true;
-      const q = debouncedPanelistQuery.toLowerCase();
-      const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
-      return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+  // Mutual exclusion conflict maps for each appointment slot
+  const adviserConflictMap = useMemo(() => {
+    const map = {};
+    if (secretaryObj?._id) map[String(secretaryObj._id)] = 'Secretary';
+    currentPanelists.forEach((p, idx) => {
+      map[String(p._id || p)] = idx === 0 ? 'Panel Chair' : 'Panel Member';
     });
-  }, [eligibleFaculty, assignedIds, debouncedPanelistQuery]);
+    return map;
+  }, [secretaryObj, currentPanelists]);
 
-  const availableAdvisers = useMemo(() => {
-    if (!adviserQuery.trim()) return eligibleFaculty;
-    const q = adviserQuery.toLowerCase();
-    return eligibleFaculty.filter((u) => {
-      const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
-      return name.includes(q) || (u.email || '').toLowerCase().includes(q);
+  const secretaryConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserObj?._id) map[String(adviserObj._id)] = 'Adviser';
+    currentPanelists.forEach((p, idx) => {
+      map[String(p._id || p)] = idx === 0 ? 'Panel Chair' : 'Panel Member';
     });
-  }, [eligibleFaculty, adviserQuery]);
+    return map;
+  }, [adviserObj, currentPanelists]);
+
+  const panelistConflictMap = useMemo(() => {
+    const map = {};
+    if (adviserObj?._id) map[String(adviserObj._id)] = 'Adviser';
+    if (secretaryObj?._id) map[String(secretaryObj._id)] = 'Secretary';
+    currentPanelists.forEach((p, idx) => {
+      map[String(p._id || p)] = idx === 0 ? 'Panel Chair' : 'Panel Member';
+    });
+    return map;
+  }, [adviserObj, secretaryObj, currentPanelists]);
 
   const copyToClipboard = (text, label) => {
     if (!text) return;
@@ -168,6 +182,7 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
   };
 
   const adviserWorkload = getWorkloadStatus(project?.adviserAdvisedCount || 2);
+  const secretaryWorkload = getWorkloadStatus(project?.secretaryAdvisedCount || 2);
 
   return (
     <Card
@@ -250,61 +265,109 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
 
           {/* Searchable Adviser Combobox for Course Instructors */}
           {canManage && (
-            <div className="relative pt-1">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Assign or change adviser..."
-                  className="pl-8 h-8 text-xs bg-background"
-                  value={adviserQuery}
-                  onChange={(e) => {
-                    setAdviserQuery(e.target.value);
-                    setShowAdviserResults(true);
-                  }}
-                  onFocus={() => setShowAdviserResults(true)}
-                  onBlur={() => window.setTimeout(() => setShowAdviserResults(false), 200)}
-                  autoComplete="off"
-                />
-              </div>
-              {showAdviserResults && adviserQuery.trim().length >= 1 && (
-                <div className="absolute left-0 right-0 top-10 z-40 max-h-48 overflow-auto rounded-lg border border-border bg-popover shadow-xl">
-                  {availableAdvisers.length > 0 ? (
-                    <ul className="py-1">
-                      {availableAdvisers.map((u) => (
-                        <li key={u._id}>
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted/70 transition-colors cursor-pointer"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              assignAdviser.mutate({ projectId: project._id, adviserId: u._id });
-                            }}
-                          >
-                            <UserPlus className="h-3.5 w-3.5 text-primary shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">
-                              <span className="block font-medium text-foreground">
-                                {u.firstName} {u.lastName}
-                              </span>
-                              <span className="block text-[10px] text-muted-foreground truncate">
-                                {u.email}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                      No matching faculty found.
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="pt-1">
+              <FacultySearchCombobox
+                id="adviser-search-combobox"
+                value={adviserObj?._id || ''}
+                onChange={(facultyId) => {
+                  if (facultyId) {
+                    assignAdviser.mutate({ projectId: project._id, adviserId: facultyId });
+                  }
+                }}
+                facultyList={eligibleFaculty}
+                conflictMap={adviserConflictMap}
+                placeholder={
+                  hasAdviser ? 'Assign or change adviser...' : '-- Search & assign adviser --'
+                }
+                disabled={assignAdviser.isPending}
+              />
             </div>
           )}
         </div>
 
-        {/* SECTION 2: DEFENSE COMMITTEE PANEL */}
+        {/* SECTION 2: COMMITTEE SECRETARY */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <FileSignature className="h-3.5 w-3.5 text-primary" />
+              Committee Secretary
+            </span>
+            {hasSecretary && (
+              <Badge variant={secretaryWorkload.variant} className={secretaryWorkload.className}>
+                {secretaryWorkload.label}
+              </Badge>
+            )}
+          </div>
+
+          <div className="p-3 rounded-xl border border-border/70 bg-background shadow-2xs flex items-start justify-between gap-2 group">
+            <div className="space-y-1 min-w-0">
+              <p className="font-bold text-foreground text-sm truncate">{secretaryName}</p>
+              {secretaryEmail ? (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                  <Mail className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                  <span className="truncate">{secretaryEmail}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground italic">
+                  Secretary appointment pending
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {secretaryEmail && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                  onClick={() => copyToClipboard(secretaryEmail, 'Secretary email')}
+                  title="Copy Secretary Email"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              )}
+
+              {hasSecretary && canManage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+                  onClick={() => removeSecretary.mutate({ projectId: project._id })}
+                  disabled={removeSecretary.isPending}
+                  title="Unassign Secretary"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Searchable Secretary Combobox for Course Instructors */}
+          {canManage && (
+            <div className="pt-1">
+              <FacultySearchCombobox
+                id="secretary-search-combobox"
+                value={secretaryObj?._id || ''}
+                onChange={(facultyId) => {
+                  if (facultyId) {
+                    assignSecretary.mutate({ projectId: project._id, secretaryId: facultyId });
+                  } else if (hasSecretary) {
+                    removeSecretary.mutate({ projectId: project._id });
+                  }
+                }}
+                facultyList={eligibleFaculty}
+                conflictMap={secretaryConflictMap}
+                placeholder={
+                  hasSecretary ? 'Change committee secretary...' : '-- Search & assign secretary --'
+                }
+                disabled={assignSecretary.isPending || removeSecretary.isPending}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 3: DEFENSE COMMITTEE PANEL */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -399,56 +462,20 @@ export default function FacultyCommitteeCard({ project = {}, canManage = false }
 
           {/* Searchable Panelist Combobox for Instructors */}
           {canManage && panelistCount < 3 && (
-            <div className="relative pt-1">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Appoint defense panelist..."
-                  className="pl-8 h-8 text-xs bg-background"
-                  value={panelistQuery}
-                  onChange={(e) => {
-                    setPanelistQuery(e.target.value);
-                    setShowPanelistResults(true);
-                  }}
-                  onFocus={() => setShowPanelistResults(true)}
-                  onBlur={() => window.setTimeout(() => setShowPanelistResults(false), 200)}
-                  autoComplete="off"
-                />
-              </div>
-              {showPanelistResults && panelistQuery.trim().length >= 1 && (
-                <div className="absolute left-0 right-0 top-10 z-30 max-h-48 overflow-auto rounded-lg border border-border bg-popover shadow-xl">
-                  {availablePanelists.length > 0 ? (
-                    <ul className="py-1">
-                      {availablePanelists.map((u) => (
-                        <li key={u._id}>
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted/70 transition-colors cursor-pointer"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              assignPanelist.mutate({ projectId: project._id, panelistId: u._id });
-                            }}
-                          >
-                            <UserPlus className="h-3.5 w-3.5 text-primary shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">
-                              <span className="block font-medium text-foreground">
-                                {u.firstName} {u.lastName}
-                              </span>
-                              <span className="block text-[10px] text-muted-foreground truncate">
-                                {u.email}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                      No matching faculty panelists found.
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="pt-1">
+              <FacultySearchCombobox
+                id="panelist-search-combobox"
+                value=""
+                onChange={(facultyId) => {
+                  if (facultyId) {
+                    assignPanelist.mutate({ projectId: project._id, panelistId: facultyId });
+                  }
+                }}
+                facultyList={eligibleFaculty}
+                conflictMap={panelistConflictMap}
+                placeholder="Appoint defense panelist..."
+                disabled={assignPanelist.isPending}
+              />
             </div>
           )}
         </div>

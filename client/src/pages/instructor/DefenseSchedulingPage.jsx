@@ -953,14 +953,14 @@ export default function DefenseSchedulingPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  Defense Scheduling Center
+                  Scheduling Center
                   <Badge variant="outline" className="text-xs font-mono font-normal">
                     Instructor Command
                   </Badge>
                 </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Schedule oral defense hearings, manage committee timeslots, and track defense
-                  readiness across all teams.
+                  Schedule oral defense hearings, configure submission milestone deadlines, manage
+                  committee timeslots, and track defense readiness across all teams.
                 </p>
               </div>
             </div>

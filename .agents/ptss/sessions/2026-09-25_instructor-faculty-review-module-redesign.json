@@ -1,0 +1,53 @@
+{
+  "sessionId": "2026-09-25_instructor-faculty-review-module-redesign",
+  "timestamp": "2026-09-25T18:45:00+08:00",
+  "task": "Instructor/Faculty review module redesign (Capstone 1, 2, 3 tabs unified to compact sectionized format, added manuscripts and publications, eradicated Image 2 citation placeholders)",
+  "skillsUsed": [
+    "anti-slop",
+    "i-harden",
+    "i-critique",
+    "i-distill",
+    "i-typeset",
+    "i-clarify",
+    "frontend-patterns",
+    "verification-loop",
+    "capstone-lifecycle-orchestrator",
+    "asdlc-task-orchestrator"
+  ],
+  "filesModified": [
+    "client/src/components/submissions/ChapterReviewPanel.jsx",
+    "client/src/components/submissions/ChapterReviewPanel.test.jsx",
+    "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone2CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone2CollapsibleSections.test.jsx",
+    "client/src/components/projects/Capstone3CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone3CollapsibleSections.test.jsx",
+    "client/src/pages/projects/ProjectDetailPage.jsx"
+  ],
+  "visualAudits": [
+    "scratch/screenshots/review_capstone1_desktop_light.png",
+    "scratch/screenshots/review_capstone1_desktop_dark.png",
+    "scratch/screenshots/review_capstone1_mobile_light.png",
+    "scratch/screenshots/review_capstone1_mobile_dark.png",
+    "scratch/screenshots/review_capstone2_desktop_light.png",
+    "scratch/screenshots/review_capstone2_desktop_dark.png",
+    "scratch/screenshots/review_capstone2_mobile_light.png",
+    "scratch/screenshots/review_capstone2_mobile_dark.png",
+    "scratch/screenshots/review_capstone3_desktop_light.png",
+    "scratch/screenshots/review_capstone3_desktop_dark.png",
+    "scratch/screenshots/review_capstone3_mobile_light.png",
+    "scratch/screenshots/review_capstone3_mobile_dark.png"
+  ],
+  "verification": {
+    "endpointParity": "UNMATCHED_COUNT=0 (212 Server / 193 Client)",
+    "agenticGovernance": "60/60 checks passed",
+    "unitTests": "91/91 passed across 16 test files",
+    "image2Removed": true
+  },
+  "lessonsLearned": [
+    "ChapterReviewPanel supports extraItems array allowing custom manuscript targets (e.g. Capstone 1 1-3 proposal or Capstone 3 Compiled Final Paper) to render inside the unified chapter progression pipeline without duplicating cards.",
+    "Sectionized cards with collapsible headers (InteractiveGanttChart, ActionDoneMatrixTab, EvaluationPanel, Academic Paper & Journal) provide consistent visual rhythm and prevent scrolling fatigue.",
+    "Removing unbacked UI elements (such as empty citation boxes [APA 7th] and [IEEE] or unpersisted static abstract placeholders) eliminates AI slop and ensures 100% data integrity.",
+    "For Playwright audits on horizontal scrolling tab bars, dispatching with force: true prevents locator click hanging on overflow containers."
+  ]
+}

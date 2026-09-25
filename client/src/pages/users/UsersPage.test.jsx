@@ -84,10 +84,6 @@ vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
 }));
 
-vi.mock('@/components/users/TeamCommitteeAssignmentsView', () => ({
-  default: () => <div data-testid="committee-view" />,
-}));
-
 vi.mock('@/components/users/CreateAcademicNodeDialog', () => ({
   default: () => null,
 }));

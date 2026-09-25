@@ -11,7 +11,11 @@
  */
 import { Router } from 'express';
 import * as submissionController from './submission.controller.js';
-import { extractMinutesToADM } from './secretary.controller.js';
+import {
+  extractMinutesToADM,
+  scanSecretaryMinutes,
+  saveSecretaryMinutes,
+} from './secretary.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
@@ -500,6 +504,29 @@ router.post(
   upload.single('file'),
   validateFile,
   extractMinutesToADM,
+);
+
+/**
+ * POST /secretary/scan-minutes
+ * OCR scan uploaded defense minutes PDF/DOCX and return structured Form OVPAA-F-INS-032 fields.
+ */
+router.post(
+  '/secretary/scan-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  uploadLimiter,
+  upload.single('file'),
+  validateFile,
+  scanSecretaryMinutes,
+);
+
+/**
+ * POST /secretary/save-minutes
+ * Save & synchronize edited Secretary's Minutes form into Project ADM & Defense Minutes.
+ */
+router.post(
+  '/secretary/save-minutes',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.PANELIST, ROLES.STUDENT, ROLES.ADVISER),
+  saveSecretaryMinutes,
 );
 
 /* ────── Inline Document Comments & Canvas Overlays ────── */

@@ -222,6 +222,22 @@ export function useAssignAdviser(options = {}) {
   }, options);
 }
 
+/** Assign a committee secretary to a project (instructor) */
+export function useAssignSecretary(options = {}) {
+  return useProjectMutation(async ({ projectId, secretaryId }) => {
+    const res = await projectService.assignSecretary(projectId, { secretaryId });
+    return res.data;
+  }, options);
+}
+
+/** Remove the committee secretary from a project (instructor) */
+export function useRemoveSecretary(options = {}) {
+  return useProjectMutation(async ({ projectId }) => {
+    const res = await projectService.removeSecretary(projectId);
+    return res.data;
+  }, options);
+}
+
 /** Assign a panelist to a project (instructor) */
 export function useAssignPanelist(options = {}) {
   return useProjectMutation(async ({ projectId, panelistId }) => {

@@ -1,0 +1,25 @@
+{
+  "sessionId": "2026-09-25_fix-panelist-assignment-mongoose9-pre-save-hook",
+  "timestamp": "2026-09-25T21:05:00+08:00",
+  "task": "Resolve 'next is not a function' error when appointing defense panelists in FacultyCommitteeCard",
+  "trigger": "User reported: I can't assign panels, if I add it pops-up 'next is not a function' /anti-slop",
+  "status": "completed",
+  "rootCause": "In Mongoose 9.4.1, document pre-save middleware does not pass a callback 'next' function when executed by Kareem. In project.model.js line 856 and milestoneDeadline.model.js line 90, `pre('save', function (next) { ... next(); })` was still using legacy callback syntax, causing `next` to be undefined and throwing `TypeError: next is not a function` during `project.save()`.",
+  "filesModified": [
+    "server/modules/projects/project.model.js",
+    "server/modules/settings/milestoneDeadline.model.js",
+    "memories/repo/CMS-V2-Technical-Context.md",
+    ".agents/ptss/chat-starter.json"
+  ],
+  "verification": {
+    "targetedUnitTest": "npm test --workspace=server -- tests/unit/project.assign-panelist.test.js (6/6 passed)",
+    "liveApiVerification": "POST /api/projects/:id/panelists returned 200 OK with success: true and message 'Panelist assigned.'",
+    "endpointsParity": "UNMATCHED_COUNT = 0 (214 Server / 195 Client)",
+    "agenticSystemGovernance": "60/60 checks passed"
+  },
+  "lessonsLearned": {
+    "lesson": "Mongoose 9 document pre-save hooks must never declare or call `next()`. Modern Mongoose document middleware functions are synchronous or promise-returning.",
+    "prevention": "Define all Mongoose document middleware as `function ()` or `async function ()` without `next` parameter.",
+    "runbook": "When seeing `TypeError: next is not a function` during document operations, check schema `.pre('save', ...)` and `.pre('validate', ...)` definitions for callback-style `next` parameters."
+  }
+}

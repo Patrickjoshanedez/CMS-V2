@@ -1,0 +1,40 @@
+{
+  "session_id": "2026-09-25_deadline-notifications-scheduling-center-and-ui-ux-refactor",
+  "timestamp": "2026-09-25T19:50:00+08:00",
+  "status": "completed",
+  "task": "Notifications should pop-up on students notification once submissions hits the deadline date set on scheduling center, rename defense scheduling into scheduling center, plan for refactorization of notification, audit and ensure UI/UX fits the golden standard (/plan /anti-slop /i-harden /i-critique /i-distill)",
+  "changes": {
+    "backend": [
+      "server/modules/notifications/notification.model.js: Added 'deadline_due' and 'milestone_deadline_scheduled' to NOTIFICATION_TYPES enum.",
+      "server/modules/settings/deadlineNotification.service.js: Implemented notifyDeadlineScheduled and checkAndDispatchDueDeadlines with deliverable submission checks, idempotency guards, and real-time Socket.IO broadcasts.",
+      "server/modules/settings/milestoneDeadline.controller.js: Integrated deadlineNotificationService into upsertMilestoneDeadline.",
+      "server/modules/notifications/notification.service.js: Wired automatic deadline checks into getNotifications query flow.",
+      "server/server.js: Added 5-minute recurring background deadline check sweep and startup verification with clean shutdown handler.",
+      "server/tests/unit/deadlineNotification.test.js: Added 7/7 comprehensive unit tests."
+    ],
+    "scheduling_center_rename": [
+      "client/src/components/layouts/Sidebar.jsx: Renamed 'Defense Scheduling' to 'Scheduling Center' (path: /scheduling-center).",
+      "client/src/App.jsx: Added route /scheduling-center while preserving transparent backwards-compatible aliases (/defense-schedule, /defense-scheduling).",
+      "client/src/components/layouts/Header.jsx: Updated ROUTE_TITLE_RULES mapping to Scheduling Center and added relative z-30 for dropdown stacking.",
+      "client/src/pages/instructor/DefenseSchedulingPage.jsx: Updated page header and subheader to Scheduling Center."
+    ],
+    "notifications_ui_ux": [
+      "client/src/components/layouts/NotificationBellPopover.jsx: Created quick-preview floating notification popover with unread counter badge, All/Unread tabs, one-click mark read, and direct link to Notifications page.",
+      "client/src/pages/notifications/NotificationsPage.jsx: Refactored with 5 category filter tabs (All, Unread, Deadlines & Milestones, Teams & Committee, Submissions & Reviews), real-time search filtering, distinct deadline_due alert styling (rose accent & badge), card skeletons, and zero-slop UI tokens."
+    ],
+    "audit_log_ui_ux": [
+      "client/src/pages/admin/AuditLogPage.jsx: Golden Standard refactor featuring 4 telemetry KPI cards (Total Events, In Current View, Security/Auth, Active Actors), category quick-filter pills (Auth, Projects, Submissions, Scheduling, Users, System), preserve test selectors (#actionFilter, #startDate, #endDate), slide-over Metadata Inspector Dialog with syntax-highlighted JSON viewer and Copy JSON button, and CSV/JSON data export."
+    ]
+  },
+  "verifications": {
+    "server_unit_tests": "7/7 passed (deadlineNotification.test.js)",
+    "client_header_tests": "5/5 passed (Header.test.jsx)",
+    "client_scheduling_center_tests": "21/21 passed (DefenseSchedulingPage.test.jsx)",
+    "client_notifications_tests": "4/4 passed (NotificationsPage.test.jsx)",
+    "client_audit_log_tests": "5/5 passed (AuditLogPage.test.jsx)",
+    "api_parity": "SERVER=212, CLIENT=193, UNMATCHED=0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "0 errors, 0 warnings",
+    "playwright_visual_audit": "16 captures saved across Desktop (1440x900) & Mobile (390x844) in Light & Dark modes"
+  }
+}

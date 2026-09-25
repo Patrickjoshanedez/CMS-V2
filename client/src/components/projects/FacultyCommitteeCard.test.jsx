@@ -16,6 +16,8 @@ const queryClient = new QueryClient({
 
 const mockListUsers = vi.fn();
 const mockAssignAdviser = vi.fn();
+const mockAssignSecretary = vi.fn();
+const mockRemoveSecretary = vi.fn();
 const mockAssignPanelist = vi.fn();
 const mockRemovePanelist = vi.fn();
 
@@ -29,6 +31,20 @@ vi.mock('@/hooks/useProjects', () => ({
   useAssignAdviser: (opts) => ({
     mutate: (payload) => {
       mockAssignAdviser(payload);
+      if (opts?.onSuccess) opts.onSuccess();
+    },
+    isPending: false,
+  }),
+  useAssignSecretary: (opts) => ({
+    mutate: (payload) => {
+      mockAssignSecretary(payload);
+      if (opts?.onSuccess) opts.onSuccess();
+    },
+    isPending: false,
+  }),
+  useRemoveSecretary: (opts) => ({
+    mutate: (payload) => {
+      mockRemoveSecretary(payload);
       if (opts?.onSuccess) opts.onSuccess();
     },
     isPending: false,
@@ -70,6 +86,13 @@ describe('FacultyCommitteeCard', () => {
       email: 'sjbautista@buksu.edu.ph',
     },
     adviserAdvisedCount: 2,
+    secretaryId: {
+      _id: 'sec-1',
+      firstName: 'Joan Marie',
+      lastName: 'Panes',
+      email: 'joanpanes1@buksu.edu.ph',
+    },
+    secretaryAdvisedCount: 2,
     panelistIds: [
       {
         _id: 'pan-1',
@@ -163,6 +186,11 @@ describe('FacultyCommitteeCard', () => {
     expect(container.textContent).toContain('sjbautista@buksu.edu.ph');
     expect(container.textContent).toContain('Optimal Workload');
 
+    // Secretary
+    expect(container.textContent).toContain('Committee Secretary');
+    expect(container.textContent).toContain('Joan Marie Panes');
+    expect(container.textContent).toContain('joanpanes1@buksu.edu.ph');
+
     // Panelists
     expect(container.textContent).toContain('Defense Panel (3/3)');
     expect(container.textContent).toContain('Leon Mentor');
@@ -178,10 +206,11 @@ describe('FacultyCommitteeCard', () => {
     expect(container.textContent).toContain('Frontend & UI/UX Developer');
   });
 
-  it('displays incomplete committee warning when adviser or panelists are missing', async () => {
+  it('displays incomplete committee warning when adviser, secretary, or panelists are missing', async () => {
     const incompleteProject = {
       ...mockProject,
       adviserId: null,
+      secretaryId: null,
       panelistIds: [{ _id: 'pan-1', firstName: 'Leon', lastName: 'Mentor' }],
     };
 
@@ -191,6 +220,7 @@ describe('FacultyCommitteeCard', () => {
 
     expect(container.textContent).toContain('Incomplete (1/3)');
     expect(container.textContent).toContain('Adviser appointment pending');
+    expect(container.textContent).toContain('Secretary appointment pending');
   });
 
   it('calculates workload status accurately', () => {
@@ -210,11 +240,23 @@ describe('FacultyCommitteeCard', () => {
       renderComponent(incompleteProject, true);
     });
 
-    expect(
-      container.querySelector('input[placeholder="Assign or change adviser..."]'),
-    ).toBeTruthy();
-    expect(
-      container.querySelector('input[placeholder="Appoint defense panelist..."]'),
-    ).toBeTruthy();
+    expect(container.querySelector('#adviser-search-combobox')).toBeTruthy();
+    expect(container.querySelector('#secretary-search-combobox')).toBeTruthy();
+    expect(container.querySelector('#panelist-search-combobox')).toBeTruthy();
+  });
+
+  it('allows unassigning secretary when canManage is true', async () => {
+    await act(async () => {
+      renderComponent(mockProject, true);
+    });
+
+    const unassignSecBtn = container.querySelector('button[title="Unassign Secretary"]');
+    expect(unassignSecBtn).toBeTruthy();
+
+    await act(async () => {
+      unassignSecBtn.click();
+    });
+
+    expect(mockRemoveSecretary).toHaveBeenCalledWith({ projectId: 'proj-101' });
   });
 });

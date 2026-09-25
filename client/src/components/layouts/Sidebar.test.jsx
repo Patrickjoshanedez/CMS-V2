@@ -188,6 +188,7 @@ describe('Sidebar Component', () => {
     const { container, unmount } = renderSidebar({ open: true });
 
     expect(container.textContent).toContain('Instructor Review');
+    expect(container.textContent).toContain('Committee Assignments');
     expect(container.textContent).toContain('Reports');
     expect(container.textContent).toContain('Archived Capstone');
     expect(container.textContent).toContain('Evaluation Rubrics');

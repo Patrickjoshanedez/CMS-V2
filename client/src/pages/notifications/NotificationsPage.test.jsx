@@ -214,4 +214,49 @@ describe('NotificationsPage behavior', () => {
 
     view.unmount();
   });
+
+  it('renders category tabs and filters notifications by category and search keyword', () => {
+    mockUseNotifications.mockReturnValue({
+      data: {
+        notifications: [
+          ...baseNotifications,
+          {
+            _id: 'n-3',
+            type: 'deadline_due',
+            title: 'Urgent: Chapter 1 Submission Due Today',
+            message: 'Milestone deadline reached.',
+            isRead: false,
+            createdAt: '2026-04-10T08:00:00.000Z',
+            metadata: { deadlineId: 'd-1' },
+          },
+        ],
+        unreadCount: 2,
+        pagination: { totalPages: 1 },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const view = renderPage();
+
+    // Verify tabs exist
+    expect(view.container.textContent).toContain('Deadlines & Milestones');
+    expect(view.container.textContent).toContain('Urgent: Chapter 1 Submission Due Today');
+    expect(view.container.textContent).toContain('Deadline Reached');
+
+    // Search filter
+    const searchInput = view.container.querySelector('input[placeholder*="Search notifications"]');
+    expect(searchInput).toBeTruthy();
+
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    act(() => {
+      setter?.call(searchInput, 'Chapter 1');
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(view.container.textContent).toContain('Urgent: Chapter 1 Submission Due Today');
+    expect(view.container.textContent).not.toContain('Welcome message');
+
+    view.unmount();
+  });
 });

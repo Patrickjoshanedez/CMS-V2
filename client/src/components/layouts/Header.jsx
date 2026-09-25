@@ -3,6 +3,7 @@ import { Menu, Bell, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle';
 import TextScaleDropdown from '@/components/TextScaleDropdown';
+import NotificationBellPopover from '@/components/layouts/NotificationBellPopover';
 import { useAuthStore } from '@/stores/authStore';
 import { useUnreadCount } from '@/hooks/useNotifications';
 import { ROLES } from '@cms/shared';
@@ -40,6 +41,12 @@ export const ROUTE_TITLE_RULES = [
   // 4. Projects & Reviews (Faculty/Instructor)
   { pattern: /^\/projects\/[^/]+\/?$/, title: 'Project Details' },
   { pattern: /^\/projects\/?$/, title: 'Instructor Review' },
+  {
+    pattern:
+      /^\/(scheduling-center|defense-schedule|instructor\/defense-schedule|defense-scheduling)\/?$/,
+    title: 'Scheduling Center',
+  },
+  { pattern: /^\/committee-assignments\/?$/, title: 'Committee Assignments' },
   { pattern: /^\/adviser\/team-review\/?$/, title: 'Team Review' },
 
   // 5. Cloud Documents & Templates
@@ -194,7 +201,7 @@ export default function Header({ sidebarOpen, onMenuClick }) {
   return (
     <header
       className={[
-        'flex h-16 shrink-0 items-center justify-between border-b border-slate-700 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
+        'relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-700 dark:border-slate-800 bg-white dark:bg-[#0c1424] px-4 sm:px-6',
         'transition-transform duration-300 ease-in-out',
         hidden ? '-translate-y-full' : 'translate-y-0',
       ].join(' ')}
@@ -225,21 +232,10 @@ export default function Header({ sidebarOpen, onMenuClick }) {
         <h2 className="text-lg font-semibold text-foreground">{pageTitle}</h2>
       </div>
 
-      {/* Right side: notifications, theme toggle, text scale dropdown, user avatar */}
+      {/* Right side: notifications popover, theme toggle, text scale dropdown, user avatar */}
       <div className="flex items-center gap-3">
-        {/* Notifications bell */}
-        <button
-          onClick={() => navigate('/notifications')}
-          aria-label="Notifications"
-          className="relative p-2 text-slate-500 border border-slate-700 rounded-lg hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 bg-white dark:bg-[#0c1424] transition-colors inline-flex items-center justify-center h-9 w-9"
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
+        {/* Notifications Popover */}
+        <NotificationBellPopover />
 
         {/* Theme toggle */}
         <ThemeToggle />

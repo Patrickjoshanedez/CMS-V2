@@ -39,6 +39,9 @@ describe('Header - getPageTitle', () => {
     expect(getPageTitle('/users')).toBe('Users');
     expect(getPageTitle('/documents/manuscripts')).toBe('Manuscript Management');
     expect(getPageTitle('/documents/templates')).toBe('Document Templates');
+    expect(getPageTitle('/scheduling-center')).toBe('Scheduling Center');
+    expect(getPageTitle('/defense-schedule')).toBe('Scheduling Center');
+    expect(getPageTitle('/committee-assignments')).toBe('Committee Assignments');
   });
 
   it('correctly maps archive, reports, and team routes', () => {

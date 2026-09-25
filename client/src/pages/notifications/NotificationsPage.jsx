@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import {
   Bell,
   Check,
@@ -27,6 +28,9 @@ import {
   Trash2,
   Loader2,
   UserCheck,
+  Search,
+  X,
+  ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,11 +45,6 @@ import {
   useDeleteNotification,
   useClearAllNotifications,
 } from '@/hooks/useNotifications';
-
-/**
- * NotificationsPage — in-app notifications centre.
- * Wired to the notifications API with real-time polling (30s).
- */
 
 /** Maps notification types to lucide icons. */
 const ICON_MAP = {
@@ -74,8 +73,11 @@ const ICON_MAP = {
   panelist_removed: ShieldX,
   // Deadline events
   deadlines_set: Clock,
+  deadline_due: AlertTriangle,
+  milestone_deadline_scheduled: Clock,
   // Submission events
   chapter_submitted: BookOpen,
+  proposal_submitted: FileText,
   submission_approved: ShieldCheck,
   submission_revisions_required: FilePen,
   submission_rejected: ShieldX,
@@ -104,6 +106,8 @@ const PROJECT_NOTIFICATION_TYPES = new Set([
   'panelist_selected',
   'panelist_removed',
   'deadlines_set',
+  'deadline_due',
+  'milestone_deadline_scheduled',
   'project_rejected',
   'phase_advanced',
   'prototype_added',
@@ -145,6 +149,14 @@ const TAB_BY_DEFENSE = {
   final: 'capstone_3',
 };
 
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'unread', label: 'Unread' },
+  { id: 'deadlines', label: 'Deadlines & Milestones' },
+  { id: 'teams', label: 'Teams & Committee' },
+  { id: 'submissions', label: 'Submissions & Reviews' },
+];
+
 function getNotificationTarget(notification, role) {
   const metadata = notification?.metadata || {};
   const projectId = metadata.projectId || metadata.project?._id || metadata.projectId;
@@ -165,6 +177,14 @@ function getNotificationTarget(notification, role) {
 
   if (notification.type === 'team_joined' || notification.type === 'team_locked') {
     return '/dashboard';
+  }
+
+  if (
+    notification.type === 'deadline_due' ||
+    notification.type === 'deadlines_set' ||
+    notification.type === 'milestone_deadline_scheduled'
+  ) {
+    return '/project/submissions';
   }
 
   if (SUBMISSION_NOTIFICATION_TYPES.has(notification.type)) {
@@ -226,6 +246,21 @@ function formatTimeAgo(dateString) {
   return `${diffDays}d ago`;
 }
 
+function NotificationCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-border/50 bg-card/60 p-4 space-y-3 animate-pulse">
+      <div className="flex items-start gap-3">
+        <div className="h-9 w-9 rounded-lg bg-muted shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-1/3 bg-muted rounded" />
+          <div className="h-3 w-4/5 bg-muted rounded" />
+          <div className="h-2.5 w-1/4 bg-muted rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NotificationItem({
   notification,
   onOpen,
@@ -260,6 +295,10 @@ function NotificationItem({
     );
   }
 
+  const isDeadlineDue = notification.type === 'deadline_due';
+  const isDeadlinesSet =
+    notification.type === 'deadlines_set' || notification.type === 'milestone_deadline_scheduled';
+
   return (
     <Card
       role="link"
@@ -276,57 +315,119 @@ function NotificationItem({
         }
       }}
       className={cn(
-        'cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        !notification.isRead && 'border-primary/30 bg-primary/5',
+        'group cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs hover:shadow-md border',
+        !notification.isRead && 'border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.05]',
+        isDeadlineDue &&
+          !notification.isRead &&
+          'border-rose-500/50 bg-rose-500/[0.05] dark:bg-rose-500/[0.08]',
       )}
     >
       <CardContent className="flex items-start gap-4 p-4">
+        {/* Type Icon Badge */}
         <div
           className={cn(
-            'mt-0.5 rounded-md p-2',
-            notification.isRead ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary',
+            'shrink-0 mt-0.5 rounded-xl p-2.5 flex items-center justify-center transition-colors',
+            isDeadlineDue
+              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30'
+              : isDeadlinesSet
+                ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/30'
+                : notification.isRead
+                  ? 'bg-muted text-muted-foreground'
+                  : 'bg-primary/10 text-primary ring-1 ring-primary/20',
           )}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-4.5 w-4.5" />
         </div>
-        <div className="flex-1 space-y-1">
-          <p className={cn('text-sm font-medium', notification.isRead && 'font-normal')}>
-            {notification.title}
-          </p>
-          {!notification.isRead && (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-              <span>Unread</span>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground">{notification.message}</p>
-          <p className="text-xs text-muted-foreground">
-            {notification.createdAt
-              ? new Date(notification.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'Just now'}
-          </p>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p
+              className={cn(
+                'text-sm text-foreground',
+                !notification.isRead ? 'font-semibold' : 'font-medium',
+              )}
+            >
+              {notification.title}
+            </p>
+
+            {isDeadlineDue && (
+              <Badge
+                variant="destructive"
+                className="text-[10px] uppercase font-mono tracking-wider px-1.5 py-0.2"
+              >
+                Deadline Reached
+              </Badge>
+            )}
+
+            {isDeadlinesSet && (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono border-blue-500/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.2"
+              >
+                Milestone
+              </Badge>
+            )}
+
+            {!notification.isRead && (
+              <div className="flex items-center gap-1.5 text-xs font-medium text-primary ml-auto sm:ml-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                <span>Unread</span>
+              </div>
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground leading-relaxed">{notification.message}</p>
+
+          <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+            <span>
+              {notification.createdAt
+                ? new Date(notification.createdAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'Just now'}
+            </span>
+            <span>•</span>
+            <span>{formatTimeAgo(notification.createdAt)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpen}
+            title="Open view"
+            aria-label="Open view"
+            className="text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+
           {!notification.isRead && (
             <Button
               variant="ghost"
               size="icon"
               onClick={handleActionClick(onMarkRead, notification._id)}
               aria-label="Mark as read"
+              title="Mark as read"
+              className="text-muted-foreground hover:text-primary"
             >
               <Check className="h-4 w-4" />
             </Button>
           )}
+
           <Button
             variant="ghost"
             size="icon"
             onClick={handleActionClick(onDelete, notification._id)}
             aria-label="Delete notification"
+            title="Delete notification"
             disabled={isDeletePending}
             className="text-muted-foreground hover:text-destructive"
           >
@@ -338,14 +439,39 @@ function NotificationItem({
   );
 }
 
-function EmptyNotifications() {
+function EmptyNotifications({ activeTab = 'all', hasSearch = false, onClearSearch }) {
+  let title = 'No notifications yet';
+  let description = "You'll see updates about your capstone progress, team invites, and more here.";
+
+  if (hasSearch) {
+    title = 'No matching notifications';
+    description = 'No notifications match your search query.';
+  } else if (activeTab === 'unread') {
+    title = 'You are all caught up!';
+    description = 'No unread notifications at this time.';
+  } else if (activeTab === 'deadlines') {
+    title = 'No deadline notifications';
+    description = 'Milestone submission deadlines and schedules will appear here.';
+  } else if (activeTab === 'teams') {
+    title = 'No team notifications';
+    description = 'Team invitations, formations, and committee assignments will appear here.';
+  } else if (activeTab === 'submissions') {
+    title = 'No submission notifications';
+    description = 'Chapter review remarks, approvals, and originality results will appear here.';
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-muted/50 py-16 text-center">
-      <Bell className="mb-4 h-12 w-12 text-muted-foreground" />
-      <h3 className="text-lg font-semibold">No notifications yet</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        You&apos;ll see updates about your capstone progress, team invites, and more here.
-      </p>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 py-16 px-4 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground mb-3">
+        <Bell className="h-6 w-6 stroke-1" />
+      </div>
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 max-w-sm text-xs sm:text-sm text-muted-foreground">{description}</p>
+      {hasSearch && (
+        <Button variant="outline" size="sm" onClick={onClearSearch} className="mt-4 text-xs">
+          Clear search
+        </Button>
+      )}
     </div>
   );
 }
@@ -354,6 +480,8 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const { user, fetchUser } = useAuthStore();
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
@@ -363,7 +491,7 @@ export default function NotificationsPage() {
   const clearAllTriggerRef = useRef(null);
   const dialogRef = useRef(null);
   const cancelButtonRef = useRef(null);
-  const limit = 20;
+  const limit = 25;
 
   useEffect(() => {
     if (!isConfirmOpen) {
@@ -395,6 +523,54 @@ export default function NotificationsPage() {
     onError: () => toast.error('Failed to clear notifications.'),
   });
 
+  const rawNotifications = data?.notifications || [];
+  const unreadCount = data?.unreadCount || 0;
+  const pagination = data?.pagination || {};
+
+  // Filter notifications by category tab and search query
+  const filteredNotifications = useMemo(() => {
+    return rawNotifications.filter((n) => {
+      // Tab filter
+      if (activeTab === 'unread' && n.isRead) return false;
+      if (activeTab === 'deadlines') {
+        const isDeadlineType =
+          n.type === 'deadlines_set' ||
+          n.type === 'deadline_due' ||
+          n.type === 'milestone_deadline_scheduled';
+        if (!isDeadlineType) return false;
+      }
+      if (activeTab === 'teams') {
+        const isTeamType =
+          n.type?.startsWith('team_') ||
+          n.type?.startsWith('committee_') ||
+          n.type?.startsWith('adviser_') ||
+          n.type?.startsWith('panelist_') ||
+          n.type?.startsWith('secretary_');
+        if (!isTeamType) return false;
+      }
+      if (activeTab === 'submissions') {
+        const isSubmissionType =
+          n.type?.startsWith('submission_') ||
+          n.type === 'chapter_submitted' ||
+          n.type === 'proposal_submitted' ||
+          n.type?.startsWith('plagiarism_') ||
+          n.type?.startsWith('evaluation_') ||
+          n.type === 'annotation_added';
+        if (!isSubmissionType) return false;
+      }
+
+      // Keyword search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesTitle = n.title?.toLowerCase().includes(q);
+        const matchesMsg = n.message?.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesMsg) return false;
+      }
+
+      return true;
+    });
+  }, [rawNotifications, activeTab, searchQuery]);
+
   if (!user) {
     fetchUser();
     return (
@@ -405,10 +581,6 @@ export default function NotificationsPage() {
       </DashboardLayout>
     );
   }
-
-  const notifications = data?.notifications || [];
-  const unreadCount = data?.unreadCount || 0;
-  const pagination = data?.pagination || {};
 
   const handleMarkRead = (id) => {
     markAsRead.mutate(id);
@@ -519,16 +691,24 @@ export default function NotificationsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header Ribbon */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
           <div>
-            <h3 className="text-2xl font-bold tracking-tight">Notifications</h3>
-            <p className="text-muted-foreground">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Notifications</h1>
+              {unreadCount > 0 && (
+                <Badge variant="default" className="text-xs px-2 py-0.5 font-mono">
+                  {unreadCount} unread
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {unreadCount > 0
                 ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}.`
-                : 'You\u2019re all caught up.'}
+                : 'You are completely caught up.'}
             </p>
           </div>
+
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <Button
@@ -536,48 +716,102 @@ export default function NotificationsPage() {
                 size="sm"
                 onClick={handleMarkAllRead}
                 disabled={markAllAsRead.isPending}
+                className="gap-1.5 text-xs shadow-xs"
               >
-                <CheckCheck className="mr-2 h-4 w-4" />
+                <CheckCheck className="h-4 w-4" />
                 Mark all read
               </Button>
             )}
-            {notifications.length > 0 && (
+            {rawNotifications.length > 0 && (
               <Button
                 ref={clearAllTriggerRef}
                 variant="outline"
                 size="sm"
                 onClick={handleOpenClearAllConfirm}
                 disabled={clearAll.isPending}
-                className="text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive gap-1.5 text-xs shadow-xs border-destructive/30 hover:bg-destructive/10"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 Clear all
               </Button>
             )}
           </div>
         </div>
 
-        {/* Loading state */}
+        {/* Filter Toolbar: Category Tabs + Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-muted/20 p-2 rounded-xl border border-border/60">
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            {CATEGORY_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setPage(1);
+                }}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-card text-foreground shadow-xs font-semibold border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/50',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search notifications..."
+              className="h-8 pl-8 pr-7 text-xs bg-background"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Loading Skeletons */}
         {isLoading && (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-3">
+            <NotificationCardSkeleton />
+            <NotificationCardSkeleton />
+            <NotificationCardSkeleton />
           </div>
         )}
 
         {/* Error state */}
         {isError && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-center text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-center text-sm text-destructive">
             Failed to load notifications. Please try again later.
           </div>
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && notifications.length === 0 && <EmptyNotifications />}
+        {!isLoading && !isError && filteredNotifications.length === 0 && (
+          <EmptyNotifications
+            activeTab={activeTab}
+            hasSearch={Boolean(searchQuery.trim())}
+            onClearSearch={() => setSearchQuery('')}
+          />
+        )}
 
         {/* Notification list */}
-        {!isLoading && !isError && notifications.length > 0 && (
+        {!isLoading && !isError && filteredNotifications.length > 0 && (
           <div className="space-y-3">
-            {notifications.map((notification) => (
+            {filteredNotifications.map((notification) => (
               <NotificationItem
                 key={notification._id}
                 notification={notification}
@@ -605,7 +839,7 @@ export default function NotificationsPage() {
             >
               Previous
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground font-mono">
               Page {page} of {pagination.totalPages}
             </span>
             <Button
@@ -637,18 +871,18 @@ export default function NotificationsPage() {
             aria-modal="true"
             aria-labelledby="clear-all-dialog-title"
             aria-describedby="clear-all-dialog-description"
-            className="w-full max-w-md border-destructive/30"
+            className="w-full max-w-md border-destructive/30 shadow-xl"
           >
             <CardContent className="space-y-4 p-6">
               <div className="space-y-1">
-                <h4 id="clear-all-dialog-title" className="text-lg font-semibold">
+                <h4 id="clear-all-dialog-title" className="text-lg font-semibold text-foreground">
                   Confirm Action
                 </h4>
                 <p id="clear-all-dialog-description" className="text-sm text-muted-foreground">
                   Clear all notifications? This action cannot be undone.
                 </p>
                 {confirmError && (
-                  <p role="alert" className="text-sm text-destructive">
+                  <p role="alert" className="text-sm text-destructive font-medium">
                     {confirmError}
                   </p>
                 )}
@@ -666,8 +900,9 @@ export default function NotificationsPage() {
                   variant="destructive"
                   onClick={handleClearAll}
                   disabled={clearAll.isPending}
+                  className="gap-1.5"
                 >
-                  {clearAll.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {clearAll.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   Confirm
                 </Button>
               </div>

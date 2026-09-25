@@ -7,6 +7,7 @@ import catchAsync from '../../utils/catchAsync.js';
 import AppError from '../../utils/AppError.js';
 import { HTTP_STATUS, ROLES } from '@cms/shared';
 import { emitToAll } from '../../services/socket.service.js';
+import deadlineNotificationService from './deadlineNotification.service.js';
 
 /**
  * GET /api/settings/deadlines/milestone
@@ -99,6 +100,21 @@ export const upsertMilestoneDeadline = catchAsync(async (req, res) => {
       stage,
       deliverable,
     });
+
+    // Notify affected students about the scheduled milestone deadline
+    deadlineNotificationService.notifyDeadlineScheduled(deadline).catch((err) => {
+      console.warn(
+        '[MilestoneDeadline] Failed to notify students of scheduled deadline:',
+        err.message,
+      );
+    });
+
+    // If deadline date is already in the past or now, immediately check and dispatch due notices
+    if (new Date(deadline.deadlineDate) <= new Date()) {
+      deadlineNotificationService.checkAndDispatchDueDeadlines().catch((err) => {
+        console.warn('[MilestoneDeadline] Failed to check due deadlines:', err.message);
+      });
+    }
   } catch (err) {
     // Non-fatal socket broadcast
   }

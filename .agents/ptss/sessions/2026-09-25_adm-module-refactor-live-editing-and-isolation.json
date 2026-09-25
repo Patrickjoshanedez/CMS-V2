@@ -1,0 +1,51 @@
+{
+  "session_id": "2026-09-25_adm-module-refactor-live-editing-and-isolation",
+  "timestamp": "2026-09-25T21:33:00+08:00",
+  "task": "Refactor Action Done Matrix (ADM) module with live real-time Socket.IO editing, unified Secretary Minutes tab toggle, milestone paper isolation (ADM v1, v2, v3), inline faculty add-row (print-hidden), button cleanup, and removal of Image 1 from Capstone 3 Section 1.",
+  "status": "completed",
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "user_requests_addressed": [
+    "Refactor ADM module while preserving all institutional formats (BukSU Form RU-F-033 / OVPAA-F-INS-032).",
+    "Adjust default editing mode to live real-time: when a faculty/instructor edits a row, updates broadcast immediately via Socket.IO room.",
+    "Include Secretary Minutes in this section with a tab toggle: Action Done Matrix (ADM) and Secretary Minutes (OVPAA-F-INS-032).",
+    "Remove unnecessary buttons: 'Load Institutional Template' and 'Live Defense Session & Minutes' with blue real-time defense sync banner.",
+    "Restrict minutes PDF / OCR upload strictly to the appointed Secretary (canUploadMinutes = Boolean(isUserSecretary)).",
+    "Add an inline row addition interface for faculty/instructor in the ADM table that is strictly hidden on export/print (print:hidden).",
+    "Ensure downloading/printing captures the entire ADM paper only without cutting off contents or pagination bugs.",
+    "Isolate each capstone's ADM (ADM v1, ADM v2, ADM v3) as independent papers; signatures and remarks do not bleed across milestones (admSignaturesByMilestone).",
+    "Remove Image 1 ('6 Compiled Chapter 1–5 or Final Paper') from Capstone 3 Section 1."
+  ],
+  "files_modified": [
+    "server/modules/projects/project.model.js",
+    "server/modules/projects/project.controller.js",
+    "client/src/services/authService.js",
+    "client/src/components/projects/Capstone3CollapsibleSections.jsx",
+    "client/src/components/projects/Capstone3CollapsibleSections.test.jsx",
+    "client/src/components/secretary/SecretaryMinutesDocumentSheet.jsx",
+    "client/src/components/projects/ActionDoneMatrixTab.jsx",
+    "client/src/components/projects/ActionDoneMatrixTab.test.jsx",
+    "scratch/adm_refactor_visual_audit.mjs"
+  ],
+  "verification_evidence": {
+    "server_defense_minutes_tests": "5/5 PASS",
+    "server_adm_auto_progression_tests": "5/5 PASS",
+    "client_adm_tab_tests": "12/12 PASS",
+    "client_capstone3_collapsible_tests": "6/6 PASS",
+    "endpoint_parity": "214 server / 195 client (UNMATCHED_COUNT = 0)",
+    "agentic_governance": "60/60 checks PASS",
+    "playwright_visual_captures": [
+      "01_adm_tab_desktop_dark.png",
+      "02_adm_tab_desktop_light.png",
+      "03_secretary_minutes_tab_desktop_light.png",
+      "04_secretary_minutes_tab_desktop_dark.png",
+      "05_adm_tab_mobile_light.png",
+      "06_adm_tab_mobile_dark.png"
+    ]
+  },
+  "learned_lessons": [
+    "Milestone isolation in MongoDB schemas must store multi-signatory digital signatures in admSignaturesByMilestone keyed by milestone (CAPSTONE_1, CAPSTONE_2, CAPSTONE_3) to prevent signatures from auto-approving other milestone matrices.",
+    "Immediate cell blur flush (handleCellBlur) combined with debounced typing ensures real-time Socket.IO broadcasts (adm:row_updated) occur both as users type and immediately when focus leaves a cell.",
+    "Full-page printing requires dedicated @media print stylesheets ensuring parent overflow: auto and fixed screen heights are reset to height: auto !important and overflow: visible !important.",
+    "Collapsible sections in capstone workflows should use unambiguous semantic data-testid attributes (such as toggle-adm-section) to ensure resilient UI testing."
+  ]
+}

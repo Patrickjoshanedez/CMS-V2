@@ -101,4 +101,62 @@ describe('AuditLogPage', () => {
 
     view.unmount();
   });
+
+  it('TC-AUDIT-004: renders KPI telemetry ribbon and export buttons', () => {
+    const view = renderPage();
+
+    expect(view.container.textContent).toContain('Total Events');
+    expect(view.container.textContent).toContain('Active Actors');
+    expect(view.container.textContent).toContain('CSV');
+    expect(view.container.textContent).toContain('JSON');
+
+    view.unmount();
+  });
+
+  it('TC-AUDIT-005: opens and closes metadata inspector modal on Inspect action', () => {
+    mockUseAuditLogs.mockReturnValue(
+      buildAuditHookResult([
+        {
+          _id: 'log-inspect-1',
+          action: 'submission.uploaded',
+          targetType: 'Submission',
+          targetId: 'sub-123456',
+          description: 'Chapter 1 submitted',
+          actor: { firstName: 'Maria', lastName: 'Santos', email: 'maria@buksu.edu.ph' },
+          actorRole: 'student',
+          metadata: { fileName: 'Chapter1.docx', fileSize: 1048576 },
+          createdAt: '2026-04-10T12:00:00.000Z',
+        },
+      ]),
+    );
+
+    const view = renderPage();
+
+    const inspectBtn = Array.from(view.container.querySelectorAll('button')).find((btn) =>
+      btn.textContent?.includes('Inspect'),
+    );
+    expect(inspectBtn).toBeTruthy();
+
+    act(() => {
+      inspectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const modal = view.container.querySelector('[role="dialog"]');
+    expect(modal).toBeTruthy();
+    expect(view.container.querySelector('#audit-inspector-title')).toBeTruthy();
+    expect(view.container.textContent).toContain('Metadata Payload (JSON)');
+    expect(view.container.textContent).toContain('Chapter1.docx');
+
+    // Close modal
+    const closeBtn = view.container.querySelector('button[aria-label="Close inspector"]');
+    expect(closeBtn).toBeTruthy();
+
+    act(() => {
+      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(view.container.querySelector('[role="dialog"]')).toBeFalsy();
+
+    view.unmount();
+  });
 });

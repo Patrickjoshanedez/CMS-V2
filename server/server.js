@@ -16,9 +16,11 @@ import { initializeSocket } from './services/socket.service.js';
 import { verifyEmailTransport } from './modules/notifications/email.service.js';
 import mongoose from 'mongoose';
 import env from './config/env.js';
+import deadlineNotificationService from './modules/settings/deadlineNotification.service.js';
 
 const PORT = env.PORT;
 let httpServer;
+let deadlineTimer = null;
 let isShuttingDown = false;
 
 /**
@@ -58,6 +60,22 @@ const startServer = async () => {
       console.log(`[server] Running in ${env.NODE_ENV} mode on port ${PORT}`);
       console.log(`[server] Health check: http://localhost:${PORT}/api/health`);
       console.log(`[server] Socket.IO ready for real-time notifications.`);
+
+      // Periodic milestone submission deadline checker (runs every 5 minutes)
+      deadlineTimer = setInterval(
+        () => {
+          deadlineNotificationService.checkAndDispatchDueDeadlines().catch((err) => {
+            console.warn('[DeadlineChecker] Periodic check failed:', err.message);
+          });
+        },
+        5 * 60 * 1000,
+      );
+      deadlineTimer.unref();
+
+      // Initial startup sweep for due deadlines
+      deadlineNotificationService.checkAndDispatchDueDeadlines().catch((err) => {
+        console.warn('[DeadlineChecker] Initial check failed:', err.message);
+      });
     });
   } catch (error) {
     console.error('[server] Failed to start:', error.message);
@@ -123,6 +141,10 @@ const gracefulShutdown = async (signal) => {
     }
 
     clearTimeout(forceExitTimer);
+    if (deadlineTimer) {
+      clearInterval(deadlineTimer);
+      deadlineTimer = null;
+    }
     console.log('[server] Graceful shutdown completed cleanly.');
     process.exit(0);
   } catch (err) {

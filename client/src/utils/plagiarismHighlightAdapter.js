@@ -165,10 +165,24 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
           parentMatch.contextSignal ||
           (semantic >= 0.7 && winnow < 0.3 ? 'paraphrase' : winnow >= 0.8 ? 'verbatim' : 'mixed');
 
+        const pageNum = textPosition.pageNumber || textPosition.position?.pageNumber || 1;
+        const normalizedPosition = {
+          ...textPosition.position,
+          pageNumber: pageNum,
+          boundingRect: {
+            ...textPosition.position.boundingRect,
+            pageNumber: textPosition.position.boundingRect?.pageNumber || pageNum,
+          },
+          rects: (textPosition.position.rects || []).map((r) => ({
+            ...r,
+            pageNumber: r.pageNumber || pageNum,
+          })),
+        };
+
         highlights.push({
           id: `plag-${parentMatch.sourceId || 'match'}-${index}-${blockIndex}-${offset}`,
           type: parentMatch.isExact ? 'plagiarism_exact' : 'plagiarism_semantic',
-          position: textPosition.position,
+          position: normalizedPosition,
           content: {
             text: textPosition.matchedText || suspectText,
           },

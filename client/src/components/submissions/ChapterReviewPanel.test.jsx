@@ -161,4 +161,35 @@ describe('ChapterReviewPanel Component', () => {
 
     view.unmount();
   });
+
+  it('renders extraItems such as Capstone 1 (1–3 Manuscript) with custom emptyText and rounds', () => {
+    const mockExtraItems = [
+      {
+        id: 'compiled_proposal',
+        label: 'Capstone 1 (1–3 Manuscript)',
+        filter: (sub) => sub.type === 'proposal',
+        emptyText: 'No submissions yet for this compiled manuscript.',
+      },
+    ];
+
+    const view = renderComponent({
+      chapters: [1, 2, 3],
+      extraItems: mockExtraItems,
+      submissions: [
+        {
+          _id: 'sub-prop-v1',
+          type: 'proposal',
+          version: 1,
+          status: SUBMISSION_STATUSES.APPROVED,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect(view.container.textContent).toContain('Capstone 1 (1–3 Manuscript)');
+    expect(view.container.textContent).toContain('Round 1');
+    expect(view.container.textContent).toContain('Approved');
+
+    view.unmount();
+  });
 });

@@ -87,7 +87,7 @@ const milestoneDeadlineSchema = new mongoose.Schema(
 );
 
 // Normalize deadlineDate to EOD UTC (23:59:59.999Z) if passed without time
-milestoneDeadlineSchema.pre('save', function (next) {
+milestoneDeadlineSchema.pre('save', function () {
   if (this.isModified('deadlineDate') && this.deadlineDate) {
     const d = new Date(this.deadlineDate);
     // If exact midnight UTC, normalize to 23:59:59.999Z
@@ -96,7 +96,6 @@ milestoneDeadlineSchema.pre('save', function (next) {
       this.deadlineDate = d;
     }
   }
-  next();
 });
 
 // Compound unique index ensuring only one deadline per deliverable per target scope

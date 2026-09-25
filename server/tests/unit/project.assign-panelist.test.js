@@ -147,4 +147,76 @@ describe('projectService.assignPanelist & assignAdviser - Institutional Role Gua
     expect(result.project.panelists).toHaveLength(0);
     expect(result.project.save).toHaveBeenCalled();
   });
+
+  it('allows appointing a faculty member as committee secretary', async () => {
+    const facultyUser = {
+      _id: facultyId,
+      role: ROLES.FACULTY,
+      fullName: 'Joan Marie Panes',
+    };
+
+    vi.spyOn(User, 'findById').mockResolvedValue(facultyUser);
+
+    const result = await projectService.assignSecretary(projectId, instructorId, {
+      secretaryId: facultyId,
+    });
+
+    expect(result.project.secretaryId).toBe(facultyId);
+    expect(result.project.save).toHaveBeenCalled();
+  });
+
+  it('rejects appointing a student as committee secretary', async () => {
+    const studentUser = {
+      _id: studentId,
+      role: ROLES.STUDENT,
+      fullName: 'Student Juan',
+    };
+
+    vi.spyOn(User, 'findById').mockResolvedValue(studentUser);
+
+    await expect(
+      projectService.assignSecretary(projectId, instructorId, { secretaryId: studentId }),
+    ).rejects.toThrow('Course instructors and students cannot serve as committee secretary.');
+  });
+
+  it('rejects appointing an existing adviser as committee secretary (conflict of interest)', async () => {
+    mockProject.adviserId = facultyId;
+    const facultyUser = {
+      _id: facultyId,
+      role: ROLES.FACULTY,
+      fullName: 'Dr. Santos',
+    };
+
+    vi.spyOn(User, 'findById').mockResolvedValue(facultyUser);
+
+    await expect(
+      projectService.assignSecretary(projectId, instructorId, { secretaryId: facultyId }),
+    ).rejects.toThrow('A faculty adviser cannot serve as committee secretary on the same project.');
+  });
+
+  it('rejects appointing an existing panelist as committee secretary (conflict of interest)', async () => {
+    mockProject.panelistIds = [facultyId];
+    const facultyUser = {
+      _id: facultyId,
+      role: ROLES.FACULTY,
+      fullName: 'Dr. Santos',
+    };
+
+    vi.spyOn(User, 'findById').mockResolvedValue(facultyUser);
+
+    await expect(
+      projectService.assignSecretary(projectId, instructorId, { secretaryId: facultyId }),
+    ).rejects.toThrow(
+      'A defense panelist cannot serve as committee secretary on the same project.',
+    );
+  });
+
+  it('allows removing the committee secretary', async () => {
+    mockProject.secretaryId = facultyId;
+
+    const result = await projectService.removeSecretary(projectId, instructorId);
+
+    expect(result.project.secretaryId).toBeNull();
+    expect(result.project.save).toHaveBeenCalled();
+  });
 });

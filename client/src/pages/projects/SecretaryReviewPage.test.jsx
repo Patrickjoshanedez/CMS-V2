@@ -99,6 +99,21 @@ vi.mock('@/services/authService', () => ({
     endorseADM: vi.fn().mockResolvedValue({
       data: { message: 'Action Done Matrix endorsed successfully' },
     }),
+    scanSecretaryMinutes: vi.fn().mockResolvedValue({
+      data: {
+        title: 'AI Smart Plant Disease Classifier with Winnowing Fingerprint',
+        proponents: ['Student Flora 1', 'Student Flora 2'],
+        defenseType: 'prototype',
+        defenseTypeLabel: 'Prototype Defense',
+        round: '2nd',
+        panelRemarks: [
+          { panelName: 'Dr. Panel Chair', comments: ['Clarify dataset augmentation parameters'] },
+        ],
+      },
+    }),
+    saveSecretaryMinutes: vi.fn().mockResolvedValue({
+      data: { message: 'Minutes saved successfully' },
+    }),
   },
   userService: {
     updateMe: vi.fn().mockResolvedValue({}),
@@ -115,7 +130,7 @@ describe('SecretaryReviewPage Studio', () => {
     });
   });
 
-  const renderComponent = () => {
+  const renderComponent = (initialUrl = '/secretary-review?projectId=proj-sec-101') => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -123,10 +138,7 @@ describe('SecretaryReviewPage Studio', () => {
     act(() => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter
-            future={ROUTER_FUTURE_FLAGS}
-            initialEntries={['/secretary-review?projectId=proj-sec-101']}
-          >
+          <MemoryRouter future={ROUTER_FUTURE_FLAGS} initialEntries={[initialUrl]}>
             <SecretaryReviewPage />
           </MemoryRouter>
         </QueryClientProvider>,
@@ -144,19 +156,49 @@ describe('SecretaryReviewPage Studio', () => {
     };
   };
 
-  it('renders Secretary Review Studio header and assigned team card', () => {
+  it('renders Secretary Review Studio header, assigned team card, and Form OVPAA-F-INS-032 sheet by default', () => {
     const view = renderComponent();
 
     expect(view.container.textContent).toContain('Committee Secretary Review Studio');
     expect(view.container.textContent).toContain('Team Flora');
-    expect(view.container.textContent).toContain('Upload Hearing Defense Minutes');
+    expect(view.container.textContent).toContain("Secretary's Minutes Document (OVPAA-F-INS-032)");
+    expect(view.container.textContent).toContain('Upload Secretary Minutes (OCR Scan)');
+    expect(view.container.textContent).toContain('OVPAA-F-INS-032');
+    expect(view.container.textContent).toContain('Bukidnon State University');
 
     view.unmount();
   });
 
-  it('renders Action Done Matrix remarks extracted from minutes', () => {
+  it('autofills project title and committee roster into Form OVPAA-F-INS-032 when clicking autofill', () => {
     const view = renderComponent();
 
+    const autofillBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Autofill from Project'),
+    );
+    expect(autofillBtn).toBeDefined();
+
+    act(() => {
+      autofillBtn.click();
+    });
+
+    const titleInput = view.container.querySelector('[data-testid="minutes-title-input"]');
+    expect(titleInput).toBeDefined();
+    expect(titleInput.value).toBe('AI Smart Plant Disease Classifier with Winnowing Fingerprint');
+
+    view.unmount();
+  });
+
+  it('switches to Action Done Matrix tab and renders remarks extracted from minutes', () => {
+    const view = renderComponent();
+
+    const admTabBtn = view.container.querySelector('[data-testid="tab-adm-matrix"]');
+    expect(admTabBtn).toBeDefined();
+
+    act(() => {
+      admTabBtn.click();
+    });
+
+    expect(view.container.textContent).toContain('Upload Hearing Defense Minutes');
     expect(view.container.textContent).toContain('Action Done Matrix (ADM)');
     expect(view.container.textContent).toContain('Clarify dataset augmentation parameters');
     expect(view.container.textContent).toContain(
@@ -168,8 +210,8 @@ describe('SecretaryReviewPage Studio', () => {
     view.unmount();
   });
 
-  it('displays ready to endorse gate banner and opens endorsement modal', () => {
-    const view = renderComponent();
+  it('displays ready to endorse gate banner and opens endorsement modal in ADM tab', () => {
+    const view = renderComponent('/secretary-review?projectId=proj-sec-101&tab=adm');
 
     expect(view.container.textContent).toContain(
       'All Remarks Addressed — Ready for Secretary Endorsement',

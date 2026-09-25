@@ -24,6 +24,7 @@ import {
   Search,
   FileSignature,
   CalendarClock,
+  UserCheck,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useMyProject } from '@/hooks/useProjects';
@@ -105,10 +106,17 @@ const instructorNavItems = [
     section: 'workspace',
   },
   {
-    id: 'defense-scheduling',
-    label: 'Defense Scheduling',
+    id: 'committee-assignments',
+    label: 'Committee Assignments',
+    icon: UserCheck,
+    path: '/committee-assignments',
+    section: 'workspace',
+  },
+  {
+    id: 'scheduling-center',
+    label: 'Scheduling Center',
     icon: CalendarClock,
-    path: '/defense-schedule',
+    path: '/scheduling-center',
     section: 'workspace',
   },
   {

@@ -286,7 +286,39 @@ function ReviewActions({ round, onSuccess }) {
 }
 
 /* ── ChapterProgressionGate — visual unlock chain indicator ── */
-function ProgressionGate({ chapters, chapterRoundsMap }) {
+function ProgressionGate({ items, chapters, chapterRoundsMap }) {
+  if (Array.isArray(items)) {
+    const GATE_STATUSES = [
+      SUBMISSION_STATUSES.LOCKED,
+      SUBMISSION_STATUSES.APPROVED,
+      SUBMISSION_STATUSES.ACCEPTED,
+    ];
+
+    return (
+      <div className="mb-4 flex flex-wrap items-center gap-1">
+        {items.map((item, i) => {
+          const latest = item.rounds?.[0];
+          const isApproved = Boolean(latest && GATE_STATUSES.includes(latest.status));
+          return (
+            <div key={item.id} className="flex items-center gap-1">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                  isApproved
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {isApproved ? '✓ ' : ''}
+                {item.label}
+              </span>
+              {i < items.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   const approved = new Set();
   const GATE_STATUSES = [
     SUBMISSION_STATUSES.LOCKED,
@@ -294,14 +326,14 @@ function ProgressionGate({ chapters, chapterRoundsMap }) {
     SUBMISSION_STATUSES.ACCEPTED,
   ];
 
-  for (const ch of chapters) {
-    const latest = chapterRoundsMap.get(ch)?.[0];
+  for (const ch of chapters || []) {
+    const latest = chapterRoundsMap?.get(ch)?.[0];
     if (latest && GATE_STATUSES.includes(latest.status)) approved.add(ch);
   }
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-1">
-      {chapters.map((ch, i) => {
+      {(chapters || []).map((ch, i) => {
         const isApproved = approved.has(ch);
         return (
           <div key={ch} className="flex items-center gap-1">
@@ -331,17 +363,20 @@ function ProgressionGate({ chapters, chapterRoundsMap }) {
  * @param {{
  *   submissions: Object,
  *   chapters?: number[],
+ *   extraItems?: Array<{ id: string, label: string, filter: Function, emptyText?: string, number?: any }>,
  *   title?: string,
  *   description?: string,
  *   showReviewActions?: boolean,
  * }} props
  *   - submissions: the submissionsData object from useProjectSubmissions
  *   - chapters: which chapter numbers to show (default [1,2,3])
+ *   - extraItems: custom manuscript submission descriptors
  *   - showReviewActions: whether to show approve/revise buttons (default true)
  */
 export default function ChapterReviewPanel({
   submissions,
   chapters = [1, 2, 3],
+  extraItems = [],
   title = 'Chapter Submissions',
   description = 'Review each chapter submission and approve or request revisions.',
   showReviewActions = true,
@@ -349,30 +384,49 @@ export default function ChapterReviewPanel({
   const navigate = useNavigate();
   const [activeViewerSubmission, setActiveViewerSubmission] = useState(null);
 
-  /* Build chapter → rounds map */
-  const chapterRoundsMap = useMemo(() => {
-    const map = new Map();
-    for (const ch of chapters) map.set(ch, []);
-
+  /* Build unified items map (chapters + extraItems) */
+  const displayItems = useMemo(() => {
     const list = Array.isArray(submissions)
       ? submissions
       : submissions?.submissions || submissions?.data || [];
 
-    for (const sub of list) {
-      if (sub?.type !== 'chapter') continue;
-      const chNum = Number(sub.chapter || sub.chapterNumber);
-      if (!chapters.includes(chNum)) continue;
-      map.get(chNum)?.push(sub);
-    }
-
-    for (const ch of chapters) {
-      const rounds = map.get(ch) || [];
+    const items = chapters.map((ch) => {
+      const rounds = list.filter(
+        (sub) => sub?.type === 'chapter' && Number(sub.chapter || sub.chapterNumber) === ch,
+      );
       rounds.sort((a, b) => (b.version || 0) - (a.version || 0));
-      map.set(ch, rounds);
+      return {
+        id: `chapter-${ch}`,
+        itemKey: ch,
+        indexNumber: ch,
+        label: CHAPTER_LABELS[ch] || `Chapter ${ch}`,
+        rounds,
+        emptyText: 'No submissions yet for this chapter.',
+      };
+    });
+
+    if (Array.isArray(extraItems)) {
+      extraItems.forEach((extra, idx) => {
+        const rounds = list.filter(extra.filter || (() => false));
+        rounds.sort((a, b) => (b.version || 0) - (a.version || 0));
+        items.push({
+          id: extra.id || `extra-${idx}`,
+          itemKey: extra.id || `extra-${idx}`,
+          indexNumber:
+            extra.number !== undefined
+              ? extra.number
+              : typeof extra.index === 'number'
+                ? extra.index
+                : chapters.length + idx + 1,
+          label: extra.label,
+          rounds,
+          emptyText: extra.emptyText || 'No submissions yet for this manuscript.',
+        });
+      });
     }
 
-    return map;
-  }, [chapters, submissions]);
+    return items;
+  }, [chapters, extraItems, submissions]);
 
   const [selectedSession, setSelectedSession] = useState('all');
 
@@ -402,28 +456,28 @@ export default function ChapterReviewPanel({
 
         <CardContent>
           {/* Progression gate indicator */}
-          <ProgressionGate chapters={chapters} chapterRoundsMap={chapterRoundsMap} />
+          <ProgressionGate items={displayItems} />
 
           <div className="space-y-4">
-            {chapters.map((chapter) => {
-              const rounds = chapterRoundsMap.get(chapter) || [];
+            {displayItems.map((item) => {
+              const rounds = item.rounds || [];
               const latest = rounds[0];
               const cfg = statusConfig(latest?.status);
               const Icon = cfg.icon;
 
               return (
                 <div
-                  key={chapter}
+                  key={item.id}
                   className="rounded-xl border border-border bg-card/60 transition-colors hover:bg-card"
                 >
-                  {/* Chapter header */}
+                  {/* Chapter/Item header */}
                   <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
-                        {chapter}
+                        {item.indexNumber}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">{CHAPTER_LABELS[chapter]}</p>
+                        <p className="text-sm font-semibold">{item.label}</p>
                         {latest?.createdAt && (
                           <p className="text-xs text-muted-foreground">
                             Last upload: {formatDate(latest.createdAt)}
@@ -591,7 +645,7 @@ export default function ChapterReviewPanel({
                   ) : (
                     <div className="border-t border-border px-4 py-3">
                       <p className="text-xs text-muted-foreground">
-                        No submissions yet for this chapter.
+                        {item.emptyText || 'No submissions yet for this chapter.'}
                       </p>
                     </div>
                   )}

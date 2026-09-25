@@ -10,7 +10,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { ROLES, PANEL_ROLES } from '@cms/shared';
 import AutoExpandingTextarea from '@/components/projects/AutoExpandingTextarea';
 import buksuLogo from '@/assets/buksu-logo.png';
-import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
+import SecretaryMinutesDocumentSheet from '@/components/secretary/SecretaryMinutesDocumentSheet';
 import SignaturePad from '@/components/ui/SignaturePad';
 import { getSocket, connectSocket } from '@/services/socket';
 import {
@@ -24,11 +24,10 @@ import {
   FileSpreadsheet,
   Loader2,
   PenTool,
-  Sparkles,
   Lock,
   Send,
   FileText,
-  FileSignature,
+  Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,6 +50,9 @@ export default function ActionDoneMatrixTab({
   onRefresh,
   initialMilestone,
 }) {
+  // Navigation tabs: 'adm' (Action Done Matrix) or 'minutes' (Secretary Minutes Form)
+  const [activeViewTab, setActiveViewTab] = useState('adm');
+
   // Local state for immediate responsiveness & autosave
   const [rows, setRows] = useState([]);
   const [reviewType, setReviewType] = useState('internal');
@@ -83,10 +85,6 @@ export default function ActionDoneMatrixTab({
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploadingMinutes, setIsUploadingMinutes] = useState(false);
-  const [isSeedingTemplate, setIsSeedingTemplate] = useState(false);
-
-  // Live Defense Minutes Modal
-  const [isLiveMinutesModalOpen, setIsLiveMinutesModalOpen] = useState(false);
 
   // Secretary Endorsement Modal
   const [isEndorsementModalOpen, setIsEndorsementModalOpen] = useState(false);
@@ -136,19 +134,25 @@ export default function ActionDoneMatrixTab({
     isUploadingMinutes,
   ]);
 
-  // Debounce timers map
+  // Debounce timers & pending values map
   const debounceTimers = useRef({});
+  const pendingValues = useRef({});
 
-  // Sync project props to local state
+  // Target milestone computation
+  const targetMilestone = selectedMilestone === 'ALL' ? defaultMilestone : selectedMilestone;
+
+  // Sync project props and milestone-isolated review type to local state
   useEffect(() => {
     if (project) {
       setRows(project.actionDoneMatrix || []);
-      setReviewType(project.admReviewType || 'internal');
+      const milestoneReviewType =
+        project.admReviewTypeByMilestone?.[targetMilestone] || project.admReviewType || 'internal';
+      setReviewType(milestoneReviewType);
       setProjectTitle(project.title || '');
     }
-  }, [project]);
+  }, [project, targetMilestone]);
 
-  // Real-time synchronization of defense minutes and ADM updates
+  // Real-time synchronization of ADM rows, signatures, and endorsements
   useEffect(() => {
     const s = getSocket() || connectSocket();
     const projId = project?._id;
@@ -160,28 +164,79 @@ export default function ActionDoneMatrixTab({
       // Non-blocking
     }
 
-    const handleMinutesUpdate = (data) => {
+    const handleRowUpdated = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.row) {
+          setRows((prev) =>
+            prev.map((r) =>
+              (r._id || r.id) === (data.row._id || data.row.id) ? { ...r, ...data.row } : r,
+            ),
+          );
+        }
+      }
+    };
+
+    const handleRowCreated = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.row) {
+          setRows((prev) => {
+            const exists = prev.some((r) => (r._id || r.id) === (data.row._id || data.row.id));
+            return exists ? prev : [...prev, data.row];
+          });
+        }
+      }
+    };
+
+    const handleRowDeleted = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.rowId) {
+          setRows((prev) => prev.filter((r) => (r._id || r.id) !== data.rowId));
+        }
+      }
+    };
+
+    const handleSigned = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
         if (onRefresh) onRefresh();
       }
     };
 
-    const handleDefenseScheduled = (data) => {
+    const handleEndorsed = (data) => {
       if (!data?.projectId || String(data.projectId) === String(projId)) {
         if (onRefresh) onRefresh();
       }
     };
 
-    s.on('defense:minutes_updated', handleMinutesUpdate);
-    s.on('project:defense_scheduled', handleDefenseScheduled);
-    s.on('project:phase_advanced', handleMinutesUpdate);
-    s.on('project:updated', handleMinutesUpdate);
+    const handleMetadataUpdated = (data) => {
+      if (!data?.projectId || String(data.projectId) === String(projId)) {
+        if (data.reviewType) setReviewType(data.reviewType);
+        if (data.title) setProjectTitle(data.title);
+        if (onRefresh) onRefresh();
+      }
+    };
+
+    s.on('adm:row_updated', handleRowUpdated);
+    s.on('adm:row_created', handleRowCreated);
+    s.on('adm:row_deleted', handleRowDeleted);
+    s.on('adm:signed', handleSigned);
+    s.on('adm:endorsed', handleEndorsed);
+    s.on('adm:metadata_updated', handleMetadataUpdated);
+    s.on('defense:minutes_updated', () => onRefresh?.());
+    s.on('project:defense_scheduled', () => onRefresh?.());
+    s.on('project:phase_advanced', () => onRefresh?.());
+    s.on('project:updated', () => onRefresh?.());
 
     return () => {
-      s.off('defense:minutes_updated', handleMinutesUpdate);
-      s.off('project:defense_scheduled', handleDefenseScheduled);
-      s.off('project:phase_advanced', handleMinutesUpdate);
-      s.off('project:updated', handleMinutesUpdate);
+      s.off('adm:row_updated', handleRowUpdated);
+      s.off('adm:row_created', handleRowCreated);
+      s.off('adm:row_deleted', handleRowDeleted);
+      s.off('adm:signed', handleSigned);
+      s.off('adm:endorsed', handleEndorsed);
+      s.off('adm:metadata_updated', handleMetadataUpdated);
+      s.off('defense:minutes_updated');
+      s.off('project:defense_scheduled');
+      s.off('project:phase_advanced');
+      s.off('project:updated');
     };
   }, [project?._id, onRefresh]);
 
@@ -231,7 +286,35 @@ export default function ActionDoneMatrixTab({
     project?.instructorId ||
     (user?.role === ROLES.INSTRUCTOR ? user : null);
 
-  const admSignatures = project?.admSignatures || {};
+  // Milestone-isolated signatures
+  const admSignatures = useMemo(() => {
+    if (project?.admSignaturesByMilestone?.[targetMilestone]) {
+      return project.admSignaturesByMilestone[targetMilestone];
+    }
+    const currentMilestoneKey =
+      Number(project?.capstonePhase ?? project?.phase ?? 1) >= 3
+        ? 'CAPSTONE_3'
+        : Number(project?.capstonePhase ?? project?.phase ?? 1) === 2
+          ? 'CAPSTONE_2'
+          : 'CAPSTONE_1';
+    if (targetMilestone === currentMilestoneKey && project?.admSignatures) {
+      return project.admSignatures;
+    }
+    return {
+      secretary: { endorsed: false },
+      adviser: { signed: false },
+      instructor: { signed: false },
+      chair: { signed: false },
+      panelists: [],
+      dean: { signed: false },
+    };
+  }, [
+    project?.admSignaturesByMilestone,
+    project?.admSignatures,
+    project?.capstonePhase,
+    project?.phase,
+    targetMilestone,
+  ]);
 
   // Permissions
   const isUserChair =
@@ -285,28 +368,22 @@ export default function ActionDoneMatrixTab({
     (!designatedInstructorId || String(designatedInstructorId) === String(user._id)),
   );
 
-  const canUploadMinutes = isFaculty || isUserInstructor;
+  // Unnecessary button removal: ONLY secretary can upload minutes
+  const canUploadMinutes = Boolean(isUserSecretary);
   const isSecretaryEndorsed = Boolean(admSignatures?.secretary?.endorsed);
   const canEndorse = Boolean(isUserSecretary); // Strictly only the appointed secretary
-  const canManageLiveMinutes = isUserSecretary || isUserChair || isUserInstructor || isFaculty;
   const canAddRow = isFaculty || isUserPanelist || isUserInstructor;
-  const canSeedTemplate = isFaculty || isUserInstructor;
   const canManageReviewType = Boolean(
     (isFaculty || isUserInstructor || isUserChair || isUserSecretary || isUserPanelist) &&
     !isCurrentUserStudent,
   );
 
-  const defenseType = useMemo(() => {
-    if (selectedMilestone === 'CAPSTONE_3' || selectedMilestone === 'CAPSTONE_4') return 'final';
-    if (selectedMilestone === 'CAPSTONE_2') return 'progress';
-    return 'proposal';
-  }, [selectedMilestone]);
-
   const allRowsAddressed = useMemo(() => {
     return (
-      rows.length > 0 && rows.every((r) => r.status === 'addressed' || r.status === 'verified')
+      displayedRows.length > 0 &&
+      displayedRows.every((r) => r.status === 'addressed' || r.status === 'verified')
     );
-  }, [rows]);
+  }, [displayedRows]);
 
   const projectId = project?._id;
 
@@ -340,24 +417,46 @@ export default function ActionDoneMatrixTab({
     // Update local state immediately
     setRows((prev) => prev.map((r) => ((r._id || r.id) === rowId ? { ...r, [field]: value } : r)));
 
-    // Clear existing timer
+    // Track pending value
     const timerKey = `${rowId}_${field}`;
+    pendingValues.current[timerKey] = value;
+
+    // Clear existing timer
     if (debounceTimers.current[timerKey]) {
       clearTimeout(debounceTimers.current[timerKey]);
     }
 
     // Debounce network patch by 750ms
     debounceTimers.current[timerKey] = setTimeout(() => {
+      delete debounceTimers.current[timerKey];
+      delete pendingValues.current[timerKey];
       saveCell(rowId, field, value);
     }, 750);
   };
 
-  // Review type toggle
+  // Immediate save on blur for real-time live editing completion
+  const handleCellBlur = (rowId, field) => {
+    const timerKey = `${rowId}_${field}`;
+    if (debounceTimers.current[timerKey]) {
+      clearTimeout(debounceTimers.current[timerKey]);
+      delete debounceTimers.current[timerKey];
+      const val = pendingValues.current[timerKey];
+      delete pendingValues.current[timerKey];
+      if (val !== undefined) {
+        saveCell(rowId, field, val);
+      }
+    }
+  };
+
+  // Review type toggle (milestone-isolated)
   const handleToggleReviewType = async (type) => {
     if (!isFaculty && !isStudent) return;
     setReviewType(type);
     try {
-      await projectService.updateADMMetadata(project._id, { admReviewType: type });
+      await projectService.updateADMMetadata(project._id, {
+        admReviewType: type,
+        milestone: targetMilestone,
+      });
       toast.success(`Review type set to ${type === 'internal' ? 'Internal' : 'External'} Review`);
       if (onRefresh) onRefresh();
     } catch {
@@ -377,15 +476,13 @@ export default function ActionDoneMatrixTab({
     }
   };
 
-  // Add evaluation row
+  // Add evaluation row (milestone-isolated)
   const handleAddRow = async () => {
     const defaultPanelName = isUserChair
       ? formatFullName(user)
       : regularPanelists.length > 0
         ? formatFullName(regularPanelists[0].user || regularPanelists[0])
         : 'Panel Member';
-
-    const targetMilestone = selectedMilestone === 'ALL' ? defaultMilestone : selectedMilestone;
 
     try {
       const res = await projectService.createActionDoneMatrixItem(project._id, {
@@ -441,24 +538,7 @@ export default function ActionDoneMatrixTab({
     }
   };
 
-  // Seed Institutional Template
-  const handleSeedTemplate = async () => {
-    try {
-      setIsSeedingTemplate(true);
-      const res = await projectService.seedInstitutionalADM(project._id);
-      toast.success('Loaded institutional ADM template from official document.');
-      if (res?.data?.data?.actionDoneMatrix) {
-        setRows(res.data.data.actionDoneMatrix);
-      }
-      if (onRefresh) onRefresh();
-    } catch {
-      toast.error('Failed to load institutional template.');
-    } finally {
-      setIsSeedingTemplate(false);
-    }
-  };
-
-  // Upload Minutes
+  // Upload Minutes (Secretary only)
   const handleUploadMinutes = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -507,7 +587,7 @@ export default function ActionDoneMatrixTab({
     [user],
   );
 
-  // Digital Signature Submit
+  // Digital Signature Submit (milestone-isolated)
   const handleConfirmSignature = async () => {
     const finalName = (
       signatoryTypedName ||
@@ -533,6 +613,7 @@ export default function ActionDoneMatrixTab({
         role: signingSignatory.role,
         signatoryName: finalName,
         signatureDataUrl: sigToUse,
+        milestone: targetMilestone,
       });
 
       // Persist signature to user profile if user opted to save and doesn't already have one or updated
@@ -557,6 +638,7 @@ export default function ActionDoneMatrixTab({
     }
   };
 
+  // Student submit for Secretary Endorsement (milestone-isolated)
   const handleSubmitForEndorsement = async () => {
     if (!projectId) return;
     if (!allRowsAddressed) {
@@ -565,7 +647,9 @@ export default function ActionDoneMatrixTab({
     }
     setIsSubmittingForEndorsement(true);
     try {
-      await projectService.submitADMForEndorsement(projectId);
+      await projectService.submitADMForEndorsement(projectId, {
+        milestone: targetMilestone,
+      });
       toast.success('Action Done Matrix submitted for Secretary review.');
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -575,6 +659,7 @@ export default function ActionDoneMatrixTab({
     }
   };
 
+  // Secretary confirm Endorsement (milestone-isolated)
   const handleConfirmEndorsement = async () => {
     if (!projectId) return;
     setIsSubmittingEndorsement(true);
@@ -583,6 +668,7 @@ export default function ActionDoneMatrixTab({
       await projectService.endorseADM(projectId, {
         notes: endorsementNotes,
         signatoryName: name,
+        milestone: targetMilestone,
       });
       toast.success('Action Done Matrix successfully endorsed by Committee Secretary.');
       setIsEndorsementModalOpen(false);
@@ -601,1025 +687,1113 @@ export default function ActionDoneMatrixTab({
 
   return (
     <div className="space-y-6">
-      {/* Non-Printing Top Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-card/60 border rounded-xl p-4 shadow-xs">
-        <div className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5 text-primary shrink-0" />
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Action Done Matrix (ADM)</h3>
-            <p className="text-xs text-muted-foreground">
-              Official institutional form for panel revisions, actions taken, and committee
-              endorsements.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {rows.length === 0 && canSeedTemplate && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSeedTemplate}
-              disabled={isSeedingTemplate}
-              className="gap-1.5 text-xs h-8"
-            >
-              {isSeedingTemplate ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              )}
-              Load Institutional Template
-            </Button>
+      {/* ── View Switcher: Action Done Matrix vs Secretary Minutes ── */}
+      <div className="flex items-center gap-2 border-b border-border/80 pb-3 no-print">
+        <button
+          type="button"
+          onClick={() => setActiveViewTab('adm')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
+            activeViewTab === 'adm'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
           )}
-
-          {/* Live Defense Minutes Button */}
-          {canManageLiveMinutes && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsLiveMinutesModalOpen(true)}
-              className="gap-1.5 text-xs h-8 font-semibold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Live Defense Session & Minutes
-            </Button>
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          Action Done Matrix (ADM)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveViewTab('minutes')}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
+            activeViewTab === 'minutes'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
           )}
-
-          {canUploadMinutes && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsUploadModalOpen(true)}
-              className="gap-1.5 text-xs h-8"
-            >
-              <Upload className="h-3.5 w-3.5 text-primary" />
-              Upload Minutes (PDF)
-            </Button>
-          )}
-
-          {/* Student Submit for Endorsement */}
-          {isStudent && rows.length > 0 && !isSecretaryEndorsed && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleSubmitForEndorsement}
-              disabled={isSubmittingForEndorsement || !allRowsAddressed}
-              className="gap-1.5 text-xs h-8 font-semibold"
-            >
-              {isSubmittingForEndorsement ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Submit for Secretary Endorsement
-            </Button>
-          )}
-
-          {/* Secretary Endorse Matrix */}
-          {canEndorse && !isSecretaryEndorsed && rows.length > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsEndorsementModalOpen(true)}
-              className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Endorse Matrix
-            </Button>
-          )}
-
-          {canAddRow && (
-            <Button size="sm" onClick={handleAddRow} className="gap-1.5 text-xs h-8">
-              <Plus className="h-3.5 w-3.5" />
-              Add Row
-            </Button>
-          )}
-
-          <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1.5 text-xs h-8">
-            <Printer className="h-3.5 w-3.5" />
-            Print / Export Document
-          </Button>
-        </div>
+        >
+          <FileText className="h-4 w-4" />
+          Secretary Minutes (OVPAA-F-INS-032)
+        </button>
       </div>
 
-      {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
-      <div className="max-w-5xl mx-auto bg-card text-foreground print:bg-white print:text-black border border-border/80 print:border-none shadow-md print:shadow-none p-6 sm:p-12 rounded-xl print:rounded-none font-serif leading-normal transition-all">
-        {/* Real-time Defense Synchronization & Post-Defense Instructions Banner */}
-        <div className="print:hidden mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans">
-          <div className="space-y-1">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Real-Time Defense Synchronization &amp; Action Done Matrix
-            </h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              During defense hearings, panelist feedback is recorded live in official Secretary
-              Minutes (BukSU Form OVPAA-F-INS-032) and synchronized into this matrix. Post-defense,
-              proponents must document the{' '}
-              <strong className="text-foreground font-semibold">Action Taken</strong> for each
-              revision, cite exact{' '}
-              <strong className="text-foreground font-semibold">Page Number(s)</strong> in the
-              revised manuscript, and submit for committee verification.
-            </p>
-          </div>
-          {canManageLiveMinutes && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsLiveMinutesModalOpen(true)}
-              className="text-xs h-8 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 font-medium shadow-xs"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Live Minutes (OVPAA-F-INS-032)
-            </Button>
-          )}
-        </div>
+      {activeViewTab === 'minutes' ? (
+        <SecretaryMinutesDocumentSheet
+          project={project}
+          user={user}
+          onMinutesSynced={() => {
+            if (onRefresh) onRefresh();
+          }}
+        />
+      ) : (
+        <>
+          {/* Dedicated Print Stylesheet for 100% full-paper capture with zero missing rows/content */}
+          <style>{`
+            @media print {
+              @page {
+                size: portrait;
+                margin: 10mm 12mm;
+              }
+              html, body, #root, main, .main-content {
+                overflow: visible !important;
+                height: auto !important;
+                min-height: 100% !important;
+                background: white !important;
+                color: black !important;
+              }
+              aside, nav, header, [role="navigation"], .no-print, .print\\:hidden {
+                display: none !important;
+              }
+              #adm-printable-paper {
+                position: static !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: white !important;
+                color: black !important;
+                overflow: visible !important;
+              }
+              .group\\/row {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+              }
+            }
+          `}</style>
 
-        {/* ============================================================ */}
-        {/* 1. INSTITUTIONAL HEADER & CLASSIFICATION */}
-        {/* ============================================================ */}
-        <div className="flex flex-col items-center text-center relative pb-4">
-          {/* Circular BukSU Logo on Top Left */}
-          <div className="absolute left-0 top-0 hidden sm:block">
-            <img
-              src={buksuLogo}
-              alt="BukSU Official Seal"
-              className="h-20 w-20 md:h-24 md:w-24 object-contain"
-            />
-          </div>
+          {/* Non-Printing Top Action Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 no-print bg-card/60 border rounded-xl p-4 shadow-xs">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Action Done Matrix (ADM)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Official institutional form for panel revisions, actions taken, and committee
+                    endorsements.
+                  </p>
+                </div>
+              </div>
 
-          <div className="space-y-0.5 sm:px-24">
-            <h1 className="font-bold text-base sm:text-lg tracking-wide text-foreground print:text-black uppercase">
-              Bukidnon State University
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground print:text-neutral-700">
-              Malaybalay City, Bukidnon 8700
-            </p>
-            <p className="text-xs sm:text-sm text-muted-foreground print:text-neutral-700">
-              Tel (088) 813-5661 to 5663; TeleFax (088) 813-2717,
-            </p>
-            <a
-              href="https://www.buksu.edu.ph"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 print:text-blue-800 underline block"
-            >
-              www.buksu.edu.ph
-            </a>
-          </div>
-
-          {/* Centered Document Title */}
-          <div className="pt-6 pb-2 text-center w-full">
-            <h2 className="font-bold text-lg sm:text-xl tracking-wider text-foreground print:text-black uppercase">
-              ACTION DONE MATRIX
-            </h2>
-          </div>
-        </div>
-
-        {/* Dynamic Project Title Field */}
-        <div className="text-xs sm:text-sm space-y-1.5 pt-2 font-sans">
-          <div className="flex flex-wrap items-baseline gap-1.5">
-            <span className="font-semibold text-foreground print:text-black shrink-0">
-              Capstone Project Title:
-            </span>
-            <div className="flex-1 min-w-[280px]">
-              <input
-                type="text"
-                value={projectTitle}
-                onChange={(e) => setProjectTitle(e.target.value)}
-                onBlur={handleTitleBlur}
-                disabled={!isFaculty && !isStudent}
-                className="w-full font-bold underline bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary/60 focus:outline-none px-1 text-xs sm:text-sm text-foreground print:text-black"
-                placeholder="Enter Capstone Project Title..."
-              />
-            </div>
-          </div>
-
-          <p className="text-[11px] sm:text-xs text-muted-foreground print:text-neutral-800 italic">
-            Note to the Researchers: Please submit this form with the revised paper that shall be
-            forwarded to the Capstone Committee/Instructor)
-          </p>
-        </div>
-
-        {/* ============================================================ */}
-        {/* 2. TABLE SCAFFOLDING & REVIEW CLASSIFICATION (4 COLUMNS) */}
-        {/* ============================================================ */}
-        <div className="mt-4 border border-black dark:border-border print:border-black font-sans">
-          {/* Top Bar: Review Classification */}
-          <div className="flex flex-wrap items-center justify-between border-b border-black dark:border-border print:border-black px-3 py-2 text-xs sm:text-sm bg-muted/10 print:bg-transparent">
-            <div className="flex items-center gap-2 font-semibold">
-              <span>Type of Review:</span>
-              <span className="text-muted-foreground text-xs italic">_(Please tick)</span>
-            </div>
-
-            <div className="flex items-center gap-6 text-xs sm:text-sm">
-              <label
-                className={cn(
-                  'flex items-center gap-2 select-none',
-                  canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
-                )}
-              >
-                <input
-                  id="review-internal"
-                  type="checkbox"
-                  checked={reviewType === 'internal'}
-                  disabled={!canManageReviewType}
-                  onChange={() => canManageReviewType && handleToggleReviewType('internal')}
-                  className={cn(
-                    'h-4 w-4 rounded border-black text-primary focus:ring-primary',
-                    !canManageReviewType && 'cursor-default',
-                  )}
-                />
-                <span className="font-medium text-foreground print:text-black">
-                  Internal Review
-                </span>
-              </label>
-
-              <label
-                className={cn(
-                  'flex items-center gap-2 select-none',
-                  canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
-                )}
-              >
-                <input
-                  id="review-external"
-                  type="checkbox"
-                  checked={reviewType === 'external'}
-                  disabled={!canManageReviewType}
-                  onChange={() => canManageReviewType && handleToggleReviewType('external')}
-                  className={cn(
-                    'h-4 w-4 rounded border-black text-primary focus:ring-primary',
-                    !canManageReviewType && 'cursor-default',
-                  )}
-                />
-                <span className="font-medium text-foreground print:text-black">
-                  External Review
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* 4 Required Column Headers */}
-          <div className="grid grid-cols-12 border-b border-black dark:border-border print:border-black text-center font-bold text-xs sm:text-sm bg-muted/20 print:bg-neutral-50 divide-x divide-black dark:divide-border print:divide-black">
-            <div className="col-span-3 p-2.5 flex items-center justify-center">Name of Panel</div>
-            <div className="col-span-4 p-2.5 flex items-center justify-center">
-              Suggestion of the Panel(s)
-            </div>
-            <div className="col-span-4 p-2.5 flex items-center justify-center">Action Taken</div>
-            <div className="col-span-1 p-2 flex items-center justify-center text-[11px] sm:text-xs">
-              Page Number/s
-            </div>
-          </div>
-
-          {/* Rows */}
-          {displayedRows.length === 0 ? (
-            <div className="p-8 text-center text-xs sm:text-sm text-muted-foreground italic">
-              {rows.length === 0
-                ? isCurrentUserStudent
-                  ? 'No recommendations recorded yet by the defense committee or panel.'
-                  : 'No recommendations recorded yet. Click "Add Row" or "Load Institutional Template" to begin.'
-                : isCurrentUserStudent
-                  ? `No recommendations recorded for ${selectedMilestone.replace('_', ' ')} yet.`
-                  : `No recommendations recorded for ${selectedMilestone.replace('_', ' ')}. Switch phase scope or click "Add Row" to append an item.`}
-            </div>
-          ) : (
-            <div className="divide-y divide-black dark:divide-border print:divide-black">
-              {displayedRows.map((row, idx) => {
-                const rowId = row._id || row.id || idx;
-                const isLocked = Boolean(row.isLocked);
-
-                // Permission rules:
-                const canEditPanel = (isFaculty || isUserPanelist || isUserInstructor) && !isLocked;
-                const canEditSuggestion =
-                  (isFaculty || isUserPanelist || isUserInstructor) && !isLocked;
-                const canEditAction = isStudent && !isLocked;
-                const canVerifyRow =
-                  (isFaculty ||
-                    isUserPanelist ||
-                    isUserSecretary ||
-                    isUserInstructor ||
-                    isUserAdviser) &&
-                  !isLocked;
-
-                return (
-                  <div
-                    key={rowId}
-                    className="grid grid-cols-12 divide-x divide-black dark:divide-border print:divide-black relative group/row hover:bg-muted/5 transition-colors"
+              {/* Milestone Switcher Pills (Capstone 1 / ADM v1, Capstone 2 / ADM v2, Capstone 3 / ADM v3) */}
+              <div className="flex items-center gap-1 p-0.5 bg-muted/40 rounded-lg border border-border/60 text-xs">
+                {[
+                  { id: 'CAPSTONE_1', label: 'Cap 1 (ADM v1)' },
+                  { id: 'CAPSTONE_2', label: 'Cap 2 (ADM v2)' },
+                  { id: 'CAPSTONE_3', label: 'Cap 3 (ADM v3)' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelectedMilestone(m.id)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md font-medium transition-all text-xs',
+                      selectedMilestone === m.id
+                        ? 'bg-background text-foreground shadow-xs font-semibold'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
                   >
-                    {/* Column 1: Name of Panel (Col span 3) */}
-                    <div className="col-span-3 p-3 flex flex-col justify-start">
-                      <AutoExpandingTextarea
-                        value={row.panelName || ''}
-                        onChange={(e) => handleCellChange(rowId, 'panelName', e.target.value)}
-                        placeholder="Panel Member Name"
-                        disabled={!canEditPanel}
-                        savingStatus={savingCells[`${rowId}_panelName`]}
-                        className="font-bold text-foreground print:text-black"
-                        minRows={1}
-                      />
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground font-sans print:hidden">
-                        {(row.panelName?.toLowerCase().includes('(client)') ||
-                          row.remarks?.includes('Client')) && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                          >
-                            Client Feedback
-                          </Badge>
-                        )}
-                        {row.milestone && (
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] py-0 px-1 border-primary/30 text-primary"
-                          >
-                            {row.milestone === 'CAPSTONE_3' || row.milestone === 'CAPSTONE_4'
-                              ? 'Cap 3'
-                              : row.milestone === 'CAPSTONE_2'
-                                ? 'Cap 2'
-                                : 'Cap 1'}
-                          </Badge>
-                        )}
-                        {isLocked && (
-                          <span className="flex items-center gap-1 text-amber-500 font-medium">
-                            <Lock className="h-3 w-3" />
-                            Locked
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                    {/* Column 2: Suggestion of the Panel(s) (Col span 4) */}
-                    <div className="col-span-4 p-3">
-                      <AutoExpandingTextarea
-                        value={row.suggestion || ''}
-                        onChange={(e) => handleCellChange(rowId, 'suggestion', e.target.value)}
-                        placeholder="- Specific suggestion / recommendation..."
-                        disabled={!canEditSuggestion}
-                        savingStatus={savingCells[`${rowId}_suggestion`]}
-                        className="text-foreground print:text-black whitespace-pre-line"
-                        minRows={3}
-                      />
-                    </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Only Secretary can upload minutes */}
+              {canUploadMinutes && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="gap-1.5 text-xs h-8"
+                >
+                  <Upload className="h-3.5 w-3.5 text-primary" />
+                  Upload Minutes (PDF)
+                </Button>
+              )}
 
-                    {/* Column 3: Action Taken & Fulfillment Verification (Col span 4) */}
-                    <div className="col-span-4 p-3 flex flex-col justify-between">
-                      <AutoExpandingTextarea
-                        value={row.actionDone || ''}
-                        onChange={(e) => handleCellChange(rowId, 'actionDone', e.target.value)}
-                        placeholder="- Description of modifications made..."
-                        disabled={!canEditAction}
-                        savingStatus={savingCells[`${rowId}_actionDone`]}
-                        className="text-foreground print:text-black whitespace-pre-line"
-                        minRows={3}
-                      />
+              {/* Student Submit for Endorsement */}
+              {isStudent && displayedRows.length > 0 && !isSecretaryEndorsed && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSubmitForEndorsement}
+                  disabled={isSubmittingForEndorsement || !allRowsAddressed}
+                  className="gap-1.5 text-xs h-8 font-semibold"
+                >
+                  {isSubmittingForEndorsement ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  Submit for Secretary Endorsement
+                </Button>
+              )}
 
-                      {/* Panel Fulfillment Verification Checkbox (Interactive for committee) */}
-                      <div className="mt-2.5 pt-2 border-t border-dashed border-border/50 flex items-center justify-between gap-2 text-xs font-sans print:hidden">
-                        <label
-                          htmlFor={`verify-row-${rowId}`}
-                          className={cn(
-                            'inline-flex items-center gap-2 select-none text-[11px] font-medium transition-colors',
-                            canVerifyRow ? 'cursor-pointer' : 'cursor-default opacity-85',
-                            row.status === 'verified'
-                              ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                              : row.status === 'addressed'
-                                ? 'text-amber-600 dark:text-amber-400 font-medium'
-                                : 'text-muted-foreground',
-                          )}
-                        >
-                          <input
-                            id={`verify-row-${rowId}`}
-                            type="checkbox"
-                            checked={row.status === 'verified'}
-                            disabled={!canVerifyRow}
-                            onChange={(e) => handleToggleFulfillment(rowId, e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500 focus:ring-offset-background cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              {/* Secretary Endorse Matrix */}
+              {canEndorse && !isSecretaryEndorsed && displayedRows.length > 0 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsEndorsementModalOpen(true)}
+                  className="gap-1.5 text-xs h-8 font-semibold shadow-xs"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Endorse Matrix
+                </Button>
+              )}
+
+              {canAddRow && (
+                <Button size="sm" onClick={handleAddRow} className="gap-1.5 text-xs h-8">
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Row
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="gap-1.5 text-xs h-8"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Print / Export Document
+              </Button>
+            </div>
+          </div>
+
+          {/* Main Document Sheet Container (max-w-5xl, paper-style) */}
+          <div
+            id="adm-printable-paper"
+            className="max-w-5xl mx-auto bg-card text-foreground print:bg-white print:text-black border border-border/80 print:border-none shadow-md print:shadow-none p-6 sm:p-12 rounded-xl print:rounded-none font-serif leading-normal transition-all"
+          >
+            {/* ============================================================ */}
+            {/* 1. INSTITUTIONAL HEADER & CLASSIFICATION */}
+            {/* ============================================================ */}
+            <div className="flex flex-col items-center text-center relative pb-4">
+              {/* Circular BukSU Logo on Top Left */}
+              <div className="absolute left-0 top-0 hidden sm:block">
+                <img
+                  src={buksuLogo}
+                  alt="BukSU Official Seal"
+                  className="h-20 w-20 md:h-24 md:w-24 object-contain"
+                />
+              </div>
+
+              <div className="space-y-0.5 sm:px-24">
+                <h1 className="font-bold text-base sm:text-lg tracking-wide text-foreground print:text-black uppercase">
+                  Bukidnon State University
+                </h1>
+                <p className="text-xs sm:text-sm text-muted-foreground print:text-neutral-700">
+                  Malaybalay City, Bukidnon 8700
+                </p>
+                <p className="text-xs sm:text-sm text-muted-foreground print:text-neutral-700">
+                  Tel (088) 813-5661 to 5663; TeleFax (088) 813-2717,
+                </p>
+                <a
+                  href="https://www.buksu.edu.ph"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 print:text-blue-800 underline block"
+                >
+                  www.buksu.edu.ph
+                </a>
+              </div>
+
+              {/* Centered Document Title */}
+              <div className="pt-6 pb-2 text-center w-full">
+                <h2 className="font-bold text-lg sm:text-xl tracking-wider text-foreground print:text-black uppercase">
+                  ACTION DONE MATRIX
+                </h2>
+              </div>
+            </div>
+
+            {/* Dynamic Project Title Field */}
+            <div className="text-xs sm:text-sm space-y-1.5 pt-2 font-sans">
+              <div className="flex flex-wrap items-baseline gap-1.5">
+                <span className="font-semibold text-foreground print:text-black shrink-0">
+                  Capstone Project Title:
+                </span>
+                <div className="flex-1 min-w-[280px]">
+                  <input
+                    type="text"
+                    value={projectTitle}
+                    onChange={(e) => setProjectTitle(e.target.value)}
+                    onBlur={handleTitleBlur}
+                    disabled={!isFaculty && !isStudent}
+                    className="w-full font-bold underline bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary/60 focus:outline-none px-1 text-xs sm:text-sm text-foreground print:text-black"
+                    placeholder="Enter Capstone Project Title..."
+                  />
+                </div>
+              </div>
+
+              <p className="text-[11px] sm:text-xs text-muted-foreground print:text-neutral-800 italic">
+                Note to the Researchers: Please submit this form with the revised paper that shall
+                be forwarded to the Capstone Committee/Instructor)
+              </p>
+            </div>
+
+            {/* ============================================================ */}
+            {/* 2. TABLE SCAFFOLDING & REVIEW CLASSIFICATION (4 COLUMNS) */}
+            {/* ============================================================ */}
+            <div className="mt-4 border border-black dark:border-border print:border-black font-sans">
+              {/* Top Bar: Review Classification */}
+              <div className="flex flex-wrap items-center justify-between border-b border-black dark:border-border print:border-black px-3 py-2 text-xs sm:text-sm bg-muted/10 print:bg-transparent">
+                <div className="flex items-center gap-2 font-semibold">
+                  <span>Type of Review:</span>
+                  <span className="text-muted-foreground text-xs italic">_(Please tick)</span>
+                </div>
+
+                <div className="flex items-center gap-6 text-xs sm:text-sm">
+                  <label
+                    className={cn(
+                      'flex items-center gap-2 select-none',
+                      canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
+                    )}
+                  >
+                    <input
+                      id="review-internal"
+                      type="checkbox"
+                      checked={reviewType === 'internal'}
+                      disabled={!canManageReviewType}
+                      onChange={() => canManageReviewType && handleToggleReviewType('internal')}
+                      className={cn(
+                        'h-4 w-4 rounded border-black text-primary focus:ring-primary',
+                        !canManageReviewType && 'cursor-default',
+                      )}
+                    />
+                    <span className="font-medium text-foreground print:text-black">
+                      Internal Review
+                    </span>
+                  </label>
+
+                  <label
+                    className={cn(
+                      'flex items-center gap-2 select-none',
+                      canManageReviewType ? 'cursor-pointer' : 'cursor-default opacity-85',
+                    )}
+                  >
+                    <input
+                      id="review-external"
+                      type="checkbox"
+                      checked={reviewType === 'external'}
+                      disabled={!canManageReviewType}
+                      onChange={() => canManageReviewType && handleToggleReviewType('external')}
+                      className={cn(
+                        'h-4 w-4 rounded border-black text-primary focus:ring-primary',
+                        !canManageReviewType && 'cursor-default',
+                      )}
+                    />
+                    <span className="font-medium text-foreground print:text-black">
+                      External Review
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 4 Required Column Headers */}
+              <div className="grid grid-cols-12 border-b border-black dark:border-border print:border-black text-center font-bold text-xs sm:text-sm bg-muted/20 print:bg-neutral-50 divide-x divide-black dark:divide-border print:divide-black">
+                <div className="col-span-3 p-2.5 flex items-center justify-center">
+                  Name of Panel
+                </div>
+                <div className="col-span-4 p-2.5 flex items-center justify-center">
+                  Suggestion of the Panel(s)
+                </div>
+                <div className="col-span-4 p-2.5 flex items-center justify-center">
+                  Action Taken
+                </div>
+                <div className="col-span-1 p-2 flex items-center justify-center text-[11px] sm:text-xs">
+                  Page Number/s
+                </div>
+              </div>
+
+              {/* Rows */}
+              {displayedRows.length === 0 ? (
+                <div className="p-8 text-center text-xs sm:text-sm text-muted-foreground italic">
+                  {rows.length === 0
+                    ? isCurrentUserStudent
+                      ? 'No recommendations recorded yet by the defense committee or panel.'
+                      : 'No recommendations recorded yet. Click "Add Row" to begin.'
+                    : isCurrentUserStudent
+                      ? `No recommendations recorded for ${selectedMilestone.replace('_', ' ')} yet.`
+                      : `No recommendations recorded for ${selectedMilestone.replace('_', ' ')}. Switch phase scope or click "Add Row" to append an item.`}
+                </div>
+              ) : (
+                <div className="divide-y divide-black dark:divide-border print:divide-black">
+                  {displayedRows.map((row, idx) => {
+                    const rowId = row._id || row.id || idx;
+                    const isLocked = Boolean(row.isLocked);
+
+                    // Permission rules:
+                    const canEditPanel =
+                      (isFaculty || isUserPanelist || isUserInstructor) && !isLocked;
+                    const canEditSuggestion =
+                      (isFaculty || isUserPanelist || isUserInstructor) && !isLocked;
+                    const canEditAction = isStudent && !isLocked;
+                    const canVerifyRow =
+                      (isFaculty ||
+                        isUserPanelist ||
+                        isUserSecretary ||
+                        isUserInstructor ||
+                        isUserAdviser) &&
+                      !isLocked;
+
+                    return (
+                      <div
+                        key={rowId}
+                        className="grid grid-cols-12 divide-x divide-black dark:divide-border print:divide-black relative group/row hover:bg-muted/5 transition-colors"
+                      >
+                        {/* Column 1: Name of Panel (Col span 3) */}
+                        <div className="col-span-3 p-3 flex flex-col justify-start">
+                          <AutoExpandingTextarea
+                            value={row.panelName || ''}
+                            onChange={(e) => handleCellChange(rowId, 'panelName', e.target.value)}
+                            onBlur={() => handleCellBlur(rowId, 'panelName')}
+                            placeholder="Panel Member Name"
+                            disabled={!canEditPanel}
+                            savingStatus={savingCells[`${rowId}_panelName`]}
+                            className="font-bold text-foreground print:text-black"
+                            minRows={1}
                           />
-                          <span>
-                            {row.status === 'verified' ? (
-                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                                Fulfilled & Verified by Panel
-                              </span>
-                            ) : row.status === 'addressed' ? (
-                              <span>Action Documented — Pending Panel Verification</span>
-                            ) : (
-                              <span>Pending Student Action</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground font-sans print:hidden">
+                            {(row.panelName?.toLowerCase().includes('(client)') ||
+                              row.remarks?.includes('Client')) && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                              >
+                                Client Feedback
+                              </Badge>
                             )}
-                          </span>
-                        </label>
+                            {row.milestone && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] py-0 px-1 border-primary/30 text-primary"
+                              >
+                                {row.milestone === 'CAPSTONE_3' || row.milestone === 'CAPSTONE_4'
+                                  ? 'Cap 3'
+                                  : row.milestone === 'CAPSTONE_2'
+                                    ? 'Cap 2'
+                                    : 'Cap 1'}
+                              </Badge>
+                            )}
+                            {isLocked && (
+                              <span className="flex items-center gap-1 text-amber-500 font-medium">
+                                <Lock className="h-3 w-3" />
+                                Locked
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                        {row.status === 'verified' && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0 font-semibold"
-                          >
-                            Verified
-                          </Badge>
-                        )}
+                        {/* Column 2: Suggestion of the Panel(s) (Col span 4) */}
+                        <div className="col-span-4 p-3">
+                          <AutoExpandingTextarea
+                            value={row.suggestion || ''}
+                            onChange={(e) => handleCellChange(rowId, 'suggestion', e.target.value)}
+                            onBlur={() => handleCellBlur(rowId, 'suggestion')}
+                            placeholder="- Specific suggestion / recommendation..."
+                            disabled={!canEditSuggestion}
+                            savingStatus={savingCells[`${rowId}_suggestion`]}
+                            className="text-foreground print:text-black whitespace-pre-line"
+                            minRows={3}
+                          />
+                        </div>
+
+                        {/* Column 3: Action Taken & Fulfillment Verification (Col span 4) */}
+                        <div className="col-span-4 p-3 flex flex-col justify-between">
+                          <AutoExpandingTextarea
+                            value={row.actionDone || ''}
+                            onChange={(e) => handleCellChange(rowId, 'actionDone', e.target.value)}
+                            onBlur={() => handleCellBlur(rowId, 'actionDone')}
+                            placeholder="- Description of modifications made..."
+                            disabled={!canEditAction}
+                            savingStatus={savingCells[`${rowId}_actionDone`]}
+                            className="text-foreground print:text-black whitespace-pre-line"
+                            minRows={3}
+                          />
+
+                          {/* Panel Fulfillment Verification Checkbox (Interactive for committee) */}
+                          <div className="mt-2.5 pt-2 border-t border-dashed border-border/50 flex items-center justify-between gap-2 text-xs font-sans print:hidden">
+                            <label
+                              htmlFor={`verify-row-${rowId}`}
+                              className={cn(
+                                'inline-flex items-center gap-2 select-none text-[11px] font-medium transition-colors',
+                                canVerifyRow ? 'cursor-pointer' : 'cursor-default opacity-85',
+                                row.status === 'verified'
+                                  ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                                  : row.status === 'addressed'
+                                    ? 'text-amber-600 dark:text-amber-400 font-medium'
+                                    : 'text-muted-foreground',
+                              )}
+                            >
+                              <input
+                                id={`verify-row-${rowId}`}
+                                type="checkbox"
+                                checked={row.status === 'verified'}
+                                disabled={!canVerifyRow}
+                                onChange={(e) => handleToggleFulfillment(rowId, e.target.checked)}
+                                className="h-3.5 w-3.5 rounded border-border text-emerald-600 focus:ring-emerald-500 focus:ring-offset-background cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                              />
+                              <span>
+                                {row.status === 'verified' ? (
+                                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                                    Fulfilled & Verified by Panel
+                                  </span>
+                                ) : row.status === 'addressed' ? (
+                                  <span>Action Documented — Pending Panel Verification</span>
+                                ) : (
+                                  <span>Pending Student Action</span>
+                                )}
+                              </span>
+                            </label>
+
+                            {row.status === 'verified' && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shrink-0 font-semibold"
+                              >
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Column 4: Page Number/s (Col span 1) */}
+                        <div className="col-span-1 p-2 flex flex-col items-center justify-start text-center">
+                          <AutoExpandingTextarea
+                            value={row.pageNumbers || ''}
+                            onChange={(e) => handleCellChange(rowId, 'pageNumbers', e.target.value)}
+                            onBlur={() => handleCellBlur(rowId, 'pageNumbers')}
+                            placeholder="p. #"
+                            disabled={!canEditAction}
+                            savingStatus={savingCells[`${rowId}_pageNumbers`]}
+                            className="text-center text-xs text-foreground print:text-black"
+                            minRows={1}
+                          />
+
+                          {/* Delete Row button (non-printing, visible on hover) */}
+                          {!isLocked && canAddRow && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(rowId)}
+                              title="Delete Row"
+                              className="mt-2 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100 transition-opacity no-print"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Faculty / Instructor inline Add Row interface (Hidden on export/print) */}
+              {canAddRow && (
+                <div className="p-3 border-t border-dashed border-border/70 flex flex-wrap items-center justify-between gap-3 bg-muted/10 print:hidden">
+                  <span className="text-xs text-muted-foreground font-sans">
+                    Faculty / Instructor quick action: Add an evaluation or recommendation row to
+                    this matrix.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddRow}
+                    className="gap-1.5 text-xs h-8 border-dashed hover:border-solid hover:bg-primary/5 font-sans"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Row to ADM
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* ============================================================ */}
+            {/* 3. DEDICATED SIGNATORIES BOARD (3 TIERS + SECRETARY GATE) */}
+            {/* ============================================================ */}
+            <div className="mt-12 space-y-10 font-sans text-xs sm:text-sm">
+              {/* Secretary Compliance Endorsement Verification Banner */}
+              <div className="rounded-lg border border-border/80 bg-muted/20 p-4 font-sans text-left space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck
+                      className={`h-5 w-5 ${
+                        isSecretaryEndorsed
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-amber-500'
+                      }`}
+                    />
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        Secretary Compliance Verification Gate
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground">
+                        Prerequisite compliance audit: The Committee Secretary must endorse all
+                        student revision fulfillments before committee digital signatures can
+                        unlock.
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={isSecretaryEndorsed ? 'secondary' : 'outline'}
+                    className={`text-[10px] uppercase font-semibold tracking-wider ${
+                      isSecretaryEndorsed
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-500/30'
+                    }`}
+                  >
+                    {isSecretaryEndorsed ? 'Endorsed & Unlocked' : 'Endorsement Pending'}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Designated Secretary: </span>
+                    <span className="font-semibold text-foreground">
+                      {admSignatures.secretary?.signatoryName ||
+                        formatFullName(secretary?.user || secretary, 'Committee Secretary')}
+                    </span>
+                    {admSignatures.secretary?.endorsedAt && (
+                      <span className="text-muted-foreground text-[11px] ml-2">
+                        (Endorsed on{' '}
+                        {new Date(admSignatures.secretary.endorsedAt).toLocaleDateString()})
+                      </span>
+                    )}
+                    {admSignatures.secretary?.notes && (
+                      <p className="text-[11px] italic text-muted-foreground mt-1">
+                        Remarks: &ldquo;{admSignatures.secretary.notes}&rdquo;
+                      </p>
+                    )}
+                  </div>
+
+                  {canEndorse && !isSecretaryEndorsed && (
+                    <Button
+                      size="sm"
+                      onClick={() => setIsEndorsementModalOpen(true)}
+                      className="gap-1.5 text-xs h-7 font-medium no-print"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Sign Secretary Endorsement
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* TIER 1: Adviser & Course Instructor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center">
+                {/* Capstone Adviser */}
+                <SignatoryCard
+                  name={
+                    admSignatures.adviser?.signatoryName ||
+                    formatFullName(adviser, 'Pending Appointment')
+                  }
+                  designation="Signature over Printed Name of Adviser"
+                  signatureState={admSignatures.adviser}
+                  canSign={isSecretaryEndorsed && isUserAdviser}
+                  isLockedBySecretary={!isSecretaryEndorsed && isUserAdviser}
+                  onSign={() =>
+                    handleOpenSignModal({
+                      tier: 1,
+                      role: 'adviser',
+                      defaultName: formatFullName(adviser, 'Pending Appointment'),
+                    })
+                  }
+                />
+
+                {/* Course Instructor */}
+                <SignatoryCard
+                  name={
+                    admSignatures.instructor?.signatoryName ||
+                    formatFullName(instructor, 'Pending Appointment')
+                  }
+                  designation="Signature over Printed Name of Instructor"
+                  signatureState={admSignatures.instructor}
+                  canSign={isUserDesignatedInstructor}
+                  isLockedBySecretary={false}
+                  onSign={() =>
+                    handleOpenSignModal({
+                      tier: 1,
+                      role: 'instructor',
+                      defaultName: formatFullName(instructor, 'Pending Appointment'),
+                    })
+                  }
+                />
+              </div>
+
+              {/* Approved by Section Header */}
+              <div className="pt-2">
+                <p className="font-semibold text-xs sm:text-sm text-foreground print:text-black text-left">
+                  Approved by:
+                </p>
+              </div>
+
+              {/* TIER 2: Panel Members (Dual Endorsements) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center">
+                {/* Panel Member 1 */}
+                <SignatoryCard
+                  name={
+                    admSignatures.panelists?.[0]?.signatoryName ||
+                    formatFullName(
+                      regularPanelists[0]?.userId ||
+                        regularPanelists[0]?.user ||
+                        regularPanelists[0],
+                      'Pending Appointment',
+                    )
+                  }
+                  designation="Panel Member"
+                  signatureState={admSignatures.panelists?.[0]}
+                  canSign={isSecretaryEndorsed && isUserPanelist1}
+                  isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist1}
+                  onSign={() =>
+                    handleOpenSignModal({
+                      tier: 2,
+                      role: 'panelist',
+                      defaultName: formatFullName(
+                        regularPanelists[0]?.userId ||
+                          regularPanelists[0]?.user ||
+                          regularPanelists[0],
+                        'Pending Appointment',
+                      ),
+                    })
+                  }
+                />
+
+                {/* Panel Member 2 */}
+                <SignatoryCard
+                  name={
+                    admSignatures.panelists?.[1]?.signatoryName ||
+                    formatFullName(
+                      regularPanelists[1]?.userId ||
+                        regularPanelists[1]?.user ||
+                        regularPanelists[1],
+                      'Pending Appointment',
+                    )
+                  }
+                  designation="Panel Member"
+                  signatureState={admSignatures.panelists?.[1]}
+                  canSign={isSecretaryEndorsed && isUserPanelist2}
+                  isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist2}
+                  onSign={() =>
+                    handleOpenSignModal({
+                      tier: 2,
+                      role: 'panelist',
+                      defaultName: formatFullName(
+                        regularPanelists[1]?.userId ||
+                          regularPanelists[1]?.user ||
+                          regularPanelists[1],
+                        'Pending Appointment',
+                      ),
+                    })
+                  }
+                />
+              </div>
+
+              {/* TIER 3: Centered REC / Committee Chair */}
+              <div className="flex justify-center text-center pt-2">
+                <div className="w-full max-w-sm">
+                  <SignatoryCard
+                    name={
+                      admSignatures.chair?.signatoryName ||
+                      formatFullName(chair?.userId || chair?.user || chair, 'Pending Appointment')
+                    }
+                    designation="REC / Chair"
+                    signatureState={admSignatures.chair}
+                    canSign={isSecretaryEndorsed && isUserChair}
+                    isLockedBySecretary={!isSecretaryEndorsed && isUserChair}
+                    onSign={() =>
+                      handleOpenSignModal({
+                        tier: 3,
+                        role: 'chair',
+                        defaultName: formatFullName(
+                          chair?.userId || chair?.user || chair,
+                          'Pending Appointment',
+                        ),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ============================================================ */}
+            {/* 4. INSTITUTIONAL DOCUMENT CODE FOOTER */}
+            {/* ============================================================ */}
+            <div className="mt-16 pt-6 border-t border-border/40 print:border-black/60 text-[10px] sm:text-[11px] text-muted-foreground print:text-neutral-700 font-sans">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>Document Code: RU- F-033</span>
+                <span>Revision No. : 002</span>
+                <span>Issue No. 002</span>
+                <span>Issue Date: May 15, 2018</span>
+                <span>Page 1 of 1</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================================ */}
+          {/* 5. MODALS & DIALOGS */}
+          {/* ============================================================ */}
+
+          {/* Upload Defense Minutes Modal */}
+          {isUploadModalOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs no-print"
+              role="presentation"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !isUploadingMinutes) {
+                  setIsUploadModalOpen(false);
+                }
+              }}
+            >
+              <div className="w-full max-w-md bg-card border border-border shadow-xl rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-primary" />
+                  <h4 className="text-base font-semibold">Upload Defense Minutes PDF</h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Upload the official defense minutes PDF. The system will automatically parse
+                  panelist recommendations and populate the Action Done Matrix rows.
+                </p>
+                <form onSubmit={handleUploadMinutes} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="minutes-file">Defense Minutes (.pdf)</Label>
+                    <Input
+                      id="minutes-file"
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      disabled={isUploadingMinutes}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsUploadModalOpen(false)}
+                      disabled={isUploadingMinutes}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" size="sm" disabled={isUploadingMinutes || !selectedFile}>
+                      {isUploadingMinutes ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                        </>
+                      ) : (
+                        'Extract to Matrix'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Digital Signature Confirmation Modal */}
+          {signingSignatory &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div
+                className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="endorsement-modal-title"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !isSubmittingSignature) {
+                    setSigningSignatory(null);
+                  }
+                }}
+              >
+                <div
+                  className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <PenTool className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 id="endorsement-modal-title" className="text-base font-semibold">
+                          Official Committee Endorsement
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Signatory Role:{' '}
+                          <strong className="text-foreground capitalize">
+                            {signingSignatory.role}
+                          </strong>
+                        </p>
                       </div>
                     </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSigningSignatory(null)}
+                      disabled={isSubmittingSignature}
+                      className="h-7 w-7 p-0 rounded-md"
+                    >
+                      ✕
+                    </Button>
+                  </div>
 
-                    {/* Column 4: Page Number/s (Col span 1) */}
-                    <div className="col-span-1 p-2 flex flex-col items-center justify-start text-center">
-                      <AutoExpandingTextarea
-                        value={row.pageNumbers || ''}
-                        onChange={(e) => handleCellChange(rowId, 'pageNumbers', e.target.value)}
-                        placeholder="p. #"
-                        disabled={!canEditAction}
-                        savingStatus={savingCells[`${rowId}_pageNumbers`]}
-                        className="text-center text-xs text-foreground print:text-black"
-                        minRows={1}
-                      />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Applying your digital signature confirms that the revisions and action items
+                    recorded across this Action Done Matrix have been verified against institutional
+                    criteria.
+                  </p>
 
-                      {/* Delete Row button (non-printing, visible on hover) */}
-                      {!isLocked && canAddRow && (
+                  {/* Signatory Legal Name */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sig-name" className="text-xs font-medium">
+                      Signatory Legal Full Name
+                    </Label>
+                    <Input
+                      id="sig-name"
+                      value={signatoryTypedName}
+                      onChange={(e) => setSignatoryTypedName(e.target.value)}
+                      placeholder="Full Legal Name"
+                      disabled={isSubmittingSignature}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  {/* Signature Selector / Canvas */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Official Digital Signature</Label>
+                      {user?.digitalSignature && (
                         <button
                           type="button"
-                          onClick={() => handleDeleteRow(rowId)}
-                          title="Delete Row"
-                          className="mt-2 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100 transition-opacity no-print"
+                          onClick={() => {
+                            setIsDrawingNewSignature((prev) => {
+                              const next = !prev;
+                              if (next) {
+                                setSignatureDataUrl(null);
+                              } else {
+                                setSignatureDataUrl(user.digitalSignature);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="text-xs text-primary hover:underline font-medium"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          {isDrawingNewSignature
+                            ? 'Use Saved Signature'
+                            : 'Draw New / Custom Signature'}
                         </button>
                       )}
                     </div>
+
+                    {user?.digitalSignature && !isDrawingNewSignature ? (
+                      <div className="rounded-lg border border-border bg-muted/20 p-4 flex flex-col items-center justify-center space-y-2">
+                        <div className="h-14 flex items-center justify-center">
+                          <img
+                            src={user.digitalSignature}
+                            alt="Saved Signature"
+                            className="max-h-12 max-w-[240px] object-contain filter drop-shadow-xs"
+                          />
+                        </div>
+                        <p className="text-xs font-bold uppercase text-foreground">
+                          {signatoryTypedName || formatFullName(user)}
+                        </p>
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
+                        >
+                          <CheckCircle2 className="h-3 w-3" /> Configured in Account Settings
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <SignaturePad
+                          defaultSignatoryName={signatoryTypedName || formatFullName(user)}
+                          onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
+                          onClear={() => setSignatureDataUrl(null)}
+                          height={140}
+                        />
+
+                        {/* Save to Settings Checkbox */}
+                        <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={saveSignatureForFuture}
+                            onChange={(e) => setSaveSignatureForFuture(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                          />
+                          <span className="text-xs text-muted-foreground select-none">
+                            Save this signature to my account settings for future one-click
+                            endorsements
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {/* ============================================================ */}
-        {/* 3. DEDICATED SIGNATORIES BOARD (3 TIERS + SECRETARY GATE) */}
-        {/* ============================================================ */}
-        <div className="mt-12 space-y-10 font-sans text-xs sm:text-sm">
-          {/* Secretary Compliance Endorsement Verification Banner */}
-          <div className="rounded-lg border border-border/80 bg-muted/20 p-4 font-sans text-left space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck
-                  className={`h-5 w-5 ${
-                    isSecretaryEndorsed
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-amber-500'
-                  }`}
-                />
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Secretary Compliance Verification Gate
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    Prerequisite compliance audit: The Committee Secretary must endorse all student
-                    revision fulfillments before committee digital signatures can unlock.
-                  </p>
-                </div>
-              </div>
-              <Badge
-                variant={isSecretaryEndorsed ? 'secondary' : 'outline'}
-                className={`text-[10px] uppercase font-semibold tracking-wider ${
-                  isSecretaryEndorsed
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-500/30'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-500/30'
-                }`}
-              >
-                {isSecretaryEndorsed ? 'Endorsed & Unlocked' : 'Endorsement Pending'}
-              </Badge>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div>
-                <span className="text-muted-foreground">Designated Secretary: </span>
-                <span className="font-semibold text-foreground">
-                  {admSignatures.secretary?.signatoryName ||
-                    formatFullName(secretary?.user || secretary, 'Committee Secretary')}
-                </span>
-                {admSignatures.secretary?.endorsedAt && (
-                  <span className="text-muted-foreground text-[11px] ml-2">
-                    (Endorsed on {new Date(admSignatures.secretary.endorsedAt).toLocaleDateString()}
-                    )
-                  </span>
-                )}
-                {admSignatures.secretary?.notes && (
-                  <p className="text-[11px] italic text-muted-foreground mt-1">
-                    Remarks: &ldquo;{admSignatures.secretary.notes}&rdquo;
-                  </p>
-                )}
-              </div>
-
-              {canEndorse && !isSecretaryEndorsed && (
-                <Button
-                  size="sm"
-                  onClick={() => setIsEndorsementModalOpen(true)}
-                  className="gap-1.5 text-xs h-7 font-medium no-print"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Sign Secretary Endorsement
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* TIER 1: Adviser & Course Instructor */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center">
-            {/* Capstone Adviser */}
-            <SignatoryCard
-              name={
-                admSignatures.adviser?.signatoryName ||
-                formatFullName(adviser, 'Pending Appointment')
-              }
-              designation="Signature over Printed Name of Adviser"
-              signatureState={admSignatures.adviser}
-              canSign={isSecretaryEndorsed && isUserAdviser}
-              isLockedBySecretary={!isSecretaryEndorsed && isUserAdviser}
-              onSign={() =>
-                handleOpenSignModal({
-                  tier: 1,
-                  role: 'adviser',
-                  defaultName: formatFullName(adviser, 'Pending Appointment'),
-                })
-              }
-            />
-
-            {/* Course Instructor */}
-            <SignatoryCard
-              name={
-                admSignatures.instructor?.signatoryName ||
-                formatFullName(instructor, 'Pending Appointment')
-              }
-              designation="Signature over Printed Name of Instructor"
-              signatureState={admSignatures.instructor}
-              canSign={isUserDesignatedInstructor}
-              isLockedBySecretary={false}
-              onSign={() =>
-                handleOpenSignModal({
-                  tier: 1,
-                  role: 'instructor',
-                  defaultName: formatFullName(instructor, 'Pending Appointment'),
-                })
-              }
-            />
-          </div>
-
-          {/* Approved by Section Header */}
-          <div className="pt-2">
-            <p className="font-semibold text-xs sm:text-sm text-foreground print:text-black text-left">
-              Approved by:
-            </p>
-          </div>
-
-          {/* TIER 2: Panel Members (Dual Endorsements) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-center">
-            {/* Panel Member 1 */}
-            <SignatoryCard
-              name={
-                admSignatures.panelists?.[0]?.signatoryName ||
-                formatFullName(
-                  regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0],
-                  'Pending Appointment',
-                )
-              }
-              designation="Panel Member"
-              signatureState={admSignatures.panelists?.[0]}
-              canSign={isSecretaryEndorsed && isUserPanelist1}
-              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist1}
-              onSign={() =>
-                handleOpenSignModal({
-                  tier: 2,
-                  role: 'panelist',
-                  defaultName: formatFullName(
-                    regularPanelists[0]?.userId || regularPanelists[0]?.user || regularPanelists[0],
-                    'Pending Appointment',
-                  ),
-                })
-              }
-            />
-
-            {/* Panel Member 2 */}
-            <SignatoryCard
-              name={
-                admSignatures.panelists?.[1]?.signatoryName ||
-                formatFullName(
-                  regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1],
-                  'Pending Appointment',
-                )
-              }
-              designation="Panel Member"
-              signatureState={admSignatures.panelists?.[1]}
-              canSign={isSecretaryEndorsed && isUserPanelist2}
-              isLockedBySecretary={!isSecretaryEndorsed && isUserPanelist2}
-              onSign={() =>
-                handleOpenSignModal({
-                  tier: 2,
-                  role: 'panelist',
-                  defaultName: formatFullName(
-                    regularPanelists[1]?.userId || regularPanelists[1]?.user || regularPanelists[1],
-                    'Pending Appointment',
-                  ),
-                })
-              }
-            />
-          </div>
-
-          {/* TIER 3: Centered REC / Committee Chair */}
-          <div className="flex justify-center text-center pt-2">
-            <div className="w-full max-w-sm">
-              <SignatoryCard
-                name={
-                  admSignatures.chair?.signatoryName ||
-                  formatFullName(chair?.userId || chair?.user || chair, 'Pending Appointment')
-                }
-                designation="REC / Chair"
-                signatureState={admSignatures.chair}
-                canSign={isSecretaryEndorsed && isUserChair}
-                isLockedBySecretary={!isSecretaryEndorsed && isUserChair}
-                onSign={() =>
-                  handleOpenSignModal({
-                    tier: 3,
-                    role: 'chair',
-                    defaultName: formatFullName(
-                      chair?.userId || chair?.user || chair,
-                      'Pending Appointment',
-                    ),
-                  })
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ============================================================ */}
-        {/* 4. INSTITUTIONAL DOCUMENT CODE FOOTER */}
-        {/* ============================================================ */}
-        <div className="mt-16 pt-6 border-t border-border/40 print:border-black/60 text-[10px] sm:text-[11px] text-muted-foreground print:text-neutral-700 font-sans">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>Document Code: RU- F-033</span>
-            <span>Revision No. : 002</span>
-            <span>Issue No. 002</span>
-            <span>Issue Date: May 15, 2018</span>
-            <span>Page 1 of 1</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 5. MODALS & DIALOGS */}
-      {/* ============================================================ */}
-
-      {/* Upload Defense Minutes Modal */}
-      {isUploadModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs no-print"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isUploadingMinutes) {
-              setIsUploadModalOpen(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-md bg-card border border-border shadow-xl rounded-xl p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Upload className="h-5 w-5 text-primary" />
-              <h4 className="text-base font-semibold">Upload Defense Minutes PDF</h4>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Upload the official defense minutes PDF. The system will automatically parse panelist
-              recommendations and populate the Action Done Matrix rows.
-            </p>
-            <form onSubmit={handleUploadMinutes} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="minutes-file">Defense Minutes (.pdf)</Label>
-                <Input
-                  id="minutes-file"
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  disabled={isUploadingMinutes}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsUploadModalOpen(false)}
-                  disabled={isUploadingMinutes}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" disabled={isUploadingMinutes || !selectedFile}>
-                  {isUploadingMinutes ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
-                    </>
-                  ) : (
-                    'Extract to Matrix'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Digital Signature Confirmation Modal */}
-      {signingSignatory &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="endorsement-modal-title"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isSubmittingSignature) {
-                setSigningSignatory(null);
-              }
-            }}
-          >
-            <div
-              className="w-full max-w-lg bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <PenTool className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 id="endorsement-modal-title" className="text-base font-semibold">
-                      Official Committee Endorsement
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Signatory Role:{' '}
-                      <strong className="text-foreground capitalize">
-                        {signingSignatory.role}
-                      </strong>
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSigningSignatory(null)}
-                  disabled={isSubmittingSignature}
-                  className="h-7 w-7 p-0 rounded-md"
-                >
-                  ✕
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Applying your digital signature confirms that the revisions and action items
-                recorded across this Action Done Matrix have been verified against institutional
-                criteria.
-              </p>
-
-              {/* Signatory Legal Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="sig-name" className="text-xs font-medium">
-                  Signatory Legal Full Name
-                </Label>
-                <Input
-                  id="sig-name"
-                  value={signatoryTypedName}
-                  onChange={(e) => setSignatoryTypedName(e.target.value)}
-                  placeholder="Full Legal Name"
-                  disabled={isSubmittingSignature}
-                  className="h-9 text-xs"
-                />
-              </div>
-
-              {/* Signature Selector / Canvas */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">Official Digital Signature</Label>
-                  {user?.digitalSignature && (
-                    <button
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
+                    <Button
                       type="button"
-                      onClick={() => {
-                        setIsDrawingNewSignature((prev) => {
-                          const next = !prev;
-                          if (next) {
-                            setSignatureDataUrl(null);
-                          } else {
-                            setSignatureDataUrl(user.digitalSignature);
-                          }
-                          return next;
-                        });
-                      }}
-                      className="text-xs text-primary hover:underline font-medium"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSigningSignatory(null)}
+                      disabled={isSubmittingSignature}
+                      className="h-8 text-xs"
                     >
-                      {isDrawingNewSignature
-                        ? 'Use Saved Signature'
-                        : 'Draw New / Custom Signature'}
-                    </button>
-                  )}
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleConfirmSignature}
+                      disabled={
+                        isSubmittingSignature || (!signatureDataUrl && !user?.digitalSignature)
+                      }
+                      className="gap-1.5 h-8 text-xs font-medium"
+                    >
+                      {isSubmittingSignature ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Recording Endorsement...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="h-3.5 w-3.5" /> Sign & Endorse
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
+              </div>,
+              document.body,
+            )}
 
-                {user?.digitalSignature && !isDrawingNewSignature ? (
-                  <div className="rounded-lg border border-border bg-muted/20 p-4 flex flex-col items-center justify-center space-y-2">
-                    <div className="h-14 flex items-center justify-center">
-                      <img
-                        src={user.digitalSignature}
-                        alt="Saved Signature"
-                        className="max-h-12 max-w-[240px] object-contain filter drop-shadow-xs"
+          {/* Secretary Endorsement Confirmation Modal */}
+          {isEndorsementModalOpen &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div
+                className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="secretary-endorsement-modal-title"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !isSubmittingEndorsement) {
+                    setIsEndorsementModalOpen(false);
+                  }
+                }}
+              >
+                <div
+                  className="w-full max-w-md bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4
+                          id="secretary-endorsement-modal-title"
+                          className="text-base font-semibold"
+                        >
+                          Committee Secretary Endorsement
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Compliance Verification Gate
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEndorsementModalOpen(false)}
+                      disabled={isSubmittingEndorsement}
+                      className="h-7 w-7 p-0 rounded-md"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    As the Committee Secretary, your endorsement certifies that the proponent team
+                    has satisfactorily addressed all panel recommendations in accordance with the
+                    defense proceedings. This will unlock digital signatures for the panel members
+                    and adviser.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="sec-name" className="text-xs font-medium">
+                        Signatory Full Legal Name
+                      </Label>
+                      <Input
+                        id="sec-name"
+                        value={endorsementTypedName || formatFullName(user, 'Committee Secretary')}
+                        onChange={(e) => setEndorsementTypedName(e.target.value)}
+                        placeholder="Secretary Full Name"
+                        disabled={isSubmittingEndorsement}
+                        className="h-9 text-xs"
                       />
                     </div>
-                    <p className="text-xs font-bold uppercase text-foreground">
-                      {signatoryTypedName || formatFullName(user)}
-                    </p>
-                    <Badge
-                      variant="secondary"
-                      className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
-                    >
-                      <CheckCircle2 className="h-3 w-3" /> Configured in Account Settings
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <SignaturePad
-                      defaultSignatoryName={signatoryTypedName || formatFullName(user)}
-                      onChange={(dataUrl) => setSignatureDataUrl(dataUrl)}
-                      onClear={() => setSignatureDataUrl(null)}
-                      height={140}
-                    />
-
-                    {/* Save to Settings Checkbox */}
-                    <label className="flex items-center gap-2 cursor-pointer pt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={saveSignatureForFuture}
-                        onChange={(e) => setSaveSignatureForFuture(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    <div className="space-y-1.5">
+                      <Label htmlFor="sec-notes" className="text-xs font-medium">
+                        Compliance Remarks / Notes (Optional)
+                      </Label>
+                      <textarea
+                        id="sec-notes"
+                        value={endorsementNotes}
+                        onChange={(e) => setEndorsementNotes(e.target.value)}
+                        placeholder="e.g., All revisions verified against manuscript and source code."
+                        rows={3}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isSubmittingEndorsement}
                       />
-                      <span className="text-xs text-muted-foreground select-none">
-                        Save this signature to my account settings for future one-click endorsements
-                      </span>
-                    </label>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSigningSignatory(null)}
-                  disabled={isSubmittingSignature}
-                  className="h-8 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleConfirmSignature}
-                  disabled={isSubmittingSignature || (!signatureDataUrl && !user?.digitalSignature)}
-                  className="gap-1.5 h-8 text-xs font-medium"
-                >
-                  {isSubmittingSignature ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Recording Endorsement...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-3.5 w-3.5" /> Sign & Endorse
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Secretary Endorsement Confirmation Modal */}
-      {isEndorsementModalOpen &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto bg-black/75 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 no-print"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="secretary-endorsement-modal-title"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isSubmittingEndorsement) {
-                setIsEndorsementModalOpen(false);
-              }
-            }}
-          >
-            <div
-              className="w-full max-w-md bg-card border border-border shadow-2xl rounded-xl p-6 space-y-4 my-auto animate-in zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 id="secretary-endorsement-modal-title" className="text-base font-semibold">
-                      Committee Secretary Endorsement
-                    </h4>
-                    <p className="text-xs text-muted-foreground">Compliance Verification Gate</p>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEndorsementModalOpen(false)}
+                      disabled={isSubmittingEndorsement}
+                      className="h-8 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleConfirmEndorsement}
+                      disabled={isSubmittingEndorsement}
+                      className="gap-1.5 h-8 text-xs font-medium"
+                    >
+                      {isSubmittingEndorsement ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Endorsing...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEndorsementModalOpen(false)}
-                  disabled={isSubmittingEndorsement}
-                  className="h-7 w-7 p-0 rounded-md"
-                >
-                  ✕
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                As the Committee Secretary, your endorsement certifies that the proponent team has
-                satisfactorily addressed all panel recommendations in accordance with the defense
-                proceedings. This will unlock digital signatures for the panel members and adviser.
-              </p>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="sec-name" className="text-xs font-medium">
-                    Signatory Full Legal Name
-                  </Label>
-                  <Input
-                    id="sec-name"
-                    value={endorsementTypedName || formatFullName(user, 'Committee Secretary')}
-                    onChange={(e) => setEndorsementTypedName(e.target.value)}
-                    placeholder="Secretary Full Name"
-                    disabled={isSubmittingEndorsement}
-                    className="h-9 text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sec-notes" className="text-xs font-medium">
-                    Compliance Remarks / Notes (Optional)
-                  </Label>
-                  <textarea
-                    id="sec-notes"
-                    value={endorsementNotes}
-                    onChange={(e) => setEndorsementNotes(e.target.value)}
-                    placeholder="e.g., All revisions verified against manuscript and source code."
-                    rows={3}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={isSubmittingEndorsement}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-border/60">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEndorsementModalOpen(false)}
-                  disabled={isSubmittingEndorsement}
-                  className="h-8 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleConfirmEndorsement}
-                  disabled={isSubmittingEndorsement}
-                  className="gap-1.5 h-8 text-xs font-medium"
-                >
-                  {isSubmittingEndorsement ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Endorsing...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-3.5 w-3.5" /> Confirm Endorsement
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Live Defense Minutes Modal */}
-      <LiveDefenseMinutesModal
-        open={isLiveMinutesModalOpen}
-        onOpenChange={setIsLiveMinutesModalOpen}
-        projectId={projectId}
-        defenseType={defenseType}
-        project={project}
-        user={user}
-        onMinutesPublished={() => {
-          if (onRefresh) onRefresh();
-        }}
-      />
+              </div>,
+              document.body,
+            )}
+        </>
+      )}
     </div>
   );
 }

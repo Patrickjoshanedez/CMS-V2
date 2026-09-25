@@ -111,6 +111,8 @@ export const projectService = {
   resolveTitleModification: (id, data) =>
     api.post(`/projects/${id}/title/modification/resolve`, data),
   assignAdviser: (id, data) => api.post(`/projects/${id}/adviser`, data),
+  assignSecretary: (id, data) => api.post(`/projects/${id}/secretary`, data),
+  removeSecretary: (id) => api.delete(`/projects/${id}/secretary`),
   assignPanelist: (id, data) => api.post(`/projects/${id}/panelists`, data),
   removePanelist: (id, data) => api.delete(`/projects/${id}/panelists`, { data }),
   setDeadlines: (id, data) => api.patch(`/projects/${id}/deadlines`, data),
@@ -198,7 +200,8 @@ export const projectService = {
   updateADMMetadata: (projectId, data) => api.patch(`/projects/${projectId}/adm-metadata`, data),
   signTieredADM: (projectId, data) => api.post(`/projects/${projectId}/adm-signatures`, data),
   endorseADM: (projectId, data) => api.post(`/adm/${projectId}/endorse`, data),
-  submitADMForEndorsement: (projectId) => api.post(`/adm/${projectId}/submit-for-endorsement`),
+  submitADMForEndorsement: (projectId, data) =>
+    api.post(`/adm/${projectId}/submit-for-endorsement`, data),
   seedInstitutionalADM: (projectId) =>
     api.post(`/projects/${projectId}/action-done-matrix/seed-institutional`),
   signADMItem: (projectId, itemId, data) =>
@@ -208,6 +211,11 @@ export const projectService = {
     api.post('/submissions/secretary-minutes', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  scanSecretaryMinutes: (formData) =>
+    api.post('/submissions/secretary/scan-minutes', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  saveSecretaryMinutes: (data) => api.post('/submissions/secretary/save-minutes', data),
   handleProjectStream: (projectId, data) => api.post(`/projects/${projectId}/stream-routing`, data),
 
   // Faculty shared routes

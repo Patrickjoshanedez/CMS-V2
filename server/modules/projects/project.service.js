@@ -1228,6 +1228,20 @@ class ProjectService {
       );
     }
 
+    // Enforce scheduled defense hearing prerequisite before title approval
+    const scheduleStatus = project.defenseSchedule?.status;
+    const hasScheduleDate = Boolean(project.defenseSchedule?.date);
+    const isScheduledOrDone =
+      (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
+
+    if (!isScheduledOrDone) {
+      throw new AppError(
+        'The proponent team must have a scheduled defense hearing before their title proposal can be approved.',
+        400,
+        'DEFENSE_SCHEDULE_REQUIRED',
+      );
+    }
+
     const proposals = Array.isArray(project.titleProposals) ? project.titleProposals : [];
     const metadataEntries = Array.isArray(project.titleProposalMetadata)
       ? project.titleProposalMetadata
@@ -1296,6 +1310,14 @@ class ProjectService {
     project.driveFolderId = null;
     project.projectStatus = PROJECT_STATUSES.PENDING_FOR_SUBMISSION;
     project.capstonePhase = 1;
+
+    // Automatically transition defense schedule to completed once title proposal is selected/approved
+    if (!project.defenseSchedule) {
+      project.defenseSchedule = {};
+    }
+    project.defenseSchedule.status = 'completed';
+    project.defenseSchedule.verdict = project.defenseSchedule.verdict || 'Passed';
+    project.defenseSchedule.completedAt = new Date();
 
     await project.save();
 
@@ -1695,8 +1717,20 @@ class ProjectService {
       );
     }
 
+    if (project.secretaryId && project.secretaryId.toString() === data.adviserId.toString()) {
+      throw new AppError(
+        'The committee secretary cannot serve as the faculty adviser on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
     project.adviserId = data.adviserId;
     await project.save();
+
+    if (project.teamId) {
+      await Team.findByIdAndUpdate(project.teamId, { adviserId: data.adviserId });
+    }
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
@@ -1765,6 +1799,14 @@ class ProjectService {
       );
     }
 
+    if (project.secretaryId && project.secretaryId.toString() === data.panelistId.toString()) {
+      throw new AppError(
+        'The committee secretary cannot serve as a defense panelist on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
     if (project.panelistIds.length >= 3) {
       throw new AppError('A project can have at most 3 panelists.', 400, 'MAX_PANELISTS_REACHED');
     }
@@ -1792,6 +1834,10 @@ class ProjectService {
       });
     }
     await project.save();
+
+    if (project.teamId) {
+      await Team.findByIdAndUpdate(project.teamId, { panelistIds: project.panelistIds });
+    }
 
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
@@ -1849,6 +1895,10 @@ class ProjectService {
     }
     await project.save();
 
+    if (project.teamId) {
+      await Team.findByIdAndUpdate(project.teamId, { panelistIds: project.panelistIds });
+    }
+
     await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
     await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
     await project.populate(
@@ -1866,6 +1916,138 @@ class ProjectService {
       });
       emitToUser(data.panelistId, 'notification:new', removedPanelistNotif);
     }
+
+    return { project };
+  }
+
+  /**
+   * Assign a committee secretary to a project (instructor action).
+   * @param {string} projectId
+   * @param {string} instructorId
+   * @param {Object} data - { secretaryId }
+   * @returns {Object} { project }
+   */
+  async assignSecretary(projectId, instructorId, data) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const secretary = await User.findById(data.secretaryId);
+    const isFacultyEligible =
+      secretary &&
+      (secretary.role === ROLES.FACULTY ||
+        secretary.role === ROLES.ADVISER ||
+        secretary.role === ROLES.PANELIST ||
+        ['faculty', 'adviser', 'panelist'].includes(secretary.role));
+
+    if (
+      !secretary ||
+      !isFacultyEligible ||
+      secretary.role === ROLES.INSTRUCTOR ||
+      secretary.role === ROLES.STUDENT
+    ) {
+      throw new AppError(
+        'Course instructors and students cannot serve as committee secretary. Please appoint a verified faculty member.',
+        400,
+        'INVALID_SECRETARY',
+      );
+    }
+
+    if (project.adviserId && project.adviserId.toString() === data.secretaryId.toString()) {
+      throw new AppError(
+        'A faculty adviser cannot serve as committee secretary on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    if (
+      project.panelistIds &&
+      project.panelistIds.some((id) => id.toString() === data.secretaryId.toString())
+    ) {
+      throw new AppError(
+        'A defense panelist cannot serve as committee secretary on the same project.',
+        400,
+        'ROLE_CONFLICT',
+      );
+    }
+
+    project.secretaryId = data.secretaryId;
+    await project.save();
+
+    // Synchronize team secretaryId if project belongs to a team
+    if (project.teamId) {
+      await Team.findByIdAndUpdate(project.teamId, { secretaryId: data.secretaryId });
+    }
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('secretaryId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
+
+    // Notify the secretary
+    const secretaryNotif = await Notification.create({
+      userId: data.secretaryId,
+      type: 'committee_assigned',
+      title: 'Committee Secretary Assignment',
+      message: `You have been appointed as Committee Secretary for the project "${project.title}".`,
+      metadata: { projectId: project._id, assignedBy: instructorId },
+    });
+    emitToUser(data.secretaryId, 'notification:new', secretaryNotif);
+
+    // Notify team members
+    await this._notifyTeamMembers(project.teamId, {
+      type: 'committee_assigned',
+      title: 'Secretary Appointed',
+      message: `${secretary.fullName || `${secretary.firstName} ${secretary.lastName}`} has been appointed as your Committee Secretary.`,
+      metadata: { projectId: project._id, secretaryId: data.secretaryId },
+    });
+
+    return { project };
+  }
+
+  /**
+   * Remove the committee secretary from a project (instructor action).
+   * @param {string} projectId
+   * @param {string} instructorId
+   * @returns {Object} { project }
+   */
+  async removeSecretary(projectId, instructorId) {
+    const project = await this._getProjectOrFail(projectId);
+
+    if (!project.secretaryId) {
+      throw new AppError(
+        'No secretary is currently assigned to this project.',
+        404,
+        'SECRETARY_NOT_FOUND',
+      );
+    }
+
+    const previousSecretaryId = project.secretaryId;
+    project.secretaryId = null;
+    await project.save();
+
+    if (project.teamId) {
+      await Team.findByIdAndUpdate(project.teamId, { secretaryId: null });
+    }
+
+    await project.populate('adviserId', 'firstName middleName lastName email profilePicture');
+    await project.populate('secretaryId', 'firstName middleName lastName email profilePicture');
+    await project.populate('panelistIds', 'firstName middleName lastName email profilePicture');
+    await project.populate(
+      'panelists.userId',
+      'firstName middleName lastName email profilePicture',
+    );
+
+    const removedSecNotif = await Notification.create({
+      userId: previousSecretaryId,
+      type: 'committee_assigned',
+      title: 'Committee Assignment Updated',
+      message: `You have been unassigned as Committee Secretary for the project "${project.title}".`,
+      metadata: { projectId: project._id, removedBy: instructorId },
+    });
+    emitToUser(previousSecretaryId, 'notification:new', removedSecNotif);
 
     return { project };
   }

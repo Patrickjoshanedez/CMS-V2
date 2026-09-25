@@ -1,37 +1,39 @@
 {
   "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
-  "session_id": "2026-09-25_clean-viewer-toolbar-and-in-document-highlighting",
-  "timestamp": "2026-09-25T13:25:00+08:00",
-  "status": "completed",
+  "session_id": "2026-09-26_defense-scheduling-and-approval-workflow-refinement",
+  "timestamp": "2026-09-26T02:49:00+08:00",
+  "status": "in_progress",
   "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
   "git_context": {
     "active_branch": "main",
-    "clean_working_tree": true
+    "clean_working_tree": false
   },
-  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
-  "task_description": "Clean SophisticatedDocumentViewer toolbar in Archive and Plagiarism Checker (suppressing revision diff, comments, chapter title, and logo icon, and preventing fullscreen layout collision), and implement true Turnitin-style in-document highlighting on original DOCX and PDF documents.",
+  "asdlc_phase": "STAGE 1: INTENT DECOMPOSITION & SKILL LOOKUP",
+  "task_description": "Enforce scheduled defense prerequisite before title proposal approval / auto-complete schedule when title is approved; hide draggable card when dragging so time slot is visible; label capstone phase/title proposal on card; align milestone table grid lines; make milestone cutoff Academic Year (Batch) a dynamic dropdown sourced from instructor's created school years.",
   "startup_preflight": {
     "ptss_index_inspected": true,
     "technical_context_synced": true,
     "recent_sessions_recalled": [
-      "2026-09-25_milestone-submission-and-defense-scheduling-integration",
-      "2026-09-25_plagiarism-checker-ui-consistency-and-subtle-animation",
-      "2026-09-25_publication-venue-extraction-precision"
+      "2026-09-26_project-details-secretary-dropdown-and-sidebar-committee",
+      "2026-09-25_adm-module-refactor-live-editing-and-isolation",
+      "2026-09-25_secretary-minutes-ovpaa-f-ins-032-ocr-integration"
     ],
-    "active_prevention_rules_count": 53
+    "active_prevention_rules_count": 61
   },
   "skills_primed": [
-    "capstone-lifecycle-orchestrator",
-    "asdlc-task-orchestrator",
+    "anti-slop",
     "frontend-patterns",
     "verification-loop",
-    "senior-backend"
+    "capstone-lifecycle-orchestrator",
+    "asdlc-task-orchestrator"
   ],
   "playwright_feedback_required": true,
   "verification_baseline": {
     "governance_passed": true,
-    "workspace_clean": true
+    "workspace_clean": true,
+    "endpoints_parity": true,
+    "unit_tests_passed": 21
   }
 }

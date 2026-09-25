@@ -27,6 +27,7 @@ import {
   assignAdviserSchema,
   assignPanelistSchema,
   removePanelistSchema,
+  assignSecretarySchema,
   setDeadlinesSchema,
   rejectProjectSchema,
   listProjectsQuerySchema,
@@ -305,6 +306,29 @@ router.delete(
     getMetadata: (req) => ({ panelistId: req.body.panelistId }),
   }),
   projectController.removePanelist,
+);
+
+// Assign a committee secretary to a project
+router.post(
+  '/:id/secretary',
+  authorize(ROLES.INSTRUCTOR),
+  validate(assignSecretarySchema),
+  auditLog('project.secretary_assigned', 'Project', {
+    getDescription: (req) =>
+      `Assigned committee secretary ${req.body.secretaryId} to project ${req.params.id}`,
+    getMetadata: (req) => ({ secretaryId: req.body.secretaryId }),
+  }),
+  projectController.assignSecretary,
+);
+
+// Remove the committee secretary from a project
+router.delete(
+  '/:id/secretary',
+  authorize(ROLES.INSTRUCTOR),
+  auditLog('project.secretary_removed', 'Project', {
+    getDescription: (req) => `Removed committee secretary from project ${req.params.id}`,
+  }),
+  projectController.removeSecretary,
 );
 
 // Set chapter/proposal deadlines

@@ -261,4 +261,82 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(container.textContent).toContain('DR. SALES G. ARIBE JR.');
     expect(container.textContent).not.toContain('PENDING APPOINTMENT');
   });
+
+  it('toggles between Action Done Matrix and Secretary Minutes tabs', async () => {
+    await renderComponent();
+
+    // Default tab is ADM
+    expect(container.textContent).toContain('Action Done Matrix (ADM)');
+    expect(container.textContent).toContain('Secretary Minutes (OVPAA-F-INS-032)');
+    expect(container.textContent).toContain('ACTION DONE MATRIX');
+
+    // Switch to Secretary Minutes tab
+    const minutesTabBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Secretary Minutes (OVPAA-F-INS-032)'),
+    );
+    expect(minutesTabBtn).toBeTruthy();
+
+    await act(async () => {
+      minutesTabBtn.click();
+    });
+
+    // Should now render Secretary Minutes document sheet
+    expect(container.textContent).toContain("Secretary's Minutes Document (OVPAA-F-INS-032)");
+  });
+
+  it('isolates signatures per milestone without bleeding across ADM v1, v2, v3', async () => {
+    const multiMilestoneProject = {
+      ...mockProject,
+      admSignaturesByMilestone: {
+        CAPSTONE_1: {
+          adviser: { signed: true, signatoryName: 'Glaiza Mae Libe' },
+          instructor: { signed: true, signatoryName: 'Dr. Sales G. Aribe Jr.' },
+          chair: { signed: true, signatoryName: 'Louie Jay Labastida' },
+          secretary: { endorsed: true, signatoryName: 'Secretary Test' },
+        },
+        CAPSTONE_2: {
+          adviser: { signed: false },
+          instructor: { signed: false },
+          chair: { signed: false },
+          secretary: { endorsed: false },
+        },
+      },
+    };
+
+    // Render scoped to CAPSTONE_2
+    await renderComponent({
+      project: multiMilestoneProject,
+      initialMilestone: 'CAPSTONE_2',
+    });
+
+    // CAPSTONE_2 signatures should be pending despite CAPSTONE_1 being signed
+    expect(container.textContent).toContain('Secretary Compliance Verification Gate');
+    expect(container.textContent).toContain('Endorsement Pending');
+    expect(container.textContent).toContain('Awaiting Secretary Endorsement');
+    expect(container.textContent).not.toContain('Endorsed & Unlocked');
+  });
+
+  it('renders inline Add Row interface for faculty/instructor and ensures it is print-hidden', async () => {
+    await renderComponent({
+      isFaculty: true,
+      user: { _id: 'ins-1', role: 'instructor' },
+    });
+
+    const addRowBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Add Row to ADM'),
+    );
+    expect(addRowBtn).toBeTruthy();
+
+    // Check parent container has print:hidden
+    const addRowContainer = addRowBtn.closest('.print\\:hidden');
+    expect(addRowContainer).toBeTruthy();
+  });
+
+  it('does not render Load Institutional Template or real-time defense banner buttons', async () => {
+    await renderComponent();
+
+    expect(container.textContent).not.toContain('Load Institutional Template');
+    expect(container.textContent).not.toContain('Live Defense Session & Minutes');
+    expect(container.textContent).not.toContain('Real-Time Defense Synchronization');
+  });
 });

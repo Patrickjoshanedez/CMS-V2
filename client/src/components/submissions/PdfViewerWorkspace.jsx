@@ -361,6 +361,7 @@ function HighlightPopupContent({
 function CustomHighlightRenderer({
   highlight,
   isSelected,
+  activeHighlightId,
   onClick,
   onAddReply,
   onResolveComment,
@@ -372,6 +373,15 @@ function CustomHighlightRenderer({
   const isOverlap = highlight.isOverlap;
   const isPlagiarism = highlight.type?.startsWith('plagiarism_');
   const isComment = highlight.type === 'faculty_comment';
+
+  const isMatchSelected =
+    Boolean(isSelected) ||
+    Boolean(
+      activeHighlightId &&
+      (highlight.id === activeHighlightId ||
+        highlight.meta?.matchedSourceId === activeHighlightId ||
+        String(highlight.id).includes(activeHighlightId)),
+    );
 
   let highlightClass = 'highlight-custom';
   if (isCrossLayerOverlap || isOverlap) {
@@ -391,9 +401,36 @@ function CustomHighlightRenderer({
     highlightClass = 'highlight-faculty';
   }
 
-  if (isSelected) {
+  if (isMatchSelected) {
     highlightClass += ' archive-mark-active';
   }
+
+  const resolvedColor = isPlagiarism
+    ? highlight.meta?.palette?.color ||
+      (highlight.meta?.similarityScore >= 90
+        ? 'rgba(185, 28, 28, 0.85)'
+        : highlight.meta?.similarityScore >= 70
+          ? 'rgba(244, 63, 94, 0.85)'
+          : highlight.meta?.similarityScore >= 50
+            ? 'rgba(249, 115, 22, 0.85)'
+            : 'rgba(234, 179, 8, 0.85)')
+    : isComment
+      ? 'rgba(59, 130, 246, 0.85)'
+      : 'rgba(168, 85, 247, 0.85)';
+
+  const partStyle = {
+    borderBottom: `2px solid ${resolvedColor}`,
+    borderRadius: '2px',
+    cursor: 'pointer',
+    opacity: 'var(--plagiarism-opacity, 0.85)',
+    transition: 'all 0.15s ease-in-out',
+    ...(isMatchSelected
+      ? {
+          outline: `2px solid ${resolvedColor}`,
+          boxShadow: `0 0 8px ${resolvedColor}`,
+        }
+      : {}),
+  };
 
   const handleClick = (e) => {
     e.stopPropagation();
@@ -403,7 +440,13 @@ function CustomHighlightRenderer({
 
   return (
     <div className="relative group">
-      <TextHighlight highlight={highlight} onClick={handleClick} className={highlightClass} />
+      <TextHighlight
+        highlight={highlight}
+        onClick={handleClick}
+        className={highlightClass}
+        highlightColor={resolvedColor}
+        style={partStyle}
+      />
       {/* Margin Gutter Split-Pills with Quick Anchors */}
       <div
         className="absolute -left-12 -top-1 gutter-split-pill z-20 pointer-events-auto"
@@ -552,6 +595,7 @@ function PdfViewerInner({
           <CustomHighlightRenderer
             highlight={highlight}
             isSelected={isSelected || highlight.id === activeHighlightId}
+            activeHighlightId={activeHighlightId}
             onClick={onHighlightClick}
             onAddReply={onAddReply}
             onResolveComment={onResolveComment}
@@ -586,6 +630,7 @@ PdfViewerInner.propTypes = {
  */
 export function PdfViewerWorkspace({
   pdfUrl,
+  pdfData = null,
   highlights = [],
   plagiarismMatches = [],
   activeHighlightId = null,
@@ -604,6 +649,11 @@ export function PdfViewerWorkspace({
 }) {
   const highlighterUtilsRef = useRef(null);
 
+  const documentSource = useMemo(() => {
+    if (pdfData) return pdfData;
+    return pdfUrl;
+  }, [pdfData, pdfUrl]);
+
   return (
     <div
       style={{
@@ -612,9 +662,24 @@ export function PdfViewerWorkspace({
       }}
       className={`relative h-full w-full bg-background overflow-hidden select-text ${className}`}
     >
+      <style>{`
+        .highlight-plagiarism .TextHighlight__part {
+          border-bottom: 2px solid currentColor !important;
+          border-radius: 2px !important;
+          cursor: pointer !important;
+          opacity: var(--plagiarism-opacity, 0.85) !important;
+          transition: all 0.15s ease-in-out !important;
+        }
+        .highlight-plagiarism.archive-mark-active .TextHighlight__part {
+          outline: 2px solid currentColor !important;
+          box-shadow: 0 0 8px currentColor !important;
+          z-index: 10 !important;
+        }
+      `}</style>
       <PdfLoader
-        document={pdfUrl}
+        document={documentSource}
         workerSrc="/pdf.worker.min.mjs"
+        disableAutoFetch={false}
         beforeLoad={(progress) => (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-20 gap-3 text-muted-foreground">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

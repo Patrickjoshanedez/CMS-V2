@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import TeamCommitteeAssignmentsView from '@/components/users/TeamCommitteeAssignmentsView';
 import CreateAcademicNodeDialog from '@/components/users/CreateAcademicNodeDialog';
 import {
   Users,
@@ -1074,7 +1073,7 @@ export default function UsersPage() {
         <div className="flex flex-col gap-1 border-b border-border/60 pb-5">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">User Management</h1>
           <p className="text-sm text-muted-foreground">
-            Administer platform access, academic structures, and capstone evaluation committees.
+            Administer platform access, academic structures, and role-based permissions.
           </p>
         </div>
 
@@ -1087,9 +1086,6 @@ export default function UsersPage() {
             <TabsTrigger value="rbac" className="gap-2 text-xs">
               <Shield className="h-3.5 w-3.5" /> Role Management (RBAC)
             </TabsTrigger>
-            <TabsTrigger value="committee" className="gap-2 text-xs">
-              <Users className="h-3.5 w-3.5" /> Committee Assignments
-            </TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Academic Hierarchy */}
@@ -1097,12 +1093,7 @@ export default function UsersPage() {
             <HierarchyView />
           </TabsContent>
 
-          {/* Tab 2: Committee Assignments */}
-          <TabsContent value="committee" className="space-y-6 min-w-0 w-full">
-            <TeamCommitteeAssignmentsView />
-          </TabsContent>
-
-          {/* Tab 3: Role Management (RBAC) */}
+          {/* Tab 2: Role Management (RBAC) */}
           <TabsContent value="rbac" className="space-y-6 min-w-0 w-full">
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

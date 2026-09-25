@@ -22,6 +22,8 @@ const NOTIFICATION_TYPES = [
   'panelist_selected',
   'panelist_removed',
   'deadlines_set',
+  'deadline_due',
+  'milestone_deadline_scheduled',
   'project_rejected',
   // Submission / document workflow notifications
   'chapter_submitted',

@@ -403,6 +403,26 @@ html.dark[data-high-contrast='true'] {
     color: #ffffff;
   }
 
+  /* Inoculate white institutional secretary minutes document sheet from dark mode inversion */
+  .dark .secretary-sheet-paper-container,
+  .dark .secretary-sheet-paper-container *:not([data-portal-signature-modal] *),
+  .dark .secretary-minutes-page,
+  .dark .secretary-minutes-page *:not(a):not([data-portal-signature-modal] *) {
+    color: #000000 !important;
+  }
+  .dark .secretary-minutes-page a {
+    color: #1d4ed8 !important;
+  }
+  .dark .secretary-minutes-page input,
+  .dark .secretary-minutes-page textarea {
+    color: #000000 !important;
+    background-color: transparent !important;
+  }
+  .dark .secretary-minutes-page input::placeholder,
+  .dark .secretary-minutes-page textarea::placeholder {
+    color: #4b5563 !important;
+  }
+
   /* Inoculate white institutional presentation slide canvas from dark mode inversion */
   .dark [data-slide-canvas],
   .dark [data-slide-canvas] h1,

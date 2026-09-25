@@ -1,5 +1,6 @@
 import Notification from './notification.model.js';
 import AppError from '../../utils/AppError.js';
+import deadlineNotificationService from '../settings/deadlineNotification.service.js';
 
 /**
  * NotificationService — Business logic for in-app notifications.
@@ -13,6 +14,13 @@ class NotificationService {
    * @returns {Object} { notifications, unreadCount, pagination }
    */
   async getNotifications(userId, query) {
+    // Run scoped deadline check for this user so any newly reached deadlines pop up immediately
+    try {
+      await deadlineNotificationService.checkAndDispatchDueDeadlines(userId);
+    } catch (err) {
+      // Non-blocking
+    }
+
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 

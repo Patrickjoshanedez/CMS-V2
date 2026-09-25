@@ -31,6 +31,7 @@ export const routeRegistry = {
   '/templates': () => import('../pages/documents/TemplateManagementPage'),
   '/plagiarism-checker': () => import('../pages/plagiarism/ArchivePlagiarismCheckerPage'),
   '/defense-scheduling': () => import('../pages/instructor/DefenseSchedulingPage'),
+  '/committee-assignments': () => import('../pages/instructor/CommitteeAssignmentsPage'),
 };
 
 /**

@@ -471,6 +471,28 @@ export const removePanelist = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/projects/:id/secretary — Assign a committee secretary */
+export const assignSecretary = catchAsync(async (req, res) => {
+  const { project } = await projectService.assignSecretary(req.params.id, req.user._id, req.body);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Committee secretary appointed.',
+    data: { project },
+  });
+});
+
+/** DELETE /api/projects/:id/secretary — Remove the committee secretary */
+export const removeSecretary = catchAsync(async (req, res) => {
+  const { project } = await projectService.removeSecretary(req.params.id, req.user._id);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Committee secretary removed.',
+    data: { project },
+  });
+});
+
 /** POST /api/projects/:id/panelists/select — Panelist self-selects */
 export const selectAsPanelist = catchAsync(async (req, res) => {
   const { project } = await projectService.selectAsPanelist(req.params.id, req.user._id);
@@ -721,12 +743,81 @@ export const handleProjectStream = catchAsync(async (req, res) => {
   return res.status(HTTP_STATUS.OK).json({ success: true, project });
 });
 
+function broadcastADMUpdate(projectId, event, payload = {}) {
+  try {
+    emitToRoom(`project:${projectId}`, event, { projectId, ...payload });
+    emitToRoom(`project:${projectId}`, 'project:updated', { projectId });
+    const io = getIO();
+    if (io) {
+      io.emit(event, { projectId, ...payload });
+      io.emit('project:updated', { projectId });
+    }
+  } catch {
+    // Non-blocking socket error
+  }
+}
+
+function resolveTargetMilestone(project, requestedMilestone) {
+  if (
+    requestedMilestone &&
+    ['CAPSTONE_1', 'CAPSTONE_2', 'CAPSTONE_3', 'CAPSTONE_4'].includes(requestedMilestone)
+  ) {
+    return requestedMilestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : requestedMilestone;
+  }
+  const phase = Number(project?.capstonePhase ?? 1);
+  if (phase >= 3) return 'CAPSTONE_3';
+  if (phase === 2) return 'CAPSTONE_2';
+  return 'CAPSTONE_1';
+}
+
+function getMilestoneSignatures(project, milestone) {
+  if (!project.admSignaturesByMilestone) {
+    project.admSignaturesByMilestone = {
+      CAPSTONE_1: project.admSignatures || {
+        adviser: {},
+        instructor: {},
+        panelists: [],
+        chair: {},
+      },
+      CAPSTONE_2: { adviser: {}, instructor: {}, panelists: [], chair: {} },
+      CAPSTONE_3: { adviser: {}, instructor: {}, panelists: [], chair: {} },
+    };
+  }
+  const activeKey =
+    project.capstonePhase === 2
+      ? 'CAPSTONE_2'
+      : project.capstonePhase === 3
+        ? 'CAPSTONE_3'
+        : 'CAPSTONE_1';
+
+  if (
+    milestone === activeKey &&
+    project.admSignatures &&
+    (!project.admSignaturesByMilestone[milestone] ||
+      !project.admSignaturesByMilestone[milestone].secretary?.endorsed)
+  ) {
+    if (project.admSignatures.secretary?.endorsed) {
+      project.admSignaturesByMilestone[milestone] = project.admSignatures;
+    }
+  }
+
+  if (!project.admSignaturesByMilestone[milestone]) {
+    project.admSignaturesByMilestone[milestone] = {
+      adviser: {},
+      instructor: {},
+      panelists: [],
+      chair: {},
+    };
+  }
+  return project.admSignaturesByMilestone[milestone];
+}
+
 /** GET /api/projects/:projectId/action-done-matrix — Retrieve ADM rows */
 export const getActionDoneMatrix = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await Project.findById(projectId)
     .select(
-      'actionDoneMatrix admStatus admReviewType admSignatures capstoneCourse title adviserId secretaryId panelistIds panelists teamId',
+      'actionDoneMatrix admStatus admReviewType admSignatures admSignaturesByMilestone admReviewTypeByMilestone secretaryMinutes secretaryMinutesByMilestone capstoneCourse title adviserId secretaryId panelistIds panelists teamId',
     )
     .populate('adviserId', 'firstName lastName email avatar')
     .populate('secretaryId', 'firstName lastName email avatar')
@@ -759,6 +850,10 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
       admStatus: project.admStatus || 'not_started',
       admReviewType: project.admReviewType || 'internal',
       admSignatures: project.admSignatures || {},
+      admSignaturesByMilestone: project.admSignaturesByMilestone || {},
+      admReviewTypeByMilestone: project.admReviewTypeByMilestone || {},
+      secretaryMinutes: project.secretaryMinutes || {},
+      secretaryMinutesByMilestone: project.secretaryMinutesByMilestone || {},
       capstoneCourse: project.capstoneCourse,
       title: project.title,
       adviser: project.adviserId,
@@ -832,6 +927,13 @@ export const updateActionDoneMatrixItem = catchAsync(async (req, res) => {
 
   await project.save();
 
+  broadcastADMUpdate(project._id, 'adm:row_updated', {
+    item,
+    actionDoneMatrix: project.actionDoneMatrix,
+    admStatus: project.admStatus,
+    updatedBy: req.user._id,
+  });
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Action Done Matrix item updated.',
@@ -856,6 +958,8 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
     });
   }
 
+  const targetMilestone = resolveTargetMilestone(project, milestone);
+
   const newItem = {
     panelName: panelName || 'Panel Member',
     suggestion: suggestion || '',
@@ -863,7 +967,7 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
     actionDone: actionDone || '',
     pageNumbers: pageNumbers || '',
     status: 'pending',
-    milestone: milestone || 'CAPSTONE_2',
+    milestone: targetMilestone,
     signatures: [],
     isLocked: false,
   };
@@ -876,6 +980,13 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
   await project.save();
 
   const addedItem = project.actionDoneMatrix[project.actionDoneMatrix.length - 1];
+
+  broadcastADMUpdate(project._id, 'adm:row_created', {
+    item: addedItem,
+    actionDoneMatrix: project.actionDoneMatrix,
+    admStatus: project.admStatus,
+    updatedBy: req.user._id,
+  });
 
   res.status(HTTP_STATUS.CREATED).json({
     success: true,
@@ -918,6 +1029,12 @@ export const deleteActionDoneMatrixItem = catchAsync(async (req, res) => {
   project.actionDoneMatrix.pull(itemId);
   await project.save();
 
+  broadcastADMUpdate(project._id, 'adm:row_deleted', {
+    itemId,
+    actionDoneMatrix: project.actionDoneMatrix,
+    updatedBy: req.user._id,
+  });
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'ADM row removed successfully.',
@@ -930,7 +1047,7 @@ export const deleteActionDoneMatrixItem = catchAsync(async (req, res) => {
 /** PATCH /api/projects/:projectId/adm-metadata — Update review type and title */
 export const updateADMMetadata = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const { admReviewType, title } = req.body;
+  const { admReviewType, title, milestone } = req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -942,6 +1059,17 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
 
   if (admReviewType !== undefined) {
     project.admReviewType = admReviewType;
+    if (milestone) {
+      if (!project.admReviewTypeByMilestone) {
+        project.admReviewTypeByMilestone = {
+          CAPSTONE_1: 'internal',
+          CAPSTONE_2: 'internal',
+          CAPSTONE_3: 'internal',
+        };
+      }
+      project.admReviewTypeByMilestone[milestone] = admReviewType;
+      project.markModified('admReviewTypeByMilestone');
+    }
   }
   if (title !== undefined && title.trim()) {
     project.title = title.trim();
@@ -949,11 +1077,19 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
 
   await project.save();
 
+  broadcastADMUpdate(project._id, 'adm:metadata_updated', {
+    admReviewType: project.admReviewType,
+    admReviewTypeByMilestone: project.admReviewTypeByMilestone,
+    title: project.title,
+    milestone,
+  });
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'ADM metadata updated.',
     data: {
       admReviewType: project.admReviewType,
+      admReviewTypeByMilestone: project.admReviewTypeByMilestone,
       title: project.title,
     },
   });
@@ -961,13 +1097,19 @@ export const updateADMMetadata = catchAsync(async (req, res) => {
 
 /** Helper to verify if all ADM signatures are satisfied and promote phase sequentially */
 async function checkAndAdvancePhaseIfADMCompleted(project) {
-  const isSecretaryDone = Boolean(project.admSignatures?.secretary?.endorsed);
-  const isAdviserDone = Boolean(project.admSignatures?.adviser?.signed);
-  const isChairDone = Boolean(project.admSignatures?.chair?.signed);
+  const currentPhase = Number(project.capstonePhase ?? 1);
+  const targetMilestone =
+    currentPhase === 2 ? 'CAPSTONE_2' : currentPhase === 3 ? 'CAPSTONE_3' : 'CAPSTONE_1';
+  const sigs =
+    project.admSignaturesByMilestone?.[targetMilestone] ||
+    (targetMilestone === 'CAPSTONE_1' ? project.admSignatures : {});
+
+  const isSecretaryDone = Boolean(sigs?.secretary?.endorsed);
+  const isAdviserDone = Boolean(sigs?.adviser?.signed);
+  const isChairDone = Boolean(sigs?.chair?.signed);
 
   if (isSecretaryDone && isAdviserDone && isChairDone) {
     project.admStatus = 'approved';
-    const currentPhase = Number(project.capstonePhase ?? 1);
 
     if (currentPhase === 1) {
       project.capstonePhase = 2;
@@ -1087,7 +1229,7 @@ async function checkAndAdvancePhaseIfADMCompleted(project) {
 /** POST /api/projects/:projectId/adm-signatures — Sign Tiered Signatories Board */
 export const signTieredADM = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const { tier, role, signatoryName, signatureDataUrl } = req.body;
+  const { tier, role, signatoryName, signatureDataUrl, milestone } = req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -1097,16 +1239,14 @@ export const signTieredADM = catchAsync(async (req, res) => {
     });
   }
 
-  if (!project.admSignatures) {
-    project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
-  }
+  const targetMilestone = resolveTargetMilestone(project, milestone);
+  const currentSignatures = getMilestoneSignatures(project, targetMilestone);
 
   // Institutional Gate: Secretary Endorsement prerequisite
-  if (!project.admSignatures?.secretary?.endorsed && role !== 'instructor') {
+  if (!currentSignatures?.secretary?.endorsed && role !== 'instructor') {
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
-      message:
-        'The Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.',
+      message: `The ${targetMilestone.replace('_', ' ')} Action Done Matrix must be reviewed and endorsed by the Committee Secretary before panel digital signatures can be collected.`,
     });
   }
 
@@ -1114,7 +1254,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
   const now = new Date();
 
   if (role === 'adviser' || (tier === 1 && req.user.role === ROLES.ADVISER)) {
-    project.admSignatures.adviser = {
+    currentSignatures.adviser = {
       signed: true,
       signedAt: now,
       signatoryName: name,
@@ -1122,7 +1262,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
       userId: req.user._id,
     };
   } else if (role === 'instructor' || (tier === 1 && req.user.role === ROLES.INSTRUCTOR)) {
-    project.admSignatures.instructor = {
+    currentSignatures.instructor = {
       signed: true,
       signedAt: now,
       signatoryName: name,
@@ -1130,30 +1270,35 @@ export const signTieredADM = catchAsync(async (req, res) => {
       userId: req.user._id,
     };
   } else if (role === 'chair' || tier === 3) {
-    project.admSignatures.chair = {
+    currentSignatures.chair = {
       signed: true,
       signedAt: now,
       signatoryName: name,
       signatureDataUrl: signatureDataUrl || null,
       userId: req.user._id,
     };
-    // Chair sign-off freezes all rows
+    // Chair sign-off freezes rows belonging to this milestone
     project.actionDoneMatrix.forEach((item) => {
-      item.isLocked = true;
-      if (!item.signatures.some((s) => String(s.userId) === String(req.user._id))) {
-        item.signatures.push({
-          userId: req.user._id,
-          name,
-          role: 'chair',
-          signedAt: now,
-          signatureDataUrl: signatureDataUrl || null,
-        });
+      if ((item.milestone || 'CAPSTONE_1') === targetMilestone) {
+        item.isLocked = true;
+        if (!item.signatures.some((s) => String(s.userId) === String(req.user._id))) {
+          item.signatures.push({
+            userId: req.user._id,
+            name,
+            role: 'chair',
+            signedAt: now,
+            signatureDataUrl: signatureDataUrl || null,
+          });
+        }
       }
     });
     project.admStatus = 'approved';
   } else {
     // Panel Member (Tier 2)
-    const existingIndex = project.admSignatures.panelists.findIndex(
+    if (!Array.isArray(currentSignatures.panelists)) {
+      currentSignatures.panelists = [];
+    }
+    const existingIndex = currentSignatures.panelists.findIndex(
       (p) => String(p.userId) === String(req.user._id),
     );
     const panelistEntry = {
@@ -1165,13 +1310,22 @@ export const signTieredADM = catchAsync(async (req, res) => {
       signatureDataUrl: signatureDataUrl || null,
     };
     if (existingIndex >= 0) {
-      project.admSignatures.panelists[existingIndex] = panelistEntry;
+      currentSignatures.panelists[existingIndex] = panelistEntry;
     } else {
-      project.admSignatures.panelists.push(panelistEntry);
+      currentSignatures.panelists.push(panelistEntry);
     }
   }
 
-  // Auto-advance to Capstone 3 if all signatories completed
+  // Synchronize legacy admSignatures if target is Capstone 1 or matches active phase
+  if (targetMilestone === 'CAPSTONE_1' || targetMilestone === `CAPSTONE_${project.capstonePhase}`) {
+    project.admSignatures = currentSignatures;
+  }
+  if (typeof project.markModified === 'function') {
+    project.markModified('admSignaturesByMilestone');
+    project.markModified('admSignatures');
+  }
+
+  // Auto-advance to next phase if all signatories completed
   await checkAndAdvancePhaseIfADMCompleted(project);
 
   await project.save({ validateModifiedOnly: true });
@@ -1179,11 +1333,19 @@ export const signTieredADM = catchAsync(async (req, res) => {
   // Evaluate post-approval hard gate (unlocks full_academic_paper and condensed_journal_paper)
   await projectService.evaluatePostApprovalUnlocks(project._id);
 
+  broadcastADMUpdate(project._id, 'adm:signed', {
+    milestone: targetMilestone,
+    admSignatures: currentSignatures,
+    admSignaturesByMilestone: project.admSignaturesByMilestone,
+    admStatus: project.admStatus,
+  });
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: `Signed ADM as ${role || 'signatory'}.`,
+    message: `Signed ADM (${targetMilestone.replace('_', ' ')}) as ${role || 'signatory'}.`,
     data: {
-      admSignatures: project.admSignatures,
+      admSignatures: currentSignatures,
+      admSignaturesByMilestone: project.admSignaturesByMilestone,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
       capstonePhase: project.capstonePhase,
@@ -1195,7 +1357,7 @@ export const signTieredADM = catchAsync(async (req, res) => {
 /** POST /api/adm/:projectId/endorse — Endorse ADM by Committee Secretary */
 export const endorseADMBySecretary = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const { notes = '', signatoryName, signatureDataUrl } = req.body;
+  const { notes = '', signatoryName, signatureDataUrl, milestone } = req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -1205,15 +1367,18 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
     });
   }
 
+  const targetMilestone = resolveTargetMilestone(project, milestone);
   const rows = project.actionDoneMatrix || [];
-  if (rows.length === 0) {
+  const milestoneRows = rows.filter((r) => (r.milestone || 'CAPSTONE_1') === targetMilestone);
+
+  if (milestoneRows.length === 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      message: 'Cannot endorse an empty Action Done Matrix.',
+      message: `Cannot endorse an empty Action Done Matrix for ${targetMilestone.replace('_', ' ')}.`,
     });
   }
 
-  const unaddressed = rows.filter((r) => r.status === 'pending');
+  const unaddressed = milestoneRows.filter((r) => r.status === 'pending');
   if (unaddressed.length > 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
@@ -1221,12 +1386,10 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
     });
   }
 
-  if (!project.admSignatures) {
-    project.admSignatures = { adviser: {}, instructor: {}, panelists: [], chair: {} };
-  }
-
+  const currentSignatures = getMilestoneSignatures(project, targetMilestone);
   const name = signatoryName || `${req.user.firstName} ${req.user.lastName}`;
-  project.admSignatures.secretary = {
+
+  currentSignatures.secretary = {
     endorsed: true,
     endorsedAt: new Date(),
     signatoryName: name,
@@ -1235,12 +1398,27 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
     userId: req.user._id,
   };
 
+  if (targetMilestone === 'CAPSTONE_1' || targetMilestone === `CAPSTONE_${project.capstonePhase}`) {
+    project.admSignatures.secretary = currentSignatures.secretary;
+  }
+  if (typeof project.markModified === 'function') {
+    project.markModified('admSignaturesByMilestone');
+    project.markModified('admSignatures');
+  }
+
   project.admStatus = 'under_panel_review';
 
   // Check if signatures already completed and advance phase
   await checkAndAdvancePhaseIfADMCompleted(project);
 
   await project.save({ validateModifiedOnly: true });
+
+  broadcastADMUpdate(project._id, 'adm:endorsed', {
+    milestone: targetMilestone,
+    admSignatures: currentSignatures,
+    admSignaturesByMilestone: project.admSignaturesByMilestone,
+    admStatus: project.admStatus,
+  });
 
   // Notify team members
   try {
@@ -1249,9 +1427,13 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
       const notifications = team.members.map((memberId) => ({
         userId: memberId,
         type: 'adm_endorsed',
-        title: 'Action Done Matrix Endorsed by Secretary',
-        message: `Committee Secretary ${name} has endorsed your Action Done Matrix. The matrix is now unlocked for panel digital signatures.`,
-        metadata: { projectId: project._id, admStatus: project.admStatus },
+        title: `Action Done Matrix (${targetMilestone.replace('_', ' ')}) Endorsed by Secretary`,
+        message: `Committee Secretary ${name} has endorsed your Action Done Matrix for ${targetMilestone.replace('_', ' ')}. The matrix is now unlocked for panel digital signatures.`,
+        metadata: {
+          projectId: project._id,
+          admStatus: project.admStatus,
+          milestone: targetMilestone,
+        },
       }));
       const createdNotifs = await Notification.insertMany(notifications);
       createdNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
@@ -1262,9 +1444,10 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
 
   res.status(HTTP_STATUS.OK).json({
     success: true,
-    message: 'Action Done Matrix successfully endorsed by Committee Secretary.',
+    message: `Action Done Matrix (${targetMilestone.replace('_', ' ')}) successfully endorsed by Committee Secretary.`,
     data: {
-      admSignatures: project.admSignatures,
+      admSignatures: currentSignatures,
+      admSignaturesByMilestone: project.admSignaturesByMilestone,
       admStatus: project.admStatus,
       actionDoneMatrix: project.actionDoneMatrix,
       capstonePhase: project.capstonePhase,
@@ -1276,6 +1459,7 @@ export const endorseADMBySecretary = catchAsync(async (req, res) => {
 /** POST /api/adm/:projectId/submit-for-endorsement — Student submits ADM for Secretary Review */
 export const submitADMForEndorsement = catchAsync(async (req, res) => {
   const { projectId } = req.params;
+  const { milestone } = req.body;
 
   const project = await Project.findById(projectId);
   if (!project) {
@@ -1285,15 +1469,18 @@ export const submitADMForEndorsement = catchAsync(async (req, res) => {
     });
   }
 
+  const targetMilestone = resolveTargetMilestone(project, milestone);
   const rows = project.actionDoneMatrix || [];
-  if (rows.length === 0) {
+  const milestoneRows = rows.filter((r) => (r.milestone || 'CAPSTONE_1') === targetMilestone);
+
+  if (milestoneRows.length === 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
-      message: 'Cannot submit an empty Action Done Matrix.',
+      message: `Cannot submit an empty Action Done Matrix for ${targetMilestone.replace('_', ' ')}.`,
     });
   }
 
-  const unaddressed = rows.filter((r) => r.status === 'pending');
+  const unaddressed = milestoneRows.filter((r) => r.status === 'pending');
   if (unaddressed.length > 0) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
@@ -1304,6 +1491,11 @@ export const submitADMForEndorsement = catchAsync(async (req, res) => {
   project.admStatus = 'pending_secretary_endorsement';
   await project.save();
 
+  broadcastADMUpdate(project._id, 'adm:submitted', {
+    milestone: targetMilestone,
+    admStatus: project.admStatus,
+  });
+
   // Notify Secretary
   try {
     const secId =
@@ -1312,9 +1504,9 @@ export const submitADMForEndorsement = catchAsync(async (req, res) => {
       const notif = await Notification.create({
         userId: secId,
         type: 'adm_submitted_for_review',
-        title: 'Action Done Matrix Ready for Endorsement',
-        message: `Team has submitted their completed Action Done Matrix for "${project.title}" for your compliance review.`,
-        metadata: { projectId: project._id },
+        title: `Action Done Matrix (${targetMilestone.replace('_', ' ')}) Ready for Endorsement`,
+        message: `Team has submitted their completed Action Done Matrix for "${project.title}" (${targetMilestone.replace('_', ' ')}) for your compliance review.`,
+        metadata: { projectId: project._id, milestone: targetMilestone },
       });
       emitToUser(secId, 'notification:new', notif);
     }

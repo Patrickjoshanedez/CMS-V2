@@ -113,6 +113,7 @@ export default function SophisticatedDocumentViewer({
   const [docxError, setDocxError] = useState(null);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [pdfData, setPdfData] = useState(null);
   const [isConvertedPdf, setIsConvertedPdf] = useState(false);
   const [pdfError, setPdfError] = useState(null);
   const [pdfReloadTrigger, setPdfReloadTrigger] = useState(0);
@@ -219,6 +220,7 @@ export default function SophisticatedDocumentViewer({
       setIframeLoading(true);
       setPdfError(null);
       setPdfBlobUrl(null);
+      setPdfData(null);
       setIsConvertedPdf(false);
       setZoom(100);
       setViewMode(initialViewMode || 'manuscript');
@@ -286,14 +288,25 @@ export default function SophisticatedDocumentViewer({
       (effectiveSubmissionId || streamFileUrl) &&
       (open || embedded);
 
-    // Direct client-side File/Blob for PDF: convert to object URL directly
+    // Direct client-side File/Blob for PDF: convert to buffer & object URL directly
     if (isPdf && effectiveFile) {
+      if (effectiveFile instanceof Blob || effectiveFile instanceof File) {
+        effectiveFile
+          .arrayBuffer()
+          .then((buf) => {
+            if (active) setPdfData(new Uint8Array(buf));
+          })
+          .catch((err) => {
+            console.warn('[SophisticatedDocumentViewer] Could not read PDF file buffer:', err);
+          });
+      }
       objectUrl = URL.createObjectURL(effectiveFile);
       setPdfBlobUrl(objectUrl);
       setIsConvertedPdf(false);
       setPdfError(null);
       setIframeLoading(false);
       return () => {
+        active = false;
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       };
     }
@@ -354,7 +367,14 @@ export default function SophisticatedDocumentViewer({
             mimeType.includes('pdf') || isPdf || Boolean(submission?.convertedPdfKey);
 
           if (isPdfStream) {
-            objectUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            const blob = new Blob([res.data], { type: 'application/pdf' });
+            blob
+              .arrayBuffer()
+              .then((buf) => {
+                if (active) setPdfData(new Uint8Array(buf));
+              })
+              .catch(() => {});
+            objectUrl = URL.createObjectURL(blob);
             setPdfBlobUrl(objectUrl);
             setIsConvertedPdf(Boolean(isDocx || submission?.convertedPdfKey));
             setPdfError(null);
@@ -362,6 +382,7 @@ export default function SophisticatedDocumentViewer({
             // Raw DOCX returned from server (conversion pending or fallback)
             setIsConvertedPdf(false);
             setPdfBlobUrl(null);
+            setPdfData(null);
           }
           setIframeLoading(false);
         })
@@ -893,7 +914,8 @@ export default function SophisticatedDocumentViewer({
                 </>
               ) : (
                 <PdfViewerWorkspace
-                  pdfUrl={pdfBlobUrl || streamFileUrl}
+                  pdfData={pdfData}
+                  pdfUrl={pdfData || pdfBlobUrl || streamFileUrl}
                   highlights={highlights}
                   plagiarismMatches={plagiarismMatches}
                   activeHighlightId={activeHighlightId}

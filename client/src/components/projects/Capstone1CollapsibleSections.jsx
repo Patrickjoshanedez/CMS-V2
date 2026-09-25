@@ -177,6 +177,18 @@ export default function Capstone1CollapsibleSections({
       }
 
       if (deliberationVote === 'Approve') {
+        const scheduleStatus = project?.defenseSchedule?.status;
+        const hasScheduleDate = Boolean(project?.defenseSchedule?.date);
+        const isScheduledOrDone =
+          (scheduleStatus === 'scheduled' && hasScheduleDate) || scheduleStatus === 'completed';
+
+        if (!isScheduledOrDone) {
+          toast.error(
+            'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
+          );
+          return;
+        }
+
         await approveTitleMutation.mutateAsync({
           projectId: project._id,
           proposalId: activeProposal.index,
@@ -597,37 +609,21 @@ export default function Capstone1CollapsibleSections({
                 <ChapterReviewPanel
                   submissions={submissions}
                   chapters={[1, 2, 3]}
+                  extraItems={[
+                    {
+                      id: 'compiled_proposal',
+                      key: 'proposal',
+                      number: 4,
+                      label: 'Capstone 1 (1–3 Manuscript)',
+                      filter: (sub) =>
+                        sub.type === DOCUMENT_TYPES.PROPOSAL || sub.type === 'proposal',
+                      emptyText: 'No submissions yet for this compiled manuscript.',
+                    },
+                  ]}
                   title="Capstone 1 — Chapter Submissions"
-                  description="Approve or request revisions for each chapter. Approving locks the chapter and unlocks the next one for the student."
+                  description="Approve or request revisions for each chapter and compiled manuscript. Approving locks the chapter and unlocks the next one for the student."
                   showReviewActions={isInstructor || isAdviser}
                 />
-                {compiledProposalSub && (
-                  <div className="rounded-xl border border-primary/30 bg-primary/[0.02] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <FileCheck className="h-5 w-5 text-primary shrink-0" />
-                      <div>
-                        <h5 className="text-xs font-bold text-foreground">
-                          Compiled Chapters 1–3 Manuscript (v{compiledProposalSub.version || 1})
-                        </h5>
-                        <p className="text-[11px] text-muted-foreground">
-                          Official compiled proposal draft for committee evaluation and defense
-                          hearings.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        handleOpenViewer(compiledProposalSub, 'Compiled Proposal Manuscript')
-                      }
-                      className="text-xs h-7 gap-1.5 text-primary border-primary/30 hover:bg-primary/10 shrink-0 self-start sm:self-auto"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View Full Manuscript
-                    </Button>
-                  </div>
-                )}
               </div>
             ) : (
               /* Chapters 1-3 & Compiled Cards Grid for Students */
