@@ -16,7 +16,17 @@ export { PROJECT_STATUSES, PROJECT_STATUS_VALUES } from './constants/projectStat
 export { SUBMISSION_STATUSES, SUBMISSION_STATUS_VALUES } from './constants/submissionStatuses.js';
 export { PLAGIARISM_STATUSES, PLAGIARISM_STATUS_VALUES } from './constants/plagiarismStatuses.js';
 export { PROTOTYPE_TYPES, PROTOTYPE_TYPE_VALUES } from './constants/prototypeTypes.js';
-export { CAPSTONE_PHASES, CAPSTONE_PHASE_VALUES } from './constants/capstonePhases.js';
+export {
+  CAPSTONE_PHASES,
+  CAPSTONE_PHASE_VALUES,
+  CAPSTONE_STAGES,
+  CAPSTONE_STAGE_VALUES,
+  DELIVERABLE_TYPES,
+  DELIVERABLE_TYPE_VALUES,
+  POST_APPROVAL_DELIVERABLES,
+  STAGE_DELIVERABLE_MAP,
+  DELIVERABLE_CATEGORY_MAP,
+} from './constants/capstonePhases.js';
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
 export { DEFENSE_DECISIONS, DEFENSE_DECISION_VALUES } from './constants/defenseDecisions.js';

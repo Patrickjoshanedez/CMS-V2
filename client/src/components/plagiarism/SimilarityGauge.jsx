@@ -24,7 +24,7 @@ export default function SimilarityGauge({ value }) {
             stroke="currentColor"
             strokeWidth="10"
             fill="transparent"
-            className="text-white/15"
+            className="text-muted/40"
           />
           {/* Fill */}
           <circle
@@ -42,13 +42,15 @@ export default function SimilarityGauge({ value }) {
         </svg>
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-sm font-bold leading-none text-white">{Math.round(percent)}%</span>
+          <span className="text-sm font-bold leading-none text-foreground">
+            {Math.round(percent)}%
+          </span>
         </div>
       </div>
 
       {/* Band label */}
       <div className="space-y-0.5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Similarity
         </p>
         <p className="text-sm font-bold" style={{ color: band.color }}>

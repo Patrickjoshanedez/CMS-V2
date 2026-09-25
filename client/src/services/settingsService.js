@@ -29,6 +29,21 @@ const settingsService = {
    * Update plagiarism thresholds
    */
   updateThresholds: (thresholds) => api.put('/settings/thresholds', thresholds),
+
+  /**
+   * Retrieve milestone submission deadlines
+   */
+  getMilestoneDeadlines: (params) => api.get('/settings/deadlines/milestone', { params }),
+
+  /**
+   * Upsert milestone submission deadline (Instructor only)
+   */
+  upsertMilestoneDeadline: (data) => api.post('/settings/deadlines/milestone', data),
+
+  /**
+   * Delete milestone deadline (Instructor only)
+   */
+  deleteMilestoneDeadline: (id) => api.delete(`/settings/deadlines/milestone/${id}`),
 };
 
 export { settingsService };

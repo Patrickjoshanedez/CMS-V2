@@ -12,6 +12,7 @@ export const PROJECT_STATUSES = Object.freeze({
   PENDING_IN_REVIEW: 'pending_in_review',
   REVISION_NEEDED: 'revision_needed',
   REJECTED: 'rejected',
+  FINAL_APPROVED: 'final_approved',
   ARCHIVED: 'archived',
 });
 

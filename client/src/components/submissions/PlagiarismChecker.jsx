@@ -18,6 +18,26 @@ import PropTypes from 'prop-types';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ROLES } from '@cms/shared';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
+import {
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Play,
+  Sparkles,
+  Loader2,
+  FileText,
+  Brain,
+  ExternalLink,
+  AlertTriangle,
+  CheckCircle2,
+  RotateCcw,
+  Zap,
+  ShieldCheck,
+  Database,
+} from 'lucide-react';
 import { buildTopSourceColorMap } from '../../hooks/useSubmissions';
 const logger = console;
 
@@ -109,23 +129,16 @@ const toSourceKey = (source = {}, fallbackIndex = 0) => {
   return `source-${fallbackIndex}`;
 };
 
-const toTwPrefixedClassName = (className = '') =>
-  String(className)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((token) => (token.startsWith('tw-') ? token : `tw-${token}`))
-    .join(' ');
-
 /**
  * Color-coded similarity indicator
  * @param {number} percentage
  * @returns {string}
  */
 const getSimilarityColor = (percentage) => {
-  if (percentage < 15) return 'tw-text-green-600'; // Low similarity
-  if (percentage < 30) return 'tw-text-yellow-600'; // Medium
-  if (percentage < 50) return 'tw-text-orange-600'; // High
-  return 'tw-text-red-600'; // Very high
+  if (percentage < 15) return 'text-emerald-600 dark:text-emerald-400'; // Low similarity
+  if (percentage < 30) return 'text-amber-600 dark:text-amber-400'; // Medium
+  if (percentage < 50) return 'text-orange-600 dark:text-orange-400'; // High
+  return 'text-destructive'; // Very high
 };
 
 /**
@@ -134,10 +147,13 @@ const getSimilarityColor = (percentage) => {
  * @returns {string}
  */
 const getSimilarityBg = (percentage) => {
-  if (percentage < 15) return 'tw-bg-green-50 tw-border-green-200';
-  if (percentage < 30) return 'tw-bg-yellow-50 tw-border-yellow-200';
-  if (percentage < 50) return 'tw-bg-orange-50 tw-border-orange-200';
-  return 'tw-bg-red-50 tw-border-red-200';
+  if (percentage < 15)
+    return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-950 dark:text-emerald-200';
+  if (percentage < 30)
+    return 'bg-amber-500/10 border-amber-500/20 text-amber-950 dark:text-amber-200';
+  if (percentage < 50)
+    return 'bg-orange-500/10 border-orange-500/20 text-orange-950 dark:text-orange-200';
+  return 'bg-destructive/10 border-destructive/20 text-destructive-foreground';
 };
 
 /**
@@ -397,9 +413,7 @@ const PlagiarismChecker = ({
     return {
       ...match,
       sourceNumber: sourceStyle?.sourceNumber ?? index + 1,
-      badgeClass: sourceStyle?.badgeClass
-        ? toTwPrefixedClassName(sourceStyle.badgeClass)
-        : 'tw-border-gray-300 tw-bg-gray-100 tw-text-gray-700',
+      badgeClass: sourceStyle?.badgeClass || 'border-border bg-muted text-muted-foreground',
     };
   });
 
@@ -423,52 +437,73 @@ const PlagiarismChecker = ({
   }, [removeFromCorpus]);
 
   return (
-    <div className="tw-bg-white tw-border tw-border-gray-200 tw-rounded-lg tw-p-4 tw-mb-6">
+    <div className="rounded-xl border border-border/70 bg-card p-5 mb-6 shadow-xs text-card-foreground">
       {/* Header */}
-      <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
-        <div className="tw-flex tw-items-center tw-gap-3">
-          <div className="tw-text-xl tw-font-semibold tw-text-gray-900">🔍 Plagiarism Analysis</div>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
+            <Search className="h-5 w-5 text-primary" />
+            <span>Plagiarism Analysis</span>
+          </div>
           {hasResult && (
-            <span className={`${getSimilarityColor(similarityPercentage)} tw-text-sm tw-font-bold`}>
+            <Badge
+              variant="outline"
+              className={cn('font-bold text-xs', getSimilarityColor(similarityPercentage))}
+            >
               {similarityPercentage.toFixed(1)}% Similarity
-            </span>
+            </Badge>
           )}
           {hasResult && isMockResult && (
-            <span className="tw-text-xs tw-font-semibold tw-uppercase tw-tracking-wide tw-px-2 tw-py-1 tw-rounded tw-bg-amber-100 tw-text-amber-800 tw-border tw-border-amber-300">
+            <Badge variant="warning" className="text-[10px] font-semibold uppercase tracking-wider">
               Mock Result
-            </span>
+            </Badge>
           )}
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setIsExpanded(!isExpanded)}
-          className={`tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-border tw-border-gray-300 tw-rounded tw-bg-white hover:tw-bg-gray-50 tw-text-gray-700 tw-transition ${
-            isExpanded ? 'tw-bg-gray-100' : ''
-          }`}
+          className="gap-1.5 text-xs font-medium"
           disabled={disabled}
         >
-          {isExpanded ? '▼ Collapse' : '▶ Expand'}
-        </button>
+          {isExpanded ? (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" />
+              <span>Collapse</span>
+            </>
+          ) : (
+            <>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span>Expand</span>
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Collapsed Summary */}
       {!isExpanded && hasResult && (
-        <div className={`tw-p-3 tw-rounded tw-border ${getSimilarityBg(similarityPercentage)}`}>
-          <p className="tw-text-sm tw-text-gray-700">
-            Originality: <strong>{originalityScore?.toFixed(1) ?? '—'}%</strong>
-            <span className="tw-ml-2">({similarityPercentage.toFixed(1)}% similarity)</span>
+        <div className={cn('p-3 rounded-lg border text-sm', getSimilarityBg(similarityPercentage))}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm font-medium">
+              Originality: <strong>{originalityScore?.toFixed(1) ?? '—'}%</strong>
+              <span className="ml-2 text-muted-foreground">
+                ({similarityPercentage.toFixed(1)}% similarity)
+              </span>
+            </p>
             {warningFlag && (
-              <span className="tw-text-red-600 tw-font-semibold tw-ml-2">
-                ⚠️ Warning: High Similarity
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Warning: High Similarity
               </span>
             )}
-          </p>
+          </div>
         </div>
       )}
 
       {!isExpanded && hasFailed && (
-        <div className="tw-p-3 tw-rounded tw-border tw-bg-red-50 tw-border-red-200">
-          <p className="tw-text-sm tw-text-red-700">
+        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive-foreground">
+          <p className="text-sm">
             Plagiarism check failed: <strong>{failureMessage}</strong>
           </p>
         </div>
@@ -476,82 +511,89 @@ const PlagiarismChecker = ({
 
       {/* Expanded View */}
       {isExpanded && (
-        <div className="tw-space-y-4">
+        <div className="space-y-4">
           {/* Action Button */}
           {!hasResult && (
-            <div className="tw-grid tw-gap-2 sm:tw-grid-cols-2">
-              <button
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
                 type="button"
                 onClick={handleTriggerCheck}
                 disabled={disabled || isChecking || isProcessing}
-                className={`tw-w-full tw-px-4 tw-py-2 tw-font-medium tw-rounded tw-text-white tw-transition ${
-                  disabled || isChecking || isProcessing
-                    ? 'tw-bg-gray-400 tw-cursor-not-allowed'
-                    : 'tw-bg-blue-600 hover:tw-bg-blue-700'
-                }`}
+                className="w-full gap-2"
               >
-                {isProcessing
-                  ? '⏳ Checking...'
-                  : hasFailed
-                    ? '🔁 Retry Plagiarism Check'
-                    : '🚀 Start Plagiarism Check'}
-              </button>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Checking Manuscript...</span>
+                  </>
+                ) : hasFailed ? (
+                  <>
+                    <RotateCcw className="h-4 w-4" />
+                    <span>Retry Plagiarism Check</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    <span>Start Plagiarism Check</span>
+                  </>
+                )}
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleSettleWithMock}
                 disabled={disabled || isChecking || !canSettleWithMock}
-                className={`tw-w-full tw-px-4 tw-py-2 tw-font-medium tw-rounded tw-transition ${
-                  disabled || isChecking || !canSettleWithMock
-                    ? 'tw-bg-gray-200 tw-text-gray-500 tw-cursor-not-allowed'
-                    : 'tw-bg-amber-500 hover:tw-bg-amber-600 tw-text-white'
-                }`}
+                className="w-full gap-2 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
                 title={
                   canSettleWithMock
                     ? 'Settle now using a temporary mock originality score'
                     : 'Only advisers/instructors can settle with mock score'
                 }
               >
-                ⚡ Settle With Mock Score
-              </button>
+                <Zap className="h-4 w-4 text-amber-500" />
+                <span>Settle With Mock Score</span>
+              </Button>
             </div>
           )}
 
-          {/* Processing State */}
+          {/* Processing State (Quiet Micro-Indicator) */}
           {isProcessing && (
-            <div className="tw-flex tw-items-center tw-gap-3 tw-p-4 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded">
-              <div className="tw-animate-spin tw-w-5 tw-h-5 tw-border-2 tw-border-blue-600 tw-border-t-transparent tw-rounded-full" />
-              <p className="tw-text-sm tw-text-blue-800">
+            <div className="flex items-center gap-3 p-3.5 rounded-lg bg-primary/5 border border-primary/20 text-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {status === 'queued'
-                  ? 'Plagiarism check queued. Waiting for processing to start.'
-                  : 'Analyzing submission for plagiarism... This may take a minute.'}
+                  ? 'Plagiarism check queued. Waiting for worker assignment...'
+                  : 'Analyzing submission with Winnowing n-grams and dense vector embeddings...'}
               </p>
             </div>
           )}
 
           {/* Failed State */}
           {hasFailed && (
-            <div className="tw-p-4 tw-bg-red-50 tw-border tw-border-red-200 tw-rounded">
-              <p className="tw-text-sm tw-font-semibold tw-text-red-800">Plagiarism check failed</p>
-              <p className="tw-text-sm tw-text-red-700 tw-mt-1">{failureMessage}</p>
+            <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-foreground">
+              <p className="text-sm font-semibold">Plagiarism check failed</p>
+              <p className="text-xs text-muted-foreground mt-1">{failureMessage}</p>
             </div>
           )}
 
           {/* Template Resources Banner */}
           {(proposalTemplateUrl || admTemplateUrl) && (
-            <div className="tw-flex tw-flex-wrap tw-items-center tw-justify-between tw-gap-2 tw-p-2.5 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded">
-              <span className="tw-text-xs tw-font-semibold tw-text-blue-900">
-                📄 Dynamic Department Document Templates:
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>Department Document Templates:</span>
               </span>
-              <div className="tw-flex tw-gap-2">
+              <div className="flex items-center gap-2">
                 {proposalTemplateUrl && (
                   <a
                     href={proposalTemplateUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="tw-text-xs tw-font-medium tw-text-blue-700 hover:tw-underline tw-bg-white tw-px-2 tw-py-1 tw-rounded tw-border tw-border-blue-300"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline bg-background px-2 py-1 rounded border border-border/70"
                   >
-                    Proposal Manuscript Template ↗
+                    <span>Proposal Manuscript Template</span>
+                    <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
                 {admTemplateUrl && (
@@ -559,9 +601,10 @@ const PlagiarismChecker = ({
                     href={admTemplateUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="tw-text-xs tw-font-medium tw-text-emerald-700 hover:tw-underline tw-bg-white tw-px-2 tw-py-1 tw-rounded tw-border tw-border-emerald-300"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline bg-background px-2 py-1 rounded border border-border/70"
                   >
-                    Action Done Matrix (ADM) ↗
+                    <span>Action Done Matrix (ADM)</span>
+                    <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
               </div>
@@ -570,114 +613,141 @@ const PlagiarismChecker = ({
 
           {/* Dual-Pipeline Tabs: Exact Similarity (Winnowing) vs Semantic Plagiarism (PyTorch) */}
           {hasResult && (
-            <div className="tw-flex tw-border-b tw-border-gray-200 tw-mb-3">
+            <div className="flex border-b border-border/70 mb-3 gap-1">
               <button
                 type="button"
                 onClick={() => setActiveTab('similarity')}
-                className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
+                className={cn(
+                  'flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition-colors',
                   activeTab === 'similarity'
-                    ? 'tw-border-blue-600 tw-text-blue-600'
-                    : 'tw-border-transparent tw-text-gray-700 hover:tw-text-gray-900 font-medium'
-                }`}
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
               >
-                🔤 Exact Text Similarity (Winnowing n-grams)
+                <FileText className="h-3.5 w-3.5" />
+                <span>Exact Text Similarity (Winnowing)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('plagiarism')}
-                className={`tw-py-2 tw-px-4 tw-text-xs tw-font-semibold tw-border-b-2 tw-transition ${
+                className={cn(
+                  'flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition-colors',
                   activeTab === 'plagiarism'
-                    ? 'tw-border-purple-600 tw-text-purple-600'
-                    : 'tw-border-transparent tw-text-gray-700 hover:tw-text-gray-900 font-medium'
-                }`}
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
               >
-                🧠 Semantic Plagiarism (Neural Vector Embeddings)
+                <Brain className="h-3.5 w-3.5" />
+                <span>Semantic Plagiarism (Vector Embeddings)</span>
               </button>
             </div>
           )}
 
           {/* Result Display */}
           {hasResult && (
-            <div className={`tw-p-4 tw-rounded tw-border ${getSimilarityBg(similarityPercentage)}`}>
+            <div className={cn('p-4 rounded-xl border', getSimilarityBg(similarityPercentage))}>
               {/* Similarity Percentage */}
-              <div className="tw-mb-4">
-                <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-                  <span className="tw-text-sm tw-font-semibold tw-text-gray-900">
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-foreground">
                     {activeTab === 'similarity'
                       ? 'Exact Text Overlap Index'
                       : 'Semantic Neural Originality Score'}
                   </span>
                   <span
-                    className={`tw-text-2xl tw-font-bold ${getSimilarityColor(similarityPercentage)}`}
+                    className={cn(
+                      'text-2xl font-bold tracking-tight',
+                      getSimilarityColor(similarityPercentage),
+                    )}
                   >
                     {originalityScore?.toFixed(1) ?? '—'}%
                   </span>
                 </div>
 
-                <p className="tw-text-xs tw-text-gray-700 font-medium tw-mb-2">
+                <p className="text-xs text-muted-foreground font-medium mb-2">
                   {activeTab === 'similarity'
                     ? `Syntactic exact text overlap: ${similarityPercentage.toFixed(1)}% (Threshold: ${plagiarismWarningThreshold}%)`
                     : `Dense vector cosine similarity: ${similarityPercentage.toFixed(1)}% (Reject cutoff: ${plagiarismRejectThreshold}%)`}
                 </p>
 
-                {/* Progress Bar */}
-                <div className="tw-w-full tw-bg-gray-300 tw-rounded-full tw-h-2 tw-overflow-hidden">
+                {/* Progress Bar (Subtle & Slim) */}
+                <div className="w-full bg-muted/60 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`tw-h-full tw-transition-all ${
+                    className={cn(
+                      'h-full transition-all duration-300',
                       similarityPercentage < 15
-                        ? 'tw-bg-green-600'
+                        ? 'bg-emerald-500'
                         : similarityPercentage < 30
-                          ? 'tw-bg-yellow-600'
+                          ? 'bg-amber-500'
                           : similarityPercentage < 50
-                            ? 'tw-bg-orange-600'
-                            : 'tw-bg-red-600'
-                    }`}
+                            ? 'bg-orange-500'
+                            : 'bg-destructive',
+                    )}
                     style={{ width: `${Math.min(similarityPercentage, 100)}%` }}
                   />
                 </div>
 
                 {/* Guideline Text */}
-                <p className="tw-text-xs tw-text-gray-700 font-medium tw-mt-2">
-                  {similarityPercentage < 15 && '✓ Low similarity — likely original work'}
-                  {similarityPercentage >= 15 &&
-                    similarityPercentage < 30 &&
-                    '⚠ Moderate similarity — review required'}
-                  {similarityPercentage >= 30 &&
-                    similarityPercentage < 50 &&
-                    '⚠ High similarity — careful review needed'}
-                  {similarityPercentage >= 50 && '🚨 Very high similarity — likely plagiarism'}
-                </p>
+                <div className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1.5">
+                  {similarityPercentage < 15 && (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>Low similarity — conforms to institutional originality standards</span>
+                    </>
+                  )}
+                  {similarityPercentage >= 15 && similarityPercentage < 30 && (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Moderate similarity — adviser / panel review suggested</span>
+                    </>
+                  )}
+                  {similarityPercentage >= 30 && similarityPercentage < 50 && (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                      <span>High similarity — careful manuscript inspection needed</span>
+                    </>
+                  )}
+                  {similarityPercentage >= 50 && (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                      <span>Very high similarity — potential plagiarism detected</span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Warning Flag */}
               {warningFlag && (
-                <div className="tw-p-3 tw-bg-red-100 tw-border tw-border-red-300 tw-rounded tw-mb-4">
-                  <p className="tw-text-sm tw-font-semibold tw-text-red-800">
-                    ⚠️ High Plagiarism Risk Detected
-                  </p>
-                  <p className="tw-text-xs tw-text-red-700 tw-mt-1">
-                    This submission exceeds the acceptable similarity threshold and may require
-                    rejection or revision request.
-                  </p>
+                <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg mb-4 flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-destructive">
+                      High Plagiarism Risk Detected
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      This submission exceeds the acceptable similarity threshold and may require
+                      rejection or revision request.
+                    </p>
+                  </div>
                 </div>
               )}
 
               {colorizedMatches.length > 0 && (
-                <div className="tw-flex tw-flex-wrap tw-gap-1.5 tw-mb-4">
+                <div className="flex flex-wrap gap-1.5 mb-4">
                   {colorizedMatches.slice(0, 5).map((match) => (
                     <span
                       key={`chip-${match.sourceKey}`}
-                      className="tw-inline-flex tw-items-center tw-gap-1 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-px-2 tw-py-1 tw-text-xs"
+                      className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2 py-0.5 text-xs text-card-foreground shadow-2xs"
                     >
                       <span
-                        className={[
-                          'tw-inline-flex tw-h-4 tw-min-w-4 tw-items-center tw-justify-center tw-rounded tw-border tw-px-1 tw-text-[10px] tw-font-semibold',
+                        className={cn(
+                          'inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-semibold',
                           match.badgeClass,
-                        ].join(' ')}
+                        )}
                       >
                         {match.sourceNumber}
                       </span>
-                      <span className="tw-max-w-[10rem] tw-truncate">{match.title}</span>
+                      <span className="max-w-[10rem] truncate">{match.title}</span>
                     </span>
                   ))}
                 </div>
@@ -685,13 +755,13 @@ const PlagiarismChecker = ({
 
               {/* Checked At */}
               {checkedAt && (
-                <p className="tw-text-xs tw-text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   Checked on {new Date(checkedAt).toLocaleString()}
                 </p>
               )}
 
               {isMockResult && (
-                <p className="tw-text-xs tw-font-medium tw-text-amber-800 tw-mt-2">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-2">
                   This result was generated in mock mode for temporary review unblock.
                 </p>
               )}
@@ -700,85 +770,86 @@ const PlagiarismChecker = ({
 
           {/* Faculty Corpus Controls */}
           {canManageCorpus && (
-            <div className="tw-space-y-2 tw-p-3 tw-rounded tw-border tw-border-slate-200 tw-bg-slate-50">
-              <p className="tw-text-sm tw-font-semibold tw-text-gray-900">Corpus Controls</p>
-              <p className="tw-text-xs tw-text-gray-700 font-medium">
+            <div className="space-y-2.5 p-3.5 rounded-xl border border-border/70 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Corpus Management</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
                 {isCorpusStateKnown && isIndexedInCorpus
-                  ? 'This submission is currently part of the plagiarism corpus.'
+                  ? 'This submission is currently part of the department plagiarism corpus.'
                   : isCorpusStateKnown
-                    ? 'This submission is currently not part of the plagiarism corpus.'
+                    ? 'This submission is currently not indexed in the plagiarism corpus.'
                     : 'Corpus membership status is currently unknown. You can re-index it to refresh state.'}
               </p>
 
-              <div className="tw-flex tw-flex-wrap tw-gap-2">
+              <div className="flex flex-wrap gap-2 pt-1">
                 {isCorpusStateKnown && isIndexedInCorpus ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={handleRemoveFromCorpus}
                     disabled={corpusActionPending}
-                    className={`tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded tw-border tw-transition ${
-                      corpusActionPending
-                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-700 tw-cursor-not-allowed'
-                        : 'tw-bg-white tw-border-red-300 tw-text-red-700 hover:tw-bg-red-50'
-                    }`}
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10 text-xs"
                   >
-                    Remove from Corpus
-                  </button>
+                    {corpusActionPending && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+                    <span>Remove from Corpus</span>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={handleAddToCorpus}
                     disabled={corpusActionPending}
-                    className={`tw-px-3 tw-py-2 tw-text-sm tw-font-medium tw-rounded tw-border tw-transition ${
-                      corpusActionPending
-                        ? 'tw-bg-gray-200 tw-border-gray-300 tw-text-gray-700 tw-cursor-not-allowed'
-                        : 'tw-bg-white tw-border-blue-300 tw-text-blue-700 hover:tw-bg-blue-50'
-                    }`}
+                    className="border-primary/30 text-primary hover:bg-primary/10 text-xs"
                   >
-                    Add to Corpus
-                  </button>
+                    {corpusActionPending && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+                    <span>Add to Corpus</span>
+                  </Button>
                 )}
               </div>
 
               {corpusState.indexedAt && (
-                <p className="tw-text-xs tw-text-gray-700 font-medium">
+                <p className="text-xs text-muted-foreground">
                   Indexed at: {new Date(corpusState.indexedAt).toLocaleString()}
                 </p>
               )}
               {corpusState.removedFromCorpusAt && (
-                <p className="tw-text-xs tw-text-gray-700 font-medium">
+                <p className="text-xs text-muted-foreground">
                   Removed from corpus at:{' '}
                   {new Date(corpusState.removedFromCorpusAt).toLocaleString()}
                 </p>
               )}
               {corpusActionError && (
-                <p className="tw-text-xs tw-font-medium tw-text-red-700">{corpusActionError}</p>
+                <p className="text-xs font-medium text-destructive">{corpusActionError}</p>
               )}
             </div>
           )}
 
           {/* Matched Sources */}
           {hasResult && showMatchDetails && matchCount > 0 && (
-            <div className="tw-space-y-2">
-              <h4 className="tw-font-semibold tw-text-gray-900 tw-text-sm">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground text-sm">
                 Matched Sources ({matchCount})
               </h4>
-              <div className="tw-space-y-2 tw-max-h-48 tw-overflow-y-auto">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {colorizedMatches.slice(0, 5).map((match) => {
                   const matchSimilarity = Number(match?.similarity ?? 0);
 
                   return (
                     <div
                       key={match.id}
-                      className="tw-p-2 tw-bg-gray-100 tw-rounded tw-border tw-border-gray-200"
+                      className="p-2.5 bg-muted/40 rounded-lg border border-border/60 hover:border-border transition-colors"
                     >
-                      <div className="tw-flex tw-items-center tw-justify-between tw-mb-1">
-                        <div className="tw-flex tw-items-center tw-gap-2 tw-min-w-0">
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={[
-                              'tw-inline-flex tw-h-5 tw-min-w-5 tw-items-center tw-justify-center tw-rounded tw-border tw-px-1 tw-text-[10px] tw-font-semibold',
+                            className={cn(
+                              'inline-flex h-5 min-w-5 items-center justify-center rounded border px-1 text-[10px] font-semibold',
                               match.badgeClass,
-                            ].join(' ')}
+                            )}
                           >
                             {match.sourceNumber}
                           </span>
@@ -786,17 +857,17 @@ const PlagiarismChecker = ({
                             href={match.url || '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="tw-text-sm tw-font-medium tw-text-blue-600 hover:tw-underline tw-truncate"
+                            className="text-xs sm:text-sm font-medium text-primary hover:underline truncate"
                           >
                             {match.title}
                           </a>
                         </div>
-                        <span className="tw-text-xs tw-font-bold tw-text-gray-700">
+                        <span className="text-xs font-bold text-foreground shrink-0">
                           {matchSimilarity.toFixed(1)}%
                         </span>
                       </div>
                       {match.excerpt && (
-                        <p className="tw-text-xs tw-text-gray-700 font-medium tw-italic tw-truncate">
+                        <p className="text-xs text-muted-foreground italic truncate">
                           &quot;{match.excerpt}&quot;
                         </p>
                       )}
@@ -805,18 +876,17 @@ const PlagiarismChecker = ({
                 })}
               </div>
               {matchCount > 5 && (
-                <p className="tw-text-xs tw-text-gray-700 font-medium">
-                  +{matchCount - 5} more matches
-                </p>
+                <p className="text-xs text-muted-foreground">+{matchCount - 5} more matches</p>
               )}
             </div>
           )}
 
           {/* No Matches Message */}
           {hasResult && matchCount === 0 && (
-            <div className="tw-p-3 tw-bg-green-50 tw-border tw-border-green-200 tw-rounded">
-              <p className="tw-text-sm tw-text-green-800">
-                ✓ No plagiarism detected. Submission appears to be original.
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-emerald-950 dark:text-emerald-200">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <p className="text-xs sm:text-sm font-medium">
+                No plagiarism detected. Submission appears to be original.
               </p>
             </div>
           )}

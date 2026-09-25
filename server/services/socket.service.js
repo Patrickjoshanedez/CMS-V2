@@ -128,10 +128,21 @@ export function emitToRoom(room, event, data) {
 }
 
 /**
+ * Emit an event to all connected clients.
+ *
+ * @param {string} event - Event name
+ * @param {Object} data  - Payload to send
+ */
+export function emitToAll(event, data) {
+  if (!io) return;
+  io.emit(event, data);
+}
+
+/**
  * Reset the Socket.IO instance (used for testing cleanup).
  */
 export function resetSocket() {
   io = null;
 }
 
-export default { initializeSocket, getIO, emitToUser, emitToRoom, resetSocket };
+export default { initializeSocket, getIO, emitToUser, emitToRoom, emitToAll, resetSocket };

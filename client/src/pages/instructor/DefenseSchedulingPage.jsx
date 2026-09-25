@@ -10,8 +10,16 @@ import { Input } from '@/components/ui/Input';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useProjects, projectKeys } from '@/hooks/useProjects';
 import { projectService, academicService } from '@/services/authService';
+import { settingsService } from '@/services/settingsService';
 import { toast } from 'sonner';
 import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
+import MilestoneDeadlinesModal from '@/components/instructor/MilestoneDeadlinesModal';
+import {
+  CAPSTONE_STAGES,
+  STAGE_DELIVERABLE_MAP,
+  DELIVERABLE_CATEGORY_MAP,
+  DELIVERABLE_TYPES,
+} from '@cms/shared';
 import {
   CalendarClock,
   Calendar,
@@ -33,6 +41,11 @@ import {
   User,
   AlertTriangle,
   RotateCcw,
+  CalendarPlus,
+  FileText,
+  CheckCircle2,
+  X,
+  Info,
 } from 'lucide-react';
 
 export const TIMELINE_START_HOUR = 8; // 08:00 AM
@@ -190,6 +203,54 @@ export function getDefenseReadiness(project) {
 }
 
 /**
+ * Returns color-coded badge styling for milestone deliverable categories
+ */
+export function getDeliverableBadgeTheme(deliverableId) {
+  const category = DELIVERABLE_CATEGORY_MAP[deliverableId] || 'manuscript';
+  switch (category) {
+    case 'manuscript':
+      return {
+        bg: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20',
+        dot: 'bg-blue-500',
+        label: 'Manuscript',
+      };
+    case 'matrix':
+      return {
+        bg: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20',
+        dot: 'bg-purple-500',
+        label: 'ADM Review',
+      };
+    case 'prototype':
+      return {
+        bg: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20',
+        dot: 'bg-amber-500',
+        label: 'Prototype / Plan',
+      };
+    case 'final_paper':
+      return {
+        bg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20',
+        dot: 'bg-emerald-500',
+        label: 'Final Approved Paper',
+      };
+    default:
+      return {
+        bg: 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20',
+        dot: 'bg-primary',
+        label: 'Deliverable',
+      };
+  }
+}
+
+/**
+ * Safely resolves the project workspace navigation tab, respecting the 4-phase lifecycle
+ */
+export function resolveProjectTab(project) {
+  if (project?.stage) return project.stage;
+  if (project?.capstonePhase === 4) return 'final';
+  return `capstone_${project?.capstonePhase || 1}`;
+}
+
+/**
  * DefenseSchedulingPage — Dedicated Instructor Defense Scheduling Command Center.
  *
  * Centralized dashboard for Course Instructors to monitor defense readiness across
@@ -202,9 +263,16 @@ export default function DefenseSchedulingPage() {
 
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending_scheduling' | 'scheduled' | 'in_progress'
+  const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
-  const [selectedPhase, setSelectedPhase] = useState('');
+  const [selectedStage, setSelectedStage] = useState('');
+  const [selectedDeliverable, setSelectedDeliverable] = useState('');
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'table' | 'grid'
+
+  // Milestone submission deadlines & tray state
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [leftTrayTab, setLeftTrayTab] = useState('awaiting'); // 'awaiting' | 'submissions'
+  const [selectedMilestoneDetail, setSelectedMilestoneDetail] = useState(null);
 
   // Modal state
   const [selectedProject, setSelectedProject] = useState(null);
@@ -315,6 +383,21 @@ export default function DefenseSchedulingPage() {
 
   const sections = Array.isArray(sectionsData) ? sectionsData : [];
 
+  // Fetch milestone submission deadlines
+  const { data: milestoneDeadlinesData, refetch: refetchMilestones } = useQuery({
+    queryKey: ['milestone-deadlines', selectedBatch, selectedSection],
+    queryFn: async () => {
+      const params = {};
+      if (selectedBatch) params.batchYear = selectedBatch;
+      if (selectedSection) params.sectionId = selectedSection;
+      const res = await settingsService.getMilestoneDeadlines(params);
+      return res.data?.data || res.data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const milestoneDeadlines = Array.isArray(milestoneDeadlinesData) ? milestoneDeadlinesData : [];
+
   // Filter out any archived records
   const allProjects = useMemo(() => {
     const rawProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
@@ -323,6 +406,48 @@ export default function DefenseSchedulingPage() {
       return p.isArchived !== true && normalizedStatus !== 'archived';
     });
   }, [projectsData]);
+
+  // Compute unique academic year batches from projects
+  const allBatches = useMemo(() => {
+    const batchSet = new Set();
+    allProjects.forEach((p) => {
+      if (p.academicYear) batchSet.add(p.academicYear);
+    });
+    const currentYear = new Date().getFullYear();
+    batchSet.add(`${currentYear}-${currentYear + 1}`);
+    batchSet.add(`${currentYear - 1}-${currentYear}`);
+    return Array.from(batchSet).sort().reverse();
+  }, [allProjects]);
+
+  // Compute available deliverables for cascading filter based on selected stage
+  const availableDeliverablesForFilter = useMemo(() => {
+    if (selectedStage && STAGE_DELIVERABLE_MAP[selectedStage]) {
+      return STAGE_DELIVERABLE_MAP[selectedStage];
+    }
+    const all = [];
+    Object.values(STAGE_DELIVERABLE_MAP).forEach((arr) => {
+      arr.forEach((item) => {
+        if (!all.some((x) => x.id === item.id)) {
+          all.push(item);
+        }
+      });
+    });
+    return all;
+  }, [selectedStage]);
+
+  // Group deadlines by local date key for All-Day calendar ribbon
+  const deadlinesByDateMap = useMemo(() => {
+    const map = new Map();
+    milestoneDeadlines.forEach((dl) => {
+      if (!dl.deadlineDate) return;
+      const dateKey = toLocalDateKey(dl.deadlineDate);
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey).push(dl);
+    });
+    return map;
+  }, [milestoneDeadlines]);
 
   // Executive KPI calculations
   const kpis = useMemo(() => {
@@ -345,7 +470,7 @@ export default function DefenseSchedulingPage() {
     return { total, pending, scheduled, inProgress };
   }, [allProjects]);
 
-  // Filtered projects based on search, active tab, section, and phase
+  // Filtered projects based on search, active tab, batch, section, stage, and deliverable
   const filteredProjects = useMemo(() => {
     return allProjects.filter((project) => {
       const defStatus = project.defenseSchedule?.status;
@@ -364,6 +489,13 @@ export default function DefenseSchedulingPage() {
         return false;
       }
 
+      // Batch filter
+      if (selectedBatch) {
+        if (project.academicYear && project.academicYear !== selectedBatch) {
+          return false;
+        }
+      }
+
       // Section filter
       if (selectedSection) {
         const secId = project.sectionId?._id || project.sectionId;
@@ -373,9 +505,33 @@ export default function DefenseSchedulingPage() {
         }
       }
 
-      // Phase filter
-      if (selectedPhase) {
-        if (String(project.capstonePhase || 1) !== selectedPhase) {
+      // Stage / Phase filter (strictly capstone_1, capstone_2, capstone_3, final; no 'Capstone 4')
+      if (selectedStage) {
+        const pStage = project.stage;
+        const pPhase = project.capstonePhase;
+        const matches =
+          (selectedStage === CAPSTONE_STAGES.CAPSTONE_1 &&
+            (pStage === 'capstone_1' || pPhase === 1)) ||
+          (selectedStage === CAPSTONE_STAGES.CAPSTONE_2 &&
+            (pStage === 'capstone_2' || pPhase === 2)) ||
+          (selectedStage === CAPSTONE_STAGES.CAPSTONE_3 &&
+            (pStage === 'capstone_3' || pPhase === 3)) ||
+          (selectedStage === CAPSTONE_STAGES.FINAL && (pStage === 'final' || pPhase === 4));
+        if (!matches) return false;
+      }
+
+      // Deliverable filter
+      if (selectedDeliverable) {
+        let deliverableStage = null;
+        Object.entries(STAGE_DELIVERABLE_MAP).forEach(([stg, arr]) => {
+          if (arr.some((d) => d.id === selectedDeliverable)) {
+            deliverableStage = stg;
+          }
+        });
+        const projStage =
+          project.stage ||
+          (project.capstonePhase === 4 ? 'final' : `capstone_${project.capstonePhase || 1}`);
+        if (deliverableStage && projStage !== deliverableStage) {
           return false;
         }
       }
@@ -402,7 +558,61 @@ export default function DefenseSchedulingPage() {
 
       return true;
     });
-  }, [allProjects, activeTab, selectedSection, selectedPhase, search]);
+  }, [
+    allProjects,
+    activeTab,
+    selectedBatch,
+    selectedSection,
+    selectedStage,
+    selectedDeliverable,
+    search,
+  ]);
+
+  // Compute pending and overdue submissions across filtered projects
+  const pendingOrOverdueSubmissions = useMemo(() => {
+    const list = [];
+    const now = new Date();
+
+    filteredProjects.forEach((proj) => {
+      const projBatch = proj.academicYear;
+      const projSecId = String(proj.sectionId?._id || proj.sectionId || '');
+      const projStage =
+        proj.stage || (proj.capstonePhase === 4 ? 'final' : `capstone_${proj.capstonePhase || 1}`);
+
+      // Find matching milestone deadlines
+      const matchingDeadlines = milestoneDeadlines.filter((dl) => {
+        if (dl.targetType === 'batch') {
+          if (projBatch && dl.batchYear && dl.batchYear !== projBatch) return false;
+        }
+        if (dl.targetType === 'section') {
+          if (String(dl.sectionId?._id || dl.sectionId || '') !== projSecId) return false;
+        }
+        if (dl.stage && dl.stage !== projStage) return false;
+        return true;
+      });
+
+      matchingDeadlines.forEach((dl) => {
+        const dDate = new Date(dl.deadlineDate);
+        const isOverdue = now > dDate;
+        const diffMs = dDate - now;
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+        list.push({
+          id: `${proj._id}-${dl._id}`,
+          project: proj,
+          deadline: dl,
+          isOverdue,
+          diffDays,
+        });
+      });
+    });
+
+    return list.sort((a, b) => {
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+      return new Date(a.deadline.deadlineDate) - new Date(b.deadline.deadlineDate);
+    });
+  }, [filteredProjects, milestoneDeadlines]);
 
   // Calendar Monday-Friday days calculation based on selectedDate
   const weekDays = useMemo(() => {
@@ -757,9 +967,20 @@ export default function DefenseSchedulingPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsMilestoneModalOpen(true)}
+              className="gap-1.5 text-xs shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />+ Set Milestone Deadlines
+            </Button>
+            <Button
               variant="outline"
               size="sm"
-              onClick={() => refetchProjects()}
+              onClick={() => {
+                refetchProjects();
+                refetchMilestones();
+              }}
               className="gap-1.5 text-xs shadow-xs"
             >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -955,18 +1176,22 @@ export default function DefenseSchedulingPage() {
             </button>
           </div>
 
-          {/* Search + Section + Phase Dropdowns */}
+          {/* Cascading Filter Bar: Batch -> Section -> Stage -> Deliverables -> Search */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1 sm:flex-initial">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search team, project, adviser..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-9 text-xs"
-              />
-            </div>
+            {/* Batch Filter */}
+            <select
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
+              className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Filter by Academic Batch"
+            >
+              <option value="">All Batches</option>
+              {allBatches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
 
             {/* Section Filter */}
             {sections.length > 0 && (
@@ -974,6 +1199,7 @@ export default function DefenseSchedulingPage() {
                 value={selectedSection}
                 onChange={(e) => setSelectedSection(e.target.value)}
                 className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                aria-label="Filter by Section"
               >
                 <option value="">All Sections</option>
                 {sections.map((sec) => (
@@ -984,18 +1210,49 @@ export default function DefenseSchedulingPage() {
               </select>
             )}
 
-            {/* Capstone Filter */}
+            {/* Capstone Stage Filter (strictly capstone_1, capstone_2, capstone_3, final; no Capstone 4) */}
             <select
-              value={selectedPhase}
-              onChange={(e) => setSelectedPhase(e.target.value)}
+              value={selectedStage}
+              onChange={(e) => {
+                setSelectedStage(e.target.value);
+                setSelectedDeliverable('');
+              }}
               className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Filter by Capstone Stage"
             >
-              <option value="">All Capstones</option>
-              <option value="1">Capstone 1 (Title Defense)</option>
-              <option value="2">Capstone 2 (Midterm Defense)</option>
-              <option value="3">Capstone 3 (Progress Defense)</option>
-              <option value="4">Capstone 4 (Final Defense)</option>
+              <option value="">All Stages</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_1}>Capstone 1 (Title Defense)</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_2}>Capstone 2 (Midterm Defense)</option>
+              <option value={CAPSTONE_STAGES.CAPSTONE_3}>Capstone 3 (Progress Defense)</option>
+              <option value={CAPSTONE_STAGES.FINAL}>Final Capstone (Oral Defense)</option>
             </select>
+
+            {/* Deliverables Filter */}
+            <select
+              value={selectedDeliverable}
+              onChange={(e) => setSelectedDeliverable(e.target.value)}
+              className="h-9 rounded-md border border-border bg-card px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Filter by Deliverable"
+            >
+              <option value="">All Deliverables</option>
+              {availableDeliverablesForFilter.map((deliv) => (
+                <option key={deliv.id} value={deliv.id}>
+                  {deliv.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Search Input */}
+            <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search team, project, adviser..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9 text-xs"
+              />
+            </div>
           </div>
         </div>
 
@@ -1206,205 +1463,353 @@ export default function DefenseSchedulingPage() {
                       : ''
                   }`}
                 >
-                  <CardHeader className="p-3.5 pb-2 border-b border-border/60 bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-primary" />
-                        {search.trim() ? 'Matching Teams' : 'Awaiting Scheduling'}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        {/* Configurable Typed Default Duration Input */}
-                        <div className="flex items-center gap-1 bg-background border border-border/70 rounded-md px-2 py-0.5 shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 transition-all">
-                          <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <input
-                            type="number"
-                            min={5}
-                            max={360}
-                            step={5}
-                            data-testid="defense-duration-input"
-                            value={defaultDefenseDuration}
-                            onFocus={(e) => e.target.select()}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') e.currentTarget.blur();
-                            }}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '') {
-                                setDefaultDefenseDuration('');
-                                return;
-                              }
-                              const num = parseInt(val, 10);
-                              if (!isNaN(num)) {
-                                const capped = Math.min(360, Math.max(0, num));
-                                setDefaultDefenseDuration(capped);
-                                if (capped >= 5) {
+                  <CardHeader className="p-3 pb-2 border-b border-border/60 bg-muted/20 space-y-2">
+                    {/* Dual Tabs: Awaiting Scheduling vs Submissions */}
+                    <div className="flex items-center gap-1 bg-muted/70 p-0.5 rounded-lg border border-border/60 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setLeftTrayTab('awaiting')}
+                        className={`flex-1 px-2 py-1 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          leftTrayTab === 'awaiting'
+                            ? 'bg-background text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Users className="h-3 w-3 text-primary" />
+                        Awaiting Scheduling
+                        <Badge variant="outline" className="text-[10px] font-mono ml-0.5 px-1 py-0">
+                          {unscheduledTeams.length}
+                        </Badge>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLeftTrayTab('submissions')}
+                        className={`flex-1 px-2 py-1 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          leftTrayTab === 'submissions'
+                            ? 'bg-background text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Clock className="h-3 w-3 text-amber-500" />
+                        Submissions
+                        <Badge
+                          variant={
+                            pendingOrOverdueSubmissions.some((s) => s.isOverdue)
+                              ? 'destructive'
+                              : 'outline'
+                          }
+                          className="text-[10px] font-mono ml-0.5 px-1 py-0"
+                        >
+                          {pendingOrOverdueSubmissions.length}
+                        </Badge>
+                      </button>
+                    </div>
+
+                    {leftTrayTab === 'awaiting' ? (
+                      <div className="flex items-center justify-between gap-1">
+                        <CardDescription className="text-[11px] text-muted-foreground truncate">
+                          {search.trim()
+                            ? 'Teams matching search filters'
+                            : `Drag onto calendar (${formatDurationLabel(defaultDefenseDuration)} slot)`}
+                        </CardDescription>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Configurable Typed Default Duration Input */}
+                          <div className="flex items-center gap-1 bg-background border border-border/70 rounded-md px-2 py-0.5 shadow-2xs hover:border-primary/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 transition-all">
+                            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <input
+                              type="number"
+                              min={5}
+                              max={360}
+                              step={5}
+                              data-testid="defense-duration-input"
+                              value={defaultDefenseDuration}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.currentTarget.blur();
+                              }}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                  setDefaultDefenseDuration('');
+                                  return;
+                                }
+                                const num = parseInt(val, 10);
+                                if (!isNaN(num)) {
+                                  const capped = Math.min(360, Math.max(0, num));
+                                  setDefaultDefenseDuration(capped);
+                                  if (capped >= 5) {
+                                    try {
+                                      localStorage.setItem(
+                                        'cms-default-defense-duration',
+                                        String(capped),
+                                      );
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }
+                                }
+                              }}
+                              onBlur={() => {
+                                const num = parseInt(defaultDefenseDuration, 10);
+                                if (isNaN(num) || num < 5) {
+                                  setDefaultDefenseDuration(30);
+                                  try {
+                                    localStorage.setItem('cms-default-defense-duration', '30');
+                                  } catch {
+                                    // ignore
+                                  }
+                                } else {
+                                  const clamped = Math.min(360, num);
+                                  setDefaultDefenseDuration(clamped);
                                   try {
                                     localStorage.setItem(
                                       'cms-default-defense-duration',
-                                      String(capped),
+                                      String(clamped),
                                     );
                                   } catch {
                                     // ignore
                                   }
                                 }
-                              }
-                            }}
-                            onBlur={() => {
-                              const num = parseInt(defaultDefenseDuration, 10);
-                              if (isNaN(num) || num < 5) {
-                                setDefaultDefenseDuration(30);
-                                try {
-                                  localStorage.setItem('cms-default-defense-duration', '30');
-                                } catch {
-                                  // ignore
-                                }
-                              } else {
-                                const clamped = Math.min(360, num);
-                                setDefaultDefenseDuration(clamped);
-                                try {
-                                  localStorage.setItem(
-                                    'cms-default-defense-duration',
-                                    String(clamped),
-                                  );
-                                } catch {
-                                  // ignore
-                                }
-                              }
-                            }}
-                            className="w-9 text-[11px] font-bold font-mono bg-transparent border-0 p-0 text-foreground text-right focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            title="Type hearing duration in minutes (e.g. 30, 45, 60)"
-                          />
-                          <span className="text-[11px] font-bold text-muted-foreground select-none">
-                            m
-                          </span>
+                              }}
+                              className="w-9 text-[11px] font-bold font-mono bg-transparent border-0 p-0 text-foreground text-right focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              title="Type hearing duration in minutes (e.g. 30, 45, 60)"
+                            />
+                            <span className="text-[11px] font-bold text-muted-foreground select-none">
+                              m
+                            </span>
+                          </div>
                         </div>
-                        <Badge variant="outline" className="text-[11px] font-mono">
-                          {unscheduledTeams.length}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardDescription className="text-[11px] text-muted-foreground">
-                      {search.trim()
-                        ? 'Teams matching search filters'
-                        : `Drag team onto calendar (${formatDurationLabel(defaultDefenseDuration)} slot)`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-2.5 max-h-[660px] overflow-y-auto">
-                    {isTrayDragOver && (
-                      <div
-                        data-testid="tray-drop-zone-banner"
-                        className="rounded-xl border-2 border-dashed border-primary bg-primary/10 p-3 text-center transition-all animate-pulse"
-                      >
-                        <p className="text-xs font-bold text-primary flex items-center justify-center gap-1.5">
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          Drop here to Unschedule
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Return hearing to Awaiting Scheduling (
-                          {formatDurationLabel(defaultDefenseDuration)})
-                        </p>
-                      </div>
-                    )}
-                    {unscheduledTeams.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-muted-foreground">
-                        All teams are currently scheduled or match other filters.
                       </div>
                     ) : (
-                      unscheduledTeams.map((project) => {
-                        const { isScheduled, isReady, isCommitteeIncomplete, committeeNote } =
-                          getDefenseReadiness(project);
-                        const leaderName = getTeamLeaderName(project);
-
-                        return (
+                      <CardDescription className="text-[11px] text-muted-foreground">
+                        Tracking deadline compliance for active milestone deliverables.
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-2.5 max-h-[660px] overflow-y-auto">
+                    {leftTrayTab === 'awaiting' ? (
+                      <>
+                        {isTrayDragOver && (
                           <div
-                            key={project._id}
-                            draggable="true"
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData(
-                                'application/json',
-                                JSON.stringify({
-                                  projectId: project._id,
-                                  isReschedule: isScheduled,
-                                }),
-                              );
-                              setDraggedProject(project);
-                            }}
-                            onDragEnd={() => setDraggedProject(null)}
-                            className="group cursor-grab active:cursor-grabbing rounded-xl border border-border/80 bg-card p-3 shadow-xs hover:border-primary/50 hover:shadow-sm transition-all space-y-2 select-none"
+                            data-testid="tray-drop-zone-banner"
+                            className="rounded-xl border-2 border-dashed border-primary bg-primary/10 p-3 text-center transition-all animate-pulse"
                           >
-                            <div className="flex items-start justify-between gap-1.5">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
-                                <span className="text-xs font-bold text-foreground truncate">
-                                  {project.teamId?.name || 'Unnamed Team'}
-                                </span>
-                              </div>
-                              <Badge
-                                variant={isScheduled ? 'outline' : isReady ? 'default' : 'outline'}
-                                className={`text-[10px] shrink-0 ${
-                                  isScheduled
-                                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
-                                    : isReady
-                                      ? 'bg-emerald-600 text-white font-medium'
-                                      : isCommitteeIncomplete
-                                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-medium'
-                                        : 'text-muted-foreground'
-                                }`}
-                              >
-                                {isScheduled
-                                  ? 'Scheduled'
-                                  : isReady
-                                    ? 'Ready ✓'
-                                    : isCommitteeIncomplete
-                                      ? 'Missing Committee'
-                                      : 'In Prep'}
-                              </Badge>
-                            </div>
-
-                            <p className="text-[11px] text-muted-foreground line-clamp-1 font-medium">
-                              {project.title || 'Proposal in preparation'}
+                            <p className="text-xs font-bold text-primary flex items-center justify-center gap-1.5">
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Drop here to Unschedule
                             </p>
-
-                            {/* Committee warning if incomplete */}
-                            {isCommitteeIncomplete && (
-                              <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20">
-                                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-                                <span className="truncate">{committeeNote}</span>
-                              </div>
-                            )}
-
-                            {/* Team Leader Indicator */}
-                            {leaderName && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-foreground/90 font-medium">
-                                <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <span className="truncate">
-                                  Lead: <strong className="text-foreground">{leaderName}</strong>
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-                              <span>
-                                Adviser:{' '}
-                                <strong className="text-foreground font-medium">
-                                  {project.adviserId?.lastName || 'TBD'}
-                                </strong>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenScheduleModal(project)}
-                                className={`${
-                                  isCommitteeIncomplete
-                                    ? 'text-amber-700 dark:text-amber-400 hover:underline'
-                                    : 'text-primary hover:underline'
-                                } font-semibold text-[11px] cursor-pointer`}
-                              >
-                                {isScheduled ? 'Reschedule Defense' : 'Schedule Defense'}
-                              </button>
-                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Return hearing to Awaiting Scheduling (
+                              {formatDurationLabel(defaultDefenseDuration)})
+                            </p>
                           </div>
-                        );
-                      })
+                        )}
+                        {unscheduledTeams.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-muted-foreground">
+                            All teams are currently scheduled or match other filters.
+                          </div>
+                        ) : (
+                          unscheduledTeams.map((project) => {
+                            const { isScheduled, isReady, isCommitteeIncomplete, committeeNote } =
+                              getDefenseReadiness(project);
+                            const leaderName = getTeamLeaderName(project);
+
+                            return (
+                              <div
+                                key={project._id}
+                                draggable="true"
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData(
+                                    'application/json',
+                                    JSON.stringify({
+                                      projectId: project._id,
+                                      isReschedule: isScheduled,
+                                    }),
+                                  );
+                                  setDraggedProject(project);
+                                }}
+                                onDragEnd={() => setDraggedProject(null)}
+                                className="group cursor-grab active:cursor-grabbing rounded-xl border border-border/80 bg-card p-3 shadow-xs hover:border-primary/50 hover:shadow-sm transition-all space-y-2 select-none"
+                              >
+                                <div className="flex items-start justify-between gap-1.5">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+                                    <span className="text-xs font-bold text-foreground truncate">
+                                      {project.teamId?.name || 'Unnamed Team'}
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    variant={
+                                      isScheduled ? 'outline' : isReady ? 'default' : 'outline'
+                                    }
+                                    className={`text-[10px] shrink-0 ${
+                                      isScheduled
+                                        ? 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+                                        : isReady
+                                          ? 'bg-emerald-600 text-white font-medium'
+                                          : isCommitteeIncomplete
+                                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-medium'
+                                            : 'text-muted-foreground'
+                                    }`}
+                                  >
+                                    {isScheduled
+                                      ? 'Scheduled'
+                                      : isReady
+                                        ? 'Ready ✓'
+                                        : isCommitteeIncomplete
+                                          ? 'Missing Committee'
+                                          : 'In Prep'}
+                                  </Badge>
+                                </div>
+
+                                <p className="text-[11px] text-muted-foreground line-clamp-1 font-medium">
+                                  {project.title || 'Proposal in preparation'}
+                                </p>
+
+                                {/* Committee warning if incomplete */}
+                                {isCommitteeIncomplete && (
+                                  <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20">
+                                    <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{committeeNote}</span>
+                                  </div>
+                                )}
+
+                                {/* Team Leader Indicator */}
+                                {leaderName && (
+                                  <div className="flex items-center gap-1.5 text-[11px] text-foreground/90 font-medium">
+                                    <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <span className="truncate">
+                                      Lead:{' '}
+                                      <strong className="text-foreground">{leaderName}</strong>
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+                                  <span>
+                                    Adviser:{' '}
+                                    <strong className="text-foreground font-medium">
+                                      {project.adviserId?.lastName || 'TBD'}
+                                    </strong>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenScheduleModal(project)}
+                                    className={`${
+                                      isCommitteeIncomplete
+                                        ? 'text-amber-700 dark:text-amber-400 hover:underline'
+                                        : 'text-primary hover:underline'
+                                    } font-semibold text-[11px] cursor-pointer`}
+                                  >
+                                    {isScheduled ? 'Reschedule Defense' : 'Schedule Defense'}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        {pendingOrOverdueSubmissions.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-muted-foreground space-y-2">
+                            <Clock className="h-8 w-8 mx-auto text-muted-foreground/40" />
+                            <p>No pending or overdue milestone submissions for current filters.</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsMilestoneModalOpen(true)}
+                              className="text-xs mt-2"
+                            >
+                              + Set Milestone Deadlines
+                            </Button>
+                          </div>
+                        ) : (
+                          pendingOrOverdueSubmissions.map(
+                            ({ id, project, deadline: dl, isOverdue, diffDays }) => {
+                              const theme = getDeliverableBadgeTheme(dl.deliverable);
+                              const deadlineDateStr = new Date(dl.deadlineDate).toLocaleDateString(
+                                'en-US',
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                },
+                              );
+
+                              return (
+                                <div
+                                  key={id}
+                                  className={`rounded-xl border p-3 shadow-xs transition-all space-y-2 bg-card ${
+                                    isOverdue
+                                      ? 'border-red-500/40 bg-red-500/[0.02]'
+                                      : 'border-border/80 hover:border-primary/50'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-1.5">
+                                    <span className="text-xs font-bold text-foreground truncate">
+                                      {project.teamId?.name || 'Unnamed Team'}
+                                    </span>
+                                    {isOverdue ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-[10px] px-1.5 py-0 flex items-center gap-1 font-semibold shrink-0"
+                                      >
+                                        <AlertTriangle className="h-2.5 w-2.5" />
+                                        Overdue ({Math.abs(diffDays)}d)
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] px-1.5 py-0 text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 font-semibold shrink-0"
+                                      >
+                                        Due in {diffDays}d
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  <p className="text-[11px] text-muted-foreground line-clamp-1 font-medium">
+                                    {project.title || 'Proposal in preparation'}
+                                  </p>
+
+                                  <div className="flex items-center justify-between text-[10px]">
+                                    <span
+                                      className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${theme.bg}`}
+                                    >
+                                      {dl.title}
+                                    </span>
+                                    <span className="text-muted-foreground font-mono">
+                                      {deadlineDateStr}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px]">
+                                    <span className="text-muted-foreground">
+                                      Scope:{' '}
+                                      <strong className="text-foreground">
+                                        {dl.targetType === 'section' ? 'Section' : 'Batch'}
+                                      </strong>
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-2 text-[11px] text-primary hover:underline p-0"
+                                      onClick={() =>
+                                        navigate(
+                                          `/projects/${project._id}?tab=${resolveProjectTab(project)}`,
+                                        )
+                                      }
+                                    >
+                                      View Workspace
+                                      <ChevronRight className="h-3 w-3 ml-0.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            },
+                          )
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -1455,6 +1860,58 @@ export default function DefenseSchedulingPage() {
                           >
                             {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* All-Day Milestone Deadline Ribbon across the 5 calendar columns */}
+                  <div className="grid grid-cols-[72px_repeat(5,1fr)] border-b border-border bg-card/60 min-h-[48px] items-stretch">
+                    <div className="p-2 border-r border-border/60 bg-muted/20 flex flex-col items-center justify-center text-center select-none">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-primary" />
+                        Milestones
+                      </span>
+                      <span className="text-[8px] text-muted-foreground/70 font-medium">
+                        All-Day
+                      </span>
+                    </div>
+                    {weekDays.map((day, idx) => {
+                      const dateStr = toLocalDateKey(day);
+                      const dayDeadlines = deadlinesByDateMap.get(dateStr) || [];
+                      return (
+                        <div
+                          key={`ribbon-${idx}`}
+                          className="p-1.5 border-r border-border/60 last:border-r-0 flex flex-col gap-1 justify-center min-h-[46px]"
+                        >
+                          {dayDeadlines.length === 0 ? (
+                            <span className="text-[10px] text-muted-foreground/30 italic text-center select-none">
+                              —
+                            </span>
+                          ) : (
+                            dayDeadlines.map((dl) => {
+                              const theme = getDeliverableBadgeTheme(dl.deliverable);
+                              return (
+                                <button
+                                  key={dl._id}
+                                  type="button"
+                                  onClick={() => setSelectedMilestoneDetail(dl)}
+                                  title={`${dl.title} (${dl.targetType === 'section' ? 'Section' : 'Batch'}) - Click for details`}
+                                  className={`w-full text-left px-2 py-1 rounded-md border text-[11px] font-medium transition-all shadow-2xs flex items-center justify-between gap-1.5 cursor-pointer ${theme.bg}`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full shrink-0 ${theme.dot}`}
+                                    />
+                                    <span className="truncate font-semibold">{dl.title}</span>
+                                  </div>
+                                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-background/60 border border-border/50 shrink-0">
+                                    {dl.targetType === 'section' ? 'Sec' : 'Batch'}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
                         </div>
                       );
                     })}
@@ -1927,7 +2384,11 @@ export default function DefenseSchedulingPage() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => navigate(`/projects/${project._id}?tab=capstone_2`)}
+                                onClick={() =>
+                                  navigate(
+                                    `/projects/${project._id}?tab=${resolveProjectTab(project)}`,
+                                  )
+                                }
                                 title="Open Project Workspace"
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
@@ -1983,7 +2444,9 @@ export default function DefenseSchedulingPage() {
                             </span>
                             <span className="text-muted-foreground">•</span>
                             <span className="text-xs text-muted-foreground">
-                              Capstone {project.capstonePhase || 2}
+                              {project.stage === 'final' || project.capstonePhase === 4
+                                ? 'Final Capstone'
+                                : `Capstone ${project.capstonePhase || 1}`}
                             </span>
                           </div>
                           <CardTitle className="text-base font-bold text-foreground mt-1">
@@ -2072,7 +2535,9 @@ export default function DefenseSchedulingPage() {
                           size="sm"
                           variant="outline"
                           className="h-8 px-2.5 text-xs"
-                          onClick={() => navigate(`/projects/${project._id}?tab=capstone_2`)}
+                          onClick={() =>
+                            navigate(`/projects/${project._id}?tab=${resolveProjectTab(project)}`)
+                          }
                           title="View Workspace"
                         >
                           <ChevronRight className="h-3.5 w-3.5" />
@@ -2099,6 +2564,109 @@ export default function DefenseSchedulingPage() {
           initialDate={initialScheduleDate}
           initialTime={initialScheduleTime}
           onScheduled={handleScheduledSuccess}
+        />
+
+        {/* Milestone Detail Dialog */}
+        {selectedMilestoneDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in-50">
+            <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4 my-auto">
+              <div className="flex items-start justify-between">
+                <div>
+                  <Badge variant="outline" className="text-[10px] font-mono uppercase mb-1">
+                    {selectedMilestoneDetail.targetType === 'section'
+                      ? 'Section-Specific'
+                      : 'Batch-Wide'}
+                  </Badge>
+                  <h3 className="text-base font-bold text-foreground">
+                    {selectedMilestoneDetail.title}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMilestoneDetail(null)}
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Deliverable</span>
+                  <span className="font-semibold text-foreground font-mono">
+                    {selectedMilestoneDetail.deliverable}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Capstone Stage</span>
+                  <span className="font-semibold text-foreground uppercase">
+                    {selectedMilestoneDetail.stage}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Deadline Date</span>
+                  <span className="font-semibold text-foreground">
+                    {new Date(selectedMilestoneDetail.deadlineDate).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Late Submissions</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedMilestoneDetail.allowLateSubmission
+                      ? 'Allowed with Justification'
+                      : 'Locked at Deadline'}
+                  </span>
+                </div>
+                {selectedMilestoneDetail.description && (
+                  <div className="pt-1">
+                    <span className="text-muted-foreground block mb-0.5">
+                      Instructions / Guidelines
+                    </span>
+                    <p className="text-foreground bg-muted/40 p-2 rounded-lg border border-border/50 leading-relaxed">
+                      {selectedMilestoneDetail.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedMilestoneDetail(null)}
+                  className="text-xs"
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedMilestoneDetail(null);
+                    setIsMilestoneModalOpen(true);
+                  }}
+                  className="text-xs gap-1.5"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  Manage Deadlines
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Milestone Deadlines Management Modal */}
+        <MilestoneDeadlinesModal
+          open={isMilestoneModalOpen}
+          onClose={() => setIsMilestoneModalOpen(false)}
+          sections={sections}
+          batchYears={allBatches}
+          defaultBatch={selectedBatch || allBatches[0] || '2025-2026'}
+          deadlines={milestoneDeadlines}
+          onSaved={() => {
+            refetchMilestones();
+            refetchProjects();
+          }}
         />
       </div>
     </DashboardLayout>

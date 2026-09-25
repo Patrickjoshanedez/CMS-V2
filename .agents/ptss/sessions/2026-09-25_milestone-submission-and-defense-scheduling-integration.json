@@ -1,0 +1,33 @@
+{
+  "sessionId": "2026-09-25_milestone-submission-and-defense-scheduling-integration",
+  "timestamp": "2026-09-25T12:52:00+08:00",
+  "title": "Complete Milestone Submission & Deadline Scheduling System in Defense Scheduling Center & Always Viewable Manuscript Guarantee",
+  "objective": "Integrate milestone submission deadlines, post-defense approval hard-gates, always-viewable manuscript reader fallbacks, and multi-stage calendar views into BukSU CMS-V2 without legacy Capstone 4 references.",
+  "status": "completed",
+  "affectedFiles": [
+    "client/src/components/archive/CanonicalDocumentViewer.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.test.jsx",
+    "client/src/components/instructor/MilestoneDeadlinesModal.jsx",
+    "client/src/components/instructor/MilestoneDeadlinesModal.test.jsx",
+    "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+    "client/src/pages/instructor/DefenseSchedulingPage.test.jsx",
+    "client/src/services/settingsService.js",
+    "server/modules/projects/project.service.js",
+    "server/modules/projects/project.controller.js",
+    "server/modules/settings/milestoneDeadline.model.js",
+    "server/modules/settings/milestoneDeadline.controller.js",
+    "server/modules/settings/settings.routes.js",
+    "server/modules/submissions/submission.service.js",
+    "server/tests/integration/settings.test.js",
+    "shared/constants/capstonePhases.js",
+    "shared/constants/projectStatuses.js",
+    "shared/index.js"
+  ],
+  "verification": {
+    "serverIntegrationTests": "40/40 passed (tests/integration/settings.test.js)",
+    "clientTargetedTests": "36/36 passed (MilestoneDeadlinesModal, DefenseSchedulingPage, CanonicalDocumentViewer)",
+    "endpointParity": "SERVER=212, CLIENT=193, UNMATCHED=0",
+    "agenticAudit": "60/60 passed",
+    "governancePipeline": "Passed without errors"
+  }
+}

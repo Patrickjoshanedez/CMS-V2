@@ -1176,6 +1176,9 @@ export const signTieredADM = catchAsync(async (req, res) => {
 
   await project.save({ validateModifiedOnly: true });
 
+  // Evaluate post-approval hard gate (unlocks full_academic_paper and condensed_journal_paper)
+  await projectService.evaluatePostApprovalUnlocks(project._id);
+
   res.status(HTTP_STATUS.OK).json({
     success: true,
     message: `Signed ADM as ${role || 'signatory'}.`,
@@ -1543,6 +1546,9 @@ export const signADMItem = catchAsync(async (req, res) => {
   }
 
   await project.save();
+
+  // Evaluate post-approval hard gate (unlocks full_academic_paper and condensed_journal_paper)
+  await projectService.evaluatePostApprovalUnlocks(project._id);
 
   res.status(HTTP_STATUS.OK).json({
     success: true,

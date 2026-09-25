@@ -14,6 +14,7 @@ import {
   SDG_TAG_SUGGESTIONS,
   PANEL_ROLE_VALUES,
   DEFENSE_TYPE_VALUES,
+  CAPSTONE_STAGE_VALUES,
 } from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
 
@@ -634,6 +635,18 @@ const projectSchema = new mongoose.Schema(
       enum: [1, 2, 3, 4],
       default: 1,
     },
+    stage: {
+      type: String,
+      enum: {
+        values: CAPSTONE_STAGE_VALUES,
+        message: 'Invalid capstone stage. Must be capstone_1, capstone_2, capstone_3, or final.',
+      },
+      default: 'capstone_1',
+    },
+    unlockedDeliverables: {
+      type: [String],
+      default: ['chapter_1', 'chapter_2', 'chapter_3', 'capstone_1_proposal', 'adm_v1'],
+    },
     titleStatus: {
       type: String,
       enum: {
@@ -821,6 +834,26 @@ const projectSchema = new mongoose.Schema(
   },
 );
 
+// Synchronize stage with capstonePhase if not explicitly set
+projectSchema.pre('save', function (next) {
+  if (this.isModified('capstonePhase') && !this.isModified('stage')) {
+    if (this.capstonePhase === 1) this.stage = 'capstone_1';
+    else if (this.capstonePhase === 2) this.stage = 'capstone_2';
+    else if (this.capstonePhase === 3) this.stage = 'capstone_3';
+    else if (this.capstonePhase === 4) this.stage = 'final';
+  }
+  if (!Array.isArray(this.unlockedDeliverables) || this.unlockedDeliverables.length === 0) {
+    this.unlockedDeliverables = [
+      'chapter_1',
+      'chapter_2',
+      'chapter_3',
+      'capstone_1_proposal',
+      'adm_v1',
+    ];
+  }
+  next();
+});
+
 // --- Indexes ---
 // One active project per team (rejected projects don't block re-creation)
 projectSchema.index(
@@ -830,6 +863,7 @@ projectSchema.index(
     partialFilterExpression: { projectStatus: { $ne: 'rejected' } },
   },
 );
+projectSchema.index({ stage: 1 });
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
 projectSchema.index({ panelistIds: 1 });

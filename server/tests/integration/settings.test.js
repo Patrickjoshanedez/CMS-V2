@@ -405,4 +405,76 @@ describe('System Settings API — /api/settings', () => {
       expect(res.status).not.toBe(503);
     });
   });
+
+  /* ──────────── TC-SET-005: Milestone Submission Deadlines ──────────── */
+
+  describe('TC-SET-005 — Milestone Submission Deadlines (/api/settings/deadlines/milestone)', () => {
+    it('should allow any authenticated user to retrieve milestone deadlines', async () => {
+      const res = await studentAgent.get('/api/settings/deadlines/milestone');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('should reject unauthenticated requests to read milestone deadlines', async () => {
+      const res = await request.get('/api/settings/deadlines/milestone');
+
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should allow an instructor to create and update milestone deadlines', async () => {
+      const payload = {
+        batchYear: '2025-2026',
+        targetType: 'batch',
+        stage: 'capstone_1',
+        deliverable: 'chapter_1',
+        title: 'Chapter 1 Draft Cutoff',
+        description: 'Submit preliminary draft of Chapter 1',
+        deadlineDate: '2026-10-30T23:59:59.000Z',
+        allowLateSubmission: true,
+      };
+
+      const res = await instructorAgent.post('/api/settings/deadlines/milestone').send(payload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.deliverable).toBe('chapter_1');
+      expect(res.body.data.stage).toBe('capstone_1');
+
+      // Verify retrieval
+      const getRes = await instructorAgent
+        .get('/api/settings/deadlines/milestone')
+        .query({ batchYear: '2025-2026', deliverable: 'chapter_1' });
+
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.data.length).toBeGreaterThanOrEqual(1);
+      const created = getRes.body.data.find((d) => d.deliverable === 'chapter_1');
+      expect(created).toBeDefined();
+
+      // Delete the created deadline
+      const delRes = await instructorAgent.delete(
+        `/api/settings/deadlines/milestone/${created._id}`,
+      );
+      expect(delRes.status).toBe(200);
+      expect(delRes.body.success).toBe(true);
+    });
+
+    it('should block non-instructors from creating milestone deadlines', async () => {
+      const payload = {
+        batchYear: '2025-2026',
+        targetType: 'batch',
+        stage: 'capstone_1',
+        deliverable: 'chapter_2',
+        title: 'Unauthorized Cutoff',
+        deadlineDate: '2026-11-15T23:59:59.000Z',
+      };
+
+      const res = await studentAgent.post('/api/settings/deadlines/milestone').send(payload);
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+  });
 });

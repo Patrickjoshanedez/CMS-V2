@@ -120,8 +120,8 @@
      - Step 8 (Evidence): Execute Playwright visual audit across light and dark modes in desktop (1440x900) and mobile (390x844) viewports with all 11 screenshot artifacts passed.
 
 - Unified PDF Highlighter & Multi-Layer Annotation Workspace Prevention Rule (react-pdf-highlighter-plus):
-  1. Lesson learned: The `PdfLoader` component in `react-pdf-highlighter-plus` exposes a `workerSrc` prop that defaults to a relative ESM dist path (`new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`). In Vite dev servers and containerized deployments, resolving this relative path produces a 404 (`Failed to fetch dynamically imported module`). Furthermore, `PdfLoader` accepts `document` (not `url`). Always pass `document={pdfUrl}` and explicitly supply `workerSrc="/pdf.worker.min.mjs"` pointing to the statically served worker in `client/public/`.
-  2. Lesson learned: Viewport-independent coordinate normalization (`ScaledPosition`: `{ boundingRect: { x1, y1, x2, y2, width, height, pageNumber }, rects }`) must seamlessly bridge MongoDB `comment.model.js` normalized bounding boxes (`{ x, y, width, height, pageNumber }`). Storing relative percentages in MongoDB while translating to `ScaledPosition` for canvas rendering prevents highlight drift during window resizing or zooming.
+  1. Lesson learned: The `PdfLoader` component in `react-pdf-highlighter-plus` exposes a `workerSrc` prop that defaults to a rrelative ESM dist path (`new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)`). In Vite dev servers and containerized deployments, resolving this rrelative path produces a 404 (`Failed to fetch dynamically imported module`). Furthermore, `PdfLoader` accepts `document` (not `url`). Always pass `document={pdfUrl}` and explicitly supply `workerSrc="/pdf.worker.min.mjs"` pointing to the statically served worker in `client/public/`.
+  2. Lesson learned: Viewport-independent coordinate normalization (`ScaledPosition`: `{ boundingRect: { x1, y1, x2, y2, width, height, pageNumber }, rects }`) must seamlessly bridge MongoDB `comment.model.js` normalized bounding boxes (`{ x, y, width, height, pageNumber }`). Storing rrelative percentages in MongoDB while translating to `ScaledPosition` for canvas rendering prevents highlight drift during window resizing or zooming.
   3. Lesson learned: Plagiarism overlays do not require static coordinate storage in the database. Utilizing `getTextPosition(pdfDocument, suspectText)` dynamically scans the PDF.js text layer across pages, generating real-time bounding rects grounded in the actual rendered manuscript typography with automatic diagonal-striped cross-layer overlap styling (`.archive-mark-overlap`).
   4. Prevention: When building split-screen evaluation workspaces (such as `EvaluationWorkspace.jsx`), never use hardcoded slate background/border classes (`bg-slate-950`, `border-slate-800`). All functional layout surfaces must use Tailwind semantic design tokens (`bg-background`, `text-foreground`, `border-border`, `bg-card`, `bg-muted`) to guarantee WCAG AAA contrast in both Light and Dark modes.
   5. Runbook & Checklist for PDF Highlighter & Workspace Integration:
@@ -393,7 +393,7 @@
   2. Pattern: Always sanitize with `name.replace(/^<Prefix>\s+/i, '').trim()`.
   3. Prevention: Eliminate visual bugs such as `"Team Team Gamma"` or `"SDG SDG 3"`.
 - Checklist for 16:9 Slide Presentation Canvases:
-  1. Checklist: Canvas must have `aspect-video` (16:9), `relative`, `overflow-hidden`.
+  1. Checklist: Canvas must have `aspect-video` (16:9), `rrelative`, `overflow-hidden`.
   2. Checklist: Use flex column distribution (`flex flex-col justify-between`) so header, content, and footer anchors are deterministic.
   3. Checklist: Keyboard event listeners for slide navigation must ignore events if `['INPUT', 'TEXTAREA'].includes(e.target.tagName)` or `e.target.isContentEditable`.
   4. Checklist: Export generators (PDF, PPTX) must align slide titles and structure 1:1 with the interactive web preview.
@@ -422,7 +422,7 @@
 - Architectural Root Cause & Mechanics:
   1. Replaced the Alex Warnes 3D orbit spinner with Trhino's CodePen loader (`jOQJPQ`).
   2. The CodePen relies on a 2-phase sequence: Phase 1 expands a centered horizontal slit line (`0% -> 20% -> 30% -> 50% -> 100% width, height: 3px/4px`), and Phase 2 expands the slit vertically from 3px/4px to 100% height (`height: 100%`), revealing the underlying page. When complete, content slides up (`transition.slideUpIn`) and icons/images flip in (`transition.flipYIn`).
-  3. Centering Pitfall & Prevention: An aperture element that expands in width and height from the center must use `top: 0; bottom: 0; left: 0; right: 0; margin: auto; position: absolute;` rather than `transform: translate(-50%, -50%)` or Tailwind `relative`. Adding `relative` to the animated aperture element in a flexbox layout causes the CSS cascade to displace the element down by `top: 50%`, positioning the beam at the bottom of the screen instead of the vertical center.
+  3. Centering Pitfall & Prevention: An aperture element that expands in width and height from the center must use `top: 0; bottom: 0; left: 0; right: 0; margin: auto; position: absolute;` rather than `transform: translate(-50%, -50%)` or Tailwind `rrelative`. Adding `rrelative` to the animated aperture element in a flexbox layout causes the CSS cascade to displace the element down by `top: 50%`, positioning the beam at the bottom of the screen instead of the vertical center.
 - Dual-Mode Institutional BukSU Theming:
   1. Dark Mode: Deep obsidian backdrop (`#020617`), BukSU midnight space aperture canvas (`#071329`), Academic Gold laser flares (`#E5A823`), gold-embossed seal badge with 3D Y-axis flip (`cms-badge-pop`), and gold-to-royal-blue fluid progress shimmer track (`#F5C253` to `#1A448A`).
   2. Light Mode: Obsidian backdrop (`#0F172A`), crystalline collegiate white aperture canvas (`#FFFFFF`), BukSU Royal Blue flares (`#1A448A`), royal blue framed badge, and royal-blue-to-gold fluid progress track.
@@ -1017,7 +1017,7 @@
 - Prevention, Runbook & Checklist:
   1. Prevention rule: In document viewer features, prioritize semantic DOM pagination over static canvas or server-side headless conversions when text searchability (`Ctrl+F`), screen-reader accessibility (WCAG AAA), and real-time interactive highlighting are required.
   2. Prevention rule: Never apply static `padding: 1in` directly via inline styles to elements that render on mobile screens; use responsive CSS clamps (`clamp(1.25rem, 4vw, 1in)`) to ensure comfortable margins across all viewports.
-  3. Lesson learned: In Vitest/Node test environments, relative URLs in `fetch(fileUrl)` throw `ERR_INVALID_URL`. Always resolve relative URLs with `window.location?.origin` fallback or mock network calls in component tests.
+  3. Lesson learned: In Vitest/Node test environments, rrelative URLs in `fetch(fileUrl)` throw `ERR_INVALID_URL`. Always resolve rrelative URLs with `window.location?.origin` fallback or mock network calls in component tests.
   4. Runbook & Checklist:
      - Checklist: Verify Page 1 (Title), Page 2 (Approval Sheet), and Chapter pages render as distinct 8.5" × 11" Letter sheets with inter-page gap spacing.
      - Checklist: Verify keyboard users can focus and activate plagiarism highlight marks using `Tab` and `Enter` / `Space`.
@@ -2885,9 +2885,9 @@
   1. Root Cause of Layout Collision Under Zoom:
      - Learned lesson: When application font size is magnified (e.g. 125%, 140%, 150% text zoom or browser zoom via `document.documentElement.style.fontSize`), fixed pixel widths (such as `w-[260px]` for expanded sidebar and `w-[76px]` for collapsed rail) fail to expand proportionally. Text elements that require 16rem–18rem of horizontal space are crushed into rigid pixel bounds, resulting in severe truncation ("Bu... COT", "CAPSTONE ST...", "My Cap... [Draft]", "Plagiarism Che...").
      - In collapsed state, invisible ghost widths on flex children (`flex-1 w-0`) coupled with `gap-2` and `justify-between` pushed the collapse toggle button (`>`) against the right border, clipping its outline and creating off-center icon rails.
-  2. Fluid Relative Dimensional Scaling:
-     - Expanded Sidebar: Converted from rigid `w-[260px]` to scalable relative dimensions `w-72 min-w-[16.5rem] max-w-[85vw] md:max-w-[21rem]`. At 100% (16px base font), width is 288px; at 125% (20px base font), width automatically expands to 360px; at 150% (24px base font), width expands to 432px, ensuring complete unclipped rendering of institutional branding ("BukSU CMS COT Capstone Studio"), all navigation links, and live badges.
-     - Collapsed Icon Rail: Converted from fixed `w-[76px]` to relative `w-20 min-w-[5rem]` (80px at 100%, 100px at 125%, 120px at 150%).
+  2. Fluid Rrelative Dimensional Scaling:
+     - Expanded Sidebar: Converted from rigid `w-[260px]` to scalable rrelative dimensions `w-72 min-w-[16.5rem] max-w-[85vw] md:max-w-[21rem]`. At 100% (16px base font), width is 288px; at 125% (20px base font), width automatically expands to 360px; at 150% (24px base font), width expands to 432px, ensuring complete unclipped rendering of institutional branding ("BukSU CMS COT Capstone Studio"), all navigation links, and live badges.
+     - Collapsed Icon Rail: Converted from fixed `w-[76px]` to rrelative `w-20 min-w-[5rem]` (80px at 100%, 100px at 125%, 120px at 150%).
   3. Header & Toggle Button Alignment Restoration:
      - When `collapsed` is active, the brand identity container is completely removed (`!collapsed &&`) rather than lingering with ghost flex growth. The header container transitions to `justify-center px-2`, and the toggle button is given `p-2 shrink-0 flex items-center justify-center`, placing it dead-center in the 5rem rail with equal lateral margins and zero edge clipping.
   4. Flexbox Child Protection & Accessible Tooltips:
@@ -2895,9 +2895,9 @@
      - Enforced `shrink-0` on all icons and status badges (`[Draft]`, `[Active]`, action counters) so they are never compressed or displaced.
      - Enhanced label text spans with `flex-1 min-w-0 truncate` and accessible browser `title={item.label}` tooltips so users can hover to inspect full names if text ever truncates in extreme viewports.
   5. Vertical Scroller Isolation:
-     - Configured `<nav className="relative flex-1 py-4 min-h-0 overflow-y-auto overflow-x-hidden ...">`. The `min-h-0` class is critical in flex column containers to ensure vertical overflow scrolling triggers rather than expanding the outer container and pushing bottom items ("Settings", "Sign out") off-screen.
+     - Configured `<nav className="rrelative flex-1 py-4 min-h-0 overflow-y-auto overflow-x-hidden ...">`. The `min-h-0` class is critical in flex column containers to ensure vertical overflow scrolling triggers rather than expanding the outer container and pushing bottom items ("Settings", "Sign out") off-screen.
 - Prevention, Runbook & Checklist:
-  1. Prevention rule: NEVER use hardcoded pixel widths (`w-[260px]`, `w-[76px]`) on primary navigation containers or toolbars. Always use relative units (`rem`, `w-72`, `w-20`, `min-w-[16.5rem]`) that scale in harmony with `document.documentElement.style.fontSize`.
+  1. Prevention rule: NEVER use hardcoded pixel widths (`w-[260px]`, `w-[76px]`) on primary navigation containers or toolbars. Always use rrelative units (`rem`, `w-72`, `w-20`, `min-w-[16.5rem]`) that scale in harmony with `document.documentElement.style.fontSize`.
   2. Prevention rule: Always include `flex-1 min-w-0 truncate` on flex text labels accompanied by `title={label}` attributes, and apply `shrink-0` to icons and trailing badges.
   3. Runbook & Checklist:
      - Checklist: Verify expanded sidebar renders `w-72` and collapsed rail renders `w-20`.
@@ -3509,5 +3509,81 @@
      - Governance pipeline validated: 0 errors, 0 warnings.
      - Playwright visual audit verified across 5 screenshots in `scratch/screenshots/archive_match_overview_audit/` (Desktop Light, Desktop Dark, Integrity Highlights mode, Mobile Light, and Mobile Dark).
 
+54. Milestone Submission & Deadline Scheduling System & Always Viewable Manuscript Guarantee:
+- Architecture & Implementation Details:
+  1. Always Viewable Manuscript Guarantee:
+     - Eliminated "Manuscript PDF Preview Unavailable" error in `CanonicalDocumentViewer.jsx` via multi-endpoint cascading fetch (`/manuscript?type=...`, fallback alternate docType, unparameterized endpoint) and native in-browser academic canvas renderer if binary stream is unreachable.
+     - Implemented dynamic fallback PDF generation via `pdf-lib` in `server/modules/projects/project.service.js` (`_generateFallbackManuscriptPdf`) ensuring manuscript requests never 404 even when raw storage objects are pending migration.
+  2. Post-Defense Approval Hard-Gate:
+     - In `server/modules/projects/project.service.js` (`evaluatePostApprovalUnlocks`) and `server/modules/submissions/submission.service.js` (`_assertFinalPaperEligible`), enforced that post-approval deliverables (`full_academic_paper` and `condensed_journal_paper`) remain strictly locked until:
+       a) Final defense verdict is `Passed` or `Passed with Revisions` (`DEFENSE_DECISIONS.PASSED` / `PASSED_WITH_REVISIONS`).
+       b) All line items on the final Action Done Matrix (ADM) are signed by Adviser and Panel Chair.
+       c) Project shifts status to `final_approved` (`PROJECT_STATUSES.FINAL_APPROVED`). Unauthorized submissions return 403 `SUBMISSION_LOCKED_PENDING_APPROVAL`.
+  3. Milestone Submission Deadlines API & Audit Integration:
+     - Created `MilestoneDeadline` Mongoose model (`server/modules/settings/milestoneDeadline.model.js`) with EOD UTC normalization and compound unique index (`batchYear`, `targetType`, `sectionId`, `deliverable`).
+     - Added controller (`server/modules/settings/milestoneDeadline.controller.js`) and routes (`server/modules/settings/settings.routes.js`) for `GET`, `POST` (201 Created), and `DELETE /api/settings/deadlines/milestone` with `auditLog` integration under `'Settings'` targetType and real-time Socket.IO broadcasts (`milestoneDeadline:updated`, `milestoneDeadline:deleted`).
+     - Added client service methods in `client/src/services/settingsService.js` maintaining 0 unmatched routes.
+  4. Milestone Deadlines Modal (`MilestoneDeadlinesModal.jsx`):
+     - Modal dialog enabling instructors to configure batch-wide or section-specific submission deadlines with strict 4-stage lifecycle mappings (`capstone_1`, `capstone_2`, `capstone_3`, `final`), deliverable pickers, date-time inputs, late submission toggles, and live deadline listings with instant deletion.
+  5. Defense Scheduling Center Integration (`DefenseSchedulingPage.jsx`):
+     - Added `+ Set Milestone Deadlines` header CTA button.
+     - Implemented cascading filter bar: Academic Batch -> Section -> Stage (strictly 4 phases without legacy "Capstone 4") -> Deliverables -> Proponent Search.
+     - Rendered All-Day Milestone Deadline Ribbon across the 5 calendar columns between Day Header and Hourly Timeline, featuring color-coded milestone pills (Blue: manuscripts, Purple: ADMs, Amber: prototypes, Green: final papers).
+     - Built Milestone Detail popup modal displaying submission title, deliverable description, target scope, deadline timestamp, late submission policy, and quick filter action.
+     - Added left tray Dual Tabs: `Hearings Awaiting Schedule` vs `Overdue / Pending Submissions` showing teams pending milestone completion.
+     - Replaced hardcoded `capstone_2` links with dynamic `resolveProjectTab(project)` workspace navigation.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Under no circumstances should "Capstone 4" appear in UI labels, filters, or stage enumerations. The terminal stage is strictly labeled and stored as `final` / `Final Capstone`.
+  2. Prevention rule: AuditLog schema defines strict enum values (`['User', 'Team', 'Project', 'Submission', 'Evaluation', 'Settings', 'System']`). Auxiliary settings routes must use `'Settings'` rather than custom entity strings to avoid validation failures.
+  3. Lesson learned: In React 18 / TanStack Query v5 tests using Vitest, queries schedule observer updates asynchronously. Tests asserting on query-driven DOM elements must flush microtasks with `await act(async () => { await new Promise((r) => setTimeout(r, 50)); })` to prevent transient assertion race conditions.
+  4. Runbook & Checklist:
+     - Checklist: Open `/scheduling` and verify `+ Set Milestone Deadlines` CTA button opens `MilestoneDeadlinesModal`.
+     - Checklist: Verify cascading filters allow selecting Batch, Section, Stage, and Deliverable without any reference to "Capstone 4".
+     - Checklist: Verify All-Day Milestone Deadline Ribbon renders color-coded pills across Monday–Friday columns.
+     - Checklist: Click a milestone pill to view detailed deadline requirements and target scope in `Milestone Detail` modal.
+     - Checklist: Switch left tray tab to `Submissions` and verify overdue and pending submissions are listed with `View Workspace` actions.
+     - Checklist: Click `View Workspace` and verify navigation routes dynamically to the active stage tab (`resolveProjectTab`).
+  5. Evidence & Verification passed:
+     - 40/40 server settings integration tests passed (`server/tests/integration/settings.test.js`).
+     - 36/36 targeted client tests passed across `MilestoneDeadlinesModal.test.jsx`, `DefenseSchedulingPage.test.jsx`, and `CanonicalDocumentViewer.test.jsx`.
+     - API route parity check verified: 212 Server / 193 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system audit verified: 60/60 checks passed.
+     - Agent communication & governance pipeline validated with 0 errors.
 
-
+73. SophisticatedDocumentViewer Fullscreen Header Pinning, Control Hierarchy & Original Document In-Document Highlighting:
+- Incident & Root Cause:
+  1. Fullscreen Layout Collision & Header Vertical Displacement: When entering fullscreen on document viewers, the top toolbar dock was pushed offscreen (y = -680.75px) because the outer modal wrapper used flex items-center justify-center with a tall document child (height: 2261px), vertically centering the tall element and shifting the header into negative coordinate space. Furthermore, 
+relative and fixed collided on modalRef's className string.
+  2. Cluttered Controls in Non-Submission Contexts: Archive readers and plagiarism inspection canvases displayed Revision Diff (+/-), faculty Comments, All Layers, chapter titles, and logo icon boxes that are only relevant when actively tracking multi-version submissions.
+  3. Missing In-Document Highlighting on Original Documents: While the Extracted Text mode displayed highlighted text fragments, original documents (.docx rendered via docx-preview and .pdf rendered via PdfViewerWorkspace) lacked visual highlight bands matching the extracted text excerpts because 
+resolvePlagiarismHighlights did not unwind nested matchedBlocks or scan the rendered OOXML DOM.
+- Resolution & Implementation Details:
+  1. Fullscreen Layout Pinning (SophisticatedDocumentViewer.jsx):
+     - When isFullscreen is active, removed flex items-center justify-center from the outer dialog, ensuring top: 0, left: 0, width: 100%, height: 100%.
+     - Removed competing 
+relative from the className string so fixed inset-0 z-50 w-full h-full cleanly pins the header to (0, 0) with width 1440px and height 59.5px.
+  2. Contextual Control Hierarchy:
+     - In Archive and Plagiarism Checker modes, suppressed the BookOpen/FileText logo icon, chapter title, and version badge, displaying only a subtle, clean filename breadcrumb (sample_capstone_manuscript.docx · 35 KB).
+     - Completely suppressed the Revision Diff (+/-) toggle unless tracking an active submission with revision history (ersion > 1).
+     - Suppressed All Layers and Comments unless faculty submission review is active; rendered a dedicated Plagiarism Matches ({count}) pill and Opacity popover.
+  3. Turnitin-Style In-Document Highlighting:
+     - plagiarismHighlightAdapter.js: Updated 
+resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (matchedBlocks, flat highlight objects, and root suspectText) with sentence-level splitting fallback.
+     - DocxPreviewRenderer in SophisticatedDocumentViewer.jsx: Implemented pplyDocxPlagiarismHighlights to traverse the rendered OOXML DOM in docx-preview, wrap matching phrases in <mark class="docx-plagiarism-highlight"> with color bands, tooltips, click handlers, active selection outlines, and smooth scrolling into view.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When implementing full-screen modal overlays, never combine flex items-center justify-center on the viewport wrapper with variable-height scrollable document children, as flex centering pushes content headers above the viewport.
+  2. Prevention rule: Review and diff tools (Revision Diff, Comments, All Layers) must only render when tracking active student submissions with revision histories. Archive readers and plagiarism checkers must remain focused, clean, and free of review artifacts.
+  3. Lesson learned: In docx-preview DOM text search, normalize whitespace and use sentence-level fallbacks for long phrases to ensure text crossing internal <span> and <p> boundaries is reliably grounded.
+  4. Runbook & Checklist:
+     - Checklist: Open Plagiarism Checker, upload DOCX or PDF, and run scan.
+     - Checklist: Verify original document renders with visible Turnitin-style highlighted bands.
+     - Checklist: Enter fullscreen mode; verify header is pinned to top of screen with zero vertical shift (y = 0).
+     - Checklist: Verify toolbar does NOT display Revision Diff (+/-), Comments, All Layers, chapter title, or logo icon box.
+     - Checklist: Click a plagiarism source to verify corresponding highlights outline and scroll into view.
+  5. Evidence & Verification passed:
+     - 14/14 adapter tests passed (src/utils/plagiarismHighlightAdapter.test.js).
+     - 12/12 document viewer tests passed (src/components/documents/SophisticatedDocumentViewer.test.jsx).
+     - 10/10 plagiarism report tests passed (src/pages/submissions/PlagiarismReportPage.test.jsx).
+     - Full 6-screenshot Playwright visual feedback loop verified clean toolbar and visible highlights across light & dark modes and desktop & mobile (fullscreen_highlighted_document_dark.png, fullscreen_highlighted_document_light.png, fullscreen_viewer_mobile_dark.png, etc.).
+     - API route parity check verified: 212 Server / 193 Client (UNMATCHED_COUNT = 0).
+     - Agentic system audit verified: 60/60 checks passed.

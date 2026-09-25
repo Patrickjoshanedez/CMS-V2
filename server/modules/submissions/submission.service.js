@@ -45,6 +45,7 @@ import {
   ROLES,
   SUBMISSION_STATUSES,
   TITLE_STATUSES,
+  DELIVERABLE_TYPES,
 } from '@cms/shared';
 import { extractDocxComments } from '../../utils/docxComments.js';
 import { extractPdfComments } from '../../utils/pdfComments.js';
@@ -1681,13 +1682,15 @@ class SubmissionService {
    *
    * @param {Object} project
    */
-  _assertFinalPaperEligible(project) {
+  _assertFinalPaperEligible(project, deliverableType = 'final_academic') {
     if (
       ![
         PROJECT_STATUSES.ACTIVE,
         PROJECT_STATUSES.PENDING_FOR_SUBMISSION,
         PROJECT_STATUSES.PENDING_IN_REVIEW,
         PROJECT_STATUSES.REVISION_NEEDED,
+        PROJECT_STATUSES.FINAL_APPROVED,
+        'final_approved',
       ].includes(project.projectStatus)
     ) {
       throw new AppError(
@@ -1697,9 +1700,9 @@ class SubmissionService {
       );
     }
 
-    if (project.capstonePhase !== 4) {
+    if (project.capstonePhase !== 4 && project.capstonePhase !== 3 && project.stage !== 'final') {
       throw new AppError(
-        'Final paper uploads are only allowed in Capstone Phase 4.',
+        'Final paper uploads are only allowed in the Final Capstone stage.',
         400,
         'WRONG_PHASE',
       );
@@ -1710,6 +1713,30 @@ class SubmissionService {
         400,
         'TITLE_NOT_APPROVED',
       );
+    }
+
+    // Post-Approval Hard Gate Enforcement
+    const deliverableKey =
+      deliverableType === 'final_academic'
+        ? DELIVERABLE_TYPES.FULL_ACADEMIC_PAPER
+        : deliverableType === 'final_journal'
+          ? DELIVERABLE_TYPES.CONDENSED_JOURNAL_PAPER
+          : null;
+
+    if (deliverableKey) {
+      const isUnlocked =
+        project.projectStatus === PROJECT_STATUSES.FINAL_APPROVED ||
+        project.projectStatus === 'final_approved' ||
+        (Array.isArray(project.unlockedDeliverables) &&
+          project.unlockedDeliverables.includes(deliverableKey));
+
+      if (!isUnlocked) {
+        throw new AppError(
+          'Post-approval deliverables are locked. The final defense verdict must be Passed or Passed with Revisions, and all Action Done Matrix (ADM) items signed by Adviser and Chair.',
+          403,
+          'SUBMISSION_LOCKED_PENDING_APPROVAL',
+        );
+      }
     }
   }
 
@@ -1868,7 +1895,7 @@ class SubmissionService {
       projectId,
       'upload final papers',
     );
-    this._assertFinalPaperEligible(project);
+    this._assertFinalPaperEligible(project, 'final_academic');
 
     return this._uploadFinalPaper({
       userId,
@@ -1900,7 +1927,7 @@ class SubmissionService {
       projectId,
       'upload final papers',
     );
-    this._assertFinalPaperEligible(project);
+    this._assertFinalPaperEligible(project, 'final_journal');
 
     return this._uploadFinalPaper({
       userId,

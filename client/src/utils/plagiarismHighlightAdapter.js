@@ -58,13 +58,48 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
 
   const highlights = [];
 
+  // Helper to extract suspect spans from various match schemas (flat highlights, textMatches with matchedBlocks, or raw spans)
+  const candidateSpans = [];
   for (let index = 0; index < plagiarismMatches.length; index += 1) {
     const match = plagiarismMatches[index];
-    const suspectText = match.suspectText || match.text || match.matchedText || '';
+    if (!match) continue;
 
-    if (!suspectText || suspectText.trim().length === 0) {
-      continue;
+    if (Array.isArray(match.matchedBlocks) && match.matchedBlocks.length > 0) {
+      for (let b = 0; b < match.matchedBlocks.length; b += 1) {
+        const block = match.matchedBlocks[b];
+        const spanText = block.matchedText || block.text || '';
+        if (spanText && spanText.trim().length > 0) {
+          candidateSpans.push({
+            parentMatch: match,
+            text: spanText.trim(),
+            index,
+            blockIndex: b,
+            offset: block.studentStart ?? b,
+          });
+        }
+      }
+    } else {
+      const spanText =
+        match.matchedText ||
+        match.suspectText ||
+        match.text ||
+        match.source_snippet ||
+        match.sourceText ||
+        '';
+      if (spanText && spanText.trim().length > 0) {
+        candidateSpans.push({
+          parentMatch: match,
+          text: spanText.trim(),
+          index,
+          blockIndex: 0,
+          offset: match.studentStart ?? index,
+        });
+      }
     }
+  }
+
+  for (let s = 0; s < candidateSpans.length; s += 1) {
+    const { parentMatch, text: suspectText, index, blockIndex, offset } = candidateSpans[s];
 
     try {
       // Pre-clean suspect text: collapse hyphenated breaks and ligatures while preserving case
@@ -81,18 +116,42 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
         .replace(/\s+/g, ' ')
         .trim();
 
+      if (cleanedText.length < 3) continue;
+
       // Use react-pdf-highlighter-plus getTextPosition to locate text quote in PDF pages
-      const textPosition = await getTextPosition(pdfDocument, cleanedText, {
+      let textPosition = await getTextPosition(pdfDocument, cleanedText, {
         normalizeWhitespace: true,
         ignoreHyphens: true,
         fuzzyThreshold: 0.85,
       });
 
+      // If full text position failed and text is long, fallback to primary sentence search
+      if ((!textPosition || !textPosition.position) && cleanedText.length > 70) {
+        const sentences = cleanedText
+          .split(/(?<=[.?!])\s+/)
+          .map((item) => item.trim())
+          .filter((item) => item.length >= 25);
+
+        for (const sentence of sentences) {
+          const subPos = await getTextPosition(pdfDocument, sentence, {
+            normalizeWhitespace: true,
+            ignoreHyphens: true,
+            fuzzyThreshold: 0.85,
+          });
+          if (subPos && subPos.position) {
+            textPosition = subPos;
+            break;
+          }
+        }
+      }
+
       if (textPosition && textPosition.position) {
-        const rawScore = Number(match.similarityScore || match.score || 0);
+        const rawScore = Number(
+          parentMatch.similarityPercentage || parentMatch.similarityScore || parentMatch.score || 0,
+        );
         const score = rawScore > 1 ? rawScore / 100 : rawScore;
-        const winnow = Number(match.winnowScore || match.winnow_score || 0);
-        const semantic = Number(match.semanticScore || match.semantic_score || 0);
+        const winnow = Number(parentMatch.winnowScore || parentMatch.winnow_score || 0);
+        const semantic = Number(parentMatch.semanticScore || parentMatch.semantic_score || 0);
 
         // Determine score-tier CSS class
         let scoreTierClass;
@@ -103,27 +162,31 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
 
         // Contextual signal: paraphrase (high semantic, low verbatim) vs verbatim
         const contextSignal =
-          semantic >= 0.7 && winnow < 0.3 ? 'paraphrase' : winnow >= 0.8 ? 'verbatim' : 'mixed';
+          parentMatch.contextSignal ||
+          (semantic >= 0.7 && winnow < 0.3 ? 'paraphrase' : winnow >= 0.8 ? 'verbatim' : 'mixed');
 
         highlights.push({
-          id: `plag-${match.sourceId || 'match'}-${index}-${match.offset || Math.random().toString(36).substring(7)}`,
-          type: match.isExact ? 'plagiarism_exact' : 'plagiarism_semantic',
+          id: `plag-${parentMatch.sourceId || 'match'}-${index}-${blockIndex}-${offset}`,
+          type: parentMatch.isExact ? 'plagiarism_exact' : 'plagiarism_semantic',
           position: textPosition.position,
           content: {
             text: textPosition.matchedText || suspectText,
           },
           meta: {
             similarityScore: Math.round(score * 100),
-            matchedSourceId: match.sourceId || match.matchedProjectId || null,
+            matchedSourceId: parentMatch.sourceId || parentMatch.matchedProjectId || null,
             sourceTitle:
-              match.sourceTitle || match.projectTitle || 'Archived Institutional Manuscript',
-            sourceAuthors: match.sourceAuthors || match.authors || [],
-            isExact: Boolean(match.isExact),
+              parentMatch.sourceTitle ||
+              parentMatch.projectTitle ||
+              'Archived Institutional Manuscript',
+            sourceAuthors: parentMatch.sourceAuthors || parentMatch.authors || [],
+            isExact: Boolean(parentMatch.isExact),
             pageNumber: textPosition.position.pageNumber,
             winnowScore: Math.round(winnow * 100),
             semanticScore: Math.round(semantic * 100),
             contextSignal,
             scoreTierClass,
+            palette: parentMatch.palette || null,
           },
         });
       }

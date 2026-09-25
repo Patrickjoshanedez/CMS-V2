@@ -99,6 +99,12 @@ export default function SophisticatedDocumentViewer({
   canComment = true,
   pdfUtilsRef,
   useLegacyIframe = false,
+  isPlagiarismReport = false,
+  isArchive = false,
+  hideIdentity = false,
+  showRevisionDiff = null,
+  showComments = null,
+  isSubmission = null,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(100);
@@ -116,6 +122,46 @@ export default function SophisticatedDocumentViewer({
   const [commentsOpacity, setCommentsOpacity] = useState(initialCommentsOpacity);
   const [plagiarismOpacity, setPlagiarismOpacity] = useState(initialPlagiarismOpacity);
   const [showOpacityControls, setShowOpacityControls] = useState(false);
+
+  // Contextual flags: suppress tracking controls in Archive and Plagiarism Checker
+  const currentPath = typeof window !== 'undefined' ? window.location?.pathname || '' : '';
+  const isPlagiarismOrArchive = Boolean(
+    isPlagiarismReport ||
+    isArchive ||
+    submission?.isArchive ||
+    submission?.isArchiveScan ||
+    submission?._id === 'archive-document' ||
+    currentPath.includes('/archive') ||
+    currentPath.includes('/plagiarism') ||
+    currentPath.includes('/scan'),
+  );
+  const isSubmissionTracking =
+    isSubmission !== null
+      ? isSubmission
+      : !isPlagiarismOrArchive &&
+        Boolean(
+          submission?._id && submission._id !== 'archive-document' && !submission.isArchiveScan,
+        );
+
+  const shouldShowIdentity =
+    !hideIdentity && !isPlagiarismOrArchive && (Boolean(propChapterTitle) || isSubmissionTracking);
+
+  const shouldShowRevisionDiff =
+    showRevisionDiff !== null
+      ? showRevisionDiff
+      : !isPlagiarismOrArchive &&
+        Boolean(
+          isSubmissionTracking && (submission?.version > 1 || submission?.hasPreviousVersion),
+        );
+
+  const shouldShowComments =
+    showComments !== null
+      ? showComments
+      : !isPlagiarismOrArchive &&
+        Boolean(canComment || (highlights && highlights.some((h) => h.type === 'faculty_comment')));
+
+  const shouldShowLayers =
+    shouldShowComments && Boolean(plagiarismMatches && plagiarismMatches.length > 0);
 
   const {
     data: diffData,
@@ -383,117 +429,138 @@ export default function SophisticatedDocumentViewer({
   const viewerContent = (
     <div
       ref={modalRef}
-      className={`relative flex flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
-        embedded && !isFullscreen
-          ? `w-full h-[780px] rounded-xl border border-border/60 shadow-sm ${className}`
-          : isFullscreen
-            ? 'fixed inset-0 z-50 rounded-none border-0'
-            : 'w-full max-w-6xl h-[95vh] sm:h-[92vh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
+      className={`flex flex-col bg-card overflow-hidden transition-all duration-200 overscroll-contain ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 w-full h-full rounded-none border-0'
+          : embedded
+            ? `relative w-full h-[780px] rounded-xl border border-border/60 shadow-sm ${className}`
+            : 'relative w-full max-w-6xl h-[95vh] sm:h-[92vh] border-border/80 shadow-2xl rounded-xl sm:rounded-2xl'
       }`}
     >
       {/* ── Top Control Bar ── */}
-      <header className="shrink-0 flex items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2.5 sm:py-3 gap-2 sm:gap-3">
-        {/* Left: Document Identity */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
-            {isPdf ? (
-              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
-            ) : (
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-            )}
-          </div>
-          <div className="min-w-0 max-w-[160px] xs:max-w-[200px] sm:max-w-xs lg:max-w-sm shrink">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h3
-                id="document-viewer-title"
-                className="text-xs sm:text-base font-bold text-foreground truncate"
-              >
-                {chapterTitle}
-              </h3>
-              <Badge
-                variant="outline"
-                className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 font-mono shrink-0"
-              >
-                {versionBadge}
-              </Badge>
-              {(!embedded || isFullscreen) && isDocx && (
-                <Badge
-                  variant="secondary"
-                  className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
-                >
-                  Word Document
-                </Badge>
-              )}
-              {(!embedded || isFullscreen) && isPdf && (
-                <Badge
-                  variant="secondary"
-                  className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
-                >
-                  PDF Manuscript
-                </Badge>
-              )}
-              {(!embedded || isFullscreen) && originalityScore !== null && (
-                <Badge
-                  variant="outline"
-                  className={`hidden 2xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
-                    originalityScore >= 75
-                      ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                      : 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
-                  }`}
-                >
-                  <ShieldCheck className="h-3 w-3" />
-                  <span>{originalityScore}% Original</span>
-                </Badge>
+      <header className="shrink-0 flex items-center justify-between border-b border-border/60 bg-muted/30 px-3 sm:px-4 py-2 sm:py-2.5 gap-2 sm:gap-4 overflow-x-auto min-h-[48px]">
+        {/* Left: Document Identity (Shown only for submission tracking; hidden on archive/plagiarism checker) */}
+        {shouldShowIdentity ? (
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+              {isPdf ? (
+                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
+              ) : (
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
             </div>
-            <p className="text-[11px] sm:text-xs text-muted-foreground truncate flex items-center gap-1">
-              <span className="truncate max-w-[140px] sm:max-w-none">{fileName}</span>
-              <span>·</span>
-              <span className="shrink-0">{fileSizeLabel}</span>
-            </p>
+            <div className="min-w-0 max-w-[160px] xs:max-w-[200px] sm:max-w-xs lg:max-w-sm shrink">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h3
+                  id="document-viewer-title"
+                  className="text-xs sm:text-base font-bold text-foreground truncate"
+                >
+                  {chapterTitle}
+                </h3>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] sm:text-[10px] px-1.5 py-0 h-4 font-mono shrink-0"
+                >
+                  {versionBadge}
+                </Badge>
+                {(!embedded || isFullscreen) && isDocx && (
+                  <Badge
+                    variant="secondary"
+                    className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                  >
+                    Word Document
+                  </Badge>
+                )}
+                {(!embedded || isFullscreen) && isPdf && (
+                  <Badge
+                    variant="secondary"
+                    className="hidden xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-sans shrink-0"
+                  >
+                    PDF Manuscript
+                  </Badge>
+                )}
+                {(!embedded || isFullscreen) && originalityScore !== null && (
+                  <Badge
+                    variant="outline"
+                    className={`hidden 2xl:inline-flex text-[10px] px-1.5 py-0 h-4 font-mono shrink-0 items-center gap-1 ${
+                      originalityScore >= 75
+                        ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                        : 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                    }`}
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    <span>{originalityScore}% Original</span>
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate flex items-center gap-1">
+                <span className="truncate max-w-[140px] sm:max-w-none">{fileName}</span>
+                <span>·</span>
+                <span className="shrink-0">{fileSizeLabel}</span>
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Subtle clean filename breadcrumb when identity is hidden */
+          <div className="flex items-center gap-2 min-w-0 max-w-[200px] xs:max-w-xs sm:max-w-sm truncate shrink-0">
+            <span className="text-xs font-semibold text-foreground truncate" title={fileName}>
+              {fileName}
+            </span>
+            {fileSizeLabel && (
+              <span className="text-[11px] text-muted-foreground shrink-0 hidden sm:inline">
+                · {fileSizeLabel}
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* Center: View Mode Toggle & Zoom Controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('manuscript')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'manuscript'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              aria-label="View Formatted Manuscript"
-            >
-              {isPdf ? <BookOpen className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">Manuscript</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('diff')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
-                viewMode === 'diff'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="Compare changes with previous version (Git-style diff)"
-              aria-label="View Revision Diff"
-            >
-              <GitCommit className="h-3.5 w-3.5" />
-              <span>Revision Diff (+/-)</span>
-              {submission?.version > 1 && (
-                <span className="hidden sm:inline-block px-1 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono font-semibold">
-                  v{submission.version - 1}→v{submission.version}
-                </span>
-              )}
-            </button>
-          </div>
+        {/* Center: View Mode Toggle & Zoom / Annotation Controls */}
+        <div className="flex items-center gap-2 shrink min-w-0 justify-center">
+          {/* Revision Diff (+/-) Switch — rendered only when submission tracking requires revision comparison */}
+          {shouldShowRevisionDiff && (
+            <div className="flex items-center rounded-lg border border-border/60 bg-background/80 p-0.5 text-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('manuscript')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'manuscript'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                aria-label="View Formatted Manuscript"
+              >
+                {isPdf ? (
+                  <BookOpen className="h-3.5 w-3.5" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Manuscript</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('diff')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+                  viewMode === 'diff'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Compare changes with previous version (Git-style diff)"
+                aria-label="View Revision Diff"
+              >
+                <GitCommit className="h-3.5 w-3.5" />
+                <span>Revision Diff (+/-)</span>
+                {submission?.version > 1 && (
+                  <span className="hidden sm:inline-block px-1 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono font-semibold">
+                    v{submission.version - 1}→v{submission.version}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Zoom Controls (DOCX only & in manuscript mode) */}
           {isDocx && viewMode === 'manuscript' && (
-            <div className="hidden lg:flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs">
+            <div className="hidden lg:flex items-center gap-1 rounded-lg border border-border/60 bg-background/80 px-1.5 py-1 text-xs shrink-0">
               <button
                 type="button"
                 onClick={handleZoomOut}
@@ -559,126 +626,146 @@ export default function SophisticatedDocumentViewer({
             </div>
           )}
 
-          {/* PDF Multi-Layer Annotation Controls */}
-          {isPdf && viewMode === 'manuscript' && !useLegacyIframe && (
-            <div className="hidden md:flex items-center gap-2">
-              {/* Layer Filter Buttons */}
-              <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('all')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                    layerFilter === 'all'
-                      ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Show both Comments and Plagiarism overlays"
-                >
-                  All Layers
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('comments')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                    layerFilter === 'comments'
-                      ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Show faculty comment annotations only"
-                >
-                  <MessageSquare className="h-3 w-3" />
-                  Comments
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayerFilter('plagiarism')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                    layerFilter === 'plagiarism'
-                      ? 'bg-rose-600 text-white font-semibold shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Show plagiarism matches only"
-                >
-                  <ShieldAlert className="h-3 w-3" />
-                  Plagiarism
-                </button>
-              </div>
+          {/* Multi-Layer Annotation & Plagiarism Indicator Controls */}
+          {viewMode === 'manuscript' && (
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+              {shouldShowLayers ? (
+                /* Layer Filter Buttons for Multi-layer Submission Review */
+                <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setLayerFilter('all')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                      layerFilter === 'all'
+                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Show both Comments and Plagiarism overlays"
+                  >
+                    All Layers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLayerFilter('comments')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                      layerFilter === 'comments'
+                        ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Show faculty comment annotations only"
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    Comments
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLayerFilter('plagiarism')}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                      layerFilter === 'plagiarism'
+                        ? 'bg-rose-600 text-white font-semibold shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Show plagiarism matches only"
+                  >
+                    <ShieldAlert className="h-3 w-3" />
+                    Plagiarism
+                  </button>
+                </div>
+              ) : shouldShowComments ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-semibold">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Comments Active</span>
+                </div>
+              ) : plagiarismMatches && plagiarismMatches.length > 0 ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold">
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  <span>Plagiarism Matches ({plagiarismMatches.length})</span>
+                </div>
+              ) : null}
 
               {/* Opacity Controls Popover */}
-              <div className="relative">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowOpacityControls((prev) => !prev)}
-                  className={`h-7 px-2 text-[11px] gap-1 border-border/60 ${
-                    showOpacityControls
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Adjust overlay layer opacities"
-                >
-                  <Sliders className="h-3 w-3 text-primary" />
-                  <span>Opacity</span>
-                </Button>
+              {(shouldShowComments || (plagiarismMatches && plagiarismMatches.length > 0)) && (
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOpacityControls((prev) => !prev)}
+                    className={`h-7 px-2 text-[11px] gap-1 border-border/60 ${
+                      showOpacityControls
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Adjust overlay layer opacities"
+                  >
+                    <Sliders className="h-3 w-3 text-primary" />
+                    <span>Opacity</span>
+                  </Button>
 
-                {showOpacityControls && (
-                  <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between border-b border-border pb-1.5">
-                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        <Sliders className="h-3.5 w-3.5 text-primary" />
-                        Layer Opacity
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCommentsOpacity(80);
-                          setPlagiarismOpacity(80);
-                        }}
-                        className="text-[10px] text-muted-foreground hover:text-foreground underline"
-                      >
-                        Reset
-                      </button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                          Comments
+                  {showOpacityControls && (
+                    <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between border-b border-border pb-1.5">
+                        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <Sliders className="h-3.5 w-3.5 text-primary" />
+                          Layer Opacity
                         </span>
-                        <span className="font-mono text-muted-foreground">{commentsOpacity}%</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCommentsOpacity(80);
+                            setPlagiarismOpacity(80);
+                          }}
+                          className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                        >
+                          Reset
+                        </button>
                       </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="100"
-                        value={commentsOpacity}
-                        onChange={(e) => setCommentsOpacity(Number(e.target.value))}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                    </div>
 
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-rose-600 dark:text-rose-400 font-medium">
-                          Plagiarism
-                        </span>
-                        <span className="font-mono text-muted-foreground">
-                          {plagiarismOpacity}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="15"
-                        max="100"
-                        value={plagiarismOpacity}
-                        onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
-                        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-600"
-                      />
+                      {shouldShowComments && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                              Comments
+                            </span>
+                            <span className="font-mono text-muted-foreground">
+                              {commentsOpacity}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="15"
+                            max="100"
+                            value={commentsOpacity}
+                            onChange={(e) => setCommentsOpacity(Number(e.target.value))}
+                            className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                          />
+                        </div>
+                      )}
+
+                      {Boolean(plagiarismMatches && plagiarismMatches.length > 0) && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-rose-600 dark:text-rose-400 font-medium">
+                              Plagiarism
+                            </span>
+                            <span className="font-mono text-muted-foreground">
+                              {plagiarismOpacity}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="15"
+                            max="100"
+                            value={plagiarismOpacity}
+                            onChange={(e) => setPlagiarismOpacity(Number(e.target.value))}
+                            className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-600"
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -836,6 +923,11 @@ export default function SophisticatedDocumentViewer({
               versionBadge={versionBadge}
               fileName={fileName}
               onDownload={handleDownload}
+              plagiarismMatches={plagiarismMatches}
+              activeHighlightId={activeHighlightId}
+              onHighlightClick={onHighlightClick}
+              layerFilter={layerFilter}
+              plagiarismOpacity={plagiarismOpacity}
             />
           ) : (
             /* ── Fallback: Download prompt ── */
@@ -994,8 +1086,10 @@ export default function SophisticatedDocumentViewer({
       role="dialog"
       aria-modal="true"
       aria-labelledby="document-viewer-title"
-      className={`fixed inset-0 z-50 flex items-center justify-center overscroll-contain animate-in fade-in-0 duration-200 ${
-        isFullscreen ? 'p-0 bg-background' : 'p-2 sm:p-4 md:p-6 bg-background/80 backdrop-blur-md'
+      className={`fixed inset-0 z-50 overscroll-contain animate-in fade-in-0 duration-200 ${
+        isFullscreen
+          ? 'p-0 bg-background'
+          : 'flex items-center justify-center p-2 sm:p-4 md:p-6 bg-background/80 backdrop-blur-md'
       }`}
       onWheel={(e) => e.stopPropagation()}
       onClick={(e) => {
@@ -1017,6 +1111,253 @@ export default function SophisticatedDocumentViewer({
 }
 
 /**
+ * Unwraps previous .docx-plagiarism-highlight elements, returning clean DOM text.
+ */
+function removeDocxHighlights(container) {
+  if (!container) return;
+  const existingMarks = container.querySelectorAll('.docx-plagiarism-highlight');
+  existingMarks.forEach((mark) => {
+    const parent = mark.parentNode;
+    if (!parent) return;
+    while (mark.firstChild) {
+      parent.insertBefore(mark.firstChild, mark);
+    }
+    parent.removeChild(mark);
+  });
+  container.normalize();
+}
+
+/**
+ * Searches and highlights plagiarism match excerpts directly inside the rendered docx-preview DOM.
+ */
+function applyDocxPlagiarismHighlights(
+  container,
+  matches = [],
+  activeHighlightId = null,
+  onHighlightClick = null,
+  layerFilter = 'all',
+  plagiarismOpacity = 80,
+) {
+  if (!container || !container.children.length) return;
+
+  // 1. Clear existing highlights
+  removeDocxHighlights(container);
+
+  if (layerFilter === 'comments' || !Array.isArray(matches) || matches.length === 0) {
+    return;
+  }
+
+  // 2. Unwind candidate suspect strings from various match formats
+  const candidates = [];
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    if (!m) continue;
+    if (Array.isArray(m.matchedBlocks) && m.matchedBlocks.length > 0) {
+      for (let b = 0; b < m.matchedBlocks.length; b++) {
+        const txt = m.matchedBlocks[b]?.matchedText || m.matchedBlocks[b]?.text || '';
+        if (txt.trim().length >= 4) {
+          candidates.push({ match: m, text: txt.trim(), key: m.key || `${m.sourceId}-${b}` });
+        }
+      }
+    } else {
+      const txt = m.matchedText || m.suspectText || m.text || m.source_snippet || '';
+      if (txt.trim().length >= 4) {
+        candidates.push({ match: m, text: txt.trim(), key: m.key || `${m.sourceId}-${i}` });
+      }
+    }
+  }
+
+  if (candidates.length === 0) return;
+
+  // Sort candidates by length descending so longer matching phrases take precedence
+  candidates.sort((a, b) => b.text.length - a.text.length);
+
+  const blockElements = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td');
+  if (blockElements.length === 0) return;
+
+  blockElements.forEach((block) => {
+    candidates.forEach(({ match, text, key }) => {
+      const normalizedPhrase = text
+        .replace(/[\u00ad\u200b\ufeff]/g, '')
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (normalizedPhrase.length < 4) return;
+
+      // If snippet is long, split by sentences or ~80 chars to ensure matches across formatting tags
+      const searchPhrases =
+        normalizedPhrase.length > 100
+          ? normalizedPhrase
+              .split(/(?<=[.?!])\s+/)
+              .map((s) => s.trim())
+              .filter((s) => s.length >= 15)
+          : [normalizedPhrase];
+
+      if (searchPhrases.length === 0) searchPhrases.push(normalizedPhrase);
+
+      searchPhrases.forEach((phrase) => {
+        const blockText = block.textContent.replace(/\s+/g, ' ').toLowerCase();
+        if (!blockText.includes(phrase)) return;
+
+        // Collect all text nodes currently in block that are not already highlighted
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null);
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+          if (node.parentElement?.classList?.contains('docx-plagiarism-highlight')) continue;
+          textNodes.push(node);
+        }
+
+        // Try single text node match first
+        let matched = false;
+        for (let t = 0; t < textNodes.length; t++) {
+          const tNode = textNodes[t];
+          const val = tNode.nodeValue || '';
+          const cleanVal = val.replace(/\s+/g, ' ').toLowerCase();
+          const matchIdx = cleanVal.indexOf(phrase);
+
+          if (matchIdx !== -1) {
+            try {
+              const start = matchIdx;
+              const end = Math.min(val.length, matchIdx + phrase.length);
+
+              const mark = document.createElement('mark');
+              mark.className = 'docx-plagiarism-highlight';
+              mark.dataset.sourceId = String(match.sourceId || '');
+              mark.dataset.matchKey = String(key);
+
+              const isActive =
+                Boolean(activeHighlightId) &&
+                (match.sourceId === activeHighlightId ||
+                  key === activeHighlightId ||
+                  `plag-${match.sourceId}` === activeHighlightId);
+
+              if (isActive) {
+                mark.classList.add('is-active');
+              }
+
+              const score = Math.round(
+                Number(match.similarityPercentage || match.similarityScore || match.score || 0),
+              );
+              mark.title = `[Plagiarism Match (${score}%)]: ${match.sourceTitle || 'Archived source'}`;
+
+              const baseColor = match.palette?.color || '#f43f5e';
+              const bgTint = match.palette?.highlightBg || 'rgba(244, 63, 94, 0.25)';
+              mark.style.backgroundColor = bgTint;
+              mark.style.borderBottom = `2px solid ${baseColor}`;
+              mark.style.borderRadius = '2px';
+              mark.style.padding = '0 1px';
+              mark.style.cursor = 'pointer';
+              mark.style.opacity = String(plagiarismOpacity / 100);
+              mark.style.transition = 'all 0.15s ease-in-out';
+
+              if (isActive) {
+                mark.style.outline = `2px solid ${baseColor}`;
+                mark.style.boxShadow = `0 0 8px ${bgTint}`;
+              }
+
+              mark.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (onHighlightClick) onHighlightClick(match);
+              });
+
+              const mid = tNode.splitText(start);
+              mid.splitText(end - start);
+              mark.textContent = mid.nodeValue;
+              mid.parentNode.replaceChild(mark, mid);
+              matched = true;
+              break;
+            } catch (_e) {
+              // Gracefully handle split boundary edge cases
+            }
+          }
+        }
+
+        // If single text node match failed (split across multiple Word run spans):
+        if (!matched && textNodes.length > 1) {
+          let runningText = '';
+          const nodeOffsets = textNodes.map((n) => {
+            const start = runningText.length;
+            runningText += (n.nodeValue || '').toLowerCase();
+            return { node: n, start, end: runningText.length };
+          });
+
+          const spanMatchIdx = runningText.indexOf(phrase);
+          if (spanMatchIdx !== -1) {
+            const mStart = spanMatchIdx;
+            const mEnd = spanMatchIdx + phrase.length;
+
+            nodeOffsets.forEach(({ node: tNode, start: nStart, end: nEnd }) => {
+              if (nEnd > mStart && nStart < mEnd) {
+                try {
+                  const localStart = Math.max(0, mStart - nStart);
+                  const localEnd = Math.min(tNode.nodeValue.length, mEnd - nStart);
+                  if (localEnd > localStart) {
+                    const mark = document.createElement('mark');
+                    mark.className = 'docx-plagiarism-highlight';
+                    mark.dataset.sourceId = String(match.sourceId || '');
+                    mark.dataset.matchKey = String(key);
+
+                    const isActive =
+                      Boolean(activeHighlightId) &&
+                      (match.sourceId === activeHighlightId ||
+                        key === activeHighlightId ||
+                        `plag-${match.sourceId}` === activeHighlightId);
+
+                    if (isActive) mark.classList.add('is-active');
+
+                    const score = Math.round(
+                      Number(
+                        match.similarityPercentage || match.similarityScore || match.score || 0,
+                      ),
+                    );
+                    mark.title = `[Plagiarism Match (${score}%)]: ${match.sourceTitle || 'Archived source'}`;
+
+                    const baseColor = match.palette?.color || '#f43f5e';
+                    const bgTint = match.palette?.highlightBg || 'rgba(244, 63, 94, 0.25)';
+                    mark.style.backgroundColor = bgTint;
+                    mark.style.borderBottom = `2px solid ${baseColor}`;
+                    mark.style.borderRadius = '2px';
+                    mark.style.padding = '0 1px';
+                    mark.style.cursor = 'pointer';
+                    mark.style.opacity = String(plagiarismOpacity / 100);
+                    mark.style.transition = 'all 0.15s ease-in-out';
+
+                    if (isActive) {
+                      mark.style.outline = `2px solid ${baseColor}`;
+                      mark.style.boxShadow = `0 0 8px ${bgTint}`;
+                    }
+
+                    mark.addEventListener('click', (e) => {
+                      e.stopPropagation();
+                      if (onHighlightClick) onHighlightClick(match);
+                    });
+
+                    const mid = tNode.splitText(localStart);
+                    mid.splitText(localEnd - localStart);
+                    mark.textContent = mid.nodeValue;
+                    mid.parentNode.replaceChild(mark, mid);
+                  }
+                } catch (_e) {
+                  // Gracefully handle split boundary edge cases
+                }
+              }
+            });
+          }
+        }
+      });
+    });
+  });
+
+  // If an active highlight is selected, scroll the first instance into view
+  if (activeHighlightId) {
+    const activeEl = container.querySelector('.docx-plagiarism-highlight.is-active');
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+/**
  * DocxPreviewRenderer — Fetches the raw .docx binary and renders it with
  * `docx-preview` (browser-side OOXML engine). Preserves all Word formatting:
  * indentation, centering, font sizes, bold/italic, tables, page margins,
@@ -1031,6 +1372,11 @@ export function DocxPreviewRenderer({
   versionBadge,
   fileName,
   onDownload,
+  plagiarismMatches = [],
+  activeHighlightId = null,
+  onHighlightClick = null,
+  layerFilter = 'all',
+  plagiarismOpacity = 80,
 }) {
   const containerRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -1159,6 +1505,27 @@ export function DocxPreviewRenderer({
     };
   }, [renderDocx]);
 
+  // Apply in-document highlights on the rendered DOCX DOM
+  useEffect(() => {
+    if (!loading && containerRef.current) {
+      applyDocxPlagiarismHighlights(
+        containerRef.current,
+        plagiarismMatches,
+        activeHighlightId,
+        onHighlightClick,
+        layerFilter,
+        plagiarismOpacity,
+      );
+    }
+  }, [
+    loading,
+    plagiarismMatches,
+    activeHighlightId,
+    onHighlightClick,
+    layerFilter,
+    plagiarismOpacity,
+  ]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
       {/* Loading overlay */}
@@ -1226,6 +1593,11 @@ DocxPreviewRenderer.propTypes = {
   versionBadge: PropTypes.string.isRequired,
   fileName: PropTypes.string.isRequired,
   onDownload: PropTypes.func.isRequired,
+  plagiarismMatches: PropTypes.array,
+  activeHighlightId: PropTypes.string,
+  onHighlightClick: PropTypes.func,
+  layerFilter: PropTypes.string,
+  plagiarismOpacity: PropTypes.number,
 };
 
 SophisticatedDocumentViewer.propTypes = {
@@ -1256,4 +1628,10 @@ SophisticatedDocumentViewer.propTypes = {
   canComment: PropTypes.bool,
   pdfUtilsRef: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
   useLegacyIframe: PropTypes.bool,
+  isPlagiarismReport: PropTypes.bool,
+  isArchive: PropTypes.bool,
+  hideIdentity: PropTypes.bool,
+  showRevisionDiff: PropTypes.bool,
+  showComments: PropTypes.bool,
+  isSubmission: PropTypes.bool,
 };

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as settingsController from './settings.controller.js';
+import * as milestoneDeadlineController from './milestoneDeadline.controller.js';
 import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import auditLog from '../../middleware/auditLog.js';
@@ -12,17 +13,42 @@ const router = Router();
 /**
  * Settings routes — /api/settings
  *
- * GET  /           — Retrieve system settings (authenticated users)
- * PUT  /           — Update system settings (Instructor only)
- * PUT  /templates  — Update document templates (Instructor only)
- * PUT  /deadlines  — Update milestone deadlines (Instructor only)
- * PUT  /thresholds — Update plagiarism thresholds (Instructor only)
+ * GET    /                     — Retrieve system settings (authenticated users)
+ * PUT    /                     — Update system settings (Instructor only)
+ * PUT    /templates            — Update document templates (Instructor only)
+ * PUT    /deadlines            — Update legacy milestone deadlines (Instructor only)
+ * GET    /deadlines/milestone  — Retrieve milestone submission deadlines (authenticated)
+ * POST   /deadlines/milestone  — Upsert milestone submission deadline (Instructor only)
+ * DELETE /deadlines/milestone/:id — Remove milestone deadline (Instructor only)
+ * PUT    /thresholds           — Update plagiarism thresholds (Instructor only)
  */
 
 router.use(authenticate);
 
 // Any authenticated user can view settings (e.g. plagiarism thresholds, templates)
 router.get('/', settingsController.getSettings);
+
+// Milestone submission deadlines
+router.get('/deadlines/milestone', milestoneDeadlineController.getMilestoneDeadlines);
+router.post(
+  '/deadlines/milestone',
+  authorize(ROLES.INSTRUCTOR),
+  auditLog('settings.deadlines.milestone.upserted', 'Settings', {
+    getTargetId: (req) => `${req.body.batchYear}-${req.body.deliverable}`,
+    getDescription: () => 'Upserted milestone submission deadline',
+    getMetadata: (req) => ({ deadline: req.body }),
+  }),
+  milestoneDeadlineController.upsertMilestoneDeadline,
+);
+router.delete(
+  '/deadlines/milestone/:id',
+  authorize(ROLES.INSTRUCTOR),
+  auditLog('settings.deadlines.milestone.deleted', 'Settings', {
+    getTargetId: (req) => req.params.id,
+    getDescription: () => 'Deleted milestone submission deadline',
+  }),
+  milestoneDeadlineController.deleteMilestoneDeadline,
+);
 
 // Only Instructor (admin) can update settings
 router.put(

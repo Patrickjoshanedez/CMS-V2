@@ -170,35 +170,35 @@ export default function ArchivePlagiarismCheckerPage() {
             <ScanHero semanticModel={semanticModel} />
 
             {/* How it works card */}
-            <div className="rounded-xl border border-border bg-card p-5">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                How it works
+            <div className="rounded-xl border border-border/70 bg-card p-5 shadow-xs">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                How It Works
               </p>
               <ol className="space-y-3">
                 {[
                   {
                     step: '01',
-                    title: 'Upload Document',
-                    desc: 'Drop or select your capstone PDF or DOCX file (max 25 MB).',
+                    title: 'Upload Manuscript',
+                    desc: 'Drop or select your PDF or Word (.docx) manuscript up to 25 MB.',
                   },
                   {
                     step: '02',
-                    title: 'Dual-Engine Scan',
-                    desc: 'Lexical fingerprinting + semantic embedding comparison runs against the full archive.',
+                    title: 'Dual-Engine Comparison',
+                    desc: 'Runs Winnowing lexical fingerprinting and BAAI/bge-m3 dense semantic embeddings against the institutional archive.',
                   },
                   {
                     step: '03',
-                    title: 'Review Results',
-                    desc: 'View annotated highlights, source-by-source breakdown, and overall originality score.',
+                    title: 'Review Originality Intelligence',
+                    desc: 'Inspect Turnitin-style annotated highlights, source breakdown, and overall similarity index.',
                   },
                 ].map(({ step, title, desc }) => (
                   <li key={step} className="flex items-start gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
                       {step}
                     </span>
-                    <div>
+                    <div className="space-y-0.5">
                       <p className="text-sm font-semibold text-foreground">{title}</p>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
                     </div>
                   </li>
                 ))}
@@ -208,10 +208,10 @@ export default function ArchivePlagiarismCheckerPage() {
 
           {/* Right: upload card */}
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-xl border border-border/70 bg-card p-6 shadow-xs">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
-              <p className="mb-5 text-xs text-muted-foreground">
-                PDF or Word (.docx) · max {MAX_FILE_SIZE_MB} MB
+              <p className="mb-4 text-xs text-muted-foreground">
+                PDF or Word (.docx, .doc) · Maximum {MAX_FILE_SIZE_MB} MB
               </p>
 
               <div className="space-y-4">
@@ -225,7 +225,9 @@ export default function ArchivePlagiarismCheckerPage() {
                 {scanError && scanError.type !== 'validation' && (
                   <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                    <p className="text-sm font-medium text-destructive">{scanError.message}</p>
+                    <p className="text-xs font-medium text-destructive leading-relaxed">
+                      {scanError.message}
+                    </p>
                   </div>
                 )}
 
@@ -239,12 +241,12 @@ export default function ArchivePlagiarismCheckerPage() {
             </div>
 
             {/* Disclaimer note */}
-            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+            <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Uploads use <code className="font-mono text-foreground">multipart/form-data</code>{' '}
-                with field name <code className="font-mono text-foreground">file</code>. Results are
-                not stored and are computed on demand.
+                Manuscript scans are verified against all approved institutional capstones. Uploads
+                are processed in-memory and are not permanently archived until final defense
+                sign-off.
               </p>
             </div>
           </div>

@@ -61,6 +61,29 @@ vi.mock('@/services/authService', () => ({
   },
 }));
 
+const mockGetMilestoneDeadlines = vi.fn();
+vi.mock('@/services/settingsService', () => ({
+  settingsService: {
+    getMilestoneDeadlines: (...args) => mockGetMilestoneDeadlines(...args),
+    upsertMilestoneDeadline: vi.fn(),
+    deleteMilestoneDeadline: vi.fn(),
+  },
+}));
+
+vi.mock('@/components/instructor/MilestoneDeadlinesModal', () => ({
+  default: ({ open, onClose }) => {
+    if (!open) return null;
+    return (
+      <div data-testid="milestone-deadlines-modal">
+        <span>Milestone Deadlines Modal</span>
+        <button type="button" onClick={onClose} data-testid="close-milestones-btn">
+          Close
+        </button>
+      </div>
+    );
+  },
+}));
+
 vi.mock('@/components/layouts/DashboardLayout', () => ({
   default: ({ children }) => <div data-testid="dashboard-layout">{children}</div>,
 }));
@@ -148,6 +171,7 @@ describe('DefenseSchedulingPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -169,6 +193,7 @@ describe('DefenseSchedulingPage', () => {
     });
 
     mockScheduleDefense.mockResolvedValue({ data: { success: true } });
+    mockGetMilestoneDeadlines.mockResolvedValue({ data: { data: [] } });
     mockToastSuccess.mockClear();
     mockToastError.mockClear();
   });
@@ -500,7 +525,11 @@ describe('DefenseSchedulingPage', () => {
     expect(durationInput.value).toBe('30');
 
     await act(async () => {
-      durationInput.value = '45';
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      nativeInputValueSetter.call(durationInput, '45');
       durationInput.dispatchEvent(new Event('input', { bubbles: true }));
       durationInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
@@ -564,5 +593,176 @@ describe('DefenseSchedulingPage', () => {
     });
 
     expect(container.textContent).toContain('Selected');
+  });
+
+  it('renders + Set Milestone Deadlines CTA button and opens MilestoneDeadlinesModal', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    const setDeadlinesBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Set Milestone Deadlines'),
+    );
+    expect(setDeadlinesBtn).toBeTruthy();
+
+    expect(container.querySelector('[data-testid="milestone-deadlines-modal"]')).toBeNull();
+
+    await act(async () => {
+      setDeadlinesBtn.click();
+    });
+
+    expect(container.querySelector('[data-testid="milestone-deadlines-modal"]')).toBeTruthy();
+    expect(container.textContent).toContain('Milestone Deadlines Modal');
+  });
+
+  it('renders cascading filter dropdowns without Capstone 4 and strictly supports 4-phase capstone lifecycle', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Check Stage dropdown options
+    const stageSelect = container.querySelector('select[aria-label="Filter by Capstone Stage"]');
+    expect(stageSelect).toBeTruthy();
+
+    const optionsText = Array.from(stageSelect.querySelectorAll('option')).map(
+      (o) => o.textContent,
+    );
+    expect(optionsText).toContain('All Stages');
+    expect(optionsText).toContain('Capstone 1 (Title Defense)');
+    expect(optionsText).toContain('Capstone 2 (Midterm Defense)');
+    expect(optionsText).toContain('Capstone 3 (Progress Defense)');
+    expect(optionsText).toContain('Final Capstone (Oral Defense)');
+
+    // Immutable requirement: Under no circumstances should "Capstone 4" be used
+    expect(optionsText.some((text) => text.includes('Capstone 4'))).toBe(false);
+    expect(container.textContent).not.toContain('Capstone 4');
+
+    // Check Batch and Deliverables dropdowns
+    const batchSelect = container.querySelector('select[aria-label="Filter by Academic Batch"]');
+    expect(batchSelect).toBeTruthy();
+
+    const deliverableSelect = container.querySelector('select[aria-label="Filter by Deliverable"]');
+    expect(deliverableSelect).toBeTruthy();
+  });
+
+  it('renders All-Day Milestone Deadline Ribbon with color-coded milestone pills', async () => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+    mockGetMilestoneDeadlines.mockResolvedValue({
+      data: {
+        data: [
+          {
+            _id: 'dl-1',
+            title: 'Chapter 1 Final Draft',
+            deliverable: 'chapter_1',
+            stage: 'capstone_1',
+            targetType: 'batch',
+            batchYear: '2025-2026',
+            deadlineDate: `${todayKey}T23:59:59.000Z`,
+            allowLateSubmission: true,
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Wait for React Query to resolve the mock response
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Ribbon label
+    expect(container.textContent).toContain('Milestones');
+    expect(container.textContent).toContain('All-Day');
+
+    // Should display the Chapter 1 Final Draft pill
+    expect(container.textContent).toContain('Chapter 1 Final Draft');
+  });
+
+  it('switches left tray to Submissions tab and displays pending/overdue submissions', async () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 3);
+
+    mockGetMilestoneDeadlines.mockResolvedValue({
+      data: {
+        data: [
+          {
+            _id: 'dl-overdue',
+            title: 'Sprint Review Matrix (ADM v2)',
+            deliverable: 'adm_v2',
+            stage: 'capstone_2',
+            targetType: 'batch',
+            batchYear: '2025-2026',
+            deadlineDate: pastDate.toISOString(),
+            allowLateSubmission: false,
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Find "Submissions" tab button in left tray
+    const submissionsTabBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submissions'),
+    );
+    expect(submissionsTabBtn).toBeTruthy();
+
+    await act(async () => {
+      submissionsTabBtn.click();
+    });
+
+    // Should display Overdue badge and deadline title
+    expect(container.textContent).toContain('Sprint Review Matrix (ADM v2)');
+    expect(container.textContent).toContain('Overdue');
+    expect(container.textContent).toContain('View Workspace');
+  });
+
+  it('uses dynamic resolveProjectTab when clicking View Workspace in table view and grid view', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Switch to table view
+    const tableBtn = container.querySelector('button[title="Table View"]');
+    await act(async () => {
+      tableBtn.click();
+    });
+
+    // Click on Open Project Workspace for first team (AgroSense: capstonePhase 2)
+    const workspaceBtns = Array.from(
+      container.querySelectorAll('button[title="Open Project Workspace"]'),
+    );
+    expect(workspaceBtns.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      workspaceBtns[0].click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/projects/proj-1?tab=capstone_2');
+
+    // Switch to grid view
+    const gridBtn = container.querySelector('button[title="Grid View"]');
+    await act(async () => {
+      gridBtn.click();
+    });
+
+    const gridWorkspaceBtns = Array.from(
+      container.querySelectorAll('button[title="View Workspace"]'),
+    );
+    expect(gridWorkspaceBtns.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      gridWorkspaceBtns[0].click();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/projects/proj-1?tab=capstone_2');
   });
 });

@@ -32,14 +32,20 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
       </Button>
 
       {scanning && (
-        <div className="space-y-1.5">
-          {/* Indeterminate progress track */}
-          <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
-            <div className="cms-fluid-track h-full w-2/5 rounded-full bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple" />
+        <div className="space-y-2 pt-1">
+          {/* Subtle compact progress track */}
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted/70">
+            <div className="archive-scan-progress h-full w-1/3 rounded-full bg-primary" />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Running dual-engine scan (BAAI/bge-m3 + Winnowing)</span>
-            <span className="font-mono font-semibold tabular-nums text-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              <span>Comparing against archive (Winnowing + BAAI/bge-m3)</span>
+            </span>
+            <span className="font-mono text-[11px] font-semibold tabular-nums text-foreground">
               {formatElapsed(elapsedSeconds)}
             </span>
           </div>

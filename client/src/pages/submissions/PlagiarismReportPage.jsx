@@ -1544,16 +1544,25 @@ function PlagiarismReportPage({
               <div className="flex-1 w-full min-h-[75vh] flex flex-col overflow-hidden bg-background">
                 <SophisticatedDocumentViewer
                   embedded={true}
+                  isPlagiarismReport={true}
+                  hideIdentity={true}
+                  showRevisionDiff={false}
+                  showComments={false}
                   submission={viewerSubmission}
                   file={effectiveFile}
                   fileUrl={submissionId ? `/api/submissions/${submissionId}/file` : null}
                   fileName={submissionFileName}
                   initialViewMode="manuscript"
-                  plagiarismMatches={payload?.matches || payload?.fullReport?.matches || []}
-                  activeHighlightId={activeHighlightKey}
+                  plagiarismMatches={
+                    allHighlights.length > 0
+                      ? allHighlights
+                      : payload?.matches || payload?.fullReport?.matches || []
+                  }
+                  activeHighlightId={activeHighlightKey || resolvedActiveSourceId}
                   onHighlightClick={(h) => {
-                    if (h.meta?.matchedSourceId || h.sourceId) {
-                      handleSourceSelect(h.meta?.matchedSourceId || h.sourceId);
+                    const targetId = h.meta?.matchedSourceId || h.sourceId;
+                    if (targetId) {
+                      handleSourceSelect(targetId);
                     }
                   }}
                   className="h-full w-full min-h-[75vh]"
@@ -2070,11 +2079,27 @@ function PlagiarismReportPage({
           <SophisticatedDocumentViewer
             open={viewerOpen}
             onOpenChange={setViewerOpen}
+            isPlagiarismReport={true}
+            hideIdentity={true}
+            showRevisionDiff={false}
+            showComments={false}
             submission={viewerSubmission}
             file={effectiveFile}
             fileUrl={submission?._id ? `/api/submissions/${submission._id}/file` : null}
             fileName={submissionFileName}
             initialViewMode="manuscript"
+            plagiarismMatches={
+              allHighlights.length > 0
+                ? allHighlights
+                : payload?.matches || payload?.fullReport?.matches || []
+            }
+            activeHighlightId={activeHighlightKey || resolvedActiveSourceId}
+            onHighlightClick={(h) => {
+              const targetId = h.meta?.matchedSourceId || h.sourceId;
+              if (targetId) {
+                handleSourceSelect(targetId);
+              }
+            }}
           />
         )}
       </div>

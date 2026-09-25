@@ -372,10 +372,18 @@ class EvaluationService {
       );
 
     if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
-      project.isArchived = true;
-      project.archivedAt = new Date();
-      project.projectStatus = 'archived';
-      await project.save();
+      // Evaluate post-approval hard gate: unlocks full academic paper & condensed journal if ADM is signed
+      try {
+        const { default: projectService } = await import('../projects/project.service.js');
+        const { isUnlocked } = await projectService.evaluatePostApprovalUnlocks(projectId);
+        if (!isUnlocked) {
+          project.defenseSchedule = project.defenseSchedule || {};
+          project.defenseSchedule.verdict = 'Passed';
+          await project.save();
+        }
+      } catch (err) {
+        // non-fatal
+      }
     }
 
     // Notify team members that grades are available

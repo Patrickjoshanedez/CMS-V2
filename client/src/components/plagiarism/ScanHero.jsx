@@ -5,13 +5,13 @@ export default function ScanHero({ semanticModel }) {
     <header className="space-y-5">
       {/* Status badges */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-          <ShieldCheck className="h-3 w-3" />
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+          <ShieldCheck className="h-3.5 w-3.5" />
           Archive Integrity Scan
         </span>
         {semanticModel && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-[11px] font-medium text-muted-foreground">
-            <Zap className="h-3 w-3 text-primary" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+            <Zap className="h-3.5 w-3.5 text-primary" />
             {semanticModel.toLowerCase().includes('bge-m3')
               ? 'BAAI/bge-m3 · 1,024-dim · 8,192 tokens'
               : semanticModel}
@@ -21,16 +21,13 @@ export default function ScanHero({ semanticModel }) {
 
       {/* Headline */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Similarity{' '}
-          <span className="bg-gradient-to-r from-brand-orange via-brand-pink to-brand-deep-purple bg-clip-text text-transparent">
-            Scanner
-          </span>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Plagiarism &amp; Similarity <span className="text-primary font-bold">Checker</span>
         </h1>
         <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Compare your submission against the full capstone archive using{' '}
-          <span className="font-medium text-foreground">lexical fingerprinting</span> +{' '}
-          <span className="font-medium text-foreground">semantic embeddings</span>.
+          Scan capstone manuscripts and proposals against the institutional archive using{' '}
+          <span className="font-medium text-foreground">lexical fingerprinting (Winnowing)</span>{' '}
+          and <span className="font-medium text-foreground">dense vector embeddings</span>.
         </p>
       </div>
 
@@ -43,7 +40,7 @@ export default function ScanHero({ semanticModel }) {
         ].map(({ icon: Icon, label }) => (
           <span
             key={label}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card/80 px-2.5 py-1 text-xs font-medium text-muted-foreground"
           >
             <Icon className="h-3 w-3 text-primary" />
             {label}

@@ -1,34 +1,35 @@
 {
   "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
-  "session_id": "2026-09-25_academic-pdf-metadata-extraction-reliability",
-  "timestamp": "2026-09-25T05:45:00+08:00",
+  "session_id": "2026-09-25_clean-viewer-toolbar-and-in-document-highlighting",
+  "timestamp": "2026-09-25T13:25:00+08:00",
   "status": "completed",
   "role": "Master Systems Architect & Apex Cognitive Agent (BukSU CMS-V2 Orchestrator)",
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
   "git_context": {
     "active_branch": "main",
-    "clean_working_tree": true
+    "clean_working_tree": false
   },
   "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
-  "task_description": "Enforcing publication venue extraction precision and domain accuracy. Disambiguating venues from publishers (IEEE, ACM, Springer, Elsevier, MDPI, etc.) and conference physical locations/dates, expanding venue taxonomy across journals, proceedings, and preprints (arXiv), removing flawed length < 6 constraint to support premier venue acronyms (ICML, CVPR, Cell, ACL), and updating CrossRef DOI event/collection metadata resolution.",
+  "task_description": "Clean SophisticatedDocumentViewer toolbar in Archive and Plagiarism Checker (suppressing revision diff, comments, chapter title, and logo icon, and preventing fullscreen layout collision), and implement true Turnitin-style in-document highlighting on original DOCX and PDF documents.",
   "startup_preflight": {
     "ptss_index_inspected": true,
     "technical_context_synced": true,
     "recent_sessions_recalled": [
-      "2026-09-25_academic-pdf-metadata-extraction-reliability",
-      "2026-09-25_archive-viewer-contextual-similarity-and-integrity-highlights",
-      "2026-09-25_plagiarism-contextual-similarity-pdf-highlighting"
+      "2026-09-25_milestone-submission-and-defense-scheduling-integration",
+      "2026-09-25_plagiarism-checker-ui-consistency-and-subtle-animation",
+      "2026-09-25_publication-venue-extraction-precision"
     ],
-    "active_prevention_rules_count": 51
+    "active_prevention_rules_count": 53
   },
   "skills_primed": [
+    "capstone-lifecycle-orchestrator",
+    "asdlc-task-orchestrator",
     "frontend-patterns",
-    "senior-backend",
     "verification-loop",
-    "continual-learning"
+    "senior-backend"
   ],
-  "playwright_feedback_required": false,
+  "playwright_feedback_required": true,
   "verification_baseline": {
     "governance_passed": true,
     "workspace_clean": true

@@ -1,0 +1,32 @@
+{
+  "session_id": "2026-09-25_clean-viewer-toolbar-and-in-document-highlighting",
+  "timestamp": "2026-09-25T13:25:00+08:00",
+  "task": "Clean SophisticatedDocumentViewer toolbar in Archive and Plagiarism Checker and enable in-document highlighting on original DOCX and PDF documents",
+  "status": "completed",
+  "governance_score": "60/60",
+  "endpoints_matched": true,
+  "changes": [
+    {
+      "file": "client/src/components/documents/SophisticatedDocumentViewer.jsx",
+      "summary": "Suppressed logo, chapter title, and version badge when viewing documents in archive or plagiarism checker; suppressed Revision Diff (+/-) unless tracking active submissions with revision history; suppressed All Layers and Comments unless submission review is active; fixed fullscreen layout so viewerContent and header do not vertically shift offscreen; added in-document DOM scanning and mark injection in DocxPreviewRenderer with Turnitin-style highlights."
+    },
+    {
+      "file": "client/src/utils/plagiarismHighlightAdapter.js",
+      "summary": "Updated resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (flat highlight objects, matchedBlocks arrays, and root suspectText) with sentence-level splitting fallback for robust grounding."
+    },
+    {
+      "file": "client/src/pages/submissions/PlagiarismReportPage.jsx",
+      "summary": "Passed isPlagiarismReport={true}, hideIdentity={true}, showRevisionDiff={false}, and showComments={false} to embedded and modal SophisticatedDocumentViewer instances, with active highlight tracking."
+    }
+  ],
+  "prevention_rule": "Rule 53: When viewing documents in Archive or Plagiarism Checker, suppress revision diff, faculty comments, chapter titles, and logo icon boxes. Preserve Turnitin-style in-document highlighting across both PDF text layers and docx-preview OOXML rendered DOM. In fullscreen mode, ensure the modal dialog does not use flex vertical centering on tall document content that would push the header offscreen.",
+  "visual_audit": {
+    "desktop_light": "fullscreen_viewer_desktop_light.png",
+    "desktop_dark": "fullscreen_viewer_desktop_dark.png",
+    "mobile_light": "fullscreen_viewer_mobile_light.png",
+    "mobile_dark": "fullscreen_viewer_mobile_dark.png",
+    "docx_highlighted_light": "docx_highlighted_document_light.png",
+    "docx_highlighted_dark": "docx_highlighted_document_dark.png",
+    "fullscreen_highlighted_dark": "fullscreen_highlighted_document_dark.png"
+  }
+}

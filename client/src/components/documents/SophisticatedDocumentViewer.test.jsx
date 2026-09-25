@@ -252,4 +252,41 @@ describe('SophisticatedDocumentViewer', () => {
     expect(container.textContent).toContain('Chapter 1: Problem Definition & Objectives');
     expect(container.textContent).toContain('Revision Diff (+/-)');
   });
+
+  it('hides title, logo, revision diff, and comments in archive or plagiarism report mode', async () => {
+    const el = await renderViewer({
+      isPlagiarismReport: true,
+      hideIdentity: true,
+      plagiarismMatches: [
+        {
+          sourceId: 'src-1',
+          matchedText: 'precision irrigation systems',
+          similarityScore: 85,
+        },
+      ],
+    });
+
+    // Should NOT contain Chapter title or version badge or Revision Diff or Comments layer
+    expect(el.querySelector('#document-viewer-title')).toBeNull();
+    expect(el.textContent).not.toContain('Chapter 1: Problem Definition & Objectives');
+    expect(el.textContent).not.toContain('Revision Diff (+/-)');
+    expect(el.textContent).not.toContain('All Layers');
+    expect(el.textContent).not.toContain('Comments');
+
+    // Should show clean Plagiarism Matches badge and filename
+    expect(el.textContent).toContain('Plagiarism Matches (1)');
+    expect(el.textContent).toContain('AgriPulse_Chapter1_Proposal.docx');
+  });
+
+  it('hides revision diff when submission has only 1 version and no previous diff exists', async () => {
+    const el = await renderViewer({
+      submission: {
+        ...mockDocxSubmission,
+        version: 1,
+        hasPreviousVersion: false,
+      },
+    });
+
+    expect(el.textContent).not.toContain('Revision Diff (+/-)');
+  });
 });
