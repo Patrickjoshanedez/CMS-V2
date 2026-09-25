@@ -175,8 +175,8 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(container.querySelector('[data-testid="chapter-card-4"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="chapter-card-5"]')).toBeTruthy();
 
-    // Phase 4 Capstone 4 assertions
-    expect(container.textContent).toContain('Capstone 4: Final Defense & Manuscript Archival');
+    // Phase 4 Final Capstone assertions
+    expect(container.textContent).toContain('Final Capstone: Oral Defense & Manuscript Archival');
     expect(container.textContent).toContain('Phase 4');
     expect(container.textContent).toContain('Final Paper Submission');
 
@@ -334,7 +334,7 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(container.querySelector('[data-testid="adm-inline-container"]')).toBeNull();
   });
 
-  it('strictly gates Chapter 4 upload and Capstone 4 final paper when Capstone 2 ADM is pending', async () => {
+  it('strictly gates Chapter 4 upload and final paper when Capstone 2 ADM is pending', async () => {
     // mockProjectData defaults to admStatus: 'not_started' and capstonePhase: 2
     await act(async () => {
       root.render(<ProjectSubmissionsPage />);
@@ -352,16 +352,16 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(card4).toBeTruthy();
     expect(card4.getAttribute('data-can-upload')).toBe('false');
 
-    // Capstone 4 final paper alert banner is displayed
+    // Final paper alert banner is displayed
     const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
     expect(cap4Alert).toBeTruthy();
     expect(cap4Alert.textContent).toContain(
-      'Capstone 4 Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.',
+      'Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.',
     );
     expect(container.textContent).toContain('Submission Locked');
   });
 
-  it('unlocks Chapter 4 upload when Capstone 2 ADM is approved, while keeping Capstone 4 final paper locked until Chapters 4-5 are completed', async () => {
+  it('unlocks Chapter 4 upload when Capstone 2 ADM is approved, while keeping final paper locked until Chapters 4-5 are completed', async () => {
     mockProjectData = {
       ...mockProjectData,
       capstonePhase: 3,
@@ -380,11 +380,11 @@ describe('ProjectSubmissionsPage Suite', () => {
     expect(card4).toBeTruthy();
     expect(card4.getAttribute('data-can-upload')).toBe('true');
 
-    // Capstone 4 is still locked because chapters 4 and 5 are not completed
+    // Final paper is still locked because chapters 4 and 5 are not completed
     const cap4Alert = container.querySelector('[data-testid="capstone4-prerequisite-alert"]');
     expect(cap4Alert).toBeTruthy();
     expect(cap4Alert.textContent).toContain(
-      'Capstone 4 Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.',
+      'Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.',
     );
   });
 });

@@ -78,7 +78,7 @@ function getCapstonePhase(project) {
 function getCapstoneProgressLabel(project) {
   const phase = getCapstonePhase(project);
 
-  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Capstone 4';
+  if (phase >= CAPSTONE_PHASES.PHASE_4) return 'Final Capstone';
   if (phase >= CAPSTONE_PHASES.PHASE_3) return 'Capstone 3';
   if (phase >= CAPSTONE_PHASES.PHASE_2) return 'Capstone 2';
   if (phase >= CAPSTONE_PHASES.PHASE_1) return 'Capstone 1';

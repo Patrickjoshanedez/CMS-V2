@@ -1860,7 +1860,7 @@ export default function CreateProjectPage() {
                                   item.status === 'ARCHIVED'
                                     ? 'Archived'
                                     : Number(item.capstonePhase) === 4
-                                      ? 'Capstone 4'
+                                      ? 'Final Capstone'
                                       : Number(item.capstonePhase) === 3
                                         ? 'Capstone 3'
                                         : Number(item.capstonePhase) === 2

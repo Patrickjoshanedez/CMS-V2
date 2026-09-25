@@ -467,10 +467,10 @@ export default function ProjectSubmissionsPage() {
   );
 
   const capstone4LockMessage = !isCap2ADMApproved
-    ? 'Capstone 4 Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.'
+    ? 'Final Paper Submission is locked. Please complete Capstone 2 Action Done Matrix (ADM v1) first.'
     : !all5ChaptersApproved
-      ? 'Capstone 4 Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.'
-      : 'Capstone 4 Final Paper Submission unlocks after your Capstone 3 Action Done Matrix (ADM v2) is approved and signed by the committee.';
+      ? 'Final Paper Submission unlocks after all 5 manuscript chapters (Chapters 1–5) and Capstone 3 progress defense requirements are approved by your committee.'
+      : 'Final Paper Submission unlocks after your Capstone 3 Action Done Matrix (ADM v2) is approved and signed by the committee.';
 
   const searchSuffix = isReadOnlyMode
     ? `?mode=view&projectId=${encodeURIComponent(activeProject?._id || '')}`
@@ -853,7 +853,7 @@ export default function ProjectSubmissionsPage() {
           </div>
         </div>
 
-        {/* Phase 4: Capstone 4 — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
+        {/* Phase 4: Final Capstone — Final Defense, Multi-Tier ADM Sign-Off & Archival */}
         <div className="space-y-4 rounded-xl border border-border/70 bg-card/40 p-4 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
             <div>
@@ -865,7 +865,7 @@ export default function ProjectSubmissionsPage() {
                   Phase 4
                 </Badge>
                 <h2 className="text-lg font-bold tracking-tight text-foreground">
-                  Capstone 4: Final Defense &amp; Manuscript Archival
+                  Final Capstone: Oral Defense &amp; Manuscript Archival
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground mt-1">

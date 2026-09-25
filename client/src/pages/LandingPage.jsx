@@ -129,7 +129,7 @@ export default function LandingPage() {
       title: 'Institutional Archival',
       desc: 'Final panel rubric clearance, Dean sign-off, Secretary ADM compliance gate, S3/MinIO digital vaulting, and sealed completion certificates.',
       icon: ShieldCheck,
-      tag: 'Capstone 4',
+      tag: 'Final Capstone',
     },
   ];
 

@@ -190,7 +190,7 @@ export default function TitleSimilarityChecker({
                   project.status === 'ARCHIVED'
                     ? 'Archived'
                     : Number(project.capstonePhase) === 4
-                      ? 'Capstone 4'
+                      ? 'Final Capstone'
                       : Number(project.capstonePhase) === 3
                         ? 'Capstone 3'
                         : Number(project.capstonePhase) === 2

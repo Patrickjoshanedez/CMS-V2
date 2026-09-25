@@ -8,7 +8,7 @@
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
   "git_context": {
     "active_branch": "main",
-    "clean_working_tree": false
+    "clean_working_tree": true
   },
   "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
   "task_description": "Clean SophisticatedDocumentViewer toolbar in Archive and Plagiarism Checker (suppressing revision diff, comments, chapter title, and logo icon, and preventing fullscreen layout collision), and implement true Turnitin-style in-document highlighting on original DOCX and PDF documents.",

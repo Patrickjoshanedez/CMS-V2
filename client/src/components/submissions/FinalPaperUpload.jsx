@@ -107,7 +107,7 @@ function UploadSection({
           <div>
             <span className="text-sm font-medium text-muted-foreground">Submission Locked</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Available in Capstone 4 after prerequisite milestone completion
+              Available in the Final Capstone phase after prerequisite milestone completion
             </p>
           </div>
         ) : file ? (
@@ -219,16 +219,16 @@ export default function FinalPaperUpload({ projectId, isLocked = false, lockMess
             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-xs leading-relaxed font-medium">
               {lockMessage ||
-                'Capstone 4 Final Paper Submission unlocks after Chapters 4–5 and Capstone 3 Action Done Matrix (ADM v2) are approved by the committee.'}
+                'Final Paper Submission unlocks after Chapters 4–5 and Capstone 3 Action Done Matrix (ADM v2) are approved by the committee.'}
             </p>
           </div>
         ) : (
           <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Capstone 4 requires both the Complete Academic Manuscript (internal/restricted) and
-              the Publishable Journal Version (public repository). Ensure all final revisions from
-              defense hearings are incorporated.
+              The Final Capstone requires both the Complete Academic Manuscript
+              (internal/restricted) and the Publishable Journal Version (public repository). Ensure
+              all final revisions from defense hearings are incorporated.
             </p>
           </div>
         )}

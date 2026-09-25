@@ -73,7 +73,7 @@ export default function SimilarProjectModal({ project, onClose, portal = true })
     const phase = Number(project.capstonePhase);
     if (phase === 4) {
       return {
-        label: 'Capstone 4: Final Defense',
+        label: 'Final Capstone (Oral Defense)',
         badgeClass:
           'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
         isArchived: false,

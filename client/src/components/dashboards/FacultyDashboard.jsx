@@ -157,7 +157,7 @@ function ProjectDetailedStatus({ project }) {
     1: 'Capstone 1',
     2: 'Capstone 2',
     3: 'Capstone 3',
-    4: 'Capstone 4 (Final)',
+    4: 'Final Capstone',
   };
   const phaseLabel = phaseLabels[effectivePhase] || `Capstone ${effectivePhase}`;
 
