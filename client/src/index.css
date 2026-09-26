@@ -2282,4 +2282,40 @@ html.dark[data-high-contrast='true'] {
   [data-print-only='true'] {
     display: block !important;
   }
+  /* Global layout print isolation: hide navigation, sidebars, headers, and overlays */
+  aside,
+  header,
+  nav,
+  [role='navigation'],
+  [role='status'],
+  [role='region'],
+  [data-sonner-toaster],
+  .toaster {
+    display: none !important;
+  }
+
+  /* Unclip layout wrappers for clean multi-page document pagination */
+  html,
+  body,
+  #root,
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Suppress form scrollbars, browser blue thumb pills, and selection boxes in print */
+  textarea,
+  input {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 }

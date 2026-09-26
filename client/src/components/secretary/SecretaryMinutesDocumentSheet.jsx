@@ -224,6 +224,14 @@ const INITIAL_MINUTES_STATE = {
         },
       ],
     },
+    {
+      panelRemarks: [
+        {
+          panelName: '',
+          comments: [''],
+        },
+      ],
+    },
   ],
   panelRemarks: [],
   overallRecommendations: '',
@@ -241,7 +249,8 @@ const INITIAL_MINUTES_STATE = {
 
 /**
  * Auto-expanding Textarea that recalculates scrollHeight on input
- * to prevent text clipping and provide dynamic spacing.
+ * in interactive screen mode, and renders a pristine typography div
+ * in print mode to completely eradicate browser scrollbars and blue thumb dots.
  */
 function AutoResizeTextarea({ value, onChange, placeholder, className, rows = 1, ...props }) {
   const textareaRef = useRef(null);
@@ -258,21 +267,35 @@ function AutoResizeTextarea({ value, onChange, placeholder, className, rows = 1,
   }, [value, adjustHeight]);
 
   return (
-    <textarea
-      ref={textareaRef}
-      value={value}
-      onChange={(e) => {
-        onChange?.(e);
-        adjustHeight();
-      }}
-      rows={rows}
-      placeholder={placeholder}
-      className={cn(
-        'w-full bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none resize-none overflow-hidden text-xs sm:text-sm text-black leading-snug py-0.5 transition-[height] duration-75',
-        className,
-      )}
-      {...props}
-    />
+    <>
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => {
+          onChange?.(e);
+          adjustHeight();
+        }}
+        rows={rows}
+        placeholder={placeholder}
+        className={cn(
+          'w-full bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none resize-none overflow-hidden text-xs sm:text-sm text-black leading-snug py-0.5 transition-[height] duration-75 print:hidden',
+          className,
+        )}
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+        {...props}
+      />
+      <div
+        className={cn(
+          'hidden print:block w-full text-xs sm:text-sm text-black leading-snug whitespace-pre-wrap break-words py-0.5 font-serif',
+          className,
+        )}
+      >
+        {value || ''}
+      </div>
+    </>
   );
 }
 
@@ -296,18 +319,46 @@ export default function SecretaryMinutesDocumentSheet({
   const [isDrawingSignature, setIsDrawingSignature] = useState(false);
   const [saveSignatureToProfile, setSaveSignatureToProfile] = useState(true);
   const [isSubmittingSignature, setIsSubmittingSignature] = useState(false);
+  const loadedProjectIdRef = useRef(null);
 
   // Sync project props, defense schedule, and saved minutes
   useEffect(() => {
+    if (!project?._id) return;
+    if (loadedProjectIdRef.current === project._id) return;
+    loadedProjectIdRef.current = project._id;
+
     if (project?.secretaryMinutes && Object.keys(project.secretaryMinutes).length > 0) {
       const saved = project.secretaryMinutes;
       setMinutes((prev) => {
         let pages = saved.pages;
-        if (!pages || !Array.isArray(pages) || pages.length === 0) {
-          if (saved.panelRemarks && saved.panelRemarks.length > 0) {
-            pages = [{ panelRemarks: saved.panelRemarks }];
+        if (!pages || !Array.isArray(pages) || pages.length < 2) {
+          if (Array.isArray(pages) && pages.length === 1) {
+            pages = [
+              pages[0],
+              {
+                panelRemarks: [
+                  {
+                    panelName: '',
+                    comments: [''],
+                  },
+                ],
+              },
+            ];
+          } else if (saved.panelRemarks && saved.panelRemarks.length > 0) {
+            pages = [
+              { panelRemarks: saved.panelRemarks.slice(0, 1) },
+              {
+                panelRemarks:
+                  saved.panelRemarks.length > 1
+                    ? saved.panelRemarks.slice(1)
+                    : [{ panelName: '', comments: [''] }],
+              },
+            ];
           } else {
-            pages = [{ panelRemarks: [{ panelName: '', comments: [''] }] }];
+            pages = [
+              { panelRemarks: [{ panelName: '', comments: [''] }] },
+              { panelRemarks: [{ panelName: '', comments: [''] }] },
+            ];
           }
         }
         return {
@@ -388,13 +439,21 @@ export default function SecretaryMinutesDocumentSheet({
 
       setMinutes((prev) => {
         const defaultPages =
-          prev.pages?.length > 0
+          prev.pages?.length >= 2
             ? prev.pages
             : [
                 {
                   panelRemarks: [
                     {
                       panelName: chairName || '',
+                      comments: [''],
+                    },
+                  ],
+                },
+                {
+                  panelRemarks: [
+                    {
+                      panelName: panelMemberNames[0] || '',
                       comments: [''],
                     },
                   ],
@@ -489,28 +548,42 @@ export default function SecretaryMinutesDocumentSheet({
     });
   };
 
-  // Dynamic page handlers
-  const handleAddPage = () => {
-    setMinutes((prev) => ({
-      ...prev,
-      pages: [
-        ...prev.pages,
-        {
-          panelRemarks: [
-            {
-              panelName: '',
-              comments: [''],
-            },
-          ],
-        },
-      ],
-    }));
-    toast.info(`Continuation page ${minutes.pages.length + 1} added.`);
+  // Dynamic page handlers: Insert continuation page right before the final page (or after specified index)
+  const handleAddContinuationPage = (insertIndex = null) => {
+    setMinutes((prev) => {
+      const currentPages = [...(prev.pages || [])];
+      // Target index is inserted right before the final page by default
+      const targetIndex = insertIndex !== null ? insertIndex : Math.max(1, currentPages.length - 1);
+
+      const newPage = {
+        panelRemarks: [
+          {
+            panelName: '',
+            comments: [''],
+          },
+        ],
+      };
+
+      currentPages.splice(targetIndex, 0, newPage);
+      return {
+        ...prev,
+        pages: currentPages,
+      };
+    });
+    toast.info('Continuation page inserted before the final sign-off sheet.');
   };
 
   const handleRemovePage = (pageIdx) => {
-    if (minutes.pages.length <= 1) {
-      toast.error('Cannot remove the primary page.');
+    if (minutes.pages.length <= 2) {
+      toast.error('Cannot remove opening or final sign-off pages.');
+      return;
+    }
+    if (pageIdx === 0) {
+      toast.error('Cannot remove Page 1 (Opening Sheet).');
+      return;
+    }
+    if (pageIdx === minutes.pages.length - 1) {
+      toast.error('Cannot remove the Final Sign-off Sheet.');
       return;
     }
     setMinutes((prev) => {
@@ -520,7 +593,60 @@ export default function SecretaryMinutesDocumentSheet({
         pages: nextPages,
       };
     });
-    toast.info(`Page ${pageIdx + 1} removed.`);
+    toast.info(`Continuation Page ${pageIdx + 1} removed.`);
+  };
+
+  // Row migration between pages
+  const handleMovePanelRowUp = (pageIdx, panelIdx) => {
+    if (pageIdx <= 0) return;
+    setMinutes((prev) => {
+      const nextPages = [...prev.pages];
+      const sourcePage = nextPages[pageIdx];
+      const targetPage = nextPages[pageIdx - 1];
+      if (!sourcePage || !targetPage) return prev;
+
+      const rowToMove = sourcePage.panelRemarks[panelIdx];
+      const nextSourceRemarks = sourcePage.panelRemarks.filter((_, i) => i !== panelIdx);
+      const nextTargetRemarks = [...targetPage.panelRemarks, rowToMove];
+
+      nextPages[pageIdx] = {
+        ...sourcePage,
+        panelRemarks:
+          nextSourceRemarks.length > 0 ? nextSourceRemarks : [{ panelName: '', comments: [''] }],
+      };
+      nextPages[pageIdx - 1] = {
+        ...targetPage,
+        panelRemarks: nextTargetRemarks,
+      };
+      return { ...prev, pages: nextPages };
+    });
+    toast.success(`Moved row to Page ${pageIdx}.`);
+  };
+
+  const handleMovePanelRowDown = (pageIdx, panelIdx) => {
+    if (pageIdx >= minutes.pages.length - 1) return;
+    setMinutes((prev) => {
+      const nextPages = [...prev.pages];
+      const sourcePage = nextPages[pageIdx];
+      const targetPage = nextPages[pageIdx + 1];
+      if (!sourcePage || !targetPage) return prev;
+
+      const rowToMove = sourcePage.panelRemarks[panelIdx];
+      const nextSourceRemarks = sourcePage.panelRemarks.filter((_, i) => i !== panelIdx);
+      const nextTargetRemarks = [rowToMove, ...targetPage.panelRemarks];
+
+      nextPages[pageIdx] = {
+        ...sourcePage,
+        panelRemarks:
+          nextSourceRemarks.length > 0 ? nextSourceRemarks : [{ panelName: '', comments: [''] }],
+      };
+      nextPages[pageIdx + 1] = {
+        ...targetPage,
+        panelRemarks: nextTargetRemarks,
+      };
+      return { ...prev, pages: nextPages };
+    });
+    toast.success(`Moved row to Page ${pageIdx + 2}.`);
   };
 
   // Dynamic row and comment handlers on specific page
@@ -761,13 +887,76 @@ export default function SecretaryMinutesDocumentSheet({
     const dateTimeVenue = schedParts.join(' || ');
 
     setMinutes((prev) => {
-      const nextPages = [...(prev.pages?.length > 0 ? prev.pages : [{ panelRemarks: [] }])];
-      if (
-        nextPages[0]?.panelRemarks?.length === 1 &&
-        !nextPages[0].panelRemarks[0].panelName &&
-        chairName
-      ) {
-        nextPages[0].panelRemarks[0].panelName = chairName;
+      // Build balanced pages based on committee members:
+      // Page 1: Opening Sheet with Chair
+      // Page 2: Continuation Sheet with Member 1 (if multiple members)
+      // Page 3 (or 2): Final Sign-off Sheet with Member 2 (or Member 1)
+      let pagesToSet = [];
+      if (panelMemberNames.length >= 2) {
+        pagesToSet = [
+          {
+            panelRemarks: [
+              {
+                panelName: chairName || '',
+                comments: [''],
+              },
+            ],
+          },
+          {
+            panelRemarks: [
+              {
+                panelName: panelMemberNames[0] || '',
+                comments: [''],
+              },
+            ],
+          },
+          {
+            panelRemarks: [
+              {
+                panelName: panelMemberNames[1] || '',
+                comments: [''],
+              },
+            ],
+          },
+        ];
+      } else if (panelMemberNames.length === 1) {
+        pagesToSet = [
+          {
+            panelRemarks: [
+              {
+                panelName: chairName || '',
+                comments: [''],
+              },
+            ],
+          },
+          {
+            panelRemarks: [
+              {
+                panelName: panelMemberNames[0] || '',
+                comments: [''],
+              },
+            ],
+          },
+        ];
+      } else {
+        pagesToSet = [
+          {
+            panelRemarks: [
+              {
+                panelName: chairName || '',
+                comments: [''],
+              },
+            ],
+          },
+          {
+            panelRemarks: [
+              {
+                panelName: '',
+                comments: [''],
+              },
+            ],
+          },
+        ];
       }
 
       return {
@@ -787,7 +976,7 @@ export default function SecretaryMinutesDocumentSheet({
         round: round || prev.round,
         defenseType: defenseType || prev.defenseType,
         defenseTypeLabel: defenseTypeLabel || prev.defenseTypeLabel,
-        pages: nextPages,
+        pages: pagesToSet,
       };
     });
 
@@ -802,7 +991,7 @@ export default function SecretaryMinutesDocumentSheet({
     toast.success('Loaded official BukSU Prototype Defense Minutes (Form OVPAA-F-INS-032)!');
   };
 
-  // Reset form to blank (1 page)
+  // Reset form to blank baseline (Opening and Final sheets)
   const handleClearForm = () => {
     setMinutes({
       ...INITIAL_MINUTES_STATE,
@@ -815,10 +1004,18 @@ export default function SecretaryMinutesDocumentSheet({
             },
           ],
         },
+        {
+          panelRemarks: [
+            {
+              panelName: '',
+              comments: [''],
+            },
+          ],
+        },
       ],
     });
     setScanFilename('');
-    toast.info('Secretary minutes cleared to 1 blank page.');
+    toast.info('Secretary minutes cleared to opening and final sign-off sheets.');
   };
 
   // Save current minutes to project database
@@ -1037,12 +1234,12 @@ export default function SecretaryMinutesDocumentSheet({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* ── DEDICATED PRINT STYLESHEET (100% Page Isolation & Full Paper Capture) ── */}
+      {/* ── DEDICATED PRINT STYLESHEET (100% Page Isolation & Full Paper Margin Control) ── */}
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 10mm 8mm 10mm;
+            margin: 0 !important;
           }
           html, body, #root, #root div, main, .main-content {
             overflow: visible !important;
@@ -1050,6 +1247,8 @@ export default function SecretaryMinutesDocumentSheet({
             max-height: none !important;
             background: white !important;
             color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .h-screen, .overflow-hidden, .overflow-y-auto {
             height: auto !important;
@@ -1071,10 +1270,14 @@ export default function SecretaryMinutesDocumentSheet({
           }
           .secretary-minutes-page {
             position: relative !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: 296mm !important;
+            min-height: 296mm !important;
+            max-height: 296mm !important;
+            margin: 0 auto !important;
+            padding: 8mm 12mm 16mm 12mm !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
@@ -1088,39 +1291,72 @@ export default function SecretaryMinutesDocumentSheet({
             display: flex !important;
             flex-direction: column !important;
             justify-content: space-between !important;
-            height: 279mm !important;
-            min-height: 279mm !important;
-            max-height: 279mm !important;
-            font-size: 9.5pt !important;
-            line-height: 1.25 !important;
+            font-size: 8.5pt !important;
+            line-height: 1.15 !important;
           }
           .secretary-minutes-page:last-child {
             page-break-after: auto !important;
             break-after: auto !important;
           }
+          .secretary-minutes-footer {
+            position: absolute !important;
+            bottom: 6mm !important;
+            left: 12mm !important;
+            right: 12mm !important;
+            width: calc(210mm - 24mm) !important;
+            margin: 0 !important;
+            padding-top: 1.5mm !important;
+            background: white !important;
+          }
           .secretary-minutes-page table {
-            font-size: 9.5pt !important;
-            line-height: 1.2 !important;
+            font-size: 8.5pt !important;
+            line-height: 1.15 !important;
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .secretary-minutes-page tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
           .secretary-minutes-page td, .secretary-minutes-page th {
-            padding: 2.5px 5px !important;
+            padding: 1.5px 3.5px !important;
           }
           .secretary-minutes-page ul {
             margin: 0 !important;
-            padding-left: 14px !important;
+            padding-left: 12px !important;
           }
           .secretary-minutes-page li {
-            margin-bottom: 1.5px !important;
+            margin-bottom: 0.5px !important;
+          }
+          .secretary-minutes-page .space-y-4 > :not([hidden]) ~ :not([hidden]),
+          .secretary-minutes-page .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]),
+          .secretary-minutes-page .space-y-2 > :not([hidden]) ~ :not([hidden]),
+          .secretary-minutes-page .space-y-1\\.5 > :not([hidden]) ~ :not([hidden]),
+          .secretary-minutes-page .space-y-1 > :not([hidden]) ~ :not([hidden]),
+          .secretary-minutes-page .space-y-0\\.5 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 1px !important;
+            margin-bottom: 0 !important;
           }
           .secretary-minutes-page img {
-            max-height: 55px !important;
-            max-width: 55px !important;
+            max-height: 44px !important;
+            max-width: 44px !important;
           }
-          .secretary-minutes-page input, .secretary-minutes-page textarea {
-            font-size: 9.5pt !important;
-            line-height: 1.2 !important;
-            padding: 0 !important;
-            color: black !important;
+          .secretary-minutes-page h1 {
+            font-size: 10.5pt !important;
+          }
+          .secretary-minutes-page h2 {
+            font-size: 11pt !important;
+          }
+          .secretary-minutes-page textarea,
+          .secretary-minutes-page input {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+          .secretary-minutes-page textarea::-webkit-scrollbar,
+          .secretary-minutes-page input::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
           }
         }
       `}</style>
@@ -1208,13 +1444,13 @@ export default function SecretaryMinutesDocumentSheet({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleAddPage}
+            onClick={() => handleAddContinuationPage()}
             className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
-            title="Add a continuation page to minutes"
+            title="Insert a continuation page before the final sign-off sheet"
             data-testid="add-page-btn"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Page
+            Add Continuation Page
           </Button>
 
           <Button
@@ -1317,567 +1553,628 @@ export default function SecretaryMinutesDocumentSheet({
           const pageNumber = pageIdx + 1;
 
           return (
-            <div
-              key={pageIdx}
-              className="secretary-minutes-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs"
-              data-testid={`secretary-minutes-page-${pageNumber}`}
-            >
-              {/* Top Section */}
-              <div className="space-y-4">
-                {/* BukSU Header */}
-                <BuksuDocumentHeader />
+            <React.Fragment key={pageIdx}>
+              <div
+                className="secretary-minutes-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs"
+                data-testid={`secretary-minutes-page-${pageNumber}`}
+              >
+                {/* Top Section */}
+                <div className="space-y-4">
+                  {/* BukSU Header */}
+                  <BuksuDocumentHeader />
 
-                {/* Document Title or Continuation Banner */}
-                {isFirstPage ? (
-                  <div className="text-center pt-2 pb-1">
-                    <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-black">
-                      SECRETARY’S MINUTES
-                    </h2>
-                  </div>
-                ) : (
-                  <div className="pt-2 pb-1 flex items-center justify-between border-b border-neutral-300 pb-2">
-                    <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-black">
-                      SECRETARY’S MINUTES (CONTINUATION)
-                    </h2>
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePage(pageIdx)}
-                      className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print font-medium"
-                      title="Remove this continuation page"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove Page {pageNumber}
-                    </button>
-                  </div>
-                )}
-
-                {/* Metadata Fields Section (Rendered on Page 1) */}
-                {isFirstPage && (
-                  <div className="space-y-2.5 text-xs sm:text-sm text-black">
-                    {/* Title of Paper */}
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-black shrink-0">Title of Paper:</span>
-                      <input
-                        type="text"
-                        value={minutes.title}
-                        onChange={(e) => handleFieldChange('title', e.target.value)}
-                        placeholder="Project Workspace: Capstone Management System with Plagiarism Checker"
-                        className="flex-1 font-bold text-black bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm"
-                        data-testid="minutes-title-input"
-                      />
+                  {/* Document Title or Continuation Banner */}
+                  {isFirstPage ? (
+                    <div className="text-center pt-2 pb-1">
+                      <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-black">
+                        SECRETARY’S MINUTES
+                      </h2>
                     </div>
-
-                    {/* Name of Proponents (Indented) */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-black">Name of Proponents:</span>
-                        <button
-                          type="button"
-                          onClick={handleAddProponent}
-                          className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
-                        >
-                          <Plus className="h-3 w-3" /> Add Proponent
-                        </button>
-                      </div>
-                      <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
-                        {minutes.proponents.length === 0 ? (
-                          <div className="italic text-neutral-600 text-xs py-1">
-                            No proponents listed. Click &quot;Autofill from Project&quot; or &quot;+
-                            Add Proponent&quot;.
-                          </div>
-                        ) : (
-                          minutes.proponents.map((proponent, idx) => (
-                            <div key={idx} className="flex items-center gap-2 group/prop">
-                              <input
-                                type="text"
-                                value={proponent}
-                                onChange={(e) => handleProponentChange(idx, e.target.value)}
-                                placeholder="Antipuesto, Throylan"
-                                className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black"
-                                data-testid={`minutes-proponent-${idx}`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveProponent(idx)}
-                                className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/prop:opacity-100 transition-opacity no-print"
-                                title="Remove proponent"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                  ) : (
+                    <div className="pt-2 pb-1 flex items-center justify-between border-b border-neutral-300 print:border-b-0 pb-2">
+                      <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-black">
+                        SECRETARY’S MINUTES (CONTINUATION)
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePage(pageIdx)}
+                        className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print font-medium"
+                        title="Remove this continuation page"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove Page {pageNumber}
+                      </button>
                     </div>
+                  )}
 
-                    {/* Type of Defense */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="font-bold text-black">Type of Defense:</span>
-                      {[
-                        { value: 'proposal', label: 'Proposal Defense' },
-                        { value: 'prototype', label: 'Prototype Defense' },
-                        { value: 'final', label: 'Final Defense' },
-                      ].map((dt) => {
-                        const isChecked = minutes.defenseType === dt.value;
-                        return (
-                          <button
-                            key={dt.value}
-                            type="button"
-                            onClick={() => {
-                              handleFieldChange('defenseType', dt.value);
-                              handleFieldChange('defenseTypeLabel', dt.label);
-                            }}
-                            className="inline-flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
-                          >
-                            <span className="font-bold text-black">
-                              {isChecked ? '(✓)' : '( )'}
-                            </span>
-                            <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
-                              {dt.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Number of Rounds */}
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-black">Number of Rounds:</span>
-                      {['1st', '2nd', '3rd'].map((r) => {
-                        const isChecked = minutes.round === r;
-                        return (
-                          <button
-                            key={r}
-                            type="button"
-                            onClick={() => handleFieldChange('round', r)}
-                            className="inline-flex items-center gap-1 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
-                          >
-                            <span className="font-bold text-black">
-                              {isChecked ? '(✓)' : '( )'}
-                            </span>
-                            <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
-                              {r.slice(0, 1)}
-                              <sup>{r.slice(1)}</sup>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Date/Time & Venue */}
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-black shrink-0">Date/Time & Venue:</span>
-                      <input
-                        type="text"
-                        value={minutes.dateTimeVenue}
-                        onChange={(e) => handleFieldChange('dateTimeVenue', e.target.value)}
-                        placeholder="April 20, 2026 || 9:00am || COT Conference Room"
-                        className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black"
-                        data-testid="minutes-datetime-venue-input"
-                      />
-                    </div>
-
-                    {/* Adviser */}
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-black shrink-0">Adviser:</span>
-                      <input
-                        type="text"
-                        value={minutes.adviser}
-                        onChange={(e) => handleFieldChange('adviser', e.target.value)}
-                        placeholder="Glaiza Mae Libe"
-                        className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black"
-                        data-testid="minutes-adviser-input"
-                      />
-                    </div>
-
-                    {/* Panel Chair/REC */}
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-black shrink-0">Panel Chair/REC:</span>
-                      <input
-                        type="text"
-                        value={minutes.panelChair}
-                        onChange={(e) => handleFieldChange('panelChair', e.target.value)}
-                        placeholder="Louie Jay S. Labastida"
-                        className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold"
-                        data-testid="minutes-chair-input"
-                      />
-                    </div>
-
-                    {/* Panel Members (Indented) */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-black">Panel Members:</span>
-                        <button
-                          type="button"
-                          onClick={handleAddPanelMember}
-                          className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
-                        >
-                          <Plus className="h-3 w-3" /> Add Member
-                        </button>
-                      </div>
-                      <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
-                        {minutes.panelMembers.length === 0 ? (
-                          <div className="italic text-neutral-600 text-xs py-1">
-                            No panel members listed. Click &quot;Autofill from Project&quot; or
-                            &quot;+ Add Member&quot;.
-                          </div>
-                        ) : (
-                          minutes.panelMembers.map((member, idx) => (
-                            <div key={idx} className="flex items-center gap-2 group/mem">
-                              <input
-                                type="text"
-                                value={member}
-                                onChange={(e) => handlePanelMemberChange(idx, e.target.value)}
-                                placeholder="Lecaros, Raul"
-                                className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black"
-                                data-testid={`minutes-panel-member-${idx}`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleRemovePanelMember(idx)}
-                                className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/mem:opacity-100 transition-opacity no-print"
-                                title="Remove panel member"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Secretary */}
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-bold text-black shrink-0">Secretary:</span>
-                      <input
-                        type="text"
-                        value={minutes.secretary}
-                        onChange={(e) => {
-                          handleFieldChange('secretary', e.target.value);
-                          if (!minutes.secretarySignatoryName) {
-                            handleFieldChange(
-                              'secretarySignatoryName',
-                              e.target.value.toUpperCase(),
-                            );
-                          }
-                        }}
-                        placeholder="Joan Marie M. Panes"
-                        className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold"
-                        data-testid="minutes-secretary-input"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Table: Name of Panel | COMMENTS/SUGGESTIONS */}
-                <div className="pt-2">
-                  <table className="w-full border-collapse border border-black text-xs sm:text-sm">
-                    <thead>
-                      <tr className="border-b border-black">
-                        <th className="w-[32%] py-2 px-3 text-center font-bold text-black border-r border-black uppercase text-xs sm:text-sm">
-                          Name of Panel
-                        </th>
-                        <th className="w-[68%] py-2 px-3 text-center font-bold text-black uppercase text-xs sm:text-sm">
-                          COMMENTS/SUGGESTIONS
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {page.panelRemarks && page.panelRemarks.length > 0 ? (
-                        page.panelRemarks.map((panel, pIdx) => (
-                          <tr
-                            key={pIdx}
-                            className="align-top border-b border-black last:border-b-0"
-                          >
-                            <td className="p-3 border-r border-black font-bold text-black relative group/paneltd">
-                              {panel.isClient && (
-                                <div className="text-xs text-black font-normal mb-0.5">Client</div>
-                              )}
-                              <input
-                                type="text"
-                                value={panel.panelName}
-                                onChange={(e) =>
-                                  handlePanelNameChangeOnPage(pageIdx, pIdx, e.target.value)
-                                }
-                                className="w-full font-bold bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none text-xs sm:text-sm text-black"
-                                placeholder={
-                                  isFirstPage && pIdx === 0
-                                    ? 'Louie Jay Labastida'
-                                    : 'Panel Member Name'
-                                }
-                                data-testid={`panel-name-input-${pageIdx}-${pIdx}`}
-                              />
-                              {page.panelRemarks.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemovePanelRowFromPage(pageIdx, pIdx)}
-                                  className="mt-2 text-[10px] text-neutral-500 hover:text-red-600 opacity-0 group-hover/paneltd:opacity-100 transition-opacity no-print flex items-center gap-1 font-sans font-normal"
-                                  title="Delete this panel row"
-                                >
-                                  <Trash2 className="h-2.5 w-2.5" /> Remove Row
-                                </button>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              <ul className="space-y-1.5 list-disc list-outside pl-4 text-xs sm:text-sm leading-relaxed text-black">
-                                {panel.comments && panel.comments.length > 0 ? (
-                                  panel.comments.map((comment, cIdx) => (
-                                    <li key={cIdx} className="group/bullet relative">
-                                      <div className="flex items-start gap-1">
-                                        <AutoResizeTextarea
-                                          value={comment}
-                                          onChange={(e) =>
-                                            handleCommentChangeOnPage(
-                                              pageIdx,
-                                              pIdx,
-                                              cIdx,
-                                              e.target.value,
-                                            )
-                                          }
-                                          placeholder="Type comment or suggestion here..."
-                                          data-testid={`panel-comment-${pageIdx}-${pIdx}-${cIdx}`}
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleRemoveCommentOnPage(pageIdx, pIdx, cIdx)
-                                          }
-                                          className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/bullet:opacity-100 transition-opacity no-print pt-0.5"
-                                          title="Remove comment bullet"
-                                        >
-                                          <Trash2 className="h-3 w-3" />
-                                        </button>
-                                      </div>
-                                    </li>
-                                  ))
-                                ) : (
-                                  <li className="italic text-neutral-500 text-xs list-none">
-                                    No comments yet. Click &quot;+ Add Suggestion&quot;.
-                                  </li>
-                                )}
-                              </ul>
-                              <div className="mt-2 text-right no-print">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddCommentOnPage(pageIdx, pIdx)}
-                                  className="text-[11px] text-blue-700 hover:underline inline-flex items-center gap-1 font-sans"
-                                >
-                                  <Plus className="h-3 w-3" /> Add Suggestion
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="p-6 text-center text-neutral-600 italic text-xs"
-                          >
-                            No panel remarks recorded yet. Click &quot;+ Add Panelist Row&quot; or
-                            &quot;Autofill from Project&quot;.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                  {/* Option to Add Rows to this Table */}
-                  <div className="flex items-center justify-between pt-1.5 no-print">
-                    <span className="text-[11px] text-neutral-500 italic">
-                      Tables dynamically allocate space as you type.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddPanelRowToPage(pageIdx)}
-                      className="text-xs text-blue-700 hover:underline flex items-center gap-1 font-sans font-medium"
-                      title="Add another panelist row to this table"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add Panelist Row
-                    </button>
-                  </div>
-                </div>
-
-                {/* Last Page Section: Recommendations, Verdict, and Digital Signature */}
-                {isLastPage && (
-                  <>
-                    <div className="space-y-4 pt-3 text-xs sm:text-sm text-black">
-                      {/* Overall Recommendations */}
-                      <div className="space-y-1">
-                        <span className="font-bold text-black block">Overall Recommendations:</span>
-                        <AutoResizeTextarea
-                          value={minutes.overallRecommendations}
-                          onChange={(e) =>
-                            handleFieldChange('overallRecommendations', e.target.value)
-                          }
-                          placeholder="Unfinished prototype with missing functions and modules. Recommended to redefend."
-                          rows={2}
-                          data-testid="minutes-overall-recommendations"
-                        />
-                      </div>
-
-                      {/* Panel Verdict */}
-                      <div className="space-y-1 pt-1">
-                        <span className="font-bold text-black block">Panel Verdict:</span>
-                        <div className="space-y-1 pl-1">
-                          {[
-                            {
-                              value: 'approved_with_minor_revisions',
-                              label: 'Approved with Minor Revision',
-                            },
-                            {
-                              value: 'approved_with_major_revisions',
-                              label: 'Approved with Major Revision',
-                            },
-                            { value: 'rejected', label: 'Rejected' },
-                          ].map((v) => {
-                            const isChecked = minutes.panelVerdict === v.value;
-                            return (
-                              <button
-                                key={v.value}
-                                type="button"
-                                onClick={() => {
-                                  handleFieldChange('panelVerdict', v.value);
-                                  handleFieldChange('verdictLabel', v.label);
-                                }}
-                                className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm hover:opacity-85 text-left py-0.5"
-                              >
-                                <span className="font-bold text-black w-6">
-                                  {isChecked ? '(√ )' : '( )'}
-                                </span>
-                                <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
-                                  {v.label}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Secretary Digital Signature Block (Bottom Right) */}
-                    <div className="pt-6 pb-2 flex justify-end">
-                      <div className="w-80 flex flex-col items-center justify-end text-center space-y-1">
-                        {/* 1. TOP: Digital Signature Image or Sign Button */}
-                        <div className="h-16 flex flex-col items-center justify-center w-full">
-                          {isSigned ? (
-                            <div className="flex flex-col items-center justify-center space-y-0.5">
-                              {signatureData?.signatureDataUrl ? (
-                                <img
-                                  src={signatureData.signatureDataUrl}
-                                  alt="Secretary Digital Signature"
-                                  className="max-h-14 max-w-[220px] object-contain"
-                                />
-                              ) : (
-                                <span className="font-serif italic text-base text-black">
-                                  {signatoryNameDisplay}
-                                </span>
-                              )}
-                              <span className="text-[9px] text-neutral-600 font-mono tracking-tight print:hidden">
-                                Digitally signed on{' '}
-                                {signatureData.signedAt
-                                  ? new Date(signatureData.signedAt).toLocaleDateString()
-                                  : new Date().toLocaleDateString()}{' '}
-                                | Ref:{' '}
-                                {signatureData.userId
-                                  ? String(signatureData.userId).slice(-6).toUpperCase()
-                                  : 'SEC-OFFICIAL'}
-                              </span>
-                            </div>
-                          ) : isUserSecretary ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleOpenSignModal}
-                              className="h-7 text-xs px-3 text-primary border-primary/50 hover:bg-primary/10 gap-1.5 shadow-xs no-print font-sans"
-                            >
-                              <PenTool className="h-3 w-3" /> Sign Digitally
-                            </Button>
-                          ) : (
-                            <div className="text-[11px] text-neutral-500 italic font-sans flex items-center gap-1 no-print">
-                              <Clock className="h-3 w-3" /> Pending Secretary Signature
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2. MIDDLE: Bold Uppercase Printed Name */}
+                  {/* Metadata Fields Section (Rendered on Page 1) */}
+                  {isFirstPage && (
+                    <div className="space-y-2.5 text-xs sm:text-sm text-black">
+                      {/* Title of Paper */}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-black shrink-0">Title of Paper:</span>
                         <input
                           type="text"
-                          value={signatoryNameDisplay}
-                          onChange={(e) => {
-                            handleFieldChange(
-                              'secretarySignatoryName',
-                              e.target.value.toUpperCase(),
-                            );
-                          }}
-                          placeholder="JOAN MARIE M. PANES"
-                          className="text-center font-bold text-xs sm:text-sm uppercase tracking-wide bg-transparent border-none focus:outline-none w-full text-black"
-                          data-testid="minutes-signatory-name"
+                          value={minutes.title}
+                          onChange={(e) => handleFieldChange('title', e.target.value)}
+                          placeholder="Project Workspace: Capstone Management System with Plagiarism Checker"
+                          className="flex-1 font-bold text-black bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm print:hidden"
+                          data-testid="minutes-title-input"
                         />
+                        <span className="hidden print:inline flex-1 font-bold text-black text-xs sm:text-sm">
+                          {minutes.title ||
+                            'Project Workspace: Capstone Management System with Plagiarism Checker'}
+                        </span>
+                      </div>
 
-                        {/* 3. BOTTOM: Horizontal Underline */}
-                        <div className="w-full max-w-[280px] border-b border-black my-0.5" />
-
-                        {/* Official Title Designation Below Line */}
-                        <p className="text-[11px] sm:text-xs text-black font-normal">
-                          Signature over Printed Name of Secretary
-                        </p>
-
-                        {/* Non-print status actions (Verified badge, Re-sign) */}
-                        <div className="pt-1 flex items-center justify-center gap-2 no-print font-sans">
-                          {isSigned && (
-                            <>
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] h-5 bg-emerald-50 text-emerald-700 border-emerald-500/30 gap-1"
-                              >
-                                <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
-                                Verified
-                              </Badge>
-                              {isUserSecretary && (
+                      {/* Name of Proponents (Indented) */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-black">Name of Proponents:</span>
+                          <button
+                            type="button"
+                            onClick={handleAddProponent}
+                            className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
+                          >
+                            <Plus className="h-3 w-3" /> Add Proponent
+                          </button>
+                        </div>
+                        <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
+                          {minutes.proponents.length === 0 ? (
+                            <div className="italic text-neutral-600 text-xs py-1">
+                              No proponents listed. Click &quot;Autofill from Project&quot; or
+                              &quot;+ Add Proponent&quot;.
+                            </div>
+                          ) : (
+                            minutes.proponents.map((proponent, idx) => (
+                              <div key={idx} className="flex items-center gap-2 group/prop">
+                                <input
+                                  type="text"
+                                  value={proponent}
+                                  onChange={(e) => handleProponentChange(idx, e.target.value)}
+                                  placeholder="Antipuesto, Throylan"
+                                  className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black print:hidden"
+                                  data-testid={`minutes-proponent-${idx}`}
+                                />
+                                <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black font-normal">
+                                  {proponent}
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={handleClearSignature}
-                                  className="text-[10px] text-neutral-600 hover:text-red-600 underline"
-                                  title="Remove signature to re-sign"
+                                  onClick={() => handleRemoveProponent(idx)}
+                                  className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/prop:opacity-100 transition-opacity no-print"
+                                  title="Remove proponent"
                                 >
-                                  Re-sign
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
-                              )}
-                            </>
+                              </div>
+                            ))
                           )}
                         </div>
                       </div>
+
+                      {/* Type of Defense */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="font-bold text-black">Type of Defense:</span>
+                        {[
+                          { value: 'proposal', label: 'Proposal Defense' },
+                          { value: 'prototype', label: 'Prototype Defense' },
+                          { value: 'final', label: 'Final Defense' },
+                        ].map((dt) => {
+                          const isChecked = minutes.defenseType === dt.value;
+                          return (
+                            <button
+                              key={dt.value}
+                              type="button"
+                              onClick={() => {
+                                handleFieldChange('defenseType', dt.value);
+                                handleFieldChange('defenseTypeLabel', dt.label);
+                              }}
+                              className="inline-flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
+                            >
+                              <span className="font-bold text-black">
+                                {isChecked ? '(✓)' : '( )'}
+                              </span>
+                              <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                {dt.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Number of Rounds */}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-black">Number of Rounds:</span>
+                        {['1st', '2nd', '3rd'].map((r) => {
+                          const isChecked = minutes.round === r;
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => handleFieldChange('round', r)}
+                              className="inline-flex items-center gap-1 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
+                            >
+                              <span className="font-bold text-black">
+                                {isChecked ? '(✓)' : '( )'}
+                              </span>
+                              <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                {r.slice(0, 1)}
+                                <sup>{r.slice(1)}</sup>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Date/Time & Venue */}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-black shrink-0">Date/Time & Venue:</span>
+                        <input
+                          type="text"
+                          value={minutes.dateTimeVenue}
+                          onChange={(e) => handleFieldChange('dateTimeVenue', e.target.value)}
+                          placeholder="April 20, 2026 || 9:00am || COT Conference Room"
+                          className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black print:hidden"
+                          data-testid="minutes-datetime-venue-input"
+                        />
+                        <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black">
+                          {minutes.dateTimeVenue}
+                        </span>
+                      </div>
+
+                      {/* Adviser */}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-black shrink-0">Adviser:</span>
+                        <input
+                          type="text"
+                          value={minutes.adviser}
+                          onChange={(e) => handleFieldChange('adviser', e.target.value)}
+                          placeholder="Glaiza Mae Libe"
+                          className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black print:hidden"
+                          data-testid="minutes-adviser-input"
+                        />
+                        <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black">
+                          {minutes.adviser}
+                        </span>
+                      </div>
+
+                      {/* Panel Chair/REC */}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-black shrink-0">Panel Chair/REC:</span>
+                        <input
+                          type="text"
+                          value={minutes.panelChair}
+                          onChange={(e) => handleFieldChange('panelChair', e.target.value)}
+                          placeholder="Louie Jay S. Labastida"
+                          className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold print:hidden"
+                          data-testid="minutes-chair-input"
+                        />
+                        <span className="hidden print:inline flex-1 font-bold text-xs sm:text-sm text-black">
+                          {minutes.panelChair}
+                        </span>
+                      </div>
+
+                      {/* Panel Members (Indented) */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-black">Panel Members:</span>
+                          <button
+                            type="button"
+                            onClick={handleAddPanelMember}
+                            className="text-[11px] text-blue-700 hover:underline flex items-center gap-1 font-sans no-print"
+                          >
+                            <Plus className="h-3 w-3" /> Add Member
+                          </button>
+                        </div>
+                        <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
+                          {minutes.panelMembers.length === 0 ? (
+                            <div className="italic text-neutral-600 text-xs py-1">
+                              No panel members listed. Click &quot;Autofill from Project&quot; or
+                              &quot;+ Add Member&quot;.
+                            </div>
+                          ) : (
+                            minutes.panelMembers.map((member, idx) => (
+                              <div key={idx} className="flex items-center gap-2 group/mem">
+                                <input
+                                  type="text"
+                                  value={member}
+                                  onChange={(e) => handlePanelMemberChange(idx, e.target.value)}
+                                  placeholder="Lecaros, Raul"
+                                  className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none py-0.5 text-xs sm:text-sm text-black print:hidden"
+                                  data-testid={`minutes-panel-member-${idx}`}
+                                />
+                                <span className="hidden print:inline flex-1 text-xs sm:text-sm text-black font-normal">
+                                  {member}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePanelMember(idx)}
+                                  className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/mem:opacity-100 transition-opacity no-print"
+                                  title="Remove panel member"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Secretary */}
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-bold text-black shrink-0">Secretary:</span>
+                        <input
+                          type="text"
+                          value={minutes.secretary}
+                          onChange={(e) => {
+                            handleFieldChange('secretary', e.target.value);
+                            if (!minutes.secretarySignatoryName) {
+                              handleFieldChange(
+                                'secretarySignatoryName',
+                                e.target.value.toUpperCase(),
+                              );
+                            }
+                          }}
+                          placeholder="Joan Marie M. Panes"
+                          className="flex-1 bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none px-1 py-0.5 text-xs sm:text-sm text-black font-bold print:hidden"
+                          data-testid="minutes-secretary-input"
+                        />
+                        <span className="hidden print:inline flex-1 font-bold text-xs sm:text-sm text-black">
+                          {minutes.secretary}
+                        </span>
+                      </div>
                     </div>
-                  </>
-                )}
+                  )}
+
+                  {/* Table: Name of Panel | COMMENTS/SUGGESTIONS */}
+                  <div className="pt-2">
+                    <table className="w-full border-collapse border border-black text-xs sm:text-sm">
+                      <thead>
+                        <tr className="border-b border-black">
+                          <th className="w-[32%] py-2 px-3 text-center font-bold text-black border-r border-black uppercase text-xs sm:text-sm">
+                            Name of Panel
+                          </th>
+                          <th className="w-[68%] py-2 px-3 text-center font-bold text-black uppercase text-xs sm:text-sm">
+                            COMMENTS/SUGGESTIONS
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {page.panelRemarks && page.panelRemarks.length > 0 ? (
+                          page.panelRemarks.map((panel, pIdx) => (
+                            <tr
+                              key={pIdx}
+                              className="align-top border-b border-black last:border-b-0"
+                            >
+                              <td className="p-3 border-r border-black font-bold text-black relative group/paneltd">
+                                {panel.isClient && (
+                                  <div className="text-xs text-black font-normal mb-0.5">
+                                    Client
+                                  </div>
+                                )}
+                                <input
+                                  type="text"
+                                  value={panel.panelName}
+                                  onChange={(e) =>
+                                    handlePanelNameChangeOnPage(pageIdx, pIdx, e.target.value)
+                                  }
+                                  className="w-full font-bold bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-black focus:outline-none text-xs sm:text-sm text-black print:hidden"
+                                  placeholder={
+                                    isFirstPage && pIdx === 0
+                                      ? 'Louie Jay Labastida'
+                                      : 'Panel Member Name'
+                                  }
+                                  data-testid={`panel-name-input-${pageIdx}-${pIdx}`}
+                                />
+                                <div className="hidden print:block font-bold text-xs sm:text-sm text-black whitespace-pre-wrap">
+                                  {panel.panelName}
+                                </div>
+                                <div className="mt-2 flex items-center gap-1.5 opacity-0 group-hover/paneltd:opacity-100 transition-opacity no-print">
+                                  {pageIdx > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMovePanelRowUp(pageIdx, pIdx)}
+                                      className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 font-sans"
+                                      title="Move row to previous page"
+                                    >
+                                      ↑ Page {pageIdx}
+                                    </button>
+                                  )}
+                                  {pageIdx < totalPages - 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMovePanelRowDown(pageIdx, pIdx)}
+                                      className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 font-sans"
+                                      title="Move row to next page"
+                                    >
+                                      ↓ Page {pageIdx + 2}
+                                    </button>
+                                  )}
+                                  {page.panelRemarks.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePanelRowFromPage(pageIdx, pIdx)}
+                                      className="text-[10px] text-neutral-500 hover:text-red-600 flex items-center gap-0.5 font-sans"
+                                      title="Delete this panel row"
+                                    >
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <ul className="space-y-1.5 list-disc list-outside pl-4 text-xs sm:text-sm leading-relaxed text-black">
+                                  {panel.comments && panel.comments.length > 0 ? (
+                                    panel.comments.map((comment, cIdx) => (
+                                      <li key={cIdx} className="group/bullet relative">
+                                        <div className="flex items-start gap-1">
+                                          <AutoResizeTextarea
+                                            value={comment}
+                                            onChange={(e) =>
+                                              handleCommentChangeOnPage(
+                                                pageIdx,
+                                                pIdx,
+                                                cIdx,
+                                                e.target.value,
+                                              )
+                                            }
+                                            placeholder="Type comment or suggestion here..."
+                                            data-testid={`panel-comment-${pageIdx}-${pIdx}-${cIdx}`}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleRemoveCommentOnPage(pageIdx, pIdx, cIdx)
+                                            }
+                                            className="text-neutral-400 hover:text-red-600 opacity-0 group-hover/bullet:opacity-100 transition-opacity no-print pt-0.5"
+                                            title="Remove comment bullet"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </li>
+                                    ))
+                                  ) : (
+                                    <li className="italic text-neutral-500 text-xs list-none">
+                                      No comments yet. Click &quot;+ Add Suggestion&quot;.
+                                    </li>
+                                  )}
+                                </ul>
+                                <div className="mt-2 text-right no-print">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddCommentOnPage(pageIdx, pIdx)}
+                                    className="text-[11px] text-blue-700 hover:underline inline-flex items-center gap-1 font-sans"
+                                  >
+                                    <Plus className="h-3 w-3" /> Add Suggestion
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="p-6 text-center text-neutral-600 italic text-xs"
+                            >
+                              No panel remarks recorded yet. Click &quot;+ Add Panelist Row&quot; or
+                              &quot;Autofill from Project&quot;.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                    {/* Option to Add Rows to this Table */}
+                    <div className="flex items-center justify-between pt-1.5 no-print">
+                      <span className="text-[11px] text-neutral-500 italic">
+                        Tables dynamically allocate space as you type.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAddPanelRowToPage(pageIdx)}
+                        className="text-xs text-blue-700 hover:underline flex items-center gap-1 font-sans font-medium"
+                        title="Add another panelist row to this table"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Panelist Row
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Last Page Section: Recommendations, Verdict, and Digital Signature */}
+                  {isLastPage && (
+                    <>
+                      <div className="space-y-4 pt-3 text-xs sm:text-sm text-black">
+                        {/* Overall Recommendations */}
+                        <div className="space-y-1">
+                          <span className="font-bold text-black block">
+                            Overall Recommendations:
+                          </span>
+                          <AutoResizeTextarea
+                            value={minutes.overallRecommendations}
+                            onChange={(e) =>
+                              handleFieldChange('overallRecommendations', e.target.value)
+                            }
+                            placeholder="Unfinished prototype with missing functions and modules. Recommended to redefend."
+                            rows={2}
+                            data-testid="minutes-overall-recommendations"
+                          />
+                        </div>
+
+                        {/* Panel Verdict */}
+                        <div className="space-y-1 pt-1">
+                          <span className="font-bold text-black block">Panel Verdict:</span>
+                          <div className="space-y-1 pl-1">
+                            {[
+                              {
+                                value: 'approved_with_minor_revisions',
+                                label: 'Approved with Minor Revision',
+                              },
+                              {
+                                value: 'approved_with_major_revisions',
+                                label: 'Approved with Major Revision',
+                              },
+                              { value: 'rejected', label: 'Rejected' },
+                            ].map((v) => {
+                              const isChecked = minutes.panelVerdict === v.value;
+                              return (
+                                <button
+                                  key={v.value}
+                                  type="button"
+                                  onClick={() => {
+                                    handleFieldChange('panelVerdict', v.value);
+                                    handleFieldChange('verdictLabel', v.label);
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm hover:opacity-85 text-left py-0.5"
+                                >
+                                  <span className="font-bold text-black w-6">
+                                    {isChecked ? '(√ )' : '( )'}
+                                  </span>
+                                  <span
+                                    className={isChecked ? 'font-bold text-black' : 'text-black'}
+                                  >
+                                    {v.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Secretary Digital Signature Block (Bottom Right) */}
+                      <div className="pt-6 pb-2 flex justify-end">
+                        <div className="w-80 flex flex-col items-center justify-end text-center space-y-1">
+                          {/* 1. TOP: Digital Signature Image or Sign Button */}
+                          <div className="h-16 flex flex-col items-center justify-center w-full">
+                            {isSigned ? (
+                              <div className="flex flex-col items-center justify-center space-y-0.5">
+                                {signatureData?.signatureDataUrl ? (
+                                  <img
+                                    src={signatureData.signatureDataUrl}
+                                    alt="Secretary Digital Signature"
+                                    className="max-h-14 max-w-[220px] object-contain"
+                                  />
+                                ) : (
+                                  <span className="font-serif italic text-base text-black">
+                                    {signatoryNameDisplay}
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-neutral-600 font-mono tracking-tight print:hidden">
+                                  Digitally signed on{' '}
+                                  {signatureData.signedAt
+                                    ? new Date(signatureData.signedAt).toLocaleDateString()
+                                    : new Date().toLocaleDateString()}{' '}
+                                  | Ref:{' '}
+                                  {signatureData.userId
+                                    ? String(signatureData.userId).slice(-6).toUpperCase()
+                                    : 'SEC-OFFICIAL'}
+                                </span>
+                              </div>
+                            ) : isUserSecretary ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleOpenSignModal}
+                                className="h-7 text-xs px-3 text-primary border-primary/50 hover:bg-primary/10 gap-1.5 shadow-xs no-print font-sans"
+                              >
+                                <PenTool className="h-3 w-3" /> Sign Digitally
+                              </Button>
+                            ) : (
+                              <div className="text-[11px] text-neutral-500 italic font-sans flex items-center gap-1 no-print">
+                                <Clock className="h-3 w-3" /> Pending Secretary Signature
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 2. MIDDLE: Bold Uppercase Printed Name */}
+                          <input
+                            type="text"
+                            value={signatoryNameDisplay}
+                            onChange={(e) => {
+                              handleFieldChange(
+                                'secretarySignatoryName',
+                                e.target.value.toUpperCase(),
+                              );
+                            }}
+                            placeholder="JOAN MARIE M. PANES"
+                            className="text-center font-bold text-xs sm:text-sm uppercase tracking-wide bg-transparent border-none focus:outline-none w-full text-black print:hidden"
+                            data-testid="minutes-signatory-name"
+                          />
+                          <span className="hidden print:block text-center font-bold text-xs sm:text-sm uppercase tracking-wide text-black w-full">
+                            {signatoryNameDisplay || 'JOAN MARIE M. PANES'}
+                          </span>
+
+                          {/* 3. BOTTOM: Horizontal Underline */}
+                          <div className="w-full max-w-[280px] border-b border-black my-0.5" />
+
+                          {/* Official Title Designation Below Line */}
+                          <p className="text-[11px] sm:text-xs text-black font-normal">
+                            Signature over Printed Name of Secretary
+                          </p>
+
+                          {/* Non-print status actions (Verified badge, Re-sign) */}
+                          <div className="pt-1 flex items-center justify-center gap-2 no-print font-sans">
+                            {isSigned && (
+                              <>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] h-5 bg-emerald-50 text-emerald-700 border-emerald-500/30 gap-1"
+                                >
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  Verified
+                                </Badge>
+                                {isUserSecretary && (
+                                  <button
+                                    type="button"
+                                    onClick={handleClearSignature}
+                                    className="text-[10px] text-neutral-600 hover:text-red-600 underline"
+                                    title="Remove signature to re-sign"
+                                  >
+                                    Re-sign
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Dynamic Footer with Dynamic Issue Date and Revision No */}
+                <BuksuDocumentFooter
+                  pageNumber={pageNumber}
+                  totalPages={totalPages}
+                  documentCode={minutes.documentCode}
+                  revisionNo={minutes.revisionNo}
+                  issueNo={minutes.issueNo}
+                  issueDate={minutes.issueDate}
+                  onFieldChange={handleFieldChange}
+                />
               </div>
 
-              {/* Dynamic Footer with Dynamic Issue Date and Revision No */}
-              <BuksuDocumentFooter
-                pageNumber={pageNumber}
-                totalPages={totalPages}
-                documentCode={minutes.documentCode}
-                revisionNo={minutes.revisionNo}
-                issueNo={minutes.issueNo}
-                issueDate={minutes.issueDate}
-                onFieldChange={handleFieldChange}
-              />
-            </div>
+              {/* Add Continuation Page Button placed strictly on the bottom outside of Page 1 and continuation sheets (never after final sheet) */}
+              {!isLastPage && (
+                <div className="flex justify-center my-4 no-print">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAddContinuationPage(pageIdx + 1)}
+                    className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 backdrop-blur-xs"
+                    data-testid={`add-continuation-page-btn-${pageNumber}`}
+                    title="Insert a continuation page before the final sign-off sheet"
+                  >
+                    <Plus className="h-4 w-4" /> Add Continuation Page (Insert before Final Sheet)
+                  </Button>
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
-      </div>
-
-      {/* ── Convenient Add Page Button at Bottom ── */}
-      <div className="flex justify-center pt-2 pb-6 no-print">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleAddPage}
-          className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10"
-        >
-          <Plus className="h-4 w-4" /> Add Page ({totalPages + 1})
-        </Button>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
@@ -2101,38 +2398,44 @@ function BuksuDocumentFooter({
   issueNo = '01',
   issueDate = 'June 1, 2018',
   onFieldChange,
+  className = '',
 }) {
   return (
-    <div className="border-t border-black pt-2 mt-4 text-[10px] sm:text-[11px] text-black font-sans shrink-0">
+    <div
+      className={cn(
+        'secretary-minutes-footer border-t border-black pt-1.5 mt-auto text-[10px] sm:text-[11px] text-black font-sans shrink-0',
+        className,
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-1 text-black">
         <span>Document Code: {documentCode}</span>
         <span className="inline-flex items-center gap-0.5">
-          Revision No:{' '}
+          Revision No: <span className="hidden print:inline font-medium">{revisionNo}</span>
           <input
             type="text"
             value={revisionNo}
             onChange={(e) => onFieldChange?.('revisionNo', e.target.value)}
-            className="w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Revision No"
           />
         </span>
         <span className="inline-flex items-center gap-0.5">
-          Issue No:{' '}
+          Issue No: <span className="hidden print:inline font-medium">{issueNo}</span>
           <input
             type="text"
             value={issueNo}
             onChange={(e) => onFieldChange?.('issueNo', e.target.value)}
-            className="w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="print:hidden w-7 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Issue No"
           />
         </span>
         <span className="inline-flex items-center gap-0.5">
-          Issue Date:{' '}
+          Issue Date: <span className="hidden print:inline font-medium">{issueDate}</span>
           <input
             type="text"
             value={issueDate}
             onChange={(e) => onFieldChange?.('issueDate', e.target.value)}
-            className="w-24 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
+            className="print:hidden w-24 inline bg-transparent border-b border-transparent hover:border-neutral-400 focus:border-black focus:outline-none text-[10px] sm:text-[11px] text-black p-0 text-center font-sans font-medium"
             title="Edit Issue Date"
           />
         </span>
