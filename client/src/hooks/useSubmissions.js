@@ -316,7 +316,9 @@ export function useProjectSubmissions(projectId, filters = {}, options = {}) {
       return data.data; // { submissions, pagination }
     },
     enabled: isValidProjectId(projectId) && (enabledOption ?? true),
-    staleTime: 1 * 60 * 1000, // 1 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 15 * 60 * 1000, // 15 min
+    refetchOnWindowFocus: false,
     ...restOptions,
   });
 }

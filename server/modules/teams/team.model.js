@@ -103,6 +103,11 @@ const teamSchema = new mongoose.Schema(
       ref: 'User',
       default: [],
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -112,6 +117,7 @@ const teamSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
+teamSchema.index({ projectId: 1 });
 teamSchema.index({ leaderId: 1 });
 teamSchema.index({ members: 1 });
 teamSchema.index({ academicYear: 1 });

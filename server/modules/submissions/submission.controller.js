@@ -31,6 +31,22 @@ export const uploadChapter = catchAsync(async (req, res) => {
   });
 });
 
+/** POST /api/submissions/:projectId/chapters/stream — Zero-memory streaming upload returning HTTP 202 */
+export const streamUploadChapter = catchAsync(async (req, res) => {
+  const { submission } = await submissionService.uploadChapter(
+    req.user._id,
+    req.params.projectId,
+    req.body,
+    req.file || req.uploadedFile,
+  );
+
+  res.status(202).json({
+    success: true,
+    message: 'Chapter stream uploaded and queued for processing.',
+    data: { submission, trackingId: submission._id },
+  });
+});
+
 /** POST /api/submissions/:projectId/proposal — Upload compiled proposal document */
 export const compileProposal = catchAsync(async (req, res) => {
   const { submission } = await submissionService.compileProposal(

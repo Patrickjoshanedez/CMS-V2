@@ -378,6 +378,9 @@ export const reportQuerySchema = z.object({
     .string()
     .regex(academicYearPattern, 'Academic year must follow YYYY-YYYY format')
     .optional(),
+  sectionId: objectId.optional(),
+  section: z.string().trim().max(100).optional(),
+  status: z.enum(['all', 'active', 'archived']).optional(),
   adviserId: objectId.optional(),
   title: z.string().trim().max(300, 'Title must not exceed 300 characters').optional(),
   author: z.string().trim().max(200, 'Author must not exceed 200 characters').optional(),

@@ -165,7 +165,9 @@ const STATUS_FILTERS = [
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, fetchUser } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
+  const fetchUser = useAuthStore((s) => s?.fetchUser) ?? authState?.fetchUser;
 
   // Task Category Queue filter (from URL or default to 'action_needed' or 'all')
   const initialCategory = searchParams.get('category') || 'action_needed';

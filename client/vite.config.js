@@ -122,6 +122,27 @@ export default defineConfig(({ mode }) => {
       port: frontendDefaultPort,
       strictPort: true,
       allowedHosts,
+      watch: {
+        ignored: [
+          '**/coverage/**',
+          '**/dist/**',
+          '**/.dist/**',
+          '**/build/**',
+          '**/out/**',
+          '**/uploads/**',
+          '**/chroma_store/**',
+          '**/.localstack/**',
+          '**/.git/**',
+          '**/.idea/**',
+          '**/.vscode/**',
+          '**/logs/**',
+          '**/scratch/**',
+          '**/test-results/**',
+          '**/screenshots/**',
+          '**/visual_audit_screenshots/**',
+          '**/exhaustive_audit_screenshots/**',
+        ],
+      },
       proxy: {
         '/api': {
           target: apiProxyTarget,

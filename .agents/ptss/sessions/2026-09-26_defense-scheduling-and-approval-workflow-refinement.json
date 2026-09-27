@@ -1,0 +1,48 @@
+{
+  "session_id": "2026-09-26_defense-scheduling-and-approval-workflow-refinement",
+  "date": "2026-09-26T03:22:00.000Z",
+  "task_description": "Enforce scheduled defense prerequisite before title proposal approval / auto-complete schedule when title is approved; hide draggable card when dragging so time slot is visible; label capstone phase/title proposal on card; align milestone table grid lines; make milestone cutoff Academic Year (Batch) a dynamic dropdown sourced from instructor's created school years.",
+  "task_category": "defense_scheduling_and_approval_workflow_refinement",
+  "skills_used": [
+    "anti-slop",
+    "frontend-patterns",
+    "verification-loop",
+    "capstone-lifecycle-orchestrator",
+    "asdlc-task-orchestrator"
+  ],
+  "skills_written": [],
+  "skills_patched": [],
+  "changes_made": [
+    {
+      "file": "server/modules/projects/project.service.js",
+      "summary": "Enforced defense schedule prerequisite in approveTitle: project.defenseSchedule must be 'scheduled' with date or 'completed', throwing DEFENSE_SCHEDULE_REQUIRED AppError if pending; automatically sets defenseSchedule.status = 'completed', verdict = 'Passed', and completedAt timestamp upon title approval."
+    },
+    {
+      "file": "client/src/components/projects/Capstone1CollapsibleSections.jsx",
+      "summary": "Added client-side defense schedule validation guard in handleApprove with Sonner error toast directing user to schedule the hearing in Scheduling Center."
+    },
+    {
+      "file": "client/src/components/projects/ActiveProposalView.jsx",
+      "summary": "Added defense schedule guard on proposal approval vote action with explanatory feedback."
+    },
+    {
+      "file": "client/src/pages/instructor/DefenseSchedulingPage.jsx",
+      "summary": "Implemented getTransparentDragImage() with e.dataTransfer.setDragImage for 100% invisible drag ghost; implemented getTeamCapstoneLabel() with Capstone 1: Title Proposal badges; aligned Header, Milestone Ribbon, and Timeline grid columns to locked 84px column 1 and repeat(5, minmax(0, 1fr)) with min-w-0 on day cells; merged created academic years into allBatches."
+    },
+    {
+      "file": "client/src/components/instructor/MilestoneDeadlinesModal.jsx",
+      "summary": "Imported useAcademicYears hook and replaced raw text input for Academic Year (Batch) with dynamic <select> dropdown sourced from instructor's created academic years and active batch years."
+    },
+    {
+      "file": "server/tests/unit/project.defense-schedule-gate.test.js",
+      "summary": "Created comprehensive unit test suite asserting defense schedule prerequisite gating and auto-completion behavior upon approval."
+    }
+  ],
+  "verification": {
+    "server_unit_tests": "npm test --workspace=server -- tests/unit/project.defense-schedule-gate.test.js (4/4 passed)",
+    "client_unit_tests": "npm test --workspace=client -- src/pages/instructor/DefenseSchedulingPage.test.jsx src/components/instructor/MilestoneDeadlinesModal.test.jsx src/components/projects/Capstone1CollapsibleSections.test.jsx (36/36 passed)",
+    "route_parity": "npm run check:endpoints (UNMATCHED_COUNT = 0, 216 server / 197 client)",
+    "agentic_governance": "npm run validate:agentic (60/60 checks passed)",
+    "playwright_visual_audit": "6 visual audit screenshots verified across Desktop (1440x900) and Mobile (390x844) in Light and Dark modes with zero grid line misalignment and transparent drag preview"
+  }
+}

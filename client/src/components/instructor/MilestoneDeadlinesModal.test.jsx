@@ -1,11 +1,16 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MilestoneDeadlinesModal from './MilestoneDeadlinesModal';
 import api from '@/services/api';
 import { CAPSTONE_STAGES } from '@cms/shared';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock('@/hooks/useAcademics', () => ({
+  useAcademicYears: () => ({ data: ['2026-2027', '2025-2026'] }),
+}));
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -60,29 +65,41 @@ describe('MilestoneDeadlinesModal', () => {
     container?.remove();
   });
 
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   const renderComponent = (props = {}) =>
     root.render(
-      <MilestoneDeadlinesModal
-        open={true}
-        onClose={vi.fn()}
-        sections={mockSections}
-        batchYears={mockBatchYears}
-        defaultBatch="2025-2026"
-        deadlines={mockDeadlines}
-        onSaved={vi.fn()}
-        {...props}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <MilestoneDeadlinesModal
+          open={true}
+          onClose={vi.fn()}
+          sections={mockSections}
+          batchYears={mockBatchYears}
+          defaultBatch="2025-2026"
+          deadlines={mockDeadlines}
+          onSaved={vi.fn()}
+          {...props}
+        />
+      </QueryClientProvider>,
     );
 
   it('does not render when open is false', async () => {
     await act(async () => {
       root.render(
-        <MilestoneDeadlinesModal
-          open={false}
-          onClose={vi.fn()}
-          sections={mockSections}
-          batchYears={mockBatchYears}
-        />,
+        <QueryClientProvider client={queryClient}>
+          <MilestoneDeadlinesModal
+            open={false}
+            onClose={vi.fn()}
+            sections={mockSections}
+            batchYears={mockBatchYears}
+          />
+        </QueryClientProvider>,
       );
     });
 

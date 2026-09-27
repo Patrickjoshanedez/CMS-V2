@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { useProjects, projectKeys } from '@/hooks/useProjects';
+import { useAcademicYears } from '@/hooks/useAcademics';
 import { projectService, academicService } from '@/services/authService';
 import { settingsService } from '@/services/settingsService';
 import { toast } from 'sonner';
@@ -251,6 +252,41 @@ export function resolveProjectTab(project) {
 }
 
 /**
+ * Resolves the capstone phase and milestone label for a team/project
+ */
+export function getTeamCapstoneLabel(project) {
+  const isTitleApproved =
+    project?.titleStatus === 'approved' || project?.titleStatus === 'title_approved';
+  const stage = String(project?.stage || '').toLowerCase();
+  const phase = Number(project?.capstonePhase || project?.phase || (isTitleApproved ? 2 : 1));
+
+  if (!isTitleApproved || phase === 1 || stage === 'capstone_1' || stage === 'proposal') {
+    return 'Capstone 1: Title Proposal';
+  }
+  if (phase === 2 || stage === 'capstone_2') {
+    return 'Capstone 2: Midterm Defense';
+  }
+  if (phase === 3 || stage === 'capstone_3') {
+    return 'Capstone 3: Progress Defense';
+  }
+  if (phase === 4 || stage === 'final' || stage === 'capstone_4') {
+    return 'Capstone 4: Final Defense';
+  }
+  return `Capstone ${phase}`;
+}
+
+/**
+ * Creates an invisible 1x1 drag preview to prevent obscuring drop target time slots
+ */
+export function getTransparentDragImage() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  return canvas;
+}
+
+/**
  * DefenseSchedulingPage — Dedicated Instructor Defense Scheduling Command Center.
  *
  * Centralized dashboard for Course Instructors to monitor defense readiness across
@@ -398,6 +434,9 @@ export default function DefenseSchedulingPage() {
 
   const milestoneDeadlines = Array.isArray(milestoneDeadlinesData) ? milestoneDeadlinesData : [];
 
+  // Query instructor-created academic years
+  const { data: createdAcademicYears = [] } = useAcademicYears();
+
   // Filter out any archived records
   const allProjects = useMemo(() => {
     const rawProjects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
@@ -407,17 +446,25 @@ export default function DefenseSchedulingPage() {
     });
   }, [projectsData]);
 
-  // Compute unique academic year batches from projects
+  // Compute unique academic year batches from instructor created years and active projects
   const allBatches = useMemo(() => {
     const batchSet = new Set();
+    if (Array.isArray(createdAcademicYears)) {
+      createdAcademicYears.forEach((y) => {
+        const yearStr = typeof y === 'string' ? y : y?.year || y?.name || y?.code;
+        if (yearStr) batchSet.add(yearStr);
+      });
+    }
     allProjects.forEach((p) => {
       if (p.academicYear) batchSet.add(p.academicYear);
     });
-    const currentYear = new Date().getFullYear();
-    batchSet.add(`${currentYear}-${currentYear + 1}`);
-    batchSet.add(`${currentYear - 1}-${currentYear}`);
-    return Array.from(batchSet).sort().reverse();
-  }, [allProjects]);
+    if (batchSet.size === 0) {
+      const currentYear = new Date().getFullYear();
+      batchSet.add(`${currentYear}-${currentYear + 1}`);
+      batchSet.add(`${currentYear - 1}-${currentYear}`);
+    }
+    return Array.from(batchSet).filter(Boolean).sort().reverse();
+  }, [createdAcademicYears, allProjects]);
 
   // Compute available deliverables for cascading filter based on selected stage
   const availableDeliverablesForFilter = useMemo(() => {
@@ -1619,6 +1666,10 @@ export default function DefenseSchedulingPage() {
                                 key={project._id}
                                 draggable="true"
                                 onDragStart={(e) => {
+                                  const emptyImg = getTransparentDragImage();
+                                  if (emptyImg && e.dataTransfer?.setDragImage) {
+                                    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+                                  }
                                   e.dataTransfer.setData(
                                     'application/json',
                                     JSON.stringify({
@@ -1660,6 +1711,13 @@ export default function DefenseSchedulingPage() {
                                           ? 'Missing Committee'
                                           : 'In Prep'}
                                   </Badge>
+                                </div>
+
+                                {/* Capstone Phase & Milestone Label */}
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                                    {getTeamCapstoneLabel(project)}
+                                  </span>
                                 </div>
 
                                 <p className="text-[11px] text-muted-foreground line-clamp-1 font-medium">
@@ -1819,11 +1877,14 @@ export default function DefenseSchedulingPage() {
               <div className="flex-1 min-w-0 w-full overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
                 <div className="min-w-[760px]">
                   {/* Day Headers Bar */}
-                  <div className="grid grid-cols-[72px_repeat(5,1fr)] border-b border-border bg-muted/40">
-                    <div className="p-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/60 flex flex-col items-center justify-center text-center">
+                  <div
+                    data-testid="day-headers-bar"
+                    className="grid grid-cols-[84px_repeat(5,minmax(0,1fr))] border-b border-border bg-muted/40"
+                  >
+                    <div className="w-[84px] min-w-[84px] max-w-[84px] shrink-0 p-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/60 flex flex-col items-center justify-center text-center overflow-hidden box-border">
                       <span>Time Slot</span>
-                      <span className="text-[9px] text-muted-foreground/80 font-normal">
-                        1 Hour Scale (30 Min Quantum)
+                      <span className="text-[8.5px] text-muted-foreground/70 font-normal whitespace-nowrap">
+                        1 Hour (30m)
                       </span>
                     </div>
                     {weekDays.map((day, idx) => {
@@ -1833,7 +1894,7 @@ export default function DefenseSchedulingPage() {
                         <div
                           key={idx}
                           onClick={() => setSelectedDate(day)}
-                          className={`p-3 text-center border-r border-border/60 last:border-r-0 cursor-pointer transition-colors ${
+                          className={`p-3 text-center border-r border-border/60 last:border-r-0 cursor-pointer transition-colors min-w-0 ${
                             isSelected
                               ? 'bg-primary/20 border-b-2 border-b-primary shadow-xs'
                               : isToday
@@ -1842,17 +1903,17 @@ export default function DefenseSchedulingPage() {
                           }`}
                         >
                           <div className="flex items-center justify-center gap-1">
-                            <p className="text-xs font-bold text-foreground">
+                            <p className="text-xs font-bold text-foreground truncate">
                               {day.toLocaleDateString('en-US', { weekday: 'short' })}
                             </p>
                             {isSelected && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-primary text-primary-foreground font-semibold">
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-primary text-primary-foreground font-semibold shrink-0">
                                 Selected
                               </span>
                             )}
                           </div>
                           <p
-                            className={`text-[11px] font-mono mt-0.5 ${
+                            className={`text-[11px] font-mono mt-0.5 truncate ${
                               isSelected || isToday
                                 ? 'text-primary font-bold'
                                 : 'text-muted-foreground'
@@ -1866,10 +1927,10 @@ export default function DefenseSchedulingPage() {
                   </div>
 
                   {/* All-Day Milestone Deadline Ribbon across the 5 calendar columns */}
-                  <div className="grid grid-cols-[72px_repeat(5,1fr)] border-b border-border bg-card/60 min-h-[48px] items-stretch">
-                    <div className="p-2 border-r border-border/60 bg-muted/20 flex flex-col items-center justify-center text-center select-none">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                        <Calendar className="h-3 w-3 text-primary" />
+                  <div className="grid grid-cols-[84px_repeat(5,minmax(0,1fr))] border-b border-border bg-card/60 min-h-[48px] items-stretch">
+                    <div className="w-[84px] min-w-[84px] max-w-[84px] shrink-0 p-1.5 border-r border-border/60 bg-muted/20 flex flex-col items-center justify-center text-center select-none overflow-hidden box-border">
+                      <span className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-center gap-1 w-full truncate">
+                        <Calendar className="h-3 w-3 text-primary shrink-0" />
                         Milestones
                       </span>
                       <span className="text-[8px] text-muted-foreground/70 font-medium">
@@ -1882,7 +1943,7 @@ export default function DefenseSchedulingPage() {
                       return (
                         <div
                           key={`ribbon-${idx}`}
-                          className="p-1.5 border-r border-border/60 last:border-r-0 flex flex-col gap-1 justify-center min-h-[46px]"
+                          className="p-1.5 border-r border-border/60 last:border-r-0 flex flex-col gap-1 justify-center min-h-[46px] min-w-0 overflow-hidden"
                         >
                           {dayDeadlines.length === 0 ? (
                             <span className="text-[10px] text-muted-foreground/30 italic text-center select-none">
@@ -1919,11 +1980,11 @@ export default function DefenseSchedulingPage() {
 
                   {/* Continuous Timeline Area: Exactly 648px Height */}
                   <div
-                    className="grid grid-cols-[72px_repeat(5,1fr)] relative"
+                    className="grid grid-cols-[84px_repeat(5,minmax(0,1fr))] relative"
                     style={{ height: `${TOTAL_TIMELINE_HEIGHT}px` }}
                   >
                     {/* Left Time Axis (72px per hour, 9 hours from 8:00 AM to 5:00 PM) */}
-                    <div className="border-r border-border/60 bg-muted/15 relative select-none">
+                    <div className="w-[84px] min-w-[84px] max-w-[84px] shrink-0 border-r border-border/60 bg-muted/15 relative select-none box-border">
                       {HOURS_ARRAY.map((hour, idx) => {
                         const ampm = hour >= 12 ? 'PM' : 'AM';
                         const h12 = hour % 12 === 0 ? 12 : hour % 12;
@@ -1963,7 +2024,7 @@ export default function DefenseSchedulingPage() {
                           onDragOver={(e) => handleColumnDragOver(dateStr, e)}
                           onDragLeave={handleColumnDragLeave}
                           onDrop={(e) => handleColumnDrop(dateStr, e)}
-                          className={`relative border-r border-border/60 last:border-r-0 transition-colors ${
+                          className={`relative border-r border-border/60 last:border-r-0 transition-colors min-w-0 ${
                             isSelectedDay ? 'bg-primary/[0.04]' : 'bg-background/50'
                           }`}
                         >
@@ -2027,6 +2088,10 @@ export default function DefenseSchedulingPage() {
                                 draggable="true"
                                 title={tooltipContent}
                                 onDragStart={(e) => {
+                                  const emptyImg = getTransparentDragImage();
+                                  if (emptyImg && e.dataTransfer?.setDragImage) {
+                                    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+                                  }
                                   e.dataTransfer.setData(
                                     'application/json',
                                     JSON.stringify({

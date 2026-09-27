@@ -14,6 +14,7 @@ import { extractPdfMetadata } from '../../utils/pdfMetadataExtractor.js';
 import { extractText } from '../../utils/extractText.js';
 import { rankFuzzyConflicts } from '../../utils/similarityAudit.js';
 import storageService from '../../services/storage.index.js';
+import cacheService from '../../services/cache.service.js';
 import { emitToUser, emitToRoom } from '../../services/socket.service.js';
 import settingsService from '../settings/settings.service.js';
 import {
@@ -576,7 +577,34 @@ class ProjectService {
    * @returns {Object} { project }
    */
   async getProject(projectId, requester) {
+    const cacheKey = `project:meta:${projectId}`;
+    const cachedPayload = await cacheService.get(cacheKey);
+
+    if (cachedPayload) {
+      const isFaculty = [ROLES.INSTRUCTOR, ROLES.ADVISER, ROLES.PANELIST, ROLES.FACULTY].includes(
+        requester?.role,
+      );
+      if (!isFaculty) {
+        if (requester?.role !== ROLES.STUDENT) {
+          throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
+        }
+
+        const isTeamMember = cachedPayload.teamId?.members?.some(
+          (member) => (member?._id || member).toString() === requester._id.toString(),
+        );
+
+        const isArchived =
+          cachedPayload.isArchived === true || cachedPayload.projectStatus === 'archived';
+
+        if (!isTeamMember && !isArchived) {
+          throw new AppError('You do not have permission to view this project.', 403, 'FORBIDDEN');
+        }
+      }
+      return { project: cachedPayload };
+    }
+
     const project = await Project.findById(projectId)
+      .select('-textSidecar -rawExtractedData')
       .populate({
         path: 'teamId',
         select:
@@ -633,7 +661,8 @@ class ProjectService {
           { path: 'createdBy', select: 'firstName middleName lastName email profilePicture' },
         ],
       })
-      .populate('memberRoleAssignments.userId', 'firstName middleName lastName email');
+      .populate('memberRoleAssignments.userId', 'firstName middleName lastName email')
+      .lean();
 
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
@@ -684,6 +713,9 @@ class ProjectService {
       hasJournalPaper,
       submissions: archivedSubmissions,
     };
+
+    // Cache metadata for 120 seconds
+    await cacheService.set(cacheKey, projectPayload, 120);
 
     return { project: projectPayload };
   }
@@ -781,12 +813,17 @@ class ProjectService {
     let project = await Project.findOne({
       teamId: effectiveTeamId,
       projectStatus: { $ne: PROJECT_STATUSES.REJECTED },
-    }).populate(populateOpts);
+    })
+      .select('-textSidecar -rawExtractedData')
+      .populate(populateOpts)
+      .lean();
 
     if (!project) {
       project = await Project.findOne({ teamId: effectiveTeamId })
+        .select('-textSidecar -rawExtractedData')
         .sort({ createdAt: -1 })
-        .populate(populateOpts);
+        .populate(populateOpts)
+        .lean();
     }
 
     if (!project) {
@@ -2953,6 +2990,9 @@ class ProjectService {
     const {
       academicYear: academicYearFilter,
       year,
+      sectionId,
+      section,
+      status,
       adviserId,
       title,
       author,
@@ -2969,7 +3009,14 @@ class ProjectService {
     const skip = (page - 1) * limit;
 
     const effectiveAcademicYear = academicYearFilter || year;
-    const matchStage = { isArchived: true };
+    const matchStage = {};
+    if (status === 'archived') {
+      matchStage.isArchived = true;
+    } else if (status === 'active') {
+      matchStage.isArchived = { $ne: true };
+    } else if (!status) {
+      matchStage.isArchived = true;
+    }
     const postLookupMatchStage = {};
 
     if (effectiveAcademicYear) matchStage.academicYear = effectiveAcademicYear;
@@ -2988,6 +3035,16 @@ class ProjectService {
 
     if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
       postLookupMatchStage.courseResolvedId = new mongoose.Types.ObjectId(courseId);
+    }
+
+    if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) {
+      postLookupMatchStage['teamDoc.sectionId'] = new mongoose.Types.ObjectId(sectionId);
+    } else if (section && section !== 'All Sections' && section !== 'All') {
+      const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      postLookupMatchStage.$or = [
+        { 'sectionDoc.name': { $regex: escapedSection, $options: 'i' } },
+        { 'sectionDoc.code': { $regex: escapedSection, $options: 'i' } },
+      ];
     }
 
     if (author) {
@@ -3044,6 +3101,14 @@ class ProjectService {
           localField: 'teamId',
           foreignField: '_id',
           as: 'teamDoc',
+        },
+      },
+      {
+        $lookup: {
+          from: Section.collection.name,
+          localField: 'teamDoc.sectionId',
+          foreignField: '_id',
+          as: 'sectionDoc',
         },
       },
       {
@@ -3117,6 +3182,7 @@ class ProjectService {
         $addFields: {
           adviserDoc: { $first: '$adviserDoc' },
           courseDoc: { $first: '$courseDoc' },
+          sectionDoc: { $first: '$sectionDoc' },
           archiveAuthors: {
             $filter: {
               input: { $ifNull: ['$archiveMetadata.authors', []] },
@@ -3508,16 +3574,168 @@ class ProjectService {
     const mostActiveYear = byYear.length > 0 ? byYear[0].academicYear : null;
     const totalCount = result?.totalCount?.[0]?.count || 0;
 
+    // Gather cohort telemetry across Sections, Teams, Students, and Projects
+    const cohortAcademicYear = effectiveAcademicYear || mostActiveYear;
+    const cohortYearFilter = cohortAcademicYear ? { academicYear: cohortAcademicYear } : {};
+
+    const [allSections, allTeams, allStudents, allCohortProjects] = await Promise.all([
+      Section.find(cohortYearFilter).lean(),
+      Team.find(cohortYearFilter).lean(),
+      User.find({
+        role: 'student',
+        ...(cohortAcademicYear ? { academicYear: cohortAcademicYear } : {}),
+      }).lean(),
+      Project.find(cohortYearFilter)
+        .select('currentMilestone projectStatus isArchived teamId title')
+        .lean(),
+    ]);
+
+    const canonicalSectionNames =
+      allSections.length > 0
+        ? allSections.map((s) => s.name || s.code)
+        : ['BSIT 4A', 'BSIT 4B', 'BSIT 4C', 'BSIT 4D'];
+
+    // Map teams to member count
+    const teamMemberCountMap = new Map();
+    for (const team of allTeams) {
+      teamMemberCountMap.set(String(team._id), (team.members || []).length);
+    }
+
+    // Milestone distribution
+    let c1Students = 0,
+      c1Teams = 0;
+    let c2Students = 0,
+      c2Teams = 0;
+    let c3Students = 0,
+      c3Teams = 0;
+
+    for (const proj of allCohortProjects) {
+      const teamSize = teamMemberCountMap.get(String(proj.teamId)) || 4;
+      const ms = String(proj.currentMilestone || '').toLowerCase();
+      const st = String(proj.projectStatus || '').toLowerCase();
+      if (
+        ms.includes('1') ||
+        st === 'draft' ||
+        st === 'proposed' ||
+        st === 'under_review' ||
+        st === 'approved'
+      ) {
+        c1Students += teamSize;
+        c1Teams += 1;
+      } else if (ms.includes('2') || st === 'in_progress') {
+        c2Students += teamSize;
+        c2Teams += 1;
+      } else {
+        c3Students += teamSize;
+        c3Teams += 1;
+      }
+    }
+
+    // Section allocation breakdown
+    const sectionAllocation = canonicalSectionNames.map((secName) => {
+      const secObj = allSections.find((s) => s.name === secName || s.code === secName);
+      const secIdStr = secObj ? String(secObj._id) : null;
+
+      const secStudents = secIdStr
+        ? allStudents.filter((st) => String(st.sectionId) === secIdStr)
+        : allStudents.filter((st) => st.sectionName === secName);
+
+      const assigned = secStudents.filter((st) => Boolean(st.teamId)).length;
+      const unassigned = Math.max(0, secStudents.length - assigned);
+      const secTeams = secIdStr
+        ? allTeams.filter((t) => String(t.sectionId) === secIdStr).length
+        : 0;
+      const ratio = secTeams > 0 ? (assigned / secTeams).toFixed(1) : '0.0';
+
+      return {
+        section: secName,
+        enrolled: secStudents.length,
+        assigned,
+        unassigned,
+        teams: secTeams,
+        ratio,
+      };
+    });
+
+    const rosterSum = sectionAllocation.reduce((acc, s) => acc + s.enrolled, 0);
+    const auditWarnings = [];
+
+    if (allStudents.length > 0 && rosterSum !== allStudents.length) {
+      auditWarnings.push({
+        code: 'ROSTER_SUM_MISMATCH',
+        message: `Section rosters sum (${rosterSum}) does not equal total enrolled proponents count (${allStudents.length}). ${Math.abs(allStudents.length - rosterSum)} proponent(s) have unassigned or un-synced section records.`,
+      });
+    }
+
+    if (
+      allStudents.length > 0 &&
+      canonicalSectionNames.length >= 4 &&
+      allStudents.length / canonicalSectionNames.length < 2.0
+    ) {
+      auditWarnings.push({
+        code: 'LOW_COHORT_DENSITY',
+        message: `The system records ${allStudents.length} enrolled proponents across ${canonicalSectionNames.length} academic sections (${canonicalSectionNames[0]} - ${canonicalSectionNames[canonicalSectionNames.length - 1]}), averaging ${(allStudents.length / canonicalSectionNames.length).toFixed(1)} student per section. This indicates active scoping filters, un-synced enrollment tables, or seed-data truncation.`,
+      });
+    }
+
+    const yieldCompleted = allCohortProjects.filter(
+      (p) => p.isArchived || p.projectStatus === 'completed' || p.currentMilestone === 'Capstone 4',
+    ).length;
+    const yieldTotal = Math.max(allCohortProjects.length, 1);
+    const yieldRate = Math.round((yieldCompleted / yieldTotal) * 100);
+
+    if (yieldTotal <= 3 && allCohortProjects.length > 0) {
+      auditWarnings.push({
+        code: 'SMALL_SAMPLE_SIZE',
+        message: `ADM Yield Rate is computed from a sample size of only ${yieldTotal} team(s) (${yieldCompleted}/${yieldTotal} Teams Completed). Interpret compliance profiles with contextual caution.`,
+      });
+    }
+
     return {
       report: {
         totalProjects: totalCount,
         matchingCount: totalCount,
         summary: {
           totalCapstonesArchived: summary.totalCapstonesArchived,
-          mostActiveYear,
+          totalCapstonesActive: allCohortProjects.filter((p) => !p.isArchived).length,
+          totalTeams: allTeams.length || summary.totalCapstonesArchived || 0,
           totalAuthorsStudents: summary.totalAuthorsStudents,
+          totalEnrolledStudents: allStudents.length || summary.totalAuthorsStudents || 0,
+          totalSections: canonicalSectionNames.length,
+          sectionsCount: canonicalSectionNames.length,
           flaggedByPlagiarism: summary.flaggedByPlagiarism,
+          mostActiveYear,
+          yieldRate,
+          yieldCompleted,
+          yieldTotal,
+          sampleDenominator: `${yieldCompleted}/${yieldTotal} Teams Completed`,
+          isArchivedCohort: status === 'archived',
         },
+        milestoneDistribution: [
+          {
+            milestone: 'Capstone 1 (Proposal)',
+            label: 'Capstone 1 (Proposal)',
+            students: c1Students,
+            teams: c1Teams,
+            phase: 'Phase 1',
+          },
+          {
+            milestone: 'Capstone 2 (Development)',
+            label: 'Capstone 2 (Development)',
+            students: c2Students,
+            teams: c2Teams,
+            phase: 'Phase 2',
+          },
+          {
+            milestone: 'Capstone 3 (Final Defense)',
+            label: 'Capstone 3 (Final Defense)',
+            students: c3Students,
+            teams: c3Teams,
+            phase: 'Phase 3',
+          },
+        ],
+        sectionAllocation,
+        auditWarnings,
         trend: result?.trend || [],
         categoryBreakdown: result?.categoryBreakdown || [],
         byYear,
@@ -3531,6 +3749,10 @@ class ProjectService {
         },
         filterOptions: {
           academicYears: (result?.filterAcademicYears || []).map((item) => item._id),
+          sections: canonicalSectionNames.map((name) => ({
+            name,
+            label: name,
+          })),
           authors: (result?.filterAuthors || []).map((item) => item._id),
           advisers: (result?.filterAdvisers || []).map((item) => ({
             _id: String(item._id),
@@ -4367,7 +4589,11 @@ class ProjectService {
    * @param {string} [options.type=null]
    * @returns {Promise<{ buffer: Buffer, fileName: string, fileType: string, fileSize: number, isConverted?: boolean }>}
    */
-  async getProjectManuscript(projectId, user, { isDownload = false, type = null } = {}) {
+  async getProjectManuscript(
+    projectId,
+    user,
+    { isDownload = false, type = null, allowFallback = false } = {},
+  ) {
     const project = await Project.findById(projectId).populate('teamId', 'members leaderId');
     if (!project) {
       throw new AppError('Project not found.', 404, 'PROJECT_NOT_FOUND');
@@ -4462,6 +4688,16 @@ class ProjectService {
           projectId: project._id,
           storageKey: { $exists: true, $ne: null },
         }).sort({ chapter: -1, version: -1, createdAt: -1 });
+      }
+    }
+
+    if (!submission) {
+      if (!allowFallback) {
+        throw new AppError(
+          'Manuscript file is not available for this project.',
+          404,
+          'MANUSCRIPT_NOT_FOUND',
+        );
       }
     }
 

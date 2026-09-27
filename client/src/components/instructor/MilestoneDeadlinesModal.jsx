@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Calendar,
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import { useAcademicYears } from '@/hooks/useAcademics';
 import { CAPSTONE_STAGES, STAGE_DELIVERABLE_MAP, DELIVERABLE_CATEGORY_MAP } from '@cms/shared';
 
 const STAGE_LABELS = {
@@ -35,7 +36,39 @@ export default function MilestoneDeadlinesModal({
   deadlines = [],
   onSaved,
 }) {
-  const [batchYear, setBatchYear] = useState(defaultBatch || '2025-2026');
+  const { data: createdAcademicYears = [] } = useAcademicYears();
+
+  const availableBatches = useMemo(() => {
+    const batchSet = new Set();
+    if (Array.isArray(batchYears)) {
+      batchYears.forEach((b) => {
+        if (b) batchSet.add(typeof b === 'string' ? b : b?.year || b?.name || b?.code);
+      });
+    }
+    if (Array.isArray(createdAcademicYears)) {
+      createdAcademicYears.forEach((y) => {
+        const yearStr = typeof y === 'string' ? y : y?.year || y?.name || y?.code;
+        if (yearStr) batchSet.add(yearStr);
+      });
+    }
+    if (batchSet.size === 0) {
+      const currentYear = new Date().getFullYear();
+      batchSet.add(`${currentYear}-${currentYear + 1}`);
+      batchSet.add(`${currentYear - 1}-${currentYear}`);
+    }
+    return Array.from(batchSet).filter(Boolean).sort().reverse();
+  }, [batchYears, createdAcademicYears]);
+
+  const [batchYear, setBatchYear] = useState(defaultBatch || availableBatches[0] || '2025-2026');
+
+  useEffect(() => {
+    if (defaultBatch && availableBatches.includes(defaultBatch)) {
+      setBatchYear(defaultBatch);
+    } else if (!batchYear && availableBatches.length > 0) {
+      setBatchYear(availableBatches[0]);
+    }
+  }, [defaultBatch, availableBatches, batchYear]);
+
   const [targetType, setTargetType] = useState('batch');
   const [sectionId, setSectionId] = useState('');
   const [stage, setStage] = useState(CAPSTONE_STAGES.CAPSTONE_1);
@@ -185,14 +218,21 @@ export default function MilestoneDeadlinesModal({
                 <label className="text-xs font-semibold text-foreground">
                   Academic Year (Batch)
                 </label>
-                <input
-                  type="text"
-                  placeholder="2025-2026"
+                <select
                   value={batchYear}
                   onChange={(e) => setBatchYear(e.target.value)}
                   className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   required
-                />
+                >
+                  <option value="" disabled>
+                    Select Academic Year...
+                  </option>
+                  {availableBatches.map((b) => (
+                    <option key={b} value={b}>
+                      AY {b}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1">

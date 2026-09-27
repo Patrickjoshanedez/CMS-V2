@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Users, FileText, Code2, ShieldCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PROJECT_STATUSES, CAPSTONE_PHASES } from '@cms/shared';
 import CapstoneWorkflowStepper, {
   resolveCurrentStep,
@@ -76,7 +77,7 @@ export default function WorkflowPhaseTracker({
       canManageCommittee={canManageCommittee}
       canManageArchive={canManageArchive}
       onRefresh={onRefresh}
-      className={className}
+      className={cn('workflow-phase-tracker no-print', className)}
     />
   );
 }

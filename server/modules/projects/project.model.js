@@ -881,14 +881,8 @@ projectSchema.pre('save', function () {
 });
 
 // --- Indexes ---
-// One active project per team (rejected projects don't block re-creation)
-projectSchema.index(
-  { teamId: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { projectStatus: { $ne: 'rejected' } },
-  },
-);
+// One project per team lookup index
+projectSchema.index({ teamId: 1 });
 projectSchema.index({ stage: 1 });
 projectSchema.index({ titleStatus: 1 });
 projectSchema.index({ adviserId: 1 });
@@ -909,9 +903,21 @@ projectSchema.index(
   { sectionId: 1, projectStatus: 1, isArchived: 1 },
   { background: true, name: 'idx_projects_section_status' },
 );
-projectSchema.index(
-  { submissionId: 1, pageNumber: 1, createdAt: -1 },
-  { background: true, name: 'idx_submissions_pagination' },
+
+// Automatic Redis/Memory cache invalidation on project modifications
+projectSchema.post(
+  ['save', 'findOneAndUpdate', 'findByIdAndUpdate', 'updateOne'],
+  async function (doc) {
+    const targetId = doc?._id || this?.getQuery?.()?._id;
+    if (targetId) {
+      try {
+        const { cacheService } = await import('../../services/cache.service.js');
+        await cacheService.invalidateProject(targetId);
+      } catch {
+        // Non-blocking cache invalidation
+      }
+    }
+  },
 );
 
 projectSchema.plugin(softDeletePlugin);

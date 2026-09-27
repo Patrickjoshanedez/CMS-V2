@@ -232,6 +232,12 @@ describe('Comprehensive All-Workflow End-to-End Test Suite', () => {
     payload.adviserId = adviser._id;
     payload.panelistIds = [panelChair._id];
     payload.panelists = [{ userId: panelChair._id, role: PANEL_ROLES.CHAIR }];
+    payload.defenseSchedule = {
+      status: 'scheduled',
+      date: new Date('2024-10-15'),
+      time: '09:00 AM - 10:00 AM',
+      venue: 'COT Conference Room',
+    };
 
     project = await Project.create(payload);
 

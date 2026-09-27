@@ -14,5 +14,6 @@ export default defineConfig({
     // Run tests sequentially — shared in-memory DB
     fileParallelism: false,
     pool: 'forks',
+    teardownTimeout: 60000,
   },
 });

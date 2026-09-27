@@ -122,14 +122,14 @@ export default function Capstone2CollapsibleSections({
       {/* ─────────────────────────────────────────────────────────────────── */}
       <Card
         className={cn(
-          'overflow-hidden rounded-xl border border-border/70 bg-card transition-all shadow-xs',
+          'overflow-hidden rounded-xl border border-border/70 bg-card transition-all shadow-xs print:border-none print:shadow-none print:bg-transparent',
           openSections.adm && 'ring-1 ring-primary/20',
         )}
       >
         <button
           type="button"
           onClick={() => toggleSection('adm')}
-          className="w-full text-left p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors focus-visible:outline-none"
+          className="w-full text-left p-4 sm:p-4.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors focus-visible:outline-none no-print"
           aria-expanded={openSections.adm}
           data-testid="toggle-adm-section"
         >

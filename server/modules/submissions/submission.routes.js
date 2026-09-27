@@ -20,6 +20,7 @@ import authenticate from '../../middleware/authenticate.js';
 import authorize from '../../middleware/authorize.js';
 import validate from '../../middleware/validate.js';
 import upload from '../../middleware/upload.js';
+import streamUploadMiddleware from '../../middleware/upload.stream.js';
 import validateFile from '../../middleware/fileValidation.js';
 import auditLog from '../../middleware/auditLog.js';
 import { uploadLimiter, readLimiter } from '../../middleware/rateLimiter.js';
@@ -78,6 +79,27 @@ router.post(
     getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
   }),
   submissionController.uploadChapter,
+);
+
+/**
+ * POST /:projectId/chapters/stream
+ * Zero-memory streaming upload for chapter documents.
+ * Directly streams file to S3/MinIO via Busboy PassThrough pipeline with inline magic-byte sniffing.
+ * Returns HTTP 202 Accepted with tracking submission and async processing status.
+ */
+router.post(
+  '/:projectId/chapters/stream',
+  authorize(ROLES.STUDENT),
+  validate(projectIdParamSchema, 'params'),
+  uploadLimiter,
+  streamUploadMiddleware(),
+  auditLog('submission.chapter_stream_uploaded', 'Submission', {
+    getTargetId: (_req, body) => body?.data?._id,
+    getDescription: (req) =>
+      `Stream uploaded chapter ${req.body.chapter} for project ${req.params.projectId}`,
+    getMetadata: (req) => ({ chapter: req.body.chapter, projectId: req.params.projectId }),
+  }),
+  submissionController.streamUploadChapter,
 );
 
 /**

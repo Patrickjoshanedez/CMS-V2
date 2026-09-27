@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ROLES } from '@cms/shared';
-import DefenseSchedulingPage from './DefenseSchedulingPage';
+import DefenseSchedulingPage, {
+  getTeamCapstoneLabel,
+  getTransparentDragImage,
+} from './DefenseSchedulingPage';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -50,6 +53,10 @@ vi.mock('@/hooks/useProjects', () => ({
     details: () => ['projects', 'detail'],
     detail: (id) => ['projects', 'detail', id],
   },
+}));
+
+vi.mock('@/hooks/useAcademics', () => ({
+  useAcademicYears: () => ({ data: ['2026-2027', '2025-2026'] }),
 }));
 
 vi.mock('@/services/authService', () => ({
@@ -582,9 +589,7 @@ describe('DefenseSchedulingPage', () => {
     });
 
     // Find day headers: 1 time slot header + 5 days = 6 divs
-    const dayHeaders = container.querySelectorAll(
-      '.grid-cols-\\[72px_repeat\\(5\\,1fr\\)\\] > div',
-    );
+    const dayHeaders = container.querySelectorAll('[data-testid="day-headers-bar"] > div');
     expect(dayHeaders.length).toBeGreaterThanOrEqual(6);
 
     // Click on 2nd day (index 2)
@@ -646,9 +651,13 @@ describe('DefenseSchedulingPage', () => {
   });
 
   it('renders All-Day Milestone Deadline Ribbon with color-coded milestone pills', async () => {
-    const today = new Date();
+    // Pick the Monday of current week so it always falls on a visible calendar column (Mon-Fri)
+    const monday = new Date();
+    const currentDay = monday.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    monday.setDate(monday.getDate() + distanceToMonday);
     const pad = (n) => String(n).padStart(2, '0');
-    const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const mondayKey = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
 
     mockGetMilestoneDeadlines.mockResolvedValue({
       data: {
@@ -660,7 +669,7 @@ describe('DefenseSchedulingPage', () => {
             stage: 'capstone_1',
             targetType: 'batch',
             batchYear: '2025-2026',
-            deadlineDate: `${todayKey}T23:59:59.000Z`,
+            deadlineDate: `${mondayKey}T23:59:59.000Z`,
             allowLateSubmission: true,
           },
         ],
@@ -764,5 +773,35 @@ describe('DefenseSchedulingPage', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('/projects/proj-1?tab=capstone_2');
+  });
+
+  it('correctly resolves and displays capstone phase and title proposal label on awaiting scheduling team cards', async () => {
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Unscheduled team EcoSort has titleStatus: null, capstonePhase: 1 -> should render 'Capstone 1: Title Proposal'
+    expect(container.textContent).toContain('Capstone 1: Title Proposal');
+
+    // Helper logic assertions across 4 phases
+    expect(getTeamCapstoneLabel({ titleStatus: null, capstonePhase: 1 })).toBe(
+      'Capstone 1: Title Proposal',
+    );
+    expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 2 })).toBe(
+      'Capstone 2: Midterm Defense',
+    );
+    expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 3 })).toBe(
+      'Capstone 3: Progress Defense',
+    );
+    expect(getTeamCapstoneLabel({ titleStatus: 'approved', capstonePhase: 4 })).toBe(
+      'Capstone 4: Final Defense',
+    );
+  });
+
+  it('provides an invisible 1x1 drag preview helper', () => {
+    const canvas = getTransparentDragImage();
+    expect(canvas).toBeTruthy();
+    expect(canvas.width).toBe(1);
+    expect(canvas.height).toBe(1);
   });
 });

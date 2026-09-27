@@ -423,6 +423,26 @@ html.dark[data-high-contrast='true'] {
     color: #4b5563 !important;
   }
 
+  /* Inoculate white institutional Action Done Matrix (ADM) document sheet from dark mode inversion */
+  .dark .adm-sheet-paper-container,
+  .dark .adm-sheet-paper-container *:not([data-portal-signature-modal] *),
+  .dark .adm-document-page,
+  .dark .adm-document-page *:not(a):not([data-portal-signature-modal] *) {
+    color: #000000 !important;
+  }
+  .dark .adm-document-page a {
+    color: #1d4ed8 !important;
+  }
+  .dark .adm-document-page input,
+  .dark .adm-document-page textarea {
+    color: #000000 !important;
+    background-color: transparent !important;
+  }
+  .dark .adm-document-page input::placeholder,
+  .dark .adm-document-page textarea::placeholder {
+    color: #4b5563 !important;
+  }
+
   /* Inoculate white institutional presentation slide canvas from dark mode inversion */
   .dark [data-slide-canvas],
   .dark [data-slide-canvas] h1,
@@ -2294,6 +2314,40 @@ html.dark[data-high-contrast='true'] {
     display: none !important;
   }
 
+  /* Institutional Document Print Isolation (ADM & Secretary Minutes) */
+  body:has(.adm-sheet-paper-container) .project-title-card,
+  body:has(.adm-sheet-paper-container) .workflow-phase-tracker,
+  body:has(.adm-sheet-paper-container) [role='tablist'],
+  body:has(.adm-sheet-paper-container)
+    [data-testid='capstone1-collapsible-workspace']
+    > div:not(:has(.adm-sheet-paper-container)),
+  body:has(.adm-sheet-paper-container)
+    [data-testid='capstone2-collapsible-workspace']
+    > div:not(:has(.adm-sheet-paper-container)),
+  body:has(.adm-sheet-paper-container)
+    [data-testid='capstone3-collapsible-workspace']
+    > div:not(:has(.adm-sheet-paper-container)),
+  body:has(.adm-sheet-paper-container) .card:not(:has(.adm-sheet-paper-container)),
+  body:has(.adm-sheet-paper-container) [data-no-print-when-doc],
+  body:has(.adm-sheet-paper-container) button:not(.print-preserve),
+  body:has(.secretary-sheet-paper-container) .project-title-card,
+  body:has(.secretary-sheet-paper-container) .workflow-phase-tracker,
+  body:has(.secretary-sheet-paper-container) [role='tablist'],
+  body:has(.secretary-sheet-paper-container)
+    [data-testid='capstone1-collapsible-workspace']
+    > div:not(:has(.secretary-sheet-paper-container)),
+  body:has(.secretary-sheet-paper-container)
+    [data-testid='capstone2-collapsible-workspace']
+    > div:not(:has(.secretary-sheet-paper-container)),
+  body:has(.secretary-sheet-paper-container)
+    [data-testid='capstone3-collapsible-workspace']
+    > div:not(:has(.secretary-sheet-paper-container)),
+  body:has(.secretary-sheet-paper-container) .card:not(:has(.secretary-sheet-paper-container)),
+  body:has(.secretary-sheet-paper-container) [data-no-print-when-doc],
+  body:has(.secretary-sheet-paper-container) button:not(.print-preserve) {
+    display: none !important;
+  }
+
   /* Unclip layout wrappers for clean multi-page document pagination */
   html,
   body,
@@ -2317,5 +2371,104 @@ html.dark[data-high-contrast='true'] {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────── */
+  /* Reports Dashboard Print-Optimized Layout Architecture               */
+  /* ─────────────────────────────────────────────────────────────────── */
+  /* Theme Inversion: force crisp white background and #111827 dark text */
+  .reports-dashboard-container {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .reports-dashboard-container *,
+  .reports-dashboard-container h1,
+  .reports-dashboard-container h2,
+  .reports-dashboard-container h3,
+  .reports-dashboard-container p,
+  .reports-dashboard-container span,
+  .reports-dashboard-container td,
+  .reports-dashboard-container th {
+    color: #111827 !important;
+    text-shadow: none !important;
+  }
+
+  /* Force white cards with solid subtle border and zero card border bleeding */
+  .reports-dashboard-container .card,
+  .reports-dashboard-container [data-testid='cohort-kpi-ribbon'] > div,
+  .reports-dashboard-container .dynamic-chart-widget-card,
+  .reports-dashboard-container .reports-table-card {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1pt solid #cbd5e1 !important;
+    box-shadow: none !important;
+    border-radius: 4pt !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Page-Break Containment: stop flexbox and grid elements from slicing */
+  .reports-dashboard-container .chart-card,
+  .reports-dashboard-container .dynamic-chart-widget-card,
+  .reports-dashboard-container [data-testid='cohort-kpi-ribbon'],
+  .reports-dashboard-container [data-testid='cohort-kpi-ribbon'] > div,
+  .reports-dashboard-container .reports-table-card,
+  .reports-dashboard-container table,
+  .reports-dashboard-container tr,
+  .reports-dashboard-container .audit-warning-banner {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Static Print Dimensions: replace vh/vw with physical print units */
+  .reports-dashboard-container .chart-container,
+  .reports-dashboard-container .recharts-responsive-container {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 7.5cm !important;
+    min-height: 7.5cm !important;
+    max-height: 7.5cm !important;
+  }
+
+  .reports-dashboard-container svg {
+    overflow: visible !important;
+    max-width: 100% !important;
+  }
+
+  .reports-dashboard-container .recharts-cartesian-grid line {
+    stroke: #e2e8f0 !important;
+    opacity: 0.8 !important;
+  }
+
+  .reports-dashboard-container .recharts-text {
+    fill: #111827 !important;
+    font-size: 8.5pt !important;
+  }
+
+  /* Hide interactive filter ribbons, drawers, and export buttons */
+  .reports-dashboard-container [data-testid='reports-filter-ribbon'],
+  .reports-dashboard-container .reports-filter-drawer,
+  .reports-dashboard-container .reports-quick-actions,
+  .reports-dashboard-container .reports-pagination,
+  .reports-dashboard-container select,
+  .reports-dashboard-container button:not(.print-preserve) {
+    display: none !important;
+  }
+
+  /* Printable Institutional Report Header */
+  .reports-print-header {
+    display: block !important;
+    margin-bottom: 14pt !important;
+    padding-bottom: 10pt !important;
+    border-bottom: 2pt solid #111827 !important;
   }
 }

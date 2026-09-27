@@ -1,0 +1,47 @@
+{
+  "session_id": "2026-09-26_adm-a4-document-sheets-print-parity",
+  "timestamp": "2026-09-26T14:28:00+08:00",
+  "task": "ADM Multi-Page A4 Document Sheets Architecture and Print Parity with Secretary Minutes",
+  "author": "Antigravity",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "status": "completed",
+  "objectives": [
+    "Transform Action Done Matrix into authentic multi-page physical A4 sheets (210mm x 296mm)",
+    "Strictly adhere to institutional RU-F-033 format from docs/Project-Workspace-ADM.docx",
+    "Eradicate dark dashboard chrome and sibling cards from browser print output",
+    "Replace interactive textareas with static text twins in print to eradicate blue scrollbars",
+    "Implement baseline 2-page minimum architecture (Opening Sheet & Final Sign-Off Sheet)",
+    "Enable dynamic continuation page insertion strictly before the final sheet",
+    "Provide row reallocation controls (↑ P{N} / ↓ P{N+2}) between document sheets",
+    "Preserve real-time Socket.IO synchronization, cell autosaving, panelist fulfillment verification, secretary endorsement gate, and tiered digital signatures"
+  ],
+  "modifications": [
+    "client/src/components/projects/ActionDoneMatrixTab.jsx: Multi-page A4 sheets architecture, autoPageCount calculation, dynamic row pagination (4 on Page 1, 6 on continuation, 1-2 on final sheet), pinned RU-F-033 footers with live Page X of Y, static text print twins for textareas, and dedicated @media print styles.",
+    "client/src/components/projects/ActionDoneMatrixTab.test.jsx: 14/14 unit tests covering multi-sheet rendering, continuation insertion, row reallocation, and institutional RU-F-033 metadata.",
+    "client/src/index.css: Dark mode contrast immunity for .adm-sheet-paper-container and .adm-document-page, plus global print isolation rules hiding dashboard chrome, steppers, and sibling cards.",
+    "client/src/components/ui/Card.jsx: Added 'card' class to ensure non-ADM card selector matches in print.",
+    "client/src/components/projects/WorkflowPhaseTracker.jsx: Added 'workflow-phase-tracker no-print' and fixed missing cn import.",
+    "client/src/pages/projects/ProjectDetailPage.jsx: Added 'no-print' to back navigation, steppers, tab lists, and review cards.",
+    "client/src/pages/projects/MyProjectPage.jsx: Added 'no-print' to headers, warnings, and tab lists.",
+    "client/src/components/projects/Capstone1CollapsibleSections.jsx: Added print:border-none print:shadow-none print:bg-transparent and no-print to section toggles."
+  ],
+  "verification": {
+    "playwright_evidence": [
+      "scratch/screenshots/adm_print/01_adm_screen_dark_mode.png",
+      "scratch/screenshots/adm_print/02_adm_print_emulated.png",
+      "scratch/screenshots/adm_print/03_adm_desktop_light_page1.png",
+      "scratch/screenshots/adm_print/04_adm_desktop_light_final_signatories.png",
+      "scratch/screenshots/adm_print/05_adm_mobile_light.png",
+      "scratch/screenshots/adm_print/06_adm_mobile_dark.png",
+      "scratch/screenshots/adm_print/Action_Done_Matrix_RU-F-033_verified.pdf"
+    ],
+    "unit_tests": "14/14 ActionDoneMatrixTab tests passing, 4/4 SecretaryMinutesDocumentSheet tests passing, 18/18 CollapsibleSections tests passing, 7/7 MyProjectPage tests passing",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=216, CLIENT_ENDPOINT_COUNT=197, UNMATCHED_COUNT=0",
+    "governance_audit": "60/60 checks passing (100% compliance)"
+  },
+  "lessons_learned": [
+    "Physical A4 height (296mm) in browser print engines equates to exactly 1118.6px at 96 DPI. To prevent accidental page spills in PDF generation, table rows must be partitioned across sheets with explicit capacity limits (e.g. 4 rows on opening sheet with institutional header, 6 rows on continuation sheets, and 1-2 rows on final sign-off sheet with signatories).",
+    "In print stylesheets, interactive textarea elements render browser UI scrollbar thumb dots even when scroll is inactive. Using dual DOM presentation (textarea with print:hidden + static pre-wrap div with hidden print:block text-[8.5pt] leading-tight) completely eliminates blue scrollbars and produces razor-sharp typography.",
+    "Container CSS isolation: Browser print parses the whole DOM tree. Sibling cards and parent navigation components must be suppressed using both explicit 'no-print' utility classes and scoped CSS selectors (e.g. .card:not(:has(.adm-sheet-paper-container)) { display: none !important; })."
+  ]
+}

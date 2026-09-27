@@ -197,6 +197,345 @@ export const REFERENCE_PROTOTYPE_MINUTES = {
   },
 };
 
+export const buildDefault3Sheets = (chairName = '', panelMemberNames = []) => {
+  const member1 = panelMemberNames[0] || '';
+  const member2 = panelMemberNames[1] || '';
+
+  return [
+    {
+      panelRemarks: [
+        {
+          panelName: chairName || '',
+          comments: [''],
+        },
+      ],
+    },
+    {
+      panelRemarks: [
+        {
+          panelName: member1 || '',
+          comments: [''],
+        },
+      ],
+    },
+    {
+      panelRemarks: [
+        {
+          panelName: member2 || '',
+          comments: [''],
+        },
+      ],
+    },
+  ];
+};
+
+/**
+ * Defensive committee extraction helper that handles:
+ * - project.defenseCommittees (e.g. capstone1, capstone2, capstone3, capstone4)
+ * - project.panelists (with chair / panelist roles)
+ * - project.secretaryId / project.teamId?.secretaryId
+ * - project.adviserId
+ */
+export const extractCommitteeFromProject = (project, user = null) => {
+  if (!project) {
+    return {
+      chairName: '',
+      panelMemberNames: [],
+      secretaryName:
+        user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '',
+      adviserName: '',
+    };
+  }
+
+  const adviserName =
+    project.adviserId?.fullName ||
+    `${project.adviserId?.firstName || ''} ${project.adviserId?.lastName || ''}`.trim() ||
+    project.adviser ||
+    '';
+
+  const committeeObj =
+    project.defenseCommittees?.capstone2 ||
+    project.defenseCommittees?.capstone1 ||
+    project.defenseCommittees?.capstone3 ||
+    project.defenseCommittees?.capstone4 ||
+    (project.defenseCommittees && Object.values(project.defenseCommittees)[0]) ||
+    null;
+
+  let chairName = '';
+  let panelMemberNames = [];
+  let secretaryName = '';
+
+  if (committeeObj) {
+    if (committeeObj.panelChair) {
+      chairName =
+        committeeObj.panelChair.fullName ||
+        `${committeeObj.panelChair.firstName || ''} ${committeeObj.panelChair.lastName || ''}`.trim() ||
+        String(committeeObj.panelChair);
+    }
+    if (Array.isArray(committeeObj.panelists)) {
+      panelMemberNames = committeeObj.panelists
+        .map((p) => p?.fullName || `${p?.firstName || ''} ${p?.lastName || ''}`.trim() || String(p))
+        .filter(Boolean);
+    }
+    if (committeeObj.secretary) {
+      secretaryName =
+        committeeObj.secretary.fullName ||
+        `${committeeObj.secretary.firstName || ''} ${committeeObj.secretary.lastName || ''}`.trim() ||
+        String(committeeObj.secretary);
+    }
+  }
+
+  if (!chairName) {
+    const chairObj = (project.panelists || []).find((p) => p.role === 'chair')?.userId;
+    chairName =
+      chairObj?.fullName ||
+      `${chairObj?.firstName || ''} ${chairObj?.lastName || ''}`.trim() ||
+      project.panelChair ||
+      '';
+  }
+
+  if (panelMemberNames.length === 0) {
+    const memberObjs = (project.panelists || []).filter((p) => p.role !== 'chair');
+    const fromMembers = memberObjs
+      .map((p) => {
+        const u = p.userId;
+        return u?.fullName || `${u?.firstName || ''} ${u?.lastName || ''}`.trim();
+      })
+      .filter(Boolean);
+    if (fromMembers.length > 0) {
+      panelMemberNames = fromMembers;
+    } else if (Array.isArray(project.panelMembers) && project.panelMembers.length > 0) {
+      panelMemberNames = project.panelMembers;
+    }
+  }
+
+  if (!secretaryName) {
+    const secretaryObj = project.secretaryId || project.teamId?.secretaryId;
+    secretaryName =
+      secretaryObj?.fullName ||
+      `${secretaryObj?.firstName || ''} ${secretaryObj?.lastName || ''}`.trim() ||
+      project.secretary ||
+      user?.fullName ||
+      `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
+      '';
+  }
+
+  return { chairName, panelMemberNames, secretaryName, adviserName };
+};
+
+/**
+ * Automatically allocates continuation sheets if remarks/comments exceed vertical page capacity:
+ * - Sheet 1 (Opening Sheet with metadata): Capacity is ~10 comments max.
+ * - Sheet 2..N-1 (Continuation Sheets): Capacity is ~14 comments max per sheet.
+ * - Sheet N (Final Sign-off Sheet with Recommendations, Verdict, Signature): Capacity is ~8-10 comments max.
+ * If comments in a panelist section exceed the capacity, it splits them and creates a
+ * "${panelName} (Continued)" continuation row on the next sheet, matching BukSU Prototype Defense Minutes reference.
+ */
+export const autoAllocateContinuationSheets = (pages) => {
+  if (!Array.isArray(pages) || pages.length === 0) return buildDefault3Sheets();
+
+  // 1. Flatten all panel remarks into a clean list
+  const rawRemarks = [];
+  pages.forEach((p) => {
+    (p.panelRemarks || []).forEach((rem) => {
+      if (rem.panelName || (rem.comments && rem.comments.length > 0)) {
+        const validComments = (rem.comments || []).filter((c) => c !== undefined && c !== null);
+        rawRemarks.push({
+          panelName: rem.panelName || '',
+          comments: validComments.length > 0 ? validComments : [''],
+          isClient: Boolean(rem.isClient),
+        });
+      }
+    });
+  });
+
+  if (rawRemarks.length === 0) {
+    return buildDefault3Sheets();
+  }
+
+  // 2. Coalesce consecutive remarks for the same panelist (e.g. from previous splits)
+  const allRemarks = [];
+  rawRemarks.forEach((rem) => {
+    const baseName = rem.panelName.replace(/\s*\(Continued\)/gi, '').trim();
+    const prev = allRemarks[allRemarks.length - 1];
+    if (
+      prev &&
+      baseName &&
+      prev.panelName.toLowerCase() === baseName.toLowerCase() &&
+      prev.isClient === rem.isClient
+    ) {
+      prev.comments.push(...rem.comments);
+    } else {
+      allRemarks.push({
+        panelName: baseName || rem.panelName,
+        comments: [...rem.comments],
+        isClient: rem.isClient,
+      });
+    }
+  });
+
+  const SHEET1_COMMENT_LIMIT = 10;
+  const CONTINUATION_COMMENT_LIMIT = 16;
+  const FINAL_SHEET_COMMENT_LIMIT = 11;
+
+  const newPages = [];
+
+  // 3. Sheet 1: Chair remarks (first panelist)
+  const chairRemark = allRemarks[0] || { panelName: '', comments: [''] };
+  const chairComments = chairRemark.comments || [''];
+  const remainingRemarks = [];
+
+  if (chairComments.length > SHEET1_COMMENT_LIMIT) {
+    const p1Comments = chairComments.slice(0, SHEET1_COMMENT_LIMIT);
+    const overflowComments = chairComments.slice(SHEET1_COMMENT_LIMIT);
+    newPages.push({
+      panelRemarks: [
+        {
+          panelName: chairRemark.panelName,
+          comments: p1Comments,
+          isClient: chairRemark.isClient,
+        },
+      ],
+    });
+    remainingRemarks.push({
+      panelName: `${chairRemark.panelName} (Continued)`,
+      comments: overflowComments,
+      isClient: chairRemark.isClient,
+    });
+  } else {
+    newPages.push({
+      panelRemarks: [
+        {
+          panelName: chairRemark.panelName,
+          comments: chairComments.length > 0 ? chairComments : [''],
+          isClient: chairRemark.isClient,
+        },
+      ],
+    });
+  }
+
+  for (let i = 1; i < allRemarks.length; i++) {
+    remainingRemarks.push({
+      panelName: allRemarks[i].panelName,
+      comments: [...allRemarks[i].comments],
+      isClient: allRemarks[i].isClient,
+    });
+  }
+
+  // If no remaining remarks, supply blank continuation and final sign-off sheets
+  if (remainingRemarks.length === 0) {
+    newPages.push({ panelRemarks: [{ panelName: '', comments: [''] }] });
+    newPages.push({ panelRemarks: [{ panelName: '', comments: [''] }] });
+    return newPages;
+  }
+
+  // If exactly 1 remaining remark and its comments fit on continuation sheet (<= 16):
+  // Put it on Sheet 2, and supply blank Sheet 3 (final sign-off)
+  if (
+    remainingRemarks.length === 1 &&
+    remainingRemarks[0].comments.length <= CONTINUATION_COMMENT_LIMIT
+  ) {
+    newPages.push({ panelRemarks: [remainingRemarks[0]] });
+    newPages.push({ panelRemarks: [{ panelName: '', comments: [''] }] });
+    return newPages;
+  }
+
+  // If exactly 2 remaining remarks and their comments fit individually on Sheet 2 and Sheet 3:
+  if (
+    remainingRemarks.length === 2 &&
+    remainingRemarks[0].comments.length <= CONTINUATION_COMMENT_LIMIT &&
+    remainingRemarks[1].comments.length <= FINAL_SHEET_COMMENT_LIMIT
+  ) {
+    newPages.push({ panelRemarks: [remainingRemarks[0]] });
+    newPages.push({ panelRemarks: [remainingRemarks[1]] });
+    return newPages;
+  }
+
+  // General multi-remark packing loop for Sheet 2..N
+  const queue = remainingRemarks.map((r) => ({
+    panelName: r.panelName,
+    comments: [...r.comments],
+    isClient: r.isClient,
+  }));
+
+  while (queue.length > 0) {
+    // Check if everything remaining in queue fits comfortably on the Final Sign-off Sheet
+    // Only if we already have at least 2 pages (Sheet 1 + Sheet 2)
+    const totalRemainingComments = queue.reduce((acc, r) => acc + r.comments.length, 0);
+
+    if (newPages.length >= 2 && totalRemainingComments <= FINAL_SHEET_COMMENT_LIMIT) {
+      newPages.push({ panelRemarks: queue.splice(0, queue.length) });
+      break;
+    }
+
+    // Otherwise, pack a continuation sheet (capacity up to CONTINUATION_COMMENT_LIMIT)
+    const currentSheetRemarks = [];
+    let currentCapacity = CONTINUATION_COMMENT_LIMIT;
+
+    while (queue.length > 0 && currentCapacity > 0) {
+      const nextRemark = queue[0];
+      const commentCount = nextRemark.comments.length;
+
+      // If adding this remark would exhaust the queue, but the resulting sheet comments
+      // would exceed FINAL_SHEET_COMMENT_LIMIT, reserve this remark for the final sign-off sheet
+      // to guarantee that the final sheet never overflows vertical capacity.
+      const wouldExhaustQueue = queue.length === 1;
+      const currentSheetCommentsCount = currentSheetRemarks.reduce(
+        (acc, r) => acc + r.comments.length,
+        0,
+      );
+      if (
+        wouldExhaustQueue &&
+        currentSheetRemarks.length > 0 &&
+        currentSheetCommentsCount + commentCount > FINAL_SHEET_COMMENT_LIMIT
+      ) {
+        break;
+      }
+
+      if (commentCount <= currentCapacity) {
+        currentSheetRemarks.push(queue.shift());
+        currentCapacity -= commentCount;
+      } else {
+        // If sheet is empty, split this large remark across sheets
+        if (currentSheetRemarks.length === 0) {
+          const fitComments = nextRemark.comments.slice(0, currentCapacity);
+          const overflowComments = nextRemark.comments.slice(currentCapacity);
+
+          currentSheetRemarks.push({
+            panelName: nextRemark.panelName,
+            comments: fitComments,
+            isClient: nextRemark.isClient,
+          });
+
+          const baseName = nextRemark.panelName.replace(/\s*\(Continued\)/gi, '').trim();
+          queue[0] = {
+            panelName: `${baseName} (Continued)`,
+            comments: overflowComments,
+            isClient: nextRemark.isClient,
+          };
+          currentCapacity = 0;
+        } else {
+          // Leave nextRemark to start cleanly on the next sheet
+          break;
+        }
+      }
+    }
+
+    if (currentSheetRemarks.length > 0) {
+      newPages.push({ panelRemarks: currentSheetRemarks });
+    }
+  }
+
+  // Guarantee minimum 3 baseline sheets
+  while (newPages.length < 3) {
+    newPages.splice(newPages.length - 1, 0, {
+      panelRemarks: [{ panelName: '', comments: [''] }],
+    });
+  }
+
+  return newPages;
+};
+
 const INITIAL_MINUTES_STATE = {
   title: '',
   proponents: [],
@@ -215,24 +554,7 @@ const INITIAL_MINUTES_STATE = {
   revisionNo: '01',
   issueNo: '01',
   issueDate: 'June 1, 2018',
-  pages: [
-    {
-      panelRemarks: [
-        {
-          panelName: '',
-          comments: [''],
-        },
-      ],
-    },
-    {
-      panelRemarks: [
-        {
-          panelName: '',
-          comments: [''],
-        },
-      ],
-    },
-  ],
+  pages: buildDefault3Sheets(),
   panelRemarks: [],
   overallRecommendations: '',
   panelVerdict: 'approved_with_minor_revisions',
@@ -329,36 +651,16 @@ export default function SecretaryMinutesDocumentSheet({
 
     if (project?.secretaryMinutes && Object.keys(project.secretaryMinutes).length > 0) {
       const saved = project.secretaryMinutes;
+      const { chairName, panelMemberNames } = extractCommitteeFromProject(project, user);
       setMinutes((prev) => {
         let pages = saved.pages;
-        if (!pages || !Array.isArray(pages) || pages.length < 2) {
-          if (Array.isArray(pages) && pages.length === 1) {
-            pages = [
-              pages[0],
-              {
-                panelRemarks: [
-                  {
-                    panelName: '',
-                    comments: [''],
-                  },
-                ],
-              },
-            ];
-          } else if (saved.panelRemarks && saved.panelRemarks.length > 0) {
-            pages = [
-              { panelRemarks: saved.panelRemarks.slice(0, 1) },
-              {
-                panelRemarks:
-                  saved.panelRemarks.length > 1
-                    ? saved.panelRemarks.slice(1)
-                    : [{ panelName: '', comments: [''] }],
-              },
-            ];
+        if (!pages || !Array.isArray(pages) || pages.length < 3) {
+          if (saved.panelRemarks && saved.panelRemarks.length > 0) {
+            pages = autoAllocateContinuationSheets([{ panelRemarks: saved.panelRemarks }]);
+          } else if (Array.isArray(pages) && pages.length > 0) {
+            pages = autoAllocateContinuationSheets(pages);
           } else {
-            pages = [
-              { panelRemarks: [{ panelName: '', comments: [''] }] },
-              { panelRemarks: [{ panelName: '', comments: [''] }] },
-            ];
+            pages = buildDefault3Sheets(chairName, panelMemberNames);
           }
         }
         return {
@@ -379,28 +681,8 @@ export default function SecretaryMinutesDocumentSheet({
         )
         .filter(Boolean);
 
-      const adviserName =
-        project.adviserId?.fullName ||
-        `${project.adviserId?.firstName || ''} ${project.adviserId?.lastName || ''}`.trim();
-
-      const chairObj = (project.panelists || []).find((p) => p.role === 'chair')?.userId;
-      const chairName =
-        chairObj?.fullName || `${chairObj?.firstName || ''} ${chairObj?.lastName || ''}`.trim();
-
-      const memberObjs = (project.panelists || []).filter((p) => p.role !== 'chair');
-      const panelMemberNames = memberObjs
-        .map((p) => {
-          const u = p.userId;
-          return u?.fullName || `${u?.firstName || ''} ${u?.lastName || ''}`.trim();
-        })
-        .filter(Boolean);
-
-      const secretaryObj = project.secretaryId;
-      const secretaryName =
-        secretaryObj?.fullName ||
-        `${secretaryObj?.firstName || ''} ${secretaryObj?.lastName || ''}`.trim() ||
-        user?.fullName ||
-        `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      const { chairName, panelMemberNames, secretaryName, adviserName } =
+        extractCommitteeFromProject(project, user);
 
       // Sourced from defense schedule
       const schedule = project.defenseSchedule || {};
@@ -438,27 +720,7 @@ export default function SecretaryMinutesDocumentSheet({
         : null;
 
       setMinutes((prev) => {
-        const defaultPages =
-          prev.pages?.length >= 2
-            ? prev.pages
-            : [
-                {
-                  panelRemarks: [
-                    {
-                      panelName: chairName || '',
-                      comments: [''],
-                    },
-                  ],
-                },
-                {
-                  panelRemarks: [
-                    {
-                      panelName: panelMemberNames[0] || '',
-                      comments: [''],
-                    },
-                  ],
-                },
-              ];
+        const defaultPages = buildDefault3Sheets(chairName, panelMemberNames);
 
         return {
           ...prev,
@@ -574,8 +836,10 @@ export default function SecretaryMinutesDocumentSheet({
   };
 
   const handleRemovePage = (pageIdx) => {
-    if (minutes.pages.length <= 2) {
-      toast.error('Cannot remove opening or final sign-off pages.');
+    if (minutes.pages.length <= 3) {
+      toast.error(
+        'Cannot remove baseline 3 sheets (opening, continuation, or final sign-off pages).',
+      );
       return;
     }
     if (pageIdx === 0) {
@@ -762,14 +1026,8 @@ export default function SecretaryMinutesDocumentSheet({
           }))
         : [{ panelName: '', comments: [''] }];
 
-      // Distribute scanned remarks across pages (e.g. up to 2 panels per page)
-      const ocrPages = [];
-      for (let i = 0; i < remarks.length; i += 2) {
-        ocrPages.push({ panelRemarks: remarks.slice(i, i + 2) });
-      }
-      if (ocrPages.length === 0) {
-        ocrPages.push({ panelRemarks: [{ panelName: '', comments: [''] }] });
-      }
+      // Distribute scanned remarks across at least 3 pages matching BukSU Form OVPAA-F-INS-032
+      const ocrPages = autoAllocateContinuationSheets(remarks.map((r) => ({ panelRemarks: [r] })));
 
       setMinutes({
         title: data.title || '',
@@ -833,28 +1091,10 @@ export default function SecretaryMinutesDocumentSheet({
       })
       .filter(Boolean);
 
-    const adviserName =
-      project.adviserId?.fullName ||
-      `${project.adviserId?.firstName || ''} ${project.adviserId?.lastName || ''}`.trim();
-
-    const chairObj = (project.panelists || []).find((p) => p.role === 'chair')?.userId;
-    const chairName =
-      chairObj?.fullName || `${chairObj?.firstName || ''} ${chairObj?.lastName || ''}`.trim();
-
-    const memberObjs = (project.panelists || []).filter((p) => p.role !== 'chair');
-    const panelMemberNames = memberObjs
-      .map((p) => {
-        const u = p.userId;
-        return u?.fullName || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || 'Panel Member';
-      })
-      .filter(Boolean);
-
-    const secretaryObj = project.secretaryId;
-    const secretaryName =
-      secretaryObj?.fullName ||
-      `${secretaryObj?.firstName || ''} ${secretaryObj?.lastName || ''}`.trim() ||
-      user?.fullName ||
-      `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+    const { chairName, panelMemberNames, secretaryName, adviserName } = extractCommitteeFromProject(
+      project,
+      user,
+    );
 
     // Defense schedule
     const schedule = project.defenseSchedule || {};
@@ -887,77 +1127,11 @@ export default function SecretaryMinutesDocumentSheet({
     const dateTimeVenue = schedParts.join(' || ');
 
     setMinutes((prev) => {
-      // Build balanced pages based on committee members:
+      // Build 3 authentic sheets by default:
       // Page 1: Opening Sheet with Chair
-      // Page 2: Continuation Sheet with Member 1 (if multiple members)
-      // Page 3 (or 2): Final Sign-off Sheet with Member 2 (or Member 1)
-      let pagesToSet = [];
-      if (panelMemberNames.length >= 2) {
-        pagesToSet = [
-          {
-            panelRemarks: [
-              {
-                panelName: chairName || '',
-                comments: [''],
-              },
-            ],
-          },
-          {
-            panelRemarks: [
-              {
-                panelName: panelMemberNames[0] || '',
-                comments: [''],
-              },
-            ],
-          },
-          {
-            panelRemarks: [
-              {
-                panelName: panelMemberNames[1] || '',
-                comments: [''],
-              },
-            ],
-          },
-        ];
-      } else if (panelMemberNames.length === 1) {
-        pagesToSet = [
-          {
-            panelRemarks: [
-              {
-                panelName: chairName || '',
-                comments: [''],
-              },
-            ],
-          },
-          {
-            panelRemarks: [
-              {
-                panelName: panelMemberNames[0] || '',
-                comments: [''],
-              },
-            ],
-          },
-        ];
-      } else {
-        pagesToSet = [
-          {
-            panelRemarks: [
-              {
-                panelName: chairName || '',
-                comments: [''],
-              },
-            ],
-          },
-          {
-            panelRemarks: [
-              {
-                panelName: '',
-                comments: [''],
-              },
-            ],
-          },
-        ];
-      }
+      // Page 2: Continuation Sheet with Member 1
+      // Page 3: Final Sign-off Sheet with Member 2
+      const pagesToSet = buildDefault3Sheets(chairName, panelMemberNames);
 
       return {
         ...prev,
@@ -980,7 +1154,9 @@ export default function SecretaryMinutesDocumentSheet({
       };
     });
 
-    toast.info('Project title, proponents, defense schedule, and committee roster autofilled.');
+    toast.info(
+      'Project title, proponents, defense schedule, and committee roster autofilled across 3 sheets.',
+    );
   };
 
   // Load official BukSU prototype defense sample from PDF
@@ -991,31 +1167,15 @@ export default function SecretaryMinutesDocumentSheet({
     toast.success('Loaded official BukSU Prototype Defense Minutes (Form OVPAA-F-INS-032)!');
   };
 
-  // Reset form to blank baseline (Opening and Final sheets)
+  // Reset form to blank baseline (Opening, Continuation, and Final Sign-off sheets)
   const handleClearForm = () => {
+    const { chairName, panelMemberNames } = extractCommitteeFromProject(project, user);
     setMinutes({
       ...INITIAL_MINUTES_STATE,
-      pages: [
-        {
-          panelRemarks: [
-            {
-              panelName: '',
-              comments: [''],
-            },
-          ],
-        },
-        {
-          panelRemarks: [
-            {
-              panelName: '',
-              comments: [''],
-            },
-          ],
-        },
-      ],
+      pages: buildDefault3Sheets(chairName, panelMemberNames),
     });
     setScanFilename('');
-    toast.info('Secretary minutes cleared to opening and final sign-off sheets.');
+    toast.info('Secretary minutes cleared to opening, continuation, and final sign-off sheets.');
   };
 
   // Save current minutes to project database
@@ -1233,7 +1393,7 @@ export default function SecretaryMinutesDocumentSheet({
   const totalPages = minutes.pages?.length || 1;
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`space-y-6 print:space-y-0 print:m-0 print:p-0 ${className}`}>
       {/* ── DEDICATED PRINT STYLESHEET (100% Page Isolation & Full Paper Margin Control) ── */}
       <style>{`
         @media print {
@@ -1241,7 +1401,7 @@ export default function SecretaryMinutesDocumentSheet({
             size: A4 portrait;
             margin: 0 !important;
           }
-          html, body, #root, #root div, main, .main-content {
+          html, body, #root, main, .main-content {
             overflow: visible !important;
             height: auto !important;
             max-height: none !important;
@@ -1255,19 +1415,44 @@ export default function SecretaryMinutesDocumentSheet({
             max-height: none !important;
             overflow: visible !important;
           }
-          aside, nav, header, footer, [role="navigation"], [role="status"], [role="region"], .no-print, .print\\:hidden, [data-sonner-toaster], .toaster, #toast-container, button {
+          aside, nav, header, footer, [role="navigation"], [role="status"], [role="region"], .no-print, .print\\:hidden, [data-sonner-toaster], .toaster, #toast-container, button:not(.print-preserve) {
             display: none !important;
           }
+          /* Strip all outer layout margins/paddings from ancestors so sheets start at top y = 0 */
+          #root *:not(.secretary-minutes-page, .secretary-minutes-page *) {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
+          #root .cms-route-enter,
+          #root .space-y-6,
+          #root .grid,
+          #root [class*="col-span"] {
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+          }
+          #root .secretary-sheet-paper-container,
           .secretary-sheet-paper-container {
             width: 100% !important;
             max-width: 100% !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
             display: block !important;
           }
+          .secretary-sheet-paper-container > * {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+          }
+          .secretary-sheet-paper-container > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+          }
+          #root .secretary-minutes-page,
+          #root div.secretary-minutes-page,
+          .secretary-sheet-paper-container .secretary-minutes-page,
           .secretary-minutes-page {
             position: relative !important;
             width: 210mm !important;
@@ -1277,49 +1462,114 @@ export default function SecretaryMinutesDocumentSheet({
             min-height: 296mm !important;
             max-height: 296mm !important;
             margin: 0 auto !important;
-            padding: 8mm 12mm 16mm 12mm !important;
+            padding: 8mm 14mm 6mm 14mm !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
             color: black !important;
             overflow: hidden !important;
-            page-break-after: always !important;
-            break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: space-between !important;
-            font-size: 8.5pt !important;
+            font-size: 8pt !important;
             line-height: 1.15 !important;
           }
-          .secretary-minutes-page:last-child {
+          #root .secretary-minutes-page:not(:last-child),
+          #root div.secretary-minutes-page:not(:last-child),
+          .secretary-sheet-paper-container .secretary-minutes-page:not(:last-child),
+          .secretary-minutes-page:not(:last-child) {
+            page-break-after: always !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #root .secretary-minutes-page:last-child,
+          #root div.secretary-minutes-page:last-child,
+          .secretary-sheet-paper-container .secretary-minutes-page:last-child,
+          .secretary-minutes-page:last-child,
+          #root .secretary-minutes-page.is-last-page,
+          #root div.secretary-minutes-page.is-last-page,
+          .secretary-sheet-paper-container .secretary-minutes-page.is-last-page,
+          .secretary-minutes-page.is-last-page,
+          [data-last-page="true"] {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
             page-break-after: auto !important;
             break-after: auto !important;
+            margin-bottom: 0 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
+          #root .secretary-minutes-footer,
+          .secretary-minutes-page .secretary-minutes-footer,
           .secretary-minutes-footer {
-            position: absolute !important;
-            bottom: 6mm !important;
-            left: 12mm !important;
-            right: 12mm !important;
-            width: calc(210mm - 24mm) !important;
+            position: relative !important;
+            bottom: auto !important;
+            left: auto !important;
+            right: auto !important;
+            width: 100% !important;
             margin: 0 !important;
-            padding-top: 1.5mm !important;
+            margin-top: auto !important;
+            padding-top: 1mm !important;
             background: white !important;
+            flex-shrink: 0 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .secretary-minutes-page .buksu-header {
+            min-height: 0 !important;
+            padding-bottom: 1mm !important;
+          }
+          .secretary-minutes-page .page-content-wrapper {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            max-height: calc(296mm - 16mm) !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .secretary-minutes-page .page-content-wrapper > * + * {
+            margin-top: 1mm !important;
+          }
+          .secretary-minutes-page .space-y-2\\.5,
+          .secretary-minutes-page div[class*="space-y-2"] {
+            font-size: 8pt !important;
+            line-height: 1.15 !important;
+          }
+          .secretary-minutes-page .space-y-2\\.5 > * + *,
+          .secretary-minutes-page div[class*="space-y-2"] > * + * {
+            margin-top: 0.75mm !important;
+          }
+          .secretary-minutes-page .space-y-1 > * + *,
+          .secretary-minutes-page .space-y-0\\.5 > * + * {
+            margin-top: 0.4mm !important;
+          }
+          .secretary-minutes-page .space-y-2\\.5 input,
+          .secretary-minutes-page .space-y-2\\.5 span,
+          .secretary-minutes-page .space-y-2\\.5 button {
+            font-size: 8pt !important;
+            line-height: 1.15 !important;
+          }
+          .secretary-minutes-page .minutes-table-wrapper {
+            min-height: 0 !important;
+            padding-top: 0 !important;
           }
           .secretary-minutes-page table {
-            font-size: 8.5pt !important;
-            line-height: 1.15 !important;
+            font-size: 7.5pt !important;
+            line-height: 1.12 !important;
             border-collapse: collapse !important;
             width: 100% !important;
+            table-layout: fixed !important;
+            min-height: 0 !important;
           }
           .secretary-minutes-page tr {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
           }
           .secretary-minutes-page td, .secretary-minutes-page th {
-            padding: 1.5px 3.5px !important;
+            padding: 1.2px 3.5px !important;
+            word-break: break-word !important;
           }
           .secretary-minutes-page ul {
             margin: 0 !important;
@@ -1328,24 +1578,20 @@ export default function SecretaryMinutesDocumentSheet({
           .secretary-minutes-page li {
             margin-bottom: 0.5px !important;
           }
-          .secretary-minutes-page .space-y-4 > :not([hidden]) ~ :not([hidden]),
-          .secretary-minutes-page .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]),
-          .secretary-minutes-page .space-y-2 > :not([hidden]) ~ :not([hidden]),
-          .secretary-minutes-page .space-y-1\\.5 > :not([hidden]) ~ :not([hidden]),
-          .secretary-minutes-page .space-y-1 > :not([hidden]) ~ :not([hidden]),
-          .secretary-minutes-page .space-y-0\\.5 > :not([hidden]) ~ :not([hidden]) {
-            margin-top: 1px !important;
-            margin-bottom: 0 !important;
+          .secretary-minutes-page ul li + li {
+            margin-top: 0.8px !important;
           }
           .secretary-minutes-page img {
-            max-height: 44px !important;
-            max-width: 44px !important;
+            max-height: 48px !important;
+            max-width: 48px !important;
           }
           .secretary-minutes-page h1 {
-            font-size: 10.5pt !important;
+            font-size: 9.5pt !important;
+            line-height: 1.15 !important;
           }
           .secretary-minutes-page h2 {
-            font-size: 11pt !important;
+            font-size: 10pt !important;
+            line-height: 1.15 !important;
           }
           .secretary-minutes-page textarea,
           .secretary-minutes-page input {
@@ -1357,6 +1603,26 @@ export default function SecretaryMinutesDocumentSheet({
             display: none !important;
             width: 0 !important;
             height: 0 !important;
+          }
+          #root .secretary-sheet-paper-container button.print-preserve,
+          body:has(.secretary-sheet-paper-container) button.print-preserve,
+          .secretary-minutes-page button.print-preserve,
+          .print-preserve {
+            display: inline-flex !important;
+          }
+          .secretary-minutes-page .final-signoff-section {
+            margin-top: 3mm !important;
+            flex: 1 1 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-start !important;
+            padding-top: 1.5mm !important;
+          }
+          .secretary-minutes-page .final-signoff-section > * + * {
+            margin-top: 1.5mm !important;
+          }
+          .secretary-minutes-page .final-signoff-section .signature-block-container {
+            margin-top: auto !important;
           }
         }
       `}</style>
@@ -1426,6 +1692,25 @@ export default function SecretaryMinutesDocumentSheet({
           >
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             Autofill from Project
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setMinutes((prev) => ({
+                ...prev,
+                pages: autoAllocateContinuationSheets(prev.pages),
+              }));
+              toast.success('Remarks distributed across balanced sheets.');
+            }}
+            className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
+            title="Automatically balance comments and continuation sheets across pages"
+            data-testid="auto-distribute-btn"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            Balance Pages
           </Button>
 
           <Button
@@ -1555,11 +1840,16 @@ export default function SecretaryMinutesDocumentSheet({
           return (
             <React.Fragment key={pageIdx}>
               <div
-                className="secretary-minutes-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs"
+                className={cn(
+                  'secretary-minutes-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs',
+                  isLastPage && 'is-last-page',
+                )}
                 data-testid={`secretary-minutes-page-${pageNumber}`}
+                data-page={isFirstPage ? '1' : isLastPage ? 'final' : 'continuation'}
+                data-last-page={isLastPage ? 'true' : undefined}
               >
                 {/* Top Section */}
-                <div className="space-y-4">
+                <div className="page-content-wrapper space-y-3 sm:space-y-4 flex-1 flex flex-col">
                   {/* BukSU Header */}
                   <BuksuDocumentHeader />
 
@@ -1575,14 +1865,16 @@ export default function SecretaryMinutesDocumentSheet({
                       <h2 className="text-base sm:text-lg font-bold uppercase tracking-wider text-black">
                         SECRETARY’S MINUTES (CONTINUATION)
                       </h2>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePage(pageIdx)}
-                        className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print font-medium"
-                        title="Remove this continuation page"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Remove Page {pageNumber}
-                      </button>
+                      {!isLastPage && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePage(pageIdx)}
+                          className="text-xs text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 font-sans no-print font-medium"
+                          title="Remove this continuation page"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remove Page {pageNumber}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -1620,7 +1912,7 @@ export default function SecretaryMinutesDocumentSheet({
                         </div>
                         <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
                           {minutes.proponents.length === 0 ? (
-                            <div className="italic text-neutral-600 text-xs py-1">
+                            <div className="italic text-neutral-600 text-xs py-1 no-print">
                               No proponents listed. Click &quot;Autofill from Project&quot; or
                               &quot;+ Add Proponent&quot;.
                             </div>
@@ -1662,22 +1954,31 @@ export default function SecretaryMinutesDocumentSheet({
                         ].map((dt) => {
                           const isChecked = minutes.defenseType === dt.value;
                           return (
-                            <button
-                              key={dt.value}
-                              type="button"
-                              onClick={() => {
-                                handleFieldChange('defenseType', dt.value);
-                                handleFieldChange('defenseTypeLabel', dt.label);
-                              }}
-                              className="inline-flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
-                            >
-                              <span className="font-bold text-black">
-                                {isChecked ? '(✓)' : '( )'}
+                            <React.Fragment key={dt.value}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleFieldChange('defenseType', dt.value);
+                                  handleFieldChange('defenseTypeLabel', dt.label);
+                                }}
+                                className="inline-flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity print:hidden"
+                              >
+                                <span className="font-bold text-black">
+                                  {isChecked ? '(✓)' : '( )'}
+                                </span>
+                                <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                  {dt.label}
+                                </span>
+                              </button>
+                              <span className="hidden print:inline-flex items-center gap-1.5 text-xs sm:text-sm text-black">
+                                <span className="font-bold text-black">
+                                  {isChecked ? '(✓)' : '( )'}
+                                </span>
+                                <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                  {dt.label}
+                                </span>
                               </span>
-                              <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
-                                {dt.label}
-                              </span>
-                            </button>
+                            </React.Fragment>
                           );
                         })}
                       </div>
@@ -1688,20 +1989,31 @@ export default function SecretaryMinutesDocumentSheet({
                         {['1st', '2nd', '3rd'].map((r) => {
                           const isChecked = minutes.round === r;
                           return (
-                            <button
-                              key={r}
-                              type="button"
-                              onClick={() => handleFieldChange('round', r)}
-                              className="inline-flex items-center gap-1 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity"
-                            >
-                              <span className="font-bold text-black">
-                                {isChecked ? '(✓)' : '( )'}
+                            <React.Fragment key={r}>
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => handleFieldChange('round', r)}
+                                className="inline-flex items-center gap-1 cursor-pointer text-xs sm:text-sm hover:opacity-80 transition-opacity print:hidden"
+                              >
+                                <span className="font-bold text-black">
+                                  {isChecked ? '(✓)' : '( )'}
+                                </span>
+                                <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                  {r.slice(0, 1)}
+                                  <sup>{r.slice(1)}</sup>
+                                </span>
+                              </button>
+                              <span className="hidden print:inline-flex items-center gap-1 text-xs sm:text-sm text-black">
+                                <span className="font-bold text-black">
+                                  {isChecked ? '(✓)' : '( )'}
+                                </span>
+                                <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
+                                  {r.slice(0, 1)}
+                                  <sup>{r.slice(1)}</sup>
+                                </span>
                               </span>
-                              <span className={isChecked ? 'font-bold text-black' : 'text-black'}>
-                                {r.slice(0, 1)}
-                                <sup>{r.slice(1)}</sup>
-                              </span>
-                            </button>
+                            </React.Fragment>
                           );
                         })}
                       </div>
@@ -1768,7 +2080,7 @@ export default function SecretaryMinutesDocumentSheet({
                         </div>
                         <div className="pl-6 sm:pl-10 space-y-0.5 font-normal">
                           {minutes.panelMembers.length === 0 ? (
-                            <div className="italic text-neutral-600 text-xs py-1">
+                            <div className="italic text-neutral-600 text-xs py-1 no-print">
                               No panel members listed. Click &quot;Autofill from Project&quot; or
                               &quot;+ Add Member&quot;.
                             </div>
@@ -1827,8 +2139,22 @@ export default function SecretaryMinutesDocumentSheet({
                   )}
 
                   {/* Table: Name of Panel | COMMENTS/SUGGESTIONS */}
-                  <div className="pt-2">
-                    <table className="w-full border-collapse border border-black text-xs sm:text-sm">
+                  <div
+                    className={cn(
+                      'minutes-table-wrapper pt-2',
+                      isFirstPage && 'min-h-[220px]',
+                      !isFirstPage && !isLastPage && 'min-h-[460px]',
+                      isLastPage && 'min-h-[160px]',
+                    )}
+                  >
+                    <table
+                      className={cn(
+                        'w-full border-collapse border border-black text-xs sm:text-sm',
+                        isFirstPage && 'min-h-[200px]',
+                        !isFirstPage && !isLastPage && 'min-h-[440px]',
+                        isLastPage && 'min-h-[140px]',
+                      )}
+                    >
                       <thead>
                         <tr className="border-b border-black">
                           <th className="w-[32%] py-2 px-3 text-center font-bold text-black border-r border-black uppercase text-xs sm:text-sm">
@@ -1935,7 +2261,7 @@ export default function SecretaryMinutesDocumentSheet({
                                       </li>
                                     ))
                                   ) : (
-                                    <li className="italic text-neutral-500 text-xs list-none">
+                                    <li className="italic text-neutral-500 text-xs list-none no-print">
                                       No comments yet. Click &quot;+ Add Suggestion&quot;.
                                     </li>
                                   )}
@@ -1953,7 +2279,7 @@ export default function SecretaryMinutesDocumentSheet({
                             </tr>
                           ))
                         ) : (
-                          <tr>
+                          <tr className="no-print">
                             <td
                               colSpan={2}
                               className="p-6 text-center text-neutral-600 italic text-xs"
@@ -1983,52 +2309,49 @@ export default function SecretaryMinutesDocumentSheet({
 
                   {/* Last Page Section: Recommendations, Verdict, and Digital Signature */}
                   {isLastPage && (
-                    <>
-                      <div className="space-y-4 pt-3 text-xs sm:text-sm text-black">
-                        {/* Overall Recommendations */}
-                        <div className="space-y-1">
-                          <span className="font-bold text-black block">
-                            Overall Recommendations:
-                          </span>
-                          <AutoResizeTextarea
-                            value={minutes.overallRecommendations}
-                            onChange={(e) =>
-                              handleFieldChange('overallRecommendations', e.target.value)
-                            }
-                            placeholder="Unfinished prototype with missing functions and modules. Recommended to redefend."
-                            rows={2}
-                            data-testid="minutes-overall-recommendations"
-                          />
-                        </div>
+                    <div className="final-signoff-section space-y-3 sm:space-y-4 pt-3 text-xs sm:text-sm text-black shrink-0">
+                      {/* Overall Recommendations */}
+                      <div className="space-y-1">
+                        <span className="font-bold text-black block">Overall Recommendations:</span>
+                        <AutoResizeTextarea
+                          value={minutes.overallRecommendations}
+                          onChange={(e) =>
+                            handleFieldChange('overallRecommendations', e.target.value)
+                          }
+                          placeholder="Unfinished prototype with missing functions and modules. Recommended to redefend."
+                          rows={2}
+                          data-testid="minutes-overall-recommendations"
+                        />
+                      </div>
 
-                        {/* Panel Verdict */}
-                        <div className="space-y-1 pt-1">
-                          <span className="font-bold text-black block">Panel Verdict:</span>
-                          <div className="space-y-1 pl-1">
-                            {[
-                              {
-                                value: 'approved_with_minor_revisions',
-                                label: 'Approved with Minor Revision',
-                              },
-                              {
-                                value: 'approved_with_major_revisions',
-                                label: 'Approved with Major Revision',
-                              },
-                              { value: 'rejected', label: 'Rejected' },
-                            ].map((v) => {
-                              const isChecked = minutes.panelVerdict === v.value;
-                              return (
+                      {/* Panel Verdict */}
+                      <div className="space-y-1 pt-1">
+                        <span className="font-bold text-black block">Panel Verdict:</span>
+                        <div className="space-y-1 pl-1">
+                          {[
+                            {
+                              value: 'approved_with_minor_revisions',
+                              label: 'Approved with Minor Revision',
+                            },
+                            {
+                              value: 'approved_with_major_revisions',
+                              label: 'Approved with Major Revision',
+                            },
+                            { value: 'rejected', label: 'Rejected' },
+                          ].map((v) => {
+                            const isChecked = minutes.panelVerdict === v.value;
+                            return (
+                              <React.Fragment key={v.value}>
                                 <button
-                                  key={v.value}
                                   type="button"
                                   onClick={() => {
                                     handleFieldChange('panelVerdict', v.value);
                                     handleFieldChange('verdictLabel', v.label);
                                   }}
-                                  className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm hover:opacity-85 text-left py-0.5"
+                                  className="flex items-center gap-2 cursor-pointer text-xs sm:text-sm hover:opacity-85 text-left py-0.5 print:hidden"
                                 >
                                   <span className="font-bold text-black w-6">
-                                    {isChecked ? '(√ )' : '( )'}
+                                    {isChecked ? '(✓)' : '( )'}
                                   </span>
                                   <span
                                     className={isChecked ? 'font-bold text-black' : 'text-black'}
@@ -2036,17 +2359,27 @@ export default function SecretaryMinutesDocumentSheet({
                                     {v.label}
                                   </span>
                                 </button>
-                              );
-                            })}
-                          </div>
+                                <div className="hidden print:flex items-center gap-2 text-xs sm:text-sm text-left py-0.5 text-black">
+                                  <span className="font-bold text-black w-6">
+                                    {isChecked ? '(✓)' : '( )'}
+                                  </span>
+                                  <span
+                                    className={isChecked ? 'font-bold text-black' : 'text-black'}
+                                  >
+                                    {v.label}
+                                  </span>
+                                </div>
+                              </React.Fragment>
+                            );
+                          })}
                         </div>
                       </div>
 
                       {/* Secretary Digital Signature Block (Bottom Right) */}
-                      <div className="pt-6 pb-2 flex justify-end">
+                      <div className="signature-block-container pt-4 sm:pt-6 pb-2 flex justify-end">
                         <div className="w-80 flex flex-col items-center justify-end text-center space-y-1">
                           {/* 1. TOP: Digital Signature Image or Sign Button */}
-                          <div className="h-16 flex flex-col items-center justify-center w-full">
+                          <div className="h-14 sm:h-16 flex flex-col items-center justify-center w-full">
                             {isSigned ? (
                               <div className="flex flex-col items-center justify-center space-y-0.5">
                                 {signatureData?.signatureDataUrl ? (
@@ -2140,7 +2473,7 @@ export default function SecretaryMinutesDocumentSheet({
                           </div>
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
 
@@ -2355,17 +2688,17 @@ SecretaryMinutesDocumentSheet.propTypes = {
  */
 function BuksuDocumentHeader() {
   return (
-    <div className="relative pb-2 text-center">
+    <div className="buksu-header relative pb-2 text-center min-h-[76px] flex flex-col justify-center">
       {/* BukSU Official Seal on Left */}
-      <div className="absolute left-0 top-0">
+      <div className="absolute left-0 top-0 flex items-center justify-center">
         <img
           src={buksuLogo}
           alt="BukSU Official Seal"
-          className="h-16 w-16 sm:h-20 sm:w-20 object-contain"
+          className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-none"
         />
       </div>
 
-      <div className="space-y-0.5 sm:px-24">
+      <div className="space-y-0.5 px-20 sm:px-24">
         <h1 className="font-bold text-sm sm:text-base tracking-wide text-black uppercase">
           Bukidnon State University
         </h1>

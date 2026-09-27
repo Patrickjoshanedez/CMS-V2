@@ -522,7 +522,9 @@ function SidebarNavGroup({ item, activePath, collapsed }) {
 export function Sidebar({ open = true, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
+  const logout = useAuthStore((s) => s?.logout) ?? authState?.logout;
 
   const collapsed = !open;
   const isStudent = user?.role === ROLES.STUDENT;

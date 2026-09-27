@@ -316,8 +316,24 @@ describe('Projects API — /api/projects', () => {
       expect(res.body.data.project.titleStatus).toBe('submitted');
     });
 
+    it('should reject title approval when defense hearing is not scheduled', async () => {
+      await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
+
+      const res = await instructorAgent.post(`/api/projects/${projectId}/title/approve`).send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body?.error?.code).toBe('DEFENSE_SCHEDULE_REQUIRED');
+    });
+
     it('should allow instructor to approve a submitted title', async () => {
       await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
+
+      await instructorAgent.post(`/api/projects/${projectId}/defense-schedule`).send({
+        date: new Date('2026-10-15'),
+        time: '09:00 AM - 10:00 AM',
+        venue: 'COT Conference Room',
+        status: 'scheduled',
+      });
 
       const res = await instructorAgent.post(`/api/projects/${projectId}/title/approve`).send({});
 
@@ -376,6 +392,12 @@ describe('Projects API — /api/projects', () => {
       projectId = createRes.body.data.project._id;
 
       await studentAgent.post(`/api/projects/${projectId}/title/submit`).send({});
+      await instructorAgent.post(`/api/projects/${projectId}/defense-schedule`).send({
+        date: new Date('2026-10-15'),
+        time: '09:00 AM - 10:00 AM',
+        venue: 'COT Conference Room',
+        status: 'scheduled',
+      });
       await instructorAgent.post(`/api/projects/${projectId}/title/approve`).send({});
     });
 
@@ -443,7 +465,8 @@ describe('Projects API — /api/projects', () => {
         .send({ adviserId: adviserUser._id.toString() });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.project.adviserId).toBe(adviserUser._id.toString());
+      const adviserId = res.body.data.project.adviserId?._id || res.body.data.project.adviserId;
+      expect(adviserId.toString()).toBe(adviserUser._id.toString());
     });
 
     it('should allow instructor to assign a panelist', async () => {
@@ -452,7 +475,10 @@ describe('Projects API — /api/projects', () => {
         .send({ panelistId: panelistUser._id.toString() });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.project.panelistIds).toContain(panelistUser._id.toString());
+      const panelistIds = (res.body.data.project.panelistIds || []).map((p) =>
+        (p?._id || p).toString(),
+      );
+      expect(panelistIds).toContain(panelistUser._id.toString());
     });
 
     it('should reject assigning more than 3 panelists', async () => {
@@ -496,7 +522,10 @@ describe('Projects API — /api/projects', () => {
         .send({ panelistId: panelistUser._id.toString() });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.project.panelistIds).not.toContain(panelistUser._id.toString());
+      const panelistIdsAfterRemoval = (res.body.data.project.panelistIds || []).map((p) =>
+        (p?._id || p).toString(),
+      );
+      expect(panelistIdsAfterRemoval).not.toContain(panelistUser._id.toString());
 
       const removalNotification = await Notification.findOne({
         userId: panelistUser._id,
@@ -520,7 +549,10 @@ describe('Projects API — /api/projects', () => {
       const res = await panelistAgent.post(`/api/projects/${projectId}/panelists/select`);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.project.panelistIds).toContain(panelistUser._id.toString());
+      const panelistIds = (res.body.data.project.panelistIds || []).map((p) =>
+        (p?._id || p).toString(),
+      );
+      expect(panelistIds).toContain(panelistUser._id.toString());
     });
   });
 

@@ -105,31 +105,34 @@ export default function DynamicChartWidget({
   return (
     <Card
       data-testid={`chart-widget-${title.toLowerCase().replace(/\s+/g, '-')}`}
-      className={`border border-border/80 bg-card shadow-xs transition-all flex flex-col ${
+      className={`chart-card dynamic-chart-widget-card break-inside-avoid border border-border/80 bg-card shadow-xs transition-all flex flex-col print:bg-white print:border-slate-300 print:shadow-none ${
         isFullscreen ? 'fixed inset-4 z-50 shadow-2xl bg-card' : ''
       }`}
     >
-      <CardHeader className="p-4 pb-3 border-b border-border/60 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <CardHeader className="p-4 pb-3 border-b border-border/60 bg-muted/15 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:bg-white print:border-slate-200 print:p-2.5">
         <div>
           <div className="flex items-center gap-2">
-            <CardTitle className="text-sm font-bold text-foreground tracking-tight">
+            <CardTitle className="text-sm font-bold text-foreground tracking-tight print:text-[#111827]">
               {title}
             </CardTitle>
             {safeData.length > 0 && (
-              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 bg-background">
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono py-0 px-1.5 bg-background print:bg-slate-100 print:text-[#111827] print:border-slate-300"
+              >
                 {safeData.length} records
               </Badge>
             )}
           </div>
           {subtitle && (
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+            <CardDescription className="text-xs text-muted-foreground mt-0.5 print:text-slate-600">
               {subtitle}
             </CardDescription>
           )}
         </div>
 
-        {/* View Mode Switcher Toolbar */}
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+        {/* View Mode Switcher Toolbar (Hidden on physical print) */}
+        <div className="flex items-center gap-1.5 self-end sm:self-auto print:hidden">
           <div className="flex items-center p-0.5 bg-background border border-border/70 rounded-lg shadow-2xs">
             {availableViews.map((view) => {
               const Icon = viewIcons[view] || BarChart3;
@@ -189,7 +192,10 @@ export default function DynamicChartWidget({
             </p>
           </div>
         ) : (
-          <div style={{ height: isFullscreen ? 'calc(100vh - 160px)' : `${height}px` }}>
+          <div
+            className="chart-container print:h-[7.5cm] print:min-h-[7.5cm] print:max-h-[7.5cm] print:w-full"
+            style={{ height: isFullscreen ? 'calc(100vh - 160px)' : `${height}px` }}
+          >
             {/* 1. Bar Chart View */}
             {currentView === 'bar' && (
               <ResponsiveContainer width="100%" height="100%">

@@ -962,7 +962,7 @@ export const createActionDoneMatrixItem = catchAsync(async (req, res) => {
 
   const newItem = {
     panelName: panelName || 'Panel Member',
-    suggestion: suggestion || '',
+    suggestion: suggestion?.trim() ? suggestion.trim() : 'New recommendation',
     expectedAction: expectedAction || '',
     actionDone: actionDone || '',
     pageNumbers: pageNumbers || '',

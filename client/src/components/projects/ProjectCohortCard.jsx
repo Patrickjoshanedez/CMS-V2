@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { PROJECT_STATUSES, TITLE_STATUSES } from '@cms/shared';
 import { cn } from '@/lib/utils';
+import { usePrefetchProject } from '@/hooks/useProjects';
 
 /**
  * Resolves the institutional phase badge metadata.
@@ -73,6 +74,8 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
   highlightedRef = null,
   onNavigate,
 }) {
+  const prefetchProject = usePrefetchProject();
+
   if (!project) return null;
 
   const isArchived =
@@ -153,6 +156,7 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
     <Card
       ref={isHighlighted ? highlightedRef : undefined}
       onClick={handleCardClick}
+      onMouseEnter={() => prefetchProject(project._id)}
       className={cn(
         'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 cursor-pointer',
         isActionNeeded && 'border-l-4 border-l-amber-500 dark:border-l-amber-400',

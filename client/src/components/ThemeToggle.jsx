@@ -5,7 +5,9 @@ import { useThemeStore } from '@/stores/themeStore';
  * ThemeToggle — High-contrast Theme toggle button for Light/Dark mode.
  */
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useThemeStore();
+  const themeState = useThemeStore((s) => s?.theme);
+  const theme = typeof themeState === 'string' ? themeState : (themeState?.theme ?? 'light');
+  const toggleTheme = useThemeStore((s) => s?.toggleTheme) ?? themeState?.toggleTheme ?? (() => {});
 
   return (
     <button

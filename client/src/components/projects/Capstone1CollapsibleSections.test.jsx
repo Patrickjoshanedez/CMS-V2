@@ -10,6 +10,15 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+const mockToastError = vi.fn();
+const mockToastSuccess = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args) => mockToastError(...args),
+    success: (...args) => mockToastSuccess(...args),
+  },
+}));
+
 vi.mock('@/hooks/useSubmissions', () => ({
   useProjectSubmissions: () => ({
     data: [
@@ -258,5 +267,45 @@ describe('Capstone1CollapsibleSections Component Suite', () => {
     });
 
     expect(container.textContent).toContain('Rehearse Pitch Deck');
+  });
+
+  it('blocks approval and notifies error toast if defense hearing is not scheduled', async () => {
+    const unscheduledProject = {
+      ...mockProject,
+      titleStatus: 'pending',
+      defenseSchedule: null,
+    };
+
+    await renderComponent({
+      project: unscheduledProject,
+      isStudent: false,
+      user: { _id: 'inst-1', role: 'instructor' },
+    });
+
+    const proposalBtn = container.querySelector('[data-testid="toggle-proposal-stage"]');
+    await act(async () => {
+      proposalBtn.click();
+    });
+
+    const approveBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Approve Proposal as Official Title'),
+    );
+    expect(approveBtn).toBeTruthy();
+    await act(async () => {
+      approveBtn.click();
+    });
+
+    const submitBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Submit Official Decision'),
+    );
+    expect(submitBtn).toBeTruthy();
+
+    await act(async () => {
+      submitBtn.click();
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      'The proponent team must have a scheduled defense hearing before their title proposal can be approved. Please schedule the team in the Scheduling Center.',
+    );
   });
 });

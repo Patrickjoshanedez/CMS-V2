@@ -1,0 +1,61 @@
+{
+  "sessionId": "2026-09-26_empirical-architectural-audit-and-load-simulation",
+  "timestamp": "2026-09-26T13:56:30+08:00",
+  "task": "Empirical Architectural Audit & Traffic Simulation Harness for BukSU CMS-V2",
+  "status": "completed",
+  "scope": [
+    "Scenario 1: Morning Defense Burst (Auth & Real-Time Scoring)",
+    "Scenario 2: Milestone Rush (Multipart Ingestion & Queuing)",
+    "Scenario 3: Archival Blitz (Dual-Pipeline Plagiarism Engine)",
+    "Browser-Level Playwright Telemetry"
+  ],
+  "telemetrySummary": {
+    "auth": {
+      "vus": 500,
+      "durationSec": 180,
+      "bcryptExecutionTimeMs": 554,
+      "libuvDefaultThreads": 4,
+      "httpReqDurationP95Ms": 15000,
+      "httpReqFailureRate": 0.6801,
+      "rateLimitCutoff": 100
+    },
+    "webSockets": {
+      "activeRooms": 25,
+      "handshakeLatencyP95Ms": 1382.14,
+      "roundTripLatencyAvgMs": 2.67,
+      "roomJoinMissingListener": "join:project"
+    },
+    "ingestion": {
+      "tenMbDurationMs": 531,
+      "twentyFiveMbDurationMs": 813,
+      "fiftyMbDurationMs": 1902,
+      "fiftyVUsBatchP95Ms": 22698,
+      "storageMechanism": "multer.memoryStorage()",
+      "v8HeapRiskThresholdVUs": 35
+    },
+    "plagiarism": {
+      "model": "BAAI/bge-m3",
+      "coldStartSec": 151.34,
+      "warmInferenceSec": 29.49,
+      "concurrencyConstraint": "Python GIL + embeddings.py _model_lock"
+    },
+    "browser": {
+      "viewport": "1440x900",
+      "loginTTFBMs": 3904.7,
+      "loginDCLMs": 6654.3,
+      "loginFCPMs": 8236,
+      "authTransitionMs": 2663,
+      "workspaceDCLMs": 5804.8,
+      "domNodesLogin": 195,
+      "domNodesWorkspace": 39
+    }
+  },
+  "deliverables": [
+    "docs/architecture/EMPIRICAL_ARCHITECTURAL_AUDIT_REPORT.md",
+    "scratch/load_simulation_harness/k6_scenario1_report.json",
+    "scratch/load_simulation_harness/websocket_defense_report.json",
+    "scratch/load_simulation_harness/scenario2_results.json",
+    "scratch/load_simulation_harness/scenario3_results.json",
+    "scratch/load_simulation_harness/browser_metrics.json"
+  ]
+}

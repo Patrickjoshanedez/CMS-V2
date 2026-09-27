@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useProjectAuditTrail } from '@/hooks/useAuditLogs';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 import {
   Loader2,
   Search,
@@ -297,6 +298,13 @@ export default function ProjectAuditTrail({ projectId }) {
     return result;
   }, [logs, category, search]);
 
+  const [visibleCount, setVisibleCount] = useState(25);
+  const visibleLogs = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+
+  useEffect(() => {
+    setVisibleCount(25);
+  }, [category, search]);
+
   return (
     <div className="space-y-4">
       {/* ── Header + controls ── */}
@@ -375,7 +383,7 @@ export default function ProjectAuditTrail({ projectId }) {
           <div className="absolute left-5 top-0 bottom-0 w-px bg-border" />
 
           <ul className="space-y-1">
-            {filtered.map((log) => {
+            {visibleLogs.map((log) => {
               const cfg = getConfig(log.action);
               const Icon = cfg.icon;
               const actor = log.actor;
@@ -440,6 +448,19 @@ export default function ProjectAuditTrail({ projectId }) {
               );
             })}
           </ul>
+
+          {filtered.length > visibleCount && (
+            <div className="pt-4 text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleCount((c) => c + 25)}
+                className="text-xs gap-1.5"
+              >
+                Load more events ({filtered.length - visibleCount} remaining)
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

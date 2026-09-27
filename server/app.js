@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -65,6 +66,19 @@ app.use(
       'Origin',
       'X-Requested-With',
     ],
+  }),
+);
+
+// Gzip / Brotli compression for all JSON / API payloads >= 1KB
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
   }),
 );
 

@@ -16,6 +16,7 @@
  * @module jobs/plagiarism.job
  */
 import { Worker } from 'bullmq';
+import CircuitBreaker from 'opossum';
 import { getRedisConnectionOpts, isRedisAvailable } from '../config/redis.js';
 import { QUEUE_NAMES } from './queue.js';
 import { extractText } from '../utils/extractText.js';
@@ -45,6 +46,47 @@ const MIN_CORPUS_TEXT_LENGTH = 50;
 const MAX_FINGERPRINT_CANDIDATES = Number(process.env.PLAGIARISM_FINGERPRINT_CANDIDATE_LIMIT || 80);
 const MIN_SHARED_FINGERPRINTS = Number(process.env.PLAGIARISM_MIN_SHARED_FINGERPRINTS || 2);
 const _MAX_FALLBACK_REINDEX_COUNT = Number(process.env.PLAGIARISM_FALLBACK_REINDEX_COUNT || 25);
+
+/**
+ * Call the Python FastAPI HybridSourceTracker microservice.
+ * Wrapped in an opossum circuit breaker to isolate the Node event loop and queue from microservice degradation.
+ */
+async function callHstMicroservice({ pythonEngineUrl, submissionId, text, chapter, projectId }) {
+  const hstRes = await fetch(`${pythonEngineUrl}/check-sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      document_id: String(submissionId),
+      text,
+      metadata: { chapter, projectId: String(projectId) },
+    }),
+  });
+
+  if (!hstRes.ok) {
+    throw new Error(`HST microservice HTTP ${hstRes.status}`);
+  }
+
+  return await hstRes.json();
+}
+
+export const hstCircuitBreaker = new CircuitBreaker(callHstMicroservice, {
+  timeout: Number(process.env.PLAGIARISM_ENGINE_TIMEOUT || 120000),
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000,
+  name: 'PlagiarismFastAPIBreaker',
+});
+
+hstCircuitBreaker.on('open', () => {
+  console.warn('[Plagiarism Worker] Circuit Breaker OPEN: FastAPI microservice tripped.');
+});
+hstCircuitBreaker.on('halfOpen', () => {
+  console.log(
+    '[Plagiarism Worker] Circuit Breaker HALF-OPEN: Testing FastAPI microservice recovery.',
+  );
+});
+hstCircuitBreaker.on('close', () => {
+  console.log('[Plagiarism Worker] Circuit Breaker CLOSED: FastAPI microservice operational.');
+});
 
 function toLegacyMatchedSources(textMatches = []) {
   if (!Array.isArray(textMatches)) return [];
@@ -452,7 +494,7 @@ async function processJob(job) {
 
   const targetSubmission = await Submission.findById(submissionId).select('submittedBy').lean();
   const studentId = targetSubmission?.submittedBy?.toString();
-  const emitProgress = (percent, stage) => {
+  const emitProgress = async (percent, stage) => {
     if (studentId) {
       try {
         emitToUser(studentId, 'plagiarism:progress', {
@@ -464,9 +506,16 @@ async function processJob(job) {
         // Non-blocking socket notification
       }
     }
+    if (job && typeof job.updateProgress === 'function') {
+      try {
+        await job.updateProgress(percent);
+      } catch {
+        // Non-blocking BullMQ progress update
+      }
+    }
   };
 
-  emitProgress(10, 'Downloading submission file...');
+  await emitProgress(10, 'Downloading submission file...');
 
   // Update status to processing
   await Submission.findByIdAndUpdate(submissionId, {
@@ -500,7 +549,7 @@ async function processJob(job) {
       storageKey,
       fileType,
     });
-    emitProgress(30, 'Extracting text and validating binary header...');
+    await emitProgress(30, 'Extracting text and validating binary header...');
     extractedText = await extractText(fileBuffer, effectiveFileType);
   }
 
@@ -559,6 +608,7 @@ async function processJob(job) {
       );
     }
 
+    await emitProgress(100, 'Originality check complete (short text)');
     console.log(`[Plagiarism Worker] Submission ${submissionId}: too little text, scored 100%.`);
     return { originalityScore: 100, matchedSources: [] };
   }
@@ -566,127 +616,120 @@ async function processJob(job) {
   // Store extracted text for future corpus building
   await Submission.findByIdAndUpdate(submissionId, { extractedText: normalizedExtractedText });
 
-  emitProgress(50, 'Executing HybridSourceTracker (BGE-M3 + Winnowing)...');
+  // Step 2.5: Lexical Pre-Filter Check
+  await emitProgress(45, 'Performing lexical pre-filter check...');
+
+  let lexicalResult = await calculatePlagiarism(normalizedExtractedText, submissionId);
+  let lexicalMatches = Array.isArray(lexicalResult?.textMatches) ? lexicalResult.textMatches : [];
+  let lexicalScore = Number.isFinite(lexicalResult?.overallScore)
+    ? Math.max(0, Math.min(100, Number(lexicalResult.overallScore)))
+    : 0;
+
+  // If inverted index had 0 matches, verify against corpus fallback to detect any unindexed legacy documents
+  if (lexicalScore === 0 && !job.data?.disableLegacyCorpusFallback) {
+    const fallbackCorpus = await _buildCorpus(projectId, submissionId);
+    if (fallbackCorpus.length > 0) {
+      const fallbackResult = compareAgainstCorpus(normalizedExtractedText, fallbackCorpus);
+      if (
+        Number.isFinite(fallbackResult?.similarityPercentage) &&
+        fallbackResult.similarityPercentage > lexicalScore
+      ) {
+        lexicalScore = Math.max(0, Math.min(100, Number(fallbackResult.similarityPercentage)));
+        lexicalMatches = fallbackMatchedSourcesToTextMatches(
+          fallbackResult.matchedSources,
+          normalizedExtractedText,
+        );
+        lexicalResult = {
+          ...lexicalResult,
+          overallScore: lexicalScore,
+          textMatches: lexicalMatches,
+          totalDocumentWords:
+            lexicalResult?.totalDocumentWords ||
+            normalizedExtractedText.split(/\s+/).filter(Boolean).length,
+          matchedWords: lexicalResult?.matchedWords || 0,
+        };
+      }
+    }
+  }
 
   let hstReport = null;
   let isFallback = false;
-  let result = null;
+  const result = lexicalResult;
   let effectiveTextMatches = [];
   let similarityPercentage = 0;
   let originalityScore = 100;
   let legacyMatchedSources = [];
 
-  // Step 3: Attempt Primary Microservice Delegation (Python HST Engine)
-  const pythonEngineUrl = (
-    process.env.PLAGIARISM_ENGINE_URL || 'http://plagiarism_api:8001'
-  ).replace(/\/+$/, '');
-  const hstTimeoutMs = Number(process.env.PLAGIARISM_ENGINE_TIMEOUT || 120000);
-  const hstController = new AbortController();
-  const hstTimeout = setTimeout(() => hstController.abort(), hstTimeoutMs);
+  // If lexical overlap across entire candidate corpus is strictly less than 5%,
+  // short-circuit immediately to bypass heavy neural vector inference.
+  const bypassNeuralPipeline = lexicalScore < 5 && !job.data?.forceNeuralScan;
 
-  try {
-    const hstRes = await fetch(`${pythonEngineUrl}/check-sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        document_id: String(submissionId),
+  if (bypassNeuralPipeline) {
+    console.log(
+      `[Plagiarism Worker] Lexical pre-filter cleared for submission ${submissionId} (overlap: ${lexicalScore}% < 5%). Bypassing neural pipeline.`,
+    );
+    similarityPercentage = lexicalScore;
+    originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
+    effectiveTextMatches = lexicalMatches;
+    legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
+  } else {
+    // Step 3: Attempt Primary Microservice Delegation via Circuit Breaker (Python HST Engine)
+    await emitProgress(65, 'Executing HybridSourceTracker (BGE-M3 + Winnowing)...');
+
+    const pythonEngineUrl = (
+      process.env.PLAGIARISM_ENGINE_URL || 'http://plagiarism_api:8001'
+    ).replace(/\/+$/, '');
+
+    try {
+      hstReport = await hstCircuitBreaker.fire({
+        pythonEngineUrl,
+        submissionId,
         text: normalizedExtractedText,
-        metadata: { chapter, projectId: String(projectId) },
-      }),
-      signal: hstController.signal,
-    });
-
-    if (hstRes.ok) {
-      hstReport = await hstRes.json();
+        chapter,
+        projectId,
+      });
       console.log(
         `[Plagiarism Worker] Received successful HST report for ${submissionId}: S_comp=${hstReport.composite_score}`,
       );
-    } else {
-      throw new Error(`HST microservice HTTP ${hstRes.status}`);
+    } catch (err) {
+      console.warn(
+        `[Plagiarism Worker] Primary HST microservice unavailable via CircuitBreaker (${err.message}). Engaging Node.js in-process fallback.`,
+      );
+      isFallback = true;
     }
-  } catch (err) {
-    console.warn(
-      `[Plagiarism Worker] Primary HST microservice unavailable (${err.message}). Engaging Node.js in-process fallback.`,
-    );
-    isFallback = true;
-  } finally {
-    clearTimeout(hstTimeout);
-  }
 
-  if (hstReport) {
-    // Map HST response
-    const compScore = Number.isFinite(hstReport.composite_score)
-      ? hstReport.composite_score
-      : Number(hstReport.plagiarism_score || 0) / 100;
-    similarityPercentage = Math.max(0, Math.min(100, Math.round(compScore * 100)));
-    originalityScore = Number.isFinite(hstReport.originality_score)
-      ? Math.max(0, Math.min(100, Number(hstReport.originality_score)))
-      : Math.max(0, Math.min(100, 100 - similarityPercentage));
+    if (hstReport) {
+      // Map HST response
+      const compScore = Number.isFinite(hstReport.composite_score)
+        ? hstReport.composite_score
+        : Number(hstReport.plagiarism_score || 0) / 100;
+      similarityPercentage = Math.max(0, Math.min(100, Math.round(compScore * 100)));
+      originalityScore = Number.isFinite(hstReport.originality_score)
+        ? Math.max(0, Math.min(100, Number(hstReport.originality_score)))
+        : Math.max(0, Math.min(100, 100 - similarityPercentage));
 
-    effectiveTextMatches = (hstReport.matches || []).map((m, idx) => ({
-      sourceId: m?.source_metadata?.document_id || `src-${idx}`,
-      sourceTitle: m?.source_metadata?.title || 'Archived Submission',
-      similarityPercentage: Math.round(Number(m?.similarity_score || 0) * 100),
-      colorCode: idx % 2 === 0 ? '#ef4444' : '#f97316',
-      matchedBlocks: [
-        {
-          studentStart: Number(m.start_index),
-          studentEnd: Number(m.end_index),
-          sourceStart: null,
-          sourceEnd: null,
-          matchedText: String(m.match_text || ''),
-        },
-      ],
-    }));
-    legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
-  } else {
-    // Step 3B: Deterministic database-backed Node.js plagiarism check fallback
-    result = await calculatePlagiarism(normalizedExtractedText, submissionId);
-    effectiveTextMatches = Array.isArray(result?.textMatches) ? result.textMatches : [];
-    similarityPercentage = Number.isFinite(result?.overallScore)
-      ? Math.max(0, Math.min(100, Number(result.overallScore)))
-      : 0;
-    originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
-    legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
-
-    const shouldUseCorpusFallback =
-      (effectiveTextMatches.length === 0 || similarityPercentage === 0) &&
-      !job.data?.disableLegacyCorpusFallback;
-
-    if (shouldUseCorpusFallback) {
-      const fallbackCorpus = await _buildCorpus(projectId, submissionId);
-      const fallbackResult = compareAgainstCorpus(normalizedExtractedText, fallbackCorpus);
-
-      if (
-        Number.isFinite(fallbackResult?.similarityPercentage) &&
-        fallbackResult.similarityPercentage > similarityPercentage &&
-        Array.isArray(fallbackResult?.matchedSources) &&
-        fallbackResult.matchedSources.length > 0
-      ) {
-        similarityPercentage = Math.max(
-          0,
-          Math.min(100, Number(fallbackResult.similarityPercentage)),
-        );
-        originalityScore = Number.isFinite(fallbackResult?.originalityScore)
-          ? Math.max(0, Math.min(100, Number(fallbackResult.originalityScore)))
-          : Math.max(0, Math.min(100, 100 - similarityPercentage));
-
-        legacyMatchedSources = fallbackResult.matchedSources;
-        effectiveTextMatches = fallbackMatchedSourcesToTextMatches(
-          fallbackResult.matchedSources,
-          normalizedExtractedText,
-        );
-
-        result = {
-          ...result,
-          overallScore: similarityPercentage,
-          textMatches: effectiveTextMatches,
-          totalDocumentWords:
-            result?.totalDocumentWords ||
-            normalizedExtractedText.split(/\s+/).filter(Boolean).length,
-          matchedWords: result?.matchedWords || 0,
-        };
-      }
+      effectiveTextMatches = (hstReport.matches || []).map((m, idx) => ({
+        sourceId: m?.source_metadata?.document_id || `src-${idx}`,
+        sourceTitle: m?.source_metadata?.title || 'Archived Submission',
+        similarityPercentage: Math.round(Number(m?.similarity_score || 0) * 100),
+        colorCode: idx % 2 === 0 ? '#ef4444' : '#f97316',
+        matchedBlocks: [
+          {
+            studentStart: Number(m.start_index),
+            studentEnd: Number(m.end_index),
+            sourceStart: null,
+            sourceEnd: null,
+            matchedText: String(m.match_text || ''),
+          },
+        ],
+      }));
+      legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
+    } else {
+      // In-process fallback: use the lexical result already computed!
+      effectiveTextMatches = lexicalMatches;
+      similarityPercentage = lexicalScore;
+      originalityScore = Math.max(0, Math.min(100, 100 - similarityPercentage));
+      legacyMatchedSources = toLegacyMatchedSources(effectiveTextMatches);
     }
   }
 
@@ -722,8 +765,12 @@ async function processJob(job) {
     matchedWords: Number(result?.matchedWords || 0),
     textMatches: effectiveTextMatches,
     matches: normalizedMatches,
-    scanType: isFallback ? 'syntactic_fallback' : 'hybrid_source_tracker',
-    semanticPending: isFallback,
+    scanType: bypassNeuralPipeline
+      ? 'lexical_prefilter_cleared'
+      : isFallback
+        ? 'syntactic_fallback'
+        : 'hybrid_source_tracker',
+    semanticPending: isFallback && !bypassNeuralPipeline,
     hstMetrics: hstReport
       ? {
           composite_score: hstReport.composite_score,
@@ -769,7 +816,7 @@ async function processJob(job) {
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
-  emitProgress(100, 'Plagiarism scan complete');
+  await emitProgress(100, 'Plagiarism scan complete');
 
   // Step 5: Index final/approved submissions into inverted-index corpus.
   const shouldIndexSubmission =
@@ -882,6 +929,7 @@ export function startPlagiarismWorker() {
   plagiarismWorker = new Worker(QUEUE_NAMES.PLAGIARISM, processJob, {
     connection: getRedisConnectionOpts(),
     concurrency: 2, // Process up to 2 jobs simultaneously
+    lockDuration: 300000, // 5 minutes lock duration for deep neural scans
     limiter: {
       max: 10, // Max 10 jobs
       duration: 60000, // Per 60 seconds (rate limiting)

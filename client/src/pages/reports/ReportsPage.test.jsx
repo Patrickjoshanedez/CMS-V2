@@ -17,6 +17,7 @@ const queryClient = new QueryClient({
 
 const mockUseProjectReports = vi.fn();
 const mockUseAcademicYears = vi.fn();
+const mockUseSections = vi.fn();
 const mockExportCSV = vi.fn();
 
 vi.mock('@/stores/authStore', () => ({
@@ -31,6 +32,7 @@ vi.mock('@/hooks/useProjects', () => ({
 
 vi.mock('@/hooks/useAcademics', () => ({
   useAcademicYears: (...args) => mockUseAcademicYears(...args),
+  useSections: (...args) => mockUseSections(...args),
 }));
 
 vi.mock('@/utils/exportReportsToCSV', () => ({
@@ -65,7 +67,40 @@ describe('ReportsPage', () => {
       totalAuthorsStudents: 128,
       flaggedByPlagiarism: 3,
       yieldRate: 94,
+      yieldCompleted: 42,
+      yieldTotal: 45,
+      sampleDenominator: '42/45 Teams Completed',
+      totalEnrolledStudents: 128,
+      totalTeams: 45,
+      activeSectionsCount: 4,
     },
+    milestoneDistribution: [
+      {
+        milestone: 'Capstone 1 (Proposal)',
+        students: 45,
+        teams: 15,
+        phase: 'Title Defense & Proposals',
+      },
+      {
+        milestone: 'Capstone 2 (Development)',
+        students: 41,
+        teams: 14,
+        phase: 'Ch 1-3 Manuscript & Prototype',
+      },
+      {
+        milestone: 'Capstone 3 (Final Defense)',
+        students: 42,
+        teams: 14,
+        phase: 'Final Oral Defense & Archival',
+      },
+    ],
+    sectionAllocation: [
+      { section: 'BSIT-4A', enrolled: 32, assigned: 32, unassigned: 0, teams: 8, ratio: '4.0' },
+      { section: 'BSIT-4B', enrolled: 32, assigned: 32, unassigned: 0, teams: 8, ratio: '4.0' },
+      { section: 'BSIT-4C', enrolled: 32, assigned: 32, unassigned: 0, teams: 8, ratio: '4.0' },
+      { section: 'BSIT-4D', enrolled: 32, assigned: 32, unassigned: 0, teams: 8, ratio: '4.0' },
+    ],
+    auditWarnings: [],
     trend: [
       { year: '2023-2024', count: 18 },
       { year: '2024-2025', count: 26 },
@@ -127,6 +162,16 @@ describe('ReportsPage', () => {
       isLoading: false,
     });
 
+    mockUseSections.mockReturnValue({
+      data: [
+        { _id: 'sec-1', name: 'BSIT-4A', academicYear: '2025-2026' },
+        { _id: 'sec-2', name: 'BSIT-4B', academicYear: '2025-2026' },
+        { _id: 'sec-3', name: 'BSIT-4C', academicYear: '2025-2026' },
+        { _id: 'sec-4', name: 'BSIT-4D', academicYear: '2025-2026' },
+      ],
+      isLoading: false,
+    });
+
     mockUseProjectReports.mockReturnValue({
       data: mockReportData,
       isLoading: false,
@@ -149,7 +194,7 @@ describe('ReportsPage', () => {
       </QueryClientProvider>,
     );
 
-  it('renders executive header and automatically populates cohort KPI ribbon on mount without blank state', async () => {
+  it('renders executive header and automatically populates 4-card cohort KPI ribbon on mount without blank state', async () => {
     await act(async () => {
       renderComponent();
     });
@@ -157,24 +202,31 @@ describe('ReportsPage', () => {
     expect(container.textContent).toContain('Capstone Analytics & Reports');
     expect(container.textContent).toContain('Institutional Command');
 
-    // 5 KPI metrics from CohortKPIRibbon
+    // 4 KPI metrics from CohortKPIRibbon (Milestone card removed)
     expect(container.textContent).toContain('Enrolled Proponents');
     expect(container.textContent).toContain('128');
     expect(container.textContent).toContain('Capstone Teams');
-    expect(container.textContent).toContain('42');
+    expect(container.textContent).toContain('45');
     expect(container.textContent).toContain('Academic Sections');
     expect(container.textContent).toContain('ADM Yield Rate');
     expect(container.textContent).toContain('94%');
+    expect(container.textContent).toContain('42/45 Teams Completed');
+
+    // Asserts static milestone card was removed from the KPI ribbon
+    expect(container.textContent).not.toContain('Current Milestone');
 
     // Asserts blank chore state is NOT present
     expect(container.textContent).not.toContain('Ready to generate a report');
   });
 
-  it('renders all 4 visualization studios (Specialization, Workload, Trend, Plagiarism)', async () => {
+  it('renders all visualization studios including dynamic Milestone Progression and Allocation Ratio studios', async () => {
     await act(async () => {
       renderComponent();
     });
 
+    expect(container.textContent).toContain('Milestone Progression & Headcount Distribution');
+    expect(container.textContent).toContain('Team-to-Member Allocation Ratio');
+    expect(container.textContent).toContain('Assigned vs unassigned/orphan proponents');
     expect(container.textContent).toContain('IT Specialization & Domain Breakdown');
     expect(container.textContent).toContain('Faculty Workload Studio');
     expect(container.textContent).toContain('Annual Archival & Completion Velocity');
@@ -214,6 +266,81 @@ describe('ReportsPage', () => {
         generatedBy: 'Instructor User',
       }),
     );
+  });
+
+  it('triggers window.print when clicking Print button', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    const printBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent.trim() === 'Print' || b.textContent.includes('Print'),
+    );
+    expect(printBtn).toBeTruthy();
+
+    await act(async () => {
+      printBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
+  it('renders automated audit warning banners when roster mismatch or low cohort density is detected', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: {
+        ...mockReportData,
+        auditWarnings: [
+          {
+            id: 'roster-mismatch',
+            badge: 'Roster Checksum Discrepancy',
+            message: 'Section rosters sum (3) does not equal total enrolled proponents count (4).',
+          },
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.textContent).toContain('Roster Checksum Discrepancy');
+    expect(container.textContent).toContain(
+      'Section rosters sum (3) does not equal total enrolled proponents count (4).',
+    );
+  });
+
+  it('renders sample-size aware badge (Sample N=1) instead of Institutional High for small sample sizes', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: {
+        ...mockReportData,
+        summary: {
+          ...mockReportData.summary,
+          totalCapstonesArchived: 1,
+          totalAuthorsStudents: 4,
+          totalTeams: 1,
+          yieldRate: 100,
+          yieldCompleted: 1,
+          yieldTotal: 1,
+          sampleDenominator: '1/1 Teams Completed',
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    expect(container.textContent).toContain('1/1 Teams Completed');
+    expect(container.textContent).toContain('Sample N=1');
   });
 
   it('opens advanced query studio drawer when clicking Filters button', async () => {

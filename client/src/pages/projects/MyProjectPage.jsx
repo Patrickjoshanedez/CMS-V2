@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -26,20 +26,22 @@ import {
 import EmptyProjectState from '@/components/projects/EmptyProjectState';
 import RejectedProjectState from '@/components/projects/RejectedProjectState';
 import ProjectSidebarInfo from '@/components/projects/ProjectSidebarInfo';
-import ProjectDetailsModal from '@/components/projects/ProjectDetailsModal';
 import TitleFeedbackRemarksCard from '@/components/projects/TitleFeedbackRemarksCard';
 import TitleActionsSection from '@/components/projects/TitleWorkflowCards';
 import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 import WorkflowPhaseTracker from '@/components/projects/WorkflowPhaseTracker';
 import DeadlineWarning from '@/components/projects/DeadlineWarning';
-import EvaluationPanel from '@/components/projects/EvaluationPanel';
-import ProposalTab from '@/components/projects/ProposalTab';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
-import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
-import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
-import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
+
+// Lazy-loaded heavy components and modals
+const ProjectDetailsModal = lazy(() => import('@/components/projects/ProjectDetailsModal'));
+const EvaluationPanel = lazy(() => import('@/components/projects/EvaluationPanel'));
+const ProposalTab = lazy(() => import('@/components/projects/ProposalTab'));
+const ActionDoneMatrixTab = lazy(() => import('@/components/projects/ActionDoneMatrixTab'));
+const InteractiveGanttChart = lazy(() => import('@/components/projects/InteractiveGanttChart'));
+const ConsultationLogWidget = lazy(() => import('@/components/projects/ConsultationLogWidget'));
 
 // Hooks & constants
 import { useMyProject } from '@/hooks/useProjects';
@@ -67,7 +69,9 @@ const STUDENT_WORKFLOW_TABS = [
  */
 export default function MyProjectPage() {
   const navigate = useNavigate();
-  const { user, fetchUser } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
+  const fetchUser = useAuthStore((s) => s?.fetchUser) ?? authState?.fetchUser;
   const [searchParams, setSearchParams] = useSearchParams();
   const [isProjectDetailsOpen, setIsProjectDetailsOpen] = useState(false);
   const [selectedProposalIndex, setSelectedProposalIndex] = useState(0);
@@ -258,7 +262,7 @@ export default function MyProjectPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 no-print">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">My Capstone</h1>
             <p className="text-muted-foreground">
@@ -426,7 +430,11 @@ export default function MyProjectPage() {
           !isArchivedProject && (
             <div className="max-w-[1600px] mx-auto space-y-6 mt-2">
               {/* Status & Deadline Alerts */}
-              {project.deadlines && <DeadlineWarning deadlines={project.deadlines} compact />}
+              {project.deadlines && (
+                <div className="no-print">
+                  <DeadlineWarning deadlines={project.deadlines} compact />
+                </div>
+              )}
 
               {/* Unified Capstone Milestone Progression & Executive Cockpit */}
               <WorkflowPhaseTracker
@@ -437,12 +445,12 @@ export default function MyProjectPage() {
                 canManageCommittee={user?.role === ROLES.INSTRUCTOR}
                 canManageArchive={false}
                 onRefresh={() => refetch()}
-                className="mb-2"
+                className="mb-2 no-print"
               />
 
               {/* Tabbed workflow */}
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <div className="w-full mb-6 p-0.5">
+                <div className="w-full mb-6 p-0.5 no-print">
                   <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs">
                     {STUDENT_WORKFLOW_TABS.map((tab) => {
                       const isLocked = !unlockedTabs.includes(tab.value);
@@ -467,11 +475,13 @@ export default function MyProjectPage() {
                 <TabsContent value="proposal" className="mt-0 focus-visible:outline-none space-y-6">
                   <TitleActionsSection project={project} onSelectProposal={handleSelectProposal} />
                   <TitleFeedbackRemarksCard comments={project.titleProposalComments} />
-                  <ProposalTab
-                    project={project}
-                    selectedProposalIndex={selectedProposalIndex}
-                    onRefresh={() => refetch()}
-                  />
+                  <Suspense fallback={<PageSkeleton />}>
+                    <ProposalTab
+                      project={project}
+                      selectedProposalIndex={selectedProposalIndex}
+                      onRefresh={() => refetch()}
+                    />
+                  </Suspense>
                 </TabsContent>
 
                 {/* Tab 2: Capstone 1 — Minimalist Collapsible Workspace */}
@@ -490,7 +500,9 @@ export default function MyProjectPage() {
                   value="capstone_2"
                   className="mt-0 focus-visible:outline-none space-y-4"
                 >
-                  <InteractiveGanttChart project={project} isReadOnly={false} />
+                  <Suspense fallback={<PageSkeleton />}>
+                    <InteractiveGanttChart project={project} isReadOnly={false} />
+                  </Suspense>
                 </TabsContent>
 
                 {/* Tab 4: Capstone 3 — Results, Final Defense & Archival */}
@@ -595,33 +607,43 @@ export default function MyProjectPage() {
                     </CardContent>
                   </Card>
 
-                  <EvaluationPanel projectId={project._id} defenseType="final" />
+                  <Suspense fallback={<PageSkeleton />}>
+                    <EvaluationPanel projectId={project._id} defenseType="final" />
+                  </Suspense>
                 </TabsContent>
 
                 {/* Tab 5: Dedicated Full-Width Action Done Matrix (ADM) */}
                 <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
-                  <ActionDoneMatrixTab
-                    project={project}
-                    isStudent
-                    user={user}
-                    onRefresh={() => refetch()}
-                  />
+                  <Suspense fallback={<PageSkeleton />}>
+                    <ActionDoneMatrixTab
+                      project={project}
+                      isStudent
+                      user={user}
+                      onRefresh={() => refetch()}
+                    />
+                  </Suspense>
                 </TabsContent>
 
                 {/* Tab 5: Consultations */}
                 <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
-                  <ConsultationLogWidget project={project} isStudent user={user} />
+                  <Suspense fallback={<PageSkeleton />}>
+                    <ConsultationLogWidget project={project} isStudent user={user} />
+                  </Suspense>
                 </TabsContent>
               </Tabs>
             </div>
           )}
 
         {/* Dedicated Project Details & Approval Modal Dialog */}
-        <ProjectDetailsModal
-          open={isProjectDetailsOpen}
-          onOpenChange={setIsProjectDetailsOpen}
-          project={project}
-        />
+        {isProjectDetailsOpen && (
+          <Suspense fallback={null}>
+            <ProjectDetailsModal
+              open={isProjectDetailsOpen}
+              onOpenChange={setIsProjectDetailsOpen}
+              project={project}
+            />
+          </Suspense>
+        )}
       </div>
     </DashboardLayout>
   );

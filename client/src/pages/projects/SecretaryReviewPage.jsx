@@ -40,7 +40,8 @@ import SecretaryMinutesDocumentSheet from '@/components/secretary/SecretaryMinut
 export default function SecretaryReviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
   const queryClient = useQueryClient();
 
   const initialProjectId = searchParams.get('projectId');

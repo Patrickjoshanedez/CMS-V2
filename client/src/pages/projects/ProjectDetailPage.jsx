@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, Suspense, lazy } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -34,15 +34,14 @@ import Capstone2CollapsibleSections from '@/components/projects/Capstone2Collaps
 import Capstone3CollapsibleSections from '@/components/projects/Capstone3CollapsibleSections';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
-import ChapterReviewPanel from '@/components/submissions/ChapterReviewPanel';
-import EvaluationPanel from '@/components/projects/EvaluationPanel';
-import ProjectAuditTrail from '@/components/projects/ProjectAuditTrail';
-import ActionDoneMatrixTab from '@/components/projects/ActionDoneMatrixTab';
-import ConsultationLogWidget from '@/components/projects/ConsultationLogWidget';
-import InteractiveGanttChart from '@/components/projects/InteractiveGanttChart';
-import ScheduleDefenseModal from '@/components/defense/ScheduleDefenseModal';
-import LiveDefenseMinutesModal from '@/components/defense/LiveDefenseMinutesModal';
-import CompileProposalModal from '@/components/submissions/CompileProposalModal';
+// Lazy-loaded heavy components and modals
+const EvaluationPanel = lazy(() => import('@/components/projects/EvaluationPanel'));
+const ProjectAuditTrail = lazy(() => import('@/components/projects/ProjectAuditTrail'));
+const ActionDoneMatrixTab = lazy(() => import('@/components/projects/ActionDoneMatrixTab'));
+const ConsultationLogWidget = lazy(() => import('@/components/projects/ConsultationLogWidget'));
+const ScheduleDefenseModal = lazy(() => import('@/components/defense/ScheduleDefenseModal'));
+const LiveDefenseMinutesModal = lazy(() => import('@/components/defense/LiveDefenseMinutesModal'));
+const CompileProposalModal = lazy(() => import('@/components/submissions/CompileProposalModal'));
 
 /* ────────── Helpers ────────── */
 
@@ -282,7 +281,7 @@ export default function ProjectDetailPage() {
     <DashboardLayout>
       <div className="min-h-screen bg-background text-foreground">
         <div className="p-6 max-w-[1600px] mx-auto space-y-6">
-          <div>
+          <div className="no-print">
             <Button
               variant="ghost"
               size="sm"
@@ -301,11 +300,11 @@ export default function ProjectDetailPage() {
             canManageCommittee={isInstructor}
             canManageArchive={isInstructor && !isArchived}
             onRefresh={() => refetch()}
-            className="mb-6"
+            className="mb-6 no-print"
           />
 
           {isArchived && (
-            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm">
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-sm no-print">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
                   <BookOpen className="h-5 w-5" />
@@ -330,7 +329,7 @@ export default function ProjectDetailPage() {
           )}
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5">
+            <div className="w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] mb-6 p-0.5 no-print">
               <TabsList className="w-full inline-flex sm:flex items-center bg-muted/60 dark:bg-muted/30 p-1.5 rounded-xl border border-border/60 gap-1.5 h-auto shadow-xs overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {(isArchived ? ARCHIVED_DETAIL_TABS : STANDARD_DETAIL_TABS).map((tab) => (
                   <WorkflowTabTrigger
@@ -346,7 +345,7 @@ export default function ProjectDetailPage() {
             <TabsContent value="capstone_1" className="mt-0 focus-visible:outline-none space-y-6">
               {/* Show modification review card when a student has submitted a revised title */}
               {canReviewTitle && project.titleStatus === TITLE_STATUSES.PENDING_MODIFICATION && (
-                <div className="mb-6">
+                <div className="mb-6 no-print">
                   <ModificationReviewCard project={project} />
                 </div>
               )}
@@ -382,24 +381,30 @@ export default function ProjectDetailPage() {
             </TabsContent>
 
             <TabsContent value="adm" className="mt-0 focus-visible:outline-none space-y-6">
-              <ActionDoneMatrixTab
-                project={project}
-                isFaculty={isFaculty}
-                user={user}
-                onRefresh={() => refetch()}
-              />
+              <Suspense fallback={<PageSkeleton />}>
+                <ActionDoneMatrixTab
+                  project={project}
+                  isFaculty={isFaculty}
+                  user={user}
+                  onRefresh={() => refetch()}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="evaluation" className="mt-0 focus-visible:outline-none">
-              <EvaluationPanel projectId={project._id} defenseType="final" />
+              <Suspense fallback={<PageSkeleton />}>
+                <EvaluationPanel projectId={project._id} defenseType="final" />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="consultation" className="mt-0 focus-visible:outline-none">
-              <ConsultationLogWidget
-                project={project}
-                isAdviser={isAssignedAdviser}
-                isStudent={!isFaculty}
-              />
+              <Suspense fallback={<PageSkeleton />}>
+                <ConsultationLogWidget
+                  project={project}
+                  isAdviser={isAssignedAdviser}
+                  isStudent={!isFaculty}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
@@ -411,7 +416,15 @@ export default function ProjectDetailPage() {
                     — full activity history for this project
                   </span>
                 </div>
-                <ProjectAuditTrail projectId={project._id} />
+                <Suspense
+                  fallback={
+                    <div className="py-8 text-center text-muted-foreground">
+                      Loading audit trail...
+                    </div>
+                  }
+                >
+                  <ProjectAuditTrail projectId={project._id} />
+                </Suspense>
               </div>
             </TabsContent>
           </Tabs>
@@ -419,42 +432,54 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Schedule Defense Modal for Instructor */}
-      <ScheduleDefenseModal
-        isOpen={isScheduleDefenseOpen}
-        onClose={() => setIsScheduleDefenseOpen(false)}
-        project={project}
-        onScheduled={() => refetch()}
-      />
+      {isScheduleDefenseOpen && (
+        <Suspense fallback={null}>
+          <ScheduleDefenseModal
+            isOpen={isScheduleDefenseOpen}
+            onClose={() => setIsScheduleDefenseOpen(false)}
+            project={project}
+            onScheduled={() => refetch()}
+          />
+        </Suspense>
+      )}
 
       {/* Live Defense Minutes Modal (BukSU Form OVPAA-F-INS-032) */}
-      <LiveDefenseMinutesModal
-        isOpen={isLiveMinutesOpen}
-        open={isLiveMinutesOpen}
-        onClose={() => setIsLiveMinutesOpen(false)}
-        onOpenChange={setIsLiveMinutesOpen}
-        projectId={project?._id}
-        defenseType={
-          activeTab === 'capstone_3'
-            ? 'final'
-            : activeTab === 'capstone_2'
-              ? 'progress'
-              : 'proposal'
-        }
-        project={project}
-        user={user}
-        onPublished={() => refetch()}
-        onMinutesPublished={() => refetch()}
-      />
+      {isLiveMinutesOpen && (
+        <Suspense fallback={null}>
+          <LiveDefenseMinutesModal
+            isOpen={isLiveMinutesOpen}
+            open={isLiveMinutesOpen}
+            onClose={() => setIsLiveMinutesOpen(false)}
+            onOpenChange={setIsLiveMinutesOpen}
+            projectId={project?._id}
+            defenseType={
+              activeTab === 'capstone_3'
+                ? 'final'
+                : activeTab === 'capstone_2'
+                  ? 'progress'
+                  : 'proposal'
+            }
+            project={project}
+            user={user}
+            onPublished={() => refetch()}
+            onMinutesPublished={() => refetch()}
+          />
+        </Suspense>
+      )}
 
       {/* Compile / Recompile Chapters 1-3 Manuscript Modal */}
-      <CompileProposalModal
-        isOpen={isCompileProposalOpen}
-        onClose={() => setIsCompileProposalOpen(false)}
-        projectId={project?._id}
-        isRevision={Boolean(compiledProposalSub)}
-        currentVersion={compiledProposalSub?.version || 1}
-        onSuccess={() => refetch()}
-      />
+      {isCompileProposalOpen && (
+        <Suspense fallback={null}>
+          <CompileProposalModal
+            isOpen={isCompileProposalOpen}
+            onClose={() => setIsCompileProposalOpen(false)}
+            projectId={project?._id}
+            isRevision={Boolean(compiledProposalSub)}
+            currentVersion={compiledProposalSub?.version || 1}
+            onSuccess={() => refetch()}
+          />
+        </Suspense>
+      )}
     </DashboardLayout>
   );
 }

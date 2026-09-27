@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { ROLES, ROLE_VALUES, PANEL_ROLE_VALUES, FACULTY_ROLE_VALUES } from '@cms/shared';
 import softDeletePlugin from '../../middleware/softDelete.js';
+import { hashPassword, verifyPassword } from '../../utils/cryptoWorkerPool.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -189,25 +190,24 @@ userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 userSchema.index({ role: 1, isActive: 1, firstName: 1, lastName: 1 });
 userSchema.index({ role: 1, facultyRole: 1 });
 
-// --- Pre-save hook: hash password ---
+// --- Pre-save hook: hash password via off-thread Piscina worker pool ---
 userSchema.pre('save', async function () {
   // Skip hashing for Google OAuth users (no password) or unmodified passwords
   if (!this.password || !this.isModified('password')) return;
 
   const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
-  const salt = await bcrypt.genSalt(rounds);
-  this.password = await bcrypt.hash(this.password, salt);
+  this.password = await hashPassword(this.password, rounds);
 });
 
 // --- Instance methods ---
 
 /**
- * Compare a candidate plaintext password against the stored hash.
+ * Compare a candidate plaintext password against the stored hash via off-thread Piscina worker pool.
  * @param {string} candidatePassword - The plaintext password to compare
  * @returns {Promise<boolean>}
  */
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  return verifyPassword(candidatePassword, this.password);
 };
 
 userSchema.plugin(softDeletePlugin);

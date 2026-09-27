@@ -17,11 +17,11 @@ import { verifyEmailTransport } from './modules/notifications/email.service.js';
 import mongoose from 'mongoose';
 import env from './config/env.js';
 import deadlineNotificationService from './modules/settings/deadlineNotification.service.js';
+import { setupGracefulShutdown } from './utils/shutdown.js';
 
 const PORT = env.PORT;
 let httpServer;
 let deadlineTimer = null;
-let isShuttingDown = false;
 
 /**
  * Start the server:
@@ -54,7 +54,28 @@ const startServer = async () => {
     httpServer = http.createServer(app);
 
     // Attach Socket.IO for real-time notifications
-    initializeSocket(httpServer);
+    const io = initializeSocket(httpServer);
+
+    // Register centralized graceful shutdown handler
+    setupGracefulShutdown({
+      server: httpServer,
+      io,
+      closeWorkers: async () => {
+        await stopPlagiarismWorker();
+        await stopEmailWorker();
+        await stopDocumentExtractionWorker();
+      },
+      closeQueues,
+      closeRedis,
+      mongooseConnection: mongoose.connection,
+      extraCleanup: () => {
+        if (deadlineTimer) {
+          clearInterval(deadlineTimer);
+          deadlineTimer = null;
+        }
+      },
+      timeoutMs: 10000,
+    });
 
     httpServer.listen(PORT, () => {
       console.log(`[server] Running in ${env.NODE_ENV} mode on port ${PORT}`);
@@ -94,66 +115,5 @@ process.on('uncaughtException', (error) => {
   console.error('[server] Uncaught Exception:', error);
   process.exit(1);
 });
-
-// Graceful shutdown — drain HTTP connections, close workers, queues, Redis, and MongoDB
-const gracefulShutdown = async (signal) => {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-  console.log(`[server] ${signal} received — shutting down gracefully...`);
-
-  // Force exit safety timeout (10 seconds)
-  const forceExitTimer = setTimeout(() => {
-    console.error('[server] Graceful shutdown timeout exceeded (10s) — forcing exit.');
-    process.exit(1);
-  }, 10000);
-  forceExitTimer.unref();
-
-  try {
-    // 1. Stop accepting new HTTP connections and drain in-flight requests
-    if (httpServer) {
-      await new Promise((resolve) => {
-        httpServer.close((err) => {
-          if (err) {
-            console.error('[server] Error closing HTTP server:', err.message);
-          } else {
-            console.log('[server] HTTP server closed — in-flight requests drained.');
-          }
-          resolve();
-        });
-      });
-    }
-
-    // 2. Stop background workers
-    await stopPlagiarismWorker();
-    await stopEmailWorker();
-    await stopDocumentExtractionWorker();
-
-    // 3. Close job queues
-    await closeQueues();
-
-    // 4. Close Redis connection
-    await closeRedis();
-
-    // 5. Close Mongoose connection cleanly
-    if (mongoose.connection && mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close(false);
-      console.log('[server] MongoDB connection closed.');
-    }
-
-    clearTimeout(forceExitTimer);
-    if (deadlineTimer) {
-      clearInterval(deadlineTimer);
-      deadlineTimer = null;
-    }
-    console.log('[server] Graceful shutdown completed cleanly.');
-    process.exit(0);
-  } catch (err) {
-    console.error('[server] Error during graceful shutdown:', err);
-    process.exit(1);
-  }
-};
-
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();

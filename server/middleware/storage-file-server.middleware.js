@@ -60,14 +60,26 @@ router.get(/.*/, async (req, res, _next) => {
       // Ignore errors if meta file doesn't exist
     }
 
-    // Serve the file
-    res.sendFile(resolvedPath, (err) => {
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    // Serve the file with explicit HTTP 206 Range request support
+    const sendOpts = {
+      acceptRanges: true,
+      cacheControl: true,
+      maxAge: '1d',
+    };
+
+    res.sendFile(resolvedPath, sendOpts, (err) => {
       if (err) {
         if (err.code === 'ENOENT') {
           return res.status(404).json({ error: 'File not found' });
         }
         if (err.code === 'EACCES') {
           return res.status(403).json({ error: 'Access denied' });
+        }
+        // If client aborted request (e.g. paused download), do not log as server error
+        if (err.code === 'ECONNABORTED' || err.message?.includes('aborted')) {
+          return;
         }
         console.error('[StorageFileServer] Error serving file:', err);
         return res.status(500).json({ error: 'Failed to serve file' });

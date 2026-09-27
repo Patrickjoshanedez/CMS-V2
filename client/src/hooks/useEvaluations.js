@@ -50,7 +50,9 @@ export function useProjectEvaluations(projectId, defenseType, options = {}) {
       return data.data; // { evaluations, summary }
     },
     enabled: !!projectId && !!defenseType,
-    staleTime: 2 * 60 * 1000, // 2 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 15 * 60 * 1000, // 15 min
+    refetchOnWindowFocus: false,
     ...options,
   });
 }

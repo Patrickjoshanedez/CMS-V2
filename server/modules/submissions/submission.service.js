@@ -1161,33 +1161,39 @@ class SubmissionService {
     const nextVersion = latestSubmission ? latestSubmission.version + 1 : 1;
     const revisionRound = latestSubmission ? (latestSubmission.revisionRound || 0) + 1 : 0;
 
-    // --- Upload to S3 ---
-    const storageKey = storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
-    try {
-      await storageService.uploadFile(file.buffer, storageKey, file.validatedMime, {
-        projectId,
-        chapter: String(chapter),
-        version: String(nextVersion),
-        uploadedBy: userId,
-      });
-    } catch (error) {
-      if (error.isOperational) {
-        logger.error('[SubmissionService] Chapter upload failed:', error.code, error.message);
-        throw error;
+    // --- Upload to S3 (if not already streamed to S3 by streamUploadMiddleware) ---
+    const effectiveMime = file.validatedMime || file.mimeType || file.mimetype || 'application/pdf';
+    const storageKey =
+      file.storageKey ||
+      file.key ||
+      storageService.buildKey(projectId, chapter, nextVersion, file.originalname);
+    if (!file.storageKey && !file.key && file.buffer) {
+      try {
+        await storageService.uploadFile(file.buffer, storageKey, effectiveMime, {
+          projectId,
+          chapter: String(chapter),
+          version: String(nextVersion),
+          uploadedBy: userId,
+        });
+      } catch (error) {
+        if (error.isOperational) {
+          logger.error('[SubmissionService] Chapter upload failed:', error.code, error.message);
+          throw error;
+        }
+        logger.error('[SubmissionService] Unexpected chapter upload error:', error);
+        throw new AppError(
+          'Failed to upload chapter document. Please try again later.',
+          500,
+          'CHAPTER_UPLOAD_ERROR',
+        );
       }
-      logger.error('[SubmissionService] Unexpected chapter upload error:', error);
-      throw new AppError(
-        'Failed to upload chapter document. Please try again later.',
-        500,
-        'CHAPTER_UPLOAD_ERROR',
-      );
     }
 
     const driveSync = await this._syncSubmissionToUserDriveAndGoogleDoc({
       user,
       buffer: file.buffer,
       fileName: file.originalname,
-      mimeType: file.validatedMime,
+      mimeType: effectiveMime,
       projectId,
       version: nextVersion,
       type: 'chapter',
@@ -1202,8 +1208,8 @@ class SubmissionService {
       version: nextVersion,
       revisionRound,
       fileName: file.originalname,
-      fileType: file.validatedMime,
-      fileSize: file.size,
+      fileType: effectiveMime,
+      fileSize: file.size || 0,
       storageKey,
       status: SUBMISSION_STATUSES.PENDING,
       submittedBy: userId,

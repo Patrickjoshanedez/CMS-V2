@@ -105,7 +105,7 @@ describe('Evaluations API — /api/evaluations', () => {
 
       const evaluation = res.body.data.evaluation;
       expect(evaluation.status).toBe(EVALUATION_STATUSES.DRAFT);
-      expect(evaluation.criteria).toHaveLength(4);
+      expect(evaluation.criteria).toHaveLength(5);
       expect(evaluation.defenseType).toBe(DEFENSE_TYPES.PROPOSAL);
       expect(evaluation.projectId).toBe(project._id.toString());
       expect(evaluation.panelistId).toBe(panelist._id.toString());

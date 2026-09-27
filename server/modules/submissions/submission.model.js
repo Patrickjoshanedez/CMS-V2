@@ -549,6 +549,8 @@ const submissionSchema = new mongoose.Schema(
 );
 
 // --- Indexes ---
+// Fast lookups: all submissions for a project sorted by date
+submissionSchema.index({ projectId: 1, createdAt: -1 });
 // Fast lookups: all submissions for a project/chapter combo
 submissionSchema.index({ projectId: 1, chapter: 1, version: -1 });
 // Find the latest version quickly
@@ -584,6 +586,22 @@ submissionSchema.index({ projectId: 1, type: 1 });
 submissionSchema.index({ revisionDeadline: 1, status: 1 });
 // Find submissions awaiting revision response
 submissionSchema.index({ status: 1, revisionDeadline: 1, reviewedAt: 1 });
+
+// Automatic parent project cache invalidation on submission modifications
+submissionSchema.post(
+  ['save', 'findOneAndUpdate', 'findByIdAndUpdate', 'updateOne'],
+  async function (doc) {
+    const targetProjectId = doc?.projectId || this?.getQuery?.()?.projectId;
+    if (targetProjectId) {
+      try {
+        const { cacheService } = await import('../../services/cache.service.js');
+        await cacheService.invalidateProject(targetProjectId);
+      } catch {
+        // Non-blocking cache invalidation
+      }
+    }
+  },
+);
 
 submissionSchema.plugin(softDeletePlugin);
 

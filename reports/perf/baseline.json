@@ -1,0 +1,506 @@
+{
+  "timestamp": "2026-09-27T03:03:53.167Z",
+  "api": {
+    "GET /api/projects/:id": {
+      "latency": {
+        "min": 31.989300000000185,
+        "max": 127.1900999999998,
+        "avg": 59.05,
+        "p50": 53.13180000000011,
+        "p90": 112.41910000000007,
+        "p99": 127.1900999999998
+      },
+      "ttfb": {
+        "min": 23.99197500000014,
+        "max": 95.39257499999985,
+        "avg": 44.29,
+        "p50": 39.848850000000084,
+        "p90": 84.31432500000005,
+        "p99": 95.39257499999985
+      },
+      "payloadSizeBytes": 22538,
+      "payloadSizeKB": 22.01
+    },
+    "GET /api/submissions?projectId=:id": {
+      "latency": {
+        "min": 14.77979999999934,
+        "max": 21.67150000000038,
+        "avg": 16.88,
+        "p50": 16.78899999999976,
+        "p90": 18.935699999999997,
+        "p99": 21.67150000000038
+      },
+      "ttfb": {
+        "min": 11.084849999999506,
+        "max": 16.253625000000284,
+        "avg": 12.66,
+        "p50": 12.59174999999982,
+        "p90": 14.201774999999998,
+        "p99": 16.253625000000284
+      },
+      "payloadSizeBytes": 134,
+      "payloadSizeKB": 0.13
+    },
+    "GET /api/evaluations/project/:id": {
+      "latency": {
+        "min": 9.151699999998527,
+        "max": 45.47389999999905,
+        "avg": 17.48,
+        "p50": 15.085199999999531,
+        "p90": 28.789200000001074,
+        "p99": 45.47389999999905
+      },
+      "ttfb": {
+        "min": 6.8637749999988955,
+        "max": 34.105424999999286,
+        "avg": 13.11,
+        "p50": 11.313899999999649,
+        "p90": 21.591900000000805,
+        "p99": 34.105424999999286
+      },
+      "payloadSizeBytes": 122,
+      "payloadSizeKB": 0.12
+    },
+    "GET /api/teams/:id": {
+      "latency": {
+        "min": 12.919800000001487,
+        "max": 55.228799999998955,
+        "avg": 25.06,
+        "p50": 25.043299999999363,
+        "p90": 46.522000000000844,
+        "p99": 55.228799999998955
+      },
+      "ttfb": {
+        "min": 9.689850000001115,
+        "max": 41.421599999999216,
+        "avg": 18.8,
+        "p50": 18.782474999999522,
+        "p90": 34.89150000000063,
+        "p99": 41.421599999999216
+      },
+      "payloadSizeBytes": 118,
+      "payloadSizeKB": 0.12
+    }
+  },
+  "database": {
+    "projectQuery": {
+      "query": "Project.find({ _id: projectId })",
+      "executionTimeMillis": 0,
+      "totalDocsExamined": 1,
+      "nReturned": 1,
+      "stage": "FETCH",
+      "inputStage": "IXSCAN"
+    },
+    "submissionsQuery": {
+      "query": "Submission.find({ projectId }).sort({ createdAt: -1 })",
+      "executionTimeMillis": 1,
+      "totalDocsExamined": 9,
+      "nReturned": 9,
+      "stage": "SORT",
+      "inputStage": "PROJECTION_SIMPLE"
+    }
+  },
+  "client": {
+    "totalJsBytes": 4808967,
+    "totalJsKB": 4696.26,
+    "totalCssBytes": 259212,
+    "totalCssKB": 253.14,
+    "chunks": {
+      "AcademicJournalArchiveUploadPage-7M9uBSqa.js": {
+        "sizeBytes": 200,
+        "sizeKB": 0.2
+      },
+      "AcademicPaperArchiveUploadPage-7M9uBSqa.js": {
+        "sizeBytes": 200,
+        "sizeKB": 0.2
+      },
+      "Alert-BbKXY6ax.js": {
+        "sizeBytes": 1502,
+        "sizeKB": 1.47
+      },
+      "ArchiveDocumentViewerPage-DS83YMpX.js": {
+        "sizeBytes": 41305,
+        "sizeKB": 40.34
+      },
+      "ArchivePlagiarismCheckerPage-Bijy0Itp.js": {
+        "sizeBytes": 12671,
+        "sizeKB": 12.37
+      },
+      "ArchiveSearchPage-CIcO2Xq0.js": {
+        "sizeBytes": 30786,
+        "sizeKB": 30.06
+      },
+      "AssignCommitteeDialog-BLwi0KC5.js": {
+        "sizeBytes": 11907,
+        "sizeKB": 11.63
+      },
+      "AuditLogPage-DAQrXt-J.js": {
+        "sizeBytes": 23742,
+        "sizeKB": 23.19
+      },
+      "AuthStatusAlert-ZEVraG1b.js": {
+        "sizeBytes": 12262,
+        "sizeKB": 11.97
+      },
+      "authStore-AV1ypJzs.js": {
+        "sizeBytes": 61927,
+        "sizeKB": 60.48
+      },
+      "AuthSubmitButton-Cs0FAnyg.js": {
+        "sizeBytes": 93507,
+        "sizeKB": 91.32
+      },
+      "AutoExpandingTextarea-BxcZzxaf.js": {
+        "sizeBytes": 3667,
+        "sizeKB": 3.58
+      },
+      "Badge-BC1AiTUO.js": {
+        "sizeBytes": 905,
+        "sizeKB": 0.88
+      },
+      "buksu-logo-DS7xgZ6s.js": {
+        "sizeBytes": 55,
+        "sizeKB": 0.05
+      },
+      "Button-B8OwylJx.js": {
+        "sizeBytes": 12499,
+        "sizeKB": 12.21
+      },
+      "Card-c8BiAwre.js": {
+        "sizeBytes": 1281,
+        "sizeKB": 1.25
+      },
+      "CertificatePage-CUHjool4.js": {
+        "sizeBytes": 4439,
+        "sizeKB": 4.33
+      },
+      "ChapterUploadPage-C7CTpCDd.js": {
+        "sizeBytes": 17011,
+        "sizeKB": 16.61
+      },
+      "chunk-BV7QT456-B_Kn5wzs.js": {
+        "sizeBytes": 39146,
+        "sizeKB": 38.23
+      },
+      "CitationExportModal-B1oUyc5T.js": {
+        "sizeBytes": 6249,
+        "sizeKB": 6.1
+      },
+      "CommitteeAssignmentsPage-DAMHV57P.js": {
+        "sizeBytes": 22082,
+        "sizeKB": 21.56
+      },
+      "ConsultationLogWidget-CY8kIpxa.js": {
+        "sizeBytes": 106146,
+        "sizeKB": 103.66
+      },
+      "CreateProjectPage-BmH9o-yb.js": {
+        "sizeBytes": 62102,
+        "sizeKB": 60.65
+      },
+      "DashboardLayout-CXyiH778.js": {
+        "sizeBytes": 42307,
+        "sizeKB": 41.32
+      },
+      "DashboardPage-BvEM0RZ-.js": {
+        "sizeBytes": 64051,
+        "sizeKB": 62.55
+      },
+      "dashboardService-BY3umTtc.js": {
+        "sizeBytes": 549,
+        "sizeKB": 0.54
+      },
+      "DeadlineWarning-BrKz4ukf.js": {
+        "sizeBytes": 4785,
+        "sizeKB": 4.67
+      },
+      "DefenseScheduleBadge-BOHqURap.js": {
+        "sizeBytes": 3310,
+        "sizeKB": 3.23
+      },
+      "DefenseSchedulingPage-DRVbyU-m.js": {
+        "sizeBytes": 73142,
+        "sizeKB": 71.43
+      },
+      "DocumentEditorPage-CcZ9SAIx.js": {
+        "sizeBytes": 5056,
+        "sizeKB": 4.94
+      },
+      "EmptyProjectState-wcXnzxlR.js": {
+        "sizeBytes": 3098,
+        "sizeKB": 3.03
+      },
+      "EmptyState-CAOsmSFZ.js": {
+        "sizeBytes": 1213,
+        "sizeKB": 1.18
+      },
+      "engine-charts-Cmnx15F7.js": {
+        "sizeBytes": 572221,
+        "sizeKB": 558.81
+      },
+      "engine-docx-CCP1wb_v.js": {
+        "sizeBytes": 171014,
+        "sizeKB": 167.01
+      },
+      "engine-pdf-mfyFkRAL.js": {
+        "sizeBytes": 578397,
+        "sizeKB": 564.84
+      },
+      "esm-BgFD8mzY.js": {
+        "sizeBytes": 10728,
+        "sizeKB": 10.48
+      },
+      "EvaluationTemplateBuilderPage-IEt7dPv0.js": {
+        "sizeBytes": 10813,
+        "sizeKB": 10.56
+      },
+      "ExistingCapstoneUploadPage-S5G04nm3.js": {
+        "sizeBytes": 42017,
+        "sizeKB": 41.03
+      },
+      "exportPptx-CZLpQqeI.js": {
+        "sizeBytes": 280055,
+        "sizeKB": 273.49
+      },
+      "FacultySearchCombobox-MT4SjumL.js": {
+        "sizeBytes": 7177,
+        "sizeKB": 7.01
+      },
+      "ForbiddenPage-BXEtwgc5.js": {
+        "sizeBytes": 997,
+        "sizeKB": 0.97
+      },
+      "ForgotPasswordPage-BuxAjTQp.js": {
+        "sizeBytes": 1904,
+        "sizeKB": 1.86
+      },
+      "index-C2y8eMaH.js": {
+        "sizeBytes": 67000,
+        "sizeKB": 65.43
+      },
+      "Input-BCKPtXhl.js": {
+        "sizeBytes": 752,
+        "sizeKB": 0.73
+      },
+      "InteractiveGanttChart-DTtl2VN-.js": {
+        "sizeBytes": 148184,
+        "sizeKB": 144.71
+      },
+      "Label-Cw5Ql-vq.js": {
+        "sizeBytes": 426,
+        "sizeKB": 0.42
+      },
+      "LandingPage-BuoZpYel.js": {
+        "sizeBytes": 40278,
+        "sizeKB": 39.33
+      },
+      "LoginPage-BYhM_DEB.js": {
+        "sizeBytes": 5286,
+        "sizeKB": 5.16
+      },
+      "MyProjectPage-CMZB63gj.js": {
+        "sizeBytes": 64115,
+        "sizeKB": 62.61
+      },
+      "NotFoundPage-DInY_arW.js": {
+        "sizeBytes": 1128,
+        "sizeKB": 1.1
+      },
+      "NotificationsPage-fdsdP5hI.js": {
+        "sizeBytes": 23856,
+        "sizeKB": 23.3
+      },
+      "PdfViewerWorkspace-BMAKuYas.js": {
+        "sizeBytes": 19327,
+        "sizeKB": 18.87
+      },
+      "PdfWorkspaceTestPage-BFsBn9qE.js": {
+        "sizeBytes": 26988,
+        "sizeKB": 26.36
+      },
+      "pitchDeckParser-C_aabU3g.js": {
+        "sizeBytes": 2436,
+        "sizeKB": 2.38
+      },
+      "PlagiarismReportPage-Cs_P6F4B.js": {
+        "sizeBytes": 44863,
+        "sizeKB": 43.81
+      },
+      "ProfilePage-SUWdfXay.js": {
+        "sizeBytes": 13708,
+        "sizeKB": 13.39
+      },
+      "Progress-BHFt9Zpz.js": {
+        "sizeBytes": 797,
+        "sizeKB": 0.78
+      },
+      "ProjectDetailPage-BIvxdRBB.js": {
+        "sizeBytes": 93576,
+        "sizeKB": 91.38
+      },
+      "ProjectsPage-rCY-pESM.js": {
+        "sizeBytes": 21391,
+        "sizeKB": 20.89
+      },
+      "ProjectStatusBadge-CUvxl5UM.js": {
+        "sizeBytes": 1360,
+        "sizeKB": 1.33
+      },
+      "ProjectSubmissionsPage-Cuom9RBC.js": {
+        "sizeBytes": 56578,
+        "sizeKB": 55.25
+      },
+      "ProposalCompilationPage-BrZsYzrm.js": {
+        "sizeBytes": 20581,
+        "sizeKB": 20.1
+      },
+      "ProposalRehearsalModal-85Y0Oey0.js": {
+        "sizeBytes": 950804,
+        "sizeKB": 928.52
+      },
+      "query-vendor-Dz-B2EAo.js": {
+        "sizeBytes": 78385,
+        "sizeKB": 76.55
+      },
+      "RegisterPage-De0YedjN.js": {
+        "sizeBytes": 7762,
+        "sizeKB": 7.58
+      },
+      "ReportsPage-BDNfq9ZX.js": {
+        "sizeBytes": 46143,
+        "sizeKB": 45.06
+      },
+      "ResetPasswordPage-b_WmVQwe.js": {
+        "sizeBytes": 2683,
+        "sizeKB": 2.62
+      },
+      "rolldown-runtime-C0FnF6B9.js": {
+        "sizeBytes": 1291,
+        "sizeKB": 1.26
+      },
+      "ScheduleDefenseModal-CmLFU5OW.js": {
+        "sizeBytes": 11329,
+        "sizeKB": 11.06
+      },
+      "SecretaryMinutesDocumentSheet-rpj2CW1u.js": {
+        "sizeBytes": 57661,
+        "sizeKB": 56.31
+      },
+      "SecretaryReviewPage-CA4ozHKJ.js": {
+        "sizeBytes": 22685,
+        "sizeKB": 22.15
+      },
+      "sectionUtils-nmKKjif5.js": {
+        "sizeBytes": 742,
+        "sizeKB": 0.72
+      },
+      "SettingsPage-BzBRQOHL.js": {
+        "sizeBytes": 30949,
+        "sizeKB": 30.22
+      },
+      "SignaturePad-D2rNRPfq.js": {
+        "sizeBytes": 6695,
+        "sizeKB": 6.54
+      },
+      "SimilarProjectModal-arF5F-Gr.js": {
+        "sizeBytes": 13085,
+        "sizeKB": 12.78
+      },
+      "SophisticatedDocumentViewer-CPwcTHh2.js": {
+        "sizeBytes": 83135,
+        "sizeKB": 81.19
+      },
+      "SubmissionDetailPage-eLdrje3Q.js": {
+        "sizeBytes": 63663,
+        "sizeKB": 62.17
+      },
+      "SubmissionReviewPage-qnMLnLfk.js": {
+        "sizeBytes": 27882,
+        "sizeKB": 27.23
+      },
+      "SubmissionStatusBadge-B6EWAjtX.js": {
+        "sizeBytes": 810,
+        "sizeKB": 0.79
+      },
+      "Tabs-CS95uYUV.js": {
+        "sizeBytes": 1793,
+        "sizeKB": 1.75
+      },
+      "TeamReviewWorkflowPage-IKluF0b-.js": {
+        "sizeBytes": 8007,
+        "sizeKB": 7.82
+      },
+      "TeamsPage-d3Q7Hu8x.js": {
+        "sizeBytes": 114076,
+        "sizeKB": 111.4
+      },
+      "TemplateManagementPage-C3jgFW1a.js": {
+        "sizeBytes": 8555,
+        "sizeKB": 8.35
+      },
+      "Textarea-BSF6uWDA.js": {
+        "sizeBytes": 748,
+        "sizeKB": 0.73
+      },
+      "ThemeToggle-PRthyNDx.js": {
+        "sizeBytes": 890,
+        "sizeKB": 0.87
+      },
+      "TitleApprovalPage-CECCPxpX.js": {
+        "sizeBytes": 27576,
+        "sizeKB": 26.93
+      },
+      "ui-vendor-XP0iOsF_.js": {
+        "sizeBytes": 93307,
+        "sizeKB": 91.12
+      },
+      "useAcademics-Hooeimy-.js": {
+        "sizeBytes": 1433,
+        "sizeKB": 1.4
+      },
+      "useAuditLogs-BhmOJ4ve.js": {
+        "sizeBytes": 903,
+        "sizeKB": 0.88
+      },
+      "useDocuments-DbStkS5J.js": {
+        "sizeBytes": 1965,
+        "sizeKB": 1.92
+      },
+      "useEvaluations-CCCRvtf_.js": {
+        "sizeBytes": 2689,
+        "sizeKB": 2.63
+      },
+      "useParallax-9Hf2MWBI.js": {
+        "sizeBytes": 1944,
+        "sizeKB": 1.9
+      },
+      "useProjects-BfEw5EEj.js": {
+        "sizeBytes": 4881,
+        "sizeKB": 4.77
+      },
+      "UsersPage-D4HYDzrJ.js": {
+        "sizeBytes": 36176,
+        "sizeKB": 35.33
+      },
+      "useTeams-CDx2ZaVm.js": {
+        "sizeBytes": 3253,
+        "sizeKB": 3.18
+      },
+      "useUsers-CDk9z-PS.js": {
+        "sizeBytes": 920,
+        "sizeKB": 0.9
+      },
+      "VerifyOtpPage-DFVcHonb.js": {
+        "sizeBytes": 2989,
+        "sizeKB": 2.92
+      },
+      "__vite-browser-external-Cavc_B4G.js": {
+        "sizeBytes": 103,
+        "sizeKB": 0.1
+      }
+    }
+  },
+  "testExecution": {
+    "targetedSuiteDurationMs": 5289
+  }
+}

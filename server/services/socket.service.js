@@ -1,18 +1,19 @@
 /* eslint-disable no-console */
 /**
- * Socket.IO Service — Real-time notification delivery.
+ * Socket.IO Service — Real-time notification and defense room delivery.
  *
- * Provides a singleton Socket.IO server instance that authenticates connections
- * via JWT (same token used for HTTP-only cookies) and organises each user
- * into a private room (`user:<userId>`).
- *
- * Other modules emit real-time events by calling `emitToUser(userId, event, data)`.
+ * Provides a singleton Socket.IO server instance configured with:
+ *   - Stateless JWT handshake authentication (0ms DB query overhead)
+ *   - Redis Pub/Sub adapter for seamless horizontal multi-process scaling
+ *   - Defense room subscriptions (join:project, leave:project)
+ *   - Direct user notifications (user:<userId>)
  *
  * @module services/socket.service
  */
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { verifyAccessToken } from '../utils/generateToken.js';
-import User from '../modules/users/user.model.js';
+import { getRedisClient, getRedisSubClient, isRedisAvailable } from '../config/redis.js';
 import env from '../config/env.js';
 
 /** @type {Server|null} Singleton Socket.IO server instance. */
@@ -27,17 +28,27 @@ let io = null;
 export function initializeSocket(httpServer) {
   if (io) return io;
 
-  io = new Server(httpServer, {
+  const serverOptions = {
     cors: {
       origin: env.CORS_ALLOWED_ORIGINS,
       credentials: true,
     },
-    // Clients will send the JWT in the auth handshake
-    // e.g. io({ auth: { token: '...' } }) or via cookie extraction
-  });
+  };
 
-  // ─────────── Authentication Middleware ───────────
-  io.use(async (socket, next) => {
+  // Attach Redis adapter if Redis is available for cross-cluster event fan-out
+  if (isRedisAvailable()) {
+    const pubClient = getRedisClient();
+    const subClient = getRedisSubClient();
+    if (pubClient && subClient) {
+      serverOptions.adapter = createAdapter(pubClient, subClient);
+      console.log('[Socket] Redis Pub/Sub adapter enabled.');
+    }
+  }
+
+  io = new Server(httpServer, serverOptions);
+
+  // ─────────── Stateless Authentication Middleware ───────────
+  io.use((socket, next) => {
     try {
       // Try auth.token first, then fall back to cookie extraction
       let token = socket.handshake.auth?.token;
@@ -52,23 +63,31 @@ export function initializeSocket(httpServer) {
       }
 
       if (!token) {
-        return next(new Error('Authentication required.'));
+        return next(new Error('Authentication required: Missing token.'));
       }
 
+      // Stateless token verification: extracts claims directly from JWT without hitting MongoDB
       const decoded = verifyAccessToken(token);
-      const user = await User.findById(decoded.userId).select('_id role isActive isVerified');
+      const resolvedUserId = (decoded.userId || decoded.id || decoded._id)?.toString();
 
-      if (!user || !user.isActive || !user.isVerified) {
-        return next(new Error('Invalid or deactivated account.'));
+      if (!resolvedUserId) {
+        return next(new Error('Authentication failed: Missing userId in token claims.'));
       }
 
-      // Attach user info to the socket for downstream use
-      socket.userId = user._id.toString();
-      socket.userRole = user.role;
+      // Attach user identity and institutional roles directly to socket
+      socket.userId = resolvedUserId;
+      socket.userRole = decoded.role;
+      socket.facultyRole = decoded.facultyRole || null;
+      socket.user = {
+        _id: socket.userId,
+        role: socket.userRole,
+        facultyRole: socket.facultyRole,
+      };
+
       next();
     } catch (err) {
       console.error('[Socket] Auth error:', err.message);
-      next(new Error('Authentication failed.'));
+      next(new Error('Authentication failed: Invalid or expired token.'));
     }
   });
 
@@ -77,12 +96,29 @@ export function initializeSocket(httpServer) {
     const { userId } = socket;
     console.log(`[Socket] User ${userId} connected (socket ${socket.id})`);
 
-    // Join the user's private room
+    // Join the user's private personal room
     socket.join(`user:${userId}`);
 
-    // Handle explicit room join (e.g. after reconnect)
+    // Handle explicit user room re-join
     socket.on('join', () => {
       socket.join(`user:${userId}`);
+    });
+
+    // Handle capstone defense room subscriptions
+    socket.on('join:project', (projectId) => {
+      if (!projectId) return;
+      const room = `project:${projectId}`;
+      socket.join(room);
+      socket.emit('joined:project', { projectId, room });
+      console.log(`[Socket] User ${userId} joined ${room}`);
+    });
+
+    socket.on('leave:project', (projectId) => {
+      if (!projectId) return;
+      const room = `project:${projectId}`;
+      socket.leave(room);
+      socket.emit('left:project', { projectId, room });
+      console.log(`[Socket] User ${userId} left ${room}`);
     });
 
     socket.on('disconnect', (reason) => {
@@ -111,7 +147,7 @@ export function getIO() {
  * @param {Object} data   - Payload to send
  */
 export function emitToUser(userId, event, data) {
-  if (!io) return; // Silently skip in test / non-socket environments
+  if (!io) return;
   io.to(`user:${userId.toString()}`).emit(event, data);
 }
 
@@ -128,7 +164,19 @@ export function emitToRoom(room, event, data) {
 }
 
 /**
- * Emit an event to all connected clients.
+ * Emit an event specifically to all participants in a capstone project room.
+ *
+ * @param {string} projectId - Project identifier
+ * @param {string} event     - Event name (e.g. 'defense:score_updated')
+ * @param {Object} data      - Payload to send
+ */
+export function emitToProject(projectId, event, data) {
+  if (!io || !projectId) return;
+  io.to(`project:${projectId.toString()}`).emit(event, data);
+}
+
+/**
+ * Emit an event to all connected clients across all nodes.
  *
  * @param {string} event - Event name
  * @param {Object} data  - Payload to send
@@ -139,10 +187,35 @@ export function emitToAll(event, data) {
 }
 
 /**
+ * Disconnect all active sockets gracefully (used during server shutdown).
+ */
+export function disconnectSockets() {
+  if (io) {
+    io.disconnectSockets(true);
+  }
+}
+
+/**
  * Reset the Socket.IO instance (used for testing cleanup).
  */
 export function resetSocket() {
-  io = null;
+  if (io) {
+    try {
+      io.close();
+    } catch {
+      // Ignore
+    }
+    io = null;
+  }
 }
 
-export default { initializeSocket, getIO, emitToUser, emitToRoom, emitToAll, resetSocket };
+export default {
+  initializeSocket,
+  getIO,
+  emitToUser,
+  emitToRoom,
+  emitToProject,
+  emitToAll,
+  disconnectSockets,
+  resetSocket,
+};

@@ -25,6 +25,7 @@ export default function ReportsFilterDrawer({
   onApply,
   onReset,
   yearOptions = [],
+  sectionOptions = ['BSIT 4A', 'BSIT 4B', 'BSIT 4C', 'BSIT 4D'],
   authorOptions = [],
   adviserOptions = [],
   programOptions = [],
@@ -41,6 +42,7 @@ export default function ReportsFilterDrawer({
   const titleInputId = useId();
   const authorInputId = useId();
   const yearSelectId = useId();
+  const sectionSelectId = useId();
   const adviserSelectId = useId();
   const programSelectId = useId();
   const keywordSelectId = useId();
@@ -95,6 +97,30 @@ export default function ReportsFilterDrawer({
             </select>
           </div>
 
+          {/* Quick Section dropdown directly on ribbon (Cohort-Driven Aggregation) */}
+          <div className="flex items-center gap-1.5">
+            <GraduationCap className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+            <select
+              value={filters.section || ''}
+              onChange={(e) => {
+                onFilterChange('section', e.target.value);
+                onApply({ ...filters, section: e.target.value });
+              }}
+              className="h-8 text-xs rounded-md border border-border bg-background px-2 py-1 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
+            >
+              <option value="">All Sections (BSIT 4A - 4D)</option>
+              {sectionOptions.map((s) => {
+                const val = typeof s === 'string' ? s : s.name;
+                const label = typeof s === 'string' ? s : s.label || s.name;
+                return (
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
           {/* Active filter chips */}
           {filters.title && (
             <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted text-foreground border border-border/60">
@@ -104,6 +130,22 @@ export default function ReportsFilterDrawer({
                 onClick={() => {
                   onFilterChange('title', '');
                   onApply({ ...filters, title: '' });
+                }}
+                className="hover:text-destructive cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+
+          {filters.section && (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted text-foreground border border-border/60">
+              Section: <strong>{filters.section}</strong>
+              <button
+                type="button"
+                onClick={() => {
+                  onFilterChange('section', '');
+                  onApply({ ...filters, section: '' });
                 }}
                 className="hover:text-destructive cursor-pointer"
               >
@@ -271,6 +313,30 @@ export default function ReportsFilterDrawer({
                   </select>
                 </div>
 
+                {/* Academic Section */}
+                <div className="space-y-1.5">
+                  <Label htmlFor={sectionSelectId} className="text-xs font-semibold">
+                    Academic Section (Cohort)
+                  </Label>
+                  <select
+                    id={sectionSelectId}
+                    value={filters.section || ''}
+                    onChange={(e) => onFilterChange('section', e.target.value)}
+                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                  >
+                    <option value="">All Sections (BSIT 4A - 4D)</option>
+                    {sectionOptions.map((s) => {
+                      const val = typeof s === 'string' ? s : s.name;
+                      const label = typeof s === 'string' ? s : s.label || s.name;
+                      return (
+                        <option key={val} value={val}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
                 {/* Adviser */}
                 <div className="space-y-1.5">
                   <Label htmlFor={adviserSelectId} className="text-xs font-semibold">
@@ -382,6 +448,7 @@ ReportsFilterDrawer.propTypes = {
   onApply: PropTypes.func.isRequired,
   onReset: PropTypes.func.isRequired,
   yearOptions: PropTypes.array,
+  sectionOptions: PropTypes.array,
   authorOptions: PropTypes.array,
   adviserOptions: PropTypes.array,
   programOptions: PropTypes.array,

@@ -629,7 +629,8 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
 // ─── Main Export ─────────────────────────────────────────────────────────────
 
 export default function EvaluationPanel({ projectId, defenseType }) {
-  const { user } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
 
   if (!user) return null;
 

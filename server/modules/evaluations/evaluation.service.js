@@ -8,9 +8,9 @@
 import Evaluation from './evaluation.model.js';
 import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
-import { emitToUser } from '../../services/socket.service.js';
+import { emitToUser, emitToProject } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES } from '@cms/shared';
+import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES, PROJECT_STATUSES } from '@cms/shared';
 
 class EvaluationService {
   /* ═══════════════════ Default Rubric ═══════════════════ */
@@ -257,6 +257,18 @@ class EvaluationService {
       emitToUser(project.adviserId, 'notification:new', evalNotif);
     }
 
+    // Notify the project room in real-time
+    emitToProject(evaluation.projectId, 'defense:score_updated', {
+      projectId: evaluation.projectId,
+      evaluationId: evaluation._id,
+      defenseType: evaluation.defenseType,
+      totalScore: evaluation.totalScore,
+      maxTotalScore: evaluation.maxTotalScore,
+      status: evaluation.status,
+      decision: evaluation.decision,
+      panelistId: evaluation.panelistId,
+    });
+
     return { evaluation };
   }
 
@@ -372,15 +384,17 @@ class EvaluationService {
       );
 
     if (isPassedVerdict && defenseType === DEFENSE_TYPES.FINAL) {
+      project.isArchived = true;
+      project.archivedAt = new Date();
+      project.projectStatus = PROJECT_STATUSES.ARCHIVED;
+      project.defenseSchedule = project.defenseSchedule || {};
+      project.defenseSchedule.verdict = 'Passed';
+      await project.save();
+
       // Evaluate post-approval hard gate: unlocks full academic paper & condensed journal if ADM is signed
       try {
         const { default: projectService } = await import('../projects/project.service.js');
-        const { isUnlocked } = await projectService.evaluatePostApprovalUnlocks(projectId);
-        if (!isUnlocked) {
-          project.defenseSchedule = project.defenseSchedule || {};
-          project.defenseSchedule.verdict = 'Passed';
-          await project.save();
-        }
+        await projectService.evaluatePostApprovalUnlocks(projectId);
       } catch (err) {
         // non-fatal
       }
@@ -402,6 +416,8 @@ class EvaluationService {
       const releasedNotifs = await Notification.insertMany(notifications);
       releasedNotifs.forEach((n) => emitToUser(n.userId, 'notification:new', n));
     }
+
+    emitToProject(projectId, 'defense:scores_released', { projectId, defenseType });
 
     return { releasedCount: result.modifiedCount, isArchived: project.isArchived };
   }

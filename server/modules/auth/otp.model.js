@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
+import { hashPassword, verifyPassword } from '../../utils/cryptoWorkerPool.js';
 
 const OTP_TYPES = ['verification', 'password_reset'];
 
@@ -39,22 +40,21 @@ const otpSchema = new mongoose.Schema(
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 otpSchema.index({ email: 1, type: 1 });
 
-// --- Pre-save hook: hash OTP code before storage ---
+// --- Pre-save hook: hash OTP code before storage via off-thread worker pool ---
 otpSchema.pre('save', async function () {
   if (!this.isModified('code')) return;
 
   const rounds = process.env.BCRYPT_ROUNDS ? parseInt(process.env.BCRYPT_ROUNDS, 10) : 10;
-  const salt = await bcrypt.genSalt(rounds);
-  this.code = await bcrypt.hash(this.code, salt);
+  this.code = await hashPassword(this.code, rounds);
 });
 
 /**
- * Compare a candidate plaintext OTP against the stored hash.
+ * Compare a candidate plaintext OTP against the stored hash via off-thread worker pool.
  * @param {string} candidateCode - The 6-digit OTP to compare
  * @returns {Promise<boolean>}
  */
 otpSchema.methods.compareCode = async function (candidateCode) {
-  return bcrypt.compare(candidateCode, this.code);
+  return verifyPassword(candidateCode, this.code);
 };
 
 const OTP = mongoose.model('OTP', otpSchema);

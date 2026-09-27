@@ -248,7 +248,8 @@ export default function CreateProjectPage() {
     searchParams.get('projectId') ||
     editingProjectId,
   );
-  const { user } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
   const { data: _academicYears = [] } = useAcademicYears();
 

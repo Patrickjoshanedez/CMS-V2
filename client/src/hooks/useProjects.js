@@ -84,6 +84,7 @@ export function useMyProject(options = {}) {
 
 /**
  * Fetch a single project by ID.
+ * Strict staleTime (5m) and gcTime (15m) eliminate aggressive refetching.
  */
 export function useProject(id, options = {}) {
   return useQuery({
@@ -93,9 +94,29 @@ export function useProject(id, options = {}) {
       return data.data.project;
     },
     enabled: !!id,
-    staleTime: 2 * 60 * 1000, // 2 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 15 * 60 * 1000, // 15 min cache retention
+    refetchOnWindowFocus: false,
     ...options,
   });
+}
+
+/**
+ * Hook to prefetch project details into QueryClient cache on hover / user intent.
+ */
+export function usePrefetchProject() {
+  const queryClient = useQueryClient();
+  return (id) => {
+    if (!id || !queryClient) return;
+    queryClient.prefetchQuery({
+      queryKey: projectKeys.detail(id),
+      queryFn: async () => {
+        const { data } = await projectService.getProject(id);
+        return data.data.project;
+      },
+      staleTime: 5 * 60 * 1000,
+    });
+  };
 }
 
 /**

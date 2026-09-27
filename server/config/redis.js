@@ -25,8 +25,9 @@ const redisConnectionOpts = {
   },
 };
 
-/** Shared Redis connection for BullMQ queues and workers. */
+/** Shared Redis connection for BullMQ queues, workers, and Socket.IO Pub/Sub. */
 let redisClient = null;
+let redisSubClient = null;
 let redisAvailable = false;
 
 /**
@@ -52,6 +53,14 @@ export async function initRedis() {
       redisClient.on('ready', () => {
         clearTimeout(timeout);
         redisAvailable = true;
+        try {
+          redisSubClient = redisClient.duplicate();
+          redisSubClient.on('error', (err) => {
+            console.warn(`[Redis-Sub] Connection error: ${err.message}`);
+          });
+        } catch (subErr) {
+          console.warn(`[Redis-Sub] Failed to duplicate subscriber: ${subErr.message}`);
+        }
         console.log(`[Redis] Connected to ${env.REDIS_HOST}:${env.REDIS_PORT}`);
         resolve();
       });
@@ -85,21 +94,41 @@ export function getRedisClient() {
   return redisClient;
 }
 
+/** Get the raw ioredis subscriber client (may be null if unavailable). */
+export function getRedisSubClient() {
+  return redisSubClient;
+}
+
 /**
  * Gracefully close the Redis connection (used during shutdown).
  */
 export async function closeRedis() {
+  if (redisSubClient) {
+    try {
+      await redisSubClient.quit();
+    } catch {
+      // Ignore cleanup error
+    }
+    redisSubClient = null;
+  }
   if (redisClient) {
-    await redisClient.quit();
+    try {
+      await redisClient.quit();
+    } catch {
+      // Ignore cleanup error
+    }
     redisClient = null;
     redisAvailable = false;
   }
 }
+
+export { redisClient, redisSubClient };
 
 export default {
   initRedis,
   isRedisAvailable,
   getRedisConnectionOpts,
   getRedisClient,
+  getRedisSubClient,
   closeRedis,
 };

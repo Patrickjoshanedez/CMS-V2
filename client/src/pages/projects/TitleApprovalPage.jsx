@@ -140,7 +140,8 @@ function parsePitchDeckFromDescription(description = '') {
 
 export default function TitleApprovalPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
   const { data: project, isLoading, error } = useMyProject();
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
 

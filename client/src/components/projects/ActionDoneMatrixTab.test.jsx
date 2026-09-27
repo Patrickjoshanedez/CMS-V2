@@ -339,4 +339,128 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(container.textContent).not.toContain('Live Defense Session & Minutes');
     expect(container.textContent).not.toContain('Real-Time Defense Synchronization');
   });
+
+  it('renders multi-page A4 sheets architecture with minimum 2 pages (Opening and Final Sign-Off Sheet)', async () => {
+    await renderComponent();
+
+    const page1 = container.querySelector('[data-testid="adm-document-page-1"]');
+    const page2 = container.querySelector('[data-testid="adm-document-page-2"]');
+    expect(page1).toBeTruthy();
+    expect(page2).toBeTruthy();
+
+    // Page 1 has Opening Title and Project Title input
+    expect(page1.textContent).toContain('ACTION DONE MATRIX');
+    expect(page1.textContent).toContain('Capstone Project Title:');
+
+    // Page 2 has Sign-Off Sheet Signatories
+    expect(page2.textContent).toContain('Secretary Compliance Verification Gate');
+    expect(page2.textContent).toContain('Approved by:');
+
+    // Both pages have pinned footers with Document Code RU- F-033
+    expect(page1.textContent).toContain('Document Code: RU- F-033');
+    expect(page1.textContent).toContain('Page 1 of 2');
+    expect(page2.textContent).toContain('Document Code: RU- F-033');
+    expect(page2.textContent).toContain('Page 2 of 2');
+  });
+
+  it('inserts continuation page before final sign-off sheet when Add Continuation Page is clicked', async () => {
+    await renderComponent();
+
+    const addContinuationBtn = container.querySelector('[data-testid="adm-add-page-btn"]');
+    expect(addContinuationBtn).toBeTruthy();
+
+    await act(async () => {
+      addContinuationBtn.click();
+    });
+
+    // Now 3 pages exist
+    const page1 = container.querySelector('[data-testid="adm-document-page-1"]');
+    const page2 = container.querySelector('[data-testid="adm-document-page-2"]');
+    const page3 = container.querySelector('[data-testid="adm-document-page-3"]');
+    expect(page1).toBeTruthy();
+    expect(page2).toBeTruthy();
+    expect(page3).toBeTruthy();
+
+    // Page 2 is now a Continuation Sheet
+    expect(page2.textContent).toContain('ACTION DONE MATRIX (CONTINUATION)');
+    expect(page2.textContent).toContain('Page 2 of 3');
+
+    // Page 3 is now the Final Sign-Off Sheet
+    expect(page3.textContent).toContain('Secretary Compliance Verification Gate');
+    expect(page3.textContent).toContain('Page 3 of 3');
+  });
+
+  it('enforces authentic print padding (16mm 18mm 20mm 18mm) and high-specificity selectors without #root div conflicts', async () => {
+    await renderComponent();
+
+    const styleTag = container.querySelector('style');
+    expect(styleTag).toBeTruthy();
+    const css = styleTag.textContent;
+
+    // Check @media print block exists
+    expect(css).toContain('@media print');
+
+    // Confirm #root div is NOT in the reset block
+    expect(css).not.toMatch(/html,\s*body,\s*#root,\s*#root div/);
+    expect(css).not.toContain('#root div,');
+
+    // Confirm high-specificity document sheet styling
+    expect(css).toContain('#root .adm-document-page');
+    expect(css).toContain('#root div.adm-document-page');
+    expect(css).toContain('.adm-sheet-paper-container .adm-document-page');
+
+    // Confirm authentic print padding matching editor visual margins
+    expect(css).toContain('padding: 16mm 18mm 20mm 18mm !important');
+
+    // Confirm table width matches printable content area (174mm)
+    expect(css).toContain('width: 100% !important');
+    expect(css).toContain('width: calc(210mm - 36mm) !important');
+  });
+
+  it('suppresses editor UI controls, buttons, helper hints, and placeholder text in print output', async () => {
+    await renderComponent();
+
+    // Seal exists with authentic BukSU alt text
+    const seal = container.querySelector('img[alt="BukSU Official Seal"]');
+    expect(seal).toBeTruthy();
+
+    // All buttons inside the document sheets must carry print-hidden or no-print
+    const allButtons = Array.from(
+      container.querySelectorAll('.adm-document-page button, .adm-sheet-paper-container button'),
+    );
+    allButtons.forEach((btn) => {
+      const hasPrintClass =
+        btn.classList.contains('no-print') ||
+        btn.classList.contains('print:hidden') ||
+        Boolean(btn.closest('.no-print')) ||
+        Boolean(btn.closest('.print\\:hidden'));
+      expect(hasPrintClass).toBe(true);
+    });
+
+    // Helper text "Tables dynamically allocate space as you type." is print:hidden
+    const helperText = Array.from(container.querySelectorAll('span')).find((el) =>
+      el.textContent?.includes('Tables dynamically allocate space as you type.'),
+    );
+    expect(helperText).toBeTruthy();
+    expect(
+      helperText.classList.contains('print:hidden') ||
+        Boolean(helperText.closest('.print\\:hidden')),
+    ).toBe(true);
+
+    // Empty fields print as clean whitespace with 0 placeholder strings leaking into print divs
+    const printDivs = Array.from(
+      container.querySelectorAll(
+        '.adm-document-page div.hidden.print\\:block, .adm-document-page span.hidden.print\\:inline',
+      ),
+    );
+    expect(printDivs.length).toBeGreaterThan(0);
+    printDivs.forEach((div) => {
+      // Must not contain placeholder text
+      expect(div.textContent).not.toContain('Panel Member Name');
+      expect(div.textContent).not.toContain('Specific suggestion / recommendation');
+      expect(div.textContent).not.toContain('Description of modifications made');
+      expect(div.textContent).not.toContain('p. #');
+      expect(div.textContent).not.toContain('Enter Capstone Project Title...');
+    });
+  });
 });
