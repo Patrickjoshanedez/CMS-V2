@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -1202,8 +1202,22 @@ export default function ActionDoneMatrixTab({
                 max-height: none !important;
                 overflow: visible !important;
               }
-              aside, nav, header, footer, [role="navigation"], [role="status"], [role="region"], .no-print, .print\\:hidden, [data-sonner-toaster], .toaster, #toast-container, button {
+              aside, nav, header, footer, [role="navigation"], [role="status"], [role="region"], .no-print, [class*="print:hidden"], [data-sonner-toaster], .toaster, #toast-container, button:not(.print-preserve) {
                 display: none !important;
+              }
+              /* Strip all outer layout margins/paddings from ancestors so sheets start at top y = 0 */
+              #root *:not(.adm-document-page, .adm-document-page *) {
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+              }
+              #root .cms-route-enter,
+              #root .space-y-6,
+              #root .space-y-10,
+              #root .grid,
+              #root [class*="col-span"] {
+                margin: 0 !important;
+                padding: 0 !important;
+                gap: 0 !important;
               }
               #root .adm-sheet-paper-container,
               .adm-sheet-paper-container {
@@ -1216,12 +1230,24 @@ export default function ActionDoneMatrixTab({
                 background: white !important;
                 display: block !important;
               }
+              .adm-sheet-paper-container > * {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+              }
+              .adm-sheet-paper-container > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+              }
+              .adm-sheet-paper-container > .no-print,
+              .adm-sheet-paper-container > [class*="print:hidden"] {
+                display: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 0 !important;
+              }
               #root .adm-document-page,
               #root div.adm-document-page,
-              #root .adm-sheet-paper-container .adm-document-page,
-              #root .adm-sheet-paper-container div.adm-document-page,
               .adm-sheet-paper-container .adm-document-page,
-              .adm-sheet-paper-container div.adm-document-page,
               .adm-document-page {
                 position: relative !important;
                 width: 210mm !important;
@@ -1237,10 +1263,6 @@ export default function ActionDoneMatrixTab({
                 background: white !important;
                 color: black !important;
                 overflow: hidden !important;
-                page-break-after: always !important;
-                break-after: page !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -1248,9 +1270,31 @@ export default function ActionDoneMatrixTab({
                 font-size: 8.5pt !important;
                 line-height: 1.15 !important;
               }
-              .adm-document-page:last-child {
+              #root .adm-document-page:not(:last-child),
+              #root div.adm-document-page:not(:last-child),
+              .adm-sheet-paper-container .adm-document-page:not(:last-child),
+              .adm-document-page:not(:last-child) {
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              #root .adm-document-page:last-child,
+              #root div.adm-document-page:last-child,
+              .adm-sheet-paper-container .adm-document-page:last-child,
+              .adm-document-page:last-child,
+              #root .adm-document-page.is-last-page,
+              #root div.adm-document-page.is-last-page,
+              .adm-sheet-paper-container .adm-document-page.is-last-page,
+              .adm-document-page.is-last-page,
+              [data-last-page="true"] {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
                 page-break-after: auto !important;
                 break-after: auto !important;
+                margin-bottom: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
               }
               #root .adm-document-footer,
               .adm-document-page .adm-document-footer,
@@ -1456,10 +1500,15 @@ export default function ActionDoneMatrixTab({
               const pageNumber = pageIdx + 1;
 
               return (
-                <div key={pageIdx}>
+                <React.Fragment key={pageIdx}>
                   <div
-                    className="adm-document-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs"
+                    className={cn(
+                      'adm-document-page bg-white text-black font-serif shadow-lg border border-neutral-300 dark:border-neutral-700 min-h-[1050px] p-8 sm:p-12 relative flex flex-col justify-between rounded-xs',
+                      isLastPage && 'is-last-page',
+                    )}
                     data-testid={`adm-document-page-${pageNumber}`}
+                    data-page={isFirstPage ? '1' : isLastPage ? 'final' : 'continuation'}
+                    data-last-page={isLastPage ? 'true' : undefined}
                   >
                     <div className="space-y-4">
                       {/* Authentic BukSU Header */}
@@ -2093,7 +2142,7 @@ export default function ActionDoneMatrixTab({
                       </Button>
                     </div>
                   )}
-                </div>
+                </React.Fragment>
               );
             })}
           </div>

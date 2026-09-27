@@ -2389,6 +2389,18 @@ html.dark[data-high-contrast='true'] {
     page-break-inside: avoid !important;
   }
 
+  /* Prevent inter-sheet spacing and outer margins from generating blank overflow pages in print */
+  .adm-sheet-paper-container > *,
+  .secretary-sheet-paper-container > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .adm-sheet-paper-container > :not([hidden]) ~ :not([hidden]),
+  .secretary-sheet-paper-container > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
   /* Suppress form scrollbars, browser blue thumb pills, and selection boxes in print */
   textarea,
   input {

@@ -1,0 +1,33 @@
+{
+  "sessionId": "2026-09-27_adm-print-blank-spill-page-elimination",
+  "timestamp": "2026-09-27T23:28:00+08:00",
+  "task": "Eliminate blank spill pages during Action Done Matrix print/PDF export and achieve strict 1:1 screen-to-print page parity",
+  "status": "completed",
+  "skillsTriggered": [
+    "anti-regression-and-ci-governance",
+    "verification-loop",
+    "frontend-patterns",
+    "ptss"
+  ],
+  "rootCause": {
+    "intermediateDivWrapper": "ActionDoneMatrixTab.jsx wrapped each page in a plain <div> inside .adm-sheet-paper-container (which had Tailwind space-y-10), causing subsequent sheets to receive margin-top: 2.5rem (40px) during print. This 40px margin pushed the 296mm container past physical A4 height (297mm), causing the print engine to generate an empty spill page after each sheet.",
+    "unconditionalBreakAfter": "page-break-after: always !important was applied to all .adm-document-page elements with higher specificity than the :last-child rule, forcing a blank trailing page after the final sign-off sheet.",
+    "ancestorMargins": "Ancestor wrappers (#root, .space-y-6, .grid) lacked print margin resets, introducing vertical offset."
+  },
+  "solutionApplied": [
+    "Replaced <div key={pageIdx}> with <React.Fragment key={pageIdx}> so .adm-document-page elements are direct children of the container.",
+    "Stripped ancestor layout margins/paddings in @media print (#root *:not(.adm-document-page, ...) { margin-top: 0 !important; padding-top: 0 !important; }).",
+    "Reset container child spacing (.adm-sheet-paper-container > * { margin-top: 0 !important; margin-bottom: 0 !important; }).",
+    "Restricted break-after: page !important strictly to :not(:last-child).",
+    "Suppressed breaks on the final sheet (:last-child, .is-last-page, [data-last-page=\"true\"]) with break-after: avoid !important and margin-bottom: 0 !important.",
+    "Added global print spacing protection in client/src/index.css for both .adm-sheet-paper-container and .secretary-sheet-paper-container."
+  ],
+  "verificationProof": {
+    "twoSheetPdf": "Reduced from 4 pages (2 blank pages) to exactly 2 pages with 0 blank pages (Page 1: 15 lines, Page 2: 16 lines).",
+    "threeSheetPdf": "Successfully verified in scratch/test_multi_page_no_blanks.mjs: 1:1 parity (Screen=3, PDF=3, Blank Pages=0).",
+    "unitTests": "21/21 passed in ActionDoneMatrixTab.test.jsx; 15/15 passed in SecretaryMinutesDocumentSheet.test.jsx.",
+    "eslint": "0 errors, 0 warnings on ActionDoneMatrixTab.jsx.",
+    "endpointParity": "UNMATCHED_COUNT=0 (217 server / 197 client).",
+    "agenticGovernance": "60/60 checks passed in validate-agentic-system.js."
+  }
+}
