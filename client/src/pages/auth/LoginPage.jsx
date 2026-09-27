@@ -22,7 +22,7 @@ const loginSchema = z.object({
 
 const getGoogleOriginMismatchMessage = () => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'your frontend origin';
-  return `Google sign-in failed. If you see "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
+  return `Google sign-in failed. If you see "The given origin is not allowed for the given client ID" or "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
 };
 
 /**
@@ -109,7 +109,10 @@ export default function LoginPage() {
     [clearError, googleLogin, navigate],
   );
 
-  const handleGoogleError = useCallback(() => {
+  const handleGoogleError = useCallback((err) => {
+    if (err) {
+      console.warn('[Google Auth Error]', err);
+    }
     setGoogleError(getGoogleOriginMismatchMessage());
   }, []);
 
@@ -236,7 +239,6 @@ export default function LoginPage() {
             onError={handleGoogleError}
             theme={theme === 'dark' ? 'filled_black' : 'outline'}
             size="large"
-            width={360}
             text="signin_with"
             shape="rectangular"
           />

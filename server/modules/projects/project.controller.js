@@ -812,6 +812,88 @@ function getMilestoneSignatures(project, milestone) {
   return project.admSignaturesByMilestone[milestone];
 }
 
+/**
+ * Consolidate ADM rows so that each panel member has exactly 1 row per milestone,
+ * merging duplicate rows into multi-line/bulleted suggestions and actions.
+ */
+export function consolidateInstitutionalADMRows(rawRows) {
+  if (!Array.isArray(rawRows) || rawRows.length <= 1) return rawRows || [];
+
+  const map = new Map();
+  const order = [];
+
+  for (const row of rawRows) {
+    const rawName = (row.panelName || '').trim();
+    const milestone = row.milestone || 'CAPSTONE_1';
+    const key = `${milestone}:::${rawName.toLowerCase()}`;
+
+    if (!rawName || !map.has(key)) {
+      const rowObj = typeof row.toObject === 'function' ? row.toObject() : { ...row };
+      const consolidated = {
+        ...rowObj,
+        panelName: rawName || 'Committee Panelist',
+        suggestion: (row.suggestion || '').trim(),
+        actionDone: (row.actionDone || '').trim(),
+        pageNumbers: (row.pageNumbers || '').trim(),
+      };
+      if (rawName) map.set(key, consolidated);
+      order.push(consolidated);
+    } else {
+      const existing = map.get(key);
+
+      // Merge suggestions
+      const incomingSug = (row.suggestion || '').trim();
+      if (incomingSug) {
+        if (!existing.suggestion) {
+          existing.suggestion = incomingSug;
+        } else if (!existing.suggestion.includes(incomingSug)) {
+          const formattedIncoming =
+            incomingSug.startsWith('-') || incomingSug.startsWith('•')
+              ? incomingSug
+              : `- ${incomingSug}`;
+          const currentHasBullet =
+            existing.suggestion.includes('-') || existing.suggestion.includes('•');
+          const prefix = currentHasBullet ? existing.suggestion : `- ${existing.suggestion}`;
+          existing.suggestion = `${prefix}\n\n${formattedIncoming}`;
+        }
+      }
+
+      // Merge actionDone
+      const incomingAct = (row.actionDone || '').trim();
+      if (incomingAct) {
+        if (!existing.actionDone) {
+          existing.actionDone = incomingAct;
+        } else if (!existing.actionDone.includes(incomingAct)) {
+          const formattedIncoming =
+            incomingAct.startsWith('-') || incomingAct.startsWith('•')
+              ? incomingAct
+              : `- ${incomingAct}`;
+          const currentHasBullet =
+            existing.actionDone.includes('-') || existing.actionDone.includes('•');
+          const prefix = currentHasBullet ? existing.actionDone : `- ${existing.actionDone}`;
+          existing.actionDone = `${prefix}\n\n${formattedIncoming}`;
+        }
+      }
+
+      // Merge pageNumbers
+      const incomingPages = (row.pageNumbers || '').trim();
+      if (incomingPages && !existing.pageNumbers?.includes(incomingPages)) {
+        existing.pageNumbers = existing.pageNumbers
+          ? `${existing.pageNumbers}, ${incomingPages}`
+          : incomingPages;
+      }
+
+      // Merge status
+      if (row.status !== 'verified' && existing.status === 'verified') {
+        existing.status = row.status;
+      }
+      if (row.isLocked) existing.isLocked = true;
+    }
+  }
+
+  return order;
+}
+
 /** GET /api/projects/:projectId/action-done-matrix — Retrieve ADM rows */
 export const getActionDoneMatrix = catchAsync(async (req, res) => {
   const { projectId } = req.params;
@@ -841,6 +923,19 @@ export const getActionDoneMatrix = catchAsync(async (req, res) => {
       success: false,
       message: 'Project not found.',
     });
+  }
+
+  // Automatically consolidate repeated panel rows in actionDoneMatrix by panelName & milestone
+  if (Array.isArray(project.actionDoneMatrix) && project.actionDoneMatrix.length > 1) {
+    const originalCount = project.actionDoneMatrix.length;
+    const consolidated = consolidateInstitutionalADMRows(project.actionDoneMatrix);
+    if (consolidated.length < originalCount) {
+      project.actionDoneMatrix = consolidated;
+      if (typeof project.markModified === 'function') {
+        project.markModified('actionDoneMatrix');
+      }
+      await project.save();
+    }
   }
 
   res.status(HTTP_STATUS.OK).json({

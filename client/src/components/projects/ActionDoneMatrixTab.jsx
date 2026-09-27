@@ -104,6 +104,99 @@ function AutoResizeTextarea({
   );
 }
 
+/**
+ * Consolidates Action Done Matrix rows so each panel member appears in exactly 1 row per milestone.
+ * Merges multiple remarks into multi-line/bulleted suggestions and actions.
+ * Guarantees screen-to-print WYSIWYG parity ("what we see here is what we get and what we print").
+ */
+export function consolidateADMRowsByPanel(rawRows) {
+  if (!Array.isArray(rawRows) || rawRows.length === 0) return [];
+
+  const map = new Map();
+  const order = [];
+
+  for (let i = 0; i < rawRows.length; i++) {
+    const row = rawRows[i];
+    const rawName = (row.panelName || '').trim();
+    const milestone = row.milestone || 'CAPSTONE_1';
+    const key = `${milestone}:::${rawName.toLowerCase()}`;
+
+    if (!rawName || !map.has(key)) {
+      const consolidated = {
+        ...row,
+        _id: row._id || row.id || `adm-row-${i}`,
+        panelName: rawName || 'Panel Member',
+        suggestion: (row.suggestion || '').trim(),
+        actionDone: (row.actionDone || '').trim(),
+        pageNumbers: (row.pageNumbers || '').trim(),
+        mergedIds: row._id || row.id ? [row._id || row.id] : [],
+      };
+      if (rawName) map.set(key, consolidated);
+      order.push(consolidated);
+    } else {
+      const existing = map.get(key);
+      if (row._id || row.id) {
+        existing.mergedIds = existing.mergedIds || [];
+        if (!existing.mergedIds.includes(row._id || row.id)) {
+          existing.mergedIds.push(row._id || row.id);
+        }
+      }
+
+      // Merge suggestions: format clean bullets
+      const incomingSug = (row.suggestion || '').trim();
+      if (incomingSug) {
+        if (!existing.suggestion) {
+          existing.suggestion = incomingSug;
+        } else if (!existing.suggestion.includes(incomingSug)) {
+          const formattedIncoming =
+            incomingSug.startsWith('-') || incomingSug.startsWith('•')
+              ? incomingSug
+              : `- ${incomingSug}`;
+          const currentHasBullet =
+            existing.suggestion.includes('-') || existing.suggestion.includes('•');
+          const prefix = currentHasBullet ? existing.suggestion : `- ${existing.suggestion}`;
+          existing.suggestion = `${prefix}\n\n${formattedIncoming}`;
+        }
+      }
+
+      // Merge actionDone: format clean bullets
+      const incomingAct = (row.actionDone || '').trim();
+      if (incomingAct) {
+        if (!existing.actionDone) {
+          existing.actionDone = incomingAct;
+        } else if (!existing.actionDone.includes(incomingAct)) {
+          const formattedIncoming =
+            incomingAct.startsWith('-') || incomingAct.startsWith('•')
+              ? incomingAct
+              : `- ${incomingAct}`;
+          const currentHasBullet =
+            existing.actionDone.includes('-') || existing.actionDone.includes('•');
+          const prefix = currentHasBullet ? existing.actionDone : `- ${existing.actionDone}`;
+          existing.actionDone = `${prefix}\n\n${formattedIncoming}`;
+        }
+      }
+
+      // Merge page numbers
+      const incomingPages = (row.pageNumbers || '').trim();
+      if (incomingPages && !existing.pageNumbers?.includes(incomingPages)) {
+        existing.pageNumbers = existing.pageNumbers
+          ? `${existing.pageNumbers}, ${incomingPages}`
+          : incomingPages;
+      }
+
+      // Merge status
+      if (row.status !== 'verified' && existing.status === 'verified') {
+        existing.status = row.status;
+      }
+      if (row.isLocked) {
+        existing.isLocked = true;
+      }
+    }
+  }
+
+  return order;
+}
+
 export default function ActionDoneMatrixTab({
   project,
   isFaculty: isFacultyProp = false,
@@ -157,8 +250,11 @@ export default function ActionDoneMatrixTab({
   }, [initialMilestone]);
 
   const displayedRows = useMemo(() => {
-    if (selectedMilestone === 'ALL') return rows;
-    return rows.filter((r) => (r.milestone || 'CAPSTONE_1') === selectedMilestone);
+    const filtered =
+      selectedMilestone === 'ALL'
+        ? rows
+        : rows.filter((r) => (r.milestone || 'CAPSTONE_1') === selectedMilestone);
+    return consolidateADMRowsByPanel(filtered);
   }, [rows, selectedMilestone]);
 
   const PAGE_1_CAPACITY = 4;
@@ -327,7 +423,7 @@ export default function ActionDoneMatrixTab({
   // Sync project props and milestone-isolated review type to local state
   useEffect(() => {
     if (project) {
-      setRows(project.actionDoneMatrix || []);
+      setRows(consolidateADMRowsByPanel(project.actionDoneMatrix || []));
       const milestoneReviewType =
         project.admReviewTypeByMilestone?.[targetMilestone] || project.admReviewType || 'internal';
       setReviewType(milestoneReviewType);
@@ -659,13 +755,35 @@ export default function ActionDoneMatrixTab({
     }
   };
 
+  // Intelligently select next panel member to avoid repeating names
+  const getNextAvailablePanelistName = useCallback(() => {
+    const candidateNames = [];
+    if (regularPanelists?.length > 0) {
+      regularPanelists.forEach((p) => {
+        const name = formatFullName(p?.userId || p?.user || p);
+        if (name && !name.includes('Pending Appointment')) candidateNames.push(name);
+      });
+    }
+    if (chair) {
+      const chairName = formatFullName(chair?.userId || chair?.user || chair);
+      if (chairName && !chairName.includes('Pending Appointment')) candidateNames.push(chairName);
+    }
+
+    const existingNames = new Set(rows.map((r) => (r.panelName || '').trim().toLowerCase()));
+    const available = candidateNames.find((name) => !existingNames.has(name.toLowerCase()));
+
+    if (available) return available;
+    if (isUserChair) return formatFullName(user);
+    if (regularPanelists.length > 0) {
+      const first = formatFullName(regularPanelists[0].user || regularPanelists[0]);
+      if (first && !first.includes('Pending Appointment')) return first;
+    }
+    return 'Panel Member';
+  }, [regularPanelists, chair, rows, isUserChair, user]);
+
   // Add evaluation row (milestone-isolated)
   const handleAddRow = async () => {
-    const defaultPanelName = isUserChair
-      ? formatFullName(user)
-      : regularPanelists.length > 0
-        ? formatFullName(regularPanelists[0].user || regularPanelists[0])
-        : 'Panel Member';
+    const defaultPanelName = getNextAvailablePanelistName();
 
     try {
       const res = await projectService.createActionDoneMatrixItem(project._id, {
@@ -677,7 +795,7 @@ export default function ActionDoneMatrixTab({
       });
       toast.success(`Added new evaluation row for ${targetMilestone.replace('_', ' ')}.`);
       if (res?.data?.data?.actionDoneMatrix) {
-        setRows(res.data.data.actionDoneMatrix);
+        setRows(consolidateADMRowsByPanel(res.data.data.actionDoneMatrix));
       }
       if (onRefresh) onRefresh();
     } catch {
@@ -709,10 +827,16 @@ export default function ActionDoneMatrixTab({
     }
   };
 
-  // Delete row
+  // Delete row (pruning all underlying merged IDs if consolidated)
   const handleDeleteRow = async (rowId) => {
     try {
-      await projectService.deleteActionDoneMatrixItem(project._id, rowId);
+      const targetRow = rows.find((r) => (r._id || r.id) === rowId);
+      const idsToDelete = targetRow?.mergedIds?.length ? targetRow.mergedIds : [rowId];
+      await Promise.all(
+        idsToDelete.map((id) =>
+          projectService.deleteActionDoneMatrixItem(project._id, id).catch(() => {}),
+        ),
+      );
       setRows((prev) => prev.filter((r) => (r._id || r.id) !== rowId));
       toast.success('Evaluation row removed.');
       if (onRefresh) onRefresh();
@@ -866,11 +990,7 @@ export default function ActionDoneMatrixTab({
 
   // Add row to specific document sheet
   const handleAddRowToPage = async (pageIdx = 0) => {
-    const defaultPanelName = isUserChair
-      ? formatFullName(user)
-      : regularPanelists.length > 0
-        ? formatFullName(regularPanelists[0].user || regularPanelists[0])
-        : 'Panel Member';
+    const defaultPanelName = getNextAvailablePanelistName();
 
     try {
       const res = await projectService.createActionDoneMatrixItem(project._id, {
@@ -882,8 +1002,9 @@ export default function ActionDoneMatrixTab({
       });
       toast.success(`Added new evaluation row for ${targetMilestone.replace('_', ' ')}.`);
       if (res?.data?.data?.actionDoneMatrix) {
-        setRows(res.data.data.actionDoneMatrix);
-        const addedItem = res.data.data.actionDoneMatrix[res.data.data.actionDoneMatrix.length - 1];
+        const consolidated = consolidateADMRowsByPanel(res.data.data.actionDoneMatrix);
+        setRows(consolidated);
+        const addedItem = consolidated[consolidated.length - 1];
         const addedId = addedItem?._id || addedItem?.id;
         if (addedId) {
           setRowPageMap((prev) => ({ ...prev, [addedId]: pageIdx }));
@@ -1836,7 +1957,7 @@ export default function ActionDoneMatrixTab({
                         variant="outline"
                         size="sm"
                         onClick={() => handleAddContinuationPage(pageIdx + 1)}
-                        className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 backdrop-blur-xs no-print print:hidden"
+                        className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 dark:bg-card/90 dark:text-primary dark:border-primary/60 dark:hover:bg-primary/20 backdrop-blur-xs no-print print:hidden"
                         data-testid={`add-continuation-page-btn-${pageNumber}`}
                         title="Insert a continuation page before the final sign-off sheet"
                       >

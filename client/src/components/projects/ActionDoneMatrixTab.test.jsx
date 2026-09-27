@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ActionDoneMatrixTab from './ActionDoneMatrixTab';
+import ActionDoneMatrixTab, { consolidateADMRowsByPanel } from './ActionDoneMatrixTab';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -462,5 +462,97 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
       expect(div.textContent).not.toContain('p. #');
       expect(div.textContent).not.toContain('Enter Capstone Project Title...');
     });
+  });
+
+  it('consolidateADMRowsByPanel correctly merges suggestions, actions, and page numbers', () => {
+    const raw = [
+      { panelName: 'Raul Lecaros', suggestion: 'Sug 1', actionDone: 'Act 1', pageNumbers: 'p. 1' },
+      { panelName: 'Raul Lecaros', suggestion: 'Sug 2', actionDone: 'Act 2', pageNumbers: 'p. 2' },
+    ];
+    const consolidated = consolidateADMRowsByPanel(raw);
+    expect(consolidated.length).toBe(1);
+    expect(consolidated[0].panelName).toBe('Raul Lecaros');
+    expect(consolidated[0].suggestion).toContain('Sug 1');
+    expect(consolidated[0].suggestion).toContain('Sug 2');
+    expect(consolidated[0].actionDone).toContain('Act 1');
+    expect(consolidated[0].actionDone).toContain('Act 2');
+    expect(consolidated[0].pageNumbers).toBe('p. 1, p. 2');
+  });
+
+  it('consolidates repeated panelist names into 1 row with multi-bullet suggestions and actions (WYSIWYG on screen and in print)', async () => {
+    const projectWithRepeatedNames = {
+      ...mockProject,
+      actionDoneMatrix: [
+        {
+          _id: 'row-1',
+          panelName: 'Raul Lecaros',
+          suggestion: 'Minor adjustments were identified (FRINS2)',
+          actionDone: 'Description of modifications 1',
+          pageNumbers: 'p. 10',
+          status: 'pending',
+          milestone: 'CAPSTONE_1',
+        },
+        {
+          _id: 'row-2',
+          panelName: 'Raul Lecaros',
+          suggestion: 'Additionally, FRINS6 remains incomplete',
+          actionDone: 'Description of modifications 2',
+          pageNumbers: 'p. 15',
+          status: 'addressed',
+          milestone: 'CAPSTONE_1',
+        },
+        {
+          _id: 'row-3',
+          panelName: 'Joseph Abella',
+          suggestion: 'Results should be seen only once details are filled in',
+          actionDone: 'Wrapped scoring endpoints',
+          pageNumbers: 'p. 20',
+          status: 'verified',
+          milestone: 'CAPSTONE_1',
+        },
+        {
+          _id: 'row-4',
+          panelName: 'Joseph Abella',
+          suggestion: 'User should be able to read the full paper',
+          actionDone: 'Direct link to full paper',
+          pageNumbers: 'p. 25',
+          status: 'verified',
+          milestone: 'CAPSTONE_1',
+        },
+      ],
+    };
+
+    await renderComponent({ project: projectWithRepeatedNames, initialMilestone: 'CAPSTONE_1' });
+
+    // Ensure there is exactly 1 row for Raul Lecaros and 1 row for Joseph Abella (total 2 table rows, not 4)
+    const tableRows = Array.from(container.querySelectorAll('.adm-document-page tbody tr')).filter(
+      (tr) => tr.querySelector('input[data-testid^="panel-name-input"]'),
+    );
+
+    expect(tableRows.length).toBe(2);
+
+    // Verify row 1 contains Raul Lecaros and both suggestions
+    const row1Name = tableRows[0].querySelector('input[data-testid^="panel-name-input"]')?.value;
+    expect(row1Name).toBe('Raul Lecaros');
+    const row1Sug = tableRows[0].querySelector(
+      'textarea[data-testid^="panel-suggestion-input"]',
+    )?.value;
+    expect(row1Sug).toContain('Minor adjustments were identified (FRINS2)');
+    expect(row1Sug).toContain('Additionally, FRINS6 remains incomplete');
+
+    // Verify row 2 contains Joseph Abella and both suggestions
+    const row2Name = tableRows[1].querySelector('input[data-testid^="panel-name-input"]')?.value;
+    expect(row2Name).toBe('Joseph Abella');
+    const row2Sug = tableRows[1].querySelector(
+      'textarea[data-testid^="panel-suggestion-input"]',
+    )?.value;
+    expect(row2Sug).toContain('Results should be seen only once details are filled in');
+    expect(row2Sug).toContain('User should be able to read the full paper');
+
+    // Print twins also have exactly 1 block per panelist with the consolidated text
+    const printRows = Array.from(container.querySelectorAll('.adm-document-page tbody tr'))
+      .map((tr) => tr.querySelector('td:first-child div.hidden.print\\:block')?.textContent?.trim())
+      .filter(Boolean);
+    expect(printRows).toEqual(['Raul Lecaros', 'Joseph Abella']);
   });
 });

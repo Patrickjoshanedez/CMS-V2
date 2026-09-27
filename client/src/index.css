@@ -403,11 +403,13 @@ html.dark[data-high-contrast='true'] {
     color: #ffffff;
   }
 
-  /* Inoculate white institutional secretary minutes document sheet from dark mode inversion */
-  .dark .secretary-sheet-paper-container,
-  .dark .secretary-sheet-paper-container *:not([data-portal-signature-modal] *),
+  /* Inoculate white institutional secretary minutes document sheet paper from dark mode inversion */
   .dark .secretary-minutes-page,
-  .dark .secretary-minutes-page *:not(a):not([data-portal-signature-modal] *) {
+  .dark
+    .secretary-minutes-page
+    *:not(a):not(button):not(button *):not([role='button']):not([role='button'] *):not(
+      .no-print
+    ):not(.no-print *):not([data-portal-signature-modal] *) {
     color: #000000 !important;
   }
   .dark .secretary-minutes-page a {
@@ -423,11 +425,13 @@ html.dark[data-high-contrast='true'] {
     color: #4b5563 !important;
   }
 
-  /* Inoculate white institutional Action Done Matrix (ADM) document sheet from dark mode inversion */
-  .dark .adm-sheet-paper-container,
-  .dark .adm-sheet-paper-container *:not([data-portal-signature-modal] *),
+  /* Inoculate white institutional Action Done Matrix (ADM) document sheet paper from dark mode inversion */
   .dark .adm-document-page,
-  .dark .adm-document-page *:not(a):not([data-portal-signature-modal] *) {
+  .dark
+    .adm-document-page
+    *:not(a):not(button):not(button *):not([role='button']):not([role='button'] *):not(
+      .no-print
+    ):not(.no-print *):not([data-portal-signature-modal] *) {
     color: #000000 !important;
   }
   .dark .adm-document-page a {
@@ -441,6 +445,18 @@ html.dark[data-high-contrast='true'] {
   .dark .adm-document-page input::placeholder,
   .dark .adm-document-page textarea::placeholder {
     color: #4b5563 !important;
+  }
+
+  /* Ensure interactive buttons inside and outside ADM and Secretary document sheets retain high contrast in dark mode */
+  .dark .secretary-sheet-paper-container button:not(.text-black),
+  .dark .adm-sheet-paper-container button:not(.text-black) {
+    color: hsl(var(--primary));
+  }
+  .dark .secretary-sheet-paper-container button.text-destructive,
+  .dark .adm-sheet-paper-container button.text-destructive,
+  .dark .secretary-sheet-paper-container button[class*='text-red-'],
+  .dark .adm-sheet-paper-container button[class*='text-red-'] {
+    color: #ef4444 !important;
   }
 
   /* Inoculate white institutional presentation slide canvas from dark mode inversion */

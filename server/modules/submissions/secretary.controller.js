@@ -303,27 +303,49 @@ export const saveSecretaryMinutes = async (req, res, next) => {
       }
     }
 
-    // 3. Convert panelRemarks into ADM rows if requested
+    // 3. Convert panelRemarks into ADM rows if requested (1 row per panel member with multi-bullet suggestions)
     if (syncToADM && Array.isArray(minutesData?.panelRemarks)) {
       const targetMilestoneKey = milestone === 'CAPSTONE_4' ? 'CAPSTONE_3' : milestone;
-      const admRows = [];
+      const panelGroupMap = new Map();
+
       for (const panel of minutesData.panelRemarks) {
-        const panelName = panel.panelName || 'Committee Panelist';
+        const rawName = (panel.panelName || 'Committee Panelist').trim();
+        const key = rawName.toLowerCase();
         const comments = Array.isArray(panel.comments)
           ? panel.comments
           : [panel.comments].filter(Boolean);
-        for (const comm of comments) {
-          if (!comm || !comm.trim()) continue;
-          admRows.push({
-            panelName,
-            suggestion: comm.trim(),
-            expectedAction: `Address and resolve: ${comm.trim()}`,
-            status: 'pending',
-            actionDone: '',
-            remarks: '',
-            milestone: targetMilestoneKey,
-          });
+        const validComments = comments
+          .map((c) => (typeof c === 'string' ? c.trim() : ''))
+          .filter(Boolean);
+
+        if (validComments.length === 0) continue;
+
+        if (!panelGroupMap.has(key)) {
+          panelGroupMap.set(key, { panelName: rawName, comments: [] });
         }
+        const existing = panelGroupMap.get(key);
+        for (const c of validComments) {
+          if (!existing.comments.includes(c)) {
+            existing.comments.push(c);
+          }
+        }
+      }
+
+      const admRows = [];
+      for (const { panelName, comments } of panelGroupMap.values()) {
+        const formattedSuggestions = comments
+          .map((c) => (c.startsWith('-') || c.startsWith('•') ? c : `- ${c}`))
+          .join('\n\n');
+
+        admRows.push({
+          panelName,
+          suggestion: formattedSuggestions,
+          expectedAction: 'Address and resolve committee remarks',
+          status: 'pending',
+          actionDone: '',
+          remarks: '',
+          milestone: targetMilestoneKey,
+        });
       }
 
       if (admRows.length > 0) {

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,7 +52,7 @@ const registerSchema = z
 
 const getGoogleOriginMismatchMessage = () => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'your frontend origin';
-  return `Google sign-up failed. If you see "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
+  return `Google sign-up failed. If you see "The given origin is not allowed for the given client ID" or "Error 400: origin_mismatch", add ${origin} to Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Authorized JavaScript origins.`;
 };
 
 /* ─── Password Strength Meter ─── */
@@ -123,6 +123,10 @@ export default function RegisterPage() {
   const recaptchaRef = useRef(null);
   const { theme } = useThemeStore();
 
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
+
   const {
     control,
     handleSubmit,
@@ -164,9 +168,12 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleError = () => {
+  const handleGoogleError = useCallback((err) => {
+    if (err) {
+      console.warn('[Google Auth Error]', err);
+    }
     setGoogleError(getGoogleOriginMismatchMessage());
-  };
+  }, []);
 
   const onSubmit = useCallback(
     async (data) => {
@@ -387,7 +394,6 @@ export default function RegisterPage() {
             size="large"
             text="signup_with"
             shape="rectangular"
-            width="100%"
           />
         </div>
       ) : (

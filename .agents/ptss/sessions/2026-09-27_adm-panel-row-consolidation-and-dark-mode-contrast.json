@@ -1,0 +1,59 @@
+{
+  "sessionId": "2026-09-27_adm-panel-row-consolidation-and-dark-mode-contrast",
+  "timestamp": "2026-09-27T21:00:00+08:00",
+  "agent": "Antigravity",
+  "task": "Resolve dark mode unseeable continuation buttons in ADM and Secretary Minutes, eliminate duplicate panelist names via row consolidation (1 row per panel member with multi-bullet suggestions matching BukSU reference format), ensure screen-and-print WYSIWYG parity, and prevent duplicate row defaults.",
+  "status": "completed",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "changes": [
+    {
+      "file": "client/src/index.css",
+      "summary": "Scoped dark mode paper typography overrides strictly to .secretary-minutes-page and .adm-document-page while explicitly excluding button, [role='button'], and .no-print elements, restoring full contrast to continuation buttons across dark mode canvases."
+    },
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.jsx",
+      "summary": "Implemented consolidateADMRowsByPanel to merge duplicate panel rows into single rows with multi-bullet suggestions and tracked merged IDs; added getNextAvailablePanelistName candidate selection to prevent repeating names when adding rows; enhanced continuation button dark classes."
+    },
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.test.jsx",
+      "summary": "Added unit tests verifying consolidateADMRowsByPanel functionality, non-repeating panelist name candidate selection, and screen-and-print WYSIWYG parity."
+    },
+    {
+      "file": "client/src/components/secretary/SecretaryMinutesDocumentSheet.jsx",
+      "summary": "Added dark theme classes to continuation insertion buttons for high-contrast visibility."
+    },
+    {
+      "file": "server/modules/projects/project.controller.js",
+      "summary": "Added consolidateInstitutionalADMRows in getActionDoneMatrix to ensure backend responses group existing un-consolidated rows per panel member."
+    },
+    {
+      "file": "server/modules/submissions/secretary.controller.js",
+      "summary": "Updated syncToADM in saveSecretaryMinutes to group defense remarks by panelist name, preventing duplicate panel rows upon sync."
+    },
+    {
+      "file": "client/src/pages/auth/LoginPage.jsx",
+      "summary": "Refined Google OAuth error handling and origin mismatch messages."
+    },
+    {
+      "file": "client/src/pages/auth/RegisterPage.jsx",
+      "summary": "Refined Google OAuth registration flow and error handling."
+    }
+  ],
+  "verification": {
+    "targetedClientTests": "33 passed (ActionDoneMatrixTab: 18/18, SecretaryMinutesDocumentSheet: 15/15)",
+    "serverUnitTests": "5 passed (defenseMinutes.test.js: 5/5)",
+    "endpointsParity": "UNMATCHED_COUNT=0 (217 Server / 197 Client)",
+    "governance": "60/60 checks passed",
+    "playwrightVisualLoop": {
+      "lightModeDesktop": "verified high contrast buttons and consolidated rows",
+      "darkModeDesktop": "verified color rgb(24, 119, 242) primary blue text, zero black-on-black",
+      "darkModeMobile": "verified responsive row consolidation and contrast"
+    },
+    "artifacts": [
+      "scratch/secretary_dark_mode_desktop.png",
+      "scratch/adm_dark_mode_desktop.png",
+      "scratch/adm_dark_mode_mobile.png",
+      "scratch/adm_light_mode_desktop.png"
+    ]
+  }
+}

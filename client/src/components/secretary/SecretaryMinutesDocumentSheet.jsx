@@ -2497,7 +2497,7 @@ export default function SecretaryMinutesDocumentSheet({
                     variant="outline"
                     size="sm"
                     onClick={() => handleAddContinuationPage(pageIdx + 1)}
-                    className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 backdrop-blur-xs"
+                    className="gap-2 text-xs font-semibold shadow-xs text-primary border-primary/50 hover:bg-primary/10 bg-background/80 dark:bg-card/90 dark:text-primary dark:border-primary/60 dark:hover:bg-primary/20 backdrop-blur-xs"
                     data-testid={`add-continuation-page-btn-${pageNumber}`}
                     title="Insert a continuation page before the final sign-off sheet"
                   >
