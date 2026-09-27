@@ -2377,6 +2377,18 @@ html.dark[data-high-contrast='true'] {
     overflow: visible !important;
   }
 
+  /* Stop tables and rows inside document sheets from breaking across raw unformatted page boxes */
+  .adm-document-page table,
+  .secretary-minutes-page table {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .adm-document-page tr,
+  .secretary-minutes-page tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   /* Suppress form scrollbars, browser blue thumb pills, and selection boxes in print */
   textarea,
   input {

@@ -1,0 +1,46 @@
+{
+  "sessionId": "2026-09-27_adm-content-aware-auto-page-breaks",
+  "timestamp": "2026-09-27T21:40:00+08:00",
+  "agent": "Antigravity",
+  "task": "Implement automatic content-aware page breaks for Action Done Matrix (RU-F-033) that prevent print overflow, stop browser tables from crudely splitting across raw unformatted pages, allocate large panel remarks across authentic BukSU continuation sheets, and add a Balance Pages toolbar button.",
+  "status": "completed",
+  "compliance": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "changes": [
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.jsx",
+      "summary": "Implemented estimateADMRowWeight, ADM_PAGE_CAPACITIES (Page 1: ~24 lines, Continuation: ~36 lines, Final Sheet: ~10 lines), and autoAllocateADMSheets; updated rowsByPage and autoPageCount to use content weights instead of hardcoded row count (4); added Balance Pages toolbar button (adm-balance-pages-btn); and added break-inside: avoid to table print CSS."
+    },
+    {
+      "file": "client/src/components/projects/ActionDoneMatrixTab.test.jsx",
+      "summary": "Added unit tests covering estimateADMRowWeight, autoAllocateADMSheets multi-sheet auto-distribution for large multi-paragraph panel suggestions, and the Balance Pages toolbar button (21/21 passed)."
+    },
+    {
+      "file": "client/src/index.css",
+      "summary": "Added break-inside: avoid !important and page-break-inside: avoid !important to .adm-document-page table and tr in @media print, preventing browser print engines from splitting tables across raw unformatted paper boxes."
+    },
+    {
+      "file": "memories/repo/CMS-V2-Technical-Context.md",
+      "summary": "Recorded prevention rule, lessons learned, and runbook checklist for ADM content-aware dynamic page allocation and print integrity."
+    }
+  ],
+  "verification": {
+    "targetedClientTests": "36 passed (ActionDoneMatrixTab: 21/21, SecretaryMinutesDocumentSheet: 15/15)",
+    "endpointsParity": "UNMATCHED_COUNT=0 (217 Server / 197 Client)",
+    "governance": "60/60 checks passed",
+    "playwrightVisualLoop": {
+      "autoAllocatedPages": "verified dynamic multi-sheet generation without vertical overflow",
+      "lightMode": "verified clean sheet formatting with BukSU headers and footers",
+      "darkMode": "verified contrast immunity and high contrast buttons",
+      "printEmulated": "verified zero crude table splits and full format preservation"
+    },
+    "artifacts": [
+      "scratch/01_adm_auto_break_page1.png",
+      "scratch/02_adm_auto_break_page2.png",
+      "scratch/03_adm_auto_break_final.png",
+      "scratch/04_adm_print_emulated_page1.png",
+      "scratch/05_adm_print_emulated_page2.png",
+      "scratch/balanced_adm_page_1_print.png",
+      "scratch/balanced_adm_page_2_print.png"
+    ]
+  }
+}

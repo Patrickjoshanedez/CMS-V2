@@ -1,8 +1,8 @@
 {
   "$schema": "./chat-starter.schema.json",
   "version": "2.1.0",
-  "session_id": "2026-09-27_adm-panel-row-consolidation-and-dark-mode-contrast",
-  "timestamp": "2026-09-27T21:00:00+08:00",
+  "session_id": "2026-09-27_adm-content-aware-auto-page-breaks",
+  "timestamp": "2026-09-27T21:40:00+08:00",
   "status": "completed",
   "role": "Master Systems Architect & Document Engine Specialist (BukSU CMS-V2)",
   "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
@@ -11,16 +11,16 @@
     "clean_working_tree": true
   },
   "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
-  "task_description": "Resolved dark mode unseeable continuation buttons in ADM and Secretary Minutes (+ Add Continuation Page) by scoping #000000 !important strictly to document pages and excluding buttons; eliminated duplicate panelist names via row consolidation (consolidateADMRowsByPanel) into single rows with multi-bullet suggestions matching BukSU reference format; enforced candidate selection (getNextAvailablePanelistName) to prevent duplicate row defaults; updated secretary controller syncToADM and project controller getActionDoneMatrix to group remarks per panel member for 100% screen-and-print WYSIWYG parity. Verified with 33/33 client tests, 5/5 server tests, 217/197 route parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, and Playwright visual loop across desktop and mobile.",
+  "task_description": "Implemented automatic content-aware page breaks for Action Done Matrix (RU-F-033): replaced naive static row count (PAGE_1_CAPACITY = 4) with estimateADMRowWeight, ADM_PAGE_CAPACITIES (Page 1: ~24 lines, Continuation: ~36 lines, Final Sheet: ~10 lines), and autoAllocateADMSheets; automatically moved overflowing panel remarks to authentic BukSU Continuation Sheets (repeating BukSU Header, continuation title, review bar, and footer); added Balance Pages toolbar button (adm-balance-pages-btn); and enforced break-inside: avoid on tables and rows in @media print to prevent browser print engines from crudely slicing tables across raw unformatted pages. Verified with 36/36 client tests, 217/197 route parity (UNMATCHED_COUNT=0), 60/60 agentic validation checks, and Playwright print audits.",
   "startup_preflight": {
     "ptss_index_inspected": true,
     "technical_context_synced": true,
     "recent_sessions_recalled": [
+      "2026-09-27_adm-content-aware-auto-page-breaks",
       "2026-09-27_adm-panel-row-consolidation-and-dark-mode-contrast",
-      "2026-09-27_secretary-minutes-page-arrangement-and-print-pagination",
-      "2026-09-26_secretary-minutes-print-margins-and-seal-clearance"
+      "2026-09-27_secretary-minutes-page-arrangement-and-print-pagination"
     ],
-    "active_prevention_rules_count": 69
+    "active_prevention_rules_count": 70
   },
   "skills_primed": [
     "frontend-patterns",
@@ -36,6 +36,6 @@
     "governance_passed": true,
     "workspace_clean": true,
     "endpoints_parity": true,
-    "unit_tests_passed": 38
+    "unit_tests_passed": 36
   }
 }

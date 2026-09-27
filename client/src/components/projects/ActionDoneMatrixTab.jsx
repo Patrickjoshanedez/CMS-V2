@@ -27,8 +27,6 @@ import {
   Send,
   FileText,
   Layers,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -197,6 +195,124 @@ export function consolidateADMRowsByPanel(rawRows) {
   return order;
 }
 
+/**
+ * Line capacities for Action Done Matrix document sheets (A4 dimensions at 8.5pt font):
+ * - Page 1 (Opening Sheet with title, header, note, review type bar): ~24 lines of row content max.
+ * - Continuation Sheet (Pages 2..N-1 with header, continuation title, review bar): ~36 lines max.
+ * - Final Sign-off Sheet (with Signatories Board): ~10 lines max if sharing with rows, otherwise dedicated.
+ */
+export const ADM_PAGE_CAPACITIES = {
+  PAGE_1_MAX_LINES: 24,
+  CONTINUATION_MAX_LINES: 36,
+  FINAL_PAGE_MAX_LINES: 10,
+};
+
+/**
+ * Estimates vertical weight (in line units) of an Action Done Matrix row based on text content and column widths.
+ */
+export function estimateADMRowWeight(row) {
+  if (!row) return 2.5;
+  const sug = (row.suggestion || '').trim();
+  const act = (row.actionDone || '').trim();
+  const pan = (row.panelName || '').trim();
+
+  // Column 2: Suggestion column is 35% of page width (~48 chars per line in 8.5pt font)
+  const sugLines = sug
+    ? sug
+        .split('\n')
+        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 48)), 0)
+    : 1;
+
+  // Column 3: Action Taken column is 30% of page width (~40 chars per line in 8.5pt font)
+  const actLines = act
+    ? act
+        .split('\n')
+        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 40)), 0)
+    : 1;
+
+  // Column 1: Panel name column (~28 chars per line)
+  const panLines = pan ? Math.max(1, Math.ceil(pan.trim().length / 28)) : 1;
+
+  // Each table row adds vertical padding and border overhead (~1.5 lines)
+  return Math.max(sugLines, actLines, panLines) + 1.5;
+}
+
+/**
+ * Automatically allocates Action Done Matrix rows across authentic BukSU A4 document sheets:
+ * - Dynamically computes row heights to prevent physical page overflows and crude print breaks.
+ * - Guarantees that Page 1 never exceeds vertical capacity.
+ * - Automatically moves overflowing rows to Continuation Sheets (with full BukSU headers).
+ * - Leaves the Final Sign-off Sheet uncrowded so the Signatories Board is never sliced.
+ */
+export function autoAllocateADMSheets(displayedRows) {
+  if (!Array.isArray(displayedRows) || displayedRows.length === 0) {
+    return {
+      pages: [[], []],
+      pageMap: {},
+      totalPages: 2,
+    };
+  }
+
+  const pages = [];
+  const pageMap = {};
+
+  let currentSheet = [];
+  let currentSheetLines = 0;
+  let maxLines = ADM_PAGE_CAPACITIES.PAGE_1_MAX_LINES;
+
+  const queue = [...displayedRows];
+
+  while (queue.length > 0) {
+    const row = queue[0];
+    const weight = estimateADMRowWeight(row);
+
+    // Can this row fit on the current sheet?
+    if (currentSheet.length === 0 || currentSheetLines + weight <= maxLines) {
+      currentSheet.push(row);
+      currentSheetLines += weight;
+      const rowId = row._id || row.id;
+      if (rowId) {
+        pageMap[rowId] = pages.length;
+      }
+      queue.shift();
+    } else {
+      // Current sheet is full; close it and start a new continuation sheet
+      pages.push(currentSheet);
+      currentSheet = [];
+      currentSheetLines = 0;
+      maxLines = ADM_PAGE_CAPACITIES.CONTINUATION_MAX_LINES;
+    }
+  }
+
+  if (currentSheet.length > 0) {
+    pages.push(currentSheet);
+  }
+
+  // Inspect the last page:
+  // If the last page has rows, does it fit within FINAL_PAGE_MAX_LINES (10 lines)?
+  // If YES and pages.length >= 2, that page can serve as the Final Sign-off Sheet!
+  // If NO, or if pages.length === 1:
+  // Add a dedicated Final Sign-off Sheet (empty rows) so the Signatories Board has the entire page to itself!
+  const lastPageIdx = pages.length - 1;
+  const lastPage = pages[lastPageIdx];
+  const lastPageWeight = lastPage.reduce((acc, r) => acc + estimateADMRowWeight(r), 0);
+
+  if (pages.length === 1 || lastPageWeight > ADM_PAGE_CAPACITIES.FINAL_PAGE_MAX_LINES) {
+    pages.push([]);
+  }
+
+  // Ensure minimum 2 pages
+  while (pages.length < 2) {
+    pages.push([]);
+  }
+
+  return {
+    pages,
+    pageMap,
+    totalPages: pages.length,
+  };
+}
+
 export default function ActionDoneMatrixTab({
   project,
   isFaculty: isFacultyProp = false,
@@ -230,7 +346,7 @@ export default function ActionDoneMatrixTab({
   const [rows, setRows] = useState([]);
   const [reviewType, setReviewType] = useState('internal');
   const [projectTitle, setProjectTitle] = useState('');
-  const [savingCells, setSavingCells] = useState({}); // { [rowId_field]: 'saving' | 'saved' | 'error' }
+  const [_savingCells, setSavingCells] = useState({}); // { [rowId_field]: 'saving' | 'saved' | 'error' }
 
   // Milestone revision scoping (Capstone 1, Capstone 2, Capstone 3)
   const defaultMilestone = useMemo(() => {
@@ -257,52 +373,47 @@ export default function ActionDoneMatrixTab({
     return consolidateADMRowsByPanel(filtered);
   }, [rows, selectedMilestone]);
 
-  const PAGE_1_CAPACITY = 4;
-  const CONTINUATION_PAGE_CAPACITY = 6;
-  const FINAL_PAGE_MAX_ROWS = 2;
+  // Automatically determine minimal required pages and content-aware page distribution
+  const autoAllocationResult = useMemo(() => autoAllocateADMSheets(displayedRows), [displayedRows]);
 
-  // Automatically determine minimal required pages based on row count
-  const autoPageCount = useMemo(() => {
-    const n = displayedRows.length;
-    if (n <= PAGE_1_CAPACITY + FINAL_PAGE_MAX_ROWS) return 2;
-    const remaining = n - PAGE_1_CAPACITY - FINAL_PAGE_MAX_ROWS;
-    const contPages = Math.ceil(remaining / CONTINUATION_PAGE_CAPACITY);
-    return 2 + contPages;
-  }, [displayedRows.length]);
+  const autoPageCount = autoAllocationResult.totalPages;
 
   const [manualPageCount, setManualPageCount] = useState(null);
   const totalPages = Math.max(2, manualPageCount !== null ? manualPageCount : autoPageCount);
 
   // Group displayed rows by their designated document sheet
   const rowsByPage = useMemo(() => {
-    const pages = Array.from({ length: totalPages }, () => []);
+    // If user has not manually overridden page counts or row locations, use auto-allocated sheets directly
+    const hasManualMapping = Object.keys(rowPageMap).length > 0 || manualPageCount !== null;
+    if (!hasManualMapping && autoAllocationResult.pages.length === totalPages) {
+      return autoAllocationResult.pages;
+    }
 
-    // Determine default page index for a row when not manually mapped
-    const getDefaultPage = (idx) => {
-      if (totalPages === 2) {
-        return idx < PAGE_1_CAPACITY ? 0 : 1;
-      }
-      if (idx < PAGE_1_CAPACITY) return 0;
-      const remainingIdx = idx - PAGE_1_CAPACITY;
-      const continuationPageLimit = totalPages - 2; // number of continuation pages
-      const contPageIdx = Math.floor(remainingIdx / CONTINUATION_PAGE_CAPACITY);
-      if (contPageIdx < continuationPageLimit) {
-        return 1 + contPageIdx;
-      }
-      return totalPages - 1; // Final sign-off page
-    };
+    const pages = Array.from({ length: totalPages }, () => []);
 
     displayedRows.forEach((row, idx) => {
       const rowId = row._id || row.id || idx;
       const assigned = rowPageMap[rowId];
+      const autoAssigned = autoAllocationResult.pageMap[rowId];
+
       const targetPage =
         typeof assigned === 'number' && assigned >= 0 && assigned < totalPages
           ? assigned
-          : getDefaultPage(idx);
+          : typeof autoAssigned === 'number' && autoAssigned >= 0 && autoAssigned < totalPages
+            ? autoAssigned
+            : 0;
+
       pages[targetPage].push(row);
     });
     return pages;
-  }, [displayedRows, totalPages, rowPageMap]);
+  }, [displayedRows, totalPages, rowPageMap, manualPageCount, autoAllocationResult]);
+
+  // Balance Pages: reset manual mappings and re-run content-aware auto-allocation
+  const handleBalancePages = () => {
+    setRowPageMap({});
+    setManualPageCount(null);
+    toast.success('Automatically balanced Action Done Matrix across authentic A4 sheets.');
+  };
 
   // Insert continuation page strictly before the final sign-off sheet
   const handleAddContinuationPage = (insertIndex) => {
@@ -1159,6 +1270,8 @@ export default function ActionDoneMatrixTab({
                 border-collapse: collapse !important;
                 width: 100% !important;
                 margin: 0 !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
               }
               .adm-document-page tr {
                 break-inside: avoid !important;
@@ -1180,7 +1293,7 @@ export default function ActionDoneMatrixTab({
               .adm-document-page button,
               .adm-document-page [role="button"],
               .adm-document-page .no-print,
-              .adm-document-page .print\\:hidden {
+              .adm-document-page [class*="print:hidden"] {
                 display: none !important;
               }
               .adm-document-page a {
@@ -1193,7 +1306,7 @@ export default function ActionDoneMatrixTab({
                 width: 0 !important;
                 height: 0 !important;
               }
-              .group\\/row {
+              [class*="group/row"] {
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
               }
@@ -1284,6 +1397,20 @@ export default function ActionDoneMatrixTab({
                   Endorse Matrix
                 </Button>
               )}
+
+              {/* Automatically Balance Pages Button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleBalancePages}
+                className="gap-1.5 text-xs h-8 text-primary border-primary/40 hover:bg-primary/5"
+                title="Automatically balance committee remarks across authentic A4 sheets without print overflow"
+                data-testid="adm-balance-pages-btn"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Balance Pages
+              </Button>
 
               {/* Add Continuation Page Button in Action Bar */}
               <Button

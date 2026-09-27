@@ -1,7 +1,12 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ActionDoneMatrixTab, { consolidateADMRowsByPanel } from './ActionDoneMatrixTab';
+import ActionDoneMatrixTab, {
+  consolidateADMRowsByPanel,
+  estimateADMRowWeight,
+  autoAllocateADMSheets,
+  ADM_PAGE_CAPACITIES,
+} from './ActionDoneMatrixTab';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -554,5 +559,98 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
       .map((tr) => tr.querySelector('td:first-child div.hidden.print\\:block')?.textContent?.trim())
       .filter(Boolean);
     expect(printRows).toEqual(['Raul Lecaros', 'Joseph Abella']);
+  });
+
+  it('estimateADMRowWeight correctly calculates lines based on text length and multi-line breaks', () => {
+    const smallRow = {
+      panelName: 'Raul Lecaros',
+      suggestion: 'Short note',
+      actionDone: 'Fixed',
+    };
+    const smallWeight = estimateADMRowWeight(smallRow);
+    expect(smallWeight).toBeGreaterThanOrEqual(2);
+    expect(smallWeight).toBeLessThan(5);
+
+    const largeRow = {
+      panelName: 'Louie Jay Labastida',
+      suggestion:
+        '- students should also be able to see comments and suggestions embedded in documents\n\n' +
+        '- Capstone 2: no documents involved so directly to action done matrix\n\n' +
+        '- secretary account upload minutes, action done created directly from that\n\n' +
+        '- editable/notification of justification will trigger only if late\n\n' +
+        '- put algorithm and its justification in paper',
+      actionDone:
+        '- Added Google Doc style inline comments with anchor tags\n\n' +
+        '- Updated workflow progression for Capstone 2\n\n' +
+        '- Automated minutes upload and matrix creation\n\n' +
+        '- Configured justification notification modal\n\n' +
+        '- Embedded algorithm discussion in Chapter 3',
+    };
+    const largeWeight = estimateADMRowWeight(largeRow);
+    expect(largeWeight).toBeGreaterThan(10);
+  });
+
+  it('autoAllocateADMSheets automatically breaks large rows across pages without physical overflow', () => {
+    // Two large panelist rows matching the user screenshot (Louie Jay Labastida + Raul Lecaros)
+    const largeRows = [
+      {
+        _id: 'row-1',
+        panelName: 'Louie Jay Labastida',
+        suggestion:
+          '- students should also be able to see comments and suggestions embedded in documents\n\n' +
+          '- Capstone 2: no documents involved so directly to action done matrix\n\n' +
+          '- secretary account upload minutes, action done created directly from that\n\n' +
+          '- editable/notification of justification will trigger only if late\n\n' +
+          '- put algorithm and its justification in paper',
+        actionDone: 'Actions taken for items 1-5',
+      },
+      {
+        _id: 'row-2',
+        panelName: 'Raul Lecaros',
+        suggestion:
+          '- majority of the core functionalities (FR1–FR3, FR6, FR8–FR10, FR12–FR17) have been successfully implemented and are operating as intended.\n\n' +
+          '- For FR4, it was agreed that the documentation must be updated to reflect a maximum of four members per capstone group instead of three.\n\n' +
+          '- For FR5, the header "capstone type" will be revised to "IT Field of Discipline".\n\n' +
+          '- FR7 requires enhancement by removing the hard-coded Google Doc link.\n\n' +
+          '- FR11 was noted as partially met; while the functionality is available on the student side.\n\n' +
+          '- FRAD1, FRAD5, FRAD6, and FRAD7 were confirmed as fully implemented.\n\n' +
+          '- FRAD2, however, remains partially complete.',
+        actionDone: 'Actions taken for items 1-7',
+      },
+    ];
+
+    const result = autoAllocateADMSheets(largeRows);
+
+    // Because row-1 (~15-18 lines) and row-2 (~20-25 lines) exceed Page 1 capacity (24 lines),
+    // row-1 is on Page 1, row-2 is moved to Page 2 (Continuation Sheet),
+    // and Page 3 is reserved for the Final Sign-off Sheet!
+    expect(result.totalPages).toBe(3);
+    expect(result.pages[0].length).toBe(1);
+    expect(result.pages[0][0].panelName).toBe('Louie Jay Labastida');
+
+    expect(result.pages[1].length).toBe(1);
+    expect(result.pages[1][0].panelName).toBe('Raul Lecaros');
+
+    // Page 3 has 0 rows (reserved for Signatories Board so it never crowds or breaks)
+    expect(result.pages[2].length).toBe(0);
+
+    expect(result.pageMap['row-1']).toBe(0);
+    expect(result.pageMap['row-2']).toBe(1);
+  });
+
+  it('renders Balance Pages button in Action Bar and resets manual page distribution on click', async () => {
+    await renderComponent();
+
+    const balanceBtn = container.querySelector('button[data-testid="adm-balance-pages-btn"]');
+    expect(balanceBtn).toBeTruthy();
+    expect(balanceBtn.textContent).toContain('Balance Pages');
+
+    await act(async () => {
+      balanceBtn.click();
+    });
+
+    expect(toastSuccess).toHaveBeenCalledWith(
+      expect.stringContaining('Automatically balanced Action Done Matrix'),
+    );
   });
 });
