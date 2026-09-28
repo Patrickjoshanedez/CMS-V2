@@ -74,12 +74,9 @@ vi.mock('@/components/projects/TitleStatusBadge', () => ({
 vi.mock('@/components/projects/ProjectStatusBadge', () => ({
   default: () => <div>project-badge</div>,
 }));
-vi.mock('@/components/projects/PrototypeGallery', () => ({ default: () => null }));
 vi.mock('@/components/projects/DeadlineWarning', () => ({ default: () => null }));
 vi.mock('@/components/projects/EvaluationPanel', () => ({ default: () => null }));
 vi.mock('@/components/submissions/FinalPaperUpload', () => ({ default: () => null }));
-vi.mock('@/components/projects/ReadonlyPDFViewer', () => ({ default: () => null }));
-vi.mock('@/components/submissions/ChapterProgressWithRounds', () => ({ default: () => null }));
 
 vi.mock('sonner', () => ({
   toast: {

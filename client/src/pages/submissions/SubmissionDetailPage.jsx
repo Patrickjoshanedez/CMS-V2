@@ -57,8 +57,12 @@ import {
   Clock,
   Sparkles,
   ShieldCheck,
+  Code2,
+  Layers,
 } from 'lucide-react';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
+import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
+import { useProject } from '@/hooks/useProjects';
 import { Progress } from '@/components/ui/Progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -114,12 +118,23 @@ function formatFileType(fileType, fileName) {
 /**
  * FileInfoCard — displays metadata about the uploaded file.
  */
-function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise }) {
+function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise, project }) {
   const navigate = useNavigate();
   const [viewerOpen, setViewerOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [prototypeModalOpen, setPrototypeModalOpen] = useState(false);
   const chapterLabel = getSubmissionDocumentTitle(submission);
   const documentUrl = viewUrl?.url || `/api/submissions/${submission._id}/file`;
+
+  const githubUrl =
+    project?.githubRepoUrl ||
+    project?.teamId?.githubLink ||
+    submission?.teamResources?.githubRepoUrl ||
+    null;
+  const prototypes =
+    (Array.isArray(project?.prototypes) && project.prototypes.length > 0
+      ? project.prototypes
+      : submission?.teamResources?.prototypes) || [];
 
   const scanArchiveMutation = useScanSubmissionArchive({
     onSuccess: (res) => {
@@ -375,6 +390,37 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
                 </a>
               </Button>
             )}
+
+            {/* Verified GitHub Repository */}
+            {githubUrl && (
+              <Button
+                asChild
+                variant="outline"
+                className="gap-2 border-border/80 hover:bg-muted"
+                data-testid="submission-github-btn"
+              >
+                <a href={githubUrl} target="_blank" rel="noopener noreferrer">
+                  <Code2 className="h-4 w-4 text-primary" />
+                  <span>GitHub Repository</span>
+                  <ExternalLink className="h-3 w-3 opacity-70 ml-0.5" />
+                </a>
+              </Button>
+            )}
+
+            {/* Prototypes & Architecture Gallery */}
+            {prototypes.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPrototypeModalOpen(true)}
+                className="gap-2 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                data-testid="submission-prototypes-btn"
+              >
+                <Layers className="h-4 w-4" />
+                <span>Architecture &amp; Prototypes ({prototypes.length})</span>
+              </Button>
+            )}
+
             <Button
               type="button"
               variant="outline"
@@ -420,6 +466,13 @@ function FileInfoCard({ submission, viewUrl, viewUrlLoading, canRevise, onRevise
         onOpenChange={setViewerOpen}
         submission={submission}
         fileUrl={documentUrl}
+      />
+      <PrototypeGalleryModal
+        open={prototypeModalOpen}
+        onClose={() => setPrototypeModalOpen(false)}
+        project={project || { title: chapterLabel }}
+        prototypes={prototypes}
+        githubRepoUrl={githubUrl}
       />
     </>
   );
@@ -1621,6 +1674,9 @@ export default function SubmissionDetailPage() {
   });
 
   const projectId = submission?.projectId?._id || submission?.projectId;
+  const { data: project } = useProject(projectId, {
+    enabled: Boolean(projectId),
+  });
   const chapterNum = submission?.chapter;
   const { data: chapterHistory = [] } = useChapterHistory(projectId, chapterNum, {
     enabled: Boolean(projectId && chapterNum),
@@ -1872,6 +1928,7 @@ export default function SubmissionDetailPage() {
           viewUrlLoading={viewUrlLoading}
           canRevise={canRevise}
           onRevise={() => setReviseModalOpen(true)}
+          project={project}
         />
 
         {/* Late Justification Card (FR-4.2) */}

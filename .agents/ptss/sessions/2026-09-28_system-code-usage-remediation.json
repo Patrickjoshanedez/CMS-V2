@@ -1,0 +1,58 @@
+{
+  "session_id": "2026-09-28_system-code-usage-remediation",
+  "timestamp": "2026-09-28T21:24:00+08:00",
+  "task": "Execute full 4-phase remediation plan for system-wide code usage, dead code, broken routes, container bloat, and schema hygiene.",
+  "status": "completed",
+  "phases_executed": [
+    {
+      "phase": 1,
+      "title": "Critical Server Route Fixes",
+      "actions": [
+        "Fixed server/modules/admin/adminQueues.routes.js: replaced non-existent getPlagiarismDlqQueue with active getDocxConversionQueue across imports and queue inspection array, eliminating boot crash.",
+        "Deleted server/modules/agent-runtime/agent-runtime.routes.js: removed defunct duplicate route with broken imports to non-existent auth.middleware.js and rbac.middleware.js."
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "Background Worker & Container Bloat Optimization",
+      "actions": [
+        "Pruned ghost pdfWorker listening to non-existent 'pdf-processing-queue' in server/worker.js.",
+        "Deleted dead job handler server/jobs/pdfProcessor.js.",
+        "Pruned unimported heavy dependencies torch>=2.3.1 and transformers>=4.43.0 from ocr_engine/requirements.txt (>700 MB savings).",
+        "Pruned unused dependencies bleach==6.1.0 and structlog==24.2.0 from plagiarism_engine/requirements.txt."
+      ]
+    },
+    {
+      "phase": 3,
+      "title": "Dead Client Pages, Components, Hooks & Phantom Dependencies",
+      "actions": [
+        "Deleted 2 unrouted client pages: client/src/pages/archive/ArchiveLegacyUploadPage.jsx and client/src/pages/reports/BulkUploadPage.jsx.",
+        "Deleted 18 completely unimported components: AdviserDashboard.jsx, PanelistDashboard.jsx, AdviserTeamInteractionPanel.jsx, SplitScreenViewer.jsx, DocumentPreview.jsx, AnnotatedText.jsx, SimilarityGauge.jsx, SourceDetail.jsx, SourceList.jsx, VirtualizedPlagiarismViewer.jsx, FeedbackDashboard.jsx, FinalDocumentsList.jsx, NextStepCard.jsx, ProjectTitleCard.jsx, PrototypeUploadForm.jsx, ADMPhaseSelector.jsx, ActiveProposalView.jsx, YearPicker.jsx.",
+        "Cleaned stale test mocks for PrototypeGallery, ChapterProgressWithRounds, DevelopmentAssetsForm, and ProjectInformationSidebar from MyProjectPage.test.jsx and ProjectDetailPage.back-nav.test.jsx.",
+        "Deleted 7 test-only components and test files: Capstone2ManuscriptHub.jsx, PrototypeGallery.jsx, DisciplineCombobox.jsx, SdgCombobox.jsx, ChapterProgressWithRounds.jsx, DevelopmentAssetsForm.jsx, ProjectInformationSidebar.jsx.",
+        "Deleted 6 dead hooks and 1 shim service: useMetadata.js, useNavigateWithLoading.js, useMirroredDraftValue.js, useResolvedSelection.js, useScrollReveal.js, useProjectRealtime.js, client/src/services/plagiarism.service.js.",
+        "Pruned phantom dependency react-window from client/package.json and node-gyp-build from server/package.json.",
+        "Synchronized dependencies inside Docker container cms-client and restarted."
+      ]
+    },
+    {
+      "phase": 4,
+      "title": "Shared Contracts & Schema Hygiene",
+      "actions": [
+        "Exported WorkloadSuggestionSchema, AdviserSnapshotSchema, and WorkloadOptimizationResultSchema in shared/index.js."
+      ]
+    }
+  ],
+  "verification_results": {
+    "npm_install": "exit code 0 (clean package-lock.json)",
+    "docker_container_sync": "exit code 0 (cms-client npm install & restart healthy)",
+    "client_fastpath_unit_tests": "2/2 files passed, 9/9 tests passed (MyProjectPage.test.jsx, ProjectDetailPage.back-nav.test.jsx)",
+    "client_production_build": "exit code 0, built in 27.13s (zero import errors)",
+    "endpoints_parity": "SERVER=217, CLIENT=197, UNMATCHED=0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "DAG valid (11 agents, 8 edges), 0 errors, 0 warnings",
+    "related_client_unit_tests": "4/4 files passed, 24/24 tests passed",
+    "server_unit_tests": "1/1 file passed, 6/6 tests passed (team.assign-committee.test.js)"
+  },
+  "loc_savings": ">2,800 lines of dead code and test scaffolding pruned"
+}

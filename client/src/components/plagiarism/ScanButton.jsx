@@ -15,8 +15,9 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
         type="button"
         onClick={onClick}
         disabled={disabled || scanning}
+        aria-busy={scanning}
         size="lg"
-        className="w-full gap-2 font-semibold"
+        className="w-full gap-2 font-semibold disabled:bg-muted disabled:text-muted-foreground disabled:border-border/60 disabled:opacity-100 disabled:cursor-not-allowed min-h-[44px]"
       >
         {scanning ? (
           <>
@@ -34,10 +35,20 @@ export default function ScanButton({ disabled, scanning, elapsedSeconds, onClick
       {scanning && (
         <div className="space-y-2 pt-1">
           {/* Subtle compact progress track */}
-          <div className="h-1 w-full overflow-hidden rounded-full bg-muted/70">
+          <div
+            role="progressbar"
+            aria-label="Manuscript scan progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-1 w-full overflow-hidden rounded-full bg-muted/70"
+          >
             <div className="archive-scan-progress h-full w-1/3 rounded-full bg-primary" />
           </div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-center justify-between text-xs text-muted-foreground"
+          >
             <span className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />

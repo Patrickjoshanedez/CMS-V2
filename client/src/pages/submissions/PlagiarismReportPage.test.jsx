@@ -34,10 +34,6 @@ vi.mock('@/components/documents/SophisticatedDocumentViewer', () => ({
   DocxPreviewRenderer: () => <div data-testid="docx-preview-renderer">Docx Embedded Preview</div>,
 }));
 
-vi.mock('@/components/documents/PaginatedDocumentViewer', () => ({
-  default: () => <div data-testid="docx-preview-renderer">Paginated Document Preview</div>,
-}));
-
 const mockScanMutate = vi.fn();
 vi.mock('../../hooks/useSubmissions', () => ({
   usePlagiarismReport: () => ({

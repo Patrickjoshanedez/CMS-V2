@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Info } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DropZone from '@/components/plagiarism/DropZone';
 import PlagiarismReportPage from '@/pages/submissions/PlagiarismReportPage';
@@ -27,7 +27,7 @@ function isAcceptedDocument(file) {
     type === 'application/msword' ||
     type === 'application/x-zip-compressed' ||
     type === 'application/zip';
-  return hasExt || hasMime;
+  return hasExt && (hasMime || !type);
 }
 
 function getInlineErrorMessage(error) {
@@ -63,6 +63,7 @@ export default function ArchivePlagiarismCheckerPage() {
   const [reportData, setReportData] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [semanticModel, setSemanticModel] = useState(DEFAULT_SEMANTIC_MODEL);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(true);
 
   useEffect(() => {
     if (!scanning) return undefined;
@@ -162,52 +163,16 @@ export default function ArchivePlagiarismCheckerPage() {
 
   return (
     <DashboardLayout>
-      {/* Two-column layout: hero + upload form */}
+      {/* Responsive layout: hero + upload form */}
       <div className="mx-auto max-w-5xl">
-        <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
-          {/* Left: hero + info */}
-          <div className="flex flex-col gap-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:gap-8 items-start">
+          {/* Top Left on Desktop / Step 1 on Mobile: Scan Hero */}
+          <div className="order-1 lg:col-start-1 lg:row-start-1">
             <ScanHero semanticModel={semanticModel} />
-
-            {/* How it works card */}
-            <div className="rounded-xl border border-border/70 bg-card p-5 shadow-xs">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                How It Works
-              </p>
-              <ol className="space-y-3">
-                {[
-                  {
-                    step: '01',
-                    title: 'Upload Manuscript',
-                    desc: 'Drop or select your PDF or Word (.docx) manuscript up to 25 MB.',
-                  },
-                  {
-                    step: '02',
-                    title: 'Dual-Engine Comparison',
-                    desc: 'Runs Winnowing lexical fingerprinting and BAAI/bge-m3 dense semantic embeddings against the institutional archive.',
-                  },
-                  {
-                    step: '03',
-                    title: 'Review Originality Intelligence',
-                    desc: 'Inspect Turnitin-style annotated highlights, source breakdown, and overall similarity index.',
-                  },
-                ].map(({ step, title, desc }) => (
-                  <li key={step} className="flex items-start gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                      {step}
-                    </span>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-foreground">{title}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
           </div>
 
-          {/* Right: upload card */}
-          <div className="flex flex-col gap-4">
+          {/* Top Right on Desktop / Step 2 on Mobile (Prioritized above fold): Upload Card */}
+          <div className="order-2 lg:col-start-2 lg:row-start-1">
             <div className="rounded-xl border border-border/70 bg-card p-6 shadow-xs">
               <h2 className="mb-1 text-base font-semibold text-foreground">Upload Document</h2>
               <p className="mb-4 text-xs text-muted-foreground">
@@ -223,7 +188,11 @@ export default function ArchivePlagiarismCheckerPage() {
                 />
 
                 {scanError && scanError.type !== 'validation' && (
-                  <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                  >
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                     <p className="text-xs font-medium text-destructive leading-relaxed">
                       {scanError.message}
@@ -239,8 +208,73 @@ export default function ArchivePlagiarismCheckerPage() {
                 />
               </div>
             </div>
+          </div>
 
-            {/* Disclaimer note */}
+          {/* Bottom Left on Desktop / Step 3 on Mobile: Collapsible How It Works */}
+          <div className="order-3 lg:col-start-1 lg:row-start-2">
+            <div className="rounded-xl border border-border/70 bg-card shadow-xs overflow-hidden transition-all">
+              <button
+                type="button"
+                onClick={() => setHowItWorksOpen((prev) => !prev)}
+                aria-expanded={howItWorksOpen}
+                className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-muted/30 transition-colors min-h-[44px]"
+              >
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    How It Works
+                  </p>
+                  <span className="text-[10px] text-muted-foreground font-medium rounded-full bg-muted px-2 py-0.5">
+                    3 Steps
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <span>{howItWorksOpen ? 'Hide guide' : 'Show guide'}</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${
+                      howItWorksOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {howItWorksOpen && (
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
+                  <ol className="space-y-3 pt-2 border-t border-border/40">
+                    {[
+                      {
+                        step: '01',
+                        title: 'Upload Manuscript',
+                        desc: 'Drop or select your PDF or Word (.docx) manuscript up to 25 MB.',
+                      },
+                      {
+                        step: '02',
+                        title: 'Dual-Engine Comparison',
+                        desc: 'Runs Winnowing lexical fingerprinting and BAAI/bge-m3 dense semantic embeddings against the institutional archive.',
+                      },
+                      {
+                        step: '03',
+                        title: 'Review Originality Intelligence',
+                        desc: 'Inspect Turnitin-style annotated highlights, source breakdown, and overall similarity index.',
+                      },
+                    ].map(({ step, title, desc }) => (
+                      <li key={step} className="flex items-start gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                          {step}
+                        </span>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-foreground">{title}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Right on Desktop / Step 4 on Mobile: Disclaimer */}
+          <div className="order-4 lg:col-start-2 lg:row-start-2">
             <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">

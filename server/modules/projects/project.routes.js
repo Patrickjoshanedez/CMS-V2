@@ -40,6 +40,8 @@ import {
   bulkUploadSchema,
   updateGanttChartUrlSchema,
   updateDemoVideoUrlSchema,
+  updateGithubRepoUrlSchema,
+  updateGanttApprovalSchema,
 } from './project.validation.js';
 
 const router = Router();
@@ -198,6 +200,18 @@ router.patch(
   projectController.updateDemoVideoUrl,
 );
 
+// Update GitHub repository URL (team member, adviser, instructor)
+router.patch(
+  '/:id/github-repo',
+  authorize(ROLES.STUDENT, ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateGithubRepoUrlSchema),
+  auditLog('project.github_repo_updated', 'Project', {
+    getDescription: (req) => `Updated GitHub repository URL for project ${req.params.id}`,
+    getMetadata: (req) => ({ githubRepoUrl: req.body.githubRepoUrl }),
+  }),
+  projectController.updateGithubRepoUrl,
+);
+
 // Add a prototype link (team member, Capstone 2 & 3)
 router.post(
   '/:id/prototypes/link',
@@ -340,6 +354,18 @@ router.patch(
     getDescription: (req) => `Updated deadlines for project ${req.params.id}`,
   }),
   projectController.setDeadlines,
+);
+
+// Approve or reject Gantt chart schedule (Adviser or Instructor only)
+router.patch(
+  '/:id/gantt-approval',
+  authorize(ROLES.INSTRUCTOR, ROLES.FACULTY, ROLES.ADVISER),
+  validate(updateGanttApprovalSchema),
+  auditLog('project.gantt_approval_updated', 'Project', {
+    getDescription: (req) => `Updated Gantt schedule approval for project ${req.params.id}`,
+    getMetadata: (req) => ({ approved: req.body.approved, remarks: req.body.remarks }),
+  }),
+  projectController.updateGanttApproval,
 );
 
 // Schedule defense hearing (Instructor only)

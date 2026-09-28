@@ -137,7 +137,12 @@ export default function GoogleScholarSidebar({
                 className="w-1/2 h-8 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-hidden focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <Button type="submit" size="sm" variant="secondary" className="w-full h-7 text-xs">
+            <Button
+              type="submit"
+              size="sm"
+              variant="secondary"
+              className="w-full min-h-[44px] text-xs font-medium"
+            >
               Apply Range
             </Button>
           </form>

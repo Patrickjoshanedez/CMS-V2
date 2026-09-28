@@ -159,7 +159,8 @@ const ProjectCohortCard = memo(function ProjectCohortCard({
       onMouseEnter={() => prefetchProject(project._id)}
       className={cn(
         'group relative overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs transition-all duration-200 hover:shadow-md hover:border-primary/50 cursor-pointer',
-        isActionNeeded && 'border-l-4 border-l-amber-500 dark:border-l-amber-400',
+        isActionNeeded &&
+          'border-amber-500/60 dark:border-amber-400/60 ring-1 ring-amber-500/20 bg-amber-500/[0.02]',
         isHighlighted && 'ring-2 ring-primary/40 bg-primary/5',
       )}
     >

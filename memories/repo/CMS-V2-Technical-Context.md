@@ -1,6 +1,51 @@
 # CMS-V2 Technical Context
 
 #### Prevention Rules
+- Canonical BukSU Capstone Workflow (Phases 0–4), 2-4 Team Lock, 1-10 Proposal Ingestion, Adviser Gantt Pre-Approval Gate, Deadline-to-Scheduler Synchronization, Prototype & GitHub Visibility, and 10-Tier BukSU Grading Engine Prevention Rule:
+  1. Lesson learned: Allowing lax team member counts during roster locking caused orphaned student workflows and invalid committee ratios. BukSU institutional guidelines mandate strictly 2 to 4 proponents per capstone team before roster finalization (`PATCH /api/teams/:id/lock`).
+  2. Lesson learned: Allowing proponents to populate day cells in the Academic Excel Gantt Chart prior to formal faculty adviser review caused uncoordinated milestone drift. Implementing a formal Adviser Gantt Pre-Approval Gate (`ganttApprovalSchema`, `status: 'approved'`) ensures milestone feasibility before scheduling and timeline progression.
+  3. Lesson learned: Evaluating capstone defense hearings with standard raw percentage scores without mapping to BukSU's institutional 10-tier grade scale (1.00 to 5.00: 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00, 5.00) created grade disparity. Adding `computeBukSUGrade` and `buksuGrade` in `@cms/shared` and the server evaluation engine ensures deterministic grade calculations with color-coded chips and visibility guards.
+  4. Lesson learned: In capstone defense verdicts, omitting `RE_DEFENSE_REQUIRED` ('re_defense_required') forced committees to inappropriately mark projects as rejected when only re-defense was required. Adding `RE_DEFENSE_REQUIRED` to `@cms/shared/constants/defenseDecisions.js` and `EvaluationPanel.jsx` ensures institutional compliance.
+  5. Lesson learned: Disconnecting chapter submission and defense deadlines from the calendar command center created blind spots for course instructors. Wiring deadlines to `DefenseScheduleCalendar.jsx` with purple milestone badges and providing late justification submission in `DeadlineWarning.jsx` eliminates uncoordinated deadlines.
+  6. Lesson learned: Hiding student GitHub repository URLs and prototype media gallery assets from instructor review and the research archive prevented proper technical audits. Surfacing `githubRepoUrl` and `prototypes` across `SubmissionDetailPage`, `SubmissionReviewPage`, `ArchiveSearchPage`, and `CanonicalDocumentViewer` via `PrototypeGalleryModal` ensures continuous transparency.
+  7. Prevention: Always enforce strictly 2-4 members on team locks. Always gate Gantt timeline edits behind adviser approval (`project.ganttApproval?.status === 'approved'`). Always compute and record BukSU 1.00-5.00 grades alongside raw scores. Always synchronize deadlines with the defense scheduling calendar. Always expose verified GitHub repositories and prototype media across instructor review and archive search surfaces.
+  8. Runbook & Checklist for Canonical Capstone Workflow Integrity:
+     - Step 1 (Checklist): Verify `@cms/shared` exports `RE_DEFENSE_REQUIRED`, `computeBukSUGrade`, `BUKSU_GRADE_SCALE`, and `CAPSTONE_SEMESTER_MAP`.
+     - Step 2 (Checklist): Verify `server/modules/teams/team.service.js` enforces strictly 2-4 members on `lockTeam`.
+     - Step 3 (Checklist): Verify `server/modules/projects/project.model.js` includes `ganttApprovalSchema` and `githubRepoUrl`.
+     - Step 4 (Checklist): Verify `AcademicExcelGanttChart.jsx` locks cell editing until adviser approval is granted.
+     - Step 5 (Checklist): Verify `DefenseScheduleCalendar.jsx` displays purple deadline milestone badges on dates.
+     - Step 6 (Checklist): Verify `PrototypeGalleryModal.jsx` is mounted on submission details, reviews, and archive search.
+     - Step 7 (Checklist): Verify `CapstoneWorkflowStepper.jsx` displays semester descriptors and `Capstone2CollapsibleSections.jsx` mounts `PrototypeShowcaseAndDemo`.
+     - Step 8 (Evidence): Verify targeted integration and unit tests pass (teams: 27/27, projects: 74/74, evaluations: 22/22, Gantt: 13/13, Stepper: 10/10, Sections: 4/4, Archive: 10/10, Submissions: 16/16, Review: 6/6).
+     - Step 9 (Evidence): Verify endpoint parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0) and governance audit (`npm run validate:agentic`: 60/60 checks passed).
+     - Step 10 (Evidence): Verify Playwright visual audit in `scratch/visual_audit_canonical_workflow.mjs` captures 8/8 screenshots across desktop 1440x900 and mobile 390x844 in light and dark modes.
+
+- Archive Integrity Checker Interface Quality, Interactive Button Nesting Elimination, Mobile Fold Priority, and Strict Document Validation Prevention Rule:
+  1. Lesson learned: In `DropZone.jsx`, applying `role="button"` and `tabIndex={0}` with `onClick={openPicker}` to the outer container while nesting a child `<button type="button">Remove file</button>` inside it creates an illegal nested interactive control violation under WAI-ARIA and HTML specs. Screen readers fail to parse the accessibility tree cleanly, and keyboard navigation causes unintended file picker re-triggers.
+  2. Lesson learned: In two-column dashboard layouts (`grid lg:grid-cols-[1fr_420px]`), placing static onboarding tutorials ("How It Works" cards) in the first column pushes critical interactive call-to-actions (the file upload dropzone and scan button) completely below the fold on mobile viewports (< 844px height). Mobile layouts must prioritize primary task execution above supporting guidance.
+  3. Lesson learned: In file upload validation logic, allowing `hasExt || hasMime` with broad MIME types like `application/zip` allows non-document `.zip` archives to bypass client validation, sending invalid payloads to downstream OCR and plagiarism workers.
+  4. Prevention: Never nest interactive `<button>` elements inside parent containers with `role="button"`. Always reorder mobile grid columns (`order-1` on interactive forms, `order-2` on tutorials) so primary CTAs remain visible above the fold. Always enforce strict conjunction `hasExt && (hasMime || !type)` on file validation.
+  5. Runbook & Checklist for Archive Integrity Checker Polish:
+     - Step 1 (Checklist): Verify `DropZone.jsx` separates the drop area from the selected file card and removes nested button roles.
+     - Step 2 (Checklist): Verify `ArchivePlagiarismCheckerPage.jsx` renders the upload card above the fold on mobile viewports.
+     - Step 3 (Checklist): Verify `ScanButton.jsx` includes `role="progressbar"`, `aria-label`, and `aria-live="polite"` status announcements.
+     - Step 4 (Evidence): Verify targeted unit tests pass (9/9 passed in `ArchivePlagiarismCheckerPage.test.jsx` and `PlagiarismComponents.test.jsx`, 23/23 passed in `CanonicalDocumentViewer.test.jsx` and `archiveComponents.test.jsx`).
+     - Step 5 (Evidence): Verify Playwright visual feedback loop captures in `scratch/screenshots/` and artifacts directory (8 captures passed across desktop and mobile viewports in light and dark modes).
+
+- Capstone Analytics & Reports Interface Quality, SVG Donut Margin Invariant, Legend Collision Elimination, and Honest Zero-State Telemetry Prevention Rule:
+  1. Lesson learned: In Recharts Donut / Pie visualizations within 2-column bento grids, positioning outer percentage labels without adequate margin or radius constraint ($R > 85\text{px}$) causes text strings (e.g. `Review (20-25%) (33%)`) to bleed beyond the SVG canvas bounding box, causing the browser to slice off the leading word (`Review`) leaving a broken string (`[20-25%) (33%)`).
+  2. Lesson learned: Rotating X-axis tick labels (`angle={-20}`) in Recharts bar charts while rendering bottom `<Legend>` components causes direct collisions between stage names (`Capstone 2 (Development)`) and legend items, rendering text completely illegible. Moving legends to `verticalAlign="top"` or configuring generous bottom clearance (`height={70}`, `margin={{ bottom: 36 }}`) eliminates text collisions.
+  3. Lesson learned: In institutional reporting dashboards, injecting synthetic mock data (e.g. fake faculty names, fake research categories) when server responses are empty constitutes an AI slop anti-pattern that violates academic audit integrity. Empty responses must render authentic empty states (`No aggregate records found`).
+  4. Lesson learned: When rendering complex metric strings (e.g. `50% (1/2 Teams Completed)`), jamming long formulas into hero metric containers forces awkward text wraps and truncates adjacent subtext into `Multi-Tier ADM Complia...`. Separating the primary percentage from its sample denominator preserves typography hierarchy.
+  5. Prevention: Never allow outer pie chart labels to exceed container bounds; constrain outer radii and provide padding. Never position legends directly below rotated X-axis tick labels without explicit height clearance. Never inject fabricated faculty or project data on empty responses; use honest empty states. Always ensure mobile touch targets satisfy minimum 44px bounds.
+  6. Runbook & Checklist for Reports Page Interface Quality & Polish:
+     - Step 1 (Checklist): Verify `DynamicChartWidget.jsx` configures pie chart outer radii with boundary clearance and places bar chart legends without X-axis tick collisions.
+     - Step 2 (Checklist): Verify `CohortKPIRibbon.jsx` renders numeric percentages as hero values with sample denominators in subtext, avoiding truncation.
+     - Step 3 (Checklist): Verify `ReportsPage.jsx` renders clickable links on table records and eliminates fake faculty/topic mock data fallbacks.
+     - Step 4 (Evidence): Verify targeted client tests pass (8/8 in `ReportsPage.test.jsx`).
+     - Step 5 (Evidence): Verify Playwright visual audit across light/dark desktop (1440x900) and mobile (390x844) viewports.
+
 - Action Done Matrix (ADM Form RU-F-033) Multi-Page Print Spill & Blank Page Elimination, React.Fragment Child Mapping, Ancestor Margin Stripping, and Last-Child Page Break Suppression Prevention Rule:
   1. Lesson learned: In paged multi-sheet print components like `ActionDoneMatrixTab.jsx`, mapping pages inside generic `<div>` wrappers (e.g. `<div key={pageIdx}>`) within a flex or space-separated container (such as `.adm-sheet-paper-container` with `space-y-10`) causes the browser's print engine to apply `margin-top: 2.5rem` (40px) to subsequent pages. This additional margin pushes the 296mm container past physical A4 height (297mm), causing a blank overflow page between printed sheets.
   2. Lesson learned: Unconditionally applying `page-break-after: always !important; break-after: page !important;` to `.adm-document-page` without higher-specificity `:last-child` suppression causes the final sheet to force an orphan blank page after the document ends.
@@ -3960,4 +4005,126 @@ resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (matc
      - Generated visual artifacts: `10_secretary_editor_page1_balanced.png`, `11_secretary_editor_page2_continuation.png`, `12_secretary_editor_page3_final_signoff.png`, `13_secretary_print_page1_balanced.png`, `14_secretary_print_page2_continuation.png`, `15_secretary_print_page3_final_signoff.png`, `Secretary_Minutes_OVPAA-F-INS-032_Balanced.pdf`.
      - API route parity verified: 217 Server / 197 Client (`UNMATCHED_COUNT = 0`).
      - Agentic system audit passed: 60/60 checks.
+69. System-Wide Interface Quality, Accessibility (WCAG 2.1 AA/AAA), Theming & Anti-Patterns Audit:
+- Architectural Intent & Requirements Addressed:
+  1. Systematic Quality Audit: Conducted an exhaustive forensic quality, accessibility, performance, theming, responsive design, and AI slop audit across the BukSU CMS-V2 monorepo (`client/src/`) using `i-audit` and `i-frontend-design`.
+  2. Multi-Viewport Telemetry: Captured 18 visual evidence artifacts across Desktop (1440x900) and Mobile (390x844) viewports in both light and dark modes, alongside a static AST/CST scan of 165+ frontend components.
+  3. Identified 22 Prioritized Deficiencies (3 Critical, 6 High, 8 Medium, 5 Low):
+     - Unpruned legacy document viewers (`PaginatedDocumentViewer.jsx`, `ReadonlyPDFViewer.jsx`) violating Pile B's Mandatory Unified Sophisticated Document Reader Contract.
+     - Sub-44px interactive mobile touch target sizing violations (`GoogleScholarSidebar.jsx:140`, `PrototypeGallery.jsx:192`, `TeamCommitteeAssignmentsView.jsx:886`).
+     - Empty accessible names on interactive accordion chevrons (`TeamCommitteeAssignmentsView.jsx:886`).
+     - Google Identity Services button locale inconsistency rendering in Taglish (`"Mag-sign in sa Google"`) on local Philippine IPs.
+     - Cliché multi-stop gradient headings (`BukSULoginSidePanel.jsx:118`, `LandingPage.jsx:480`) and thick single-sided 4px card border accents (`ProjectCohortCard.jsx:162`, `DefenseSchedulingPage.jsx:2116`).
+     - Proliferation of 566 raw hex color values bypassing semantic Tailwind design tokens.
+     - Monolithic page-level loading skeletons causing layout flickers on the instructor dashboard (`InstructorDashboard.jsx:53`).
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: Strictly enforce the Mandatory Sophisticated Document Reader Contract—never retain or re-introduce dead ad-hoc viewers (`PaginatedDocumentViewer`, `ReadonlyPDFViewer`); all document rendering must route through `SophisticatedDocumentViewer.jsx`.
+  2. Prevention rule: All interactive buttons and touch targets on touch or mobile viewports must maintain a minimum bounding box of $44 \times 44\text{px}$ (`min-h-[44px] min-w-[44px]`) to comply with WCAG 2.1 SC 2.5.5 / WCAG 2.2 SC 2.5.8.
+  3. Prevention rule: Prohibit multi-stop gradient fills on inline text headings and metrics; use crisp, high-contrast semantic typography tokens (`text-primary`, `text-foreground`).
+  4. Prevention rule: Replace asymmetric `border-l-4` card status borders with clean, balanced status badges or indicators.
+  5. Prevention rule: Decompose monolithic top-level `PageSkeleton` fallbacks into progressive child component skeleton states.
+  6. Runbook & Checklist:
+     - Checklist: Verify Google Identity Services configuration specifies `locale="en"` or `hl="en"`.
+     - Checklist: Verify all icon-only buttons include explicit `aria-label` and `aria-expanded` attributes.
+     - Checklist: Run targeted visual regression audits via Playwright across 1440x900 and 390x844 viewports before declaring UI components complete.
+  7. Evidence & Verification passed:
+     - 18 high-resolution screenshots generated and synced to artifact directory (`sys_01_landing_desktop_light.png` through `sys_18_student_my_project_mobile.png`).
+     - Static AST audit produced `scratch/static_audit_summary.json` cataloging all 566 hex codes, 2 viewer contract violations, and 4 slop tells.
+     - Comprehensive audit report artifact compiled at `whole-system-audit-report.md`.
+70. System-Wide Interface Quality, Accessibility (WCAG 2.1 AA/AAA) & Anti-Patterns 5-Phase Remediation:
+- Architectural Intent & Requirements Addressed:
+  1. Complete 22-Issue Remediation: Fully executed all 5 phases of interface quality, accessibility, theming, responsive design, and anti-patterns remediation identified in the system-wide audit.
+  2. Phase 1 (Viewer Consolidation & Dead Code Pruning): Pruned dead non-canonical document viewers (`PaginatedDocumentViewer.jsx`, `PaginatedDocumentViewer.test.jsx`, `ReadonlyPDFViewer.jsx`) per Pile B Rule 18; redirected test mocks in `PlagiarismReportPage.test.jsx` and `ProjectDetailPage.back-nav.test.jsx` to `SophisticatedDocumentViewer.jsx`; stripped 11 redundant inline `style={{ color }}` tags in `BukSULoginSidePanel.jsx`.
+  3. Phase 2 (Accessible Touch Targets): Scaled interactive touch targets to $\ge 44 \times 44\text{px}$ in `GoogleScholarSidebar.jsx` (Apply Range button), `PrototypeGallery.jsx` (Close modal button & mode toggles), and `TeamCommitteeAssignmentsView.jsx` (Accordion chevron button).
+  4. Phase 3 (Semantic ARIA & Frictionless Route Aliases): Added `aria-label` and `aria-expanded` with `stopPropagation` to the deadline accordion toggle in `TeamCommitteeAssignmentsView.jsx`; added `aria-busy={loading}` and `role="status"` live region to `OptimizationEngine.jsx`; added route aliases in `App.jsx` (`/committee`, `/scheduling`, `/my-project`) enabling direct access to core views.
+  5. Phase 4 (Institutional Typography & De-Slop): Eliminated cliché text gradients on headings (`BukSULoginSidePanel.jsx`, `LandingPage.jsx`) replacing them with solid institutional gold (`#F5C253`) and brand blue; replaced asymmetric `border-l-4` card status borders in `ProjectCohortCard.jsx` and `DefenseSchedulingPage.jsx` with balanced ring borders; configured `locale="en"` on `GoogleOAuthProvider` in `main.jsx` and `GoogleLogin` in `LoginPage.jsx` to eliminate the Taglish ("Mag-sign in sa Google") localization bug.
+  6. Phase 5 (Progressive Skeletons & Informative Timeline): Decomposed monolithic `PageSkeleton` in `InstructorDashboard.jsx` into progressive decoupled widget skeletons (`KPICards` and `WorkloadHeatmap`); replaced static 2x2 colored micro-cards in `BukSULoginSidePanel.jsx` with an authoritative 4-Phase Capstone Progression vertical milestone timeline.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When configuring `@react-oauth/google`, always specify `locale="en"` on `GoogleOAuthProvider` (which appends `?hl=en` to the GSI script tag) in addition to `<GoogleLogin locale="en" />` to prevent Google Identity Services from detecting and rendering regional browser dialects (Taglish).
+  2. Prevention rule: Accordion toggle buttons embedded inside clickable cards or card headers must always call `e.stopPropagation()` to prevent nested toggle conflict and double event firing.
+  3. Prevention rule: In dashboard views with multiple asynchronous telemetry hooks, avoid monolithic blocking `if (hook1Loading || hook2Loading) return <PageSkeleton />`. Instead, render progressive widget skeletons so already-loaded metrics and widgets remain immediately responsive.
+  4. Prevention rule: Route aliases in `App.jsx` must mirror the role authorization (`allowedRoles`) of their primary route target to ensure secure, seamless navigation.
+  5. Evidence & Verification passed:
+     - 42/42 unit tests passed across 7 test files (`PlagiarismReportPage`, `ProjectDetailPage.back-nav`, `DynamicChartWidget`, `ReportsPage`, `CohortKPIRibbon`, `PlagiarismComponents`, `ArchivePlagiarismCheckerPage`).
+     - Route parity check verified: 217 Server / 197 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance verified: 60/60 checks passed (`npm run validate:agentic` & `npm run validate:governance`).
+     - Playwright visual audit verified: 10 screenshots captured across desktop (1440x900) and mobile (390x844) in light and dark modes (`fix_01_login_milestone_desktop_light.png` through `fix_10_student_my_project_alias_mobile.png`).
+71. System-Wide Code Usage, Dead Code Pruning, Worker Optimization & Schema Hygiene Remediation:
+- Architectural Intent & Requirements Addressed:
+  1. Systematic Code Usage & Dead Code Pruning: Following the system-wide code usage, dead code, dependency, and architecture audit, executed the complete 4-phase remediation plan across client, server, and microservices.
+  2. Phase 1 (Critical Server Route Fixes):
+     - In `server/modules/admin/adminQueues.routes.js`, replaced the non-existent `getPlagiarismDlqQueue` import and queue inspection entry with the active `getDocxConversionQueue`, eliminating a fatal boot `SyntaxError`.
+     - In `server/modules/agent-runtime/agent-runtime.routes.js`, permanently deleted the defunct duplicate route file that had broken imports referencing non-existent `auth.middleware.js` and `rbac.middleware.js`.
+  3. Phase 2 (Background Worker & Container Bloat Optimization):
+     - In `server/worker.js`, pruned the ghost `pdfWorker` listening on non-existent `'pdf-processing-queue'`.
+     - Deleted dead worker job handler `server/jobs/pdfProcessor.js`.
+     - In `ocr_engine/requirements.txt`, pruned unimported heavy dependencies `torch>=2.3.1` and `transformers>=4.43.0` (>700 MB savings).
+     - In `plagiarism_engine/requirements.txt`, pruned unused dependencies `bleach==6.1.0` and `structlog==24.2.0`.
+  4. Phase 3 (Dead Client Pages, Components, Hooks & Phantom Dependencies):
+     - Deleted 2 unrouted client pages: `client/src/pages/archive/ArchiveLegacyUploadPage.jsx` and `client/src/pages/reports/BulkUploadPage.jsx`.
+     - Deleted 18 completely unimported components: `AdviserDashboard.jsx`, `PanelistDashboard.jsx`, `AdviserTeamInteractionPanel.jsx`, `SplitScreenViewer.jsx`, `DocumentPreview.jsx`, `AnnotatedText.jsx`, `SimilarityGauge.jsx`, `SourceDetail.jsx`, `SourceList.jsx`, `VirtualizedPlagiarismViewer.jsx`, `FeedbackDashboard.jsx`, `FinalDocumentsList.jsx`, `NextStepCard.jsx`, `ProjectTitleCard.jsx`, `PrototypeUploadForm.jsx`, `ADMPhaseSelector.jsx`, `ActiveProposalView.jsx`, and `YearPicker.jsx`.
+     - Cleaned stale test mocks for `PrototypeGallery`, `ChapterProgressWithRounds`, `DevelopmentAssetsForm`, and `ProjectInformationSidebar` from `MyProjectPage.test.jsx` and `ProjectDetailPage.back-nav.test.jsx`.
+     - Deleted 7 test-only components and test files with 0 production callers: `Capstone2ManuscriptHub.jsx`, `Capstone2ManuscriptHub.test.jsx`, `PrototypeGallery.jsx`, `DisciplineCombobox.jsx`, `DisciplineCombobox.test.jsx`, `SdgCombobox.jsx`, `SdgCombobox.test.jsx`, `ChapterProgressWithRounds.jsx`, `ChapterProgressWithRounds.test.jsx`, `DevelopmentAssetsForm.jsx`, `ProjectInformationSidebar.jsx`, and `ProjectInformationSidebar.test.jsx`.
+     - Deleted 6 dead hooks and 1 dead shim service: `useMetadata.js`, `useNavigateWithLoading.js`, `useMirroredDraftValue.js`, `useResolvedSelection.js`, `useScrollReveal.js`, `useProjectRealtime.js`, `useProjectRealtime.test.jsx`, and `client/src/services/plagiarism.service.js`.
+     - Pruned phantom dependency `react-window` from `client/package.json` and `node-gyp-build` from `server/package.json`.
+     - Synchronized dependencies inside Docker container `cms-client` and verified healthy restart.
+  5. Phase 4 (Shared Contracts & Schema Hygiene):
+     - In `shared/index.js`, exported `WorkloadSuggestionSchema`, `AdviserSnapshotSchema`, and `WorkloadOptimizationResultSchema` from `shared/schemas/workloadOptimizationResult.schema.js`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: When deprecating or refactoring components, always remove unused `vi.mock()` calls in test files; test mocks pointing to deleted files create artificial import dependencies that deceive dead code triage tools and keep ghost files alive.
+  2. Prevention rule: Background worker processes (`server/worker.js`) must only subscribe to active, registered BullMQ queues. Ghost workers listening on non-existent queues consume Redis connections and memory without processing jobs.
+  3. Prevention rule: Python microservice `requirements.txt` files must strictly include only packages directly imported by application code; unimported multi-hundred-megabyte ML frameworks (`torch`, `transformers`) in utility microservices needlessly balloon container image sizes and deployment build times.
+  4. Prevention rule: In npm workspaces, whenever packages are removed from `client/package.json`, immediately run `npm install` to update `package-lock.json` and synchronize Docker container dependencies via `docker exec cms-client npm install --workspace=client` and `docker restart cms-client`.
+  5. Runbook & Checklist:
+     - Checklist: Verify client production build (`npm run build --workspace=client`) succeeds with 0 errors.
+     - Checklist: Verify endpoint parity (`npm run check:endpoints`) maintains `UNMATCHED_COUNT = 0`.
+     - Checklist: Verify agentic governance (`npm run validate:agentic` & `npm run validate:governance`) passes 60/60 checks.
+     - Checklist: Run targeted client unit tests (`MyProjectPage.test.jsx`, `ProjectDetailPage.back-nav.test.jsx`, `ReportsPage.test.jsx`, `CohortKPIRibbon.test.jsx`, `DynamicChartWidget.test.jsx`, `ArchivePlagiarismCheckerPage.test.jsx`).
+  6. Evidence & Verification passed:
+     - Client production build completed cleanly in 27.13s with zero broken imports.
+     - Fast-path client unit tests: 9/9 passed (`MyProjectPage.test.jsx`: 7/7, `ProjectDetailPage.back-nav.test.jsx`: 2/2).
+     - Related client unit tests: 24/24 passed (`ReportsPage.test.jsx`: 11/11, `CohortKPIRibbon.test.jsx`: 5/5, `DynamicChartWidget.test.jsx`: 5/5, `ArchivePlagiarismCheckerPage.test.jsx`: 3/3).
+     - Server unit tests: 6/6 passed (`team.assign-committee.test.js`: 6/6).
+     - API route parity: 217 Server / 197 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance: 60/60 checks passed.
+     - Communication DAG & decision coherence: Valid (11 agents, 8 edges, 0 errors, 0 warnings).
+     - Over 2,800 lines of dead code, test scaffolding, and unused dependencies permanently pruned from repository.
+
+72. Action Done Matrix (Form RU-F-033) Print Pagination Leak & Multi-Bullet Continuation Splitting:
+- Architectural Intent & Requirements Addressed:
+  1. Print Pagination Defect Root Cause:
+     - On Page 2 of BukSU Form RU-F-033 ADM printout/export, table content, text ("- For the panel requirements (FRPA01–..."), and vertical borders were leaking below the institutional footer.
+     - Root cause: `.adm-document-footer` in `@media print` had `position: absolute !important; bottom: 8mm !important;`. This pulled the footer out of normal document flow. As rows extended past page capacity, table cells and borders flowed directly into the bottom margin behind/below the footer, while the footer's top border sliced through the table cells like a guillotine.
+  2. In-Flow Relative Footer Print Contract:
+     - Replaced `position: absolute !important; bottom: 8mm !important;` with in-flow flex layout: `position: relative !important; bottom: auto !important; margin-top: auto !important; flex-shrink: 0 !important; width: 100% !important; width: calc(210mm - 36mm) !important;` (harmonized with `SecretaryMinutesDocumentSheet.jsx:1506`).
+     - Wrapped all content above the footer inside `.adm-page-content-wrapper` with `flex: 1 1 auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important;`.
+     - In-flow layout ensures it is physically impossible for any table cell, border, or text to render below or through the footer.
+  3. Multi-Bullet Continuation Splitting:
+     - Single panelists frequently submit 5–10 detailed recommendations formatted with bullet points or numbered lists (e.g. 9 recommendations totaling >40 text lines). Treating each panelist's remarks as a monolithic indivisible row forced oversized rows onto a continuation page where they exceeded page capacity (~30 lines).
+     - Added `extractSuggestionItems` to parse bulleted/numbered items from suggestion text.
+     - Implemented `splitADMRowIfOversized(row, maxLines)`: When a row's computed line weight exceeds `maxLines`, it splits into `[head, tail]`, allocating leading bullets to the current page and moving remaining bullets to a continuation sheet under `${panelName} (Continued)` with `isContinuation: true` and linked `parentRowId`.
+  4. Recalibrated Page Capacities and Row Heights:
+     - Calibrated line weights for BukSU 8.5pt font: Col 2 (Suggestions) at 38 chars/line, Col 3 (Actions Taken) at 32 chars/line, Col 1 (Panelist) at 24 chars/line.
+     - Set capacities: `PAGE_1_MAX_LINES = 22` (due to header/metadata table), `CONTINUATION_MAX_LINES = 30` (table-only sheets), `FINAL_PAGE_MAX_LINES = 10` (to reserve room for the multi-tier signatory block).
+  5. Continuation Row Synchronization & Mutation Safety:
+     - Synced `rowsByPage` with `autoAllocationResult.pages.flat()`.
+     - Updated `handleCellChange`, `handleCellBlur`, `handleToggleFulfillment`, and `handleDeleteRow` to resolve base row ID via `rowId.split('__cont_')[0]`.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule: In institutional multi-page print layouts (like BukSU Form RU-F-033 or Secretary Minutes), NEVER position the document footer with `position: absolute; bottom: ...` in print mode. Always use in-flow flex layouts (`position: relative; margin-top: auto; flex-shrink: 0;`) inside a fixed-height page wrapper (`height: 297mm; display: flex; flex-direction: column; overflow: hidden;`) to make it physically impossible for table cells or borders to leak below or collide with the footer.
+  2. Prevention rule: Large multi-bullet tabular rows (such as defense panel recommendations) cannot be treated as atomic/indivisible units in pagination calculations. When a single row's line count exceeds sheet capacity, implement bullet-aware row splitting (`splitADMRowIfOversized`) that transfers overflow items to continuation sheets under a labeled continuation header (`(Continued)`).
+  3. Prevention rule: In pagination split systems where virtual continuation rows are generated dynamically (`__cont_`), always resolve the mutation identifier to the root parent ID (`rowId.split('__cont_')[0]`) in edit, blur, toggle, and delete event handlers to maintain single-source-of-truth state consistency.
+  4. Runbook & Checklist:
+     - Checklist: Verify `@media print` `.adm-document-footer` has `position: relative !important; margin-top: auto !important; flex-shrink: 0 !important;`.
+     - Checklist: Verify `.adm-page-content-wrapper` has `flex: 1 1 auto; min-height: 0;`.
+     - Checklist: Verify `splitADMRowIfOversized` correctly partitions multi-bullet recommendations exceeding sheet capacity.
+     - Checklist: Verify continuation rows display `${panelName} (Continued)` and inherit parent completion tracking.
+     - Checklist: Verify editing cells or toggling fulfillment checkboxes on continuation rows updates the base project ADM data correctly.
+     - Checklist: Verify Playwright print audit passes with `leaksBelowFooter: false` and 0 content escaping the footer boundary.
+  5. Evidence & Verification passed:
+     - 24/24 unit tests passed in `ActionDoneMatrixTab.test.jsx`.
+     - Playwright visual and print audits passed with zero layout leaks: `scratch/adm_full_visual_audit.mjs` and `scratch/audit_adm_with_9_bullets.mjs`.
+     - High-fidelity artifacts generated: `fix_adm_desktop_light.png`, `fix_adm_desktop_dark.png`, `fix_adm_mobile_light.png`, `fix_adm_mobile_dark.png`, `fix_adm_print_page_1.png`, `fix_adm_print_page_2.png`, `fix_adm_9bullets_page_1.png`, `fix_adm_9bullets_page_2.png`, `fix_adm_form_ru_f_033_evidence.pdf`, `fix_adm_form_ru_f_033_9bullets.pdf`.
+     - Route parity check: 217 Server / 197 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance check: 60/60 checks passed.
+     - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors, 0 warnings.
 

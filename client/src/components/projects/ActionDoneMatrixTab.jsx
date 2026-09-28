@@ -197,18 +197,22 @@ export function consolidateADMRowsByPanel(rawRows) {
 
 /**
  * Line capacities for Action Done Matrix document sheets (A4 dimensions at 8.5pt font):
- * - Page 1 (Opening Sheet with title, header, note, review type bar): ~24 lines of row content max.
- * - Continuation Sheet (Pages 2..N-1 with header, continuation title, review bar): ~36 lines max.
+ * - Page 1 (Opening Sheet with title, header, note, review type bar): ~22 lines of row content max.
+ * - Continuation Sheet (Pages 2..N-1 with header, continuation title, review bar): ~30 lines max.
  * - Final Sign-off Sheet (with Signatories Board): ~10 lines max if sharing with rows, otherwise dedicated.
  */
 export const ADM_PAGE_CAPACITIES = {
-  PAGE_1_MAX_LINES: 24,
-  CONTINUATION_MAX_LINES: 36,
+  PAGE_1_MAX_LINES: 22,
+  CONTINUATION_MAX_LINES: 30,
   FINAL_PAGE_MAX_LINES: 10,
 };
 
 /**
  * Estimates vertical weight (in line units) of an Action Done Matrix row based on text content and column widths.
+ * Divisors calibrated for 8.5pt serif font in standard A4 printable margins:
+ * - Col 2 (Suggestions, 35% width): ~38 chars per line
+ * - Col 3 (Action Taken, 30% width): ~32 chars per line
+ * - Col 1 (Panel Name, 26% width): ~24 chars per line
  */
 export function estimateADMRowWeight(row) {
   if (!row) return 2.5;
@@ -216,30 +220,120 @@ export function estimateADMRowWeight(row) {
   const act = (row.actionDone || '').trim();
   const pan = (row.panelName || '').trim();
 
-  // Column 2: Suggestion column is 35% of page width (~48 chars per line in 8.5pt font)
+  // Column 2: Suggestion column is 35% of page width (~38 chars per line in 8.5pt font)
   const sugLines = sug
     ? sug
         .split('\n')
-        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 48)), 0)
+        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 38)), 0)
     : 1;
 
-  // Column 3: Action Taken column is 30% of page width (~40 chars per line in 8.5pt font)
+  // Column 3: Action Taken column is 30% of page width (~32 chars per line in 8.5pt font)
   const actLines = act
     ? act
         .split('\n')
-        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 40)), 0)
+        .reduce((acc, line) => acc + Math.max(1, Math.ceil(line.trim().length / 32)), 0)
     : 1;
 
-  // Column 1: Panel name column (~28 chars per line)
-  const panLines = pan ? Math.max(1, Math.ceil(pan.trim().length / 28)) : 1;
+  // Column 1: Panel name column (~24 chars per line)
+  const panLines = pan ? Math.max(1, Math.ceil(pan.trim().length / 24)) : 1;
 
   // Each table row adds vertical padding and border overhead (~1.5 lines)
   return Math.max(sugLines, actLines, panLines) + 1.5;
 }
 
 /**
+ * Splits a multi-bullet suggestion or actionDone text into individual recommendation items/paragraphs.
+ */
+export function extractSuggestionItems(text) {
+  if (!text) return [];
+  const rawParts = String(text).split(/\n\s*\n+/);
+  const items = [];
+  rawParts.forEach((part) => {
+    const trimmed = part.trim();
+    if (trimmed) items.push(trimmed);
+  });
+  return items;
+}
+
+/**
+ * Splits an ADM row into [head, tail] when its vertical weight exceeds maxLines.
+ * Head fits within maxLines and tail contains the remaining bullet recommendations under `${panelName} (Continued)`.
+ * If the row already fits or cannot be split by bullets, returns [row].
+ */
+export function splitADMRowIfOversized(row, maxLines) {
+  if (!row) return [];
+  const weight = estimateADMRowWeight(row);
+  if (weight <= maxLines) {
+    return [row];
+  }
+
+  const items = extractSuggestionItems(row.suggestion);
+  if (items.length <= 1) {
+    return [row];
+  }
+
+  const actionItems = extractSuggestionItems(row.actionDone);
+  const hasMatchedActions = actionItems.length === items.length;
+
+  const headItems = [];
+  const headActions = [];
+  let headWeight = 1.5;
+
+  let splitIdx = 0;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const itemLines = Math.max(1, Math.ceil(item.length / 38)) + 1;
+    if (headItems.length > 0 && headWeight + itemLines > maxLines) {
+      break;
+    }
+    headItems.push(item);
+    if (hasMatchedActions) headActions.push(actionItems[i]);
+    headWeight += itemLines;
+    splitIdx = i + 1;
+  }
+
+  if (splitIdx === 0 || splitIdx >= items.length) {
+    return [row];
+  }
+
+  const tailItems = items.slice(splitIdx);
+  const tailActions = hasMatchedActions ? actionItems.slice(splitIdx) : [];
+  const basePanelName = (row.panelName || '').replace(/\s*\(Continued\)/gi, '').trim();
+
+  const headRow = {
+    ...row,
+    _id: row._id || row.id,
+    panelName: row.panelName,
+    suggestion: headItems.join('\n\n'),
+    actionDone: headActions.length > 0 ? headActions.join('\n\n') : row.actionDone,
+    isContinuation: Boolean(row.isContinuation),
+    parentRowId: row.parentRowId || row._id || row.id,
+    _splitHead: true,
+    _splitIdx: splitIdx,
+  };
+
+  const contSuffix = (row._id || row.id || '').includes('__cont')
+    ? `_${splitIdx}`
+    : `__cont_${splitIdx}`;
+  const tailRow = {
+    ...row,
+    _id: `${row._id || row.id}${contSuffix}`,
+    panelName: `${basePanelName} (Continued)`,
+    suggestion: tailItems.join('\n\n'),
+    actionDone: tailActions.length > 0 ? tailActions.join('\n\n') : '',
+    isContinuation: true,
+    parentRowId: row.parentRowId || row._id || row.id,
+    _splitTail: true,
+    _splitIdx: splitIdx,
+  };
+
+  return [headRow, tailRow];
+}
+
+/**
  * Automatically allocates Action Done Matrix rows across authentic BukSU A4 document sheets:
  * - Dynamically computes row heights to prevent physical page overflows and crude print breaks.
+ * - Automatically splits multi-bullet monolithic rows across continuation sheets to prevent text leaking or footer cutting.
  * - Guarantees that Page 1 never exceeds vertical capacity.
  * - Automatically moves overflowing rows to Continuation Sheets (with full BukSU headers).
  * - Leaves the Final Sign-off Sheet uncrowded so the Signatories Board is never sliced.
@@ -263,24 +357,68 @@ export function autoAllocateADMSheets(displayedRows) {
   const queue = [...displayedRows];
 
   while (queue.length > 0) {
-    const row = queue[0];
+    const row = queue.shift();
     const weight = estimateADMRowWeight(row);
+    const remainingLines = maxLines - currentSheetLines;
 
     // Can this row fit on the current sheet?
     if (currentSheet.length === 0 || currentSheetLines + weight <= maxLines) {
+      // If currentSheet is empty and row is heavier than maxLines, split it
+      if (weight > maxLines) {
+        const chunks = splitADMRowIfOversized(row, maxLines);
+        if (chunks.length > 1) {
+          const firstChunk = chunks[0];
+          currentSheet.push(firstChunk);
+          currentSheetLines += estimateADMRowWeight(firstChunk);
+          const rowId = firstChunk._id || firstChunk.id;
+          if (rowId) pageMap[rowId] = pages.length;
+
+          // Put tail back at front of queue
+          queue.unshift(...chunks.slice(1));
+
+          // Close sheet
+          pages.push(currentSheet);
+          currentSheet = [];
+          currentSheetLines = 0;
+          maxLines = ADM_PAGE_CAPACITIES.CONTINUATION_MAX_LINES;
+          continue;
+        }
+      }
+
       currentSheet.push(row);
       currentSheetLines += weight;
       const rowId = row._id || row.id;
       if (rowId) {
         pageMap[rowId] = pages.length;
       }
-      queue.shift();
     } else {
-      // Current sheet is full; close it and start a new continuation sheet
+      // Doesn't fit in remaining lines.
+      // If there is significant remaining space (>= 8 lines), split the row
+      if (remainingLines >= 8) {
+        const chunks = splitADMRowIfOversized(row, remainingLines);
+        if (chunks.length > 1) {
+          const firstChunk = chunks[0];
+          currentSheet.push(firstChunk);
+          currentSheetLines += estimateADMRowWeight(firstChunk);
+          const rowId = firstChunk._id || firstChunk.id;
+          if (rowId) pageMap[rowId] = pages.length;
+
+          queue.unshift(...chunks.slice(1));
+
+          pages.push(currentSheet);
+          currentSheet = [];
+          currentSheetLines = 0;
+          maxLines = ADM_PAGE_CAPACITIES.CONTINUATION_MAX_LINES;
+          continue;
+        }
+      }
+
+      // Close current sheet and start a new continuation sheet
       pages.push(currentSheet);
       currentSheet = [];
       currentSheetLines = 0;
       maxLines = ADM_PAGE_CAPACITIES.CONTINUATION_MAX_LINES;
+      queue.unshift(row);
     }
   }
 
@@ -391,10 +529,13 @@ export default function ActionDoneMatrixTab({
 
     const pages = Array.from({ length: totalPages }, () => []);
 
-    displayedRows.forEach((row, idx) => {
+    const allAllocatedRows = autoAllocationResult.pages.flat();
+    allAllocatedRows.forEach((row, idx) => {
       const rowId = row._id || row.id || idx;
-      const assigned = rowPageMap[rowId];
-      const autoAssigned = autoAllocationResult.pageMap[rowId];
+      const parentId = row.parentRowId || rowId;
+      const assigned = rowPageMap[rowId] ?? rowPageMap[parentId];
+      const autoAssigned =
+        autoAllocationResult.pageMap[rowId] ?? autoAllocationResult.pageMap[parentId];
 
       const targetPage =
         typeof assigned === 'number' && assigned >= 0 && assigned < totalPages
@@ -406,7 +547,7 @@ export default function ActionDoneMatrixTab({
       pages[targetPage].push(row);
     });
     return pages;
-  }, [displayedRows, totalPages, rowPageMap, manualPageCount, autoAllocationResult]);
+  }, [totalPages, rowPageMap, manualPageCount, autoAllocationResult]);
 
   // Balance Pages: reset manual mappings and re-run content-aware auto-allocation
   const handleBalancePages = () => {
@@ -804,11 +945,37 @@ export default function ActionDoneMatrixTab({
   );
 
   const handleCellChange = (rowId, field, value) => {
+    const isCont = String(rowId).includes('__cont_');
+    const actualRowId = isCont ? rowId.split('__cont_')[0] : rowId;
+
     // Update local state immediately
-    setRows((prev) => prev.map((r) => ((r._id || r.id) === rowId ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r) => {
+        const rId = r._id || r.id;
+        if (rId === rowId) {
+          return { ...r, [field]: value };
+        }
+        if (isCont && rId === actualRowId) {
+          if (field === 'pageNumbers' || field === 'status') {
+            return { ...r, [field]: value };
+          }
+          const parentVal = r[field] || '';
+          const items = extractSuggestionItems(parentVal);
+          const contParts = String(rowId).split('__cont_');
+          const splitIdx = parseInt(contParts[1], 10);
+          if (!isNaN(splitIdx) && splitIdx < items.length) {
+            const headPart = items.slice(0, splitIdx).join('\n\n');
+            const newCombined = headPart ? `${headPart}\n\n${value}` : value;
+            return { ...r, [field]: newCombined };
+          }
+          return { ...r, [field]: `${parentVal}\n\n${value}` };
+        }
+        return r;
+      }),
+    );
 
     // Track pending value
-    const timerKey = `${rowId}_${field}`;
+    const timerKey = `${actualRowId}_${field}`;
     pendingValues.current[timerKey] = value;
 
     // Clear existing timer
@@ -820,20 +987,21 @@ export default function ActionDoneMatrixTab({
     debounceTimers.current[timerKey] = setTimeout(() => {
       delete debounceTimers.current[timerKey];
       delete pendingValues.current[timerKey];
-      saveCell(rowId, field, value);
+      saveCell(actualRowId, field, value);
     }, 750);
   };
 
   // Immediate save on blur for real-time live editing completion
   const handleCellBlur = (rowId, field) => {
-    const timerKey = `${rowId}_${field}`;
+    const actualRowId = String(rowId).includes('__cont_') ? rowId.split('__cont_')[0] : rowId;
+    const timerKey = `${actualRowId}_${field}`;
     if (debounceTimers.current[timerKey]) {
       clearTimeout(debounceTimers.current[timerKey]);
       delete debounceTimers.current[timerKey];
       const val = pendingValues.current[timerKey];
       delete pendingValues.current[timerKey];
       if (val !== undefined) {
-        saveCell(rowId, field, val);
+        saveCell(actualRowId, field, val);
       }
     }
   };
@@ -917,15 +1085,20 @@ export default function ActionDoneMatrixTab({
   // Panel fulfillment verification checkbox handler
   const handleToggleFulfillment = async (rowId, isVerified) => {
     if (!projectId) return;
+    const actualRowId = String(rowId).includes('__cont_') ? rowId.split('__cont_')[0] : rowId;
     const newStatus = isVerified ? 'verified' : 'addressed';
 
     // Optimistically update local rows
     setRows((prev) =>
-      prev.map((r) => ((r._id || r.id) === rowId ? { ...r, status: newStatus } : r)),
+      prev.map((r) =>
+        (r._id || r.id) === actualRowId || (r._id || r.id) === rowId
+          ? { ...r, status: newStatus }
+          : r,
+      ),
     );
 
     try {
-      await projectService.patchADMRow(projectId, rowId, { status: newStatus });
+      await projectService.patchADMRow(projectId, actualRowId, { status: newStatus });
       toast.success(
         isVerified
           ? 'Recommendation marked as Fulfilled & Verified by Panel!'
@@ -940,9 +1113,10 @@ export default function ActionDoneMatrixTab({
 
   // Delete row (pruning all underlying merged IDs if consolidated)
   const handleDeleteRow = async (rowId) => {
+    const actualRowId = String(rowId).includes('__cont_') ? rowId.split('__cont_')[0] : rowId;
     try {
-      const targetRow = rows.find((r) => (r._id || r.id) === rowId);
-      const idsToDelete = targetRow?.mergedIds?.length ? targetRow.mergedIds : [rowId];
+      const targetRow = rows.find((r) => (r._id || r.id) === actualRowId);
+      const idsToDelete = targetRow?.mergedIds?.length ? targetRow.mergedIds : [actualRowId];
       await Promise.all(
         idsToDelete.map((id) =>
           projectService.deleteActionDoneMatrixItem(project._id, id).catch(() => {}),
@@ -1299,14 +1473,25 @@ export default function ActionDoneMatrixTab({
               #root .adm-document-footer,
               .adm-document-page .adm-document-footer,
               .adm-document-footer {
-                position: absolute !important;
-                bottom: 8mm !important;
-                left: 18mm !important;
-                right: 18mm !important;
+                position: relative !important;
+                bottom: auto !important;
+                left: auto !important;
+                right: auto !important;
+                width: 100% !important;
                 width: calc(210mm - 36mm) !important;
                 margin: 0 !important;
+                margin-top: auto !important;
                 padding-top: 1.5mm !important;
                 background: white !important;
+                flex-shrink: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .adm-document-page .adm-page-content-wrapper {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
               }
               .adm-document-page table {
                 font-size: 8.5pt !important;
@@ -1510,7 +1695,7 @@ export default function ActionDoneMatrixTab({
                     data-page={isFirstPage ? '1' : isLastPage ? 'final' : 'continuation'}
                     data-last-page={isLastPage ? 'true' : undefined}
                   >
-                    <div className="space-y-4">
+                    <div className="adm-page-content-wrapper space-y-3 sm:space-y-4 flex-1 flex flex-col min-h-0">
                       {/* Authentic BukSU Header */}
                       <BuksuAdmDocumentHeader />
 

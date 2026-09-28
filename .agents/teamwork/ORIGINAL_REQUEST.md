@@ -84,3 +84,46 @@ Integrity mode: development
 - [ ] Targeted client unit tests (`SecretaryMinutesDocumentSheet.test.jsx`, `ActionDoneMatrixTab.test.jsx`) pass with zero regressions.
 - [ ] Route parity (`npm run check:endpoints`) and agentic governance (`npm run validate:agentic`) maintain 100% pass rate.
 
+## 2026-09-28T06:10:21Z
+
+Remediate all 22 prioritized interface quality, accessibility (WCAG 2.1 AA/AAA), theming, responsive design, and anti-patterns/AI slop findings identified during the system-wide audit of BukSU Capstone Management System V2 (CMS-V2) across all 5 remediation phases.
+
+Working directory: c:\Users\patri\OneDrive\Desktop\Holy folder\CMS-V2
+Integrity mode: development
+Requested team: Full agent team
+
+## Requirements
+
+### R1. Document Viewer Consolidation & Dead Code Pruning (Phase 1)
+Consolidate all document reading and verification flows strictly into the canonical `SophisticatedDocumentViewer.jsx` format, removing legacy non-canonical document viewers (`PaginatedDocumentViewer.jsx` and `ReadonlyPDFViewer.jsx`) in accordance with Pile B Rule 18. Redirect any existing test mocks to `SophisticatedDocumentViewer.jsx`, and eliminate redundant duplicate inline `style={{ color }}` tags across authentication components.
+
+### R2. Mobile Ergonomics & Touch Target Normalization (Phase 2)
+Ensure all interactive buttons, auxiliary controls, modal dismiss buttons, and accordion triggers maintain a minimum interactive touch target bounding box of 44x44px (`min-h-[44px] min-w-[44px]`) on touch/mobile viewports per WCAG 2.1 SC 2.5.5 and WCAG 2.2 SC 2.5.8 across `GoogleScholarSidebar.jsx`, `PrototypeGallery.jsx`, and `TeamCommitteeAssignmentsView.jsx`.
+
+### R3. Accessible Semantics & Administrative Route Hardening (Phase 3)
+Equip all icon-only interactive controls with explicit accessible names (`aria-label`) and state indicators (`aria-expanded`), notably on team chapter deadline accordions in `TeamCommitteeAssignmentsView.jsx`. Provide live region status announcements and `aria-busy` during long-running asynchronous operations such as the instructor workload balancing optimizer. Implement client-side route redirects in `App.jsx` for `/committee` -> `/committee-assignments` and `/scheduling` -> `/scheduling-center`.
+
+### R4. Institutional Typography & Anti-Patterns De-Slop Pass (Phase 4)
+Eliminate cliché multi-stop gradient headings and metric fills in `BukSULoginSidePanel.jsx` and `LandingPage.jsx`, replacing them with high-contrast institutional color tokens. Replace asymmetric `border-l-4` card accents in `ProjectCohortCard.jsx` and `DefenseSchedulingPage.jsx` with balanced, accessible status badges or indicator pills. Enforce English locale consistency (`hl="en"`) on the Google Identity Services OAuth login component in `LoginPage.jsx`.
+
+### R5. Progressive Widget Loading & Layout Architecture (Phase 5)
+Decouple monolithic top-level `PageSkeleton` gates in `InstructorDashboard.jsx` into progressive, widget-level loading states so individual dashboard cards render immediately without waiting for slower aggregate network calls. Convert the static 2x2 decorative icon grid in `BukSULoginSidePanel.jsx` into an informative milestone progression timeline.
+
+## Acceptance Criteria
+
+### A1. Functional & Structural Integrity
+- [ ] No references to `PaginatedDocumentViewer` or `ReadonlyPDFViewer` remain in active application code, and all document viewing uniformly uses `SophisticatedDocumentViewer`.
+- [ ] Direct navigation to `/committee` seamlessly redirects to `/committee-assignments`, and `/scheduling` redirects to `/scheduling-center`.
+- [ ] The Google Sign-In button consistently renders in institutional English across all network origins.
+
+### A2. Accessibility & Mobile Compliance (WCAG 2.1 AA/AAA)
+- [ ] All interactive buttons in `GoogleScholarSidebar.jsx`, `PrototypeGallery.jsx`, and `TeamCommitteeAssignmentsView.jsx` satisfy >= 44x44px touch targets.
+- [ ] Icon-only accordion chevrons provide explicit `aria-label` and dynamic `aria-expanded` state.
+- [ ] Workload optimization triggers announce calculation status to screen readers via `aria-busy` and `role="status"`.
+- [ ] No gradient text remains on headings or metrics, and all card status accents maintain balanced borders without `border-l-4` tells.
+
+### A3. Verification & Governance
+- [ ] Client unit tests pass with zero errors: `npm test --workspace=client`
+- [ ] API endpoint parity passes with zero unmatched routes: `npm run check:endpoints`
+- [ ] Agentic system governance audit passes 100% of checks: `npm run validate:agentic`
+- [ ] Visual verification via Playwright confirms responsive rendering across Desktop (1440x900) and Mobile (390x844) in both Light and Dark modes.

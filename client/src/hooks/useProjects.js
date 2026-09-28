@@ -452,3 +452,44 @@ export function useUpdateDemoVideoUrl(options = {}) {
     },
   );
 }
+
+/** Update GitHub Repository URL */
+export function useUpdateGithubRepoUrl(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateGithubRepoUrl(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.projectId) });
+        queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+        queryClient.invalidateQueries({ queryKey: ['team', 'me'] });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}
+
+/** Update Gantt schedule approval (Adviser or Instructor) */
+export function useUpdateGanttApproval(options = {}) {
+  const queryClient = useQueryClient();
+  return useProjectMutation(
+    async ({ projectId, ...data }) => {
+      const res = await projectService.updateGanttApproval(projectId, data);
+      return res.data;
+    },
+    {
+      ...options,
+      onSuccess: (data, variables, context) => {
+        queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: projectKeys.detail(variables.projectId) });
+        queryClient.invalidateQueries({ queryKey: projectKeys.my() });
+        if (options.onSuccess) options.onSuccess(data, variables, context);
+      },
+    },
+  );
+}

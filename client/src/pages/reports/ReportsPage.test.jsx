@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { ROLES } from '@cms/shared';
 import ReportsPage from './ReportsPage';
 
@@ -190,7 +191,9 @@ describe('ReportsPage', () => {
   const renderComponent = () =>
     root.render(
       <QueryClientProvider client={queryClient}>
-        <ReportsPage />
+        <MemoryRouter>
+          <ReportsPage />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -233,7 +236,7 @@ describe('ReportsPage', () => {
     expect(container.textContent).toContain('Plagiarism Risk & Originality Matrix');
   });
 
-  it('renders detailed capstone records table with project data', async () => {
+  it('renders detailed capstone records table with clickable project links and action buttons', async () => {
     await act(async () => {
       renderComponent();
     });
@@ -243,6 +246,25 @@ describe('ReportsPage', () => {
     expect(container.textContent).toContain('Megumi Fushiguro');
     expect(container.textContent).toContain('Dr. Steven Joe Bautista');
     expect(container.textContent).toContain('MediTrack Smart Patient Triage System');
+
+    // Asserts archived project links to /archive/document/:id
+    const links = Array.from(container.querySelectorAll('a'));
+    const agroSenseLink = links.find((a) =>
+      a.textContent.includes('AgroSense Smart IoT Soil Moisture Monitoring'),
+    );
+    expect(agroSenseLink).toBeTruthy();
+    expect(agroSenseLink.getAttribute('href')).toBe('/archive/document/rep-1');
+
+    // Asserts active project links to /projects/:id
+    const mediTrackLink = links.find((a) =>
+      a.textContent.includes('MediTrack Smart Patient Triage System'),
+    );
+    expect(mediTrackLink).toBeTruthy();
+    expect(mediTrackLink.getAttribute('href')).toBe('/projects/rep-2');
+
+    // Asserts View action links exist
+    const viewLinks = links.filter((a) => a.textContent.includes('View'));
+    expect(viewLinks.length).toBeGreaterThanOrEqual(2);
   });
 
   it('triggers enterprise CSV export when clicking Export CSV button', async () => {
@@ -360,5 +382,91 @@ describe('ReportsPage', () => {
     expect(container.textContent).toContain('Advanced Query Studio');
     expect(container.textContent).toContain('Project Title Query');
     expect(container.textContent).toContain('Degree Program');
+  });
+
+  it('renders skeleton placeholders in CohortKPIRibbon when loading is active', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: null,
+      isLoading: true,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    const kpiRibbon = container.querySelector('[data-testid="cohort-kpi-ribbon"]');
+    expect(kpiRibbon).toBeTruthy();
+    const skeletons = kpiRibbon.querySelectorAll('.cms-skeleton-shimmer');
+    expect(skeletons.length).toBeGreaterThanOrEqual(4);
+    expect(kpiRibbon.textContent).not.toContain('...');
+  });
+
+  it('renders authentic empty states without synthetic mock data fallbacks when datasets are empty', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: {
+        ...mockReportData,
+        summary: {
+          ...mockReportData.summary,
+          totalCapstonesArchived: 0,
+        },
+        categoryBreakdown: [],
+        trend: [],
+        filterOptions: {
+          ...mockReportData.filterOptions,
+          advisers: [],
+        },
+        table: {
+          rows: [],
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 1,
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Should NOT contain hardcoded fake faculty names
+    expect(container.textContent).not.toContain('Bautista, S.');
+    expect(container.textContent).not.toContain('Mentor, L.');
+    expect(container.textContent).not.toContain('Villanueva, R.');
+
+    // Should render authentic empty state message in studios
+    expect(container.textContent).toContain('No aggregate records found');
+    expect(container.textContent).toContain('No capstone records found');
+  });
+
+  it('properly formats singular vs plural record counts (grammatical concordance)', async () => {
+    mockUseProjectReports.mockReturnValue({
+      data: {
+        ...mockReportData,
+        table: {
+          rows: [mockReportData.table.rows[0]],
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    await act(async () => {
+      renderComponent();
+    });
+
+    // Asserts singular "1 record" is used instead of "1 records"
+    expect(container.textContent).toContain('Showing 1 to 1 of 1 record');
+    expect(container.textContent).not.toContain('1 records');
   });
 });

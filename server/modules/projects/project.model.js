@@ -429,6 +429,31 @@ const titleProposalMetadataSchema = new mongoose.Schema(
   { _id: true },
 );
 
+const ganttApprovalSchema = new mongoose.Schema(
+  {
+    approved: {
+      type: Boolean,
+      default: false,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+    remarks: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: '',
+    },
+  },
+  { _id: false },
+);
+
 const projectSchema = new mongoose.Schema(
   {
     teamId: {
@@ -771,6 +796,17 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: null,
       trim: true,
+    },
+
+    githubRepoUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    ganttApproval: {
+      type: ganttApprovalSchema,
+      default: () => ({}),
     },
 
     demoVideoUrl: {

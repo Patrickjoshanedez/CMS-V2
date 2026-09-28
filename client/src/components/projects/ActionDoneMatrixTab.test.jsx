@@ -6,6 +6,8 @@ import ActionDoneMatrixTab, {
   estimateADMRowWeight,
   autoAllocateADMSheets,
   ADM_PAGE_CAPACITIES,
+  extractSuggestionItems,
+  splitADMRowIfOversized,
 } from './ActionDoneMatrixTab';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -652,5 +654,91 @@ describe('ActionDoneMatrixTab Institutional Fidelity Suite', () => {
     expect(toastSuccess).toHaveBeenCalledWith(
       expect.stringContaining('Automatically balanced Action Done Matrix'),
     );
+  });
+
+  it('splitADMRowIfOversized splits multi-bullet recommendations exceeding capacity into head and continuation rows', () => {
+    const multiBulletRow = {
+      _id: 'row-oversized',
+      panelName: 'Raul Lecaros',
+      suggestion: [
+        '- majority of the core functionalities (FR1–FR3, FR6, FR8–FR10, FR12–FR17) have been successfully implemented and are operating as intended.',
+        '- For FR4, it was agreed that the documentation must be updated to reflect a maximum of four members per capstone group instead of three.',
+        '- For FR5, the header "capstone type" will be revised to "IT Field of Discipline".',
+        '- FR7 requires enhancement by removing the hard-coded Google Doc link.',
+        '- FR11 was noted as partially met; while the functionality is available on the student side.',
+        '- FRAD1, FRAD5, FRAD6, and FRAD7 were confirmed as fully implemented.',
+        "- FRAD2, however, remains partially complete, as it requires the display of team member names on the adviser's view, specifically positioned on the right side of the interface.",
+        '- It was also agreed that FRAD3 and FRAD4 should be removed from the adviser functional requirements, as attaching minutes of the system proposal does not align with the system architecture.',
+        '- For the panel requirements (FRPA01–FRPA05), the team must ensure that panel evaluation forms are accessible directly from the deliberation dashboard.',
+      ].join('\n\n'),
+      actionDone: 'Actions taken for items 1 through 9',
+    };
+
+    const chunks = splitADMRowIfOversized(
+      multiBulletRow,
+      ADM_PAGE_CAPACITIES.CONTINUATION_MAX_LINES,
+    );
+    expect(chunks.length).toBe(2);
+
+    // Head chunk preserves original panel name
+    expect(chunks[0].panelName).toBe('Raul Lecaros');
+    expect(chunks[0].isContinuation).toBeFalsy();
+
+    // Tail chunk carries (Continued) suffix and continuation marker
+    expect(chunks[1].panelName).toBe('Raul Lecaros (Continued)');
+    expect(chunks[1].isContinuation).toBe(true);
+    expect(chunks[1].parentRowId).toBe('row-oversized');
+
+    // Item 9 ("FRPA01–FRPA05") is safely in the continuation chunk and never sliced
+    expect(chunks[1].suggestion).toContain('FRPA01–FRPA05');
+  });
+
+  it('autoAllocateADMSheets splits a monolithic 9-recommendation panelist row so items never overflow past the footer', () => {
+    const raul9Row = {
+      _id: 'raul-9',
+      panelName: 'Raul Lecaros',
+      suggestion: [
+        '- majority of the core functionalities (FR1–FR3, FR6, FR8–FR10, FR12–FR17) have been successfully implemented and are operating as intended.',
+        '- For FR4, it was agreed that the documentation must be updated to reflect a maximum of four members per capstone group instead of three.',
+        '- For FR5, the header "capstone type" will be revised to "IT Field of Discipline".',
+        '- FR7 requires enhancement by removing the hard-coded Google Doc link.',
+        '- FR11 was noted as partially met; while the functionality is available on the student side.',
+        '- FRAD1, FRAD5, FRAD6, and FRAD7 were confirmed as fully implemented.',
+        "- FRAD2, however, remains partially complete, as it requires the display of team member names on the adviser's view, specifically positioned on the right side of the interface.",
+        '- It was also agreed that FRAD3 and FRAD4 should be removed from the adviser functional requirements, as attaching minutes of the system proposal does not align with the system architecture.',
+        '- For the panel requirements (FRPA01–FRPA05), the team must ensure that panel evaluation forms are accessible directly from the deliberation dashboard.',
+      ].join('\n\n'),
+      actionDone: 'Actions taken for items 1-9',
+    };
+
+    const result = autoAllocateADMSheets([raul9Row]);
+
+    // Page 1 gets head chunk, Page 2 gets tail chunk with (Continued), Page 3 gets Signatories Board
+    expect(result.totalPages).toBeGreaterThanOrEqual(3);
+    const allRows = result.pages.flat();
+    const contRow = allRows.find((r) => r.panelName?.includes('(Continued)'));
+    expect(contRow).toBeDefined();
+    expect(contRow.suggestion).toContain('FRPA01–FRPA05');
+  });
+
+  it('renders in-flow print footer styles and adm-page-content-wrapper without absolute footer positioning', async () => {
+    await renderComponent();
+
+    // Verify adm-page-content-wrapper exists inside adm-document-page
+    const pageWrapper = container.querySelector('.adm-document-page .adm-page-content-wrapper');
+    expect(pageWrapper).toBeTruthy();
+
+    // Verify in-flow document footer inside adm-document-page
+    const pageFooter = container.querySelector('.adm-document-page .adm-document-footer');
+    expect(pageFooter).toBeTruthy();
+    expect(pageFooter.classList.contains('mt-auto')).toBe(true);
+    expect(pageFooter.classList.contains('shrink-0')).toBe(true);
+
+    // Verify print style tag contains in-flow relative footer rules
+    const styleTag = container.querySelector('style');
+    expect(styleTag).toBeTruthy();
+    expect(styleTag.textContent).toContain('position: relative !important');
+    expect(styleTag.textContent).toContain('margin-top: auto !important');
+    expect(styleTag.textContent).toContain('.adm-page-content-wrapper');
   });
 });

@@ -1,0 +1,43 @@
+{
+  "session_id": "2026-09-28_archive-integrity-checker-audit",
+  "timestamp": "2026-09-28T12:33:00+08:00",
+  "status": "completed",
+  "task": "audit the archive integrity checker under /i-audit and i-frontend-design",
+  "task_slug": "archive-integrity-checker-audit",
+  "scope": [
+    "client/src/pages/plagiarism/ArchivePlagiarismCheckerPage.jsx",
+    "client/src/components/plagiarism/ScanHero.jsx",
+    "client/src/components/plagiarism/DropZone.jsx",
+    "client/src/components/plagiarism/ScanButton.jsx",
+    "client/src/components/archive/CanonicalDocumentViewer.jsx"
+  ],
+  "findings": {
+    "total": 12,
+    "critical": 2,
+    "high": 3,
+    "medium": 5,
+    "low": 2
+  },
+  "top_issues": [
+    "Interactive element nesting violation in DropZone (button inside role=button)",
+    "Mobile primary CTA and DropZone pushed completely below fold (< 844px height)",
+    "Sub-44px touch targets on Remove file and document viewer mode switchers",
+    "Permissive zip MIME validation bypass allowing arbitrary non-manuscript zip uploads",
+    "Missing ARIA accessibility semantics on scan progress bar and status text"
+  ],
+  "verification": {
+    "targeted_unit_tests": "7/7 passed across ArchivePlagiarismCheckerPage.test.jsx and PlagiarismComponents.test.jsx",
+    "playwright_visual_audit": "Captured 7 high-res screenshots across desktop light/dark and mobile light/dark viewports in scratch/screenshots/ and artifacts directory",
+    "endpoint_parity": "SERVER_ENDPOINT_COUNT=217, CLIENT_ENDPOINT_COUNT=197, UNMATCHED_COUNT=0",
+    "governance_audit": "60/60 checks passed"
+  },
+  "suggested_commands": [
+    "/i-arrange",
+    "/i-harden",
+    "/i-normalize",
+    "/i-clarify",
+    "/i-distill",
+    "/i-typeset",
+    "/i-polish"
+  ]
+}

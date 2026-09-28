@@ -135,16 +135,24 @@ function DeadlineRow({ label, deadline }) {
 
   return (
     <div
-      className={`flex items-center justify-between rounded-lg border px-4 py-3 transition-colors ${config.rowClass}`}
+      className={`flex flex-col gap-1.5 rounded-lg border px-4 py-3 transition-colors ${config.rowClass}`}
     >
-      <div className="flex items-center gap-3">
-        <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
-        <div className="min-w-0">
-          <span className="text-sm font-medium">{label}</span>
-          <span className="ml-2 text-xs text-muted-foreground">{formattedDate}</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Icon className={`h-4 w-4 shrink-0 ${config.iconClass}`} />
+          <div className="min-w-0">
+            <span className="text-sm font-medium">{label}</span>
+            <span className="ml-2 text-xs text-muted-foreground">{formattedDate}</span>
+          </div>
         </div>
+        <Badge className={`shrink-0 text-xs ${config.badgeClass}`}>{text}</Badge>
       </div>
-      <Badge className={`shrink-0 text-xs ${config.badgeClass}`}>{text}</Badge>
+      {level === 'overdue' && (
+        <p className="text-[11px] text-destructive font-medium pl-7">
+          Institutional Gate: Late submission justification is required upon chapter/manuscript
+          upload.
+        </p>
+      )}
     </div>
   );
 }
@@ -180,10 +188,7 @@ function TbaRow({ label }) {
  *   within the warning threshold (≤ 3 days) or overdue. Useful for inline alerts.
  */
 export default function DeadlineWarning({ deadlines, compact = false }) {
-  const tbaSet = useMemo(
-    () => new Set(deadlines?.tba || []),
-    [deadlines],
-  );
+  const tbaSet = useMemo(() => new Set(deadlines?.tba || []), [deadlines]);
 
   // Dated items — deadlines with actual dates
   const datedItems = useMemo(() => {
@@ -241,9 +246,7 @@ export default function DeadlineWarning({ deadlines, compact = false }) {
         <div className="mb-2 flex items-center gap-2">
           <AlertTriangle
             className={`h-4 w-4 ${
-              hasOverdue || hasCritical
-                ? 'text-destructive'
-                : 'text-amber-600 dark:text-amber-400'
+              hasOverdue || hasCritical ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'
             }`}
           />
           <span className="text-sm font-semibold">

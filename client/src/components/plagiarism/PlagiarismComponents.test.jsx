@@ -60,7 +60,8 @@ describe('Plagiarism UI Normalized Components', () => {
       expect(text).toContain('Plagiarism & Similarity Checker');
       expect(text).toContain('Archive Integrity Scan');
       expect(text).toContain('BAAI/bge-m3 · 1,024-dim · 8,192 tokens');
-      expect(text).toContain('Full Archive Index');
+      expect(text).toContain('lexical fingerprinting (Winnowing)');
+      expect(text).toContain('dense vector embeddings');
       ['🚀', '⚡', '🔍', '⏳', '⚠️', '🚨', '✓'].forEach((emoji) => {
         expect(text).not.toContain(emoji);
       });
@@ -68,7 +69,7 @@ describe('Plagiarism UI Normalized Components', () => {
   });
 
   describe('ScanButton', () => {
-    it('renders subtle slim progress bar without cms-fluid-track', () => {
+    it('renders subtle slim progress bar with ARIA progressbar and status semantics', () => {
       act(() => {
         root.render(
           <ScanButton disabled={false} scanning={true} elapsedSeconds={12} onClick={() => {}} />,
@@ -81,9 +82,20 @@ describe('Plagiarism UI Normalized Components', () => {
       // Verify old loud animation is NOT present
       expect(container.querySelector('.cms-fluid-track')).toBeNull();
 
-      // Verify subtle micro progress bar is present
+      // Verify subtle micro progress bar is present with ARIA semantics
       const subtleProgress = container.querySelector('.archive-scan-progress');
       expect(subtleProgress).not.toBeNull();
+
+      const progressbar = container.querySelector('[role="progressbar"]');
+      expect(progressbar).not.toBeNull();
+      expect(progressbar.getAttribute('aria-label')).toBe('Manuscript scan progress');
+
+      const statusRegion = container.querySelector('[role="status"]');
+      expect(statusRegion).not.toBeNull();
+      expect(statusRegion.getAttribute('aria-live')).toBe('polite');
+
+      const button = container.querySelector('button');
+      expect(button.getAttribute('aria-busy')).toBe('true');
     });
 
     it('renders ready state when not scanning', () => {
@@ -94,11 +106,13 @@ describe('Plagiarism UI Normalized Components', () => {
       });
 
       expect(container.textContent).toContain('Scan for Similarities');
+      const button = container.querySelector('button');
+      expect(button.getAttribute('aria-busy')).toBe('false');
     });
   });
 
   describe('DropZone', () => {
-    it('renders compact icon container and upload instructions', () => {
+    it('renders compact icon container and upload instructions with role="button" when empty', () => {
       act(() => {
         root.render(
           <DropZone file={null} scanning={false} errorMessage="" onFileSelected={() => {}} />,
@@ -108,9 +122,12 @@ describe('Plagiarism UI Normalized Components', () => {
       expect(container.textContent).toContain('Drag & drop manuscript here');
       const iconWrapper = container.querySelector('.h-11.w-11');
       expect(iconWrapper).not.toBeNull();
+
+      const dropArea = container.querySelector('[role="button"]');
+      expect(dropArea).not.toBeNull();
     });
 
-    it('renders clean selected file metadata with format badge', () => {
+    it('renders semantic selected file card without nested role="button" container', () => {
       const dummyFile = new File(['content'], 'sample_chapter1.docx', {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
@@ -123,6 +140,20 @@ describe('Plagiarism UI Normalized Components', () => {
 
       expect(container.textContent).toContain('sample_chapter1.docx');
       expect(container.textContent).toContain('DOCX');
+      expect(container.textContent).toContain('Change file');
+      expect(container.textContent).toContain('Remove file');
+
+      // Crucial: The outer selected file card container MUST NOT have role="button"
+      const selectedCard = container.querySelector('.border-emerald-500\\/40');
+      expect(selectedCard).not.toBeNull();
+      expect(selectedCard.getAttribute('role')).toBeNull();
+
+      // Buttons inside must be interactive top-level buttons
+      const removeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Remove file'),
+      );
+      expect(removeBtn).not.toBeNull();
+      expect(removeBtn.closest('[role="button"]')).toBeNull();
     });
   });
 

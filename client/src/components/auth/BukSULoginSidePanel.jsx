@@ -96,10 +96,7 @@ export function BukSULoginSidePanel() {
             <h2 className="text-xs font-bold tracking-widest text-[#E5A823] group-hover:text-[#F5C253] uppercase transition-colors">
               Bukidnon State University
             </h2>
-            <p
-              className="text-[11px] font-sans font-medium tracking-tight text-slate-200 group-hover:text-white transition-colors"
-              style={{ color: '#e2e8f0' }}
-            >
+            <p className="text-[11px] font-sans font-medium tracking-tight text-slate-200 group-hover:text-white transition-colors">
               College of Technologies · BSIT Capstone Studio
             </p>
           </div>
@@ -115,16 +112,10 @@ export function BukSULoginSidePanel() {
 
         <h1 className="text-2xl xl:text-3xl font-extrabold text-white tracking-tight leading-snug font-serif">
           Academic capstone governance from <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F5C253] via-[#E5A823] to-[#C68A1B]">
-            title proposal
-          </span>{' '}
-          to university archival.
+          <span className="text-[#F5C253]">title proposal</span> to university archival.
         </h1>
 
-        <p
-          className="text-xs xl:text-sm leading-relaxed font-sans max-w-md text-slate-200"
-          style={{ color: '#e2e8f0' }}
-        >
+        <p className="text-xs xl:text-sm leading-relaxed font-sans max-w-md text-slate-200">
           Standardized submission lifecycle, dual plagiarism screening, Action Done Matrix (ADM)
           endorsement, and permanent archival under BukSU institutional standards.
         </p>
@@ -146,50 +137,47 @@ export function BukSULoginSidePanel() {
           <div className="relative z-10 flex items-center justify-between pb-3 mb-3.5 border-b border-slate-700/60 dark:border-white/10">
             <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-xs shadow-emerald-400/50" />
-              <span
-                className="text-xs font-sans font-bold tracking-wider text-slate-200 uppercase"
-                style={{ color: '#e2e8f0' }}
-              >
+              <span className="text-xs font-sans font-bold tracking-wider text-slate-200 uppercase">
                 4-Phase Capstone Lifecycle
               </span>
             </div>
-            <span
-              className="text-[11px] font-sans font-semibold px-2.5 py-0.5 rounded-full bg-[#E5A823]/20 border border-[#E5A823]/50 text-[#F5C253] tracking-tight shadow-xs"
-              style={{ color: '#F5C253' }}
-            >
+            <span className="text-[11px] font-sans font-semibold px-2.5 py-0.5 rounded-full bg-[#E5A823]/20 border border-[#E5A823]/50 text-[#F5C253] tracking-tight shadow-xs">
               Deterministic Gating
             </span>
           </div>
 
-          <div className="relative z-10 grid grid-cols-2 gap-3">
+          <div className="relative z-10 space-y-2.5">
             {CAPSTONE_STAGES.map((stage, idx) => {
               const Icon = stage.icon;
               return (
                 <div
                   key={idx}
-                  className="p-3 rounded-xl bg-slate-900/70 dark:bg-white/5 border border-slate-700/50 dark:border-white/10 hover:border-[#E5A823]/50 hover:bg-slate-800/70 transition-all space-y-1.5"
+                  className="flex items-start gap-3 p-2.5 rounded-xl bg-slate-900/60 dark:bg-white/5 border border-slate-700/40 dark:border-white/10 hover:border-[#E5A823]/40 hover:bg-slate-800/60 transition-all group/stage"
                 >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="text-[10px] font-mono text-[#F5C253] font-bold uppercase tracking-wider"
-                      style={{ color: '#F5C253' }}
-                    >
-                      {stage.phase}
-                    </span>
-                    <Icon className="w-3.5 h-3.5 text-slate-300" style={{ color: '#cbd5e1' }} />
+                  <div className="flex flex-col items-center shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-lg bg-[#E5A823]/15 border border-[#E5A823]/40 flex items-center justify-center text-[#F5C253]">
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
                   </div>
-                  <h3
-                    className="text-xs font-semibold text-white leading-tight font-sans"
-                    style={{ color: '#ffffff' }}
-                  >
-                    {stage.title}
-                  </h3>
-                  <p
-                    className="text-[11px] leading-snug line-clamp-2 font-sans text-slate-300"
-                    style={{ color: '#cbd5e1' }}
-                  >
-                    {stage.desc}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-[#F5C253] font-bold uppercase tracking-wider">
+                          {stage.phase}
+                        </span>
+                        <span className="text-slate-500 text-[10px]">·</span>
+                        <h3 className="text-xs font-semibold text-white leading-tight font-sans truncate">
+                          {stage.title}
+                        </h3>
+                      </div>
+                      <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/60 shrink-0">
+                        {stage.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-snug font-sans text-slate-300 mt-1">
+                      {stage.desc}
+                    </p>
+                  </div>
                 </div>
               );
             })}
@@ -197,16 +185,10 @@ export function BukSULoginSidePanel() {
 
           {/* System Security & Compliance Footer */}
           <div className="relative z-10 mt-3.5 pt-3 border-t border-slate-700/60 dark:border-white/10 flex items-center justify-between text-[10.5px] font-sans px-1">
-            <span
-              className="flex items-center gap-1.5 text-slate-200 font-medium"
-              style={{ color: '#e2e8f0' }}
-            >
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secretary Compliance Gate
             </span>
-            <span
-              className="flex items-center gap-1.5 text-[#F5C253] font-medium"
-              style={{ color: '#F5C253' }}
-            >
+            <span className="flex items-center gap-1.5 text-[#F5C253] font-medium">
               <Database className="w-3.5 h-3.5" /> MinIO Vault
             </span>
           </div>
@@ -217,7 +199,7 @@ export function BukSULoginSidePanel() {
       <div className="relative z-10 flex-shrink-0 flex items-center justify-between text-xs text-slate-300 font-sans pt-3 border-t border-white/15 dark:border-[#1E3356]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-slate-200 font-medium" style={{ color: '#e2e8f0' }}>
+          <span className="text-slate-200 font-medium">
             BukSU CMS V2 · Full-Stack Capstone System
           </span>
         </div>

@@ -3371,7 +3371,7 @@ class SubmissionService {
 
     const project = await Project.findById(submission.projectId).populate(
       'teamId',
-      'name members googleDocUrl',
+      'name members googleDocUrl githubLink',
     );
     const user = await User.findById(userId);
 
@@ -3460,6 +3460,8 @@ class SubmissionService {
       teamName: project.teamId?.name || 'Unknown Team',
       teamResources: {
         googleDocUrl: project.teamId?.googleDocUrl || null,
+        githubRepoUrl: project.githubRepoUrl || project.teamId?.githubLink || null,
+        prototypes: Array.isArray(project.prototypes) ? project.prototypes : [],
       },
       // Committee IDs for client-side reviewer role derivation
       adviserId: project.adviserId ? String(project.adviserId) : null,

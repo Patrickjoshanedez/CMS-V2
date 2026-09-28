@@ -26,7 +26,9 @@ export {
   POST_APPROVAL_DELIVERABLES,
   STAGE_DELIVERABLE_MAP,
   DELIVERABLE_CATEGORY_MAP,
+  CAPSTONE_SEMESTER_MAP,
 } from './constants/capstonePhases.js';
+export { BUKSU_GRADE_SCALE, BUKSU_GRADE_VALUES, computeBukSUGrade } from './constants/grades.js';
 export { EVALUATION_STATUSES, EVALUATION_STATUS_VALUES } from './constants/evaluationStatuses.js';
 export { DEFENSE_TYPES, DEFENSE_TYPE_VALUES } from './constants/defenseTypes.js';
 export { DEFENSE_DECISIONS, DEFENSE_DECISION_VALUES } from './constants/defenseDecisions.js';
@@ -53,3 +55,8 @@ export {
   DEFAULT_TITLE_SIMILARITY_PERCENTAGE,
   DEFAULT_PLAGIARISM_TOLERANCE_PERCENTAGE,
 } from './constants/similarityThresholds.js';
+export {
+  WorkloadSuggestionSchema,
+  AdviserSnapshotSchema,
+  WorkloadOptimizationResultSchema,
+} from './schemas/workloadOptimizationResult.schema.js';

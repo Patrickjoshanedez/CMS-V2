@@ -41,6 +41,10 @@ vi.mock('@/stores/authStore', () => ({
   },
 }));
 
+vi.mock('@/hooks/useProjects', () => ({
+  useProject: () => ({ data: null, isLoading: false }),
+}));
+
 let mockSubmissionData = null;
 let mockChapterHistoryData = [];
 let mockProjectSubmissionsData = { submissions: [] };

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -17,8 +17,6 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   AreaChart,
   Area,
   PieChart,
@@ -120,7 +118,7 @@ export default function DynamicChartWidget({
                 variant="outline"
                 className="text-[10px] font-mono py-0 px-1.5 bg-background print:bg-slate-100 print:text-[#111827] print:border-slate-300"
               >
-                {safeData.length} records
+                {safeData.length} {safeData.length === 1 ? 'record' : 'records'}
               </Badge>
             )}
           </div>
@@ -133,7 +131,11 @@ export default function DynamicChartWidget({
 
         {/* View Mode Switcher Toolbar (Hidden on physical print) */}
         <div className="flex items-center gap-1.5 self-end sm:self-auto print:hidden">
-          <div className="flex items-center p-0.5 bg-background border border-border/70 rounded-lg shadow-2xs">
+          <div
+            role="group"
+            aria-label={`${title} view modes`}
+            className="flex items-center p-0.5 bg-background border border-border/70 rounded-lg shadow-2xs"
+          >
             {availableViews.map((view) => {
               const Icon = viewIcons[view] || BarChart3;
               const isActive = currentView === view;
@@ -142,8 +144,10 @@ export default function DynamicChartWidget({
                   key={view}
                   type="button"
                   onClick={() => setCurrentView(view)}
+                  aria-pressed={isActive}
+                  aria-label={`Switch to ${view} view`}
                   title={`Switch to ${view} view`}
-                  className={`p-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                  className={`min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 p-2.5 sm:p-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center justify-center ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -159,8 +163,9 @@ export default function DynamicChartWidget({
           <Button
             variant="outline"
             size="icon"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer"
+            className="h-11 w-11 sm:h-7 sm:w-7 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-lg text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer"
             onClick={handleDownloadCSV}
+            aria-label="Export Widget Data as CSV"
             title="Export Widget Data as CSV"
           >
             <Download className="h-3.5 w-3.5" />
@@ -169,8 +174,9 @@ export default function DynamicChartWidget({
           <Button
             variant="outline"
             size="icon"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer"
+            className="h-11 w-11 sm:h-7 sm:w-7 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-lg text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer"
             onClick={() => setIsFullscreen(!isFullscreen)}
+            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Maximize Chart'}
             title={isFullscreen ? 'Exit Fullscreen' : 'Maximize Chart'}
           >
             {isFullscreen ? (
@@ -199,7 +205,7 @@ export default function DynamicChartWidget({
             {/* 1. Bar Chart View */}
             {currentView === 'bar' && (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={safeData} margin={{ top: 12, right: 12, left: -16, bottom: 24 }}>
+                <BarChart data={safeData} margin={{ top: 12, right: 16, left: 0, bottom: 36 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis
                     dataKey={xKey}
@@ -207,7 +213,7 @@ export default function DynamicChartWidget({
                     angle={-20}
                     textAnchor="end"
                     interval={0}
-                    height={50}
+                    height={65}
                   />
                   <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} allowDecimals={false} />
                   <Tooltip
@@ -219,7 +225,11 @@ export default function DynamicChartWidget({
                     }}
                   />
                   {dataKeys.length > 1 && (
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      wrapperStyle={{ fontSize: '11px', paddingBottom: '8px' }}
+                    />
                   )}
                   {dataKeys.map((dk, idx) => (
                     <Bar
@@ -237,7 +247,7 @@ export default function DynamicChartWidget({
             {/* 2. Line / Area Chart View */}
             {currentView === 'line' && (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={safeData} margin={{ top: 12, right: 12, left: -16, bottom: 24 }}>
+                <AreaChart data={safeData} margin={{ top: 12, right: 16, left: 0, bottom: 36 }}>
                   <defs>
                     {dataKeys.map((dk, idx) => {
                       const color = dk.color || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -263,7 +273,7 @@ export default function DynamicChartWidget({
                     angle={-20}
                     textAnchor="end"
                     interval={0}
-                    height={50}
+                    height={65}
                   />
                   <YAxis tick={{ fontSize: 11, fill: 'currentColor' }} />
                   <Tooltip
@@ -275,7 +285,11 @@ export default function DynamicChartWidget({
                     }}
                   />
                   {dataKeys.length > 1 && (
-                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      wrapperStyle={{ fontSize: '11px', paddingBottom: '8px' }}
+                    />
                   )}
                   {dataKeys.map((dk, idx) => {
                     const color = dk.color || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -299,17 +313,66 @@ export default function DynamicChartWidget({
             {/* 3. Pie / Donut Chart View */}
             {currentView === 'pie' && (
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 8, right: 32, left: 32, bottom: 8 }}>
                   <Pie
                     data={safeData}
                     dataKey={dataKeys[0]?.key || 'value'}
                     nameKey={xKey}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={isFullscreen ? 80 : 55}
-                    outerRadius={isFullscreen ? 130 : 85}
+                    cy="46%"
+                    innerRadius={isFullscreen ? 75 : 46}
+                    outerRadius={isFullscreen ? 120 : 70}
                     paddingAngle={3}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={(props) => {
+                      const { cx, cy, midAngle, outerRadius: oRadius, percent, name } = props;
+                      if (!percent || percent < 0.03) return null;
+                      const displayName = name ?? props[xKey] ?? 'Item';
+                      const RADIAN = Math.PI / 180;
+                      const radius = (oRadius || 70) + 12;
+                      const rawX = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const rawY = cy + radius * Math.sin(-midAngle * RADIAN);
+                      const isLeft = rawX < cx;
+                      const pctStr = `${(percent * 100).toFixed(0)}%`;
+                      const truncatedName =
+                        displayName.length > 20 ? `${displayName.slice(0, 18)}…` : displayName;
+                      const text = `${truncatedName} (${pctStr})`;
+                      const approxWidth = text.length * 5.6;
+
+                      let finalX = rawX;
+                      let textAnchor = isLeft ? 'end' : 'start';
+
+                      if (isLeft) {
+                        if (rawX - approxWidth < 8) {
+                          if (rawX < approxWidth + 8) {
+                            finalX = 8;
+                            textAnchor = 'start';
+                          } else {
+                            finalX = approxWidth + 8;
+                          }
+                        }
+                      } else {
+                        const rightBound = cx * 2 - 8;
+                        if (rawX + approxWidth > rightBound) {
+                          if (rawX > rightBound - approxWidth) {
+                            finalX = rightBound;
+                            textAnchor = 'end';
+                          }
+                        }
+                      }
+
+                      return (
+                        <text
+                          x={finalX}
+                          y={rawY}
+                          textAnchor={textAnchor}
+                          dominantBaseline="central"
+                          className="fill-foreground text-[10px] font-medium select-none pointer-events-none"
+                        >
+                          <title>{displayName}</title>
+                          {text}
+                        </text>
+                      );
+                    }}
                     labelLine={false}
                   >
                     {safeData.map((entry, index) => (
@@ -338,7 +401,10 @@ export default function DynamicChartWidget({
                 <RadarChart cx="50%" cy="50%" outerRadius="75%" data={safeData}>
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'currentColor' }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 'auto']} />
+                  <PolarRadiusAxis
+                    angle={30}
+                    domain={[0, (dataMax) => Math.max(dataMax || 0, 5)]}
+                  />
                   {dataKeys.map((dk, idx) => (
                     <Radar
                       key={dk.key}

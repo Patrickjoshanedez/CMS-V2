@@ -27,6 +27,33 @@ export const CAPSTONE_STAGES = Object.freeze({
 export const CAPSTONE_STAGE_VALUES = Object.freeze(Object.values(CAPSTONE_STAGES));
 
 /**
+ * BukSU IT Department Semester Duration Mapping:
+ * Each Capstone stage corresponds strictly to 1 Academic Semester.
+ */
+export const CAPSTONE_SEMESTER_MAP = Object.freeze({
+  [CAPSTONE_STAGES.CAPSTONE_1]: {
+    semester: 1,
+    semesterLabel: '1st Semester',
+    academicCourse: 'Capstone 1 (Research Proposal & Chapters 1–3)',
+  },
+  [CAPSTONE_STAGES.CAPSTONE_2]: {
+    semester: 2,
+    semesterLabel: '2nd Semester',
+    academicCourse: 'Capstone 2 (System Development & Prototype)',
+  },
+  [CAPSTONE_STAGES.CAPSTONE_3]: {
+    semester: 3,
+    semesterLabel: '3rd Semester',
+    academicCourse: 'Capstone 3 (Results, Final Defense & Archival)',
+  },
+  [CAPSTONE_STAGES.FINAL]: {
+    semester: 3,
+    semesterLabel: '3rd Semester',
+    academicCourse: 'Capstone 3 (Final Archival & Certification)',
+  },
+});
+
+/**
  * Deliverables mapped to the 4-phase capstone progression.
  */
 export const DELIVERABLE_TYPES = Object.freeze({

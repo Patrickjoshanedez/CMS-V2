@@ -67,8 +67,9 @@ describe('CohortKPIRibbon', () => {
       root.render(<CohortKPIRibbon summary={smallCohortSummary} activeYear="2025-2026" />);
     });
 
-    // Explicit sample denominator rendered directly beside yield metric
-    expect(container.textContent).toContain('100% (1/1 Teams Completed)');
+    // Explicit sample denominator rendered cleanly in subtext with hero percentage
+    expect(container.textContent).toContain('100%');
+    expect(container.textContent).toContain('1/1 Teams Completed');
     // Small sample size indicator prevents inflated "Institutional High" badge
     expect(container.textContent).toContain('Sample N=1');
     expect(container.textContent).not.toContain('Institutional High');
@@ -95,5 +96,35 @@ describe('CohortKPIRibbon', () => {
     expect(container.textContent).toContain('Active Enrolled');
     expect(container.textContent).toContain('28 In-Progress');
     expect(container.textContent).toContain('Institutional High');
+  });
+
+  it('handles zero-team cohorts with 0/0 Teams and No Teams badge without inflating to Sample N=1', () => {
+    const emptyCohortSummary = {
+      totalEnrolledStudents: 0,
+      totalTeams: 0,
+      totalCapstonesArchived: 0,
+      sectionsCount: 0,
+    };
+
+    act(() => {
+      root.render(<CohortKPIRibbon summary={emptyCohortSummary} activeYear="2025-2026" />);
+    });
+
+    expect(container.textContent).toContain('0/0 Teams');
+    expect(container.textContent).toContain('No Teams');
+    expect(container.textContent).not.toContain('Sample N=1');
+    expect(container.textContent).not.toContain('0/1 Teams Completed');
+  });
+
+  it('renders skeleton loaders across all cards when isLoading is true', () => {
+    act(() => {
+      root.render(<CohortKPIRibbon isLoading={true} activeYear="2025-2026" />);
+    });
+
+    const skeletons = container.querySelectorAll('.cms-skeleton-shimmer');
+    // Each of the 4 cards has value, subtext, and badge skeletons (12 total)
+    expect(skeletons.length).toBeGreaterThanOrEqual(12);
+    expect(container.textContent).not.toContain('...');
+    expect(container.textContent).not.toContain('0 Active In-Progress');
   });
 });

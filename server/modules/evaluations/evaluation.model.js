@@ -99,6 +99,20 @@ const evaluationSchema = new mongoose.Schema(
       default: '',
     },
 
+    /** Percentage calculated: (totalScore / maxTotalScore) * 100 */
+    percentage: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+
+    /** BukSU Grade (1.00 - 5.00) based on institutional scale */
+    buksuGrade: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
     /** Workflow status: draft → submitted → released (by instructor) */
     status: {
       type: String,

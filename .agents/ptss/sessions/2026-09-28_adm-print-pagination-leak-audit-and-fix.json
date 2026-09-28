@@ -1,0 +1,46 @@
+{
+  "sessionId": "2026-09-28_adm-print-pagination-leak-audit-and-fix",
+  "timestamp": "2026-09-28T23:25:00+08:00",
+  "task": "Audit and fix Action Done Matrix (Form RU-F-033) print pagination leak where table rows and borders leak below the footer on page breaks, clipping text and rendering orphaned fragments",
+  "status": "completed",
+  "skillsTriggered": [
+    "i-audit",
+    "i-arrange",
+    "i-polish",
+    "i-harden",
+    "frontend-patterns",
+    "verification-loop",
+    "ptss"
+  ],
+  "rootCause": {
+    "absoluteFooterPrintContract": "In ActionDoneMatrixTab.jsx, @media print styled .adm-document-footer with `position: absolute !important; bottom: 8mm !important;`. This pulled the footer out of normal layout calculation. When a table row was large or exceeded page bounds, table borders and cell text continued flowing into the 8mm bottom margin behind/below the footer, while the footer top border sliced through the table row like a guillotine.",
+    "monolithicRowOverflow": "All recommendations for a panel member were consolidated into a single monolithic row. A panelist with 9 detailed recommendations occupied ~41.5 lines of text. When pushed to a continuation sheet with a ~30 line capacity, dumping the row as an indivisible unit forced page overflow.",
+    "missingContinuationSplitting": "The system lacked bullet-aware row splitting to partition multi-bullet recommendations across sheet boundaries."
+  },
+  "solutionApplied": [
+    "Replaced `position: absolute !important; bottom: 8mm !important;` with in-flow flex layout: `position: relative !important; bottom: auto !important; margin-top: auto !important; flex-shrink: 0 !important; width: 100% !important; width: calc(210mm - 36mm) !important;` in @media print (matching SecretaryMinutesDocumentSheet.jsx:1506).",
+    "Wrapped all page content above the footer inside `.adm-page-content-wrapper` with `flex: 1 1 auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important;`, guaranteeing it is physically impossible for table cells or borders to leak below or collide with the footer.",
+    "Implemented `extractSuggestionItems` and `splitADMRowIfOversized(row, maxLines)` to automatically split oversized multi-bullet rows into head and continuation chunks, allocating leading items to the current sheet and remaining items to a continuation sheet under `${panelName} (Continued)` with `isContinuation: true`.",
+    "Recalibrated row height estimation weights for BukSU 8.5pt font (Col 2: 38 chars/line, Col 3: 32 chars/line, Col 1: 24 chars/line) and page capacities (Page 1: 22 lines, Continuation: 30 lines, Final: 10 lines).",
+    "Synchronized continuation row mutation handlers (handleCellChange, handleCellBlur, handleToggleFulfillment, handleDeleteRow) to resolve base row ID via `rowId.split('__cont_')[0]`."
+  ],
+  "verificationProof": {
+    "zeroFooterLeakEvidence": "Playwright print audit (scratch/audit_adm_with_9_bullets.mjs) verified: leaksBelowFooter: false, gapBetweenTableAndFooterPx: 607px, Any content leaking below footer: false.",
+    "unitTests": "24/24 passed in ActionDoneMatrixTab.test.jsx (100% pass rate).",
+    "endpointParity": "UNMATCHED_COUNT=0 (217 Server / 197 Client).",
+    "agenticGovernance": "60/60 checks passed in validate-agentic-system.js.",
+    "governancePipeline": "All 11 agents valid, DAG verified, 0 errors, 0 warnings.",
+    "artifactsGenerated": [
+      "fix_adm_desktop_light.png",
+      "fix_adm_desktop_dark.png",
+      "fix_adm_mobile_light.png",
+      "fix_adm_mobile_dark.png",
+      "fix_adm_print_page_1.png",
+      "fix_adm_print_page_2.png",
+      "fix_adm_9bullets_page_1.png",
+      "fix_adm_9bullets_page_2.png",
+      "fix_adm_form_ru_f_033_evidence.pdf",
+      "fix_adm_form_ru_f_033_9bullets.pdf"
+    ]
+  }
+}

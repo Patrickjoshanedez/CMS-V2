@@ -2113,7 +2113,7 @@ export default function DefenseSchedulingPage() {
                                   top: `${topPx}px`,
                                   height: `${heightPx}px`,
                                 }}
-                                className={`absolute left-1 right-1 rounded-lg border-l-4 border-l-blue-600 border border-border bg-card shadow-xs hover:shadow-md transition-all select-none text-left z-10 flex flex-col justify-between group cursor-grab active:cursor-grabbing overflow-hidden ${
+                                className={`absolute left-1 right-1 rounded-lg border border-primary/30 bg-card shadow-xs hover:shadow-md transition-all select-none text-left z-10 flex flex-col justify-between group cursor-grab active:cursor-grabbing overflow-hidden ring-1 ring-primary/20 ${
                                   isCompact ? 'px-1.5 py-0.5' : 'p-2'
                                 } ${
                                   isResizingThis

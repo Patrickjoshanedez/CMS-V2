@@ -227,6 +227,8 @@ export const projectService = {
   // Link-based asset updates
   updateGanttChartUrl: (id, data) => api.patch(`/projects/${id}/gantt-chart`, data),
   updateDemoVideoUrl: (id, data) => api.patch(`/projects/${id}/demo-video`, data),
+  updateGithubRepoUrl: (id, data) => api.patch(`/projects/${id}/github-repo`, data),
+  updateGanttApproval: (id, data) => api.patch(`/projects/${id}/gantt-approval`, data),
 };
 
 /**

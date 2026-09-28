@@ -13,6 +13,10 @@ vi.mock('./InteractiveGanttChart', () => ({
   ),
 }));
 
+vi.mock('./PrototypeShowcaseAndDemo', () => ({
+  default: () => <div data-testid="mock-prototype-showcase">Prototype Showcase &amp; Demo</div>,
+}));
+
 vi.mock('./ActionDoneMatrixTab', () => ({
   default: ({ initialMilestone }) => (
     <div data-testid="mock-adm-tab" data-milestone={initialMilestone}>

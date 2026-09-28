@@ -10,7 +10,13 @@ import Project from '../projects/project.model.js';
 import Notification from '../notifications/notification.model.js';
 import { emitToUser, emitToProject } from '../../services/socket.service.js';
 import AppError from '../../utils/AppError.js';
-import { ROLES, EVALUATION_STATUSES, DEFENSE_TYPES, PROJECT_STATUSES } from '@cms/shared';
+import {
+  ROLES,
+  EVALUATION_STATUSES,
+  DEFENSE_TYPES,
+  PROJECT_STATUSES,
+  computeBukSUGrade,
+} from '@cms/shared';
 
 class EvaluationService {
   /* ═══════════════════ Default Rubric ═══════════════════ */
@@ -235,6 +241,14 @@ class EvaluationService {
     // Compute totals
     evaluation.totalScore = evaluation.criteria.reduce((sum, c) => sum + c.score, 0);
     evaluation.maxTotalScore = evaluation.criteria.reduce((sum, c) => sum + c.maxScore, 0);
+    if (evaluation.maxTotalScore > 0) {
+      evaluation.percentage =
+        Math.round((evaluation.totalScore / evaluation.maxTotalScore) * 10000) / 100;
+      evaluation.buksuGrade = computeBukSUGrade(evaluation.percentage);
+    } else {
+      evaluation.percentage = null;
+      evaluation.buksuGrade = null;
+    }
     evaluation.status = EVALUATION_STATUSES.SUBMITTED;
     evaluation.submittedAt = new Date();
 
@@ -297,6 +311,8 @@ class EvaluationService {
     evaluation.status = EVALUATION_STATUSES.DRAFT;
     evaluation.totalScore = null;
     evaluation.maxTotalScore = null;
+    evaluation.percentage = null;
+    evaluation.buksuGrade = null;
     evaluation.submittedAt = null;
     evaluation.releasedAt = null;
     await evaluation.save();
@@ -475,9 +491,25 @@ class EvaluationService {
     if (summary.averageScore !== null && summary.averageMaxScore > 0) {
       summary.averagePercentage =
         Math.round((summary.averageScore / summary.averageMaxScore) * 10000) / 100;
+      summary.buksuGrade = computeBukSUGrade(summary.averagePercentage);
+    } else {
+      summary.buksuGrade = null;
     }
 
-    return { evaluations, summary };
+    const mappedEvaluations = evaluations.map((e) => {
+      const obj = e.toObject ? e.toObject() : { ...e };
+      if (
+        (!obj.percentage || !obj.buksuGrade) &&
+        typeof obj.totalScore === 'number' &&
+        obj.maxTotalScore > 0
+      ) {
+        obj.percentage = Math.round((obj.totalScore / obj.maxTotalScore) * 10000) / 100;
+        obj.buksuGrade = computeBukSUGrade(obj.percentage);
+      }
+      return obj;
+    });
+
+    return { evaluations: mappedEvaluations, summary };
   }
 
   /**
@@ -542,31 +574,45 @@ class EvaluationService {
       .populate('panelistId', 'firstName lastName facultyRole')
       .sort({ createdAt: 1 });
 
-    const reportRows = evaluations.map((ev) => ({
-      panelistName: ev.panelistId
-        ? `${ev.panelistId.firstName} ${ev.panelistId.lastName}`
-        : 'Unknown',
-      panelRole:
-        (project.panelists || []).find((p) => String(p.userId) === String(ev.panelistId?._id))
-          ?.role || 'member',
-      status: ev.status,
-      decision: ev.decision,
-      totalScore: ev.totalScore,
-      maxTotalScore: ev.maxTotalScore,
-      overallComment: ev.overallComment,
-      submittedAt: ev.submittedAt,
-      criteria: ev.criteria.map((c) => ({
-        name: c.name,
-        maxScore: c.maxScore,
-        score: c.score,
-        comment: c.comment,
-      })),
-    }));
+    const reportRows = evaluations.map((ev) => {
+      const percentage =
+        typeof ev.totalScore === 'number' && ev.maxTotalScore > 0
+          ? Math.round((ev.totalScore / ev.maxTotalScore) * 10000) / 100
+          : null;
+      return {
+        panelistName: ev.panelistId
+          ? `${ev.panelistId.firstName} ${ev.panelistId.lastName}`
+          : 'Unknown',
+        panelRole:
+          (project.panelists || []).find((p) => String(p.userId) === String(ev.panelistId?._id))
+            ?.role || 'member',
+        status: ev.status,
+        decision: ev.decision,
+        totalScore: ev.totalScore,
+        maxTotalScore: ev.maxTotalScore,
+        percentage,
+        buksuGrade: percentage !== null ? computeBukSUGrade(percentage) : null,
+        overallComment: ev.overallComment,
+        submittedAt: ev.submittedAt,
+        criteria: ev.criteria.map((c) => ({
+          name: c.name,
+          maxScore: c.maxScore,
+          score: c.score,
+          comment: c.comment,
+        })),
+      };
+    });
 
     const avgScore =
       reportRows.length > 0
         ? reportRows.reduce((sum, r) => sum + (r.totalScore || 0), 0) / reportRows.length
         : null;
+    const avgMax =
+      reportRows.length > 0
+        ? reportRows.reduce((sum, r) => sum + (r.maxTotalScore || 100), 0) / reportRows.length
+        : 100;
+    const avgPercentage =
+      avgScore !== null && avgMax > 0 ? Math.round((avgScore / avgMax) * 10000) / 100 : null;
 
     return {
       report: {
@@ -579,6 +625,8 @@ class EvaluationService {
           totalPanelists: reportRows.length,
           submitted: reportRows.filter((r) => r.status !== 'draft').length,
           averageScore: avgScore !== null ? Math.round(avgScore * 100) / 100 : null,
+          averagePercentage: avgPercentage,
+          buksuGrade: avgPercentage !== null ? computeBukSUGrade(avgPercentage) : null,
           overallDecision: reportRows.every(
             (r) =>
               r.decision && ['passed', 'passed_with_revision', 'approved'].includes(r.decision),

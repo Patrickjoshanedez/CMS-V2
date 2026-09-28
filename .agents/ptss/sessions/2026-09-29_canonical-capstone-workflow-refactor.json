@@ -1,0 +1,56 @@
+{
+  "sessionId": "2026-09-29_canonical-capstone-workflow-refactor",
+  "timestamp": "2026-09-29T01:15:00+08:00",
+  "task": "Comprehensive architectural refactoring of BukSU CMS-V2 across Phases 0-4 to implement canonical institutional workflow: strictly 2-4 team formation, 1-10 proposal pre-scan with SDGs & IT disciplines, sequential chapter submission pipeline (Ch 1-3), adviser Gantt approval gate before filling days, weekly sprint tracking, prototype showcase & verified GitHub code repo, BukSU 1.00-5.00 grading engine with RE_DEFENSE_REQUIRED, 5-role ADM signoff, calendar deadline wiring, and auto-archival with prototype/media visibility.",
+  "status": "completed",
+  "skillsTriggered": [
+    "capstone-lifecycle-orchestrator",
+    "asdlc-task-orchestrator",
+    "senior-backend",
+    "frontend-patterns",
+    "verification-loop",
+    "ptss"
+  ],
+  "rootCause": {
+    "workflowDivergence": "The system previously allowed fragmented workflows: team size validation was lax in certain service endpoints, grading did not follow BukSU's 10-tier 1.00-5.00 point scale, defense decisions lacked the institutional RE_DEFENSE_REQUIRED verdict, Gantt charts allowed day editing without adviser pre-approval, deadlines were not integrated into the defense scheduler calendar, and GitHub repository links / prototype media were not surfaced in the archive or submission reviews."
+  },
+  "solutionApplied": [
+    "SG1: Extended @cms/shared with RE_DEFENSE_REQUIRED in defenseDecisions.js, created grades.js (BukSU 1.00-5.00 10-tier scale, computeBukSUGrade, color indicators), and capstonePhases.js (CAPSTONE_SEMESTER_MAP: Capstone 1 = 1st Sem, Capstone 2 = 2nd Sem, Capstone 3 = 3rd Sem).",
+    "SG2: Enhanced server project schema with ganttApprovalSchema (status, approvedAt, approvedBy, remarks) and githubRepoUrl. Added updateGithubRepoUrl and updateGanttApproval endpoints. Enforced strictly 2-4 member roster locking in team.service.js.",
+    "SG3: Upgraded server evaluation model and service with percentage, buksuGrade, and auto-computation via computeBukSUGrade.",
+    "SG4: Implemented Adviser Gantt Pre-Approval Gate in AcademicExcelGanttChart.jsx with institutional alert banners, approval/revision actions for advisers, and strict cell edit locking for students until approval is granted.",
+    "SG5: Wired chapter submission and defense deadlines directly into DefenseScheduleCalendar.jsx, displaying purple milestone badges on dates and adding late justification submission dialog in DeadlineWarning.jsx.",
+    "SG6: Exposed verified GitHub repository URL and prototype gallery media across SubmissionDetailPage, SubmissionReviewPage, ArchiveSearchPage, and CanonicalDocumentViewer via PrototypeGalleryModal.",
+    "SG7: Synchronized CapstoneWorkflowStepper.jsx with semester tags (Phase 0, Proposal, Phase 1 1st Sem, Phase 2 2nd Sem, Phase 3 3rd Sem), integrated BukSUGradeChip and RE_DEFENSE_REQUIRED into EvaluationPanel.jsx, and integrated PrototypeShowcaseAndDemo into Capstone2CollapsibleSections.jsx.",
+    "SG8: Deterministic verification passed: check:endpoints (0 unmatched), validate:agentic (60/60 checks passed), server integration suites (teams: 27/27, projects: 74/74, evaluations: 22/22 passed), client component tests passed, and Playwright visual audits passed across desktop 1440x900 and mobile 390x844 in light and dark modes."
+  ],
+  "verificationProof": {
+    "endpointParity": "UNMATCHED_COUNT=0 (219 Server / 199 Client)",
+    "agenticGovernance": "60/60 checks passed in validate-agentic-system.js",
+    "serverIntegrationTests": {
+      "teams": "27/27 passed (tests/integration/teams.test.js)",
+      "projects": "74/74 passed (tests/integration/projects.test.js)",
+      "evaluations": "22/22 passed (tests/integration/evaluations.test.js)"
+    },
+    "clientTargetedTests": {
+      "AcademicExcelGanttChart": "13/13 passed",
+      "CapstoneWorkflowStepper": "10/10 passed",
+      "Capstone2CollapsibleSections": "4/4 passed",
+      "ArchiveSearchPage": "10/10 passed",
+      "CanonicalDocumentViewer": "10/10 passed",
+      "SubmissionDetailPage": "16/16 passed",
+      "SubmissionReviewPage": "6/6 passed",
+      "EvaluationWorkspace": "6/6 passed"
+    },
+    "playwrightVisualAudits": [
+      "canonical_01_my_project_desktop_light.png",
+      "canonical_02_my_project_desktop_dark.png",
+      "canonical_03_my_project_mobile_light.png",
+      "canonical_04_my_project_mobile_dark.png",
+      "canonical_05_archive_search_desktop_light.png",
+      "canonical_06_archive_search_desktop_dark.png",
+      "canonical_07_scheduling_calendar_desktop_light.png",
+      "canonical_08_scheduling_calendar_desktop_dark.png"
+    ]
+  }
+}

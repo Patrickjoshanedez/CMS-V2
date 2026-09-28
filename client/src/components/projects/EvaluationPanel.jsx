@@ -8,7 +8,14 @@ import {
   useUnlockEvaluation,
   useReleaseEvaluations,
 } from '@/hooks/useEvaluations';
-import { ROLES, EVALUATION_STATUSES, DEFENSE_DECISIONS } from '@cms/shared';
+import {
+  ROLES,
+  EVALUATION_STATUSES,
+  DEFENSE_DECISIONS,
+  computeBukSUGrade,
+  BUKSU_GRADE_SCALE,
+} from '@cms/shared';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -30,6 +37,7 @@ import {
   Download,
   Lock,
   Clock,
+  Sparkles,
 } from 'lucide-react';
 
 const STATUS_BADGE_CLASS = {
@@ -79,6 +87,11 @@ const DECISION_OPTIONS = [
     color: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
   },
   {
+    value: DEFENSE_DECISIONS.RE_DEFENSE_REQUIRED,
+    label: 'Re-Defense Required',
+    color: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+  },
+  {
     value: DEFENSE_DECISIONS.FAILED,
     label: 'Failed',
     color: 'bg-red-500/10 text-red-600 border-red-500/30',
@@ -89,6 +102,42 @@ function DecisionBadge({ decision }) {
   const opt = DECISION_OPTIONS.find((o) => o.value === decision);
   if (!opt) return null;
   return <Badge className={opt.color}>{opt.label}</Badge>;
+}
+
+/**
+ * BukSUGradeChip — renders standardized BukSU 1.00–5.00 grade pill
+ */
+function BukSUGradeChip({ grade, percentage, className = '' }) {
+  let gradeObj = null;
+  if (grade && typeof grade === 'object' && grade.grade) {
+    gradeObj = grade;
+  } else if (grade && typeof grade === 'string' && BUKSU_GRADE_SCALE[grade]) {
+    gradeObj = BUKSU_GRADE_SCALE[grade];
+  } else if (percentage !== undefined && percentage !== null && !isNaN(percentage)) {
+    gradeObj = computeBukSUGrade(percentage);
+  }
+
+  if (!gradeObj || !gradeObj.grade) return null;
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'font-mono text-xs font-bold gap-1 px-2 py-0.5 shadow-2xs',
+        gradeObj.color?.border || 'border-border',
+        gradeObj.color?.bg || 'bg-muted/50',
+        gradeObj.color?.text || 'text-foreground',
+        className,
+      )}
+      title={`BukSU Grade: ${gradeObj.grade} (${gradeObj.descriptor})`}
+      data-testid="buksu-grade-chip"
+    >
+      <span>BukSU {gradeObj.grade}</span>
+      <span className="opacity-80 text-[10px] font-normal hidden sm:inline">
+        ({gradeObj.descriptor})
+      </span>
+    </Badge>
+  );
 }
 
 function PanelistEvaluationForm({ projectId, defenseType }) {
@@ -241,9 +290,12 @@ function PanelistEvaluationForm({ projectId, defenseType }) {
           </table>
         </div>
 
-        {/* Total Score */}
-        <div className="flex items-center justify-end gap-2 text-base font-semibold">
-          Total: {totalScore} / {maxTotalScore}
+        {/* Total Score & BukSU Grade */}
+        <div className="flex flex-wrap items-center justify-end gap-3 text-base font-semibold">
+          <BukSUGradeChip percentage={maxTotalScore > 0 ? (totalScore / maxTotalScore) * 100 : 0} />
+          <span>
+            Total: {totalScore} / {maxTotalScore}
+          </span>
         </div>
 
         {/* Decision */}
@@ -365,6 +417,12 @@ function PanelistSection({ evaluation, role }) {
           <span className="font-medium">{panelistName || 'Panelist'}</span>
           <StatusBadge status={evaluation.status} />
           {evaluation.decision && <DecisionBadge decision={evaluation.decision} />}
+          {evaluation.status !== EVALUATION_STATUSES.DRAFT && (
+            <BukSUGradeChip
+              grade={evaluation.buksuGrade}
+              percentage={max > 0 ? (total / max) * 100 : 0}
+            />
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-muted-foreground">
@@ -568,7 +626,7 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
           )}
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs">
               <p className="text-xl sm:text-2xl font-bold text-foreground">
                 {allPanelistsSubmitted &&
@@ -581,6 +639,20 @@ function EvaluationsSummary({ projectId, defenseType, role }) {
                 Average Score
                 {averageMaxScore && allPanelistsSubmitted ? ` / ${averageMaxScore}` : ''}
               </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs flex flex-col justify-center items-center">
+              {allPanelistsSubmitted ? (
+                <BukSUGradeChip
+                  grade={summary.buksuGrade}
+                  percentage={
+                    summary.percentage ||
+                    (averageMaxScore > 0 ? (summary.averageScore / averageMaxScore) * 100 : 0)
+                  }
+                />
+              ) : (
+                <span className="text-sm text-muted-foreground font-medium">Pending Release</span>
+              )}
+              <p className="text-xs text-muted-foreground mt-1.5">BukSU Grade (1.00–5.00)</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 text-center shadow-2xs">
               <p className="text-xl sm:text-2xl font-bold text-foreground">{panelistCount}</p>

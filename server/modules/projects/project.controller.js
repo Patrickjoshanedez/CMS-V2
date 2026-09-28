@@ -691,6 +691,38 @@ export const updateDemoVideoUrl = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/projects/:id/github-repo — Update GitHub repository URL */
+export const updateGithubRepoUrl = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateGithubRepoUrl(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'GitHub repository URL updated.',
+    data: { project },
+  });
+});
+
+/** PATCH /api/projects/:id/gantt-approval — Approve/reject Gantt schedule */
+export const updateGanttApproval = catchAsync(async (req, res) => {
+  const { project } = await projectService.updateGanttApproval(
+    req.params.id,
+    req.user._id,
+    req.body,
+  );
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: project.ganttApproval?.approved
+      ? 'Gantt chart schedule approved.'
+      : 'Gantt chart schedule review updated.',
+    data: { project },
+  });
+});
+
 /** POST /api/projects/:projectId/stream-routing — Route Capstone 1 vs Capstone 2 streams */
 export const handleProjectStream = catchAsync(async (req, res) => {
   const { projectId } = req.params;

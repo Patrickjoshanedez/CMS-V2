@@ -1187,6 +1187,92 @@ class ProjectService {
     return { project };
   }
 
+  /**
+   * Update the GitHub repository URL for a project.
+   * Can be updated by team members, adviser, or instructor.
+   * @param {string} projectId
+   * @param {string} userId
+   * @param {Object} data - { githubRepoUrl }
+   * @returns {Object} { project }
+   */
+  async updateGithubRepoUrl(projectId, userId, data) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const team = await Team.findById(project.teamId);
+    const isMember = team?.members?.some((id) => id.toString() === userId.toString());
+    const isAdviser = project.adviserId && project.adviserId.toString() === userId.toString();
+    const user = await User.findById(userId).select('role');
+    const isInstructor = user?.role === ROLES.INSTRUCTOR;
+
+    if (!isMember && !isAdviser && !isInstructor) {
+      throw new AppError(
+        'You do not have permission to update the project GitHub repository.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    if (data.githubRepoUrl !== undefined) {
+      project.githubRepoUrl = data.githubRepoUrl;
+      await project.save();
+
+      // Mirror to team if applicable
+      if (team && (!team.githubUrl || team.githubUrl !== data.githubRepoUrl)) {
+        team.githubUrl = data.githubRepoUrl;
+        await team.save();
+      }
+    }
+
+    return { project };
+  }
+
+  /**
+   * Approve or reject the Gantt chart schedule for Capstone 2.
+   * Only assigned adviser or instructor can review and approve.
+   * @param {string} projectId
+   * @param {string} reviewerId - Adviser or Instructor ID
+   * @param {Object} data - { approved: boolean, remarks: string }
+   * @returns {Object} { project }
+   */
+  async updateGanttApproval(projectId, reviewerId, data) {
+    const project = await this._getProjectOrFail(projectId);
+
+    const isAdviser = project.adviserId && project.adviserId.toString() === reviewerId.toString();
+    const user = await User.findById(reviewerId).select('role firstName lastName');
+    const isInstructor = user?.role === ROLES.INSTRUCTOR;
+
+    if (!isAdviser && !isInstructor) {
+      throw new AppError(
+        'Only the assigned project adviser or course instructor can review and approve the Gantt chart schedule.',
+        403,
+        'NOT_ASSIGNED_ADVISER',
+      );
+    }
+
+    const isApproved = Boolean(data.approved);
+    project.ganttApproval = {
+      approved: isApproved,
+      approvedBy: reviewerId,
+      approvedAt: new Date(),
+      remarks: typeof data.remarks === 'string' ? data.remarks.trim() : '',
+    };
+
+    await project.save();
+
+    // Broadcast realtime event
+    try {
+      const { emitToProject } = await import('../../services/socket.service.js');
+      emitToProject(projectId, 'project:gantt_approval_updated', {
+        projectId,
+        ganttApproval: project.ganttApproval,
+      });
+    } catch {
+      // Non-fatal
+    }
+
+    return { project };
+  }
+
   /* ═══════════════════ Title workflow ═══════════════════ */
 
   /**
@@ -2788,10 +2874,10 @@ class ProjectService {
         .sort(sort)
         .skip(skip)
         .limit(limit)
-        .populate('teamId', 'name members')
+        .populate('teamId', 'name members githubLink')
         .populate('adviserId', 'firstName middleName lastName')
         .select(
-          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey',
+          'title abstract keywords academicYear capstonePhase archivedAt adviserId teamId completionNotes isArchived archiveMetadata originalityScore certificateStorageKey githubRepoUrl prototypes',
         ),
       Project.countDocuments(filter),
     ]);
@@ -2880,6 +2966,8 @@ class ProjectService {
         originalityScore: originality,
         hasAcademicPaper: subInfo.hasAcademic,
         hasJournalPaper: subInfo.hasJournal,
+        githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubLink || null,
+        prototypes: Array.isArray(obj.prototypes) ? obj.prototypes : [],
       };
     });
 

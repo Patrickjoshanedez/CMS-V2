@@ -28,8 +28,8 @@ import { ROLES } from '@cms/shared';
 import {
   getPlagiarismQueue,
   getEmailQueue,
-  getPlagiarismDlqQueue,
   getDocumentExtractionQueue,
+  getDocxConversionQueue,
 } from '../../jobs/queue.js';
 import { isRedisAvailable } from '../../config/redis.js';
 
@@ -62,9 +62,9 @@ function ensureBoardInitialized() {
 
   const queues = [
     getPlagiarismQueue(),
-    getPlagiarismDlqQueue(),
     getEmailQueue(),
     getDocumentExtractionQueue(),
+    getDocxConversionQueue(),
   ].filter(Boolean);
   if (queues.length === 0) return;
 

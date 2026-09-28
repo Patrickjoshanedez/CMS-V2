@@ -85,20 +85,8 @@ vi.mock('@/components/projects/InteractiveGanttChart', () => ({
   default: () => <div data-testid="interactive-gantt-chart" />,
 }));
 
-vi.mock('@/components/projects/DevelopmentAssetsForm', () => ({
-  default: () => <div data-testid="development-assets-form" />,
-}));
-
-vi.mock('@/components/projects/PrototypeGallery', () => ({
-  default: () => <div data-testid="prototype-gallery" />,
-}));
-
 vi.mock('@/components/projects/ConsultationLogWidget', () => ({
   default: () => <div data-testid="consultation-log-widget" />,
-}));
-
-vi.mock('@/components/projects/ProjectInformationSidebar', () => ({
-  default: () => <div data-testid="project-information-sidebar" />,
 }));
 
 describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {

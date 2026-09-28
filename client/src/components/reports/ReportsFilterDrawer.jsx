@@ -66,7 +66,7 @@ export default function ReportsFilterDrawer({
             variant="outline"
             size="sm"
             onClick={onToggleOpen}
-            className="h-8 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer border-border hover:border-primary/50"
+            className="h-11 sm:h-8 min-h-[44px] sm:min-h-0 gap-1.5 text-xs font-semibold shadow-2xs cursor-pointer border-border hover:border-primary/50"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
             <span>Filters</span>
@@ -86,7 +86,7 @@ export default function ReportsFilterDrawer({
                 onFilterChange('year', e.target.value);
                 onApply({ ...filters, year: e.target.value });
               }}
-              className="h-8 text-xs rounded-md border border-border bg-background px-2 py-1 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs"
+              className="h-11 sm:h-8 min-h-[44px] sm:min-h-0 text-xs rounded-md border border-border bg-background px-2.5 py-1 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs"
             >
               <option value="">All Academic Years</option>
               {yearOptions.map((y) => (
@@ -106,7 +106,7 @@ export default function ReportsFilterDrawer({
                 onFilterChange('section', e.target.value);
                 onApply({ ...filters, section: e.target.value });
               }}
-              className="h-8 text-xs rounded-md border border-border bg-background px-2 py-1 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
+              className="h-11 sm:h-8 min-h-[44px] sm:min-h-0 text-xs rounded-md border border-border bg-background px-2.5 py-1 font-medium focus:outline-hidden focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
             >
               <option value="">All Sections (BSIT 4A - 4D)</option>
               {sectionOptions.map((s) => {
@@ -131,7 +131,8 @@ export default function ReportsFilterDrawer({
                   onFilterChange('title', '');
                   onApply({ ...filters, title: '' });
                 }}
-                className="hover:text-destructive cursor-pointer"
+                className="hover:text-destructive cursor-pointer p-0.5"
+                aria-label="Remove title filter"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -147,7 +148,8 @@ export default function ReportsFilterDrawer({
                   onFilterChange('section', '');
                   onApply({ ...filters, section: '' });
                 }}
-                className="hover:text-destructive cursor-pointer"
+                className="hover:text-destructive cursor-pointer p-0.5"
+                aria-label="Remove section filter"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -163,7 +165,8 @@ export default function ReportsFilterDrawer({
                   onFilterChange('adviserId', '');
                   onApply({ ...filters, adviserId: '' });
                 }}
-                className="hover:text-destructive cursor-pointer"
+                className="hover:text-destructive cursor-pointer p-0.5"
+                aria-label="Remove adviser filter"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -179,7 +182,8 @@ export default function ReportsFilterDrawer({
                   onFilterChange('courseId', '');
                   onApply({ ...filters, courseId: '' });
                 }}
-                className="hover:text-destructive cursor-pointer"
+                className="hover:text-destructive cursor-pointer p-0.5"
+                aria-label="Remove program filter"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -195,7 +199,7 @@ export default function ReportsFilterDrawer({
               variant="ghost"
               size="sm"
               onClick={onReset}
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              className="h-11 sm:h-8 min-h-[44px] sm:min-h-0 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <RefreshCcw className="mr-1 h-3 w-3" />
               Clear All
@@ -210,7 +214,7 @@ export default function ReportsFilterDrawer({
               type="button"
               size="sm"
               variant={sortBy === 'archivedAt' ? 'secondary' : 'ghost'}
-              className="h-6 px-1.5 text-[10px]"
+              className="h-11 sm:h-6 min-h-[44px] sm:min-h-0 px-2.5 sm:px-1.5 text-xs sm:text-[10px]"
               onClick={() => {
                 if (sortBy === 'archivedAt') {
                   setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -226,7 +230,7 @@ export default function ReportsFilterDrawer({
               type="button"
               size="sm"
               variant={sortBy === 'title' ? 'secondary' : 'ghost'}
-              className="h-6 px-1.5 text-[10px]"
+              className="h-11 sm:h-6 min-h-[44px] sm:min-h-0 px-2.5 sm:px-1.5 text-xs sm:text-[10px]"
               onClick={() => {
                 if (sortBy === 'title') {
                   setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -258,8 +262,9 @@ export default function ReportsFilterDrawer({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-11 w-11 sm:h-8 sm:w-8 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 rounded-full cursor-pointer flex items-center justify-center"
                   onClick={onToggleOpen}
+                  aria-label="Close filters drawer"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -277,6 +282,7 @@ export default function ReportsFilterDrawer({
                     placeholder="Search by keywords or title..."
                     value={filters.title || ''}
                     onChange={(e) => onFilterChange('title', e.target.value)}
+                    className="h-11 sm:h-9 min-h-[44px] sm:min-h-0"
                   />
                 </div>
 
@@ -290,6 +296,7 @@ export default function ReportsFilterDrawer({
                     placeholder="Filter by student author name..."
                     value={filters.author || ''}
                     onChange={(e) => onFilterChange('author', e.target.value)}
+                    className="h-11 sm:h-9 min-h-[44px] sm:min-h-0"
                   />
                 </div>
 
@@ -302,7 +309,7 @@ export default function ReportsFilterDrawer({
                     id={yearSelectId}
                     value={filters.year || ''}
                     onChange={(e) => onFilterChange('year', e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="w-full h-11 sm:h-9 min-h-[44px] sm:min-h-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
                   >
                     <option value="">All Academic Years</option>
                     {yearOptions.map((y) => (
@@ -322,7 +329,7 @@ export default function ReportsFilterDrawer({
                     id={sectionSelectId}
                     value={filters.section || ''}
                     onChange={(e) => onFilterChange('section', e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="w-full h-11 sm:h-9 min-h-[44px] sm:min-h-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
                   >
                     <option value="">All Sections (BSIT 4A - 4D)</option>
                     {sectionOptions.map((s) => {
@@ -346,7 +353,7 @@ export default function ReportsFilterDrawer({
                     id={adviserSelectId}
                     value={filters.adviserId || ''}
                     onChange={(e) => onFilterChange('adviserId', e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="w-full h-11 sm:h-9 min-h-[44px] sm:min-h-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
                   >
                     <option value="">All Faculty Advisers</option>
                     {adviserOptions.map((adv) => (
@@ -366,7 +373,7 @@ export default function ReportsFilterDrawer({
                     id={programSelectId}
                     value={filters.courseId || ''}
                     onChange={(e) => onFilterChange('courseId', e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="w-full h-11 sm:h-9 min-h-[44px] sm:min-h-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
                   >
                     <option value="">All Programs (BSIT, BSIS, etc.)</option>
                     {programOptions.map((prog) => (
@@ -387,6 +394,7 @@ export default function ReportsFilterDrawer({
                     placeholder="e.g. Machine Learning, IoT, Agriculture"
                     value={filters.keyword || ''}
                     onChange={(e) => onFilterChange('keyword', e.target.value)}
+                    className="h-11 sm:h-9 min-h-[44px] sm:min-h-0"
                   />
                 </div>
 
@@ -399,7 +407,7 @@ export default function ReportsFilterDrawer({
                     id={limitSelectId}
                     value={String(limit)}
                     onChange={(e) => setLimit(Number(e.target.value))}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="w-full h-11 sm:h-9 min-h-[44px] sm:min-h-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary shadow-2xs"
                   >
                     <option value="10">10 per page</option>
                     <option value="20">20 per page</option>
@@ -419,7 +427,7 @@ export default function ReportsFilterDrawer({
                   onReset();
                   onToggleOpen();
                 }}
-                className="flex-1"
+                className="flex-1 h-11 sm:h-9 min-h-[44px] sm:min-h-0 cursor-pointer"
               >
                 Reset
               </Button>
@@ -430,7 +438,7 @@ export default function ReportsFilterDrawer({
                   onApply(filters);
                   onToggleOpen();
                 }}
-                className="flex-1 bg-primary text-primary-foreground font-semibold"
+                className="flex-1 h-11 sm:h-9 min-h-[44px] sm:min-h-0 bg-primary text-primary-foreground font-semibold cursor-pointer"
               >
                 Apply Filters
               </Button>

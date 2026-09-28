@@ -21,11 +21,13 @@ import {
   ShieldAlert,
   Layers,
   CheckCircle2,
+  Code2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
 import CitationExportModal from './CitationExportModal';
 import PdfViewerWorkspace from '@/components/submissions/PdfViewerWorkspace';
+import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
 import api from '@/services/api';
 
 /* ──────────────────────────────────────────────────────────────
@@ -293,6 +295,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
   const [zoom, setZoom] = useState(100);
   const [showOriginalityDrawer, setShowOriginalityDrawer] = useState(false);
+  const [showPrototypesModal, setShowPrototypesModal] = useState(false);
   const [isCitationModalOpen, setIsCitationModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
@@ -832,6 +835,41 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               <span>Cite</span>
             </Button>
 
+            {/* 3.5. Verified GitHub Repository */}
+            {(project?.githubRepoUrl || project?.teamId?.githubLink) && (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-8 px-2.5 text-xs font-medium flex items-center gap-1.5"
+                title="Open Verified GitHub Repository"
+              >
+                <a
+                  href={project.githubRepoUrl || project.teamId?.githubLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Code2 className="w-3.5 h-3.5 text-primary" />
+                  <span className="hidden md:inline">GitHub</span>
+                  <ExternalLink className="w-2.5 h-2.5 text-muted-foreground ml-0.5" />
+                </a>
+              </Button>
+            )}
+
+            {/* 3.6. Architecture & Prototype Showcase */}
+            {Array.isArray(project?.prototypes) && project.prototypes.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPrototypesModal(true)}
+                className="h-8 px-2.5 text-xs font-medium flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                title="View system architecture & prototype media showcase"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Prototypes ({project.prototypes.length})</span>
+              </Button>
+            )}
+
             {/* 4. Originality Report Trigger Badge */}
             <button
               type="button"
@@ -882,7 +920,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                 <button
                   type="button"
                   onClick={() => setViewMode('clean')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
                     viewMode === 'clean'
                       ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -898,9 +936,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     setViewMode('integrity');
                     setShowOriginalityDrawer(true);
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1 min-h-[44px] sm:min-h-0 text-xs font-semibold rounded-md transition-all ${
                     viewMode === 'integrity'
-                      ? 'bg-rose-600 text-white shadow-xs'
+                      ? 'bg-destructive text-destructive-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                   title="View Turnitin-style score-gradient highlight overlays"
@@ -1487,6 +1525,13 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
         open={isCitationModalOpen}
         project={project}
         onClose={() => setIsCitationModalOpen(false)}
+      />
+
+      {/* ── Architecture & Prototype Media Gallery Modal ── */}
+      <PrototypeGalleryModal
+        open={showPrototypesModal}
+        project={project}
+        onClose={() => setShowPrototypesModal(false)}
       />
     </div>
   );

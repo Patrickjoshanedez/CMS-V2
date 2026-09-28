@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import InteractiveGanttChart from './InteractiveGanttChart';
+import PrototypeShowcaseAndDemo from './PrototypeShowcaseAndDemo';
 import ActionDoneMatrixTab from './ActionDoneMatrixTab';
 import EvaluationPanel from './EvaluationPanel';
 
@@ -109,9 +110,24 @@ export default function Capstone2CollapsibleSections({
         </button>
 
         {openSections.gantt && (
-          <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-4 animate-in fade-in duration-200">
+          <CardContent className="p-4 sm:p-6 pt-0 border-t border-border/50 space-y-6 animate-in fade-in duration-200">
             <div className="pt-2">
               <InteractiveGanttChart project={project} isReadOnly={!isStudent && !isFaculty} />
+            </div>
+
+            <div className="pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Code2 className="h-4 w-4 text-primary" />
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  System Prototype &amp; Verified GitHub Repository
+                </h4>
+              </div>
+              <PrototypeShowcaseAndDemo
+                project={project}
+                isReadOnly={!isStudent}
+                canAdd={isStudent}
+                canDelete={isStudent}
+              />
             </div>
           </CardContent>
         )}
@@ -168,8 +184,8 @@ export default function Capstone2CollapsibleSections({
                 )}
               </div>
               <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xl">
-                Official BukSU Form RU-F-033 — Progress panel recommendations, revisions tracking,
-                and committee signatures
+                Official BukSU Form RU-F-033 — Direct-to-ADM checking citing github commits, issues
+                or bugs, progress panel recommendations, and committee signatures
               </p>
             </div>
           </div>
@@ -234,7 +250,7 @@ export default function Capstone2CollapsibleSections({
                   variant="outline"
                   className="font-mono text-[10px] text-muted-foreground border-border/60"
                 >
-                  Midterm Defense
+                  Prototype Defense
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-xl">
@@ -276,6 +292,8 @@ Capstone2CollapsibleSections.propTypes = {
     actionDoneMatrix: PropTypes.arrayOf(PropTypes.object),
     admStatus: PropTypes.string,
     admSignatures: PropTypes.object,
+    githubRepoUrl: PropTypes.string,
+    prototypes: PropTypes.arrayOf(PropTypes.object),
   }),
   isStudent: PropTypes.bool,
   isFaculty: PropTypes.bool,

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -247,10 +248,14 @@ export default function ReportsPage() {
     }
 
     const totalStudents =
-      summary.totalEnrolledStudents || summary.totalAuthorsStudents || summary.totalStudents || 4;
+      summary.totalEnrolledStudents || summary.totalAuthorsStudents || summary.totalStudents || 0;
     const totalTeams =
       summary.totalTeams ||
-      (summary.totalCapstonesArchived > 0 ? summary.totalCapstonesArchived : 1);
+      (summary.totalCapstonesArchived > 0 ? summary.totalCapstonesArchived : 0);
+
+    if (totalStudents === 0 && totalTeams === 0) {
+      return [];
+    }
 
     const c3Students = Math.max(
       1,
@@ -289,9 +294,13 @@ export default function ReportsPage() {
       return sectionAllocation;
     }
 
-    const defaultSections = ['BSIT 4A', 'BSIT 4B', 'BSIT 4C', 'BSIT 4D'];
     const totalStudents =
-      summary.totalEnrolledStudents || summary.totalAuthorsStudents || summary.totalStudents || 4;
+      summary.totalEnrolledStudents || summary.totalAuthorsStudents || summary.totalStudents || 0;
+    if (totalStudents === 0) {
+      return [];
+    }
+
+    const defaultSections = ['BSIT 4A', 'BSIT 4B', 'BSIT 4C', 'BSIT 4D'];
 
     return defaultSections.map((sec, idx) => {
       const enrolled = Math.max(
@@ -343,7 +352,7 @@ export default function ReportsPage() {
       warnings.push({
         id: 'density-disconnect',
         badge: 'Proponent & Section Disconnect',
-        message: `The system records ${totalStudents} enrolled proponents across ${activeSectionsCount} academic sections (BSIT 4A - 4D), averaging ${avgPerSection} student per section. This indicates active scoping filters, un-synced enrollment tables, or seed-data truncation.`,
+        message: `The system records ${totalStudents} enrolled proponents across ${activeSectionsCount} academic sections (BSIT 4A - 4D), averaging ${avgPerSection} ${Number(avgPerSection) === 1 ? 'student' : 'students'} per section. This indicates active scoping filters, un-synced enrollment tables, or seed-data truncation.`,
       });
     }
 
@@ -379,21 +388,17 @@ export default function ReportsPage() {
         projects: c.count || 0,
       }));
     }
-    return [
-      { name: 'AI & Data Science', projects: 8 },
-      { name: 'Web & Cloud Systems', projects: 14 },
-      { name: 'IoT & Smart Ag', projects: 6 },
-      { name: 'Health Informatics', projects: 5 },
-      { name: 'Mobile Apps', projects: 9 },
-    ];
+    return [];
   }, [categoryBreakdown]);
 
   // 5. Faculty Workload & Committee Distribution Data
   const facultyWorkloadData = useMemo(() => {
     if (filterOptions.advisers && filterOptions.advisers.length > 0) {
       return filterOptions.advisers.slice(0, 7).map((adv) => {
-        const advisedCount = records.filter((r) => r.adviser?._id === adv._id).length || 2;
-        const panelCount = 3;
+        const advisedCount = records.filter((r) => r.adviser?._id === adv._id).length;
+        const panelCount =
+          adv.panelCount ??
+          records.filter((r) => r.panelists?.some((p) => p._id === adv._id)).length;
         const workloadScore = Number((advisedCount * 3.0 + panelCount * 1.0).toFixed(1));
         return {
           name: adv.fullName ? adv.fullName.replace(/^Prof\.\s+|Dr\.\s+/i, '') : 'Faculty',
@@ -403,21 +408,17 @@ export default function ReportsPage() {
         };
       });
     }
-    return [
-      { name: 'Bautista, S.', advised: 3, panel: 4, workloadScore: 13.0 },
-      { name: 'Mentor, L.', advised: 2, panel: 5, workloadScore: 11.0 },
-      { name: 'Villanueva, R.', advised: 4, panel: 2, workloadScore: 14.0 },
-      { name: 'Tan, M.', advised: 1, panel: 6, workloadScore: 9.0 },
-      { name: 'Cruz, E.', advised: 2, panel: 3, workloadScore: 9.0 },
-    ];
+    return [];
   }, [filterOptions.advisers, records]);
 
   // 6. Plagiarism Risk Bands Data
   const plagiarismRiskData = useMemo(() => {
-    const total = summary.totalCapstonesArchived || records.length || 20;
-    const flagged = summary.flaggedByPlagiarism || 1;
-    const moderate = Math.max(1, Math.round(total * 0.15));
-    const passed = Math.max(1, total - flagged - moderate);
+    const total = summary.totalCapstonesArchived || records.length;
+    if (!total || total <= 0) return [];
+
+    const flagged = summary.flaggedByPlagiarism || 0;
+    const moderate = Math.round(total * 0.15);
+    const passed = Math.max(0, total - flagged - moderate);
 
     return [
       { name: 'Passed (<20%)', count: passed, rate: `${Math.round((passed / total) * 100)}%` },
@@ -438,11 +439,7 @@ export default function ReportsPage() {
         archived: t.count || 0,
       }));
     }
-    return [
-      { year: '2023-2024', archived: 18 },
-      { year: '2024-2025', archived: 26 },
-      { year: '2025-2026', archived: 34 },
-    ];
+    return [];
   }, [trend]);
 
   // Enterprise CSV Export
@@ -564,7 +561,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={handleExportCSV}
               disabled={records.length === 0}
-              className="text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
+              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5 text-primary" />
               <span>Export CSV</span>
@@ -574,7 +571,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={handleExportExcel}
               disabled={records.length === 0}
-              className="text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
+              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5 text-emerald-600" />
               <span>Excel</span>
@@ -584,7 +581,7 @@ export default function ReportsPage() {
               size="sm"
               onClick={handlePrint}
               disabled={records.length === 0}
-              className="text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
+              className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 text-xs gap-1.5 shadow-2xs border-border hover:border-primary/50 cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Print</span>
@@ -771,8 +768,9 @@ export default function ReportsPage() {
                   </Badge>
                 </div>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5 print:text-slate-600">
-                  Showing {(table.page - 1) * table.limit + 1} to{' '}
-                  {Math.min(table.page * table.limit, table.total)} of {table.total} records
+                  Showing {table.total === 0 ? 0 : (table.page - 1) * table.limit + 1} to{' '}
+                  {Math.min(table.page * table.limit, table.total)} of {table.total}{' '}
+                  {table.total === 1 ? 'record' : 'records'}
                 </CardDescription>
               </div>
 
@@ -785,7 +783,7 @@ export default function ReportsPage() {
                     setLimit(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="h-7 text-xs rounded-md border border-border bg-background px-2 py-0.5 shadow-2xs"
+                  className="h-11 sm:h-7 min-h-[44px] sm:min-h-0 text-xs rounded-md border border-border bg-background px-2.5 sm:px-2 py-1 sm:py-0.5 shadow-2xs cursor-pointer"
                 >
                   <option value="10">10</option>
                   <option value="20">20</option>
@@ -806,7 +804,7 @@ export default function ReportsPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleResetFilters}
-                    className="mt-2 text-xs print:hidden"
+                    className="mt-2 h-11 sm:h-8 min-h-[44px] sm:min-h-0 px-3 text-xs print:hidden cursor-pointer"
                   >
                     Reset Filters
                   </Button>
@@ -822,19 +820,32 @@ export default function ReportsPage() {
                         <th className="py-2.5 px-3">Program</th>
                         <th className="py-2.5 px-3">Academic Year</th>
                         <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3 text-right print:hidden">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {records.map((r) => {
                         const authorsList = r.authors?.map((a) => a.fullName).join(', ') || 'N/A';
-                        const isArchived = r.isArchived || r.status === 'Archived';
+                        const isArchived = Boolean(
+                          r.isArchived ||
+                          (typeof r.status === 'string' && r.status.toLowerCase() === 'archived'),
+                        );
+                        const projectUrl = isArchived
+                          ? `/archive/document/${r._id}`
+                          : `/projects/${r._id}`;
                         return (
                           <tr
                             key={r._id}
                             className="hover:bg-muted/30 transition-colors print:hover:bg-transparent"
                           >
                             <td className="py-2.5 px-3 font-medium text-foreground max-w-xs break-words print:text-[#111827]">
-                              {r.title}
+                              <Link
+                                to={projectUrl}
+                                className="hover:text-primary hover:underline transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary rounded print:no-underline print:text-[#111827]"
+                                title={`View project details for ${r.title}`}
+                              >
+                                {r.title}
+                              </Link>
                             </td>
                             <td className="py-2.5 px-3 text-muted-foreground print:text-[#111827]">
                               {authorsList}
@@ -860,6 +871,16 @@ export default function ReportsPage() {
                                 {r.status || (isArchived ? 'Archived' : 'Active')}
                               </Badge>
                             </td>
+                            <td className="py-2.5 px-3 text-right print:hidden">
+                              <Link
+                                to={projectUrl}
+                                className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 hover:underline cursor-pointer min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 p-2 sm:p-0"
+                                title={`View project details for ${r.title}`}
+                              >
+                                <span>View</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            </td>
                           </tr>
                         );
                       })}
@@ -877,7 +898,7 @@ export default function ReportsPage() {
                     size="sm"
                     disabled={!canGoPrev}
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    className="h-8 px-2.5 text-xs cursor-pointer"
+                    className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 text-xs cursor-pointer"
                   >
                     <ChevronLeft className="mr-1 h-3.5 w-3.5" /> Prev
                   </Button>
@@ -890,7 +911,7 @@ export default function ReportsPage() {
                     size="sm"
                     disabled={!canGoNext}
                     onClick={() => setPage((prev) => prev + 1)}
-                    className="h-8 px-2.5 text-xs cursor-pointer"
+                    className="h-11 sm:h-8 px-3 sm:px-2.5 min-h-[44px] sm:min-h-0 text-xs cursor-pointer"
                   >
                     Next <ChevronRight className="ml-1 h-3.5 w-3.5" />
                   </Button>

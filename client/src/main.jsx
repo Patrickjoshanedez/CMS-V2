@@ -67,7 +67,9 @@ if (googleAuth.hasClientId && !googleAuth.isOriginAllowed) {
 }
 
 const rootTree = googleAuth.hasClientId ? (
-  <GoogleOAuthProvider clientId={googleAuth.clientId}>{appTree}</GoogleOAuthProvider>
+  <GoogleOAuthProvider clientId={googleAuth.clientId} locale="en">
+    {appTree}
+  </GoogleOAuthProvider>
 ) : (
   appTree
 );

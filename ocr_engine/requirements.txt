@@ -9,9 +9,6 @@ python-multipart==0.0.9
 # ── PyMuPDF Fast-Path Document Processing ────────────────────────────────────
 pymupdf>=1.24.0
 
-# ── Deep Learning & Vision-Language Engine ───────────────────────────────────
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.3.1
-transformers>=4.43.0
+# ── Image & Array Processing ──────────────────────────────────────────────────
 pillow>=10.3.0
 numpy>=1.26.4

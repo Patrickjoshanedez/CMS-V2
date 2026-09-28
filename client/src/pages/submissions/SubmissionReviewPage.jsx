@@ -20,8 +20,11 @@ import {
   ExternalLink,
   BookOpen,
   RefreshCcw,
+  Code2,
+  Layers,
 } from 'lucide-react';
 import SophisticatedDocumentViewer from '@/components/documents/SophisticatedDocumentViewer';
+import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -432,6 +435,7 @@ export default function SubmissionReviewPage() {
   }, [rounds, effectiveRoundNumber]);
 
   const activeSubmissionId = activeRound?.sourceSubmissionId || null;
+  const [showPrototypesModal, setShowPrototypesModal] = useState(false);
 
   // Derive team's working Google Doc URL from team resources or synced document
   const teamGoogleDocUrl =
@@ -696,6 +700,65 @@ export default function SubmissionReviewPage() {
 
         {/* ── Reviewer Identity Banner ── */}
         <ReviewerRoleBanner role={reviewerRole} workspace={workspace} />
+
+        {/* ── Development Assets & Prototype Showcase Bar ── */}
+        {(workspace?.teamResources?.githubRepoUrl ||
+          (Array.isArray(workspace?.teamResources?.prototypes) &&
+            workspace.teamResources.prototypes.length > 0)) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-border/80 bg-muted/30">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Code2 className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground">
+                  Development Assets &amp; Prototype Showcase
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Verified system implementation code and architecture media submitted by proponents
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {workspace?.teamResources?.githubRepoUrl && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="h-8 text-xs gap-1.5"
+                  data-testid="reviewer-github-btn"
+                >
+                  <a
+                    href={workspace.teamResources.githubRepoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Code2 className="h-3.5 w-3.5 text-primary" />
+                    <span>GitHub Repository</span>
+                    <ExternalLink className="h-3 w-3 opacity-70" />
+                  </a>
+                </Button>
+              )}
+
+              {Array.isArray(workspace?.teamResources?.prototypes) &&
+                workspace.teamResources.prototypes.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowPrototypesModal(true)}
+                    className="h-8 text-xs gap-1.5 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                    data-testid="reviewer-prototypes-btn"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    <span>
+                      Architecture &amp; Prototypes ({workspace.teamResources.prototypes.length})
+                    </span>
+                  </Button>
+                )}
+            </div>
+          </div>
+        )}
 
         {/* ── Archived Warning ── */}
         {isArchived && (
@@ -1262,6 +1325,15 @@ export default function SubmissionReviewPage() {
           userRole={reviewerRole ? reviewerRole.toLowerCase() : 'adviser'}
         />
       )}
+
+      {/* ── Architecture & Prototype Showcase Modal ── */}
+      <PrototypeGalleryModal
+        open={showPrototypesModal}
+        onClose={() => setShowPrototypesModal(false)}
+        project={{ title: workspace?.projectTitle }}
+        prototypes={workspace?.teamResources?.prototypes || []}
+        githubRepoUrl={workspace?.teamResources?.githubRepoUrl}
+      />
     </DashboardLayout>
   );
 }

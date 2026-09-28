@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useDashboard } from '@/hooks/useDashboard';
@@ -91,6 +91,61 @@ function StudentDashboard({ user }) {
     (derivedChapterProgress.length
       ? Math.round((completedChapters / derivedChapterProgress.length) * 100)
       : 0);
+
+  const calendarEvents = useMemo(() => {
+    const events = [];
+    if (project?.defenseSchedule?.scheduledAt) {
+      events.push({
+        id: `defense-${project._id}`,
+        title: `${
+          project.defenseSchedule.defenseType === 'proposal'
+            ? 'Proposal Defense'
+            : project.defenseSchedule.defenseType === 'midterm'
+              ? 'Prototype Review'
+              : 'Final Oral Defense'
+        } — ${project.title || 'Capstone Project'}`,
+        type: project.defenseSchedule.defenseType || 'proposal',
+        date: new Date(project.defenseSchedule.scheduledAt).toISOString().split('T')[0],
+        time: project.defenseSchedule.scheduledAt
+          ? new Date(project.defenseSchedule.scheduledAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'Scheduled Hearing',
+        venue: project.defenseSchedule.venue || 'COT Defense Room / Virtual Meet',
+        panel: project.defenseSchedule.panelists || [],
+        status: 'scheduled',
+      });
+    }
+
+    if (project?.deadlines) {
+      const deadlineMap = [
+        { key: 'proposalDeadline', label: 'Proposal Submission Deadline' },
+        { key: 'chapter1Deadline', label: 'Chapter 1 Submission Deadline' },
+        { key: 'chapter2Deadline', label: 'Chapter 2 Submission Deadline' },
+        { key: 'chapter3Deadline', label: 'Chapter 3 Submission Deadline' },
+        { key: 'chapter4Deadline', label: 'Chapter 4 Submission Deadline' },
+        { key: 'chapter5Deadline', label: 'Chapter 5 Submission Deadline' },
+        { key: 'finalDefenseDeadline', label: 'Final Defense Submission Deadline' },
+      ];
+      deadlineMap.forEach(({ key, label }) => {
+        if (project.deadlines[key]) {
+          events.push({
+            id: `dl-${key}-${project._id}`,
+            title: `${label} — ${project.title || 'Capstone Project'}`,
+            type: 'deadline',
+            date: new Date(project.deadlines[key]).toISOString().split('T')[0],
+            time: '11:59 PM',
+            venue: 'CMS Portal Submission',
+            panel: [],
+            status: 'scheduled',
+          });
+        }
+      });
+    }
+
+    return events.length > 0 ? events : undefined;
+  }, [project]);
 
   useEffect(() => {
     if (user.role === ROLES.STUDENT && (!user.sectionId || !user.instructorId)) {
@@ -402,7 +457,7 @@ function StudentDashboard({ user }) {
       {/* Defense & Submission Schedule Calendar */}
       {!isLoading && (
         <div>
-          <DefenseScheduleCalendar />
+          <DefenseScheduleCalendar events={calendarEvents} />
         </div>
       )}
 

@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   BookOpen,
   Upload,
+  Code2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/Button';
@@ -29,6 +31,7 @@ import GoogleScholarSidebar from '@/components/archive/GoogleScholarSidebar';
 import OriginalityShieldBadge from '@/components/archive/OriginalityShieldBadge';
 import CitationExportModal from '@/components/archive/CitationExportModal';
 import SimilarProjectModal from '@/components/projects/SimilarProjectModal';
+import PrototypeGalleryModal from '@/components/projects/PrototypeGalleryModal';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const SAVED_PROJECTS_STORAGE_KEY = 'buksu_archive_saved_projects';
@@ -106,6 +109,7 @@ export default function ArchiveSearchPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [citationModalProject, setCitationModalProject] = useState(null);
   const [similarModalProject, setSimilarModalProject] = useState(null);
+  const [prototypeModalProject, setPrototypeModalProject] = useState(null);
 
   // Saved / Bookmarked projects in localStorage
   const [savedProjectIds, setSavedProjectIds] = useState(() => {
@@ -429,6 +433,35 @@ export default function ArchiveSearchPage() {
                               score={project.originalityScore ?? 96.2}
                               onClick={() => handleOpenDocument(project._id)}
                             />
+
+                            {/* 5. Verified GitHub Link */}
+                            {(project.githubRepoUrl || project.teamId?.githubLink) && (
+                              <a
+                                href={project.githubRepoUrl || project.teamId?.githubLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 hover:text-foreground hover:underline transition-colors text-primary font-medium"
+                                title="Open Verified GitHub Repository"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Code2 className="w-3.5 h-3.5 text-primary" />
+                                <span>Code Repo</span>
+                                <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                              </a>
+                            )}
+
+                            {/* 6. Prototypes & Architecture Gallery */}
+                            {Array.isArray(project.prototypes) && project.prototypes.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setPrototypeModalProject(project)}
+                                className="inline-flex items-center gap-1 text-primary font-medium hover:underline transition-colors"
+                                title="View system architecture & prototype media showcase"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                                <span>Prototypes ({project.prototypes.length})</span>
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -537,6 +570,13 @@ export default function ArchiveSearchPage() {
           onClose={() => setSimilarModalProject(null)}
         />
       )}
+
+      {/* Architecture & Prototype Showcase Modal */}
+      <PrototypeGalleryModal
+        open={Boolean(prototypeModalProject)}
+        project={prototypeModalProject}
+        onClose={() => setPrototypeModalProject(null)}
+      />
     </DashboardLayout>
   );
 }

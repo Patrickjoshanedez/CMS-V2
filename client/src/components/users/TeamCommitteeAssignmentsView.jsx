@@ -883,7 +883,21 @@ export default function TeamCommitteeAssignmentsView() {
                         </CardDescription>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-[44px] min-w-[44px] p-0 rounded-lg"
+                      aria-label={
+                        isDeadlinesOpen
+                          ? 'Collapse project milestones and deadlines'
+                          : 'Expand project milestones and deadlines'
+                      }
+                      aria-expanded={isDeadlinesOpen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDeadlinesOpen((prev) => !prev);
+                      }}
+                    >
                       {isDeadlinesOpen ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : (

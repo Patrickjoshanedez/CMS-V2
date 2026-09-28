@@ -36,11 +36,7 @@ pydantic==2.8.2
 pydantic-settings==2.3.4           # BaseSettings + .env file loading
 
 # ── Text utilities ────────────────────────────────────────────────────────────
-bleach==6.1.0                      # Strip HTML from extracted text
 regex==2024.5.15                   # Better Unicode-aware regex
-
-# ── Logging & observability ───────────────────────────────────────────────────
-structlog==24.2.0                  # Optional structured logging (used if LOG_JSON=true)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Development / test extras (not needed in production Docker image)

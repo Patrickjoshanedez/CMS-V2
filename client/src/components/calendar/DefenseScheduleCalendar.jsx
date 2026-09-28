@@ -62,6 +62,11 @@ const TYPE_CONFIG = {
     color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
     dot: 'bg-emerald-500',
   },
+  deadline: {
+    label: 'Submission Deadline',
+    color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30',
+    dot: 'bg-purple-500',
+  },
 };
 
 export default function DefenseScheduleCalendar({

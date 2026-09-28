@@ -13,12 +13,18 @@ import {
   Save,
   Trash2,
   Paintbrush,
+  CheckCircle2,
+  ShieldCheck,
+  Lock,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { downloadExcelGantt, normalizeProgress } from '@/utils/exportExcelGantt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
+import { projectService } from '@/services/authService';
 
 /**
  * 8 Academic Color Themes for Gantt fill boxes
@@ -998,7 +1004,50 @@ export default function AcademicExcelGanttChart({
   onOwnerChange: propOnOwnerChange,
   onAddTask = null,
   isReadOnly = false,
+  onApproveGantt = null,
+  onRejectGantt = null,
 }) {
+  // ── BukSU Adviser Gantt Pre-Approval Gate ────────────────────────────────────
+  const user = useAuthStore((state) => state.user);
+  const userRole = user?.role;
+  const isAdviser = Boolean(
+    (project?.adviserId?._id && String(project.adviserId._id) === String(user?._id)) ||
+    (project?.adviserId && String(project.adviserId) === String(user?._id)) ||
+    userRole === 'adviser',
+  );
+  const isInstructor = userRole === 'instructor' || userRole === 'admin';
+  const canApproveGantt = isAdviser || isInstructor;
+  const isGanttApproved =
+    project?.ganttApproval !== undefined ? Boolean(project.ganttApproval?.approved) : true;
+
+  const [isUpdatingApproval, setIsUpdatingApproval] = useState(false);
+  const handleApproveSchedule = async (approved, remarks = '') => {
+    const pid = project?._id || project?.id;
+    if (!pid) {
+      toast.error('Project ID missing.');
+      return;
+    }
+    try {
+      setIsUpdatingApproval(true);
+      if (approved && onApproveGantt) {
+        await onApproveGantt(approved, remarks);
+      } else if (!approved && onRejectGantt) {
+        await onRejectGantt(remarks);
+      } else {
+        await projectService.updateGanttApproval(pid, { approved, remarks });
+      }
+      toast.success(
+        approved ? 'Gantt schedule approved successfully.' : 'Gantt schedule marked for revision.',
+      );
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || err.message || 'Failed to update Gantt schedule approval.',
+      );
+    } finally {
+      setIsUpdatingApproval(false);
+    }
+  };
+
   // ── Storage key ──────────────────────────────────────────────────────────────
   const storageKey = useMemo(() => {
     const pid = project?._id || project?.id || 'default';
@@ -1270,6 +1319,12 @@ export default function AcademicExcelGanttChart({
   const handleCellMouseDown = useCallback(
     (taskId, dIdx) => {
       if (isReadOnly) return;
+      if (project && !isGanttApproved && !canApproveGantt) {
+        toast.warning(
+          'Gantt Sprints Locked — Pending Adviser Pre-Approval. Daily accomplishment boxes cannot be filled until your Adviser approves the schedule.',
+        );
+        return;
+      }
       setIsDragging(true);
       dragTaskIdRef.current = taskId;
       setTasks((prev) =>
@@ -1306,12 +1361,13 @@ export default function AcademicExcelGanttChart({
         }),
       );
     },
-    [isReadOnly, activeColor, setTasks],
+    [isReadOnly, project, isGanttApproved, canApproveGantt, activeColor, setTasks],
   );
 
   const handleCellMouseEnter = useCallback(
     (taskId, dIdx) => {
       if (!isDragging || dragTaskIdRef.current !== taskId || isReadOnly) return;
+      if (project && !isGanttApproved && !canApproveGantt) return;
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id !== taskId) return t;
@@ -1635,6 +1691,91 @@ export default function AcademicExcelGanttChart({
           </Button>
         </div>
       </div>
+
+      {/* BukSU Adviser Gantt Pre-Approval Gate Banner */}
+      {project && project.ganttApproval !== undefined && (
+        <div
+          data-testid="gantt-approval-banner"
+          className={cn(
+            'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all',
+            isGanttApproved
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100',
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-lg shrink-0 font-bold',
+                isGanttApproved
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+              )}
+            >
+              {isGanttApproved ? <ShieldCheck className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs sm:text-sm font-bold tracking-tight">
+                  {isGanttApproved
+                    ? 'Gantt Schedule Pre-Approved by Adviser'
+                    : 'Gantt Sprints Locked — Pending Adviser Pre-Approval'}
+                </h4>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px] py-0 px-2 font-mono font-semibold',
+                    isGanttApproved
+                      ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40'
+                      : 'border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40',
+                  )}
+                >
+                  {isGanttApproved ? 'Pre-Approved' : 'Awaiting Pre-Approval'}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {isGanttApproved
+                  ? 'The proposed sprint allocation and timeline have been pre-approved by the Capstone Adviser. Daily accomplishment logging is active.'
+                  : 'Under BukSU Capstone guidelines, the proposed milestone schedule and sprint allocation must be reviewed and pre-approved by the assigned Capstone Adviser before students can log daily accomplishments.'}
+              </p>
+              {project?.ganttApproval?.remarks && (
+                <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mt-1">
+                  Adviser Feedback: &ldquo;{project.ganttApproval.remarks}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
+
+          {canApproveGantt && (
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+              {!isGanttApproved ? (
+                <Button
+                  size="sm"
+                  disabled={isUpdatingApproval}
+                  onClick={() => handleApproveSchedule(true)}
+                  className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Approve Gantt Schedule
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isUpdatingApproval}
+                  onClick={() =>
+                    handleApproveSchedule(false, 'Schedule updated — pending re-review')
+                  }
+                  className="h-8 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1.5 cursor-pointer"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Request Schedule Revision
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Excel Sheet Canvas */}
       <div className="rounded-xl border-2 border-slate-700 dark:border-slate-700 bg-white dark:bg-card shadow-sm overflow-hidden text-slate-900 dark:text-slate-100">

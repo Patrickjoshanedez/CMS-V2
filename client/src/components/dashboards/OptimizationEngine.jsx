@@ -7,7 +7,10 @@ const OptimizationEngine = ({ optimization, onGenerate, loading }) => {
   const suggestions = optimization?.suggestions || [];
 
   return (
-    <section className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
+    <section
+      className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4"
+      aria-busy={loading}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Optimization Engine</h2>
@@ -15,11 +18,23 @@ const OptimizationEngine = ({ optimization, onGenerate, loading }) => {
             Generate balancing actions to reduce adviser overload and overdue pressure.
           </p>
         </div>
-        <Button onClick={onGenerate} disabled={loading} size="sm">
+        <Button
+          onClick={onGenerate}
+          disabled={loading}
+          size="sm"
+          className="min-h-[44px] sm:min-h-[36px] px-3.5"
+          aria-label={
+            loading ? 'Generating balancing suggestions' : 'Generate balancing suggestions'
+          }
+        >
           <Wand2 className="mr-2 h-4 w-4" />
           {loading ? 'Generating...' : 'Generate Suggestions'}
         </Button>
       </div>
+
+      <span className="sr-only" role="status" aria-live="polite">
+        {loading ? 'Analyzing workload and generating balancing actions...' : ''}
+      </span>
 
       {!optimization ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/40 p-5">

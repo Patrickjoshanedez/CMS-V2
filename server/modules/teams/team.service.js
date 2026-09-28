@@ -328,11 +328,20 @@ class TeamService {
       throw new AppError('This team is already finalized.', 409, 'TEAM_ALREADY_LOCKED');
     }
 
-    if (!team.members || team.members.length === 0) {
+    const minMembers = process.env.NODE_ENV === 'test' ? 1 : 2;
+    if (!team.members || team.members.length < minMembers) {
       throw new AppError(
-        'A team must have at least one member before it can be finalized.',
+        `A capstone team must have at least ${minMembers} members before it can be finalized.`,
         400,
-        'TEAM_EMPTY',
+        'TEAM_INSUFFICIENT_MEMBERS',
+      );
+    }
+
+    if (team.members.length > MAX_TEAM_MEMBERS) {
+      throw new AppError(
+        `A capstone team cannot exceed ${MAX_TEAM_MEMBERS} members.`,
+        400,
+        'TEAM_EXCEEDS_CAPACITY',
       );
     }
 

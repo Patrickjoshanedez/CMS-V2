@@ -39,50 +39,23 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
 
   return (
     <section className="space-y-3">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={openPicker}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openPicker();
-          }
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!scanning) setIsDragging(true);
-        }}
-        onDragLeave={(e) => {
-          if (e.currentTarget.contains(e.relatedTarget)) return;
-          setIsDragging(false);
-        }}
-        onDrop={handleDrop}
-        className={[
-          'group relative rounded-xl border-2 border-dashed p-6 text-center',
-          'transition-colors duration-200 outline-none',
-          'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
-          scanning ? 'cursor-wait opacity-80' : 'cursor-pointer',
-          errorMessage
-            ? 'border-destructive/50 bg-destructive/5'
-            : file
-              ? 'border-emerald-500/40 bg-emerald-500/5'
-              : isDragging
-                ? 'border-primary bg-primary/10'
-                : 'border-border/80 bg-muted/20 hover:border-primary/40 hover:bg-muted/40',
-        ].join(' ')}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
-          disabled={scanning}
-          className="hidden"
-          onChange={handleInputChange}
-        />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+        disabled={scanning}
+        className="hidden"
+        onChange={handleInputChange}
+      />
 
-        {file ? (
-          /* File selected state */
+      {file ? (
+        /* File selected state - semantic card without nested button role */
+        <div
+          className={[
+            'relative rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-5 text-center',
+            errorMessage ? 'border-destructive/50 bg-destructive/5' : '',
+          ].join(' ')}
+        >
           <div className="flex flex-col items-center gap-2.5">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -104,21 +77,60 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
                 <span>Preparing document…</span>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFileSelected(null);
-                }}
-                className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background/80 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive mt-0.5"
-              >
-                <X className="h-3 w-3" />
-                Remove file
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary min-h-[44px] min-w-[44px] sm:min-h-8 sm:px-2.5 sm:py-1"
+                >
+                  <FileCheck2 className="h-3.5 w-3.5" />
+                  Change file
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFileSelected(null)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive min-h-[44px] min-w-[44px] sm:min-h-8 sm:px-2.5 sm:py-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Remove file
+                </button>
+              </div>
             )}
           </div>
-        ) : (
-          /* Empty state */
+        </div>
+      ) : (
+        /* Empty dropzone state */
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={openPicker}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openPicker();
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!scanning) setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget)) return;
+            setIsDragging(false);
+          }}
+          onDrop={handleDrop}
+          className={[
+            'group relative rounded-xl border-2 border-dashed p-6 text-center',
+            'transition-colors duration-200 outline-none',
+            'focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2',
+            scanning ? 'cursor-wait opacity-80' : 'cursor-pointer',
+            errorMessage
+              ? 'border-destructive/50 bg-destructive/5'
+              : isDragging
+                ? 'border-primary bg-primary/10'
+                : 'border-border/80 bg-muted/20 hover:border-primary/40 hover:bg-muted/40',
+          ].join(' ')}
+        >
           <div className="flex flex-col items-center gap-2.5">
             <div
               className={[
@@ -138,13 +150,12 @@ export default function DropZone({ file, scanning, errorMessage, onFileSelected 
                 {isDragging ? 'Drop your document here' : 'Drag & drop manuscript here'}
               </p>
               <p className="text-xs text-muted-foreground">
-                or <span className="text-primary font-medium">browse files</span> · PDF or Word
-                (.docx), max 25 MB
+                or <span className="text-primary font-medium">browse files</span>
               </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {errorMessage && (
         <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">

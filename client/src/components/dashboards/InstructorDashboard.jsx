@@ -50,11 +50,11 @@ const InstructorDashboard = () => {
     },
   });
 
-  if (kpisLoading || workloadLoading) {
+  if (kpisLoading && workloadLoading) {
     return <PageSkeleton />;
   }
 
-  if (kpisError || workloadError) {
+  if (kpisError && workloadError) {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
@@ -83,14 +83,16 @@ const InstructorDashboard = () => {
             <p className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground">
               Projects
             </p>
-            <p className="text-2xl font-bold text-foreground">{kpis?.totals?.totalProjects || 0}</p>
+            <p className="text-2xl font-bold text-foreground">
+              {kpisLoading ? '...' : kpis?.totals?.totalProjects || 0}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
             <p className="text-[11px] uppercase font-semibold tracking-wide text-muted-foreground">
               Pending
             </p>
             <p className="text-2xl font-bold text-foreground">
-              {kpis?.pipeline?.pendingSubmissions || 0}
+              {kpisLoading ? '...' : kpis?.pipeline?.pendingSubmissions || 0}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
@@ -98,17 +100,31 @@ const InstructorDashboard = () => {
               Completion
             </p>
             <p className="text-2xl font-bold text-foreground">
-              {kpis?.performance?.completionRatePercent || 0}%
+              {kpisLoading ? '...' : `${kpis?.performance?.completionRatePercent || 0}%`}
             </p>
           </div>
         </div>
       </div>
 
-      <KPICards kpis={kpis} />
+      {kpisLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-pulse">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl bg-muted/40 border border-border" />
+          ))}
+        </div>
+      ) : (
+        <KPICards kpis={kpis} />
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
         <div className="xl:col-span-3">
-          <WorkloadHeatmap workload={workload} />
+          {workloadLoading ? (
+            <div className="h-80 rounded-2xl bg-muted/40 border border-border animate-pulse p-6 flex items-center justify-center text-sm text-muted-foreground">
+              Loading adviser workload distribution...
+            </div>
+          ) : (
+            <WorkloadHeatmap workload={workload} />
+          )}
         </div>
         <div className="xl:col-span-2">
           <OptimizationEngine

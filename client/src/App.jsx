@@ -163,6 +163,7 @@ const PROTECTED_ROUTES = [
   { path: '/project/create', Component: CreateProjectPage, allowedRoles: [ROLES.STUDENT] },
   { path: '/project/approval', Component: TitleApprovalPage, allowedRoles: [ROLES.STUDENT] },
   { path: '/project', Component: MyProjectPage },
+  { path: '/my-project', Component: MyProjectPage },
   { path: '/projects', Component: ProjectsPage },
   { path: '/projects/:id', Component: ProjectDetailPage },
   {
@@ -217,6 +218,11 @@ const PROTECTED_ROUTES = [
     allowedRoles: [ROLES.INSTRUCTOR],
   },
   {
+    path: '/scheduling',
+    Component: DefenseSchedulingPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
+  {
     path: '/defense-schedule',
     Component: DefenseSchedulingPage,
     allowedRoles: [ROLES.INSTRUCTOR],
@@ -234,6 +240,11 @@ const PROTECTED_ROUTES = [
   // Committee Assignments (Instructor workflow)
   {
     path: '/committee-assignments',
+    Component: CommitteeAssignmentsPage,
+    allowedRoles: [ROLES.INSTRUCTOR],
+  },
+  {
+    path: '/committee',
     Component: CommitteeAssignmentsPage,
     allowedRoles: [ROLES.INSTRUCTOR],
   },

@@ -220,6 +220,47 @@ describe('AcademicExcelGanttChart Component', () => {
       expect(isNowFilled).toBe(!wasFilled);
     });
 
+    it('renders Gantt Sprints Locked banner when ganttApproval.approved is false', async () => {
+      const lockedProject = {
+        ...mockSoloProject,
+        ganttApproval: {
+          approved: false,
+          remarks: 'Please revise milestone allocation.',
+        },
+      };
+
+      await act(async () => {
+        root.render(<AcademicExcelGanttChart project={lockedProject} />);
+      });
+
+      const banner = container.querySelector('[data-testid="gantt-approval-banner"]');
+      expect(banner).toBeTruthy();
+      expect(container.textContent).toContain(
+        'Gantt Sprints Locked — Pending Adviser Pre-Approval',
+      );
+      expect(container.textContent).toContain('Awaiting Pre-Approval');
+      expect(container.textContent).toContain('Please revise milestone allocation.');
+    });
+
+    it('renders Gantt Schedule Pre-Approved banner when ganttApproval.approved is true', async () => {
+      const approvedProject = {
+        ...mockSoloProject,
+        ganttApproval: {
+          approved: true,
+          approvedAt: '2026-03-10T10:00:00Z',
+        },
+      };
+
+      await act(async () => {
+        root.render(<AcademicExcelGanttChart project={approvedProject} />);
+      });
+
+      const banner = container.querySelector('[data-testid="gantt-approval-banner"]');
+      expect(banner).toBeTruthy();
+      expect(container.textContent).toContain('Gantt Schedule Pre-Approved by Adviser');
+      expect(container.textContent).toContain('Pre-Approved');
+    });
+
     it('calculates and renders Pending accomplishment when empty, and percentage when tasks exist', async () => {
       // 1. When empty: Pending
       await act(async () => {

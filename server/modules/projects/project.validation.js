@@ -450,3 +450,20 @@ export const updateGanttChartUrlSchema = z.object({
 export const updateDemoVideoUrlSchema = z.object({
   demoVideoUrl: z.string().trim().url('Invalid Demo video URL').max(2000),
 });
+
+export const updateGithubRepoUrlSchema = z.object({
+  githubRepoUrl: z
+    .string()
+    .trim()
+    .url('Invalid GitHub repository URL')
+    .regex(
+      /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/,
+      'Must be a valid GitHub repository URL',
+    )
+    .max(2000),
+});
+
+export const updateGanttApprovalSchema = z.object({
+  approved: z.boolean(),
+  remarks: z.string().trim().max(1000).optional().default(''),
+});

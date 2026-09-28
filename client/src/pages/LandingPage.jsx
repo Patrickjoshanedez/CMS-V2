@@ -477,9 +477,7 @@ export default function LandingPage() {
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-bold text-[#1E293B] dark:text-white tracking-tight leading-[1.15]">
               Manage your capstone projects with{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1A448A] to-[#2563EB] dark:from-[#F5C253] dark:via-[#E5A823] dark:to-[#C68A1B]">
-                institutional rigor.
-              </span>
+              <span className="text-[#1A448A] dark:text-[#E5A823]">institutional rigor.</span>
             </h1>
 
             <p className="text-sm sm:text-base text-[#475569] dark:text-slate-200 leading-relaxed max-w-xl font-normal">
