@@ -1,6 +1,23 @@
 # CMS-V2 Technical Context
 
 #### Prevention Rules
+- Student Dashboard Space Optimization, Team Lock Checklist Institutional Integrity, Dual-Mode Calendar Timeline, and Phase 0 Onboarding Stepper Prevention Rule:
+  1. Lesson learned: In `TeamsPage.jsx`, listing 'Adviser confirmation pending final submission' in the Team Lock Requirements checklist confused students, who believed their team could not be locked without an appointed adviser. Under BukSU Phase 0 guidelines, advisers are assigned by Course Instructors only during or after title defense proposals are pre-scanned. Excluded this false requirement from the lock checklist.
+  2. Lesson learned: Fragmented dual-tier invite mechanisms (a bulky Bulk Invite banner stacked above a Quick Single Invite form) caused visual clutter and confusion. Merging both into a single, high-density 'Invite Teammates' action card and modal (with 'Paste Multiple Emails' removed, scoped to unassigned section peers by default with global search capability) streamlines team recruitment.
+  3. Lesson learned: In `DefenseScheduleCalendar.jsx`, defaulting `events = SAMPLE_EVENTS` combined with `DashboardPage.jsx` returning `undefined` when `events.length === 0` caused ghost mock defense sessions (e.g. 'Team Alpha (HealthAI)' on Sept 30) to leak onto student dashboards. Always return `events` as an array (`[]`) and default `events = []` in calendar components.
+  4. Lesson learned: In capstone workflows, students only have 2–3 defenses per semester. Rendering a 35-day month grid by default consumed 500+ vertical pixels with 98% empty boxes. Defaulting to an Agenda Timeline view with a segmented toggle to Month view shrinks the widget to ~140px while providing richer contextual details (countdown, room, panel).
+  5. Lesson learned: When a student has no team (`!team`), rendering 3 empty KPI metric cards ('0 members', '0% progress', '0 updates') and 2 empty cards ('No team', 'No project') wasted 1600+ vertical pixels. Differentiating Phase 0 with a sequential 4-Step Capstone Onboarding Journey (Profile Binding -> Team Formation -> Title Defense -> Committee Defense) gives students actionable guidance without empty clutter.
+  6. Prevention: Never list faculty adviser appointments as a student prerequisite for team locking. Never return undefined from empty array memo hooks when child components have mock data fallbacks. Always provide an Agenda Timeline default for low-frequency defense calendars. Always present a purposeful onboarding stepper for Phase 0 unassigned students instead of empty zero-metric boxes.
+  7. Runbook & Checklist for Student Dashboard & Team Formation Polish:
+     - Step 1 (Checklist): Verify `TeamsPage.jsx` lock checklist only contains 'Minimum of 1 active member' and 'All members select a project role'.
+     - Step 2 (Checklist): Verify `BulkInviteModal.jsx` is titled 'Invite Teammates' and contains no 'Paste Multiple Emails' tab.
+     - Step 3 (Checklist): Verify `team.service.js:listInviteCandidates` defaults to unassigned students in the leader's section when search is empty, and searches globally across sections when search is populated.
+     - Step 4 (Checklist): Verify `DefenseScheduleCalendar.jsx` defaults to `events = []` and renders Agenda Timeline view by default with toggle to Month view.
+     - Step 5 (Checklist): Verify `DashboardPage.jsx` renders the 4-Step Phase 0 Onboarding Stepper when `!team` and the active cockpit when `team` exists.
+     - Step 6 (Evidence): Verify targeted unit tests pass (22/22 passed across `StudentDashboard.test.jsx`, `FacultyDashboard.test.jsx`, `DefenseScheduleCalendar.test.jsx`, `BulkInviteModal.test.jsx`, and `TeamsPage.test.jsx`).
+     - Step 7 (Evidence): Verify endpoint parity (`npm run check:endpoints`: UNMATCHED_COUNT = 0) and governance validation (`npm run validate:agentic`: 60/60 checks passed).
+     - Step 8 (Evidence): Verify Playwright visual captures in light and dark modes across desktop (1440x900) and mobile (390x844) viewports.
+
 - Canonical BukSU Capstone Workflow (Phases 0–4), 2-4 Team Lock, 1-10 Proposal Ingestion, Adviser Gantt Pre-Approval Gate, Deadline-to-Scheduler Synchronization, Prototype & GitHub Visibility, and 10-Tier BukSU Grading Engine Prevention Rule:
   1. Lesson learned: Allowing lax team member counts during roster locking caused orphaned student workflows and invalid committee ratios. BukSU institutional guidelines mandate strictly 2 to 4 proponents per capstone team before roster finalization (`PATCH /api/teams/:id/lock`).
   2. Lesson learned: Allowing proponents to populate day cells in the Academic Excel Gantt Chart prior to formal faculty adviser review caused uncoordinated milestone drift. Implementing a formal Adviser Gantt Pre-Approval Gate (`ganttApprovalSchema`, `status: 'approved'`) ensures milestone feasibility before scheduling and timeline progression.
@@ -4127,4 +4144,122 @@ resolvePlagiarismHighlights to unwind candidateSpans from all match shapes (matc
      - Route parity check: 217 Server / 197 Client (`UNMATCHED_COUNT = 0`).
      - Agentic system governance check: 60/60 checks passed.
      - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors, 0 warnings.
+
+
+73. Turnitin-Style Plagiarism Highlight Geometry, Multi-Line Line-Cluster Decomposition & PDF.js TextLayer De-escalation:
+- Architectural Intent & Requirements Addressed:
+  1. Turnitin Highlight Geometry & Zero Child Text Contract:
+     - Plagiarism and academic integrity highlights overlaying PDF manuscripts must NEVER render matched passage text strings (`{match.text}`) inside the highlight elements. The underlying PDF canvas already renders the crisp vector text; the overlay must render purely translucent colored geometric rectangles (`<div>`).
+     - Rendering text inside highlight elements causes text doubling, visual blurriness, misalignment with canvas glyphs, and line-wrapping breakage.
+  2. Multi-Line Bounding Box Line Clustering (`buildTurnitinHighlightRects`):
+     - When a matched passage spans multiple visual lines, rendering it as a single flex or inline-flex tag causes it to stretch across the page horizontally, overflowing off-canvas into the blank right margin.
+     - Implemented `buildTurnitinHighlightRects(boxes, options)` in `plagiarismHighlightAdapter.js` to cluster raw bounding boxes by vertical baseline (`Math.abs(b1.top - b2.top) <= baselineTolerance`). Bounding boxes sharing a baseline are merged into a single horizontal bounding box, producing discrete, tight rectangular strips—exactly matching Turnitin and Adobe Acrobat highlight behavior.
+  3. PDF.js TextLayer Style Bleed & De-escalation:
+     - Missing `import 'pdfjs-dist/web/pdf_viewer.css';` in `PdfViewerWorkspace.jsx` caused `react-pdf-highlighter-plus/style/pdf_viewer.css` rule `.textLayer { display: flex; }` to convert PDF.js internal text spans into flex items.
+     - Furthermore, PDF.js injected `.highlight` class (with default purple background `#b400aa`) into textLayer spans. Without absolute positioning, these spans broke out of position and formed a horizontal line extending beyond the canvas.
+     - Resolved by explicitly importing `pdfjs-dist/web/pdf_viewer.css` and enforcing strict CSS overrides: `.textLayer { display: block !important; position: absolute !important; }`, `.textLayer span { color: transparent !important; position: absolute !important; }`, and `.textLayer .highlight { background-color: transparent !important; }`.
+  4. Blend Mode, Opacity & Pill Badge Anchoring:
+     - Standardized highlight appearance using `mixBlendMode: 'multiply'` and `opacity: 0.28` (or `0.45` when selected) so dark canvas text remains 100% legible beneath high-saturation source color overlays.
+     - Anchored the source number pill badge (`[1]`, `[2]`, etc.) strictly to the top-left of the first rectangle in the group (`index === 0`) at `-top-3.5 left-0`, avoiding duplicate badges across multi-line fragments.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule & lesson learned: Under no circumstances should an overlay highlight component render children text strings over a PDF or document canvas. Highlights are purely geometric masks (`width`, `height`, `left`, `top`, `backgroundColor`, `mixBlendMode: multiply`).
+  2. Prevention rule & lesson learned: Any multi-line text match extracted from PDF layout analysis must be decomposed into discrete bounding boxes per visual line. Never wrap multi-box highlights in `flex`, `inline-flex`, or `nowrap` horizontal containers.
+  3. Prevention rule: When integrating PDF.js or wrapper libraries (`react-pdf-highlighter-plus`), always ensure base stylesheet `pdfjs-dist/web/pdf_viewer.css` is loaded before wrapper styles, and assert that `.textLayer` maintains `position: absolute; display: block;` and textLayer spans remain transparent to prevent font metric bleed.
+  4. Runbook & Checklist:
+     - Checklist: Verify `TurnitinHighlightOverlay` renders zero `{match.text}` or string children.
+     - Checklist: Verify `buildTurnitinHighlightRects` groups bounding boxes by baseline and returns discrete rects.
+     - Checklist: Verify source pill badge `[N]` only renders for `index === 0`.
+     - Checklist: Verify `pdfjs-dist/web/pdf_viewer.css` is imported in `PdfViewerWorkspace.jsx`.
+     - Checklist: Verify `.textLayer span` has `color: transparent !important;` and `.textLayer .highlight` has `background-color: transparent !important;`.
+     - Checklist: Verify `npm test --workspace=client -- src/components/submissions/TurnitinHighlightOverlay.test.jsx` passes with 0 errors.
+  5. Evidence & Verification passed:
+     - 5/5 unit tests passed in `TurnitinHighlightOverlay.test.jsx`.
+     - 20/20 unit tests passed in `plagiarismHighlightAdapter.test.js`.
+     - 6/6 unit tests passed in `EvaluationWorkspace.test.jsx`.
+     - 10/10 unit tests passed in `CanonicalDocumentViewer.test.jsx`.
+     - 12/12 unit tests passed in `SophisticatedDocumentViewer.test.jsx`.
+     - 10/10 unit tests passed in `PlagiarismReportPage.test.jsx`.
+     - API route parity: 219 Server / 199 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance check: 60/60 checks passed.
+     - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors.
+
+74. Team Roster Finalization Unlock Mechanism & Official Manuscript Template Wiring:
+- Architectural Intent & Requirements Addressed:
+  1. Team Roster Finalization Unlock Pattern:
+     - Enabled team leaders (`team.leaderId`) and course instructors (`role: 'instructor'`) to unlock finalized capstone teams (`isLocked = true`) via `PATCH /api/teams/:id/unlock` so accidental misinputs (member roster, role assignments) can be corrected before re-locking.
+     - Enforced strict institutional guard: if a project's title proposal has already been officially approved by the defense committee (`project.titleStatus === 'approved'`), students cannot unlock the roster freely—only course instructors can unlock to maintain institutional integrity.
+     - Added client mutation `useUnlockTeam` in `useTeams.js` and an explicit "Unlock Roster" header button in `TeamsPage.jsx` with an interactive confirmation dialog.
+  2. Official Capstone Manuscript Template Wiring to Instructor Settings:
+     - Wired the student workspace "Official Capstone Manuscript Template" widget directly to the instructor administration settings (`/settings?tab=administration`, `AdministrationSection.jsx`).
+     - Added a dedicated, high-contrast configuration card: "Official Capstone Manuscript Template URL (Chapters 1–5)" with badge "Wired to Team Workspace" and instructional helper text.
+     - Synchronized `SystemSettings.documentTemplates` and `DocumentTemplate` collections bidirectionally in `settings.service.js` and `team.service.js` to eliminate split-brain configuration.
+     - Enhanced `team.service.js:getTeamManuscriptTemplate` to return complete template metadata (`templateMeta`) in both locked and proposal states so student teams always see current template details, while keeping download links securely gated until title proposal approval.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule & lesson learned: When implementing team state finalization locks, always provide a guarded unlock mechanism so teams can remedy inadvertent roster errors before committee review without requiring direct database intervention.
+  2. Prevention rule & lesson learned: Settings configured by course instructors or administrators must update both the primary singleton configuration (`SystemSettings`) and secondary collections (`DocumentTemplate`) synchronously to prevent split-brain state where different endpoints read disparate versions.
+  3. Prevention rule: Do not hide template metadata entirely when access is gated. Returning informative metadata (version, title, update date) along with an explicit `isUnlocked: false` status provides a superior UX over an empty payload.
+  4. Runbook & Checklist:
+     - Checklist: Verify `PATCH /api/teams/:id/unlock` permits leaders and instructors to unlock locked rosters.
+     - Checklist: Verify non-leaders and non-instructors receive 403 Forbidden.
+     - Checklist: Verify unlocking a team with approved title status is rejected for students with code `TITLE_ALREADY_APPROVED`.
+     - Checklist: Verify `TeamsPage.jsx` shows "Unlock Roster" button when `team.isLocked && isLeader`.
+     - Checklist: Verify `AdministrationSection.jsx` contains dedicated "Official Capstone Manuscript Template URL (Chapters 1–5)" field and persists updates.
+     - Checklist: Verify `npm test --workspace=server -- tests/integration/teams.test.js` passes with 0 failures.
+     - Checklist: Verify `npm test --workspace=client -- src/pages/teams/TeamsPage.test.jsx src/components/teams/ManuscriptTemplateWidget.test.jsx` passes with 0 failures.
+  5. Evidence & Verification passed:
+     - 32/32 tests passed in `server/tests/integration/teams.test.js` (including 5 new unlock tests).
+     - 11/11 tests passed in client test suites (`TeamsPage.test.jsx`, `ManuscriptTemplateWidget.test.jsx`).
+     - Route parity check: 220 Server / 200 Client (`UNMATCHED_COUNT = 0`).
+     - Agentic system governance check: 60/60 checks passed.
+     - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors, 0 warnings.
+
+75. Five-Point Institutional Requirements Checklist: Proposal Gating, Direct Archived Reader, Strict Plagiarism vs Similarity Terminology, Flagged Proposal Submission & Per-Session Review Filtering:
+- Architectural Intent & Requirements Addressed:
+  1. Proposal Details Gating for Similarity Analysis:
+     - In `CreateProjectPage.jsx`, similarity analysis, clearance meters, and archive match cards are now strictly gated behind `hasDetailsFilled` (requiring $\ge 10$ title characters, $\ge 20$ description characters, or $\ge 10$ problem statement characters).
+     - When details are not yet filled, the UI displays a clean `similarity-awaiting-details` prompt card ("Proposal Details Required for Similarity Analysis") and the right sidebar shows an informative "Awaiting Details" status with zero false-alarm similarity scores.
+  2. Archived Projects Direct Full-Paper Reader Experience:
+     - When a project is archived (`isArchived === true` or `projectStatus === 'archived'`), proponents and reviewers should not be distracted by administrative drafting tabs, workflow steppers, or edit forms.
+     - In `ProjectDetailPage.jsx`, an early return renders `CanonicalDocumentViewer` directly, bypassing drafting steppers and tabs.
+     - In `MyProjectPage.jsx`, archived projects automatically redirect to `/archive/document/:id` so students and faculty read the complete manuscript immediately.
+  3. Definite Terminology Separation: "Plagiarism" vs. "Similarity":
+     - Eliminated cross-boundary terminology confusion between active submissions and the digital repository archive.
+     - Active capstone submissions (Chapters 1–5, defense evaluations, panel reviews): Strictly labeled **Plagiarism** (`Plagiarism`, `Plagiarism Matches`).
+     - Archive workflows (archive reader, repository searches, `CanonicalDocumentViewer`, `SophisticatedDocumentViewer` in archive context): Strictly labeled **Similarity** (`Similarity`, `Similarity Highlights`, `Similarity Score`, `Similarity Matches`).
+  4. Flagged Proposal Submission Gating (Non-Blocking):
+     - Previously, high similarity against archive documents blocked proposal submission with an HTTP 409 Conflict.
+     - Updated backend services (`project.service.js`, `project.model.js`, `project.validation.js`) and client UI (`CreateProjectPage.jsx`) to allow submission of high-similarity proposals while flagging them for defense scrutiny (`isFlagged: true`, `similarityScore`, `flagReason`).
+     - Proponents are shown an amber institutional banner ("Proposal Flagged for Similarity Scrutiny") and the submit button remains unlocked and accessible.
+  5. Per-Session Submission List Filtering:
+     - In `ChapterReviewPanel.jsx`, the review session filter dropdown (`all`, `s1` Session 1 Initial Rounds, `s2` Session 2 Revisions & Defense) now actively filters and groups `rounds` per session, allowing reviewers to isolate initial drafts from post-defense revisions.
+- Prevention, Runbook & Checklist:
+  1. Prevention rule & lesson learned: Proposal similarity pre-scans should never display similarity metrics or match cards on blank or un-authored fields, which generates confusion and false alarms. Always gate pre-scan visualization behind a minimum content threshold (`hasDetailsFilled`).
+  2. Prevention rule & lesson learned: Archived projects represent historical or completed scholarly records and should never render authoring forms or drafting tabs. Always redirect or early-return to the canonical document reader (`CanonicalDocumentViewer`).
+  3. Prevention rule: Maintain strict lexical boundaries: use "Plagiarism" exclusively for live academic evaluation workflows (where disciplinary policy applies) and "Similarity" for text-matching analysis and institutional archive exploration.
+  4. Prevention rule: Do not hard-block proposal submissions on similarity conflicts; high similarity may represent legitimate follow-up studies or derivative works that require committee evaluation. Flag the submission for defense scrutiny instead of returning 409 Conflict.
+  5. Runbook & Checklist:
+     - Checklist: Verify `CreateProjectPage.jsx` renders `similarity-awaiting-details` card when title or description is empty.
+     - Checklist: Verify entering title $\ge 10$ chars unlocks similarity meters and archive matches.
+     - Checklist: Verify archived project in `ProjectDetailPage.jsx` renders `CanonicalDocumentViewer` without drafting tabs.
+     - Checklist: Verify `MyProjectPage.jsx` redirects archived projects to `/archive/document/:id`.
+     - Checklist: Verify `SophisticatedDocumentViewer.jsx` dynamically toggles "Similarity" vs "Plagiarism" based on `isArchiveDoc`.
+     - Checklist: Verify `CreateProjectPage.jsx` allows submission with `isFlagged: true` and shows amber alert banner when similarity $\ge 65\%$.
+     - Checklist: Verify `ChapterReviewPanel.jsx` filters submission rounds by session (`s1`, `s2`).
+     - Checklist: Verify Playwright screenshots pass across Desktop Light/Dark and Mobile Light/Dark.
+- Evidence & Verification passed:
+  - 47/47 client unit tests passed across 5 test suites (`ChapterReviewPanel.test.jsx`, `SophisticatedDocumentViewer.test.jsx`, `CreateProjectPage.test.jsx`, `MyProjectPage.test.jsx`, `ProjectDetailPage.back-nav.test.jsx`).
+  - Route parity verified: 220 Server / 200 Client (`UNMATCHED_COUNT = 0`).
+  - Agentic system governance check: 60/60 checks passed.
+  - Agent governance pipeline: 11 agents valid, DAG verified, 0 errors, 0 warnings.
+  - 9 visual evidence screenshots captured and verified across light and dark modes:
+    * `proposal_01_awaiting_details_light.png`
+    * `proposal_02_awaiting_details_dark.png`
+    * `proposal_03_flagged_submission_light.png`
+    * `proposal_04_flagged_submission_dark.png`
+    * `archive_01_whole_paper_reader_light.png`
+    * `archive_02_whole_paper_reader_dark.png`
+    * `session_01_filter_initial_rounds_light.png`
+    * `session_02_filter_revisions_light.png`
+    * `session_03_filter_revisions_dark.png`
+
 

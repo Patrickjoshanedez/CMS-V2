@@ -125,4 +125,36 @@ describe('EmptyProjectState', () => {
 
     view.unmount();
   });
+
+  it('strictly isolates proposal drafts per user ID to prevent cross-account leakage', async () => {
+    // User A has saved proposal draft
+    window.localStorage.setItem(
+      'cms.create_project_draft.user-a',
+      JSON.stringify({
+        titleProposals: [{ title: "User A's Private Capstone Proposal" }],
+      }),
+    );
+
+    const team = { isLocked: true, members: [{ _id: 'm1' }] };
+
+    // When User B logs in (userId: 'user-b'), User A's draft should NOT be loaded
+    const viewUserB = renderComponent({ team, userId: 'user-b' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(viewUserB.container.textContent).toContain('Proceed to Create Capstone Proposal');
+    expect(viewUserB.container.textContent).not.toContain('Resume Proposal Draft');
+    viewUserB.unmount();
+
+    // When User A logs in (userId: 'user-a'), User A's draft is accurately loaded
+    const viewUserA = renderComponent({ team, userId: 'user-a' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(viewUserA.container.textContent).toContain('Resume Capstone Proposal');
+    expect(viewUserA.container.textContent).toContain('Resume Proposal Draft');
+    viewUserA.unmount();
+  });
 });

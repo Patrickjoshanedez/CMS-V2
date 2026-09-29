@@ -383,32 +383,59 @@ export default function ChapterReviewPanel({
 }) {
   const navigate = useNavigate();
   const [activeViewerSubmission, setActiveViewerSubmission] = useState(null);
+  const [selectedSession, setSelectedSession] = useState('all');
 
-  /* Build unified items map (chapters + extraItems) */
+  /* Build unified items map (chapters + extraItems) filtered per review session */
   const displayItems = useMemo(() => {
     const list = Array.isArray(submissions)
       ? submissions
       : submissions?.submissions || submissions?.data || [];
 
+    const filterRoundsBySession = (rounds) => {
+      if (selectedSession === 's1') {
+        return rounds.filter((r) => (r.version || 1) === 1);
+      }
+      if (selectedSession === 's2') {
+        return rounds.filter((r) => (r.version || 1) > 1);
+      }
+      return rounds;
+    };
+
     const items = chapters.map((ch) => {
-      const rounds = list.filter(
+      const allRounds = list.filter(
         (sub) => sub?.type === 'chapter' && Number(sub.chapter || sub.chapterNumber) === ch,
       );
-      rounds.sort((a, b) => (b.version || 0) - (a.version || 0));
+      allRounds.sort((a, b) => (b.version || 0) - (a.version || 0));
+      const rounds = filterRoundsBySession(allRounds);
+      const emptyText =
+        selectedSession === 's1'
+          ? 'No Session 1 initial rounds submitted for this chapter.'
+          : selectedSession === 's2'
+            ? 'No Session 2 revisions submitted for this chapter.'
+            : 'No submissions yet for this chapter.';
+
       return {
         id: `chapter-${ch}`,
         itemKey: ch,
         indexNumber: ch,
         label: CHAPTER_LABELS[ch] || `Chapter ${ch}`,
         rounds,
-        emptyText: 'No submissions yet for this chapter.',
+        emptyText,
       };
     });
 
     if (Array.isArray(extraItems)) {
       extraItems.forEach((extra, idx) => {
-        const rounds = list.filter(extra.filter || (() => false));
-        rounds.sort((a, b) => (b.version || 0) - (a.version || 0));
+        const allRounds = list.filter(extra.filter || (() => false));
+        allRounds.sort((a, b) => (b.version || 0) - (a.version || 0));
+        const rounds = filterRoundsBySession(allRounds);
+        const emptyText =
+          selectedSession === 's1'
+            ? 'No Session 1 initial rounds submitted for this manuscript.'
+            : selectedSession === 's2'
+              ? 'No Session 2 revisions submitted for this manuscript.'
+              : extra.emptyText || 'No submissions yet for this manuscript.';
+
         items.push({
           id: extra.id || `extra-${idx}`,
           itemKey: extra.id || `extra-${idx}`,
@@ -420,15 +447,13 @@ export default function ChapterReviewPanel({
                 : chapters.length + idx + 1,
           label: extra.label,
           rounds,
-          emptyText: extra.emptyText || 'No submissions yet for this manuscript.',
+          emptyText,
         });
       });
     }
 
     return items;
-  }, [chapters, extraItems, submissions]);
-
-  const [selectedSession, setSelectedSession] = useState('all');
+  }, [chapters, extraItems, submissions, selectedSession]);
 
   return (
     <>
@@ -443,6 +468,8 @@ export default function ChapterReviewPanel({
               Session:
             </span>
             <select
+              data-testid="session-filter-select"
+              aria-label="Filter submissions by session"
               value={selectedSession}
               onChange={(e) => setSelectedSession(e.target.value)}
               className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary"

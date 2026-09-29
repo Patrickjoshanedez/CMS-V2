@@ -201,6 +201,9 @@ class ProjectService {
           capstoneType,
           sdgTags,
           pitchDeck,
+          isFlagged: Boolean(proposal.isFlagged),
+          flagReason: proposal.flagReason || null,
+          similarityScore: Number(proposal.similarityScore) || 0,
         });
       }
     }
@@ -470,6 +473,21 @@ class ProjectService {
       allProjects,
     );
 
+    const hasConflict = similarProjects.some((p) => {
+      const score = p.similarityScore ?? Math.round((p.score || 0) * 100);
+      return score >= 30;
+    });
+    const isFlagged = Boolean(data.isFlagged || hasConflict);
+    const topScore =
+      Number(data.similarityScore) ||
+      (similarProjects[0]?.similarityScore ?? Math.round((similarProjects[0]?.score || 0) * 100)) ||
+      0;
+    const flagReason =
+      data.flagReason ||
+      (isFlagged && similarProjects[0]
+        ? `Similar title detected (${topScore}%) against "${similarProjects[0].title}". Flagged for committee review.`
+        : null);
+
     const project = await Project.create({
       teamId: team._id,
       title: data.title,
@@ -485,6 +503,9 @@ class ProjectService {
       adviserId: team.adviserId || undefined,
       secretaryId: team.secretaryId || undefined,
       panelistIds: team.panelistIds || [],
+      isFlagged,
+      flagReason,
+      similarityScore: topScore,
       panelists:
         Array.isArray(team.panelistIds) && team.panelistIds.length > 0
           ? team.panelistIds.map((pId, idx) => ({
@@ -705,6 +726,31 @@ class ProjectService {
     const hasJournalPaper = archivedSubmissions.some((s) => s.type === 'final_journal');
 
     const projectPayload = project.toObject ? project.toObject() : { ...project };
+    const isArchived = project.isArchived === true || project.projectStatus === 'archived';
+    let resolvedOriginality = projectPayload.originalityScore;
+    if (isArchived && !Number.isFinite(resolvedOriginality)) {
+      const audit = projectPayload.archiveMetadata?.similarityAudit;
+      const allConflicts = [
+        ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
+        ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
+      ];
+      if (allConflicts.length > 0) {
+        const topSimilarity = Math.max(
+          ...allConflicts.map(
+            (c) =>
+              Number(c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0)) || 0,
+          ),
+        );
+        resolvedOriginality = Math.max(10, Math.min(100, Math.round(100 - topSimilarity)));
+      } else {
+        resolvedOriginality = 100;
+      }
+    }
+    projectPayload.originalityScore = resolvedOriginality ?? 100;
+    projectPayload.similarityScore = Number.isFinite(resolvedOriginality)
+      ? Math.max(0, Math.min(100, Math.round((100 - resolvedOriginality) * 10) / 10))
+      : 0;
+
     projectPayload.hasAcademicPaper = hasAcademicPaper;
     projectPayload.hasJournalPaper = hasJournalPaper;
     projectPayload.hasManuscript = Boolean(hasAcademicPaper || hasJournalPaper);
@@ -1307,12 +1353,20 @@ class ProjectService {
       const score = p.similarityScore ?? Math.round((p.score || 0) * 100);
       return score >= thr;
     });
+
     if (hasConflict) {
-      throw new AppError(
-        `Cannot submit proposals: Similar title detected above the ${thr}% threshold. Please revise your title to achieve distinctiveness.`,
-        409,
-        'TITLE_SIMILARITY_CONFLICT',
-      );
+      const topConflict = similarProjects.reduce((prev, curr) => {
+        const prevScore = prev.similarityScore ?? Math.round((prev.score || 0) * 100);
+        const currScore = curr.similarityScore ?? Math.round((curr.score || 0) * 100);
+        return currScore > prevScore ? curr : prev;
+      }, similarProjects[0]);
+      const topScore = topConflict.similarityScore ?? Math.round((topConflict.score || 0) * 100);
+      project.isFlagged = true;
+      project.flagReason = `Similar title detected (${topScore}%) against "${topConflict.title}". Flagged for committee defense scrutiny.`;
+      project.similarityScore = topScore;
+    } else {
+      project.isFlagged = false;
+      project.flagReason = null;
     }
 
     project.titleStatus = TITLE_STATUSES.SUBMITTED;
@@ -1321,9 +1375,13 @@ class ProjectService {
     // Notify all instructors
     await this._notifyInstructors({
       type: 'title_submitted',
-      title: 'New Title Submission',
-      message: `A project title "${project.title}" has been submitted for approval.`,
-      metadata: { projectId: project._id },
+      title: project.isFlagged
+        ? 'New Title Submission (Similarity Flagged)'
+        : 'New Title Submission',
+      message: project.isFlagged
+        ? `A project title "${project.title}" has been submitted for approval and is FLAGGED for high similarity (${project.similarityScore}%).`
+        : `A project title "${project.title}" has been submitted for approval.`,
+      metadata: { projectId: project._id, isFlagged: project.isFlagged },
     });
 
     return { project };
@@ -2943,19 +3001,28 @@ class ProjectService {
         doiString = `https://doi.org/${doiString}`;
       }
 
-      // Calculate originality percentage (>= 75% passing threshold)
+      // Calculate originality and similarity percentage (>= 75% passing threshold)
       let originality = obj.originalityScore;
       if (!Number.isFinite(originality)) {
         const audit = obj.archiveMetadata?.similarityAudit;
-        if (audit && Array.isArray(audit.titleConflicts) && audit.titleConflicts.length > 0) {
+        const allConflicts = [
+          ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
+          ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
+        ];
+        if (allConflicts.length > 0) {
           const topSimilarity = Math.max(
-            ...audit.titleConflicts.map((c) => Number(c?.similarityScore) || 0),
+            ...allConflicts.map(
+              (c) =>
+                Number(c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0)) ||
+                0,
+            ),
           );
           originality = Math.max(10, Math.min(100, Math.round(100 - topSimilarity)));
         } else {
-          originality = 96.4;
+          originality = 100;
         }
       }
+      const similarity = Math.max(0, Math.min(100, Math.round((100 - originality) * 10) / 10));
 
       return {
         ...obj,
@@ -2964,6 +3031,7 @@ class ProjectService {
         publisher,
         doi: doiString,
         originalityScore: originality,
+        similarityScore: similarity,
         hasAcademicPaper: subInfo.hasAcademic,
         hasJournalPaper: subInfo.hasJournal,
         githubRepoUrl: obj.githubRepoUrl || obj.teamId?.githubLink || null,
@@ -4063,13 +4131,20 @@ class ProjectService {
         normalizedAbstract,
       );
 
+      const currentYear = new Date().getFullYear();
+      const resolvedAcademicYear =
+        (data.academicYear || '').trim() ||
+        (resolvedPublicationYear
+          ? `${resolvedPublicationYear}-${resolvedPublicationYear + 1}`
+          : `${currentYear}-${currentYear + 1}`);
+
       // Create an internal placeholder team to satisfy project schema invariants.
       archiveTeam = await Team.create({
         name: `Archive ${Date.now()}`,
         leaderId: instructorObjectId,
         members: [instructorObjectId],
         isLocked: true,
-        academicYear: data.academicYear,
+        academicYear: resolvedAcademicYear,
       });
 
       project = await Project.create({
@@ -4093,7 +4168,7 @@ class ProjectService {
           review: metadataReview,
           similarityAudit,
         },
-        academicYear: data.academicYear,
+        academicYear: resolvedAcademicYear,
         courseId: new mongoose.Types.ObjectId(),
         sectionId: new mongoose.Types.ObjectId(),
         memberRoleAssignments: [
@@ -4111,10 +4186,31 @@ class ProjectService {
         isArchived: true,
         archivedAt: new Date(),
         completionNotes: 'Bulk-uploaded archived capstone bundle.',
-        originalityScore:
-          data?.originalityScore !== undefined && data?.originalityScore !== null
-            ? Number(data.originalityScore)
-            : undefined,
+        originalityScore: (() => {
+          if (data?.originalityScore !== undefined && data?.originalityScore !== null) {
+            return Number(data.originalityScore);
+          }
+          const allConflicts = [
+            ...(Array.isArray(similarityAudit?.titleConflicts)
+              ? similarityAudit.titleConflicts
+              : []),
+            ...(Array.isArray(similarityAudit?.abstractConflicts)
+              ? similarityAudit.abstractConflicts
+              : []),
+          ];
+          if (allConflicts.length > 0) {
+            const topSimilarity = Math.max(
+              ...allConflicts.map(
+                (c) =>
+                  Number(
+                    c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0),
+                  ) || 0,
+              ),
+            );
+            return Math.max(10, Math.min(100, Math.round(100 - topSimilarity)));
+          }
+          return 100;
+        })(),
       });
 
       const finalAcademicStorageKey = academicPaperFile

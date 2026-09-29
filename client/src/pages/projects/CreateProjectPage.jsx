@@ -250,6 +250,13 @@ export default function CreateProjectPage() {
   );
   const authState = useAuthStore((s) => s?.user);
   const user = authState?.user ?? authState;
+  const currentUserId = user?._id || user?.id || null;
+  const userDraftKey = currentUserId
+    ? `cms.create_project_draft.${currentUserId}`
+    : 'cms.create_project_draft';
+  const userBackupKey = currentUserId
+    ? `cms.create_project_draft.backup.${currentUserId}`
+    : 'cms.create_project_draft.backup';
   const { data: team, isLoading: isTeamLoading } = useMyTeam(user?._id);
   const { data: _academicYears = [] } = useAcademicYears();
 
@@ -418,6 +425,12 @@ export default function CreateProjectPage() {
 
   const isCleared = hasScanned && !hasSimilarityConflict;
 
+  const titleTrimmed = currentProposal?.title?.trim() || '';
+  const descTrimmed = currentProposal?.description?.trim() || '';
+  const problemTrimmed = currentProposal?.pitchDeck?.problemStatement?.trim() || '';
+  const hasDetailsFilled =
+    titleTrimmed.length >= 10 || descTrimmed.length >= 20 || problemTrimmed.length >= 10;
+
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Hydrate saved draft or edit mode project on mount
@@ -498,7 +511,9 @@ export default function CreateProjectPage() {
         // Check localStorage if remote returned no draft
         if (!draft && typeof window !== 'undefined') {
           try {
-            const rawLocal = window.localStorage.getItem('cms.create_project_draft');
+            const rawLocal =
+              window.localStorage.getItem(userDraftKey) ||
+              (!currentUserId ? window.localStorage.getItem('cms.create_project_draft') : null);
             if (rawLocal) {
               const localDraft = JSON.parse(rawLocal);
               const localHasContent =
@@ -520,13 +535,23 @@ export default function CreateProjectPage() {
           // Fallback to persistent backup if still no content
           if (!draft) {
             try {
-              const rawBackup = window.localStorage.getItem('cms.create_project_draft.backup');
+              const rawBackup =
+                window.localStorage.getItem(userBackupKey) ||
+                (!currentUserId
+                  ? window.localStorage.getItem('cms.create_project_draft.backup')
+                  : null);
               if (rawBackup) {
                 draft = JSON.parse(rawBackup);
               }
             } catch {
               // ignore
             }
+          }
+
+          // Clean up legacy global keys if user is authenticated to prevent cross-account leak
+          if (currentUserId) {
+            window.localStorage.removeItem('cms.create_project_draft');
+            window.localStorage.removeItem('cms.create_project_draft.backup');
           }
         }
 
@@ -576,7 +601,7 @@ export default function CreateProjectPage() {
     return () => {
       isMounted = false;
     };
-  }, [isEditMode, targetProjectId, editState]);
+  }, [isEditMode, targetProjectId, editState, currentUserId]);
 
   // Autosave setup with local cache and background synchronization
   const autosavePayload = useMemo(
@@ -595,7 +620,7 @@ export default function CreateProjectPage() {
   );
 
   const { saveStatus, setSaveStatus } = useAutosave(
-    isEditMode || !isHydrated ? null : 'cms.create_project_draft',
+    isEditMode || !isHydrated ? null : userDraftKey,
     autosavePayload,
     1200,
     async (payload) => {
@@ -612,7 +637,7 @@ export default function CreateProjectPage() {
 
       if (typeof window !== 'undefined' && hasContent) {
         try {
-          window.localStorage.setItem('cms.create_project_draft.backup', JSON.stringify(payload));
+          window.localStorage.setItem(userBackupKey, JSON.stringify(payload));
         } catch {
           // ignore
         }
@@ -1068,6 +1093,21 @@ export default function CreateProjectPage() {
   // Submit Project Mutation
   const createProject = useCreateProject({
     onSuccess: async (result) => {
+      // Clear saved proposal draft for this user
+      if (typeof window !== 'undefined') {
+        if (currentUserId) {
+          window.localStorage.removeItem(`cms.create_project_draft.${currentUserId}`);
+          window.localStorage.removeItem(`cms.create_project_draft.backup.${currentUserId}`);
+        }
+        window.localStorage.removeItem('cms.create_project_draft');
+        window.localStorage.removeItem('cms.create_project_draft.backup');
+      }
+      try {
+        await projectService.clearCreateProjectDraft();
+      } catch {
+        // ignore
+      }
+
       const createdProjectId = result?.data?.project?._id || result?.project?._id;
       if (createdProjectId) {
         try {
@@ -1100,7 +1140,7 @@ export default function CreateProjectPage() {
   const handleSubmit = (e) => {
     e?.preventDefault();
 
-    if (isLiveScanning || hasSimilarityConflict) {
+    if (isLiveScanning) {
       return;
     }
 
@@ -1110,13 +1150,34 @@ export default function CreateProjectPage() {
       return;
     }
 
-    const normalized = filled.map((p) => ({
-      title: p.title.trim(),
-      description: formatPitchDeckDescription(p.pitchDeck),
-      pitchDeck: p.pitchDeck || {},
-      capstoneType: Array.isArray(p.capstoneType) ? p.capstoneType : [],
-      sdgTags: Array.isArray(p.sdgTags) ? p.sdgTags : [],
-    }));
+    const normalized = filled.map((p, idx) => {
+      const pKey = p.id || String(idx);
+      const pScan = proposalPlagiarismResults[pKey];
+      const pLive = proposalLiveSimilarity[pKey];
+      const pMatches =
+        proposalSimilarityResults[pKey] ||
+        (Array.isArray(pLive?.similarProjects) ? pLive.similarProjects : []);
+      const pScore = pScan
+        ? (pScan.similarityScore ?? 0)
+        : Math.max(
+            0,
+            ...pMatches.map((m) => m.similarityScore ?? Math.round((m.score || 0) * 100)),
+          );
+      const pFlagged = pScore >= titleThreshold;
+
+      return {
+        title: p.title.trim(),
+        description: formatPitchDeckDescription(p.pitchDeck),
+        pitchDeck: p.pitchDeck || {},
+        capstoneType: Array.isArray(p.capstoneType) ? p.capstoneType : [],
+        sdgTags: Array.isArray(p.sdgTags) ? p.sdgTags : [],
+        isFlagged: pFlagged,
+        similarityScore: pScore,
+        flagReason: pFlagged
+          ? `Similar title detected (${pScore}%) above institutional ${titleThreshold}% threshold.`
+          : null,
+      };
+    });
 
     if (editingProjectId) {
       updateTitleMutation.mutate({
@@ -1124,6 +1185,11 @@ export default function CreateProjectPage() {
         title: normalized[0]?.title || '',
         titleProposals: normalized,
         sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
+        isFlagged: hasSimilarityConflict,
+        flagReason: hasSimilarityConflict
+          ? `Similar title detected (${currentScanScore.toFixed(1)}%) above institutional ${titleThreshold}% threshold.`
+          : null,
+        similarityScore: currentScanScore,
         submit: true,
       });
       return;
@@ -1142,6 +1208,11 @@ export default function CreateProjectPage() {
       sdgTags: [...new Set(normalized.flatMap((p) => p.sdgTags))],
       academicYear: resolvedAcademicYear,
       allowSoloCapstone: false,
+      isFlagged: hasSimilarityConflict,
+      flagReason: hasSimilarityConflict
+        ? `Similar title detected (${currentScanScore.toFixed(1)}%) above institutional ${titleThreshold}% threshold.`
+        : null,
+      similarityScore: currentScanScore,
     };
     if (resolvedSectionId) {
       payload.sectionId = resolvedSectionId;
@@ -1207,18 +1278,13 @@ export default function CreateProjectPage() {
               type="button"
               size="sm"
               onClick={handleSubmit}
-              disabled={
-                createProject.isPending ||
-                updateTitleMutation.isPending ||
-                isLiveScanning ||
-                hasSimilarityConflict
-              }
+              disabled={createProject.isPending || updateTitleMutation.isPending || isLiveScanning}
               aria-describedby={hasSimilarityConflict ? 'similarity-conflict-banner' : undefined}
               title={
-                hasSimilarityConflict
-                  ? `Cannot update: Similar title detected above ${titleThreshold}% threshold.`
-                  : isLiveScanning
-                    ? 'Verifying title similarity...'
+                isLiveScanning
+                  ? 'Verifying title similarity...'
+                  : hasSimilarityConflict
+                    ? `Note: Similar title detected above ${titleThreshold}% threshold. Proposal will be submitted as flagged for committee defense review.`
                     : undefined
               }
               className="h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1243,27 +1309,29 @@ export default function CreateProjectPage() {
           </div>
         </div>
 
-        {/* Similarity Conflict Warning Banner */}
+        {/* Similarity Conflict Flag Banner */}
         {hasSimilarityConflict && (
           <div
             id="similarity-conflict-banner"
             role="alert"
-            className="rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-3.5 text-xs text-rose-900 dark:text-rose-200 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150"
+            className="rounded-lg border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150"
             data-testid="similarity-conflict-banner"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="leading-snug">
-                <strong>Submission & Update Locked:</strong> Similar existing capstone titles above
-                the {titleThreshold}% threshold were detected for Proposal {activeProposalIndex + 1}
-                . Please revise your title or scope to achieve distinctiveness before submitting.
+                <strong>Proposal Flagged for Similarity Scrutiny:</strong> Similar existing capstone
+                titles above the {titleThreshold}% threshold were detected for Proposal{' '}
+                {activeProposalIndex + 1}. You may still submit this proposal; it will be forwarded
+                to your defense committee with an institutional{' '}
+                <strong>Flagged for Similarity</strong> notice for panel review.
               </span>
             </div>
             <Badge
               variant="outline"
-              className="border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[10px] shrink-0 font-semibold uppercase tracking-wider"
+              className="border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-[10px] shrink-0 font-semibold uppercase tracking-wider"
             >
-              Distinctiveness Required
+              Similarity Flagged
             </Badge>
           </div>
         )}
@@ -1647,273 +1715,306 @@ export default function CreateProjectPage() {
             )}
 
             {/* TAB 2: SIMILARITY REPORT */}
-            {activeStudioTab === 'similarity' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Metric 1: Overall Match */}
-                  <Card className="border-border bg-card shadow-xs">
-                    <CardHeader className="pb-2">
-                      <CardDescription className="text-xs">
-                        Overall Similarity Index
-                      </CardDescription>
-                      <div className="flex items-baseline justify-between">
-                        <span
-                          className={cn(
-                            'text-3xl font-black font-mono',
-                            !hasScanned
-                              ? 'text-muted-foreground'
-                              : isCleared
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-destructive',
-                          )}
-                        >
-                          {currentScanScore.toFixed(1)}%
+            {activeStudioTab === 'similarity' &&
+              (!hasDetailsFilled ? (
+                <Card
+                  className="border-border bg-card shadow-xs"
+                  data-testid="similarity-awaiting-details"
+                >
+                  <CardContent className="p-12 text-center space-y-4">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1.5 max-w-md mx-auto">
+                      <h3 className="text-base font-semibold text-foreground">
+                        Proposal Details Required for Similarity Analysis
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Similarity and originality clearance results will only be calculated once
+                        candidate proposal details (title of at least 10 characters and description
+                        or problem statement) are filled in.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setActiveStudioTab('write')}
+                      className="text-xs gap-1.5"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Complete Proposal Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Metric 1: Overall Match */}
+                    <Card className="border-border bg-card shadow-xs">
+                      <CardHeader className="pb-2">
+                        <CardDescription className="text-xs">
+                          Overall Similarity Index
+                        </CardDescription>
+                        <div className="flex items-baseline justify-between">
+                          <span
+                            className={cn(
+                              'text-3xl font-black font-mono',
+                              !hasScanned
+                                ? 'text-muted-foreground'
+                                : isCleared
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-destructive',
+                            )}
+                          >
+                            {currentScanScore.toFixed(1)}%
+                          </span>
+                          <Badge variant="outline" className="text-[10px] font-mono border-border">
+                            Limit: ≤ {effectiveThreshold}%
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2.5 pt-2">
+                        <Progress
+                          value={
+                            hasScanned
+                              ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+                              : 0
+                          }
+                          className="h-2 bg-muted"
+                        />
+                        {!hasScanned ? (
+                          <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span>Pending scan — not yet verified</span>
+                          </p>
+                        ) : isCleared ? (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            <span>Cleared for hearing defense</span>
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-destructive font-medium flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                            <span>Exceeds institutional threshold ({effectiveThreshold}%)</span>
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Metric 2: Winnowing Exact */}
+                    <Card className="border-border bg-card shadow-xs">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardDescription className="text-xs">Exact Text Matches</CardDescription>
+                          <Badge variant="secondary" className="text-[9px]">
+                            Winnowing
+                          </Badge>
+                        </div>
+                        <span className="text-2xl font-bold font-mono text-foreground">
+                          {winnowingScore.toFixed(1)}%
                         </span>
-                        <Badge variant="outline" className="text-[10px] font-mono border-border">
-                          Limit: ≤ {effectiveThreshold}%
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2.5 pt-2">
-                      <Progress
-                        value={
-                          hasScanned
-                            ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
-                            : 0
-                        }
-                        className="h-2 bg-muted"
-                      />
-                      {!hasScanned ? (
-                        <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span>Pending scan — not yet verified</span>
+                      </CardHeader>
+                      <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
+                        <Progress
+                          value={hasScanned ? Math.min(100, winnowingScore * 4) : 0}
+                          className="h-1.5 bg-muted"
+                        />
+                        <p>
+                          {hasScanned
+                            ? 'Verbatim phrase overlap against past BukSU research papers.'
+                            : 'Verbatim phrase overlap against past BukSU research papers (pending scan).'}
                         </p>
-                      ) : isCleared ? (
-                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                          <span>Cleared for hearing defense</span>
+                      </CardContent>
+                    </Card>
+
+                    {/* Metric 3: Semantic Cosine */}
+                    <Card className="border-border bg-card shadow-xs">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardDescription className="text-xs">Semantic Proximity</CardDescription>
+                          <Badge variant="secondary" className="text-[9px]">
+                            Vector Cosine
+                          </Badge>
+                        </div>
+                        <span className="text-2xl font-bold font-mono text-foreground">
+                          {semanticScore.toFixed(1)}%
+                        </span>
+                      </CardHeader>
+                      <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
+                        <Progress
+                          value={hasScanned ? Math.min(100, semanticScore * 2) : 0}
+                          className="h-1.5 bg-muted"
+                        />
+                        <p>
+                          {hasScanned
+                            ? 'Contextual topic similarity against active capstone clusters.'
+                            : 'Contextual topic similarity against active capstone clusters (pending scan).'}
                         </p>
-                      ) : (
-                        <p className="text-[11px] text-destructive font-medium flex items-center gap-1">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          <span>Exceeds institutional threshold ({effectiveThreshold}%)</span>
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-                  {/* Metric 2: Winnowing Exact */}
-                  <Card className="border-border bg-card shadow-xs">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardDescription className="text-xs">Exact Text Matches</CardDescription>
-                        <Badge variant="secondary" className="text-[9px]">
-                          Winnowing
-                        </Badge>
-                      </div>
-                      <span className="text-2xl font-bold font-mono text-foreground">
-                        {winnowingScore.toFixed(1)}%
-                      </span>
-                    </CardHeader>
-                    <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
-                      <Progress
-                        value={hasScanned ? Math.min(100, winnowingScore * 4) : 0}
-                        className="h-1.5 bg-muted"
-                      />
-                      <p>
-                        {hasScanned
-                          ? 'Verbatim phrase overlap against past BukSU research papers.'
-                          : 'Verbatim phrase overlap against past BukSU research papers (pending scan).'}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  {/* Embedded Live Title Similarity Checker */}
+                  {currentProposal.title?.trim() && (
+                    <Card className="border-border bg-card shadow-xs">
+                      <CardHeader className="pb-3 border-b border-border/40">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                          <Search className="h-4 w-4 text-primary" />
+                          Live Title Clearance Analysis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        <TitleSimilarityChecker
+                          title={currentProposal.title}
+                          keywords={keywordList}
+                          debounceMs={300}
+                          threshold={titleThreshold}
+                          excludeProjectId={effectiveExcludeProjectId}
+                          onScanStatusChange={(status) =>
+                            handleSimilarityScanChange(currentProposalKey, status)
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
 
-                  {/* Metric 3: Semantic Cosine */}
-                  <Card className="border-border bg-card shadow-xs">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardDescription className="text-xs">Semantic Proximity</CardDescription>
-                        <Badge variant="secondary" className="text-[9px]">
-                          Vector Cosine
-                        </Badge>
-                      </div>
-                      <span className="text-2xl font-bold font-mono text-foreground">
-                        {semanticScore.toFixed(1)}%
-                      </span>
-                    </CardHeader>
-                    <CardContent className="space-y-1 text-[11px] text-muted-foreground pt-2">
-                      <Progress
-                        value={hasScanned ? Math.min(100, semanticScore * 2) : 0}
-                        className="h-1.5 bg-muted"
-                      />
-                      <p>
-                        {hasScanned
-                          ? 'Contextual topic similarity against active capstone clusters.'
-                          : 'Contextual topic similarity against active capstone clusters (pending scan).'}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Embedded Live Title Similarity Checker */}
-                {currentProposal.title?.trim() && (
+                  {/* Matched Manuscripts */}
                   <Card className="border-border bg-card shadow-xs">
                     <CardHeader className="pb-3 border-b border-border/40">
-                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                        <Search className="h-4 w-4 text-primary" />
-                        Live Title Clearance Analysis
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <TitleSimilarityChecker
-                        title={currentProposal.title}
-                        keywords={keywordList}
-                        debounceMs={300}
-                        threshold={titleThreshold}
-                        excludeProjectId={effectiveExcludeProjectId}
-                        onScanStatusChange={(status) =>
-                          handleSimilarityScanChange(activeProposalIndex, status)
-                        }
-                      />
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Matched Manuscripts */}
-                <Card className="border-border bg-card shadow-xs">
-                  <CardHeader className="pb-3 border-b border-border/40">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-base font-semibold">
-                          Matched Archive Manuscripts
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Similar research records indexed in the institutional repository.
-                        </CardDescription>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleTriggerScan}
-                        disabled={isScanning}
-                        className="h-8 text-xs gap-1.5 border-border"
-                      >
-                        <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
-                        {hasScanned ? 'Re-Scan Title' : 'Scan Title'}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="divide-y divide-border/50 p-0 text-xs">
-                    {!hasScanned ? (
-                      <div className="p-8 text-center space-y-3">
-                        <div className="mx-auto w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground">
-                          <Search className="h-5 w-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-foreground">No Scan Results Yet</p>
-                          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                            Click &quot;Scan Title&quot; to evaluate Proposal{' '}
-                            {activeProposalIndex + 1} against BukSU archive manuscripts and verify
-                            originality.
-                          </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base font-semibold">
+                            Matched Archive Manuscripts
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Similar research records indexed in the institutional repository.
+                          </CardDescription>
                         </div>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={handleTriggerScan}
                           disabled={isScanning}
-                          className="text-xs gap-1.5 border-border"
+                          className="h-8 text-xs gap-1.5 border-border"
                         >
                           <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
-                          {isScanning
-                            ? 'Scanning Archive...'
-                            : `Scan Proposal ${activeProposalIndex + 1}`}
+                          {hasScanned ? 'Re-Scan Title' : 'Scan Title'}
                         </Button>
                       </div>
-                    ) : currentMatches.length === 0 ? (
-                      <div className="p-8 text-center space-y-2">
-                        <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-5 w-5" />
+                    </CardHeader>
+                    <CardContent className="divide-y divide-border/50 p-0 text-xs">
+                      {!hasScanned ? (
+                        <div className="p-8 text-center space-y-3">
+                          <div className="mx-auto w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground">
+                            <Search className="h-5 w-5" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              No Scan Results Yet
+                            </p>
+                            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                              Click &quot;Scan Title&quot; to evaluate Proposal{' '}
+                              {activeProposalIndex + 1} against BukSU archive manuscripts and verify
+                              originality.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleTriggerScan}
+                            disabled={isScanning}
+                            className="text-xs gap-1.5 border-border"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${isScanning ? 'animate-spin' : ''}`} />
+                            {isScanning
+                              ? 'Scanning Archive...'
+                              : `Scan Proposal ${activeProposalIndex + 1}`}
+                          </Button>
                         </div>
-                        <p className="text-sm font-medium text-foreground">
-                          No Similar Manuscripts Found
-                        </p>
-                        <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                          Proposal {activeProposalIndex + 1} appears unique with zero significant
-                          overlap against archived BukSU capstone projects.
-                        </p>
-                      </div>
-                    ) : (
-                      currentMatches.map((item, idx) => (
-                        <div
-                          key={item._id || item.id || idx}
-                          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
-                        >
-                          <div className="space-y-1.5 flex-1 min-w-0 pr-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold text-foreground break-words leading-tight">
-                                {item.title}
-                              </span>
-                              {(() => {
-                                const stageLabel =
-                                  item.projectStatus === 'archived' ||
-                                  item.isArchived ||
-                                  item.status === 'ARCHIVED'
-                                    ? 'Archived'
-                                    : Number(item.capstonePhase) === 4
-                                      ? 'Final Capstone'
-                                      : Number(item.capstonePhase) === 3
-                                        ? 'Capstone 3'
-                                        : Number(item.capstonePhase) === 2
-                                          ? 'Capstone 2'
-                                          : 'Capstone 1 (Proposal)';
-                                return (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] shrink-0 whitespace-nowrap px-1.5 py-0.5 border-rose-200 dark:border-rose-900/80 text-muted-foreground"
-                                  >
-                                    {stageLabel}
-                                  </Badge>
-                                );
-                              })()}
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] font-mono shrink-0 whitespace-nowrap px-1.5 py-0.5"
-                              >
-                                {item.academicYear || item.year || '2024–2025'}
-                              </Badge>
+                      ) : currentMatches.length === 0 ? (
+                        <div className="p-8 text-center space-y-2">
+                          <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-5 w-5" />
+                          </div>
+                          <p className="text-sm font-medium text-foreground">
+                            No Similar Manuscripts Found
+                          </p>
+                          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                            Proposal {activeProposalIndex + 1} appears unique with zero significant
+                            overlap against archived BukSU capstone projects.
+                          </p>
+                        </div>
+                      ) : (
+                        currentMatches.map((item, idx) => (
+                          <div
+                            key={item._id || item.id || idx}
+                            className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
+                          >
+                            <div className="space-y-1.5 flex-1 min-w-0 pr-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-foreground break-words leading-tight">
+                                  {item.title}
+                                </span>
+                                {(() => {
+                                  const stageLabel =
+                                    item.projectStatus === 'archived' ||
+                                    item.isArchived ||
+                                    item.status === 'ARCHIVED'
+                                      ? 'Archived'
+                                      : Number(item.capstonePhase) === 4
+                                        ? 'Final Capstone'
+                                        : Number(item.capstonePhase) === 3
+                                          ? 'Capstone 3'
+                                          : Number(item.capstonePhase) === 2
+                                            ? 'Capstone 2'
+                                            : 'Capstone 1 (Proposal)';
+                                  return (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] shrink-0 whitespace-nowrap px-1.5 py-0.5 border-rose-200 dark:border-rose-900/80 text-muted-foreground"
+                                    >
+                                      {stageLabel}
+                                    </Badge>
+                                  );
+                                })()}
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] font-mono shrink-0 whitespace-nowrap px-1.5 py-0.5"
+                                >
+                                  {item.academicYear || item.year || '2024–2025'}
+                                </Badge>
+                              </div>
+                              {item.reason && (
+                                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                                  {item.reason}
+                                </p>
+                              )}
                             </div>
-                            {item.reason && (
-                              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                                {item.reason}
-                              </p>
-                            )}
+                            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                              <span className="font-mono font-bold text-xs text-foreground shrink-0 whitespace-nowrap">
+                                {typeof item.match === 'string'
+                                  ? item.match.includes('match')
+                                    ? item.match
+                                    : `${item.match} match`
+                                  : `${item.similarityScore ?? Math.round((item.score || 0) * 100)}% match`}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedSimilarProject(item)}
+                                className="h-7 text-xs gap-1 shrink-0 whitespace-nowrap hover:bg-muted/60"
+                              >
+                                Inspect <ChevronRight className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                            <span className="font-mono font-bold text-xs text-foreground shrink-0 whitespace-nowrap">
-                              {typeof item.match === 'string'
-                                ? item.match.includes('match')
-                                  ? item.match
-                                  : `${item.match} match`
-                                : `${item.similarityScore ?? Math.round((item.score || 0) * 100)}% match`}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedSimilarProject(item)}
-                              className="h-7 text-xs gap-1 shrink-0 whitespace-nowrap hover:bg-muted/60"
-                            >
-                              Inspect <ChevronRight className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
 
             {/* TAB 3: PITCH DECK BUILDER */}
             {activeStudioTab === 'deck' && (
@@ -2079,7 +2180,11 @@ export default function CreateProjectPage() {
 
                   <Progress
                     value={
-                      hasScanned ? Math.min(100, (currentScanScore / effectiveThreshold) * 100) : 0
+                      !hasDetailsFilled
+                        ? 0
+                        : hasScanned
+                          ? Math.min(100, (currentScanScore / effectiveThreshold) * 100)
+                          : 0
                     }
                     className="h-2 bg-muted"
                   />
@@ -2091,16 +2196,20 @@ export default function CreateProjectPage() {
                     <span
                       className={cn(
                         'font-mono font-bold',
-                        !hasScanned
+                        !hasDetailsFilled
                           ? 'text-muted-foreground'
-                          : isCleared
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-destructive',
+                          : !hasScanned
+                            ? 'text-muted-foreground'
+                            : isCleared
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-amber-600 dark:text-amber-400',
                       )}
                     >
-                      {!hasScanned
-                        ? '0.0% (Unscanned)'
-                        : `${currentScanScore.toFixed(1)}% (${isCleared ? 'Cleared' : 'Flagged'})`}
+                      {!hasDetailsFilled
+                        ? 'Awaiting Details'
+                        : !hasScanned
+                          ? '0.0% (Unscanned)'
+                          : `${currentScanScore.toFixed(1)}% (${isCleared ? 'Cleared' : 'Flagged'})`}
                     </span>
                   </div>
                 </div>

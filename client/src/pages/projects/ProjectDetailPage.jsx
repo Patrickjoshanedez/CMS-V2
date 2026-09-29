@@ -32,6 +32,7 @@ import WorkflowTabTrigger from '@/components/projects/WorkflowTabTrigger';
 import Capstone1CollapsibleSections from '@/components/projects/Capstone1CollapsibleSections';
 import Capstone2CollapsibleSections from '@/components/projects/Capstone2CollapsibleSections';
 import Capstone3CollapsibleSections from '@/components/projects/Capstone3CollapsibleSections';
+import CanonicalDocumentViewer from '@/components/archive/CanonicalDocumentViewer';
 import { getProjectAuthors, formatCitation } from '@/pages/projects/projectDetailUtils';
 
 // Lazy-loaded heavy components and modals
@@ -252,6 +253,11 @@ export default function ProjectDetailPage() {
         <div className="p-8 text-center text-destructive">Project not found or failed to load.</div>
       </DashboardLayout>
     );
+  }
+
+  // Institutional Rule: Archived projects render whole canonical paper directly, hiding administrative/drafting details
+  if (isArchived) {
+    return <CanonicalDocumentViewer project={project} isLoading={isLoading} error={error} />;
   }
 
   const { backDestination, backLabel } = resolveProjectBackNav({

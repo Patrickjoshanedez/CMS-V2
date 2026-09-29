@@ -12,7 +12,6 @@ import {
   Copy,
   AlertTriangle,
   Loader2,
-  Sparkles,
   ClipboardList,
   Trash2,
   ArrowRight,
@@ -22,7 +21,6 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
 import { useInviteCandidates, useBulkInviteMembers } from '@/hooks/useTeams';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -37,10 +35,8 @@ export default function BulkInviteModal({
   currentMembersCount = 1,
   pendingInvites = [],
 }) {
-  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'paste'
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [pasteText, setPasteText] = useState('');
   const [stagedCandidates, setStagedCandidates] = useState([]);
   const [batchResults, setBatchResults] = useState(null); // { results, summary }
 
@@ -98,8 +94,6 @@ export default function BulkInviteModal({
       setStagedCandidates([]);
       setBatchResults(null);
       setSearchQuery('');
-      setPasteText('');
-      setActiveTab('search');
     }
   }, [open]);
 
@@ -153,58 +147,6 @@ export default function BulkInviteModal({
     );
   };
 
-  // Parse batch paste text
-  const handleParsePaste = () => {
-    if (!pasteText.trim()) return;
-
-    // Split on commas, semicolons, whitespace, or newlines
-    const rawTokens = pasteText
-      .split(/[\s,;\n]+/)
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validEmails = [...new Set(rawTokens.filter((token) => emailRegex.test(token)))];
-
-    if (validEmails.length === 0) {
-      toast.error('No valid email addresses found. Please enter valid student email(s).');
-      return;
-    }
-
-    const alreadyStagedEmails = new Set(stagedCandidates.map((c) => c.email.toLowerCase()));
-    const newEmails = validEmails.filter((email) => !alreadyStagedEmails.has(email));
-
-    if (newEmails.length === 0) {
-      toast.info('All parsed emails are already staged.');
-      return;
-    }
-
-    const availableSlots = remainingSlotsAfterStaged;
-    if (availableSlots <= 0) {
-      toast.error(`Team is at capacity. Only ${totalAvailableSlots} slot(s) allowed.`);
-      return;
-    }
-
-    const toAdd = newEmails.slice(0, availableSlots).map((email) => ({
-      _id: `manual-${email}`,
-      fullName: email,
-      email,
-      warnings: [],
-      isManual: true,
-    }));
-
-    setStagedCandidates((prev) => [...prev, ...toAdd]);
-    setPasteText('');
-
-    if (newEmails.length > availableSlots) {
-      toast.warning(
-        `Added ${availableSlots} email(s). Truncated ${newEmails.length - availableSlots} due to team capacity.`,
-      );
-    } else {
-      toast.success(`Added ${newEmails.length} student email(s) to staging.`);
-    }
-  };
-
   // Execute bulk dispatch
   const handleSendInvites = () => {
     if (stagedCandidates.length === 0) return;
@@ -238,7 +180,7 @@ export default function BulkInviteModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="bulk-invite-dialog-title"
+      aria-labelledby="invite-teammates-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget && !bulkInviteMutation.isPending) {
@@ -258,10 +200,10 @@ export default function BulkInviteModal({
                 <UserPlus className="h-4 w-4" />
               </div>
               <h2
-                id="bulk-invite-dialog-title"
+                id="invite-teammates-dialog-title"
                 className="text-lg font-bold tracking-tight text-foreground"
               >
-                Bulk Invite Teammates
+                Invite Teammates
               </h2>
               {teamName && (
                 <Badge variant="secondary" className="text-xs font-semibold px-2 py-0.5">
@@ -270,7 +212,7 @@ export default function BulkInviteModal({
               )}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Add up to 3 student teammates to collaborate on your BukSU Capstone project.
+              Add student teammates to collaborate on your BukSU Capstone project.
             </p>
           </div>
           <button
@@ -429,181 +371,115 @@ export default function BulkInviteModal({
           ) : (
             /* Invite Composer View */
             <div className="space-y-4">
-              {/* Modality Tabs */}
-              <div className="flex rounded-lg border border-border/60 bg-muted/30 p-1 text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('search')}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md transition-all',
-                    activeTab === 'search'
-                      ? 'bg-background text-foreground shadow-2xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  Search Classmates
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('paste')}
-                  className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md transition-all',
-                    activeTab === 'paste'
-                      ? 'bg-background text-foreground shadow-2xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Paste Multiple Emails
-                </button>
-              </div>
-
-              {/* Mode A: Search Section Candidates */}
-              {activeTab === 'search' && (
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search student by name or email (e.g. Leon, buksu.edu.ph)..."
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 text-xs h-9"
-                    />
-                    {isSearching && (
-                      <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-
-                  {/* Candidate List Container */}
-                  <div className="rounded-lg border border-border/60 bg-background max-h-56 overflow-y-auto divide-y divide-border/40">
-                    {isSearching ? (
-                      <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Searching section candidates...
-                      </div>
-                    ) : candidates.length > 0 ? (
-                      candidates.map((candidate) => {
-                        const isStaged = stagedCandidates.some(
-                          (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
-                        );
-                        const blockingWarnings = (candidate.warnings || []).filter(
-                          (w) => w?.blocksInvite,
-                        );
-                        const isBlocked = blockingWarnings.length > 0;
-                        const initials = (candidate.fullName || candidate.email || 'S')
-                          .split(' ')
-                          .map((n) => n[0])
-                          .slice(0, 2)
-                          .join('')
-                          .toUpperCase();
-
-                        return (
-                          <div
-                            key={candidate._id}
-                            className={cn(
-                              'flex items-center justify-between p-2.5 transition-colors',
-                              isStaged
-                                ? 'bg-primary/5'
-                                : isBlocked
-                                  ? 'bg-muted/10 opacity-75'
-                                  : 'hover:bg-muted/30',
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/80 bg-primary/10 text-primary font-semibold text-[11px]">
-                                {initials}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-foreground truncate">
-                                  {candidate.fullName}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                  {candidate.email}
-                                </p>
-                                {blockingWarnings.map((w, idx) => (
-                                  <p
-                                    key={idx}
-                                    className="text-[10px] text-destructive font-medium flex items-center gap-1 mt-0.5"
-                                  >
-                                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                                    {w.message}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={isStaged ? 'default' : 'outline'}
-                              disabled={isBlocked || (!isStaged && remainingSlotsAfterStaged <= 0)}
-                              className={cn(
-                                'h-7 text-xs px-2.5 shrink-0 gap-1',
-                                isStaged &&
-                                  'bg-primary hover:bg-primary/90 text-primary-foreground',
-                              )}
-                              onClick={() => handleToggleCandidate(candidate)}
-                            >
-                              {isStaged ? (
-                                <>
-                                  <Check className="h-3 w-3" />
-                                  Staged
-                                </>
-                              ) : (
-                                <>
-                                  <UserPlus className="h-3 w-3" />
-                                  Add
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="py-6 text-center text-xs text-muted-foreground">
-                        {debouncedSearch
-                          ? 'No matching students found in your section.'
-                          : 'Type a name or email above to search classmates.'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Mode B: Paste Multiple Emails */}
-              {activeTab === 'paste' && (
-                <div className="space-y-2">
-                  <Label htmlFor="paste-emails" className="text-xs font-medium text-foreground">
-                    Paste Student Emails
-                  </Label>
-                  <textarea
-                    id="paste-emails"
-                    rows={4}
-                    value={pasteText}
-                    onChange={(e) => setPasteText(e.target.value)}
-                    placeholder="student1@buksu.edu.ph, student2@buksu.edu.ph&#10;student3@buksu.edu.ph"
-                    className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              {/* Search Candidates */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email across sections (e.g. Leon)..."
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 text-xs h-9"
                   />
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-muted-foreground">
-                      Separate multiple emails with commas, spaces, or newlines.
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="text-xs h-7 gap-1"
-                      onClick={handleParsePaste}
-                      disabled={!pasteText.trim() || remainingSlotsAfterStaged <= 0}
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      Add to Staging
-                    </Button>
-                  </div>
+                  {isSearching && (
+                    <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
-              )}
+
+                {/* Candidate List Container */}
+                <div className="rounded-lg border border-border/60 bg-background max-h-56 overflow-y-auto divide-y divide-border/40">
+                  {isSearching ? (
+                    <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Searching candidates...
+                    </div>
+                  ) : candidates.length > 0 ? (
+                    candidates.map((candidate) => {
+                      const isStaged = stagedCandidates.some(
+                        (c) => c.email.toLowerCase() === candidate.email.toLowerCase(),
+                      );
+                      const blockingWarnings = (candidate.warnings || []).filter(
+                        (w) => w?.blocksInvite,
+                      );
+                      const isBlocked = blockingWarnings.length > 0;
+                      const initials = (candidate.fullName || candidate.email || 'S')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+
+                      return (
+                        <div
+                          key={candidate._id}
+                          className={cn(
+                            'flex items-center justify-between p-2.5 transition-colors',
+                            isStaged
+                              ? 'bg-primary/5'
+                              : isBlocked
+                                ? 'bg-muted/10 opacity-75'
+                                : 'hover:bg-muted/30',
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/80 bg-primary/10 text-primary font-semibold text-[11px]">
+                              {initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {candidate.fullName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {candidate.email}
+                              </p>
+                              {blockingWarnings.map((w, idx) => (
+                                <p
+                                  key={idx}
+                                  className="text-[10px] text-destructive font-medium flex items-center gap-1 mt-0.5"
+                                >
+                                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                                  {w.message}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={isStaged ? 'default' : 'outline'}
+                            disabled={isBlocked || (!isStaged && remainingSlotsAfterStaged <= 0)}
+                            className={cn(
+                              'h-7 text-xs px-2.5 shrink-0 gap-1',
+                              isStaged && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+                            )}
+                            onClick={() => handleToggleCandidate(candidate)}
+                          >
+                            {isStaged ? (
+                              <>
+                                <Check className="h-3 w-3" />
+                                Staged
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-3 w-3" />
+                                Add
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-6 text-center text-xs text-muted-foreground">
+                      {debouncedSearch
+                        ? 'No matching students found.'
+                        : 'No unassigned classmates found in your section. Use search above to look up students across sections.'}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Staged Candidates Tray */}
               <div className="space-y-2 pt-2 border-t border-border/40">
@@ -649,7 +525,8 @@ export default function BulkInviteModal({
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-4 text-center text-xs text-muted-foreground">
-                    No teammates staged yet. Search and add students or paste emails above.
+                    No teammates staged yet. Search and click &ldquo;+ Add&rdquo; on students above
+                    to invite them.
                   </div>
                 )}
               </div>

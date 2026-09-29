@@ -1,6 +1,7 @@
 import SystemSettings from './settings.model.js';
 import User from '../users/user.model.js';
 import Notification from '../notifications/notification.model.js';
+import DocumentTemplate from '../teams/documentTemplate.model.js';
 import { emitToUser } from '../../services/socket.service.js';
 
 /**
@@ -66,6 +67,53 @@ class SettingsService {
 
     if (changedFields.length > 0) {
       await this._broadcastSettingsUpdate(changedFields);
+    }
+
+    // Synchronize to DocumentTemplate collection to keep student team widgets updated
+    if (Array.isArray(updates.documentTemplates)) {
+      try {
+        const manuscriptTpl = updates.documentTemplates.find(
+          (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
+        );
+        if (manuscriptTpl?.templateUrl) {
+          await DocumentTemplate.updateMany(
+            { targetType: 'MANUSCRIPT_CHAPTERS_1_5' },
+            { $set: { isActive: false } },
+          );
+          await DocumentTemplate.create({
+            targetType: 'MANUSCRIPT_CHAPTERS_1_5',
+            academicYear: '2025-2026',
+            versionLabel: 'AY 2025–2026 v2.1',
+            distributionType: 'GOOGLE_DOCS',
+            resourcePayload: {
+              googleDocsUrl: manuscriptTpl.templateUrl,
+            },
+            updatedBy: userId,
+            isActive: true,
+          });
+        }
+
+        const admTpl = updates.documentTemplates.find((t) => t.documentType === 'adm_form');
+        if (admTpl?.templateUrl) {
+          await DocumentTemplate.updateMany(
+            { targetType: 'ACTION_DONE_MATRIX' },
+            { $set: { isActive: false } },
+          );
+          await DocumentTemplate.create({
+            targetType: 'ACTION_DONE_MATRIX',
+            academicYear: '2025-2026',
+            versionLabel: 'AY 2025–2026 v2.1',
+            distributionType: 'GOOGLE_DOCS',
+            resourcePayload: {
+              googleDocsUrl: admTpl.templateUrl,
+            },
+            updatedBy: userId,
+            isActive: true,
+          });
+        }
+      } catch (syncErr) {
+        console.warn('[updateSettings] DocumentTemplate synchronization warning:', syncErr.message);
+      }
     }
 
     return {

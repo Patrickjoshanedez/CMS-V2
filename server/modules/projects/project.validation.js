@@ -36,6 +36,9 @@ const titleProposalSchema = z.object({
     .min(1, 'Each proposal must include at least one SDG tag')
     .max(17, 'Each proposal can have at most 17 SDG tags'),
   pitchDeck: z.record(z.any()).optional(),
+  isFlagged: z.boolean().optional(),
+  flagReason: z.string().trim().nullable().optional(),
+  similarityScore: z.number().min(0).max(100).optional(),
 });
 
 /* ───── Create project ───── */
@@ -134,6 +137,9 @@ export const createProjectSchema = z.object({
     .default([]),
   allowSoloCapstone: z.boolean().optional().default(false),
   soloCapstoneConfirmed: z.boolean().optional().default(false),
+  isFlagged: z.boolean().optional(),
+  flagReason: z.string().trim().nullable().optional(),
+  similarityScore: z.number().min(0).max(100).optional(),
 });
 
 /* ───── Update title (draft stage only) ───── */
@@ -155,6 +161,9 @@ export const updateTitleSchema = z.object({
     .optional(),
   titleProposals: z.array(titleProposalSchema).min(1).max(10).optional(),
   sdgTags: z.array(z.enum(SDG_TAG_SUGGESTIONS)).min(1).max(17).optional(),
+  isFlagged: z.boolean().optional(),
+  flagReason: z.string().trim().nullable().optional(),
+  similarityScore: z.number().min(0).max(100).optional(),
   submit: z.boolean().optional(),
   resubmit: z.boolean().optional(),
 });
@@ -393,53 +402,71 @@ export const reportQuerySchema = z.object({
 });
 
 /** Bulk-upload archived capstone bundle metadata (Instructor only). */
-export const bulkUploadSchema = z.object({
-  title: z.string().trim().max(300).optional().default(''),
-  abstract: z.string().trim().max(5000).optional().default(''),
-  keywords: z.preprocess(
-    (val) =>
-      typeof val === 'string'
-        ? val
+export const bulkUploadSchema = z
+  .object({
+    title: z.string().trim().max(300).optional().default(''),
+    abstract: z.string().trim().max(5000).optional().default(''),
+    keywords: z.preprocess(
+      (val) =>
+        typeof val === 'string'
+          ? val
+              .split(',')
+              .map((k) => k.trim())
+              .filter(Boolean)
+          : val,
+      z.array(z.string().trim().min(1)).max(10).optional().default([]),
+    ),
+    authors: z.preprocess(
+      (val) => {
+        if (typeof val === 'string') {
+          return val
             .split(',')
-            .map((k) => k.trim())
-            .filter(Boolean)
-        : val,
-    z.array(z.string().trim().min(1)).max(10).optional().default([]),
-  ),
-  authors: z.preprocess(
-    (val) => {
-      if (typeof val === 'string') {
-        return val
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean);
+            .map((item) => item.trim())
+            .filter(Boolean);
+        }
+        return val;
+      },
+      z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
+    ),
+    publicationYear: z.preprocess((val) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const parsed = Number(val);
+      return Number.isFinite(parsed) ? parsed : val;
+    }, z.number().int().min(1900).max(2100).optional()),
+    doi: z.string().trim().max(255).optional().default(''),
+    publicationVenue: z.string().trim().max(255).optional().default(''),
+    academicYear: z.preprocess(
+      (val) => (typeof val === 'string' && val.trim() ? val.trim() : undefined),
+      z
+        .string()
+        .regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format')
+        .optional(),
+    ),
+    metadataTarget: z
+      .enum(['academic_journal', 'academic_paper'])
+      .optional()
+      .default('academic_journal'),
+    plagiarismTarget: z
+      .enum(['academic_paper', 'academic_journal', 'both', 'none'])
+      .optional()
+      .default('academic_paper'),
+    originalityScore: z.preprocess((val) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const parsed = Number(val);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }, z.number().min(0).max(100).optional()),
+  })
+  .transform((data) => {
+    if (!data.academicYear) {
+      if (data.publicationYear) {
+        data.academicYear = `${data.publicationYear}-${data.publicationYear + 1}`;
+      } else {
+        const nowYear = new Date().getFullYear();
+        data.academicYear = `${nowYear}-${nowYear + 1}`;
       }
-      return val;
-    },
-    z.array(z.string().trim().min(1).max(200)).max(20).optional().default([]),
-  ),
-  publicationYear: z.preprocess((val) => {
-    if (val === '' || val === null || val === undefined) return undefined;
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : val;
-  }, z.number().int().min(1900).max(2100).optional()),
-  doi: z.string().trim().max(255).optional().default(''),
-  publicationVenue: z.string().trim().max(255).optional().default(''),
-  academicYear: z.string().regex(/^\d{4}-\d{4}$/, 'Academic year must follow YYYY-YYYY format'),
-  metadataTarget: z
-    .enum(['academic_journal', 'academic_paper'])
-    .optional()
-    .default('academic_journal'),
-  plagiarismTarget: z
-    .enum(['academic_paper', 'academic_journal', 'both', 'none'])
-    .optional()
-    .default('academic_paper'),
-  originalityScore: z.preprocess((val) => {
-    if (val === '' || val === null || val === undefined) return undefined;
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }, z.number().min(0).max(100).optional()),
-});
+    }
+    return data;
+  });
 
 /* ───── Update Asset URLs (student action) ───── */
 

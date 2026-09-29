@@ -203,6 +203,17 @@ export const lockTeam = catchAsync(async (req, res) => {
   });
 });
 
+/** PATCH /api/teams/:id/unlock — Unlock a finalized team (Leader or Instructor only) */
+export const unlockTeam = catchAsync(async (req, res) => {
+  const { team } = await teamService.unlockTeam(req.params.id, req.user._id, req.user.role);
+
+  res.status(HTTP_STATUS.OK).json({
+    success: true,
+    message: 'Team roster unlocked successfully.',
+    data: { team },
+  });
+});
+
 /** DELETE /api/teams/:id/members/me — Leave team (member only, not finalized) */
 export const leaveTeam = catchAsync(async (req, res) => {
   const { team } = await teamService.leaveTeam(req.params.id, req.user._id);

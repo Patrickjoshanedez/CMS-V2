@@ -192,4 +192,62 @@ describe('ChapterReviewPanel Component', () => {
 
     view.unmount();
   });
+
+  it('filters submissions per review session (s1: initial rounds, s2: revisions)', () => {
+    const mockSubmissions = [
+      {
+        _id: 'sub-ch1-v1',
+        type: 'chapter',
+        chapter: 1,
+        version: 1,
+        status: SUBMISSION_STATUSES.APPROVED,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        _id: 'sub-ch1-v2',
+        type: 'chapter',
+        chapter: 1,
+        version: 2,
+        status: SUBMISSION_STATUSES.PENDING,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    const view = renderComponent({ submissions: mockSubmissions });
+
+    // Initially 'all' shows both Round 2 and Round 1
+    expect(view.container.textContent).toContain('Round 2');
+    expect(view.container.textContent).toContain('Round 1');
+
+    // Filter to Session 1 (Initial Rounds)
+    const select = view.container.querySelector('select[data-testid="session-filter-select"]');
+    expect(select).not.toBeNull();
+
+    act(() => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        'value',
+      ).set;
+      nativeSetter.call(select, 's1');
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(view.container.textContent).toContain('Round 1');
+    expect(view.container.textContent).not.toContain('Round 2');
+
+    // Filter to Session 2 (Revisions & Defense)
+    act(() => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        'value',
+      ).set;
+      nativeSetter.call(select, 's2');
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    expect(view.container.textContent).toContain('Round 2');
+    expect(view.container.textContent).not.toContain('Round 1');
+
+    view.unmount();
+  });
 });

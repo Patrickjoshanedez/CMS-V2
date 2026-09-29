@@ -416,6 +416,21 @@ const titleProposalMetadataSchema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
+    isFlagged: {
+      type: Boolean,
+      default: false,
+    },
+    flagReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    similarityScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -819,6 +834,21 @@ const projectSchema = new mongoose.Schema(
     isArchived: {
       type: Boolean,
       default: false,
+    },
+    isFlagged: {
+      type: Boolean,
+      default: false,
+    },
+    flagReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    similarityScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
     },
     archivedAt: {
       type: Date,

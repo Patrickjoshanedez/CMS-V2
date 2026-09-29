@@ -141,6 +141,7 @@ describe('CreateProjectPage', () => {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.clear();
     }
+    mockSimilarityChecker.mockReset();
     mockGetCreateProjectDraft.mockResolvedValue({
       data: { data: { draft: null, updatedAt: null } },
     });
@@ -490,7 +491,36 @@ describe('CreateProjectPage', () => {
       similarityTab.click();
     });
 
-    // Metric cards must be 0.0%
+    // Before details are filled, awaiting-details card is displayed
+    expect(view.container.textContent).toContain(
+      'Proposal Details Required for Similarity Analysis',
+    );
+    expect(view.container.textContent).toContain('Awaiting Details');
+
+    // Switch to Write Proposal tab and provide a title with >= 10 chars
+    const writeTab = Array.from(view.container.querySelectorAll('[role="tab"]')).find((el) =>
+      el.textContent?.includes('Write Proposal'),
+    );
+    await act(async () => {
+      writeTab.click();
+    });
+    const titleInput = view.container.querySelector('input[id="proposal-0-title"]');
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      ).set;
+      valueSetter.call(titleInput, 'Smart Campus IoT Environmental Monitoring Platform');
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+      titleInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Switch back to similarity tab
+    await act(async () => {
+      similarityTab.click();
+    });
+
+    // Metric cards must now be 0.0%
     expect(view.container.textContent).toContain('0.0%');
     expect(view.container.textContent).toContain('Pending scan — not yet verified');
     expect(view.container.textContent).toContain('No Scan Results Yet');
@@ -644,6 +674,19 @@ describe('CreateProjectPage', () => {
     await act(async () => {
       addBtn.click();
     });
+
+    // Enter title for proposal 2
+    const proposal2Input = view.container.querySelector('input[id="proposal-1-title"]');
+    if (proposal2Input) {
+      await act(async () => {
+        const valueSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          'value',
+        ).set;
+        valueSetter.call(proposal2Input, 'Second System Proposal Architecture');
+        proposal2Input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
 
     // Switch back to Proposal 1 tab button
     const prop1Btn = Array.from(view.container.querySelectorAll('button')).find((b) =>
@@ -1149,18 +1192,18 @@ describe('CreateProjectPage', () => {
     expect(banner).not.toBeNull();
     expect(banner.getAttribute('role')).toBe('alert');
     expect(banner.getAttribute('data-testid')).toBe('similarity-conflict-banner');
-    expect(banner.textContent).toContain('Submission & Update Locked:');
-    expect(banner.textContent).toContain('Distinctiveness Required');
+    expect(banner.textContent).toContain('Proposal Flagged for Similarity Scrutiny:');
+    expect(banner.textContent).toContain('Similarity Flagged');
 
-    // Check submit button is disabled with aria-describedby and informative title
+    // Check submit button allows submission with flagged state, aria-describedby and informative title
     const submitBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Submit for Committee Review'),
     );
     expect(submitBtn).not.toBeUndefined();
-    expect(submitBtn.disabled).toBe(true);
+    expect(submitBtn.disabled).toBe(false);
     expect(submitBtn.getAttribute('aria-describedby')).toBe('similarity-conflict-banner');
     expect(submitBtn.getAttribute('title')).toContain(
-      'Cannot update: Similar title detected above 65% threshold.',
+      'Similar title detected above 65% threshold.',
     );
 
     // Clearing conflict restores accessibility and unlocks button

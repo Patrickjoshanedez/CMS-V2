@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2,
@@ -516,6 +516,15 @@ export default function ExistingCapstoneUploadPage() {
   const currentYear = new Date().getFullYear();
   const defaultAcademicYear = useMemo(() => `${currentYear}-${currentYear + 1}`, [currentYear]);
   const hasDocumentForRescan = Boolean(files.academicPaperFile || files.academicJournalFile);
+
+  useEffect(() => {
+    if (!form.academicYear && academicYears.length > 0) {
+      const preferredYear = academicYears[0];
+      if (preferredYear) {
+        setForm((prev) => (prev.academicYear ? prev : { ...prev, academicYear: preferredYear }));
+      }
+    }
+  }, [academicYears, form.academicYear]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -1037,7 +1046,11 @@ export default function ExistingCapstoneUploadPage() {
       return;
     }
 
-    const targetAcademicYear = form.academicYear.trim() || toAcademicYear(form.year);
+    const targetAcademicYear =
+      form.academicYear?.trim() ||
+      toAcademicYear(form.year) ||
+      academicYears[0] ||
+      defaultAcademicYear;
     if (!/^\d{4}-\d{4}$/.test(targetAcademicYear)) {
       toast.error('Academic Year is required and must follow YYYY-YYYY format.');
       return;

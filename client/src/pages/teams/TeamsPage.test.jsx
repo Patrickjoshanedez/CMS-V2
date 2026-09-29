@@ -22,6 +22,7 @@ const mockUseMyTeam = vi.fn(() => ({ data: null, isLoading: false, isError: fals
 const mockUseMyProject = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamById = vi.fn(() => ({ data: null, isLoading: false }));
 const mockUseTeamManuscriptTemplate = vi.fn(() => ({ data: null, isLoading: false }));
+const mockUseUnlockTeam = vi.fn(() => ({ mutate: vi.fn(), isPending: false }));
 
 let mockSearchParams = new URLSearchParams();
 const mockSetSearchParams = vi.fn((params) => {
@@ -61,6 +62,7 @@ vi.mock('@/hooks/useTeams', () => ({
   useUpdateGoogleDocLink: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateGithubLink: () => ({ mutate: vi.fn(), isPending: false }),
   useLockTeam: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnlockTeam: (...args) => mockUseUnlockTeam(...args),
   useLeaveTeam: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateManuscriptTemplate: () => ({ mutate: vi.fn(), isPending: false }),
   useTeamManuscriptTemplate: (...args) => mockUseTeamManuscriptTemplate(...args),
@@ -346,7 +348,7 @@ describe('TeamsPage', () => {
     view.unmount();
   });
 
-  it('renders Bulk Invite Teammates button and opens modal for student team leader', () => {
+  it('renders Invite Teammates button and opens modal for student team leader', () => {
     mockUseAuthStore.mockReturnValue({
       user: {
         _id: 'student-lead',
@@ -376,22 +378,76 @@ describe('TeamsPage', () => {
 
     expect(view.container.textContent).toContain('Capstone Titans');
     expect(view.container.textContent).toContain('Invite Teammates');
-    expect(view.container.textContent).toContain('Bulk Invite Teammates');
 
-    const bulkInviteBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Bulk Invite Teammates'),
+    const inviteBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Invite Teammates'),
     );
-    expect(bulkInviteBtn).toBeTruthy();
+    expect(inviteBtn).toBeTruthy();
 
     act(() => {
-      bulkInviteBtn.click();
+      inviteBtn.click();
     });
 
     const modal = document.body.querySelector('[role="dialog"]');
     expect(modal).toBeTruthy();
-    expect(modal.textContent).toContain('Bulk Invite Teammates');
+    expect(modal.textContent).toContain('Invite Teammates');
     expect(modal.textContent).toContain('Capstone Titans');
 
+    view.unmount();
+  });
+
+  it('renders Unlock Roster button when team is finalized and allows leader to unlock roster', () => {
+    const mutateUnlock = vi.fn();
+    mockUseUnlockTeam.mockReturnValue({
+      mutate: mutateUnlock,
+      isPending: false,
+    });
+    mockUseAuthStore.mockReturnValue({
+      user: {
+        _id: 'student-lead',
+        role: ROLES.STUDENT,
+        sectionId: 'sec-1',
+        instructorId: 'inst-1',
+      },
+      isAuthenticated: true,
+    });
+    mockUseMyTeam.mockReturnValue({
+      data: {
+        _id: 'team-student-locked',
+        name: 'Capstone Titans',
+        academicYear: '2025-2026',
+        isLocked: true,
+        leaderId: 'student-lead',
+        members: [{ _id: 'student-lead', fullName: 'Leader Student', email: 'lead@buksu.edu.ph' }],
+        memberRoles: [{ userId: 'student-lead', role: 'Full-Stack Developer' }],
+        pendingInvites: [],
+        assignment: {},
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const view = renderTeamsPage();
+
+    expect(view.container.textContent).toContain('Team Finalized');
+    expect(view.container.textContent).toContain('Unlock Roster');
+
+    const unlockBtn = Array.from(view.container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Unlock Roster'),
+    );
+    expect(unlockBtn).toBeTruthy();
+
+    act(() => {
+      unlockBtn.click();
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mutateUnlock).toHaveBeenCalledWith({ teamId: 'team-student-locked' });
+
+    confirmSpy.mockRestore();
     view.unmount();
   });
 });

@@ -98,7 +98,7 @@ describe('BulkInviteModal', () => {
       );
     });
 
-    expect(document.body.textContent).toContain('Bulk Invite Teammates');
+    expect(document.body.textContent).toContain('Invite Teammates');
     expect(document.body.textContent).toContain('Team Alpha');
     expect(document.body.textContent).toContain('Team Slots: 1 of 4 Filled');
     expect(document.body.textContent).toContain('3 Slots Available');
@@ -153,7 +153,7 @@ describe('BulkInviteModal', () => {
     expect(document.body.textContent).toContain('ABC123');
   });
 
-  it('allows batch email pasting', async () => {
+  it('renders direct candidate search without paste tab', async () => {
     await act(async () => {
       root.render(
         <BulkInviteModal
@@ -167,40 +167,9 @@ describe('BulkInviteModal', () => {
       );
     });
 
-    // Switch to paste tab
-    const pasteTabBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Paste Multiple Emails'),
-    );
-    expect(pasteTabBtn).toBeTruthy();
-
-    await act(async () => {
-      pasteTabBtn.click();
-    });
-
-    const textarea = document.querySelector('textarea');
-    expect(textarea).toBeTruthy();
-
-    await act(async () => {
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLTextAreaElement.prototype,
-        'value',
-      ).set;
-      nativeSetter.call(textarea, 'user1@buksu.edu.ph, user2@buksu.edu.ph');
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
-    const addStagingBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent.includes('Add to Staging'),
-    );
-    expect(addStagingBtn).toBeTruthy();
-
-    await act(async () => {
-      addStagingBtn.click();
-    });
-
-    expect(document.body.textContent).toContain('user1@buksu.edu.ph');
-    expect(document.body.textContent).toContain('user2@buksu.edu.ph');
-    expect(document.body.textContent).toContain('Send 2 Invitations');
+    expect(document.body.textContent).not.toContain('Paste Multiple Emails');
+    const searchInput = document.querySelector('input[type="text"]');
+    expect(searchInput).toBeTruthy();
+    expect(searchInput.getAttribute('placeholder')).toContain('across sections');
   });
 });

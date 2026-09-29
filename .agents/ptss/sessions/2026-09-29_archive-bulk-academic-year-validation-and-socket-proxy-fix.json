@@ -1,0 +1,35 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-29_archive-bulk-academic-year-validation-and-socket-proxy-fix",
+  "timestamp": "2026-09-29T01:50:00.000Z",
+  "task_summary": "Resolved capstone archive bulk upload failure: (1) Fixed missing academicYear in FormData within client authService.bulkUploadArchive; (2) Added auto-selection of academicYear in ExistingCapstoneUploadPage with fallback to academicYears[0] or defaultAcademicYear; (3) Hardened server bulkUploadSchema with smart transform defaulting to publicationYear or current academic year; (4) Added fallback academicYear handling in project.service.js bulkUploadArchive; (5) Clarified socket.io 503 and auth 401 errors as transient side effects during server restart and token purge. Verified with 74/74 server project tests, 9/9 upload page tests, 5/5 auth service tests, live API test returning 201 Created, UNMATCHED_COUNT=0 route parity, and 60/60 agentic validation checks.",
+  "task_category": "bug_fix_and_api_hardening",
+  "skills_written": [],
+  "skills_patched": [],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "unit_tests": {
+      "upload_page_tests": "9/9 passed",
+      "auth_service_tests": "5/5 passed",
+      "server_project_tests": "74/74 passed"
+    },
+    "live_api_test": {
+      "endpoint": "POST /api/projects/archive/bulk",
+      "status": 201,
+      "passed": true
+    },
+    "route_parity": {
+      "unmatched_count": 0,
+      "passed": true
+    },
+    "governance": {
+      "checks_passed": "60/60",
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: When converting JSON mutation payloads to multipart FormData in client API service layers (e.g. authService.bulkUploadArchive), all schema-validated scalar fields (specifically academicYear) must be explicitly appended to the FormData instance, otherwise backend validators reject requests with 'Invalid input: expected string, received undefined'.",
+    "Lesson learned: Server validation schemas (bulkUploadSchema) should employ smart fallback transforms (e.g. deriving academicYear from publicationYear or current academic year) to prevent hard client lockouts when legacy clients or multipart requests omit optional or inferred metadata.",
+    "Prevention: Socket.IO 503 Service Unavailable errors on port 43211 are transient proxy failures occurring when the backend server restarts; once the backend socket server re-establishes connections, polling recovers automatically without requiring manual client interventions."
+  ]
+}

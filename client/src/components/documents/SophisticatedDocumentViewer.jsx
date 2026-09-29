@@ -136,6 +136,13 @@ export default function SophisticatedDocumentViewer({
     currentPath.includes('/plagiarism') ||
     currentPath.includes('/scan'),
   );
+  const isArchiveDoc = Boolean(
+    isArchive ||
+    submission?.isArchive ||
+    submission?.isArchiveScan ||
+    submission?._id === 'archive-document' ||
+    currentPath.includes('/archive'),
+  );
   const isSubmissionTracking =
     isSubmission !== null
       ? isSubmission
@@ -686,10 +693,12 @@ export default function SophisticatedDocumentViewer({
                         ? 'bg-rose-600 text-white font-semibold shadow-xs'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
-                    title="Show plagiarism matches only"
+                    title={
+                      isArchiveDoc ? 'Show similarity matches only' : 'Show plagiarism matches only'
+                    }
                   >
                     <ShieldAlert className="h-3 w-3" />
-                    Plagiarism
+                    {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
                   </button>
                 </div>
               ) : shouldShowComments ? (
@@ -700,7 +709,10 @@ export default function SophisticatedDocumentViewer({
               ) : plagiarismMatches && plagiarismMatches.length > 0 ? (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-semibold">
                   <ShieldAlert className="h-3.5 w-3.5" />
-                  <span>Plagiarism Matches ({plagiarismMatches.length})</span>
+                  <span>
+                    {isArchiveDoc ? 'Similarity Matches' : 'Plagiarism Matches'} (
+                    {plagiarismMatches.length})
+                  </span>
                 </div>
               ) : null}
 
@@ -767,7 +779,7 @@ export default function SophisticatedDocumentViewer({
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px]">
                             <span className="text-rose-600 dark:text-rose-400 font-medium">
-                              Plagiarism
+                              {isArchiveDoc ? 'Similarity' : 'Plagiarism'}
                             </span>
                             <span className="font-mono text-muted-foreground">
                               {plagiarismOpacity}%

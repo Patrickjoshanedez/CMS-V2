@@ -5,20 +5,31 @@ import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { FileText, AlertTriangle, Users, Plus, FileEdit, RotateCcw } from 'lucide-react';
 import { projectService } from '@/services/authService';
 
+import { useAuthStore } from '@/stores/authStore';
+
 /**
  * EmptyProjectState — shown when the student has no approved project yet.
  * Guides the user to resume an existing draft, lock their team, or create a proposal.
  */
-export default function EmptyProjectState({ team }) {
+export default function EmptyProjectState({ team, userId: propUserId }) {
   const navigate = useNavigate();
+  const authState = useAuthStore((s) => s?.user);
+  const user = authState?.user ?? authState;
+  const userId = propUserId || user?._id || user?.id || null;
   const hasLockedTeam = Boolean(team?.members?.length > 0 && team?.isLocked);
 
   const [hasDraft, setHasDraft] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
+      const scopedKey = userId ? `cms.create_project_draft.${userId}` : null;
+      const scopedBackup = userId ? `cms.create_project_draft.backup.${userId}` : null;
       const raw =
-        window.localStorage.getItem('cms.create_project_draft') ||
-        window.localStorage.getItem('cms.create_project_draft.backup');
+        (scopedKey ? window.localStorage.getItem(scopedKey) : null) ||
+        (scopedBackup ? window.localStorage.getItem(scopedBackup) : null) ||
+        (!userId
+          ? window.localStorage.getItem('cms.create_project_draft') ||
+            window.localStorage.getItem('cms.create_project_draft.backup')
+          : null);
       if (!raw) return false;
       const parsed = JSON.parse(raw);
       return (
@@ -53,6 +64,16 @@ export default function EmptyProjectState({ team }) {
           )
         ) {
           setHasDraft(true);
+        } else if (userId) {
+          // If remote returned no draft and local has no draft for this user, clear hasDraft
+          const scopedKey = `cms.create_project_draft.${userId}`;
+          const scopedBackup = `cms.create_project_draft.backup.${userId}`;
+          const hasLocal = Boolean(
+            window.localStorage.getItem(scopedKey) || window.localStorage.getItem(scopedBackup),
+          );
+          if (!hasLocal) {
+            setHasDraft(false);
+          }
         }
       })
       .catch(() => {
@@ -62,11 +83,15 @@ export default function EmptyProjectState({ team }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [userId]);
 
   const handleStartFresh = async () => {
     try {
       if (typeof window !== 'undefined') {
+        if (userId) {
+          window.localStorage.removeItem(`cms.create_project_draft.${userId}`);
+          window.localStorage.removeItem(`cms.create_project_draft.backup.${userId}`);
+        }
         window.localStorage.removeItem('cms.create_project_draft');
         window.localStorage.removeItem('cms.create_project_draft.backup');
       }

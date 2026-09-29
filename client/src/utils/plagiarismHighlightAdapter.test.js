@@ -4,6 +4,8 @@ import {
   areRectsOverlapping,
   annotateOverlappingHighlights,
   resolvePlagiarismHighlights,
+  buildTurnitinHighlightRects,
+  getTurnitinSourceColor,
 } from './plagiarismHighlightAdapter';
 
 describe('plagiarismHighlightAdapter', () => {
@@ -117,6 +119,74 @@ describe('plagiarismHighlightAdapter', () => {
     it('returns empty array when no matches or document provided', async () => {
       expect(await resolvePlagiarismHighlights(null, [])).toEqual([]);
       expect(await resolvePlagiarismHighlights({}, [])).toEqual([]);
+    });
+  });
+
+  describe('getTurnitinSourceColor', () => {
+    it('returns distinct canonical colors for sources 1 through 10', () => {
+      expect(getTurnitinSourceColor(1)).toBe('#ef4444'); // Red
+      expect(getTurnitinSourceColor(2)).toBe('#f97316'); // Orange
+      expect(getTurnitinSourceColor(3)).toBe('#ca8a04'); // Yellow/Amber
+      expect(getTurnitinSourceColor(4)).toBe('#10b981'); // Emerald
+      expect(getTurnitinSourceColor(5)).toBe('#3b82f6'); // Blue
+      expect(getTurnitinSourceColor(6)).toBe('#a855f7'); // Purple
+      expect(getTurnitinSourceColor(7)).toBe('#14b8a6'); // Teal
+      expect(getTurnitinSourceColor(8)).toBe('#ec4899'); // Pink
+      expect(getTurnitinSourceColor(9)).toBe('#22c55e'); // Green
+      expect(getTurnitinSourceColor(10)).toBe('#f43f5e'); // Rose
+    });
+
+    it('wraps around modulo for sources beyond 10', () => {
+      expect(getTurnitinSourceColor(11)).toBe('#ef4444');
+      expect(getTurnitinSourceColor(12)).toBe('#f97316');
+    });
+
+    it('handles falsy or invalid source numbers gracefully', () => {
+      expect(getTurnitinSourceColor(null)).toBe('#ef4444');
+      expect(getTurnitinSourceColor(0)).toBe('#ef4444');
+    });
+  });
+
+  describe('buildTurnitinHighlightRects', () => {
+    it('returns empty array when given empty input', () => {
+      expect(buildTurnitinHighlightRects([])).toEqual([]);
+      expect(buildTurnitinHighlightRects(null)).toEqual([]);
+    });
+
+    it('clusters word boxes on the same line into a single line rectangle', () => {
+      const words = [
+        { left: 50, top: 100, width: 40, height: 14, pageNumber: 1 },
+        { left: 95, top: 101, width: 60, height: 14, pageNumber: 1 },
+        { left: 160, top: 100, width: 50, height: 14, pageNumber: 1 },
+      ];
+
+      const rects = buildTurnitinHighlightRects(words);
+      expect(rects).toHaveLength(1);
+      expect(rects[0]).toEqual({
+        left: 50,
+        top: 100,
+        width: 160, // 210 - 50
+        height: 15, // max(114, 115) - 100
+        pageNumber: 1,
+      });
+    });
+
+    it('decomposes multi-line passages into discrete line rectangles', () => {
+      const words = [
+        // Line 1 (baseline ~100)
+        { left: 50, top: 100, width: 100, height: 14, pageNumber: 1 },
+        { left: 155, top: 101, width: 120, height: 14, pageNumber: 1 },
+        // Line 2 (baseline ~124)
+        { left: 50, top: 124, width: 90, height: 14, pageNumber: 1 },
+        { left: 145, top: 125, width: 80, height: 14, pageNumber: 1 },
+      ];
+
+      const rects = buildTurnitinHighlightRects(words);
+      expect(rects).toHaveLength(2);
+      expect(rects[0].top).toBe(100);
+      expect(rects[0].width).toBe(225); // 275 - 50
+      expect(rects[1].top).toBe(124);
+      expect(rects[1].width).toBe(175); // 225 - 50
     });
   });
 });

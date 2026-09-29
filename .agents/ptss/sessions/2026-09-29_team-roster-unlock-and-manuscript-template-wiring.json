@@ -1,0 +1,41 @@
+{
+  "session_id": "2026-09-29_team-roster-unlock-and-manuscript-template-wiring",
+  "timestamp": "2026-09-29T03:53:00+08:00",
+  "status": "completed",
+  "task": "Team Roster Finalization Unlock Mechanism & Official Manuscript Template Wiring",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "summary": "Implemented a secure unlock roster mechanism for finalized teams (PATCH /api/teams/:id/unlock) allowing team leaders and instructors to fix misinputs before proposal defense, and wired the Official Capstone Manuscript Template widget directly to the instructor administration settings with bidirectional synchronization across SystemSettings and DocumentTemplate collections.",
+  "actions_taken": [
+    {
+      "area": "server",
+      "action": "Implemented unlockTeam service in team.service.js, route PATCH /api/teams/:id/unlock in team.routes.js, and controller handler in team.controller.js. Added guards for non-member/non-leader access and blocked student unlocks when title proposals are already approved."
+    },
+    {
+      "area": "server",
+      "action": "Enhanced getTeamManuscriptTemplate in team.service.js to prioritize SystemSettings.documentTemplates configured by instructors and return complete templateMeta in both locked and unlocked states."
+    },
+    {
+      "area": "server",
+      "action": "Implemented bidirectional sync in settings.service.js:updateSettings and team.service.js:updateManuscriptTemplate between SystemSettings and DocumentTemplate collections to prevent split-brain template configurations."
+    },
+    {
+      "area": "client",
+      "action": "Added unlockTeam API method in authService.js, useUnlockTeam React Query mutation in useTeams.js, and rendered 'Unlock Roster' button with confirmation dialog in TeamsPage.jsx."
+    },
+    {
+      "area": "client",
+      "action": "Added dedicated 'Official Capstone Manuscript Template URL (Chapters 1–5)' configuration card in AdministrationSection.jsx with high-contrast card styling, badge, and live state binding."
+    },
+    {
+      "area": "testing",
+      "action": "Added unit tests in TeamsPage.test.jsx for roster unlocking, and added 5 integration tests in server/tests/integration/teams.test.js covering leader unlock, instructor unlock, not-locked error, outsider rejection, and approved-title lock guards."
+    }
+  ],
+  "verification_evidence": {
+    "client_tests": "11/11 tests passed in TeamsPage.test.jsx and ManuscriptTemplateWidget.test.jsx",
+    "server_tests": "32/32 tests passed in teams.test.js",
+    "route_parity": "220 Server / 200 Client, UNMATCHED_COUNT = 0",
+    "agentic_governance": "60/60 checks passed",
+    "governance_pipeline": "11 agents valid, DAG verified, 0 errors, 0 warnings"
+  }
+}

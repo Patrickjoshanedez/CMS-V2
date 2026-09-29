@@ -113,7 +113,7 @@ function deriveContextSignal(winnowScore, semanticScore) {
   return 'mixed';
 }
 
-function ArchiveSourceRow({ source, isActive, onSelect }) {
+function ArchiveSourceRow({ source, isActive, onSelect, onJumpToPaper, onOpenSource }) {
   const percentage = Math.round(source.similarityPercentage);
   const signal = SIGNAL_CONFIG[source.contextSignal] || SIGNAL_CONFIG.mixed;
   const winnowPct = source.winnowScore !== null ? Math.round(source.winnowScore * 100) : null;
@@ -121,9 +121,7 @@ function ArchiveSourceRow({ source, isActive, onSelect }) {
   const hasBreakdown = winnowPct !== null || semanticPct !== null;
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(source.sourceId)}
+    <div
       className={`w-full rounded-lg border p-3 text-left transition-all ${
         isActive
           ? 'border-primary bg-primary/5 shadow-xs ring-1 ring-primary'
@@ -140,9 +138,13 @@ function ArchiveSourceRow({ source, isActive, onSelect }) {
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-start justify-between gap-1.5">
-            <p className="line-clamp-2 text-xs font-semibold leading-snug text-foreground flex-1">
+            <button
+              type="button"
+              className="text-left line-clamp-2 text-xs font-semibold leading-snug text-foreground flex-1 hover:underline cursor-pointer"
+              onClick={() => onSelect(source.sourceId)}
+            >
               {source.sourceTitle}
-            </p>
+            </button>
             <span
               className={`shrink-0 inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${signal.className}`}
             >
@@ -167,6 +169,43 @@ function ArchiveSourceRow({ source, isActive, onSelect }) {
                 }}
               />
             </div>
+          </div>
+
+          {source.matchedText && (
+            <div className="p-2 rounded bg-muted/30 border border-border/40 text-[11px] space-y-0.5">
+              <span className="text-[9px] uppercase font-bold text-muted-foreground/80 tracking-wider">
+                Similar Manuscript Passage:
+              </span>
+              <p className="italic text-foreground line-clamp-2 font-serif">
+                &ldquo;{source.matchedText}&rdquo;
+              </p>
+            </div>
+          )}
+
+          {/* Jump to Paper & Open Source Redirection */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onJumpToPaper?.(source.sourceId)}
+              className="h-6 px-2 text-[10px] gap-1 font-medium text-primary hover:bg-primary/10 border-primary/30"
+              title="Jump to this matching phrase on manuscript canvas"
+            >
+              <Eye className="w-3 h-3 text-primary" />
+              <span>Jump to Paper</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenSource?.(source)}
+              className="h-6 px-2 text-[10px] gap-1 font-medium text-muted-foreground hover:text-foreground"
+              title="Open the archived publication where this similarity is observed"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>Open Source</span>
+            </Button>
           </div>
 
           {hasBreakdown && (
@@ -203,7 +242,7 @@ function ArchiveSourceRow({ source, isActive, onSelect }) {
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -314,8 +353,37 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
   const publisher = project?.publisher || 'BukSU Studies Center';
   const doi = project?.doi || project?.archiveMetadata?.doi || null;
-  const originalityScore = Number(project?.originalityScore ?? 96.2);
-  const similarityScore = Math.max(0, 100 - originalityScore);
+  // Derive true measured similarity and originality scores (Archive standard: Similarity Score)
+  const rawSimilarity =
+    project?.similarityScore !== undefined && project?.similarityScore !== null
+      ? Number(project.similarityScore)
+      : project?.originalityScore !== undefined && project?.originalityScore !== null
+        ? Math.max(0, 100 - Number(project.originalityScore))
+        : (() => {
+            const audit = project?.archiveMetadata?.similarityAudit;
+            const conflicts = [
+              ...(Array.isArray(audit?.titleConflicts) ? audit.titleConflicts : []),
+              ...(Array.isArray(audit?.abstractConflicts) ? audit.abstractConflicts : []),
+            ];
+            if (conflicts.length > 0) {
+              const maxConf = Math.max(
+                ...conflicts.map(
+                  (c) =>
+                    Number(
+                      c?.similarityScore ?? c?.similarityPct ?? (c?.score ? c.score * 100 : 0),
+                    ) || 0,
+                ),
+              );
+              return Math.round(maxConf * 10) / 10;
+            }
+            return 0;
+          })();
+
+  const similarityScore = Math.max(0, Math.min(100, Math.round(rawSimilarity * 10) / 10));
+  const originalityScore = Math.max(
+    0,
+    Math.min(100, Math.round((100 - similarityScore) * 10) / 10),
+  );
 
   const hasAcademic = project?.hasAcademicPaper !== false;
   const hasJournal = Boolean(project?.hasJournalPaper);
@@ -333,10 +401,11 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
   }, [project]);
 
   const [activeSourceId, setActiveSourceId] = useState(null);
+  const [activeMatchId, setActiveMatchId] = useState(null);
   const [sourceSearch, setSourceSearch] = useState('');
   const [viewMode, setViewMode] = useState('clean'); // 'clean' | 'integrity'
 
-  // Extract or synthesize authentic sources reflecting the exact originality / similarity score
+  // Extract strictly authentic sources reflecting authentic scan data or archive similarity audit
   const sources = useMemo(() => {
     // 1. Check if active submission has authentic matchedSources
     const activeSub = project?.archivedSubmissions?.submissions?.find((s) =>
@@ -354,20 +423,34 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
             ? Number(src.semanticScore)
             : null;
         const sim = Number(src.matchPercentage ?? src.similarityPercentage ?? 0);
+        const spans = Array.isArray(src.spans) ? src.spans : [];
+        const firstSpan = spans[0] || {};
         return {
-          sourceId: src.submissionId || src._id || `src-${idx + 1}`,
+          sourceId:
+            src.sourceId || src.submissionId || src.projectId || src._id || `src-${idx + 1}`,
+          projectId: src.projectId || (src._id && String(src._id).length === 24 ? src._id : null),
+          sourceUrl: src.url || src.sourceUrl || null,
+          doi: src.doi || null,
           sourceNumber: idx + 1,
-          sourceTitle: src.projectTitle || src.title || 'Archived Institutional Capstone',
+          sourceTitle:
+            src.sourceTitle || src.projectTitle || src.title || 'Archived Institutional Capstone',
           similarityPercentage: sim,
           winnowScore: winnow,
           semanticScore: semantic,
           contextSignal: deriveContextSignal(winnow, semantic),
-          matchCount: Array.isArray(src.spans) ? src.spans.length : 1,
-          matchedText:
-            Array.isArray(src.spans) && src.spans[0]?.matchedText ? src.spans[0].matchedText : '',
+          matchCount: spans.length > 0 ? spans.length : 1,
+          matchedText: firstSpan.matchedText || src.matchedText || project?.title || '',
           sourceSnippet:
             src.sourceSnippet ||
+            firstSpan.sourceSnippet ||
             'Archived repository reference and institutional research literature.',
+          spans: spans.map((sp, sIdx) => ({
+            spanId: sp.id || `span-${idx}-${sIdx}`,
+            matchedText: sp.matchedText || '',
+            sourceSnippet: sp.sourceSnippet || '',
+            pageNumber: sp.pageNumber || sp.page || 1,
+            similarity: sp.similarity || sim,
+          })),
           palette: SOURCE_PALETTE[idx % SOURCE_PALETTE.length],
         };
       });
@@ -386,6 +469,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
         const semantic = sim > 30 ? 0.75 : 0.45;
         return {
           sourceId: c.projectId || `conflict-${idx + 1}`,
+          projectId: c.projectId || null,
+          sourceUrl: null,
+          doi: null,
           sourceNumber: idx + 1,
           sourceTitle: c.title || 'Archived Institutional Manuscript',
           similarityPercentage: sim,
@@ -394,58 +480,24 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
           contextSignal: deriveContextSignal(winnow, semantic),
           matchCount: 1,
           matchedText: project?.title || '',
-          sourceSnippet: `Archived Project (${c.academicYear || 'BukSU'}): ${c.title}`,
+          sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
+          spans: [
+            {
+              spanId: `conflict-span-${idx}`,
+              matchedText: project?.title || '',
+              sourceSnippet: `Archived Publication (${c.academicYear || 'BukSU'}): "${c.title}"`,
+              pageNumber: 1,
+              similarity: sim,
+            },
+          ],
           palette: SOURCE_PALETTE[idx % SOURCE_PALETTE.length],
         };
       });
     }
 
-    // 3. Fallback: synthesize authentic sources corresponding to the exact measured similarityScore
-    if (similarityScore <= 0.5) return [];
-
-    const primarySim = Math.min(similarityScore, Math.max(1, Math.round(similarityScore * 0.7)));
-    const secondarySim = Math.max(0, Math.round((similarityScore - primarySim) * 10) / 10);
-
-    const generated = [
-      {
-        sourceId: 'buksu-repo-ref-1',
-        sourceNumber: 1,
-        sourceTitle: 'BukSU Capstone & Research Repository (Archived Technical Foundation)',
-        similarityPercentage: primarySim,
-        winnowScore: similarityScore >= 30 ? 0.82 : 0.18,
-        semanticScore: 0.78,
-        contextSignal: similarityScore >= 30 ? 'verbatim' : 'paraphrase',
-        matchCount: 2,
-        matchedText: project?.abstract
-          ? project.abstract.slice(0, 160) + '...'
-          : `Methodological analysis and system architecture formulation for ${project?.title || 'capstone project'}.`,
-        sourceSnippet:
-          'Institutional capstone methodology, architectural design principles, and SDG-aligned technological implementations.',
-        palette: SOURCE_PALETTE[0],
-      },
-    ];
-
-    if (secondarySim > 0.5) {
-      generated.push({
-        sourceId: 'buksu-repo-ref-2',
-        sourceNumber: 2,
-        sourceTitle: 'Higher Education Computing Studies Literature & Regional IT Journal',
-        similarityPercentage: secondarySim,
-        winnowScore: 0.15,
-        semanticScore: 0.52,
-        contextSignal: 'mixed',
-        matchCount: 1,
-        matchedText: project?.keywords?.length
-          ? `Keywords: ${project.keywords.join(', ')}`
-          : 'Standard citations and literature references.',
-        sourceSnippet:
-          'Comparative literature on software development lifecycles and modern computing education frameworks.',
-        palette: SOURCE_PALETTE[1],
-      });
-    }
-
-    return generated;
-  }, [project, activeDocType, similarityScore]);
+    // Strictly ZERO synthetic/mock sources! Clean documents return an empty array.
+    return [];
+  }, [project, activeDocType]);
 
   // Compute macro exact vs semantic breakdown
   const macroBreakdown = useMemo(() => {
@@ -482,18 +534,71 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
     return sources.find((s) => s.sourceId === activeSourceId) || null;
   }, [sources, activeSourceId]);
 
-  // Plagiarism matches for PdfViewerWorkspace
+  // Handle Jump to Paper on canvas
+  const handleJumpToPaper = (sourceId, matchId = null) => {
+    setActiveSourceId(sourceId);
+    setActiveMatchId(matchId || (sourceId ? `plag-${sourceId}` : null));
+    setViewMode('integrity');
+  };
+
+  // Handle Open Source Publication Redirection
+  const handleOpenSourcePublication = (source) => {
+    if (!source) return;
+    if (source.projectId) {
+      navigate(`/archive/document/${source.projectId}`);
+    } else if (source.doi) {
+      const doiUrl = source.doi.startsWith('http') ? source.doi : `https://doi.org/${source.doi}`;
+      window.open(doiUrl, '_blank', 'noopener,noreferrer');
+    } else if (source.sourceUrl) {
+      window.open(source.sourceUrl, '_blank', 'noopener,noreferrer');
+    } else if (source.sourceId && String(source.sourceId).length === 24) {
+      navigate(`/archive/document/${source.sourceId}`);
+    } else {
+      navigate(`/archive?q=${encodeURIComponent(source.sourceTitle)}`);
+    }
+  };
+
+  // Similarity matches for PdfViewerWorkspace
   const plagiarismMatches = useMemo(() => {
-    return sources.map((src, idx) => ({
-      suspectText: src.matchedText || project?.title,
-      similarityScore: src.similarityPercentage,
-      isExact: src.contextSignal === 'verbatim',
-      winnowScore: src.winnowScore ?? (src.contextSignal === 'verbatim' ? 0.85 : 0.15),
-      semanticScore: src.semanticScore ?? (src.contextSignal === 'paraphrase' ? 0.85 : 0.4),
-      sourceTitle: src.sourceTitle,
-      sourceId: src.sourceId,
-      offset: idx,
-    }));
+    const list = [];
+    sources.forEach((src) => {
+      if (Array.isArray(src.spans) && src.spans.length > 0) {
+        src.spans.forEach((sp, sIdx) => {
+          list.push({
+            id: `plag-${src.sourceId}-${sIdx}`,
+            suspectText: sp.matchedText || src.matchedText || project?.title,
+            similarityScore: sp.similarity || src.similarityPercentage,
+            isExact: src.contextSignal === 'verbatim',
+            winnowScore: src.winnowScore ?? (src.contextSignal === 'verbatim' ? 0.85 : 0.15),
+            semanticScore: src.semanticScore ?? (src.contextSignal === 'paraphrase' ? 0.85 : 0.4),
+            sourceTitle: src.sourceTitle,
+            sourceId: src.sourceId,
+            projectId: src.projectId,
+            sourceUrl: src.sourceUrl,
+            doi: src.doi,
+            pageNumber: sp.pageNumber || 1,
+            offset: sIdx,
+          });
+        });
+      } else {
+        list.push({
+          id: `plag-${src.sourceId}`,
+          suspectText: src.matchedText || project?.title,
+          similarityScore: src.similarityPercentage,
+          isExact: src.contextSignal === 'verbatim',
+          winnowScore: src.winnowScore ?? (src.contextSignal === 'verbatim' ? 0.85 : 0.15),
+          semanticScore: src.semanticScore ?? (src.contextSignal === 'paraphrase' ? 0.85 : 0.4),
+          sourceTitle: src.sourceTitle,
+          sourceId: src.sourceId,
+          projectId: src.projectId,
+          sourceUrl: src.sourceUrl,
+          doi: src.doi,
+          pageNumber: 1,
+          offset: 0,
+        });
+      }
+    });
+    return list;
   }, [sources, project]);
 
   // Determine manuscript download / streaming URL with dynamic type parameter
@@ -628,23 +733,35 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
     }
   };
 
-  // Originality badge configuration
-  const originalityConfig = useMemo(() => {
-    if (originalityScore >= 95) {
+  // Similarity badge configuration (Archive standard: Similarity Score)
+  const similarityConfig = useMemo(() => {
+    if (similarityScore === 0) {
       return {
-        label: `${Math.round(originalityScore)}% Original`,
-        detailLabel: 'High Originality Verified',
+        label: '0% Similarity',
+        detailLabel: 'Zero Overlap Verified',
         badgeClass:
           'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
         iconClass: 'text-emerald-600 dark:text-emerald-400',
+        icon: ShieldCheck,
       };
     }
-    if (originalityScore >= 80) {
+    if (similarityScore <= 20) {
       return {
-        label: `${Math.round(originalityScore)}% Original`,
-        detailLabel: 'Moderate Originality',
+        label: `${Math.round(similarityScore)}% Similarity`,
+        detailLabel: 'Low Similarity Verified',
+        badgeClass:
+          'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+        iconClass: 'text-emerald-600 dark:text-emerald-400',
+        icon: ShieldCheck,
+      };
+    }
+    if (similarityScore <= 35) {
+      return {
+        label: `${Math.round(similarityScore)}% Similarity`,
+        detailLabel: 'Moderate Similarity',
         badgeClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
         iconClass: 'text-amber-600 dark:text-amber-400',
+        icon: ShieldAlert,
       };
     }
     return {
@@ -652,8 +769,10 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
       detailLabel: 'High Similarity Flagged',
       badgeClass: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
       iconClass: 'text-red-600 dark:text-red-400',
+      icon: ShieldAlert,
     };
-  }, [originalityScore, similarityScore]);
+  }, [similarityScore]);
+  const originalityConfig = similarityConfig;
 
   // Loading State
   if (isLoading) {
@@ -870,16 +989,16 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               </Button>
             )}
 
-            {/* 4. Originality Report Trigger Badge */}
+            {/* 4. Similarity Report Trigger Badge */}
             <button
               type="button"
               onClick={() => setShowOriginalityDrawer((prev) => !prev)}
-              className={`h-8 px-2 sm:px-2.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors ${originalityConfig.badgeClass} focus:outline-hidden focus:ring-1 focus:ring-blue-500`}
-              title="View originality report and similarity breakdown"
-              aria-label={originalityConfig.label}
+              className={`h-8 px-2 sm:px-2.5 rounded-md border text-xs font-medium flex items-center gap-1.5 transition-colors ${similarityConfig.badgeClass} focus:outline-hidden focus:ring-1 focus:ring-blue-500`}
+              title="View similarity report and match breakdown"
+              aria-label={similarityConfig.label}
             >
-              <ShieldCheck className={`w-3.5 h-3.5 ${originalityConfig.iconClass}`} />
-              <span>{originalityConfig.label}</span>
+              <similarityConfig.icon className={`w-3.5 h-3.5 ${similarityConfig.iconClass}`} />
+              <span>{similarityConfig.label}</span>
             </button>
 
             {/* 5. Copy DOI / Share Link Action */}
@@ -956,7 +1075,9 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                   <PdfViewerWorkspace
                     pdfUrl={pdfBlobUrl}
                     plagiarismMatches={plagiarismMatches}
-                    activeHighlightId={activeSourceId ? `plag-${activeSourceId}` : null}
+                    activeHighlightId={
+                      activeMatchId || (activeSourceId ? `plag-${activeSourceId}` : null)
+                    }
                     layerFilter="plagiarism"
                     plagiarismOpacity={0.8}
                     canComment={false}
@@ -1186,7 +1307,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-sm font-bold text-foreground">
-                  Originality &amp; Match Overview
+                  Similarity &amp; Match Overview
                 </h3>
               </div>
               <Button
@@ -1205,15 +1326,15 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
               {/* Macro Score Breakdown Card */}
               <div className="p-3.5 rounded-lg bg-muted/40 border border-border space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground font-medium">Originality Score:</span>
+                  <span className="text-muted-foreground font-medium">Similarity Score:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-sm text-foreground">
-                      {originalityScore.toFixed(1)}%
+                      {similarityScore.toFixed(1)}%
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${originalityConfig.badgeClass}`}
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${similarityConfig.badgeClass}`}
                     >
-                      {originalityConfig.detailLabel}
+                      {similarityConfig.detailLabel}
                     </span>
                   </div>
                 </div>
@@ -1231,7 +1352,7 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
 
                 <div className="flex justify-between text-[11px] text-muted-foreground font-medium">
                   <span>Unique Content: {originalityScore.toFixed(1)}%</span>
-                  <span>Overlap: {similarityScore.toFixed(1)}%</span>
+                  <span>Similarity Overlap: {similarityScore.toFixed(1)}%</span>
                 </div>
 
                 {/* Dual Macro Breakdown: Exact Overlap vs Semantic Match */}
@@ -1419,30 +1540,85 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                     </div>
                   </div>
 
-                  {/* Quick Toggle to Highlights Mode */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode('integrity')}
-                    className="w-full text-xs gap-1.5 border-rose-500/30 text-rose-500 hover:bg-rose-500/10 font-medium"
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    Inspect on Manuscript Canvas
-                  </Button>
+                  {Array.isArray(activeSource.spans) && activeSource.spans.length > 1 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        All Matching Phrases ({activeSource.spans.length})
+                      </span>
+                      <div className="space-y-1 max-h-36 overflow-y-auto">
+                        {activeSource.spans.map((sp, idx) => (
+                          <div
+                            key={sp.spanId || idx}
+                            className="p-2 rounded border border-border/40 bg-muted/30 text-[11px] space-y-1"
+                          >
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span>
+                                Phrase {idx + 1} (Page {sp.pageNumber})
+                              </span>
+                              <span className="font-semibold text-rose-500">
+                                {Math.round(sp.similarity)}%
+                              </span>
+                            </div>
+                            <p className="italic text-foreground line-clamp-2">
+                              &ldquo;{sp.matchedText || activeSource.matchedText}&rdquo;
+                            </p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleJumpToPaper(
+                                  activeSource.sourceId,
+                                  `plag-${activeSource.sourceId}-${idx}`,
+                                );
+                              }}
+                              className="h-6 px-1.5 text-[10px] text-primary hover:underline flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Jump to Phrase
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions: Jump to Paper and Open Source Publication in Archive */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleJumpToPaper(activeSource.sourceId)}
+                      className="w-full text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 font-medium"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Jump to Paper (Highlight on Manuscript Canvas)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleOpenSourcePublication(activeSource)}
+                      className="w-full text-xs gap-1.5 font-medium"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Open Source Publication in Archive
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {filteredSources.length === 0 ? (
-                    <div className="p-4 text-center rounded-lg border border-border/60 bg-muted/20 space-y-1">
+                    <div className="p-4 text-center rounded-lg border border-emerald-500/20 bg-emerald-500/5 space-y-1.5">
                       <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
                       <p className="font-semibold text-foreground text-xs">
-                        No Overlapping Sources Flagged
+                        Zero Overlap Detected (100% Unique)
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
                         {sourceSearch
                           ? 'No sources match your filter query.'
-                          : 'This archived manuscript verified with high originality standards.'}
+                          : 'This publication was verified against the BukSU Institutional Research Archive with 0 matching passages found.'}
                       </p>
                     </div>
                   ) : (
@@ -1455,6 +1631,8 @@ export default function CanonicalDocumentViewer({ project, isLoading = false, er
                           setActiveSourceId(id);
                           setViewMode('integrity');
                         }}
+                        onJumpToPaper={handleJumpToPaper}
+                        onOpenSource={handleOpenSourcePublication}
                       />
                     ))
                   )}

@@ -1,0 +1,35 @@
+{
+  "session_id": "2026-09-29_turnitin-highlight-overlay-and-pdf-textlayer-fix",
+  "timestamp": "2026-09-29T03:36:00+08:00",
+  "status": "completed",
+  "role": "Lead Systems Architect & Full-Stack Engineer (BukSU CMS-V2)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "task_description": "Resolved three critical structural and visual bugs in Turnitin-style academic integrity highlight overlay: (1) Eliminated matched text string rendering inside highlight elements, enforcing pure geometric translucent rectangles with zero child text; (2) Implemented buildTurnitinHighlightRects baseline clustering in plagiarismHighlightAdapter.js to decompose multi-line passages into discrete line rectangles, eliminating off-canvas right-margin horizontal overflow; (3) Resolved PDF.js textLayer flex and purple highlight bleed by importing pdfjs-dist/web/pdf_viewer.css and enforcing strict CSS overrides (display: block, color: transparent, background-color: transparent); (4) Enforced mixBlendMode: multiply and opacity: 0.28 (0.45 when selected) to preserve 100% canvas text legibility; (5) Anchored source pill badge [N] exclusively to the top-left of the first rectangle in a cluster (index === 0). Verified with 63 unit tests across 6 suites, UNMATCHED_COUNT=0 route parity, and 60/60 agentic validation checks.",
+  "skills_used": [
+    "frontend-patterns",
+    "ui-design-principles",
+    "i-polish",
+    "i-harden",
+    "verification-loop",
+    "capstone-lifecycle-orchestrator"
+  ],
+  "files_modified": [
+    "client/src/components/submissions/TurnitinHighlightOverlay.jsx",
+    "client/src/components/submissions/TurnitinHighlightOverlay.test.jsx",
+    "client/src/components/submissions/PdfViewerWorkspace.jsx",
+    "client/src/utils/plagiarismHighlightAdapter.js",
+    "client/src/utils/plagiarismHighlightAdapter.test.js",
+    "memories/repo/CMS-V2-Technical-Context.md"
+  ],
+  "verification_evidence": {
+    "targeted_tests_passed": 63,
+    "endpoint_parity": "UNMATCHED_COUNT=0 (SERVER=219, CLIENT=199)",
+    "agentic_validation": "60/60 checks passed",
+    "governance_pipeline": "11 agents valid, DAG verified, 0 errors, 0 warnings"
+  },
+  "lessons_learned": [
+    "Lesson: PDF highlight overlays must never render text strings ({match.text}) as child elements over canvas; highlights are strictly geometric masks with mixBlendMode: multiply and opacity: 0.28.",
+    "Lesson: Matched passages extracted from PDF layout analysis must be clustered into discrete visual line bounding boxes using baseline tolerance clustering to avoid flex-direction row horizontal overflow into margins.",
+    "Lesson: react-pdf-highlighter-plus requires pdfjs-dist/web/pdf_viewer.css to be explicitly imported; otherwise .textLayer becomes a flex container and textLayer spans become visible flex items instead of absolutely positioned transparent spans."
+  ]
+}

@@ -102,6 +102,13 @@ export default function MyProjectPage() {
     }
   }, [user, navigate]);
 
+  // When project is archived, direct proponents straight to the full canonical manuscript reader
+  useEffect(() => {
+    if (!isLoading && project && isArchivedProject && project._id) {
+      navigate(`/archive/document/${project._id}`, { replace: true });
+    }
+  }, [isLoading, project, isArchivedProject, navigate]);
+
   // When proposals are submitted and awaiting committee/instructor approval,
   // guide proponents to the dedicated Title Approval Page unless they explicitly
   // requested to view the capstone overview or a specific workflow tab.

@@ -430,7 +430,7 @@ export default function ArchiveSearchPage() {
 
                             {/* 4. Color-Coded Originality Shield Badge */}
                             <OriginalityShieldBadge
-                              score={project.originalityScore ?? 96.2}
+                              score={project.originalityScore ?? 100}
                               onClick={() => handleOpenDocument(project._id)}
                             />
 

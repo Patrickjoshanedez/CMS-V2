@@ -241,6 +241,17 @@ export function useLockTeam(options = {}) {
 }
 
 /**
+ * Unlock a finalized team (permits membership and role corrections).
+ * @param {Object} params — { teamId: string }
+ */
+export function useUnlockTeam(options = {}) {
+  return useTeamMutation(async ({ teamId }) => {
+    const res = await teamService.unlockTeam(teamId);
+    return res.data;
+  }, options);
+}
+
+/**
  * Leave current team (member action, not allowed when finalized).
  * @param {Object} params — { teamId: string }
  */

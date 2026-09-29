@@ -28,6 +28,7 @@ import {
   Sparkles,
   CheckCircle2,
   Lock,
+  Unlock,
   GitBranch,
   FileText,
   AlertCircle,
@@ -65,6 +66,7 @@ import {
   useUpdateGoogleDocLink,
   useUpdateGithubLink,
   useLockTeam,
+  useUnlockTeam,
   useLeaveTeam,
   useTeamManuscriptTemplate,
   teamKeys,
@@ -1041,6 +1043,12 @@ function StudentTeamDetail({ team, userId }) {
       toast.error(err?.response?.data?.error?.message || 'Failed to finalize team.'),
   });
 
+  const unlockTeam = useUnlockTeam({
+    onSuccess: () => toast.success('Team roster unlocked. You can now modify members and roles.'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.error?.message || 'Failed to unlock team roster.'),
+  });
+
   const leaveTeam = useLeaveTeam({
     onSuccess: () => toast.success('You left the team successfully.'),
     onError: (err) => toast.error(err?.response?.data?.error?.message || 'Failed to leave team.'),
@@ -1155,6 +1163,31 @@ function StudentTeamDetail({ team, userId }) {
                 </Button>
               )}
             </>
+          )}
+
+          {team.isLocked && isLeader && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 gap-1.5 shadow-xs"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    'Unlock team roster? This will allow you to modify members and project roles in case of misinput. You can finalize and lock the roster again once updated.',
+                  )
+                ) {
+                  unlockTeam.mutate({ teamId: team._id });
+                }
+              }}
+              disabled={unlockTeam.isPending}
+            >
+              {unlockTeam.isPending ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Unlock className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Unlock Roster
+            </Button>
           )}
           {project?.defenseSchedule?.status && project.defenseSchedule.status !== 'none' && (
             <DefenseScheduleBadge
@@ -1342,9 +1375,9 @@ function StudentTeamDetail({ team, userId }) {
                 );
               })}
 
-              {/* Modernized Invite Teammates Action Section */}
+              {/* Unified Invite Teammates Action Section */}
               {isLeader && !team.isLocked && memberCount < 4 && (
-                <div className="pt-3 border-t border-border/60 space-y-3">
+                <div className="pt-3 border-t border-border/60">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 transition-all hover:border-primary/30">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -1358,22 +1391,18 @@ function StudentTeamDetail({ team, userId }) {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Search classmates from your section or paste multiple emails for bulk
-                        invitation with auto-generated 6-digit codes.
+                        Search and invite unassigned classmates from your section or find students
+                        across sections with auto-generated 6-digit codes.
                       </p>
                     </div>
                     <Button
                       size="sm"
                       onClick={() => setShowBulkInviteModal(true)}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shrink-0 text-xs font-medium h-8 shadow-xs"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shrink-0 text-xs font-medium h-8.5 px-3.5 shadow-xs"
                     >
                       <UserPlus className="h-3.5 w-3.5" />
-                      Bulk Invite Teammates
+                      Invite Teammates
                     </Button>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Quick Single Invite</p>
-                    <InviteMemberForm teamId={team._id} />
                   </div>
                 </div>
               )}
@@ -1913,14 +1942,6 @@ function StudentTeamDetail({ team, userId }) {
                   <span className={allRolesAssigned ? 'text-foreground' : ''}>
                     All members select a project role
                   </span>
-                </li>
-                <li className="flex items-center gap-2">
-                  {assignment.adviser ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                  ) : (
-                    <span className="h-2 w-2 rounded-full bg-muted-foreground/50 inline-block shrink-0 ml-1 mr-1" />
-                  )}
-                  <span>Adviser confirmation pending final submission</span>
                 </li>
               </ul>
             </CardContent>

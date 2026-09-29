@@ -328,10 +328,11 @@ class TeamService {
       throw new AppError('This team is already finalized.', 409, 'TEAM_ALREADY_LOCKED');
     }
 
-    const minMembers = process.env.NODE_ENV === 'test' ? 1 : 2;
+    // BukSU Capstone guidelines allow solo capstones (1 member) up to a maximum of 4 members.
+    const minMembers = 1;
     if (!team.members || team.members.length < minMembers) {
       throw new AppError(
-        `A capstone team must have at least ${minMembers} members before it can be finalized.`,
+        `A capstone team must have at least ${minMembers} member before it can be finalized.`,
         400,
         'TEAM_INSUFFICIENT_MEMBERS',
       );
@@ -419,6 +420,62 @@ class TeamService {
     } catch (notifErr) {
       console.warn('[lockTeam] Failed to notify instructor:', notifErr.message);
     }
+
+    return { team: populatedTeam };
+  }
+
+  /**
+   * Unlock a finalized team to permit membership and role corrections.
+   * @param {string} teamId
+   * @param {string} userId
+   * @param {string} userRole
+   * @returns {Object} { team }
+   */
+  async unlockTeam(teamId, userId, userRole) {
+    const team = await Team.findById(teamId);
+    if (!team) {
+      throw new AppError('Team not found.', 404, 'TEAM_NOT_FOUND');
+    }
+
+    const isLeader = team.leaderId.toString() === userId.toString();
+    const isInstructor = userRole === ROLES.INSTRUCTOR;
+
+    if (!isLeader && !isInstructor) {
+      throw new AppError(
+        'Only the team leader or course instructor can unlock the team roster.',
+        403,
+        'FORBIDDEN',
+      );
+    }
+
+    if (!team.isLocked) {
+      throw new AppError('This team is not finalized.', 400, 'TEAM_NOT_LOCKED');
+    }
+
+    // Guard: if project has approved title proposal, team roster cannot be freely modified by students
+    const project = await Project.findOne({ teamId: team._id });
+    if (
+      project &&
+      (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved') &&
+      !isInstructor
+    ) {
+      throw new AppError(
+        'Cannot unlock roster after Capstone 1 title approval. Please contact your Course Instructor.',
+        403,
+        'TITLE_ALREADY_APPROVED',
+      );
+    }
+
+    team.isLocked = false;
+    await team.save();
+
+    const populatedTeam = await Team.findById(team._id)
+      .populate(
+        'leaderId',
+        'firstName middleName lastName email profilePicture instructorId sectionId',
+      )
+      .populate('members', 'firstName middleName lastName email profilePicture role')
+      .populate('sectionId', 'name code academicYear');
 
     return { team: populatedTeam };
   }
@@ -894,42 +951,20 @@ class TeamService {
     }
 
     const search = typeof query.search === 'string' ? query.search.trim() : '';
-    const limit = Number.isFinite(query.limit) ? query.limit : 8;
     const memberIds = team.members.map((id) => id.toString());
     const leader = await User.findById(leaderId).select('sectionId');
     const scopedSectionId = leader?.sectionId || team.sectionId || null;
 
-    const filter = {
-      role: ROLES.STUDENT,
-      isActive: true,
-      _id: { $nin: memberIds },
-    };
-
-    if (search) {
-      filter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { middleName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const users = await User.find(filter)
-      .select('firstName middleName lastName email sectionId instructorId teamId')
-      .sort({ firstName: 1, lastName: 1 })
-      .limit(limit);
-
-    const candidateIds = users.map((user) => user._id);
-    const teamsContainingCandidates = await Team.find({
+    // Discover all students already assigned to another team
+    const allOtherTeams = await Team.find({
       _id: { $ne: team._id },
-      members: { $in: candidateIds },
     })
       .select('members')
       .lean();
 
     const memberOfAnotherTeamSet = new Set();
     const memberTeamMap = new Map();
-    for (const existingTeam of teamsContainingCandidates) {
+    for (const existingTeam of allOtherTeams) {
       for (const memberId of existingTeam.members || []) {
         const key = memberId.toString();
         memberOfAnotherTeamSet.add(key);
@@ -939,6 +974,39 @@ class TeamService {
       }
     }
 
+    const assignedIds = Array.from(memberOfAnotherTeamSet);
+
+    const filter = {
+      role: ROLES.STUDENT,
+      isActive: true,
+      _id: { $nin: memberIds },
+    };
+
+    if (search) {
+      // Scope of search is NOT limited to section
+      filter.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { middleName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    } else {
+      // Default panel listing: ONLY show unassigned students in the same section
+      if (scopedSectionId) {
+        filter.sectionId = scopedSectionId;
+      }
+      filter._id = { $nin: [...memberIds, ...assignedIds] };
+      filter.teamId = { $in: [null, undefined] };
+    }
+
+    const limit = Number.isFinite(query.limit) ? query.limit : search ? 8 : 20;
+
+    const users = await User.find(filter)
+      .select('firstName middleName lastName email sectionId instructorId teamId')
+      .sort({ firstName: 1, lastName: 1 })
+      .limit(limit);
+
+    const candidateIds = users.map((user) => user._id);
     const staleTeamIdUpdates = [];
 
     const candidates = users
@@ -1981,15 +2049,24 @@ class TeamService {
       (project.titleStatus === TITLE_STATUSES.APPROVED || project.titleStatus === 'approved'),
     );
 
-    if (!isTitleApproved) {
-      return {
-        isUnlocked: false,
-        reason: 'TITLE_DEFENSE_APPROVAL_REQUIRED',
-        approvedTitle: project?.title || null,
-      };
+    // 1. Check SystemSettings for instructor-configured templates
+    let settingsUrl = null;
+    let settingsTpl = null;
+    try {
+      const SystemSettings =
+        mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
+      const settings = await SystemSettings.findOne({ key: 'global' }).lean();
+      settingsTpl = settings?.documentTemplates?.find(
+        (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
+      );
+      if (settingsTpl?.templateUrl) {
+        settingsUrl = settingsTpl.templateUrl;
+      }
+    } catch {
+      // ignore fallback error
     }
 
-    // Fetch active template for this academic year, or latest active
+    // 2. Fetch active template for this academic year, or latest active from DocumentTemplate collection
     let activeTemplate = await DocumentTemplate.findOne({
       targetType: 'MANUSCRIPT_CHAPTERS_1_5',
       academicYear: team.academicYear,
@@ -2003,27 +2080,6 @@ class TeamService {
       }).sort({ updatedAt: -1 });
     }
 
-    // Check SystemSettings if still no template in DocumentTemplate collection
-    let settingsUrl = null;
-    if (
-      !activeTemplate?.resourcePayload?.googleDocsUrl &&
-      !activeTemplate?.resourcePayload?.fileAttachmentUrl
-    ) {
-      try {
-        const SystemSettings =
-          mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
-        const settings = await SystemSettings.findOne({ key: 'global' }).lean();
-        const settingsTpl = settings?.documentTemplates?.find(
-          (t) => t.documentType === 'manuscript_template' || t.documentType === 'proposal_template',
-        );
-        if (settingsTpl?.templateUrl) {
-          settingsUrl = settingsTpl.templateUrl;
-        }
-      } catch {
-        // ignore fallback error
-      }
-    }
-
     const fallbackUrl =
       settingsUrl ||
       'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy';
@@ -2031,31 +2087,46 @@ class TeamService {
 
     const isGoogleDocs = activeTemplate ? activeTemplate.distributionType === 'GOOGLE_DOCS' : true;
 
-    const url = activeTemplate
-      ? activeTemplate.resourcePayload?.googleDocsUrl ||
-        activeTemplate.resourcePayload?.fileAttachmentUrl ||
-        fallbackUrl
-      : fallbackUrl;
+    // Prioritize instructor's configured URL from SystemSettings, then DocumentTemplate, then fallback
+    const url =
+      settingsUrl ||
+      (activeTemplate
+        ? activeTemplate.resourcePayload?.googleDocsUrl ||
+          activeTemplate.resourcePayload?.fileAttachmentUrl ||
+          fallbackUrl
+        : fallbackUrl);
 
     const version = activeTemplate?.versionLabel || fallbackVersion;
-    const updatedAt = activeTemplate?.updatedAt
-      ? new Date(activeTemplate.updatedAt).toLocaleDateString('en-US', {
+    const rawDate = activeTemplate?.updatedAt || settingsTpl?.lastUpdated;
+    const updatedAt = rawDate
+      ? new Date(rawDate).toLocaleDateString('en-US', {
           month: 'short',
           day: '2-digit',
           year: 'numeric',
         })
       : 'Sep 01, 2026';
 
+    const templateMeta = {
+      title: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+      type: isGoogleDocs ? 'google_docs' : 'downloadable_file',
+      url,
+      version,
+      updatedAt,
+    };
+
+    if (!isTitleApproved) {
+      return {
+        isUnlocked: false,
+        reason: 'TITLE_DEFENSE_APPROVAL_REQUIRED',
+        approvedTitle: project?.title || null,
+        template: templateMeta,
+      };
+    }
+
     return {
       isUnlocked: true,
       approvedTitle: project?.title || 'Approved Capstone Title',
-      template: {
-        title: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
-        type: isGoogleDocs ? 'google_docs' : 'downloadable_file',
-        url,
-        version,
-        updatedAt,
-      },
+      template: templateMeta,
     };
   }
 
@@ -2082,6 +2153,9 @@ class TeamService {
         ? 'GOOGLE_DOCS'
         : 'FILE_ATTACHMENT';
 
+    const templateResourceUrl =
+      normDistributionType === 'GOOGLE_DOCS' ? docUrl : fileAttachmentUrl || '';
+
     const resourcePayload = {
       googleDocsUrl: normDistributionType === 'GOOGLE_DOCS' ? docUrl : null,
       fileAttachmentUrl: normDistributionType === 'FILE_ATTACHMENT' ? fileAttachmentUrl : null,
@@ -2100,6 +2174,36 @@ class TeamService {
       updatedBy: userId,
       isActive: true,
     });
+
+    // Also synchronize to SystemSettings.documentTemplates so settings page and team widgets are in lockstep
+    try {
+      const SystemSettings =
+        mongoose.models.SystemSettings || (await import('../settings/settings.model.js')).default;
+      const settings = await SystemSettings.findOne({ key: 'global' });
+      if (settings) {
+        const templates = settings.documentTemplates || [];
+        const docType = targetType === 'ACTION_DONE_MATRIX' ? 'adm_form' : 'manuscript_template';
+        const existingIdx = templates.findIndex((t) => t.documentType === docType);
+        const newEntry = {
+          documentType: docType,
+          templateUrl: templateResourceUrl,
+          description:
+            targetType === 'ACTION_DONE_MATRIX'
+              ? 'Action Done Matrix (ADM) Official Template'
+              : 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+          lastUpdated: new Date(),
+        };
+        if (existingIdx >= 0) {
+          templates[existingIdx] = newEntry;
+        } else {
+          templates.push(newEntry);
+        }
+        settings.documentTemplates = templates;
+        await settings.save();
+      }
+    } catch (syncErr) {
+      console.warn('[updateManuscriptTemplate] SystemSettings sync warning:', syncErr.message);
+    }
 
     return newTemplate;
   }

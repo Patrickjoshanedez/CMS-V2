@@ -5,8 +5,8 @@ import {
   AlertTriangle,
   Calendar,
   FileSpreadsheet,
+  FileText,
   Save,
-  CheckCircle2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
@@ -32,6 +32,9 @@ export default function AdministrationSection() {
     systemAnnouncement: '',
     maintenanceMode: false,
   });
+  const [manuscriptTemplateUrl, setManuscriptTemplateUrl] = useState(
+    'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy',
+  );
   const [proposalTemplateUrl, setProposalTemplateUrl] = useState(
     'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
   );
@@ -53,10 +56,14 @@ export default function AdministrationSection() {
       });
 
       const templates = settings.documentTemplates || [];
-      const proposalTpl = templates.find(
-        (t) => t.documentType === 'proposal_template' || t.documentType === 'manuscript_template',
-      );
+      const manuscriptTpl = templates.find((t) => t.documentType === 'manuscript_template');
+      const proposalTpl = templates.find((t) => t.documentType === 'proposal_template');
       const admTpl = templates.find((t) => t.documentType === 'adm_form');
+      if (manuscriptTpl?.templateUrl) {
+        setManuscriptTemplateUrl(manuscriptTpl.templateUrl);
+      } else if (proposalTpl?.templateUrl) {
+        setManuscriptTemplateUrl(proposalTpl.templateUrl);
+      }
       if (proposalTpl?.templateUrl) {
         setProposalTemplateUrl(proposalTpl.templateUrl);
       }
@@ -83,10 +90,14 @@ export default function AdministrationSection() {
         maintenanceMode: Boolean(settings.maintenanceMode),
       });
       const templates = settings.documentTemplates || [];
-      const proposalTpl = templates.find(
-        (t) => t.documentType === 'proposal_template' || t.documentType === 'manuscript_template',
-      );
+      const manuscriptTpl = templates.find((t) => t.documentType === 'manuscript_template');
+      const proposalTpl = templates.find((t) => t.documentType === 'proposal_template');
       const admTpl = templates.find((t) => t.documentType === 'adm_form');
+      if (manuscriptTpl?.templateUrl) {
+        setManuscriptTemplateUrl(manuscriptTpl.templateUrl);
+      } else if (proposalTpl?.templateUrl) {
+        setManuscriptTemplateUrl(proposalTpl.templateUrl);
+      }
       if (proposalTpl?.templateUrl) {
         setProposalTemplateUrl(proposalTpl.templateUrl);
       }
@@ -99,15 +110,26 @@ export default function AdministrationSection() {
 
   const handleSaveTemplates = async (e) => {
     e?.preventDefault();
+    const cleanManuscriptUrl = manuscriptTemplateUrl.trim();
     const cleanProposalUrl = proposalTemplateUrl.trim();
     const cleanAdmUrl = admSpreadsheetUrl.trim();
+
+    if (cleanManuscriptUrl) {
+      try {
+        const parsed = new URL(cleanManuscriptUrl);
+        if (!parsed.protocol.startsWith('http')) throw new Error();
+      } catch {
+        toast.error('Please enter a valid web URL for the official manuscript template.');
+        return;
+      }
+    }
 
     if (cleanProposalUrl) {
       try {
         const parsed = new URL(cleanProposalUrl);
         if (!parsed.protocol.startsWith('http')) throw new Error();
       } catch {
-        toast.error('Please enter a valid web URL for the proposal/manuscript template.');
+        toast.error('Please enter a valid web URL for the proposal template.');
         return;
       }
     }
@@ -126,15 +148,15 @@ export default function AdministrationSection() {
     try {
       const documentTemplates = [
         {
-          documentType: 'proposal_template',
-          templateUrl: cleanProposalUrl,
-          description: 'Capstone 1 Proposal Manuscript Template',
+          documentType: 'manuscript_template',
+          templateUrl: cleanManuscriptUrl,
+          description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
           lastUpdated: new Date(),
         },
         {
-          documentType: 'manuscript_template',
+          documentType: 'proposal_template',
           templateUrl: cleanProposalUrl,
-          description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+          description: 'Capstone 1 Proposal Manuscript Template',
           lastUpdated: new Date(),
         },
         {
@@ -149,13 +171,13 @@ export default function AdministrationSection() {
       await updateSettings.mutateAsync({ documentTemplates });
 
       // 2. Cascade to active DocumentTemplate collection so getTeamManuscriptTemplate returns it
-      if (cleanProposalUrl) {
+      if (cleanManuscriptUrl) {
         await updateManuscriptTemplate.mutateAsync({
           targetType: 'MANUSCRIPT_CHAPTERS_1_5',
           academicYear: '2025-2026',
           versionLabel: 'AY 2025–2026 v2.1',
           distributionType: 'GOOGLE_DOCS',
-          docUrl: cleanProposalUrl,
+          docUrl: cleanManuscriptUrl,
         });
       }
       if (cleanAdmUrl) {
@@ -213,15 +235,15 @@ export default function AdministrationSection() {
         maintenanceMode: Boolean(form.maintenanceMode),
         documentTemplates: [
           {
-            documentType: 'proposal_template',
-            templateUrl: proposalTemplateUrl.trim(),
-            description: 'Capstone 1 Proposal Manuscript Template',
+            documentType: 'manuscript_template',
+            templateUrl: manuscriptTemplateUrl.trim(),
+            description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
             lastUpdated: new Date(),
           },
           {
-            documentType: 'manuscript_template',
+            documentType: 'proposal_template',
             templateUrl: proposalTemplateUrl.trim(),
-            description: 'BukSU Official Capstone Manuscript Template (Chapters 1–5)',
+            description: 'Capstone 1 Proposal Manuscript Template',
             lastUpdated: new Date(),
           },
           {
@@ -233,13 +255,13 @@ export default function AdministrationSection() {
         ],
       });
 
-      if (proposalTemplateUrl.trim()) {
+      if (manuscriptTemplateUrl.trim()) {
         await updateManuscriptTemplate.mutateAsync({
           targetType: 'MANUSCRIPT_CHAPTERS_1_5',
           academicYear: '2025-2026',
           versionLabel: 'AY 2025–2026 v2.1',
           distributionType: 'GOOGLE_DOCS',
-          docUrl: proposalTemplateUrl.trim(),
+          docUrl: manuscriptTemplateUrl.trim(),
         });
       }
 
@@ -411,10 +433,52 @@ export default function AdministrationSection() {
             Configure default Google Docs templates and Action Done Matrix spreadsheets for student
             access.
           </p>
-          <div className="space-y-3 text-xs">
-            <div className="space-y-1">
-              <Label className="text-xs">Google Docs Title Proposal Template URL</Label>
+          <div className="space-y-3.5 text-xs">
+            {/* Official Capstone Manuscript Template (Wired to Team Workspace Card) */}
+            <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label
+                  htmlFor="settings-manuscript-url"
+                  className="text-xs font-semibold text-foreground flex items-center gap-1.5"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  Official Capstone Manuscript Template URL (Chapters 1–5)
+                </Label>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-primary/30 text-primary py-0"
+                >
+                  Wired to Team Workspace
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Official Google Docs link for the &quot;Official Capstone Manuscript Template&quot;
+                widget on the student team workspace. Students access this copy once their Capstone
+                1 title pitch is evaluated and approved.
+              </p>
               <Input
+                id="settings-manuscript-url"
+                type="url"
+                placeholder="https://docs.google.com/document/d/.../copy"
+                value={manuscriptTemplateUrl}
+                onChange={(e) => {
+                  setManuscriptTemplateUrl(e.target.value);
+                  setDirty(true);
+                }}
+                className="h-8 text-xs font-mono bg-background"
+              />
+            </div>
+
+            {/* Capstone 1 Proposal Template */}
+            <div className="space-y-1">
+              <Label
+                htmlFor="settings-proposal-url"
+                className="text-xs font-medium text-foreground"
+              >
+                Capstone 1 Title Proposal Template URL (Optional)
+              </Label>
+              <Input
+                id="settings-proposal-url"
                 type="url"
                 placeholder="https://docs.google.com/document/d/..."
                 value={proposalTemplateUrl}
@@ -425,9 +489,14 @@ export default function AdministrationSection() {
                 className="h-8 text-xs font-mono"
               />
             </div>
+
+            {/* Action Done Matrix Spreadsheet */}
             <div className="space-y-1">
-              <Label className="text-xs">Action Done Matrix Spreadsheet URL</Label>
+              <Label htmlFor="settings-adm-url" className="text-xs font-medium text-foreground">
+                Action Done Matrix (ADM) Spreadsheet URL
+              </Label>
               <Input
+                id="settings-adm-url"
                 type="url"
                 placeholder="https://docs.google.com/spreadsheets/d/..."
                 value={admSpreadsheetUrl}

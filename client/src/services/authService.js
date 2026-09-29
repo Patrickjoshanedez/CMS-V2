@@ -58,6 +58,7 @@ export const teamService = {
   updateGoogleDocLink: (teamId, data) => api.patch(`/teams/${teamId}/google-doc-link`, data),
   updateGithubLink: (teamId, data) => api.patch(`/teams/${teamId}/github-link`, data),
   lockTeam: (teamId) => api.patch(`/teams/${teamId}/lock`),
+  unlockTeam: (teamId) => api.patch(`/teams/${teamId}/unlock`),
   leaveTeam: (teamId) => api.delete(`/teams/${teamId}/members/me`),
   listTeams: (params) => api.get('/teams', { params }),
   assignCommittee: (teamId, data) => api.put(`/teams/${teamId}/committee`, data),
@@ -161,6 +162,14 @@ export const projectService = {
       }
       if (payload.doi) formData.append('doi', payload.doi);
       if (payload.publicationVenue) formData.append('publicationVenue', payload.publicationVenue);
+      if (payload.academicYear) {
+        formData.append('academicYear', payload.academicYear);
+      } else if (payload.publicationYear) {
+        formData.append(
+          'academicYear',
+          `${payload.publicationYear}-${Number(payload.publicationYear) + 1}`,
+        );
+      }
       if (payload.academicPaperFile) {
         formData.append('academicPaperFile', payload.academicPaperFile);
       }

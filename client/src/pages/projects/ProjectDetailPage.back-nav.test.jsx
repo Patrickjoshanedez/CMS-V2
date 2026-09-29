@@ -48,6 +48,12 @@ vi.mock('@/hooks/useProjects', () => ({
   useArchiveSearch: () => ({ data: { projects: [] } }),
   useUpdateGanttChartUrl: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateDemoVideoUrl: () => ({ mutate: vi.fn(), isPending: false }),
+  usePrototypes: () => ({ data: [], isLoading: false }),
+  useAddPrototypeMedia: () => ({ mutate: vi.fn(), isPending: false }),
+  useAddPrototypeLink: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeletePrototypeMedia: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeletePrototypeLink: () => ({ mutate: vi.fn(), isPending: false }),
+  useRemovePrototype: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/useSubmissions', () => ({

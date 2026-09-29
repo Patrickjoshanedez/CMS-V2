@@ -1,0 +1,49 @@
+{
+  "session_id": "2026-09-29_student-dashboard-space-audit-and-calendar-timeline-refactor",
+  "timestamp": "2026-09-29T02:44:00+08:00",
+  "status": "completed",
+  "role": "Lead Systems Architect & Full-Stack Engineer (BukSU CMS-V2)",
+  "compliance_standard": "ASDLC [v2.0] & Supreme Cognitive Protocols [v2.1]",
+  "task_description": "Audited student dashboard space bloat and layout inefficiency: (1) Removed false 'Adviser confirmation pending final submission' requirement from TeamsPage lock checklist; (2) Merged fragmented dual-tier invite elements on TeamsPage into a unified Invite Teammates card; (3) Renamed BulkInviteModal to Invite Teammates, removed 'Paste Multiple Emails' tab, scoped default candidate view to unassigned section peers with global search fallback; (4) Eliminated ghost mock data leak (SAMPLE_EVENTS) in DefenseScheduleCalendar and DashboardPage; (5) Implemented dual-mode Agenda Timeline / Month Grid view in DefenseScheduleCalendar with accessible button day cells; (6) Redesigned student dashboard Phase 0 experience into a high-density Capstone Onboarding Stepper (Steps 1-4) with clear CTAs, eliminating redundant 0-metrics and empty boxes; (7) Normalized all text-secondary colors to canonical text-muted-foreground design tokens. Verified with 22/22 targeted client tests, Playwright visual audits across desktop (1440x900) and mobile (390x844) viewports in light and dark modes, UNMATCHED_COUNT=0 route parity, and 60/60 agentic validation checks.",
+  "skills_used": [
+    "frontend-patterns",
+    "ui-design-principles",
+    "i-arrange",
+    "i-polish",
+    "verification-loop",
+    "capstone-lifecycle-orchestrator"
+  ],
+  "files_modified": [
+    "client/src/pages/teams/TeamsPage.jsx",
+    "client/src/pages/teams/TeamsPage.test.jsx",
+    "client/src/components/teams/BulkInviteModal.jsx",
+    "client/src/components/teams/BulkInviteModal.test.jsx",
+    "client/src/components/calendar/DefenseScheduleCalendar.jsx",
+    "client/src/components/calendar/DefenseScheduleCalendar.test.jsx",
+    "client/src/pages/dashboard/DashboardPage.jsx",
+    "client/src/pages/dashboard/StudentDashboard.test.jsx",
+    "server/modules/teams/team.service.js"
+  ],
+  "verification_evidence": {
+    "targeted_tests_passed": 22,
+    "endpoint_parity": "UNMATCHED_COUNT=0 (SERVER=219, CLIENT=199)",
+    "agentic_validation": "60/60 checks passed",
+    "visual_audits": [
+      "student_dashboard_01_desktop_light.png",
+      "student_dashboard_02_desktop_dark.png",
+      "student_dashboard_03_mobile_light.png",
+      "student_dashboard_04_mobile_dark.png",
+      "teams_page_01_desktop_light.png",
+      "teams_page_02_desktop_dark.png",
+      "phase0_onboarding_01_desktop_light.png",
+      "phase0_onboarding_02_desktop_dark.png",
+      "phase0_onboarding_03_mobile_light.png",
+      "phase0_onboarding_04_mobile_dark.png"
+    ]
+  },
+  "lessons_learned": [
+    "Lesson: Never return undefined from empty array memo hooks when downstream components declare default parameters with fallback sample mock data (calendarEvents returned undefined instead of [], triggering SAMPLE_EVENTS default with fake Team Alpha HealthAI hearing).",
+    "Lesson: Student dashboards in academic systems should differentiate Phase 0 (unassigned onboarding) from active project execution; displaying empty 0% / 0 approved metrics creates cognitive dissonance, whereas a sequential onboarding journey provides actionable direction.",
+    "Lesson: Segmented Agenda vs Month view toggle compresses calendar space from 550px to 140px while delivering richer contextual information for infrequent academic milestones."
+  ]
+}

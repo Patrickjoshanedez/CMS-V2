@@ -92,6 +92,7 @@ router.patch(
 );
 
 router.patch('/:id/lock', authorize(ROLES.STUDENT), teamController.lockTeam);
+router.patch('/:id/unlock', authorize(ROLES.STUDENT, ROLES.INSTRUCTOR), teamController.unlockTeam);
 router.delete('/:id/members/me', authorize(ROLES.STUDENT), teamController.leaveTeam);
 
 // --- Instructor/Adviser listing route ---

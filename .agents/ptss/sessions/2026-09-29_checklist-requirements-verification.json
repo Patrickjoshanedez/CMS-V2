@@ -1,0 +1,53 @@
+{
+  "session_id": "2026-09-29_checklist-requirements-verification",
+  "timestamp": "2026-09-29T13:30:00+08:00",
+  "task": "Fulfill 5-item operational checklist across proposal gating, archived project direct reading, plagiarism vs similarity terminology, flagged proposal submission, and per-session submission lists with visual proof across light and dark modes",
+  "requirements_fulfilled": [
+    {
+      "requirement": "Results should be seen only once details are filled in",
+      "implementation": "Gated similarity analysis tab and clearance meters behind hasDetailsFilled (>= 10 chars title, >= 20 chars description, or >= 10 chars problemStatement). Displays similarity-awaiting-details prompt card and Awaiting Details badge when empty.",
+      "visual_proof": [
+        "proposal_01_awaiting_details_light.png",
+        "proposal_02_awaiting_details_dark.png"
+      ]
+    },
+    {
+      "requirement": "User should be able to read the full paper if project is archived, details should not be visible (direct to whole paper)",
+      "implementation": "ProjectDetailPage and MyProjectPage route archived projects directly to CanonicalDocumentViewer and /archive/document/:id, hiding administrative drafting tabs, steppers, and review cards.",
+      "visual_proof": [
+        "archive_01_whole_paper_reader_light.png",
+        "archive_02_whole_paper_reader_dark.png"
+      ]
+    },
+    {
+      "requirement": "Tabs: plagiarism vs similarity should be definite",
+      "implementation": "Active capstone submissions strictly use 'Plagiarism' / 'Plagiarism Matches'; archive document reader strictly uses 'Similarity' / 'Similarity Matches' and '12% Similarity' score.",
+      "visual_proof": [
+        "archive_01_whole_paper_reader_light.png",
+        "proposal_03_flagged_submission_light.png"
+      ]
+    },
+    {
+      "requirement": "Proposal should be able to be submitted, but should be flagged",
+      "implementation": "Eliminated 409 conflict throwing on high title similarity. Displays amber alert banner 'Proposal Flagged for Similarity Scrutiny' with 'Similarity Flagged' badge. Submit button is unlocked and sends isFlagged: true, flagReason, and similarityScore.",
+      "visual_proof": [
+        "proposal_03_flagged_submission_light.png",
+        "proposal_04_flagged_submission_dark.png"
+      ]
+    },
+    {
+      "requirement": "Per session submission list",
+      "implementation": "ChapterReviewPanel connects selectedSession filter ('all', 's1', 's2') to displayItems filtering, grouping initial rounds vs revisions per session.",
+      "visual_proof": [
+        "session_01_filter_initial_rounds_light.png",
+        "session_02_filter_revisions_light.png",
+        "session_03_filter_revisions_dark.png"
+      ]
+    }
+  ],
+  "quality_gates": {
+    "check_endpoints": "PASSED (220 server / 200 client, 0 unmatched)",
+    "validate_agentic": "PASSED (60/60 checks)",
+    "targeted_client_tests": "PASSED (5 files, 47 tests passed)"
+  }
+}

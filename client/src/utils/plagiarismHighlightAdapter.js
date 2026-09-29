@@ -1,6 +1,108 @@
 import { getTextPosition } from 'react-pdf-highlighter-plus';
 
 /**
+ * Canonical Turnitin 10-Source Color Palette
+ */
+export const TURNITIN_SOURCE_PALETTE = [
+  '#ef4444', // 1: Red
+  '#f97316', // 2: Orange
+  '#ca8a04', // 3: Yellow / Dark Amber
+  '#10b981', // 4: Emerald
+  '#3b82f6', // 5: Blue
+  '#a855f7', // 6: Purple
+  '#14b8a6', // 7: Teal
+  '#ec4899', // 8: Pink
+  '#22c55e', // 9: Green
+  '#f43f5e', // 10: Rose
+];
+
+/**
+ * Returns a stable, distinct Turnitin color for a given 1-based source number.
+ */
+export function getTurnitinSourceColor(sourceNumber) {
+  const num = Number(sourceNumber) || 1;
+  const index = Math.max(0, num - 1) % TURNITIN_SOURCE_PALETTE.length;
+  return TURNITIN_SOURCE_PALETTE[index];
+}
+
+/**
+ * Decomposes and merges word/token bounding boxes into discrete line rectangles (Method A).
+ * Clusters boxes along vertical baselines and merges horizontal overlapping or adjacent boxes.
+ *
+ * @param {Array<object>} boxes - Array of bounding box objects ({ left, top, width, height, pageNumber } or { x1, y1, x2, y2 }).
+ * @param {object} [options] - Configuration options.
+ * @param {number} [options.baselineThreshold=4] - Maximum vertical baseline difference (px) to consider boxes on the same line.
+ * @returns {Array<object>} Discrete line rectangles sorted from top to bottom.
+ */
+export function buildTurnitinHighlightRects(boxes = [], options = {}) {
+  if (!Array.isArray(boxes) || boxes.length === 0) return [];
+
+  const baselineThreshold = options.baselineThreshold ?? 4;
+
+  const validBoxes = boxes
+    .map((b) => {
+      const left = Number(b.left ?? b.x1 ?? 0);
+      const top = Number(b.top ?? b.y1 ?? 0);
+      const width = Number(b.width ?? (b.x2 !== undefined && b.x2 !== null ? b.x2 - b.x1 : 0));
+      const height = Number(b.height ?? (b.y2 !== undefined && b.y2 !== null ? b.y2 - b.y1 : 0));
+      const pageNumber = Number(b.pageNumber ?? 1);
+      return { left, top, width, height, pageNumber };
+    })
+    .filter((b) => b.width > 0 && b.height > 0);
+
+  if (validBoxes.length === 0) return [];
+
+  // Sort primarily by pageNumber, then by top (vertical baseline), then by left
+  validBoxes.sort((a, b) => a.pageNumber - b.pageNumber || a.top - b.top || a.left - b.left);
+
+  const lineClusters = [];
+  let currentCluster = [];
+
+  for (const box of validBoxes) {
+    if (currentCluster.length === 0) {
+      currentCluster.push(box);
+      continue;
+    }
+
+    const reference = currentCluster[0];
+    const samePage = box.pageNumber === reference.pageNumber;
+    const baselineDiff = Math.abs(box.top - reference.top);
+    const maxDiff = Math.max(baselineThreshold, box.height * 0.45);
+
+    if (samePage && baselineDiff <= maxDiff) {
+      currentCluster.push(box);
+    } else {
+      lineClusters.push(currentCluster);
+      currentCluster = [box];
+    }
+  }
+  if (currentCluster.length > 0) {
+    lineClusters.push(currentCluster);
+  }
+
+  const lineRects = [];
+  for (const cluster of lineClusters) {
+    cluster.sort((a, b) => a.left - b.left);
+
+    const pageNumber = cluster[0].pageNumber;
+    const minLeft = Math.min(...cluster.map((c) => c.left));
+    const maxRight = Math.max(...cluster.map((c) => c.left + c.width));
+    const minTop = Math.min(...cluster.map((c) => c.top));
+    const maxBottom = Math.max(...cluster.map((c) => c.top + c.height));
+
+    lineRects.push({
+      left: minLeft,
+      top: minTop,
+      width: maxRight - minLeft,
+      height: maxBottom - minTop,
+      pageNumber,
+    });
+  }
+
+  return lineRects;
+}
+
+/**
  * Normalizes academic capstone text for resilient matching across dual-column line wraps,
  * soft hyphens, typographic ligatures, and PDF glyph/kerning boundaries.
  */
@@ -165,7 +267,40 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
           parentMatch.contextSignal ||
           (semantic >= 0.7 && winnow < 0.3 ? 'paraphrase' : winnow >= 0.8 ? 'verbatim' : 'mixed');
 
+        const sourceNumber =
+          parentMatch.sourceNumber ??
+          (parentMatch.sourceIndex !== undefined && parentMatch.sourceIndex !== null
+            ? parentMatch.sourceIndex + 1
+            : index + 1);
+
+        const sourceColor =
+          parentMatch.palette?.dot ||
+          parentMatch.palette?.color ||
+          getTurnitinSourceColor(sourceNumber);
+
+        const resolvedPalette = parentMatch.palette || {
+          dot: sourceColor,
+          color: sourceColor,
+          badgeStyle: {
+            background: `${sourceColor}26`,
+            color: sourceColor,
+            border: `1px solid ${sourceColor}59`,
+          },
+          mark: {
+            background: `${sourceColor}38`,
+            outline: `1px solid ${sourceColor}73`,
+          },
+        };
+
         const pageNum = textPosition.pageNumber || textPosition.position?.pageNumber || 1;
+        let rawRects = (textPosition.position.rects || []).map((r) => ({
+          ...r,
+          pageNumber: r.pageNumber || pageNum,
+        }));
+        if (rawRects.length === 0 && textPosition.position.boundingRect) {
+          rawRects = [{ ...textPosition.position.boundingRect, pageNumber: pageNum }];
+        }
+
         const normalizedPosition = {
           ...textPosition.position,
           pageNumber: pageNum,
@@ -173,10 +308,7 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
             ...textPosition.position.boundingRect,
             pageNumber: textPosition.position.boundingRect?.pageNumber || pageNum,
           },
-          rects: (textPosition.position.rects || []).map((r) => ({
-            ...r,
-            pageNumber: r.pageNumber || pageNum,
-          })),
+          rects: rawRects,
         };
 
         highlights.push({
@@ -189,6 +321,12 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
           meta: {
             similarityScore: Math.round(score * 100),
             matchedSourceId: parentMatch.sourceId || parentMatch.matchedProjectId || null,
+            projectId: parentMatch.projectId || parentMatch.sourceId || null,
+            sourceUrl: parentMatch.sourceUrl || null,
+            doi: parentMatch.doi || null,
+            isArchive: Boolean(parentMatch.isArchive),
+            sourceNumber,
+            sourceColor,
             sourceTitle:
               parentMatch.sourceTitle ||
               parentMatch.projectTitle ||
@@ -200,7 +338,7 @@ export async function resolvePlagiarismHighlights(pdfDocument, plagiarismMatches
             semanticScore: Math.round(semantic * 100),
             contextSignal,
             scoreTierClass,
-            palette: parentMatch.palette || null,
+            palette: resolvedPalette,
           },
         });
       }

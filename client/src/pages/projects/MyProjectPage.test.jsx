@@ -241,4 +241,21 @@ describe('MyProjectPage Navigation, Tabs and Submissions Isolation', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/projects', { replace: true });
   });
+
+  it('redirects student with an archived project directly to the whole paper in archive document viewer', async () => {
+    mockProjectData.isArchived = true;
+    mockProjectData._id = 'project-archived-999';
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <MyProjectPage />
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/archive/document/project-archived-999', {
+      replace: true,
+    });
+  });
 });

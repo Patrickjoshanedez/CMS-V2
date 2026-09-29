@@ -72,6 +72,45 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
     publisher: 'BukSU Studies Center',
     doi: '10.5281/zenodo.101010',
     originalityScore: 97.5,
+    similarityScore: 2.5,
+  };
+
+  const mockCleanProject = {
+    ...mockProject,
+    _id: 'archived-clean-102',
+    title: 'Autonomous Agro-Ecological Robotic Platform',
+    originalityScore: 100,
+    similarityScore: 0,
+  };
+
+  const mockProjectWithSources = {
+    ...mockProject,
+    originalityScore: 92,
+    similarityScore: 8,
+    plagiarismResult: {
+      overallScore: 8,
+      matchedSources: [
+        {
+          sourceId: 'src-authentic-1',
+          sourceTitle: 'BukSU Institutional IoT Research Archive',
+          similarityPercentage: 8,
+          contextSignal: 'paraphrase',
+          winnowScore: 0.12,
+          semanticScore: 0.88,
+          matchedText: 'Sensor node calibration in agricultural environments',
+          sourceSnippet:
+            'Comprehensive IoT calibration across high-humidity agricultural soil sensors.',
+          spans: [
+            {
+              spanId: 'span-1',
+              matchedText: 'Sensor node calibration in agricultural environments',
+              similarity: 8,
+              pageNumber: 1,
+            },
+          ],
+        },
+      ],
+    },
   };
 
   const renderViewer = async (projectProps = mockProject) => {
@@ -97,8 +136,8 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       // 3. Cite trigger
       expect(container.textContent).toContain('Cite');
 
-      // 4. Originality Report badge
-      expect(container.textContent).toContain('98% Original');
+      // 4. Similarity Report badge (Archive standard: Similarity Score)
+      expect(container.textContent).toContain('3% Similarity');
 
       // 5. Copy DOI / Share
       expect(container.textContent).toContain('Copy DOI');
@@ -110,14 +149,14 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(container.textContent).not.toContain('Line Diff');
     });
 
-    it('toggles originality report slide-out drawer on badge click', async () => {
+    it('toggles similarity report slide-out drawer on badge click', async () => {
       await renderViewer(mockProject);
 
       // Initially drawer is not visible
       expect(container.querySelector('aside[aria-label="Originality Report Details"]')).toBeFalsy();
 
       const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-        b.textContent.includes('98% Original'),
+        b.textContent.includes('3% Similarity'),
       );
       expect(badgeBtn).toBeTruthy();
 
@@ -131,6 +170,7 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(drawer.textContent).toContain('Audit Verification');
       expect(drawer.textContent).toContain('Winnowing + SentenceTransformers');
       expect(drawer.textContent).toContain('Unique Content: 97.5%');
+      expect(drawer.textContent).toContain('Similarity Overlap: 2.5%');
     });
 
     it('allows toggling between Academic Paper and Academic Journal view modes', async () => {
@@ -246,12 +286,32 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(container.textContent).toContain('Archive Default Fallback');
     });
 
-    it('renders Turnitin-style Match Overview with signal badges and dual exact/semantic bars in drawer', async () => {
-      await renderViewer(mockProject);
+    it('renders zero overlap accurately for clean first upload with 0% similarity and 0 fake sources', async () => {
+      await renderViewer(mockCleanProject);
 
       const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-        b.textContent.includes('98% Original'),
+        b.textContent.includes('0% Similarity'),
       );
+      expect(badgeBtn).toBeTruthy();
+
+      await act(async () => {
+        badgeBtn.click();
+      });
+
+      const drawer = container.querySelector('aside[aria-label="Originality Report Details"]');
+      expect(drawer).toBeTruthy();
+      expect(drawer.textContent).toContain('Zero Overlap Detected (100% Unique)');
+      expect(drawer.textContent).toContain('0 matching passages found');
+      expect(drawer.textContent).not.toContain('BukSU Capstone & Research Repository');
+    });
+
+    it('renders Turnitin-style Match Overview with authentic sources, signal badges and dual exact/semantic bars in drawer', async () => {
+      await renderViewer(mockProjectWithSources);
+
+      const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('8% Similarity'),
+      );
+      expect(badgeBtn).toBeTruthy();
       await act(async () => {
         badgeBtn.click();
       });
@@ -264,27 +324,27 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       expect(drawer.textContent).toContain('Paraphrase');
       expect(drawer.textContent).toContain('Verbatim');
 
-      // Match Overview & Sources check
+      // Match Overview & Authentic Sources check
       expect(drawer.textContent).toContain('Match Overview');
-      expect(drawer.textContent).toContain('BukSU Capstone & Research Repository');
+      expect(drawer.textContent).toContain('BukSU Institutional IoT Research Archive');
 
       // Check context signal badge (VERBATIM / PARAPHRASE / MIXED)
-      const hasSignalBadge =
-        drawer.textContent.includes('PARAPHRASE') ||
-        drawer.textContent.includes('VERBATIM') ||
-        drawer.textContent.includes('MIXED');
-      expect(hasSignalBadge).toBe(true);
+      expect(drawer.textContent).toContain('PARAPHRASE');
 
       // Check dual bars
       expect(drawer.textContent).toContain('Exact Overlap (Winnowing)');
       expect(drawer.textContent).toContain('Semantic Overlap (Embedding Cosine)');
+
+      // Check action buttons in row
+      expect(drawer.textContent).toContain('Jump to Paper');
+      expect(drawer.textContent).toContain('Open Source');
     });
 
-    it('allows selecting a source to inspect active source detail with 3-bar breakdown and diagnosis', async () => {
-      await renderViewer(mockProject);
+    it('allows selecting an authentic source to inspect active source detail with 3-bar breakdown and jump to paper', async () => {
+      await renderViewer(mockProjectWithSources);
 
       const badgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-        b.textContent.includes('98% Original'),
+        b.textContent.includes('8% Similarity'),
       );
       await act(async () => {
         badgeBtn.click();
@@ -293,19 +353,32 @@ describe('CanonicalDocumentViewer & useArchiveSearchState', () => {
       const drawer = container.querySelector('aside[aria-label="Originality Report Details"]');
       expect(drawer).toBeTruthy();
 
-      // Find and click the first source row
-      const sourceRow = drawer.querySelector('button.w-full.rounded-lg');
-      expect(sourceRow).toBeTruthy();
+      // Find and click the source container or title
+      const sourceTitleBtn = Array.from(drawer.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('BukSU Institutional IoT Research Archive'),
+      );
+      expect(sourceTitleBtn).toBeTruthy();
 
       await act(async () => {
-        sourceRow.click();
+        sourceTitleBtn.click();
       });
 
       // Active detail panel opens
       expect(drawer.textContent).toContain('Blended Overlap');
       expect(drawer.textContent).toContain('Manuscript Excerpt');
       expect(drawer.textContent).toContain('Archive Source Match');
-      expect(drawer.textContent).toContain('Inspect on Manuscript Canvas');
+      expect(drawer.textContent).toContain('Jump to Paper (Highlight on Manuscript Canvas)');
+      expect(drawer.textContent).toContain('Open Source Publication in Archive');
+
+      // Test jump to paper action
+      const jumpBtn = Array.from(drawer.querySelectorAll('button')).find((b) =>
+        b.textContent.includes('Jump to Paper'),
+      );
+      expect(jumpBtn).toBeTruthy();
+
+      await act(async () => {
+        jumpBtn.click();
+      });
 
       // Close back to source list
       const backBtn = drawer.querySelector('button[aria-label="Back to all sources"]');

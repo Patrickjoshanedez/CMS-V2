@@ -1,0 +1,42 @@
+{
+  "$schema": "https://cms.buksu.edu.ph/schemas/ptss-session.schema.json",
+  "session_id": "2026-09-29_database-wipe-and-clean-users-reseed",
+  "timestamp": "2026-09-29T01:32:00.000Z",
+  "task_summary": "Executed complete database wipe across all MongoDB collections, flushed Redis, cleared MinIO S3 bucket, initialized Academic Foundation (Academic Year 2025-2026, Course BSIT, Sections BSIT-4A to 4D, Global SystemSettings), and reseeded all official BukSU users and canonical test accounts with default password Password123! and strictly 0 projects, 0 teams, and 0 submissions.",
+  "task_category": "database_seeding_and_workflow_orchestration",
+  "skills_written": [],
+  "skills_patched": [],
+  "asdlc_phase": "STAGE 8: FIX AUDITING & DUAL-PERSISTENCE ARCHIVAL",
+  "verification_results": {
+    "collection_counts": {
+      "projects": 0,
+      "teams": 0,
+      "submissions": 0,
+      "evaluations": 0,
+      "defenseminutes": 0,
+      "teaminvites": 0,
+      "notifications": 0,
+      "refreshtokens": 0,
+      "auditlogs": 0,
+      "users": 35,
+      "academicyears": 1,
+      "courses": 1,
+      "sections": 4,
+      "systemsettings": 1,
+      "passed": true
+    },
+    "authentication_tests": {
+      "student_login_200": true,
+      "instructor_login_200": true,
+      "faculty_adviser_match": true,
+      "faculty_panelist_match": true,
+      "faculty_secretary_match": true,
+      "passed": true
+    }
+  },
+  "lessons_learned": [
+    "Lesson: When wiping all collections for a clean user-only restart, the Academic Foundation (AcademicYear, Course, Sections) and singleton SystemSettings must always be re-seeded alongside users, otherwise students navigating to /profile cannot bind their Section or select Course Instructors.",
+    "Lesson learned: Ensure all seeded student records have teamId: null and panelAssignments: [] to guarantee a pristine Phase 0 (Team Formation & Roster Locking) testing environment.",
+    "Prevention: When connecting to MongoDB from host scripts in hybrid Windows/Docker environments, specify candidates in order of accessibility (127.0.0.1:27018 -> localhost:27018 -> mongodb:27017) with an explicit serverSelectionTimeoutMS: 3000 to prevent long DNS resolution socket stalls."
+  ]
+}

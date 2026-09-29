@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import 'pdfjs-dist/web/pdf_viewer.css';
 import {
   PdfLoader,
   PdfHighlighter,
   TextHighlight,
-  MonitoredHighlightContainer,
+  useHighlightContainerContext,
 } from 'react-pdf-highlighter-plus';
 import 'react-pdf-highlighter-plus/style/style.css';
 import 'react-pdf-highlighter-plus/style/pdf_viewer.css';
+import TurnitinHighlightOverlay from './TurnitinHighlightOverlay';
 
 // Ensure PDF.js worker is registered locally
 import '@/utils/pdfWorker';
@@ -23,6 +25,7 @@ import {
   User,
   X,
   Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -34,14 +37,20 @@ import {
 /**
  * Custom Highlight Popover & Content Container
  */
-function HighlightPopupContent({
+export function HighlightPopupContent({
   highlight,
   onAddReply,
   onResolveComment,
   onAddToAdm,
   onClose,
   canReply = true,
+  isArchive = false,
 }) {
+  const isArchiveMode = Boolean(
+    isArchive ||
+    highlight.meta?.isArchive ||
+    (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/archive')),
+  );
   const isOverlap = highlight.isCrossLayerOverlap || highlight.isOverlap;
   const isPlagiarism = highlight.type?.startsWith('plagiarism_');
   const isComment = highlight.type === 'faculty_comment';
@@ -117,7 +126,7 @@ function HighlightPopupContent({
               className="text-[10px] py-0 px-1.5 bg-rose-500/10 text-rose-400 border-rose-500/30 flex items-center gap-1"
             >
               <ShieldAlert className="h-3 w-3" />
-              PLAGIARISM{' '}
+              {isArchiveMode ? 'SIMILARITY' : 'PLAGIARISM'}{' '}
               {highlight.meta?.similarityScore ? `(${highlight.meta.similarityScore}%)` : ''}
             </Badge>
           )}
@@ -171,7 +180,8 @@ function HighlightPopupContent({
             onClick={() => setActiveTab('plagiarism')}
           >
             <ShieldAlert className="h-3 w-3 text-rose-400" />
-            Plagiarism ({plagiarismItem?.meta?.similarityScore || 0}%)
+            {isArchiveMode ? 'Similarity' : 'Plagiarism'} (
+            {plagiarismItem?.meta?.similarityScore || 0}%)
           </button>
         </div>
       )}
@@ -306,7 +316,9 @@ function HighlightPopupContent({
           </div>
 
           <div className="flex items-center justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px]">
-            <span className="text-muted-foreground">Originality Similarity:</span>
+            <span className="text-muted-foreground">
+              {isArchiveMode ? 'Content Similarity:' : 'Originality Similarity:'}
+            </span>
             <span className="font-bold text-rose-500">
               {plagiarismItem.meta?.similarityScore || 0}% Match
             </span>
@@ -315,7 +327,7 @@ function HighlightPopupContent({
           {plagiarismItem.content?.text && (
             <div className="bg-muted/30 p-2 rounded-lg border border-border/50 space-y-1">
               <span className="text-[10px] text-muted-foreground font-semibold">
-                Flagged Manuscript Passage:
+                {isArchiveMode ? 'Similar Manuscript Passage:' : 'Flagged Manuscript Passage:'}
               </span>
               <p className="text-[11px] text-foreground leading-relaxed italic">
                 &ldquo;{plagiarismItem.content.text}&rdquo;
@@ -323,7 +335,41 @@ function HighlightPopupContent({
             </div>
           )}
 
-          {onAddToAdm && (
+          {/* Direct Redirection to Source in Archive or External */}
+          {(plagiarismItem.meta?.projectId ||
+            plagiarismItem.meta?.matchedSourceId ||
+            plagiarismItem.meta?.sourceId ||
+            plagiarismItem.meta?.doi ||
+            plagiarismItem.meta?.sourceUrl ||
+            isArchiveMode) && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                const meta = plagiarismItem.meta || {};
+                const sourceId = meta.projectId || meta.matchedSourceId || meta.sourceId;
+                if (meta.doi) {
+                  const doiUrl = meta.doi.startsWith('http')
+                    ? meta.doi
+                    : `https://doi.org/${meta.doi}`;
+                  window.open(doiUrl, '_blank', 'noopener,noreferrer');
+                } else if (meta.sourceUrl) {
+                  window.open(meta.sourceUrl, '_blank', 'noopener,noreferrer');
+                } else if (sourceId && String(sourceId).length === 24) {
+                  window.location.href = `/archive/document/${sourceId}`;
+                } else if (meta.sourceTitle) {
+                  window.location.href = `/archive?q=${encodeURIComponent(meta.sourceTitle)}`;
+                }
+              }}
+              className="w-full text-xs gap-1.5 border border-border/60 hover:bg-accent text-foreground mt-1 font-medium"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open Source Publication in Archive
+            </Button>
+          )}
+
+          {!isArchiveMode && onAddToAdm && (
             <Button
               type="button"
               variant="outline"
@@ -382,6 +428,8 @@ function CustomHighlightRenderer({
         highlight.meta?.matchedSourceId === activeHighlightId ||
         String(highlight.id).includes(activeHighlightId)),
     );
+
+  const firstRect = highlight.position?.boundingRect || highlight.position?.rects?.[0] || null;
 
   let highlightClass = 'highlight-custom';
   if (isCrossLayerOverlap || isOverlap) {
@@ -449,7 +497,8 @@ function CustomHighlightRenderer({
       />
       {/* Margin Gutter Split-Pills with Quick Anchors */}
       <div
-        className="absolute -left-12 -top-1 gutter-split-pill z-20 pointer-events-auto"
+        className="absolute -left-12 gutter-split-pill z-20 pointer-events-auto"
+        style={firstRect ? { top: `${firstRect.top}px` } : { top: '-4px' }}
         onClick={handleClick}
         title={
           isCrossLayerOverlap
@@ -495,8 +544,14 @@ function CustomHighlightRenderer({
       </div>
 
       {/* Popover Card */}
-      {(showPopup || isSelected) && (
-        <div className="absolute top-full left-0 mt-2 z-50">
+      {(showPopup || isMatchSelected) && firstRect && (
+        <div
+          className="absolute z-50 pointer-events-auto"
+          style={{
+            left: `${firstRect.left}px`,
+            top: `${firstRect.top + firstRect.height + 6}px`,
+          }}
+        >
           <HighlightPopupContent
             highlight={highlight}
             onAddReply={onAddReply}
@@ -507,6 +562,54 @@ function CustomHighlightRenderer({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * HighlightContainerItem — Context Consumer for PdfHighlighter Children
+ *
+ * Consumes useHighlightContainerContext to receive the active highlight and scroll state.
+ * Routes plagiarism highlights to TurnitinHighlightOverlay and faculty comments to
+ * CustomHighlightRenderer.
+ */
+function HighlightContainerItem({
+  activeHighlightId,
+  onClick,
+  onAddReply,
+  onResolveComment,
+  onAddToAdm,
+  plagiarismOpacity,
+}) {
+  const { highlight, isScrolledTo } = useHighlightContainerContext();
+
+  const isSelected = isScrolledTo || highlight.id === activeHighlightId;
+  const isPlagiarism = highlight.type?.startsWith('plagiarism_');
+
+  if (isPlagiarism) {
+    return (
+      <TurnitinHighlightOverlay
+        highlight={highlight}
+        isSelected={isSelected}
+        activeHighlightId={activeHighlightId}
+        onClick={onClick}
+        onAddReply={onAddReply}
+        onResolveComment={onResolveComment}
+        onAddToAdm={onAddToAdm}
+        opacity={plagiarismOpacity}
+      />
+    );
+  }
+
+  return (
+    <CustomHighlightRenderer
+      highlight={highlight}
+      isSelected={isSelected}
+      activeHighlightId={activeHighlightId}
+      onClick={onClick}
+      onAddReply={onAddReply}
+      onResolveComment={onResolveComment}
+      onAddToAdm={onAddToAdm}
+    />
   );
 }
 
@@ -523,6 +626,7 @@ function PdfViewerInner({
   layerFilter = 'all',
   canComment = true,
   utilsRef,
+  plagiarismOpacity = 0.28,
 }) {
   const [resolvedPlagiarismHighlights, setResolvedPlagiarismHighlights] = useState([]);
 
@@ -589,19 +693,13 @@ function PdfViewerInner({
       onScrollChange={() => {}}
       pdfScaleValue="page-width"
     >
-      <MonitoredHighlightContainer
-        onHighlightClick={(h) => onHighlightClick?.(h)}
-        renderHighlight={(highlight, isSelected) => (
-          <CustomHighlightRenderer
-            highlight={highlight}
-            isSelected={isSelected || highlight.id === activeHighlightId}
-            activeHighlightId={activeHighlightId}
-            onClick={onHighlightClick}
-            onAddReply={onAddReply}
-            onResolveComment={onResolveComment}
-            onAddToAdm={onAddToAdm}
-          />
-        )}
+      <HighlightContainerItem
+        activeHighlightId={activeHighlightId}
+        onClick={onHighlightClick}
+        onAddReply={onAddReply}
+        onResolveComment={onResolveComment}
+        onAddToAdm={onAddToAdm}
+        plagiarismOpacity={plagiarismOpacity}
       />
     </PdfHighlighter>
   );
@@ -620,6 +718,7 @@ PdfViewerInner.propTypes = {
   layerFilter: PropTypes.string,
   canComment: PropTypes.bool,
   utilsRef: PropTypes.oneOfType([PropTypes.func, PropTypes.shape({ current: PropTypes.any })]),
+  plagiarismOpacity: PropTypes.number,
 };
 
 /**
@@ -663,6 +762,29 @@ export function PdfViewerWorkspace({
       className={`relative h-full w-full bg-background overflow-hidden select-text ${className}`}
     >
       <style>{`
+        /* Ensure PDF.js text layer is transparent and accurately positioned */
+        .textLayer {
+          display: block !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          overflow: hidden !important;
+          opacity: 1 !important;
+          line-height: 1 !important;
+        }
+        .textLayer :is(span, br) {
+          color: transparent !important;
+          position: absolute !important;
+          white-space: pre !important;
+          cursor: text !important;
+          transform-origin: 0% 0% !important;
+        }
+        /* Neutralize internal PDF.js .highlight purple styling so only Turnitin overlay shows */
+        .textLayer .highlight {
+          background-color: transparent !important;
+        }
         .highlight-plagiarism .TextHighlight__part {
           border-bottom: 2px solid currentColor !important;
           border-radius: 2px !important;
@@ -718,6 +840,7 @@ export function PdfViewerWorkspace({
             layerFilter={layerFilter}
             userRole={userRole}
             canComment={canComment}
+            plagiarismOpacity={Math.max(0.15, Math.min(1, plagiarismOpacity / 100))}
             utilsRef={(utils) => {
               highlighterUtilsRef.current = utils;
               if (typeof onUtilsReady === 'function') {

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import mongoose from 'mongoose';
 import { request, createAuthenticatedUserWithRole, createCourseAndSection } from '../helpers.js';
 import User from '../../modules/users/user.model.js';
 import Team from '../../modules/teams/team.model.js';
 import TeamInvite from '../../modules/teams/teamInvite.model.js';
+import Project from '../../modules/projects/project.model.js';
 
 /**
  * Team flow integration tests — covers team creation, invites,
@@ -681,7 +683,25 @@ describe('Teams API — /api/teams', () => {
       });
 
       const teamId = teamRes.body.data.team._id;
-      const res = await leaderAgent.get(`/api/teams/${teamId}/invite-candidates`);
+
+      // Default panel listing without search query strictly scopes to unassigned students in the same section
+      const defaultPanelRes = await leaderAgent.get(`/api/teams/${teamId}/invite-candidates`);
+      expect(defaultPanelRes.status).toBe(200);
+      expect(
+        defaultPanelRes.body.data.candidates.some(
+          (c) => c.email === 'invite-candidate-same-section@example.com',
+        ),
+      ).toBe(true);
+      expect(
+        defaultPanelRes.body.data.candidates.some(
+          (c) => c.email === 'invite-candidate-other-section@example.com',
+        ),
+      ).toBe(false);
+
+      // When search query is provided, the scope is NOT limited to section
+      const res = await leaderAgent.get(
+        `/api/teams/${teamId}/invite-candidates?search=invite-candidate`,
+      );
 
       expect(res.status).toBe(200);
       const sameSectionCandidate = res.body.data.candidates.find(
@@ -738,7 +758,9 @@ describe('Teams API — /api/teams', () => {
       });
 
       const leaderTeamId = leaderTeamRes.body.data.team._id;
-      const res = await leaderAgent.get(`/api/teams/${leaderTeamId}/invite-candidates`);
+      const res = await leaderAgent.get(
+        `/api/teams/${leaderTeamId}/invite-candidates?search=tc-team-009`,
+      );
 
       expect(res.status).toBe(200);
       const eligibleCandidate = res.body.data.candidates.find(
@@ -824,6 +846,136 @@ describe('Teams API — /api/teams', () => {
           }),
         ]),
       );
+    });
+  });
+
+  // ----- UNLOCK TEAM ROSTER -----
+
+  describe('PATCH /api/teams/:id/unlock', () => {
+    it('should allow team leader to unlock a finalized team roster', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'unlock-leader@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Unlock Leader Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      // Lock team first
+      const lockRes = await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+      expect(lockRes.status).toBe(200);
+      expect(lockRes.body.data.team.isLocked).toBe(true);
+
+      // Leader unlocks roster
+      const unlockRes = await leaderAgent.patch(`/api/teams/${teamId}/unlock`).send({});
+      expect(unlockRes.status).toBe(200);
+      expect(unlockRes.body.success).toBe(true);
+      expect(unlockRes.body.data.team.isLocked).toBe(false);
+
+      const refreshedTeam = await Team.findById(teamId).select('isLocked');
+      expect(refreshedTeam.isLocked).toBe(false);
+    });
+
+    it('should allow course instructor to unlock a finalized team roster', async () => {
+      const { agent: instructorAgent, user: instructor } = await createAuthenticatedUserWithRole(
+        'instructor',
+        {
+          email: 'unlock-instructor@example.com',
+        },
+      );
+
+      const { section } = await createCourseAndSection(instructor._id);
+
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'unlock-team-member@example.com',
+        sectionId: section._id,
+        instructorId: instructor._id,
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Instructor Unlock Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+
+      // Instructor unlocks roster
+      const unlockRes = await instructorAgent.patch(`/api/teams/${teamId}/unlock`).send({});
+      expect(unlockRes.status).toBe(200);
+      expect(unlockRes.body.success).toBe(true);
+      expect(unlockRes.body.data.team.isLocked).toBe(false);
+    });
+
+    it('should reject unlocking when the team is not locked', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'not-locked-leader@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Not Locked Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      const unlockRes = await leaderAgent.patch(`/api/teams/${teamId}/unlock`).send({});
+      expect(unlockRes.status).toBe(400);
+      expect(unlockRes.body.success).toBe(false);
+      expect(unlockRes.body.error.code).toBe('TEAM_NOT_LOCKED');
+    });
+
+    it('should reject unlock from an unauthorized student who is not the team leader', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'original-leader@example.com',
+      });
+
+      const { agent: outsiderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'outsider-unlock@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Outsider Unlock Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+
+      const unlockRes = await outsiderAgent.patch(`/api/teams/${teamId}/unlock`).send({});
+      expect(unlockRes.status).toBe(403);
+      expect(unlockRes.body.success).toBe(false);
+    });
+
+    it('should reject student unlock if project title has already been approved', async () => {
+      const { agent: leaderAgent } = await createAuthenticatedUserWithRole('student', {
+        email: 'title-approved-leader@example.com',
+      });
+
+      const teamRes = await leaderAgent.post('/api/teams').send({
+        name: 'Title Approved Team',
+        academicYear: '2025-2026',
+      });
+      const teamId = teamRes.body.data.team._id;
+
+      await leaderAgent.patch(`/api/teams/${teamId}/lock`).send({});
+
+      // Create a project with approved titleStatus
+      await Project.create({
+        teamId,
+        courseId: new mongoose.Types.ObjectId(),
+        sectionId: new mongoose.Types.ObjectId(),
+        academicYear: '2025-2026',
+        title: 'BukSU Capstone Intelligent Knowledge Archive System',
+        titleProposals: ['BukSU Capstone Intelligent Knowledge Archive System'],
+        titleStatus: 'approved',
+      });
+
+      const unlockRes = await leaderAgent.patch(`/api/teams/${teamId}/unlock`).send({});
+      expect(unlockRes.status).toBe(403);
+      expect(unlockRes.body.success).toBe(false);
+      expect(unlockRes.body.error.code).toBe('TITLE_ALREADY_APPROVED');
     });
   });
 
